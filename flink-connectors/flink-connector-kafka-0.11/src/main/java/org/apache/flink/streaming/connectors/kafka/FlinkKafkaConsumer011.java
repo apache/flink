@@ -44,6 +44,7 @@ import java.util.regex.Pattern;
  * <p>Please refer to Kafka's documentation for the available configuration properties:
  * http://kafka.apache.org/documentation.html#newconsumerconfigs</p>
  */
+@PublicEvolving
 public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 
 	private static final long serialVersionUID = 2324564345203409112L;

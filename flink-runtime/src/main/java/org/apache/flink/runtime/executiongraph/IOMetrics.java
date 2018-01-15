@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.metrics.Meter;
@@ -56,11 +57,11 @@ public class IOMetrics implements Serializable {
 	}
 
 	public IOMetrics(
-			int numBytesInLocal,
-			int numBytesInRemote,
-			int numBytesOut,
-			int numRecordsIn,
-			int numRecordsOut,
+			long numBytesInLocal,
+			long numBytesInRemote,
+			long numBytesOut,
+			long numRecordsIn,
+			long numRecordsOut,
 			double numBytesInLocalPerSecond,
 			double numBytesInRemotePerSecond,
 			double numBytesOutPerSecond,

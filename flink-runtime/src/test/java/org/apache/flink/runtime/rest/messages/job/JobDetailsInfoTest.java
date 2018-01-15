@@ -23,6 +23,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -79,7 +80,7 @@ public class JobDetailsInfoTest extends RestResponseMarshallingTestBase<JobDetai
 
 	private JobDetailsInfo.JobVertexDetailsInfo createJobVertexDetailsInfo(Random random) {
 		final Map<ExecutionState, Integer> tasksPerState = new HashMap<>(ExecutionState.values().length);
-		final JobDetailsInfo.JobVertexMetrics jobVertexMetrics = new JobDetailsInfo.JobVertexMetrics(
+		final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
 			random.nextLong(),
 			random.nextBoolean(),
 			random.nextLong(),

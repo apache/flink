@@ -58,7 +58,7 @@ public class RemoteExecutor extends PlanExecutor {
 
 	private final Configuration clientConfiguration;
 
-	private ClusterClient client;
+	private ClusterClient<?> client;
 
 	private int defaultParallelism = 1;
 

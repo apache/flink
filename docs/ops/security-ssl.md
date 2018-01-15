@@ -140,6 +140,6 @@ security.ssl.truststore-password: password
 flink run -m yarn-cluster -yt deploy-keys/ TestJob.jar
 ~~~
 
-When deployed using YARN, flink's web dashboard is accessible through YARN proxy's Tracking URL. To ensure that the YARN proxy is able to access flink's https url you need to configure YARN proxy to accept flink's SSL certificates. Add the custom CA certificate into Java's default trustore on the YARN Proxy node.
+When deployed using YARN, flink's web dashboard is accessible through YARN proxy's Tracking URL. To ensure that the YARN proxy is able to access flink's https url you need to configure YARN proxy to accept flink's SSL certificates. Add the custom CA certificate into Java's default truststore on the YARN Proxy node.
 
 {% top %}

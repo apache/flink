@@ -20,11 +20,14 @@ package org.apache.flink.client.deployment;
 
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.FlinkException;
 
 /**
  * A descriptor to deploy a cluster (e.g. Yarn or Mesos) and return a Client for Cluster communication.
+ *
+ * @param <T> Type of the cluster id
  */
-public interface ClusterDescriptor<ClientType extends ClusterClient> {
+public interface ClusterDescriptor<T> extends AutoCloseable {
 
 	/**
 	 * Returns a String containing details about the cluster (NodeManagers, available memory, ...).
@@ -34,19 +37,19 @@ public interface ClusterDescriptor<ClientType extends ClusterClient> {
 
 	/**
 	 * Retrieves an existing Flink Cluster.
-	 * @param applicationID The unique application identifier of the running cluster
+	 * @param clusterId The unique identifier of the running cluster
 	 * @return Client for the cluster
-	 * @throws UnsupportedOperationException if this cluster descriptor doesn't support the operation
+	 * @throws ClusterRetrieveException if the cluster client could not be retrieved
 	 */
-	ClientType retrieve(String applicationID) throws UnsupportedOperationException;
+	ClusterClient<T> retrieve(T clusterId) throws ClusterRetrieveException;
 
 	/**
 	 * Triggers deployment of a cluster.
 	 * @param clusterSpecification Cluster specification defining the cluster to deploy
 	 * @return Client for the cluster
-	 * @throws UnsupportedOperationException if this cluster descriptor doesn't support the operation
+	 * @throws ClusterDeploymentException if the cluster could not be deployed
 	 */
-	ClientType deploySessionCluster(ClusterSpecification clusterSpecification) throws UnsupportedOperationException;
+	ClusterClient<T> deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException;
 
 	/**
 	 * Deploys a per-job cluster with the given job on the cluster.
@@ -56,7 +59,15 @@ public interface ClusterDescriptor<ClientType extends ClusterClient> {
 	 * @return Cluster client to talk to the Flink cluster
 	 * @throws ClusterDeploymentException if the cluster could not be deployed
 	 */
-	ClientType deployJobCluster(
+	ClusterClient<T> deployJobCluster(
 		final ClusterSpecification clusterSpecification,
-		final JobGraph jobGraph);
+		final JobGraph jobGraph) throws ClusterDeploymentException;
+
+	/**
+	 * Terminates the cluster with the given cluster id.
+	 *
+	 * @param clusterId identifying the cluster to shut down
+	 * @throws FlinkException if the cluster could not be terminated
+	 */
+	void terminateCluster(T clusterId) throws FlinkException;
 }

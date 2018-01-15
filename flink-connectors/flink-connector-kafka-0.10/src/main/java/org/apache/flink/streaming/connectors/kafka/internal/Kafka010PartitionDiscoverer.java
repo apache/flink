@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 
 import java.util.Properties;
@@ -25,6 +26,7 @@ import java.util.Properties;
  * A partition discoverer that can be used to discover topics and partitions metadata
  * from Kafka brokers via the Kafka 0.10 high-level consumer API.
  */
+@Internal
 public class Kafka010PartitionDiscoverer extends Kafka09PartitionDiscoverer {
 
 	public Kafka010PartitionDiscoverer(

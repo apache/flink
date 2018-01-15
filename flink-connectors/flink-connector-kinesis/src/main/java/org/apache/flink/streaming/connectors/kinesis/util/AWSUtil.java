@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
@@ -30,37 +31,46 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
-import com.amazonaws.regions.Region;
+import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.regions.Regions;
-import com.amazonaws.services.kinesis.AmazonKinesisClient;
+import com.amazonaws.services.kinesis.AmazonKinesis;
+import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
 
 import java.util.Properties;
 
 /**
  * Some utilities specific to Amazon Web Service.
  */
+@Internal
 public class AWSUtil {
+	/** Used for formatting Flink-specific user agent string when creating Kinesis client. */
+	private static final String USER_AGENT_FORMAT = "Apache Flink %s (%s) Kinesis Connector";
 
 	/**
-	 * Creates an Amazon Kinesis Client.
+	 * Creates an AmazonKinesis client.
 	 * @param configProps configuration properties containing the access key, secret key, and region
-	 * @return a new Amazon Kinesis Client
+	 * @return a new AmazonKinesis client
 	 */
-	public static AmazonKinesisClient createKinesisClient(Properties configProps) {
+	public static AmazonKinesis createKinesisClient(Properties configProps) {
 		// set a Flink-specific user agent
-		ClientConfiguration awsClientConfig = new ClientConfigurationFactory().getConfig();
-		awsClientConfig.setUserAgent("Apache Flink " + EnvironmentInformation.getVersion() +
-			" (" + EnvironmentInformation.getRevisionInformation().commitId + ") Kinesis Connector");
+		ClientConfiguration awsClientConfig = new ClientConfigurationFactory().getConfig()
+				.withUserAgentPrefix(String.format(USER_AGENT_FORMAT,
+														EnvironmentInformation.getVersion(),
+														EnvironmentInformation.getRevisionInformation().commitId));
 
 		// utilize automatic refreshment of credentials by directly passing the AWSCredentialsProvider
-		AmazonKinesisClient client = new AmazonKinesisClient(
-			AWSUtil.getCredentialsProvider(configProps), awsClientConfig);
+		AmazonKinesisClientBuilder builder = AmazonKinesisClientBuilder.standard()
+				.withCredentials(AWSUtil.getCredentialsProvider(configProps))
+				.withClientConfiguration(awsClientConfig)
+				.withRegion(Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION)));
 
-		client.setRegion(Region.getRegion(Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION))));
 		if (configProps.containsKey(AWSConfigConstants.AWS_ENDPOINT)) {
-			client.setEndpoint(configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT));
+			// Set signingRegion as null, to facilitate mocking Kinesis for local tests
+			builder.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(
+													configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT),
+													null));
 		}
-		return client;
+		return builder.build();
 	}
 
 	/**

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -51,6 +52,7 @@ import scala.Option;
  * <p>The version-specific Kafka consumers need to extend this class and
  * override {@link #createKafkaConsumer(String, Properties, DeserializationSchema)}}.
  */
+@Internal
 public abstract class KafkaTableSource
 	implements StreamTableSource<Row>, DefinedProctimeAttribute, DefinedRowtimeAttributes {
 

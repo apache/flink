@@ -47,7 +47,7 @@ git clone https://github.com/apache/flink.git
 ## IntelliJ IDEA
 
 A brief guide on how to set up IntelliJ IDEA IDE for development of the Flink core.
-As Eclipse is known to have issues with mixed Scala and Java projects, more and more contributers are migrating to IntelliJ IDEA.
+As Eclipse is known to have issues with mixed Scala and Java projects, more and more contributors are migrating to IntelliJ IDEA.
 
 The following documentation describes the steps to setup IntelliJ IDEA 2016.2.5
 ([https://www.jetbrains.com/idea/download/](https://www.jetbrains.com/idea/download/))

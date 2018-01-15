@@ -94,6 +94,17 @@ The FsStateBackend is encouraged for:
 
 ### The RocksDBStateBackend
 
+<div class="alert alert-warning">
+  <strong>Note:</strong> The RocksDBStateBackend is not part of the default Flink distribution. To use the state backend, you need to add the following Maven dependency to your project:
+  {% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-statebackend-rocksdb{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+  {% endhighlight %}
+</div>
+
 The *RocksDBStateBackend* is configured with a file system URL (type, address, path), such as "hdfs://namenode:40010/flink/checkpoints" or "file:///data/flink/checkpoints".
 
 The RocksDBStateBackend holds in-flight data in a [RocksDB](http://rocksdb.org) database

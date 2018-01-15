@@ -26,7 +26,7 @@ import java.util.Collections;
  */
 public class JobMessageParameters extends MessageParameters {
 
-	protected final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
+	public final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
 
 	@Override
 	public Collection<MessagePathParameter<?>> getPathParameters() {

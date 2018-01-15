@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -46,6 +47,7 @@ import java.util.Properties;
  * <p>The version-specific Kafka consumers need to extend this class and
  * override {@link #createKafkaConsumer(String, Properties, DeserializationSchema)}}.
  */
+@Internal
 public abstract class KafkaAvroTableSource extends KafkaTableSource implements DefinedFieldMapping {
 
 	private final Class<? extends SpecificRecordBase> avroRecordClass;

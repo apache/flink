@@ -24,6 +24,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -93,6 +94,7 @@ public class YarnEntrypointUtils {
 			ApplicationConstants.Environment.NM_HOST.key());
 
 		configuration.setString(JobManagerOptions.ADDRESS, hostname);
+		configuration.setString(RestOptions.REST_ADDRESS, hostname);
 
 		// TODO: Support port ranges for the AM
 //		final String portRange = configuration.getString(
@@ -110,6 +112,11 @@ public class YarnEntrypointUtils {
 		// if a web monitor shall be started, set the port to random binding
 		if (configuration.getInteger(WebOptions.PORT, 0) >= 0) {
 			configuration.setInteger(WebOptions.PORT, 0);
+		}
+
+		if (configuration.getInteger(RestOptions.REST_PORT) >= 0) {
+			// set the REST port to 0 to select it randomly
+			configuration.setInteger(RestOptions.REST_PORT, 0);
 		}
 
 		// if the user has set the deprecated YARN-specific config keys, we add the

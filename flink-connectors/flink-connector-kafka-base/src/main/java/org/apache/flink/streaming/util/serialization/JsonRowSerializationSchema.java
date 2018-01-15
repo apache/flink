@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -37,7 +38,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
  * <p>Result <code>byte[]</code> messages can be deserialized using
  * {@link JsonRowDeserializationSchema}.
  */
+@PublicEvolving
 public class JsonRowSerializationSchema implements SerializationSchema<Row> {
+
+	private static final long serialVersionUID = -2885556750743978636L;
+
 	/** Fields names in the input Row object. */
 	private final String[] fieldNames;
 	/** Object mapper that is used to create output JSON objects. */

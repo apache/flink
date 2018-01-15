@@ -19,17 +19,22 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -39,11 +44,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import scala.concurrent.Future;
 import scala.concurrent.Future$;
 import scala.concurrent.duration.FiniteDuration;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -63,7 +71,7 @@ public class ClusterClientTest extends TestLogger {
 		Configuration config = new Configuration();
 		HighAvailabilityServices highAvailabilityServices = mock(HighAvailabilityServices.class);
 
-		ClusterClient clusterClient = new StandaloneClusterClient(config, highAvailabilityServices);
+		StandaloneClusterClient clusterClient = new StandaloneClusterClient(config, highAvailabilityServices);
 
 		clusterClient.shutdown();
 
@@ -79,7 +87,7 @@ public class ClusterClientTest extends TestLogger {
 
 		JobID jobID = new JobID();
 		TestStopActorGateway gateway = new TestStopActorGateway(jobID);
-		ClusterClient clusterClient = new TestClusterClient(config, gateway);
+		TestClusterClient clusterClient = new TestClusterClient(config, gateway);
 		try {
 			clusterClient.stop(jobID);
 			Assert.assertTrue(gateway.messageArrived);
@@ -95,7 +103,7 @@ public class ClusterClientTest extends TestLogger {
 
 		JobID jobID = new JobID();
 		TestCancelActorGateway gateway = new TestCancelActorGateway(jobID);
-		ClusterClient clusterClient = new TestClusterClient(config, gateway);
+		TestClusterClient clusterClient = new TestClusterClient(config, gateway);
 		try {
 			clusterClient.cancel(jobID);
 			Assert.assertTrue(gateway.messageArrived);
@@ -113,7 +121,7 @@ public class ClusterClientTest extends TestLogger {
 		String savepointDirectory = "/test/directory";
 		String savepointPath = "/test/path";
 		TestCancelWithSavepointActorGateway gateway = new TestCancelWithSavepointActorGateway(jobID, savepointDirectory, savepointPath);
-		ClusterClient clusterClient = new TestClusterClient(config, gateway);
+		TestClusterClient clusterClient = new TestClusterClient(config, gateway);
 		try {
 			String path = clusterClient.cancelWithSavepoint(jobID, savepointDirectory);
 			Assert.assertTrue(gateway.messageArrived);
@@ -132,7 +140,7 @@ public class ClusterClientTest extends TestLogger {
 		String savepointDirectory = "/test/directory";
 		String savepointPath = "/test/path";
 		TestSavepointActorGateway gateway = new TestSavepointActorGateway(jobID, savepointDirectory, savepointPath);
-		ClusterClient clusterClient = new TestClusterClient(config, gateway);
+		TestClusterClient clusterClient = new TestClusterClient(config, gateway);
 		try {
 			CompletableFuture<String> pathFuture = clusterClient.triggerSavepoint(jobID, savepointDirectory);
 			Assert.assertTrue(gateway.messageArrived);
@@ -148,7 +156,7 @@ public class ClusterClientTest extends TestLogger {
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
 
 		TestListActorGateway gateway = new TestListActorGateway();
-		ClusterClient clusterClient = new TestClusterClient(config, gateway);
+		TestClusterClient clusterClient = new TestClusterClient(config, gateway);
 		try {
 			CompletableFuture<Collection<JobStatusMessage>> jobDetailsFuture = clusterClient.listJobs();
 			Collection<JobStatusMessage> jobDetails = jobDetailsFuture.get();
@@ -163,8 +171,59 @@ public class ClusterClientTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testDisposeSavepointUnknownResponse() throws Exception {
+		final Configuration configuration = new Configuration();
+		final Time timeout = Time.milliseconds(1000L);
+		final String savepointPath = "foobar";
+
+		final ActorGateway jobManagerGateway = new TestDisposeWithWrongResponseActorGateway();
+
+		final TestClusterClient clusterClient = new TestClusterClient(configuration, jobManagerGateway);
+
+		CompletableFuture<Acknowledge> acknowledgeCompletableFuture = clusterClient.disposeSavepoint(savepointPath, timeout);
+
+		try {
+			acknowledgeCompletableFuture.get();
+			fail("Dispose operation should have failed.");
+		} catch (ExecutionException e) {
+			assertTrue(ExceptionUtils.findThrowable(e, FlinkRuntimeException.class).isPresent());
+		} finally {
+			clusterClient.shutdown();
+		}
+	}
+
+	@Test
+	public void testDisposeClassNotFoundException() throws Exception {
+		final Configuration configuration = new Configuration();
+		final Time timeout = Time.milliseconds(1000L);
+		final String savepointPath = "foobar";
+
+		final ActorGateway jobManagerGateway = new TestDisposeWithClassNotFoundExceptionActorGateway();
+
+		final TestClusterClient clusterClient = new TestClusterClient(configuration, jobManagerGateway);
+
+		CompletableFuture<Acknowledge> acknowledgeCompletableFuture = clusterClient.disposeSavepoint(savepointPath, timeout);
+
+		try {
+			acknowledgeCompletableFuture.get();
+			fail("Dispose operation should have failed.");
+		} catch (ExecutionException e) {
+			assertTrue(ExceptionUtils.findThrowableWithMessage(
+				e,
+				"Savepoint disposal failed, because of a " +
+				"missing class. This is most likely caused by a custom state " +
+				"instance, which cannot be disposed without the user code class " +
+				"loader. Please provide the program jar with which you have created " +
+				"the savepoint via -j <JAR> for disposal.").isPresent());
+		} finally {
+			clusterClient.shutdown();
+		}
+	}
+
 	private static class TestStopActorGateway extends DummyActorGateway {
 
+		private static final long serialVersionUID = -7984393143979151987L;
 		private final JobID expectedJobID;
 		private volatile boolean messageArrived = false;
 
@@ -180,12 +239,14 @@ public class ClusterClientTest extends TestLogger {
 				Assert.assertEquals(expectedJobID, stopJob.jobID());
 				return Future$.MODULE$.successful(new JobManagerMessages.StoppingSuccess(stopJob.jobID()));
 			}
-			Assert.fail("Expected StopJob message, got: " + message.getClass());
+			fail("Expected StopJob message, got: " + message.getClass());
 			return null;
 		}
 	}
 
 	private static class TestCancelActorGateway extends TestActorGateway<JobManagerMessages.CancelJob, JobManagerMessages.CancellationSuccess> {
+
+		private static final long serialVersionUID = -5835545952427605517L;
 
 		private final JobID expectedJobID;
 
@@ -202,6 +263,8 @@ public class ClusterClientTest extends TestLogger {
 	}
 
 	private static class TestCancelWithSavepointActorGateway extends TestActorGateway<JobManagerMessages.CancelJobWithSavepoint, JobManagerMessages.CancellationSuccess> {
+
+		private static final long serialVersionUID = 683477171331310258L;
 
 		private final JobID expectedJobID;
 		private final String expectedTargetDirectory;
@@ -223,6 +286,8 @@ public class ClusterClientTest extends TestLogger {
 	}
 
 	private static class TestSavepointActorGateway extends TestActorGateway<JobManagerMessages.TriggerSavepoint, JobManagerMessages.TriggerSavepointSuccess> {
+
+		private static final long serialVersionUID = -2843143535044413148L;
 
 		private final JobID expectedJobID;
 		private final String expectedTargetDirectory;
@@ -249,6 +314,8 @@ public class ClusterClientTest extends TestLogger {
 
 	private static class TestListActorGateway extends TestActorGateway<RequestJobDetails, MultipleJobsDetails> {
 
+		private static final long serialVersionUID = 5805153540407130753L;
+
 		TestListActorGateway() {
 			super(RequestJobDetails.class);
 		}
@@ -266,13 +333,40 @@ public class ClusterClientTest extends TestLogger {
 		private final ActorGateway jobmanagerGateway;
 
 		TestClusterClient(Configuration config, ActorGateway jobmanagerGateway) throws Exception {
-			super(config);
+			super(config, new TestingHighAvailabilityServices());
 			this.jobmanagerGateway = jobmanagerGateway;
 		}
 
 		@Override
 		public ActorGateway getJobManagerGateway() {
 			return jobmanagerGateway;
+		}
+	}
+
+	private static class TestDisposeWithWrongResponseActorGateway extends TestActorGateway<JobManagerMessages.DisposeSavepoint, String> {
+		private static final long serialVersionUID = 4786274661681784995L;
+
+		TestDisposeWithWrongResponseActorGateway() {
+			super(JobManagerMessages.DisposeSavepoint.class);
+		}
+
+		@Override
+		public String process(JobManagerMessages.DisposeSavepoint message) {
+			return "Unknown response";
+		}
+	}
+
+	private static class TestDisposeWithClassNotFoundExceptionActorGateway extends TestActorGateway<JobManagerMessages.DisposeSavepoint, JobManagerMessages.DisposeSavepointFailure> {
+
+		private static final long serialVersionUID = 6107615491007896081L;
+
+		TestDisposeWithClassNotFoundExceptionActorGateway() {
+			super(JobManagerMessages.DisposeSavepoint.class);
+		}
+
+		@Override
+		public JobManagerMessages.DisposeSavepointFailure process(JobManagerMessages.DisposeSavepoint message) {
+			return new JobManagerMessages.DisposeSavepointFailure(new ClassNotFoundException("Test Exception"));
 		}
 	}
 
@@ -283,6 +377,7 @@ public class ClusterClientTest extends TestLogger {
 	 * @param <R> type of outgoing requests
 	 */
 	private abstract static class TestActorGateway<M, R> extends DummyActorGateway {
+		private static final long serialVersionUID = -2794537151425694085L;
 		private final Class<M> messageClass;
 		volatile boolean messageArrived = false;
 
@@ -297,7 +392,7 @@ public class ClusterClientTest extends TestLogger {
 			if (message.getClass().isAssignableFrom(messageClass)) {
 				return Future$.MODULE$.successful(process((M) message));
 			}
-			Assert.fail("Expected TriggerSavepoint message, got: " + message.getClass());
+			fail("Expected TriggerSavepoint message, got: " + message.getClass());
 			return null;
 		}
 

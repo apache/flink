@@ -28,4 +28,8 @@ public class CliArgsException extends Exception {
 	public CliArgsException(String message) {
 		super(message);
 	}
+
+	public CliArgsException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

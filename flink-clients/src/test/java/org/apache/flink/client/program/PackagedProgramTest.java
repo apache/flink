@@ -18,7 +18,7 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.client.CliFrontendTestUtils;
+import org.apache.flink.client.cli.CliFrontendTestUtils;
 
 import org.junit.Assert;
 import org.junit.Test;

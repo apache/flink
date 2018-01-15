@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.AbstractDeserializationSchema;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,7 +30,11 @@ import java.io.IOException;
  *
  * <p>Fields can be accessed by calling objectNode.get(&lt;name>).as(&lt;type>)
  */
+@PublicEvolving
 public class JSONDeserializationSchema extends AbstractDeserializationSchema<ObjectNode> {
+
+	private static final long serialVersionUID = -1699854177598621044L;
+
 	private ObjectMapper mapper;
 
 	@Override

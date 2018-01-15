@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -44,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.KAFKA_CONSUMER_METRICS_GROUP;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -51,6 +53,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * @param <T> The type of elements produced by the fetcher.
  */
+@Internal
 public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Kafka09Fetcher.class);
@@ -98,7 +101,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		this.deserializer = deserializer;
 		this.handover = new Handover();
 
-		final MetricGroup kafkaMetricGroup = metricGroup.addGroup("KafkaConsumer");
+		final MetricGroup kafkaMetricGroup = metricGroup.addGroup(KAFKA_CONSUMER_METRICS_GROUP);
 		addOffsetStateGauge(kafkaMetricGroup);
 
 		this.consumerThread = new KafkaConsumerThread(

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -56,6 +57,7 @@ import static org.apache.flink.util.PropertiesUtil.getInt;
  * @param <T> The type of elements that this consumer thread creates from Kafka's byte messages
  *            and emits into the Flink DataStream.
  */
+@Internal
 class SimpleConsumerThread<T> extends Thread {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SimpleConsumerThread.class);

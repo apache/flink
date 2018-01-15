@@ -160,7 +160,7 @@ public class RetryingRegistrationTest extends TestLogger {
 		}
 	}
 
-	@Test
+	@Test(timeout = 10000)
 	public void testRetriesOnTimeouts() throws Exception {
 		final String testId = "rien ne va plus";
 		final String testEndpointAddress = "<test-address>";
@@ -178,7 +178,15 @@ public class RetryingRegistrationTest extends TestLogger {
 		try {
 			rpc.registerGateway(testEndpointAddress, testGateway);
 
-			TestRetryingRegistration registration = new TestRetryingRegistration(rpc, testEndpointAddress, leaderId);
+			final long initialTimeout = 20L;
+			TestRetryingRegistration registration = new TestRetryingRegistration(
+				rpc,
+				testEndpointAddress,
+				leaderId,
+				initialTimeout,
+				1000L,
+				15000L, // make sure that we timeout in case of an error
+				15000L);
 
 			long started = System.nanoTime();
 			registration.startRegistration();
@@ -195,7 +203,7 @@ public class RetryingRegistrationTest extends TestLogger {
 			assertEquals(leaderId, testGateway.getInvocations().take().leaderId());
 
 			// validate that some retry-delay / back-off behavior happened
-			assertTrue("retries did not properly back off", elapsedMillis >= 3 * TestRetryingRegistration.INITIAL_TIMEOUT);
+			assertTrue("retries did not properly back off", elapsedMillis >= 3 * initialTimeout);
 		}
 		finally {
 			rpc.stopService();
@@ -346,11 +354,35 @@ public class RetryingRegistrationTest extends TestLogger {
 		static final long DELAY_ON_DECLINE = 200;
 
 		public TestRetryingRegistration(RpcService rpc, String targetAddress, UUID leaderId) {
-			super(LoggerFactory.getLogger(RetryingRegistrationTest.class),
-					rpc, "TestEndpoint",
-					TestRegistrationGateway.class,
-					targetAddress, leaderId,
-					INITIAL_TIMEOUT, MAX_TIMEOUT, DELAY_ON_ERROR, DELAY_ON_DECLINE);
+			this(
+				rpc,
+				targetAddress,
+				leaderId,
+				INITIAL_TIMEOUT,
+				MAX_TIMEOUT,
+				DELAY_ON_ERROR,
+				DELAY_ON_DECLINE);
+		}
+
+		public TestRetryingRegistration(
+				RpcService rpc,
+				String targetAddress,
+				UUID leaderId,
+				long initialTimeout,
+				long maxTimeout,
+				long delayOnError,
+				long delayOnDecline) {
+			super(
+				LoggerFactory.getLogger(RetryingRegistrationTest.class),
+				rpc,
+				"TestEndpoint",
+				TestRegistrationGateway.class,
+				targetAddress,
+				leaderId,
+				initialTimeout,
+				maxTimeout,
+				delayOnError,
+				delayOnDecline);
 		}
 
 		@Override

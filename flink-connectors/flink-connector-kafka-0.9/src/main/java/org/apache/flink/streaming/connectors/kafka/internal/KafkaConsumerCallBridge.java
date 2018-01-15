@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import org.apache.flink.annotation.Internal;
+
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 
@@ -33,6 +35,7 @@ import java.util.List;
  * Even though the source of subclasses may look identical, the byte code will be different, because they
  * are compiled against different dependencies.
  */
+@Internal
 public class KafkaConsumerCallBridge {
 
 	public void assignPartitions(KafkaConsumer<?, ?> consumer, List<TopicPartition> topicPartitions) throws Exception {

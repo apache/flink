@@ -17,8 +17,10 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.metrics.ShardMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
@@ -49,6 +51,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Thread that does the actual data pulling from AWS Kinesis shards. Each thread is in charge of one Kinesis shard only.
  */
+@Internal
 public class ShardConsumer<T> implements Runnable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ShardConsumer.class);
@@ -66,6 +69,8 @@ public class ShardConsumer<T> implements Runnable {
 	private final int maxNumberOfRecordsPerFetch;
 	private final long fetchIntervalMillis;
 
+	private final ShardMetricsReporter shardMetricsReporter;
+
 	private SequenceNumber lastSequenceNum;
 
 	private Date initTimestamp;
@@ -77,16 +82,19 @@ public class ShardConsumer<T> implements Runnable {
 	 * @param subscribedShardStateIndex the state index of the shard this consumer is subscribed to
 	 * @param subscribedShard the shard this consumer is subscribed to
 	 * @param lastSequenceNum the sequence number in the shard to start consuming
+	 * @param shardMetricsReporter the reporter to report metrics to
 	 */
 	public ShardConsumer(KinesisDataFetcher<T> fetcherRef,
 						Integer subscribedShardStateIndex,
 						StreamShardHandle subscribedShard,
-						SequenceNumber lastSequenceNum) {
+						SequenceNumber lastSequenceNum,
+						ShardMetricsReporter shardMetricsReporter) {
 		this(fetcherRef,
 			subscribedShardStateIndex,
 			subscribedShard,
 			lastSequenceNum,
-			KinesisProxy.create(fetcherRef.getConsumerConfiguration()));
+			KinesisProxy.create(fetcherRef.getConsumerConfiguration()),
+			shardMetricsReporter);
 	}
 
 	/** This constructor is exposed for testing purposes. */
@@ -94,11 +102,15 @@ public class ShardConsumer<T> implements Runnable {
 							Integer subscribedShardStateIndex,
 							StreamShardHandle subscribedShard,
 							SequenceNumber lastSequenceNum,
-							KinesisProxyInterface kinesis) {
+							KinesisProxyInterface kinesis,
+							ShardMetricsReporter shardMetricsReporter) {
 		this.fetcherRef = checkNotNull(fetcherRef);
 		this.subscribedShardStateIndex = checkNotNull(subscribedShardStateIndex);
 		this.subscribedShard = checkNotNull(subscribedShard);
 		this.lastSequenceNum = checkNotNull(lastSequenceNum);
+
+		this.shardMetricsReporter = checkNotNull(shardMetricsReporter);
+
 		checkArgument(
 			!lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get()),
 			"Should not start a ShardConsumer if the shard has already been completely read.");
@@ -291,6 +303,9 @@ public class ShardConsumer<T> implements Runnable {
 		while (getRecordsResult == null) {
 			try {
 				getRecordsResult = kinesis.getRecords(shardItr, maxNumberOfRecords);
+
+				// Update millis behind latest so it gets reported by the millisBehindLatest gauge
+				shardMetricsReporter.setMillisBehindLatest(getRecordsResult.getMillisBehindLatest());
 			} catch (ExpiredIteratorException eiEx) {
 				LOG.warn("Encountered an unexpected expired iterator {} for shard {};" +
 					" refreshing the iterator ...", shardItr, subscribedShard);

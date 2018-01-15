@@ -18,39 +18,46 @@
 
 package org.apache.flink.yarn.cli;
 
-import org.apache.flink.client.CliFrontend;
+import org.apache.flink.client.cli.AbstractCustomCommandLine;
+import org.apache.flink.client.cli.CliArgsException;
+import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
-import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
+import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.AbstractYarnClusterDescriptor;
-import org.apache.flink.yarn.YarnClusterClient;
+import org.apache.flink.yarn.Flip6YarnClusterDescriptor;
 import org.apache.flink.yarn.YarnClusterDescriptor;
-import org.apache.flink.yarn.YarnClusterDescriptorV2;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
-import org.apache.commons.cli.PosixParser;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ApplicationReport;
+import org.apache.hadoop.yarn.api.records.YarnApplicationState;
+import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -61,7 +68,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
-import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -70,15 +76,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
-import static org.apache.flink.client.cli.CliFrontendParser.ADDRESS_OPTION;
 import static org.apache.flink.configuration.HighAvailabilityOptions.HA_CLUSTER_ID;
 
 /**
  * Class handling the command line interface to the YARN session.
  */
-public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient> {
+public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId> {
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkYarnSessionCli.class);
 
 	//------------------------------------ Constants   -------------------------
@@ -86,18 +94,22 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	public static final String CONFIG_FILE_LOGBACK_NAME = "logback.xml";
 	public static final String CONFIG_FILE_LOG4J_NAME = "log4j.properties";
 
-	private static final int CLIENT_POLLING_INTERVALL = 3;
+	private static final long CLIENT_POLLING_INTERVAL_MS = 3000L;
 
 	/** The id for the CommandLine interface. */
 	private static final String ID = "yarn-cluster";
 
 	// YARN-session related constants
 	private static final String YARN_PROPERTIES_FILE = ".yarn-properties-";
-	static final String YARN_APPLICATION_ID_KEY = "applicationID";
+	private static final String YARN_APPLICATION_ID_KEY = "applicationID";
 	private static final String YARN_PROPERTIES_PARALLELISM = "parallelism";
 	private static final String YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING = "dynamicPropertiesString";
 
 	private static final String YARN_DYNAMIC_PROPERTIES_SEPARATOR = "@@"; // this has to be a regex for String.split()
+
+	private static final String YARN_SESSION_HELP = "Available commands:\n" +
+		"help - show these commands\n" +
+		"stop - stop the YARN session";
 
 	//------------------------------------ Command Line argument options -------------------------
 	// the prefix transformation is used by the CliFrontend static constructor.
@@ -115,6 +127,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	private final Option detached;
 	private final Option zookeeperNamespace;
 	private final Option flip6;
+	private final Option help;
 
 	/**
 	 * @deprecated Streaming mode has been deprecated without replacement. Set the
@@ -135,16 +148,36 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 
 	private final boolean acceptInteractiveInput;
 
+	private final String configurationDirectory;
+
+	private final Properties yarnPropertiesFile;
+
+	private final ApplicationId yarnApplicationIdFromYarnProperties;
+
+	private final String yarnPropertiesFileLocation;
+
 	//------------------------------------ Internal fields -------------------------
-	private YarnClusterClient yarnCluster;
 	private boolean detachedMode = false;
 
-	public FlinkYarnSessionCli(String shortPrefix, String longPrefix) {
-		this(shortPrefix, longPrefix, true);
+	public FlinkYarnSessionCli(
+			Configuration configuration,
+			String configurationDirectory,
+			String shortPrefix,
+			String longPrefix) throws FlinkException {
+		this(configuration, configurationDirectory, shortPrefix, longPrefix, true);
 	}
 
-	public FlinkYarnSessionCli(String shortPrefix, String longPrefix, boolean acceptInteractiveInput) {
+	public FlinkYarnSessionCli(
+			Configuration configuration,
+			String configurationDirectory,
+			String shortPrefix,
+			String longPrefix,
+			boolean acceptInteractiveInput) throws FlinkException {
+		super(configuration);
+		this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
 		this.acceptInteractiveInput = acceptInteractiveInput;
+
+		// Create the command line options
 
 		query = new Option(shortPrefix + "q", longPrefix + "query", false, "Display available YARN resources (memory, cores)");
 		applicationId = new Option(shortPrefix + "id", longPrefix + "applicationId", true, "Attach to running YARN session");
@@ -155,12 +188,18 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		tmMemory = new Option(shortPrefix + "tm", longPrefix + "taskManagerMemory", true, "Memory per TaskManager Container [in MB]");
 		container = new Option(shortPrefix + "n", longPrefix + "container", true, "Number of YARN container to allocate (=Number of Task Managers)");
 		slots = new Option(shortPrefix + "s", longPrefix + "slots", true, "Number of slots per TaskManager");
-		dynamicproperties = new Option(shortPrefix + "D", true, "Dynamic properties");
+		dynamicproperties = Option.builder(shortPrefix + "D")
+			.argName("property=value")
+			.numberOfArgs(2)
+			.valueSeparator()
+			.desc("use value for given property")
+			.build();
 		detached = new Option(shortPrefix + "d", longPrefix + "detached", false, "Start detached");
 		streaming = new Option(shortPrefix + "st", longPrefix + "streaming", false, "Start Flink in streaming mode");
 		name = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
 		zookeeperNamespace = new Option(shortPrefix + "z", longPrefix + "zookeeperNamespace", true, "Namespace to create the Zookeeper sub-paths for high availability mode");
 		flip6 = new Option(shortPrefix + "f6", longPrefix + "flip6", false, "Specify this option to start a Flip-6 Yarn session cluster.");
+		help = new Option(shortPrefix + "h", longPrefix + "help", false, "Help for the Yarn session CLI.");
 
 		allOptions = new Options();
 		allOptions.addOption(flinkJar);
@@ -178,93 +217,46 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		allOptions.addOption(applicationId);
 		allOptions.addOption(zookeeperNamespace);
 		allOptions.addOption(flip6);
-	}
+		allOptions.addOption(help);
 
-	/**
-	 * Tries to load a Flink Yarn properties file and returns the Yarn application id if successful.
-	 * @param cmdLine The command-line parameters
-	 * @param flinkConfiguration The flink configuration
-	 * @return Yarn application id or null if none could be retrieved
-	 */
-	private String loadYarnPropertiesFile(CommandLine cmdLine, Configuration flinkConfiguration) {
+		// try loading a potential yarn properties file
+		this.yarnPropertiesFileLocation = configuration.getString(YarnConfigOptions.PROPERTIES_FILE_LOCATION);
+		final File yarnPropertiesLocation = getYarnPropertiesLocation(yarnPropertiesFileLocation);
 
-		String jobManagerOption = cmdLine.getOptionValue(ADDRESS_OPTION.getOpt(), null);
-		if (jobManagerOption != null) {
-			// don't resume from properties file if a JobManager has been specified
-			return null;
-		}
+		yarnPropertiesFile = new Properties();
 
-		for (Option option : cmdLine.getOptions()) {
-			if (allOptions.hasOption(option.getOpt())) {
-				if (!option.getOpt().equals(detached.getOpt())) {
-					// don't resume from properties file if yarn options have been specified
-					return null;
-				}
+		if (yarnPropertiesLocation.exists()) {
+			LOG.info("Found Yarn properties file under {}.", yarnPropertiesLocation.getAbsolutePath());
+
+			try (InputStream is = new FileInputStream(yarnPropertiesLocation)) {
+				yarnPropertiesFile.load(is);
+			} catch (IOException ioe) {
+				throw new FlinkException("Could not read the Yarn properties file " + yarnPropertiesLocation +
+					". Please delete the file at " + yarnPropertiesLocation.getAbsolutePath() + '.', ioe);
 			}
-		}
 
-		// load the YARN properties
-		File propertiesFile = getYarnPropertiesLocation(flinkConfiguration);
-		if (!propertiesFile.exists()) {
-			return null;
-		}
+			final String yarnApplicationIdString = yarnPropertiesFile.getProperty(YARN_APPLICATION_ID_KEY);
 
-		logAndSysout("Found YARN properties file " + propertiesFile.getAbsolutePath());
-
-		Properties yarnProperties = new Properties();
-		try {
-			try (InputStream is = new FileInputStream(propertiesFile)) {
-				yarnProperties.load(is);
+			if (yarnApplicationIdString == null) {
+				throw new FlinkException("Yarn properties file found but doesn't contain a " +
+					"Yarn application id. Please delete the file at " + yarnPropertiesLocation.getAbsolutePath());
 			}
-		}
-		catch (IOException e) {
-			throw new RuntimeException("Cannot read the YARN properties file", e);
-		}
 
-		// get the Yarn application id from the properties file
-		String applicationID = yarnProperties.getProperty(YARN_APPLICATION_ID_KEY);
-		if (applicationID == null) {
-			throw new IllegalConfigurationException("Yarn properties file found but doesn't contain a " +
-				"Yarn application id. Please delete the file at " + propertiesFile.getAbsolutePath());
-		}
-
-		try {
-			// try converting id to ApplicationId
-			ConverterUtils.toApplicationId(applicationID);
-		}
-		catch (Exception e) {
-			throw new RuntimeException("YARN properties contains an invalid entry for " +
-				"application id: " + applicationID, e);
-		}
-
-		logAndSysout("Using Yarn application id from YARN properties " + applicationID);
-
-		// configure the default parallelism from YARN
-		String propParallelism = yarnProperties.getProperty(YARN_PROPERTIES_PARALLELISM);
-		if (propParallelism != null) { // maybe the property is not set
 			try {
-				int parallelism = Integer.parseInt(propParallelism);
-				flinkConfiguration.setInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, parallelism);
-
-				logAndSysout("YARN properties set default parallelism to " + parallelism);
+				// try converting id to ApplicationId
+				yarnApplicationIdFromYarnProperties = ConverterUtils.toApplicationId(yarnApplicationIdString);
 			}
-			catch (NumberFormatException e) {
-				throw new RuntimeException("Error while parsing the YARN properties: " +
-					"Property " + YARN_PROPERTIES_PARALLELISM + " is not an integer.");
+			catch (Exception e) {
+				throw new FlinkException("YARN properties contains an invalid entry for " +
+					"application id: " + yarnApplicationIdString + ". Please delete the file at " +
+					yarnPropertiesLocation.getAbsolutePath(), e);
 			}
+		} else {
+			yarnApplicationIdFromYarnProperties = null;
 		}
-
-		// handle the YARN client's dynamic properties
-		String dynamicPropertiesEncoded = yarnProperties.getProperty(YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING);
-		Map<String, String> dynamicProperties = getDynamicProperties(dynamicPropertiesEncoded);
-		for (Map.Entry<String, String> dynamicProperty : dynamicProperties.entrySet()) {
-			flinkConfiguration.setString(dynamicProperty.getKey(), dynamicProperty.getValue());
-		}
-
-		return applicationID;
 	}
 
-	public AbstractYarnClusterDescriptor createDescriptor(
+	private AbstractYarnClusterDescriptor createDescriptor(
 		Configuration configuration,
 		String configurationDirectory,
 		String defaultApplicationName,
@@ -276,7 +268,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			cmd.hasOption(flip6.getOpt()));
 
 		// Jar Path
-		Path localJarPath;
+		final Path localJarPath;
 		if (cmd.hasOption(flinkJar.getOpt())) {
 			String userPath = cmd.getOptionValue(flinkJar.getOpt());
 			if (!userPath.startsWith("file://")) {
@@ -288,17 +280,27 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 				+ yarnClusterDescriptor.getClass() + " to locate the jar");
 			String encodedJarPath =
 				yarnClusterDescriptor.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
+
+			final String decodedPath;
 			try {
 				// we have to decode the url encoded parts of the path
-				String decodedPath = URLDecoder.decode(encodedJarPath, Charset.defaultCharset().name());
-				localJarPath = new Path(new File(decodedPath).toURI());
+				decodedPath = URLDecoder.decode(encodedJarPath, Charset.defaultCharset().name());
 			} catch (UnsupportedEncodingException e) {
 				throw new RuntimeException("Couldn't decode the encoded Flink dist jar path: " + encodedJarPath +
 					" Please supply a path manually via the -" + flinkJar.getOpt() + " option.");
 			}
+
+			// check whether it's actually a jar file --> when testing we execute this class without a flink-dist jar
+			if (decodedPath.endsWith(".jar")) {
+				localJarPath = new Path(new File(decodedPath).toURI());
+			} else {
+				localJarPath = null;
+			}
 		}
 
-		yarnClusterDescriptor.setLocalJarPath(localJarPath);
+		if (localJarPath != null) {
+			yarnClusterDescriptor.setLocalJarPath(localJarPath);
+		}
 
 		List<File> shipFiles = new ArrayList<>();
 		// path to directory to ship
@@ -319,10 +321,21 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			yarnClusterDescriptor.setQueue(cmd.getOptionValue(queue.getOpt()));
 		}
 
-		String[] dynamicProperties = null;
-		if (cmd.hasOption(dynamicproperties.getOpt())) {
-			dynamicProperties = cmd.getOptionValues(dynamicproperties.getOpt());
-		}
+		final Properties properties = cmd.getOptionProperties(dynamicproperties.getOpt());
+
+		String[] dynamicProperties = properties.stringPropertyNames().stream()
+			.flatMap(
+				(String key) -> {
+					final String value = properties.getProperty(key);
+
+					if (value != null) {
+						return Stream.of(key + dynamicproperties.getValueSeparator() + value);
+					} else {
+						return Stream.empty();
+					}
+				})
+			.toArray(String[]::new);
+
 		String dynamicPropertiesEncoded = StringUtils.join(dynamicProperties, YARN_DYNAMIC_PROPERTIES_SEPARATOR);
 
 		yarnClusterDescriptor.setDynamicPropertiesEncoded(dynamicPropertiesEncoded);
@@ -342,14 +355,14 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		}
 
 		if (cmd.hasOption(zookeeperNamespace.getOpt())) {
-			String zookeeperNamespace = cmd.getOptionValue(this.zookeeperNamespace.getOpt());
-			yarnClusterDescriptor.setZookeeperNamespace(zookeeperNamespace);
+			String zookeeperNamespaceValue = cmd.getOptionValue(this.zookeeperNamespace.getOpt());
+			yarnClusterDescriptor.setZookeeperNamespace(zookeeperNamespaceValue);
 		}
 
 		return yarnClusterDescriptor;
 	}
 
-	public ClusterSpecification createClusterSpecification(Configuration configuration, CommandLine cmd) {
+	private ClusterSpecification createClusterSpecification(Configuration configuration, CommandLine cmd) {
 		if (!cmd.hasOption(container.getOpt())) { // number of containers is required option!
 			LOG.error("Missing required argument {}", container.getOpt());
 			printUsage();
@@ -359,27 +372,12 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		int numberTaskManagers = Integer.valueOf(cmd.getOptionValue(container.getOpt()));
 
 		// JobManager Memory
-		final int jobManagerMemoryMB;
-		if (cmd.hasOption(jmMemory.getOpt())) {
-			jobManagerMemoryMB = Integer.valueOf(cmd.getOptionValue(this.jmMemory.getOpt()));
-		} else {
-			jobManagerMemoryMB = configuration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY);
-		}
+		final int jobManagerMemoryMB = configuration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY);
 
 		// Task Managers memory
-		final int taskManagerMemoryMB;
-		if (cmd.hasOption(tmMemory.getOpt())) {
-			taskManagerMemoryMB = Integer.valueOf(cmd.getOptionValue(this.tmMemory.getOpt()));
-		} else {
-			taskManagerMemoryMB = configuration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);
-		}
+		final int taskManagerMemoryMB = configuration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);
 
-		int slotsPerTaskManager;
-		if (cmd.hasOption(slots.getOpt())) {
-			slotsPerTaskManager = Integer.valueOf(cmd.getOptionValue(this.slots.getOpt()));
-		} else {
-			slotsPerTaskManager = configuration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
-		}
+		int slotsPerTaskManager = configuration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
 
 		// convenience
 		int userParallelism = Integer.valueOf(cmd.getOptionValue(CliFrontendParser.PARALLELISM_OPTION.getOpt(), "-1"));
@@ -419,110 +417,12 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		formatter.printHelp(" ", options);
 	}
 
-	private static void writeYarnProperties(Properties properties, File propertiesFile) {
-		try (final OutputStream out = new FileOutputStream(propertiesFile)) {
-			properties.store(out, "Generated YARN properties file");
-		} catch (IOException e) {
-			throw new RuntimeException("Error writing the properties file", e);
-		}
-		propertiesFile.setReadable(true, false); // readable for all.
-	}
-
-	public static void runInteractiveCli(YarnClusterClient yarnCluster, boolean readConsoleInput) {
-		final String help = "Available commands:\n" +
-				"help - show these commands\n" +
-				"stop - stop the YARN session";
-		int numTaskmanagers = 0;
-		try {
-			BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
-			label:
-			while (true) {
-				// ------------------ check if there are updates by the cluster -----------
-
-				try {
-					GetClusterStatusResponse status = yarnCluster.getClusterStatus();
-					LOG.debug("Received status message: {}", status);
-
-					if (status != null && numTaskmanagers != status.numRegisteredTaskManagers()) {
-						System.err.println("Number of connected TaskManagers changed to " +
-							status.numRegisteredTaskManagers() + ". " +
-							"Slots available: " + status.totalNumberOfSlots());
-						numTaskmanagers = status.numRegisteredTaskManagers();
-					}
-				} catch (Exception e) {
-					LOG.warn("Could not retrieve the current cluster status. Skipping current retrieval attempt ...", e);
-				}
-
-				List<String> messages = yarnCluster.getNewMessages();
-				if (messages != null && messages.size() > 0) {
-					System.err.println("New messages from the YARN cluster: ");
-					for (String msg : messages) {
-						System.err.println(msg);
-					}
-				}
-
-				if (yarnCluster.getApplicationStatus() != ApplicationStatus.SUCCEEDED) {
-					System.err.println("The YARN cluster has failed");
-					yarnCluster.shutdown();
-				}
-
-				// wait until CLIENT_POLLING_INTERVAL is over or the user entered something.
-				long startTime = System.currentTimeMillis();
-				while ((System.currentTimeMillis() - startTime) < CLIENT_POLLING_INTERVALL * 1000
-						&& (!readConsoleInput || !in.ready())) {
-					Thread.sleep(200);
-				}
-				//------------- handle interactive command by user. ----------------------
-
-				if (readConsoleInput && in.ready()) {
-					String command = in.readLine();
-					switch (command) {
-						case "quit":
-						case "stop":
-							yarnCluster.shutdownCluster();
-							break label;
-
-						case "help":
-							System.err.println(help);
-							break;
-						default:
-							System.err.println("Unknown command '" + command + "'. Showing help: \n" + help);
-							break;
-					}
-				}
-
-				if (yarnCluster.hasBeenShutdown()) {
-					LOG.info("Stopping interactive command line interface, YARN cluster has been stopped.");
-					break;
-				}
-			}
-		} catch (Exception e) {
-			LOG.warn("Exception while running the interactive command line interface", e);
-		}
-	}
-
-	public static void main(final String[] args) throws Exception {
-		final FlinkYarnSessionCli cli = new FlinkYarnSessionCli("", ""); // no prefix for the YARN session
-
-		final String configurationDirectory = CliFrontend.getConfigurationDirectoryFromEnv();
-
-		final Configuration flinkConfiguration = GlobalConfiguration.loadConfiguration();
-		SecurityUtils.install(new SecurityConfiguration(flinkConfiguration));
-		int retCode = SecurityUtils.getInstalledContext().runSecured(new Callable<Integer>() {
-			@Override
-			public Integer call() {
-				return cli.run(args, flinkConfiguration, configurationDirectory);
-			}
-		});
-		System.exit(retCode);
-	}
-
 	@Override
-	public boolean isActive(CommandLine commandLine, Configuration configuration) {
-		String jobManagerOption = commandLine.getOptionValue(ADDRESS_OPTION.getOpt(), null);
+	public boolean isActive(CommandLine commandLine) {
+		String jobManagerOption = commandLine.getOptionValue(addressOption.getOpt(), null);
 		boolean yarnJobManager = ID.equals(jobManagerOption);
 		boolean yarnAppId = commandLine.hasOption(applicationId.getOpt());
-		return yarnJobManager || yarnAppId || loadYarnPropertiesFile(commandLine, configuration) != null;
+		return yarnJobManager || yarnAppId || (isYarnPropertiesFileMode(commandLine) && yarnApplicationIdFromYarnProperties != null);
 	}
 
 	@Override
@@ -532,6 +432,8 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 
 	@Override
 	public void addRunOptions(Options baseOptions) {
+		super.addRunOptions(baseOptions);
+
 		for (Object option : allOptions.getOptions()) {
 			baseOptions.addOption((Option) option);
 		}
@@ -539,203 +441,297 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 
 	@Override
 	public void addGeneralOptions(Options baseOptions) {
+		super.addGeneralOptions(baseOptions);
 		baseOptions.addOption(applicationId);
 	}
 
 	@Override
-	public YarnClusterClient retrieveCluster(
-			CommandLine cmdLine,
-			Configuration config,
-			String configurationDirectory) throws UnsupportedOperationException {
+	public AbstractYarnClusterDescriptor createClusterDescriptor(CommandLine commandLine) throws FlinkException {
+		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(commandLine);
 
-		// first check for an application id, then try to load from yarn properties
-		String applicationID = cmdLine.hasOption(applicationId.getOpt()) ?
-				cmdLine.getOptionValue(applicationId.getOpt())
-				: loadYarnPropertiesFile(cmdLine, config);
+		return createDescriptor(
+			effectiveConfiguration,
+			configurationDirectory,
+			null,
+			commandLine);
+	}
 
-		if (null != applicationID) {
-			String zkNamespace = cmdLine.hasOption(zookeeperNamespace.getOpt()) ?
-					cmdLine.getOptionValue(zookeeperNamespace.getOpt())
-					: config.getString(HighAvailabilityOptions.HA_CLUSTER_ID, applicationID);
-			config.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
-
-			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor(
-				config,
-				configurationDirectory,
-				cmdLine.hasOption(flip6.getOpt()));
-			return yarnDescriptor.retrieve(applicationID);
+	@Override
+	@Nullable
+	public ApplicationId getClusterId(CommandLine commandLine) {
+		if (commandLine.hasOption(applicationId.getOpt())) {
+			return ConverterUtils.toApplicationId(commandLine.getOptionValue(applicationId.getOpt()));
+		} else if (isYarnPropertiesFileMode(commandLine)) {
+			return yarnApplicationIdFromYarnProperties;
 		} else {
-			throw new UnsupportedOperationException("Could not resume a Yarn cluster.");
+			return null;
 		}
 	}
 
 	@Override
-	public YarnClusterClient createCluster(
-			String applicationName,
-			CommandLine cmdLine,
-			Configuration config,
-			String configurationDirectory,
-			List<URL> userJarFiles) {
-		Preconditions.checkNotNull(userJarFiles, "User jar files should not be null.");
+	public ClusterSpecification getClusterSpecification(CommandLine commandLine) throws FlinkException {
+		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(commandLine);
 
-		AbstractYarnClusterDescriptor yarnClusterDescriptor = createDescriptor(
-			config,
-			configurationDirectory,
-			applicationName,
-			cmdLine);
-
-		final ClusterSpecification clusterSpecification = createClusterSpecification(config, cmdLine);
-
-		yarnClusterDescriptor.setProvidedUserJarFiles(userJarFiles);
-
-		try {
-			return yarnClusterDescriptor.deploySessionCluster(clusterSpecification);
-		} catch (Exception e) {
-			throw new RuntimeException("Error deploying the YARN cluster", e);
-		}
-
+		return createClusterSpecification(effectiveConfiguration, commandLine);
 	}
 
-	public int run(
-			String[] args,
-			Configuration configuration,
-			String configurationDirectory) {
+	@Override
+	protected Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
+		// we ignore the addressOption because it can only contain "yarn-cluster"
+		final Configuration effectiveConfiguration = new Configuration(configuration);
+
+		if (commandLine.hasOption(zookeeperNamespaceOption.getOpt())) {
+			String zkNamespace = commandLine.getOptionValue(zookeeperNamespaceOption.getOpt());
+			effectiveConfiguration.setString(HA_CLUSTER_ID, zkNamespace);
+		}
+
+		final ApplicationId applicationId = getClusterId(commandLine);
+
+		if (applicationId != null) {
+			final String zooKeeperNamespace;
+			if (commandLine.hasOption(zookeeperNamespace.getOpt())){
+				zooKeeperNamespace = commandLine.getOptionValue(zookeeperNamespace.getOpt());
+			} else {
+				zooKeeperNamespace = effectiveConfiguration.getString(HA_CLUSTER_ID, applicationId.toString());
+			}
+
+			effectiveConfiguration.setString(HA_CLUSTER_ID, zooKeeperNamespace);
+		}
+
+		if (commandLine.hasOption(jmMemory.getOpt())) {
+			effectiveConfiguration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, Integer.parseInt(commandLine.getOptionValue(jmMemory.getOpt())));
+		}
+
+		if (commandLine.hasOption(tmMemory.getOpt())) {
+			effectiveConfiguration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, Integer.parseInt(commandLine.getOptionValue(tmMemory.getOpt())));
+		}
+
+		if (commandLine.hasOption(slots.getOpt())) {
+			effectiveConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, Integer.parseInt(commandLine.getOptionValue(slots.getOpt())));
+		}
+
+		if (isYarnPropertiesFileMode(commandLine)) {
+			return applyYarnProperties(effectiveConfiguration);
+		} else {
+			return effectiveConfiguration;
+		}
+	}
+
+	private boolean isYarnPropertiesFileMode(CommandLine commandLine) {
+		boolean canApplyYarnProperties = !commandLine.hasOption(addressOption.getOpt());
+
+		for (Option option : commandLine.getOptions()) {
+			if (allOptions.hasOption(option.getOpt())) {
+				if (!option.getOpt().equals(detached.getOpt()) && !option.getOpt().equals(flip6.getOpt())) {
+					// don't resume from properties file if yarn options have been specified
+					canApplyYarnProperties = false;
+					break;
+				}
+			}
+		}
+
+		return canApplyYarnProperties;
+	}
+
+	private Configuration applyYarnProperties(Configuration configuration) throws FlinkException {
+		final Configuration effectiveConfiguration = new Configuration(configuration);
+
+		// configure the default parallelism from YARN
+		String propParallelism = yarnPropertiesFile.getProperty(YARN_PROPERTIES_PARALLELISM);
+		if (propParallelism != null) { // maybe the property is not set
+			try {
+				int parallelism = Integer.parseInt(propParallelism);
+				effectiveConfiguration.setInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, parallelism);
+
+				logAndSysout("YARN properties set default parallelism to " + parallelism);
+			}
+			catch (NumberFormatException e) {
+				throw new FlinkException("Error while parsing the YARN properties: " +
+					"Property " + YARN_PROPERTIES_PARALLELISM + " is not an integer.", e);
+			}
+		}
+
+		// handle the YARN client's dynamic properties
+		String dynamicPropertiesEncoded = yarnPropertiesFile.getProperty(YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING);
+		Map<String, String> dynamicProperties = getDynamicProperties(dynamicPropertiesEncoded);
+		for (Map.Entry<String, String> dynamicProperty : dynamicProperties.entrySet()) {
+			effectiveConfiguration.setString(dynamicProperty.getKey(), dynamicProperty.getValue());
+		}
+
+		return effectiveConfiguration;
+	}
+
+	public int run(String[] args) throws CliArgsException, FlinkException {
 		//
 		//	Command Line Options
 		//
-		Options options = new Options();
-		addGeneralOptions(options);
-		addRunOptions(options);
+		final CommandLine cmd = parseCommandLineOptions(args, true);
 
-		CommandLineParser parser = new PosixParser();
-		CommandLine cmd;
-		try {
-			cmd = parser.parse(options, args);
-		} catch (Exception e) {
-			System.out.println(e.getMessage());
+		if (cmd.hasOption(help.getOpt())) {
 			printUsage();
-			return 1;
-		}
-
-		// Query cluster for metrics
-		if (cmd.hasOption(query.getOpt())) {
-			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor(
-				configuration,
-				configurationDirectory,
-				cmd.hasOption(flip6.getOpt()));
-			String description;
-			try {
-				description = yarnDescriptor.getClusterDescription();
-			} catch (Exception e) {
-				System.err.println("Error while querying the YARN cluster for available resources: " + e.getMessage());
-				e.printStackTrace(System.err);
-				return 1;
-			}
-			System.out.println(description);
 			return 0;
-		} else if (cmd.hasOption(applicationId.getOpt())) {
+		}
 
-			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor(
-				configuration,
-				configurationDirectory,
-				cmd.hasOption(flip6.getOpt()));
+		final AbstractYarnClusterDescriptor yarnClusterDescriptor = createClusterDescriptor(cmd);
 
-			//configure ZK namespace depending on the value passed
-			String zkNamespace = cmd.hasOption(zookeeperNamespace.getOpt()) ?
-									cmd.getOptionValue(zookeeperNamespace.getOpt())
-									: yarnDescriptor.getFlinkConfiguration()
-									.getString(HA_CLUSTER_ID, cmd.getOptionValue(applicationId.getOpt()));
-			LOG.info("Going to use the ZK namespace: {}", zkNamespace);
-			yarnDescriptor.getFlinkConfiguration().setString(HA_CLUSTER_ID, zkNamespace);
-
-			try {
-				yarnCluster = yarnDescriptor.retrieve(cmd.getOptionValue(applicationId.getOpt()));
-			} catch (Exception e) {
-				throw new RuntimeException("Could not retrieve existing Yarn application", e);
-			}
-
-			if (detachedMode) {
-				LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
-					"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
-					"yarn application -kill " + applicationId.getOpt());
-				yarnCluster.disconnect();
+		try {
+			// Query cluster for metrics
+			if (cmd.hasOption(query.getOpt())) {
+				final String description = yarnClusterDescriptor.getClusterDescription();
+				System.out.println(description);
+				return 0;
 			} else {
-				runInteractiveCli(yarnCluster, true);
-			}
-		} else {
+				final ClusterClient<ApplicationId> clusterClient;
+				final ApplicationId yarnApplicationId;
 
-			AbstractYarnClusterDescriptor yarnDescriptor;
-			try {
-				yarnDescriptor = createDescriptor(configuration, configurationDirectory, null, cmd);
-			} catch (Exception e) {
-				System.err.println("Error while starting the YARN Client: " + e.getMessage());
-				e.printStackTrace(System.err);
-				return 1;
-			}
+				if (cmd.hasOption(applicationId.getOpt())) {
+					yarnApplicationId = ConverterUtils.toApplicationId(cmd.getOptionValue(applicationId.getOpt()));
 
-			final ClusterSpecification clusterSpecification = createClusterSpecification(yarnDescriptor.getFlinkConfiguration(), cmd);
+					clusterClient = yarnClusterDescriptor.retrieve(yarnApplicationId);
+				} else {
+					final ClusterSpecification clusterSpecification = getClusterSpecification(cmd);
 
-			try {
-				yarnCluster = yarnDescriptor.deploySessionCluster(clusterSpecification);
-			} catch (Exception e) {
-				System.err.println("Error while deploying YARN cluster: " + e.getMessage());
-				e.printStackTrace(System.err);
-				return 1;
-			}
-			//------------------ ClusterClient deployed, handle connection details
-			String jobManagerAddress =
-				yarnCluster.getJobManagerAddress().getAddress().getHostName() +
-					":" + yarnCluster.getJobManagerAddress().getPort();
+					clusterClient = yarnClusterDescriptor.deploySessionCluster(clusterSpecification);
 
-			System.out.println("Flink JobManager is now running on " + jobManagerAddress);
-			System.out.println("JobManager Web Interface: " + yarnCluster.getWebInterfaceURL());
+					//------------------ ClusterClient deployed, handle connection details
+					yarnApplicationId = clusterClient.getClusterId();
 
-			// file that we write into the conf/ dir containing the jobManager address and the dop.
-			File yarnPropertiesFile = getYarnPropertiesLocation(yarnCluster.getFlinkConfiguration());
+					String jobManagerAddress =
+						clusterClient.getJobManagerAddress().getAddress().getHostName() +
+							':' + clusterClient.getJobManagerAddress().getPort();
 
-			Properties yarnProps = new Properties();
-			yarnProps.setProperty(YARN_APPLICATION_ID_KEY, yarnCluster.getApplicationId().toString());
-			if (clusterSpecification.getSlotsPerTaskManager() != -1) {
-				String parallelism =
-						Integer.toString(clusterSpecification.getSlotsPerTaskManager() * clusterSpecification.getNumberTaskManagers());
-				yarnProps.setProperty(YARN_PROPERTIES_PARALLELISM, parallelism);
-			}
-			// add dynamic properties
-			if (yarnDescriptor.getDynamicPropertiesEncoded() != null) {
-				yarnProps.setProperty(YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING,
-						yarnDescriptor.getDynamicPropertiesEncoded());
-			}
-			writeYarnProperties(yarnProps, yarnPropertiesFile);
+					System.out.println("Flink JobManager is now running on " + jobManagerAddress);
+					System.out.println("JobManager Web Interface: " + clusterClient.getWebInterfaceURL());
 
-			//------------------ ClusterClient running, let user control it ------------
+					writeYarnPropertiesFile(
+						yarnApplicationId,
+						clusterSpecification.getNumberTaskManagers() * clusterSpecification.getSlotsPerTaskManager(),
+						yarnClusterDescriptor.getDynamicPropertiesEncoded());
+				}
 
-			if (detachedMode) {
-				// print info and quit:
-				LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
+				if (detachedMode) {
+					LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
 						"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
-						"yarn application -kill " + yarnCluster.getApplicationId());
-				yarnCluster.waitForClusterToBeReady();
-				yarnCluster.disconnect();
-			} else {
-				runInteractiveCli(yarnCluster, acceptInteractiveInput);
+						"yarn application -kill " + applicationId.getOpt());
+				} else {
+					ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+
+					final YarnApplicationStatusMonitor yarnApplicationStatusMonitor = new YarnApplicationStatusMonitor(
+						yarnClusterDescriptor.getYarnClient(),
+						yarnApplicationId,
+						new ScheduledExecutorServiceAdapter(scheduledExecutorService));
+
+					try {
+						runInteractiveCli(
+							clusterClient,
+							yarnApplicationStatusMonitor,
+							acceptInteractiveInput);
+					} finally {
+						try {
+							yarnApplicationStatusMonitor.close();
+						} catch (Exception e) {
+							LOG.info("Could not properly close the Yarn application status monitor.", e);
+						}
+
+						try {
+							clusterClient.shutdown();
+						} catch (Exception e) {
+							LOG.info("Could not properly shutdown cluster client.", e);
+						}
+
+						try {
+							yarnClusterDescriptor.terminateCluster(yarnApplicationId);
+						} catch (FlinkException e) {
+							LOG.info("Could not properly terminate the Flink cluster.", e);
+						}
+
+						// shut down the scheduled executor service
+						ExecutorUtils.gracefulShutdown(
+							1000L,
+							TimeUnit.MILLISECONDS,
+							scheduledExecutorService);
+
+						deleteYarnPropertiesFile();
+
+						ApplicationReport applicationReport;
+
+						try {
+							applicationReport = yarnClusterDescriptor
+								.getYarnClient()
+								.getApplicationReport(yarnApplicationId);
+						} catch (YarnException | IOException e) {
+							LOG.info("Could not log the final application report.", e);
+							applicationReport = null;
+						}
+
+						if (applicationReport != null) {
+							logFinalApplicationReport(applicationReport);
+						}
+					}
+				}
+			}
+		} finally {
+			try {
+				yarnClusterDescriptor.close();
+			} catch (Exception e) {
+				LOG.info("Could not properly close the yarn cluster descriptor.", e);
 			}
 		}
+
 		return 0;
 	}
 
-	/**
-	 * Utility method for tests.
-	 */
-	public void stop() {
-		if (yarnCluster != null) {
-			LOG.info("Command line interface is shutting down the yarnCluster");
+	private void logFinalApplicationReport(ApplicationReport appReport) {
+		LOG.info("Application " + appReport.getApplicationId() + " finished with state " + appReport
+			.getYarnApplicationState() + " and final state " + appReport
+			.getFinalApplicationStatus() + " at " + appReport.getFinishTime());
 
-			try {
-				yarnCluster.shutdown();
-			} catch (Throwable t) {
-				LOG.warn("Could not properly shutdown the yarn cluster.", t);
-			}
+		if (appReport.getYarnApplicationState() == YarnApplicationState.FAILED) {
+			LOG.warn("Application failed. Diagnostics " + appReport.getDiagnostics());
+			LOG.warn("If log aggregation is activated in the Hadoop cluster, we recommend to retrieve "
+				+ "the full application log using this command:"
+				+ System.lineSeparator()
+				+ "\tyarn logs -applicationId " + appReport.getApplicationId()
+				+ System.lineSeparator()
+				+ "(It sometimes takes a few seconds until the logs are aggregated)");
 		}
+	}
+
+	private void deleteYarnPropertiesFile() {
+		// try to clean up the old yarn properties file
+		try {
+			File propertiesFile = getYarnPropertiesLocation(yarnPropertiesFileLocation);
+			if (propertiesFile.isFile()) {
+				if (propertiesFile.delete()) {
+					LOG.info("Deleted Yarn properties file at {}", propertiesFile.getAbsoluteFile());
+				} else {
+					LOG.warn("Couldn't delete Yarn properties file at {}", propertiesFile.getAbsoluteFile());
+				}
+			}
+		} catch (Exception e) {
+			LOG.warn("Exception while deleting the JobManager address file", e);
+		}
+	}
+
+	private void writeYarnPropertiesFile(
+			ApplicationId yarnApplicationId,
+			int parallelism,
+			@Nullable String dynamicProperties) {
+		// file that we write into the conf/ dir containing the jobManager address and the dop.
+		final File yarnPropertiesFile = getYarnPropertiesLocation(yarnPropertiesFileLocation);
+
+		Properties yarnProps = new Properties();
+		yarnProps.setProperty(YARN_APPLICATION_ID_KEY, yarnApplicationId.toString());
+		if (parallelism > 0) {
+			yarnProps.setProperty(YARN_PROPERTIES_PARALLELISM, Integer.toString(parallelism));
+		}
+
+		// add dynamic properties
+		if (dynamicProperties != null) {
+			yarnProps.setProperty(YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING, dynamicProperties);
+		}
+
+		writeYarnProperties(yarnProps, yarnPropertiesFile);
 	}
 
 	private void logAndSysout(String message) {
@@ -771,20 +767,196 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		}
 	}
 
-	public static File getYarnPropertiesLocation(Configuration conf) {
-		String defaultPropertiesFileLocation = System.getProperty("java.io.tmpdir");
+	public static void main(final String[] args) {
+		final String configurationDirectory = CliFrontend.getConfigurationDirectoryFromEnv();
+
+		final Configuration flinkConfiguration = GlobalConfiguration.loadConfiguration();
+
+		int retCode;
+
+		try {
+			final FlinkYarnSessionCli cli = new FlinkYarnSessionCli(
+				flinkConfiguration,
+				configurationDirectory,
+				"",
+				""); // no prefix for the YARN session
+
+			SecurityUtils.install(new SecurityConfiguration(flinkConfiguration));
+
+			retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.run(args));
+		} catch (CliArgsException e) {
+			retCode = handleCliArgsException(e);
+		} catch (Exception e) {
+			retCode = handleError(e);
+		}
+
+		System.exit(retCode);
+	}
+
+	private static void runInteractiveCli(
+			ClusterClient<?> clusterClient,
+			YarnApplicationStatusMonitor yarnApplicationStatusMonitor,
+			boolean readConsoleInput) {
+		try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
+			boolean continueRepl = true;
+			int numTaskmanagers = 0;
+			boolean isLastStatusUnknown = true;
+			long unknownStatusSince = System.nanoTime();
+
+			while (continueRepl) {
+
+				final ApplicationStatus applicationStatus = yarnApplicationStatusMonitor.getApplicationStatusNow();
+
+				switch (applicationStatus) {
+					case FAILED:
+					case CANCELED:
+						System.err.println("The Flink Yarn cluster has failed.");
+						continueRepl = false;
+						break;
+					case UNKNOWN:
+						if (!isLastStatusUnknown) {
+							unknownStatusSince = System.nanoTime();
+							isLastStatusUnknown = true;
+						}
+
+						if ((System.nanoTime() - unknownStatusSince) > 5L * CLIENT_POLLING_INTERVAL_MS * 1_000_000L) {
+							System.err.println("The Flink Yarn cluster is in an unknown state. Please check the Yarn cluster.");
+							continueRepl = false;
+						} else {
+							continueRepl = repStep(in, readConsoleInput);
+						}
+						break;
+					case SUCCEEDED:
+						if (isLastStatusUnknown) {
+							isLastStatusUnknown = false;
+						}
+
+						// ------------------ check if there are updates by the cluster -----------
+						try {
+							final GetClusterStatusResponse status = clusterClient.getClusterStatus();
+
+							if (status != null && numTaskmanagers != status.numRegisteredTaskManagers()) {
+								System.err.println("Number of connected TaskManagers changed to " +
+									status.numRegisteredTaskManagers() + ". " +
+									"Slots available: " + status.totalNumberOfSlots());
+								numTaskmanagers = status.numRegisteredTaskManagers();
+							}
+						} catch (Exception e) {
+							LOG.warn("Could not retrieve the current cluster status. Skipping current retrieval attempt ...", e);
+						}
+
+						printClusterMessages(clusterClient);
+
+						continueRepl = repStep(in, readConsoleInput);
+				}
+			}
+		} catch (Exception e) {
+			LOG.warn("Exception while running the interactive command line interface.", e);
+		}
+	}
+
+	private static void printClusterMessages(ClusterClient clusterClient) {
+		final List<String> messages = clusterClient.getNewMessages();
+		if (!messages.isEmpty()) {
+			System.err.println("New messages from the YARN cluster: ");
+			for (String msg : messages) {
+				System.err.println(msg);
+			}
+		}
+	}
+
+	/**
+	 * Read-Evaluate-Print step for the REPL.
+	 *
+	 * @param in to read from
+	 * @param readConsoleInput true if console input has to be read
+	 * @return true if the REPL shall be continued, otherwise false
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
+	private static boolean repStep(
+			BufferedReader in,
+			boolean readConsoleInput) throws IOException, InterruptedException {
+
+		// wait until CLIENT_POLLING_INTERVAL is over or the user entered something.
+		long startTime = System.currentTimeMillis();
+		while ((System.currentTimeMillis() - startTime) < CLIENT_POLLING_INTERVAL_MS
+			&& (!readConsoleInput || !in.ready())) {
+			Thread.sleep(200L);
+		}
+		//------------- handle interactive command by user. ----------------------
+
+		if (readConsoleInput && in.ready()) {
+			String command = in.readLine();
+			switch (command) {
+				case "quit":
+				case "stop":
+					return false;
+
+				case "help":
+					System.err.println(YARN_SESSION_HELP);
+					break;
+				default:
+					System.err.println("Unknown command '" + command + "'. Showing help:");
+					System.err.println(YARN_SESSION_HELP);
+					break;
+			}
+		}
+
+		return true;
+	}
+
+	private static void writeYarnProperties(Properties properties, File propertiesFile) {
+		try (final OutputStream out = new FileOutputStream(propertiesFile)) {
+			properties.store(out, "Generated YARN properties file");
+		} catch (IOException e) {
+			throw new RuntimeException("Error writing the properties file", e);
+		}
+		propertiesFile.setReadable(true, false); // readable for all.
+	}
+
+	private static int handleCliArgsException(CliArgsException e) {
+		LOG.error("Could not parse the command line arguments.", e);
+
+		System.out.println(e.getMessage());
+		System.out.println();
+		System.out.println("Use the help option (-h or --help) to get help on the command.");
+		return 1;
+	}
+
+	private static int handleError(Exception e) {
+		LOG.error("Error while running the Flink Yarn session.", e);
+
+		System.err.println();
+		System.err.println("------------------------------------------------------------");
+		System.err.println(" The program finished with the following exception:");
+		System.err.println();
+
+		e.printStackTrace();
+		return 1;
+	}
+
+	public static File getYarnPropertiesLocation(@Nullable String yarnPropertiesFileLocation) {
+
+		final String propertiesFileLocation;
+
+		if (yarnPropertiesFileLocation != null) {
+			propertiesFileLocation = yarnPropertiesFileLocation;
+		} else {
+			propertiesFileLocation = System.getProperty("java.io.tmpdir");
+		}
+
 		String currentUser = System.getProperty("user.name");
-		String propertiesFileLocation =
-			conf.getString(YarnConfigOptions.PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
 
 		return new File(propertiesFileLocation, YARN_PROPERTIES_FILE + currentUser);
 	}
 
-	protected AbstractYarnClusterDescriptor getClusterDescriptor(Configuration configuration, String configurationDirectory, boolean flip6) {
+	private static AbstractYarnClusterDescriptor getClusterDescriptor(Configuration configuration, String configurationDirectory, boolean flip6) {
+		final YarnClient yarnClient = YarnClient.createYarnClient();
 		if (flip6) {
-			return new YarnClusterDescriptorV2(configuration, configurationDirectory);
+			return new Flip6YarnClusterDescriptor(configuration, configurationDirectory, yarnClient);
 		} else {
-			return new YarnClusterDescriptor(configuration, configurationDirectory);
+			return new YarnClusterDescriptor(configuration, configurationDirectory, yarnClient);
 		}
 	}
 }

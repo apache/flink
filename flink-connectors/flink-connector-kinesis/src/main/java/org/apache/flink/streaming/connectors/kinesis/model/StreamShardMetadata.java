@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kinesis.model;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -26,6 +28,7 @@ import java.util.Objects;
  * is required to avoid being locked-in to a specific AWS SDK version in order to maintain the consumer's state
  * backwards compatibility.
  */
+@Internal
 public class StreamShardMetadata implements Serializable {
 
 	private static final long serialVersionUID = 5134869582298563604L;

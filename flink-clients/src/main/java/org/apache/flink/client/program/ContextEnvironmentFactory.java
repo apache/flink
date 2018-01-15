@@ -33,7 +33,7 @@ import java.util.List;
  */
 public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 
-	private final ClusterClient client;
+	private final ClusterClient<?> client;
 
 	private final List<URL> jarFilesToAttach;
 
@@ -49,7 +49,7 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 
 	private SavepointRestoreSettings savepointSettings;
 
-	public ContextEnvironmentFactory(ClusterClient client, List<URL> jarFilesToAttach,
+	public ContextEnvironmentFactory(ClusterClient<?> client, List<URL> jarFilesToAttach,
 			List<URL> classpathsToAttach, ClassLoader userCodeClassLoader, int defaultParallelism,
 			boolean isDetached, SavepointRestoreSettings savepointSettings) {
 		this.client = client;

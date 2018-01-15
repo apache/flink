@@ -18,12 +18,14 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 
 /**
  * A dummy {@link ElasticsearchSinkFunction} that wraps a {@link IndexRequestBuilder}.
  * This serves as a bridge for the usage deprecation of the {@code IndexRequestBuilder} interface.
  */
+@Internal
 class IndexRequestBuilderWrapperFunction<T> implements ElasticsearchSinkFunction<T> {
 
 	private static final long serialVersionUID = 289876038414250101L;

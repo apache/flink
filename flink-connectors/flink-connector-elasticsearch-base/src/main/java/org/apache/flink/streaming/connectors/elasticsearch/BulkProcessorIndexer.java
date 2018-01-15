@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
+import org.apache.flink.annotation.Internal;
+
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
 
@@ -29,6 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Implementation of a {@link RequestIndexer}, using a {@link BulkProcessor}.
  * {@link ActionRequest ActionRequests} will be buffered before sending a bulk request to the Elasticsearch cluster.
  */
+@Internal
 class BulkProcessorIndexer implements RequestIndexer {
 
 	private final BulkProcessor bulkProcessor;

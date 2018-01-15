@@ -18,27 +18,26 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 
-import java.net.URL;
-import java.util.List;
+import javax.annotation.Nullable;
 
 /**
  * Custom command-line interface to load hooks for the command-line interface.
  */
-public interface CustomCommandLine<ClusterType extends ClusterClient> {
+public interface CustomCommandLine<T> {
 
 	/**
 	 * Signals whether the custom command-line wants to execute or not.
 	 * @param commandLine The command-line options
-	 * @param configuration The Flink configuration
 	 * @return True if the command-line wants to run, False otherwise
 	 */
-	boolean isActive(CommandLine commandLine, Configuration configuration);
+	boolean isActive(CommandLine commandLine);
 
 	/**
 	 * Gets the unique identifier of this CustomCommandLine.
@@ -54,36 +53,48 @@ public interface CustomCommandLine<ClusterType extends ClusterClient> {
 
 	/**
 	 * Adds custom options to the existing general options.
+	 *
 	 * @param baseOptions The existing options.
 	 */
 	void addGeneralOptions(Options baseOptions);
 
 	/**
-	 * Retrieves a client for a running cluster.
-	 * @param commandLine The command-line parameters from the CliFrontend
-	 * @param config The Flink config
-	 * @param configurationDirectory Directory for configuration files
-	 * @return Client if a cluster could be retrieved
-	 * @throws UnsupportedOperationException if the operation is not supported
+	 * Create a {@link ClusterDescriptor} from the given configuration, configuration directory
+	 * and the command line.
+	 *
+	 * @param commandLine containing command line options relevant for the ClusterDescriptor
+	 * @return ClusterDescriptor
+	 * @throws FlinkException if the ClusterDescriptor could not be created
 	 */
-	ClusterType retrieveCluster(
-		CommandLine commandLine,
-		Configuration config,
-		String configurationDirectory) throws UnsupportedOperationException;
+	ClusterDescriptor<T> createClusterDescriptor(CommandLine commandLine) throws FlinkException;
 
 	/**
-	 * Creates the client for the cluster.
-	 * @param applicationName The application name to use
-	 * @param commandLine The command-line options parsed by the CliFrontend
-	 * @param config The Flink config to use
-	 * @param configurationDirectory Directory for configuration files
-	 *@param userJarFiles User jar files to include in the classpath of the cluster.  @return The client to communicate with the cluster which the CustomCommandLine brought up.
-	 * @throws Exception if the cluster could not be created
+	 * Returns the cluster id if a cluster id was specified on the command line, otherwise it
+	 * returns null.
+	 *
+	 * <p>A cluster id identifies a running cluster, e.g. the Yarn application id for a Flink
+	 * cluster running on Yarn.
+	 *
+	 * @param commandLine containing command line options relevant for the cluster id retrieval
+	 * @return Cluster id identifying the cluster to deploy jobs to or null
 	 */
-	ClusterType createCluster(
-		String applicationName,
-		CommandLine commandLine,
-		Configuration config,
-		String configurationDirectory,
-		List<URL> userJarFiles) throws Exception;
+	@Nullable
+	T getClusterId(CommandLine commandLine);
+
+	/**
+	 * Returns the {@link ClusterSpecification} specified by the configuration and the command
+	 * line options. This specification can be used to deploy a new Flink cluster.
+	 *
+	 * @param commandLine containing command line options relevant for the ClusterSpecification
+	 * @return ClusterSpecification for a new Flink cluster
+	 * @throws FlinkException if the ClusterSpecification could not be created
+	 */
+	ClusterSpecification getClusterSpecification(CommandLine commandLine) throws FlinkException;
+
+	default CommandLine parseCommandLineOptions(String[] args, boolean stopAtNonOptions) throws CliArgsException {
+		final Options options = new Options();
+		addGeneralOptions(options);
+		addRunOptions(options);
+		return CliFrontendParser.parse(options, args, stopAtNonOptions);
+	}
 }

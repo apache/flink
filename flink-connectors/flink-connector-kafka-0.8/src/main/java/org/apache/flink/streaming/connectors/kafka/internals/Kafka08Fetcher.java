@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -47,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.KAFKA_CONSUMER_METRICS_GROUP;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -56,6 +58,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> The type of elements produced by the fetcher.
  */
+@Internal
 public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 
 	static final KafkaTopicPartitionState<TopicAndPartition> MARKER =
@@ -177,7 +180,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 
 			// register offset metrics
 			if (useMetrics) {
-				final MetricGroup kafkaMetricGroup = runtimeContext.getMetricGroup().addGroup("KafkaConsumer");
+				final MetricGroup kafkaMetricGroup = runtimeContext.getMetricGroup().addGroup(KAFKA_CONSUMER_METRICS_GROUP);
 				addOffsetStateGauge(kafkaMetricGroup);
 			}
 

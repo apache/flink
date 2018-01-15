@@ -81,6 +81,7 @@ import static org.apache.flink.util.PropertiesUtil.getLong;
  * <p>When using a Kafka topic to send data between Flink jobs, we recommend using the
  * {@see TypeInformationSerializationSchema} and {@see TypeInformationKeyValueSerializationSchema}.</p>
  */
+@PublicEvolving
 public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 
 	private static final long serialVersionUID = -6272159445203409112L;

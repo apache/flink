@@ -18,27 +18,22 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.Flip6StandaloneClusterDescriptor;
-import org.apache.flink.client.program.rest.RestClusterClient;
+import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
-import java.net.InetSocketAddress;
-import java.net.URL;
-import java.util.List;
-
-import static org.apache.flink.client.CliFrontend.setJobManagerAddressInConfig;
+import javax.annotation.Nullable;
 
 /**
  * The default CLI which is used for interaction with standalone clusters.
  */
-public class Flip6DefaultCLI implements CustomCommandLine<RestClusterClient> {
+public class Flip6DefaultCLI extends AbstractCustomCommandLine<StandaloneClusterId> {
 
 	public static final Option FLIP_6 = new Option("flip6", "Switches the client to Flip-6 mode.");
 
@@ -46,8 +41,12 @@ public class Flip6DefaultCLI implements CustomCommandLine<RestClusterClient> {
 		FLIP_6.setRequired(false);
 	}
 
+	public Flip6DefaultCLI(Configuration configuration) {
+		super(configuration);
+	}
+
 	@Override
-	public boolean isActive(CommandLine commandLine, Configuration configuration) {
+	public boolean isActive(CommandLine commandLine) {
 		return commandLine.hasOption(FLIP_6.getOpt());
 	}
 
@@ -57,42 +56,27 @@ public class Flip6DefaultCLI implements CustomCommandLine<RestClusterClient> {
 	}
 
 	@Override
-	public void addRunOptions(Options baseOptions) {
-	}
-
-	@Override
 	public void addGeneralOptions(Options baseOptions) {
+		super.addGeneralOptions(baseOptions);
 		baseOptions.addOption(FLIP_6);
 	}
 
 	@Override
-	public RestClusterClient retrieveCluster(CommandLine commandLine, Configuration config, String configurationDirectory) {
-		if (commandLine.hasOption(CliFrontendParser.ADDRESS_OPTION.getOpt())) {
-			String addressWithPort = commandLine.getOptionValue(CliFrontendParser.ADDRESS_OPTION.getOpt());
-			InetSocketAddress jobManagerAddress = ClientUtils.parseHostPortAddress(addressWithPort);
-			setJobManagerAddressInConfig(config, jobManagerAddress);
-		}
+	public Flip6StandaloneClusterDescriptor createClusterDescriptor(
+			CommandLine commandLine) throws FlinkException {
+		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(commandLine);
 
-		if (commandLine.hasOption(CliFrontendParser.ZOOKEEPER_NAMESPACE_OPTION.getOpt())) {
-			String zkNamespace = commandLine.getOptionValue(CliFrontendParser.ZOOKEEPER_NAMESPACE_OPTION.getOpt());
-			config.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
-		}
-
-		Flip6StandaloneClusterDescriptor descriptor = new Flip6StandaloneClusterDescriptor(config);
-		return descriptor.retrieve(null);
+		return new Flip6StandaloneClusterDescriptor(effectiveConfiguration);
 	}
 
 	@Override
-	public RestClusterClient createCluster(
-			String applicationName,
-			CommandLine commandLine,
-			Configuration config,
-			String configurationDirectory,
-			List<URL> userJarFiles) throws UnsupportedOperationException {
+	@Nullable
+	public StandaloneClusterId getClusterId(CommandLine commandLine) {
+		return StandaloneClusterId.getInstance();
+	}
 
-		Flip6StandaloneClusterDescriptor descriptor = new Flip6StandaloneClusterDescriptor(config);
-		ClusterSpecification clusterSpecification = ClusterSpecification.fromConfiguration(config);
-
-		return descriptor.deploySessionCluster(clusterSpecification);
+	@Override
+	public ClusterSpecification getClusterSpecification(CommandLine commandLine) {
+		return new ClusterSpecification.ClusterSpecificationBuilder().createClusterSpecification();
 	}
 }

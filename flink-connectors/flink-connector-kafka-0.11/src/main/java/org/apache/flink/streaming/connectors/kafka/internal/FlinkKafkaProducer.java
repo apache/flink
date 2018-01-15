@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
@@ -101,6 +102,7 @@ import java.util.concurrent.TimeUnit;
  * required changes via Java Reflection API. It might not be the prettiest solution. An alternative would be to
  * re-implement whole Kafka's 0.11 REST API client on our own.
  */
+@PublicEvolving
 public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaProducer.class);
 

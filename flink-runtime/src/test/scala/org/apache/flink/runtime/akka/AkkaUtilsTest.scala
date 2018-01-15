@@ -68,7 +68,7 @@ class AkkaUtilsTest
       AddressResolution.NO_ADDRESS_RESOLUTION,
       AkkaProtocol.TCP)
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(remoteAkkaUrl)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(remoteAkkaUrl)
 
     result should equal(address)
   }
@@ -78,7 +78,7 @@ class AkkaUtilsTest
     val localAkkaURL = AkkaUtils.getLocalAkkaURL("actor")
 
     intercept[Exception] {
-      AkkaUtils.getInetSockeAddressFromAkkaURL(localAkkaURL)
+      AkkaUtils.getInetSocketAddressFromAkkaURL(localAkkaURL)
     }
   }
 
@@ -86,7 +86,7 @@ class AkkaUtilsTest
     val url = "akka://flink@localhost:1234/user/jobmanager"
     val expected = new InetSocketAddress("localhost", 1234)
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
 
     result should equal(expected)
   }
@@ -95,7 +95,7 @@ class AkkaUtilsTest
     val url = "akka.tcp://flink@localhost:1234/user/jobmanager"
     val expected = new InetSocketAddress("localhost", 1234)
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
 
     result should equal(expected)
   }
@@ -104,7 +104,7 @@ class AkkaUtilsTest
     val url = "akka.ssl.tcp://flink@localhost:1234/user/jobmanager"
     val expected = new InetSocketAddress("localhost", 1234)
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
 
     result should equal(expected)
   }
@@ -116,7 +116,7 @@ class AkkaUtilsTest
     
     val url = s"akka://flink@$IPv4AddressString:$port/user/jobmanager"
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
 
     result should equal(address)
   }
@@ -128,7 +128,7 @@ class AkkaUtilsTest
 
     val url = s"akka://flink@[$IPv6AddressString]:$port/user/jobmanager"
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
 
     result should equal(address)
   }
@@ -140,7 +140,7 @@ class AkkaUtilsTest
 
     val url = s"akka.tcp://flink@[$IPv6AddressString]:$port/user/jobmanager"
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
 
     result should equal(address)
   }
@@ -152,7 +152,7 @@ class AkkaUtilsTest
 
     val url = s"akka.ssl.tcp://flink@[$IPv6AddressString]:$port/user/jobmanager"
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+    val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
 
     result should equal(address)
   }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -37,7 +38,10 @@ import java.io.IOException;
  *
  * <p>Failure during deserialization are forwarded as wrapped IOExceptions.
  */
+@PublicEvolving
 public class JsonRowDeserializationSchema implements DeserializationSchema<Row> {
+
+	private static final long serialVersionUID = -228294330688809195L;
 
 	/** Type information describing the result type. */
 	private final TypeInformation<Row> typeInfo;

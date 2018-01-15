@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
+
 import org.apache.kafka.common.Node;
 
 import java.io.Serializable;
@@ -25,6 +27,7 @@ import java.io.Serializable;
  * Serializable Topic Partition info with leader Node information.
  * This class is used at runtime.
  */
+@Internal
 public class KafkaTopicPartitionLeader implements Serializable {
 
 	private static final long serialVersionUID = 9145855900303748582L;

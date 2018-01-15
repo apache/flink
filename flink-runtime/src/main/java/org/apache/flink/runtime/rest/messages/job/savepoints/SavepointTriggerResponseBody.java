@@ -19,52 +19,30 @@
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Response to the triggering of a savepoint.
  */
 public class SavepointTriggerResponseBody implements ResponseBody {
 
-	private static final String FIELD_NAME_STATUS = "status";
-
-	private static final String FIELD_NAME_LOCATION = "location";
-
 	private static final String FIELD_NAME_REQUEST_ID = "request-id";
 
-	@JsonProperty(FIELD_NAME_STATUS)
-	public final String status;
-
-	@JsonProperty(FIELD_NAME_LOCATION)
-	public final String location;
-
 	@JsonProperty(FIELD_NAME_REQUEST_ID)
-	public final String requestId;
+	private final SavepointTriggerId savepointTriggerId;
 
 	@JsonCreator
 	public SavepointTriggerResponseBody(
-			@JsonProperty(FIELD_NAME_STATUS) String status,
-			@JsonProperty(FIELD_NAME_LOCATION) String location,
-			@JsonProperty(FIELD_NAME_REQUEST_ID) String requestId) {
-		this.status = status;
-		this.location = Preconditions.checkNotNull(location);
-		this.requestId = requestId;
+		@JsonProperty(FIELD_NAME_REQUEST_ID) final SavepointTriggerId savepointTriggerId) {
+		this.savepointTriggerId = requireNonNull(savepointTriggerId);
 	}
 
-	@Override
-	public int hashCode() {
-		return 79 * location.hashCode();
+	public SavepointTriggerId getSavepointTriggerId() {
+		return savepointTriggerId;
 	}
 
-	@Override
-	public boolean equals(Object object) {
-		if (object instanceof SavepointTriggerResponseBody) {
-			SavepointTriggerResponseBody other = (SavepointTriggerResponseBody) object;
-			return this.location.equals(other.location);
-		}
-		return false;
-	}
 }

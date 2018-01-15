@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch2;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchApiCallBridge;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.util.ElasticsearchUtils;
@@ -42,6 +43,7 @@ import java.util.Map;
 /**
  * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 2.x.
  */
+@Internal
 public class Elasticsearch2ApiCallBridge implements ElasticsearchApiCallBridge {
 
 	private static final long serialVersionUID = 2638252694744361079L;

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -27,7 +26,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * These headers define the protocol for triggering a savepoint.
  */
-public class SavepointTriggerHeaders implements MessageHeaders<EmptyRequestBody, SavepointTriggerResponseBody, SavepointMessageParameters> {
+public class SavepointTriggerHeaders
+		implements MessageHeaders<SavepointTriggerRequestBody, SavepointTriggerResponseBody, SavepointTriggerMessageParameters> {
 
 	private static final SavepointTriggerHeaders INSTANCE = new SavepointTriggerHeaders();
 
@@ -35,8 +35,8 @@ public class SavepointTriggerHeaders implements MessageHeaders<EmptyRequestBody,
 	}
 
 	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
+	public Class<SavepointTriggerRequestBody> getRequestClass() {
+		return SavepointTriggerRequestBody.class;
 	}
 
 	@Override
@@ -50,8 +50,8 @@ public class SavepointTriggerHeaders implements MessageHeaders<EmptyRequestBody,
 	}
 
 	@Override
-	public SavepointMessageParameters getUnresolvedMessageParameters() {
-		return new SavepointMessageParameters();
+	public SavepointTriggerMessageParameters getUnresolvedMessageParameters() {
+		return new SavepointTriggerMessageParameters();
 	}
 
 	@Override

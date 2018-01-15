@@ -363,7 +363,7 @@ public class DataStream<T> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output elements
-	 * are broadcasted to every parallel instance of the next operation.
+	 * are broadcast to every parallel instance of the next operation.
 	 *
 	 * @return The DataStream with broadcast partitioning set.
 	 */

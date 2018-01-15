@@ -20,10 +20,13 @@ package org.apache.flink.runtime.rest.messages.job.savepoints;
 
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
+import static org.junit.Assert.assertEquals;
+
 /**
- * Tests for the {@link SavepointTriggerResponseBody}.
+ * Tests for {@link SavepointTriggerResponseBody}.
  */
-public class SavepointTriggerResponseBodyTest extends RestResponseMarshallingTestBase<SavepointTriggerResponseBody> {
+public class SavepointTriggerResponseBodyTest
+		extends RestResponseMarshallingTestBase<SavepointTriggerResponseBody> {
 
 	@Override
 	protected Class<SavepointTriggerResponseBody> getTestResponseClass() {
@@ -31,7 +34,14 @@ public class SavepointTriggerResponseBodyTest extends RestResponseMarshallingTes
 	}
 
 	@Override
-	protected SavepointTriggerResponseBody getTestResponseInstance() throws Exception {
-		return new SavepointTriggerResponseBody("growing", "/universe", "big-bang");
+	protected SavepointTriggerResponseBody getTestResponseInstance() {
+		return new SavepointTriggerResponseBody(new SavepointTriggerId());
+	}
+
+	@Override
+	protected void assertOriginalEqualsToUnmarshalled(
+			final SavepointTriggerResponseBody expected,
+			final SavepointTriggerResponseBody actual) {
+		assertEquals(expected.getSavepointTriggerId(), actual.getSavepointTriggerId());
 	}
 }

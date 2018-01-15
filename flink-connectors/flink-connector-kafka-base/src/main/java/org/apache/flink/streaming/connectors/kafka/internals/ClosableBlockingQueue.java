@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,6 +47,7 @@ import static java.util.Objects.requireNonNull;
  *
  * @param <E> The type of elements in the queue.
  */
+@Internal
 public class ClosableBlockingQueue<E> {
 
 	/** The lock used to make queue accesses and open checks atomic. */

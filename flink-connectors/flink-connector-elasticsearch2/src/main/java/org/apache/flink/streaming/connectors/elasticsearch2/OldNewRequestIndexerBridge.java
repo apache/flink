@@ -17,12 +17,15 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch2;
 
+import org.apache.flink.annotation.Internal;
+
 import org.elasticsearch.action.ActionRequest;
 
 /**
  * A dummy {@link org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer} to bridge
  * the migration from the deprecated {@link RequestIndexer}.
  */
+@Internal
 class OldNewRequestIndexerBridge implements RequestIndexer {
 
 	private static final long serialVersionUID = 4213982619497149416L;

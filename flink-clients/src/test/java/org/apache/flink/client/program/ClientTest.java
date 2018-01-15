@@ -131,7 +131,7 @@ public class ClientTest extends TestLogger {
 		jobManagerSystem.actorOf(
 			Props.create(SuccessReturningActor.class),
 			JobMaster.JOB_MANAGER_NAME);
-		ClusterClient out = new StandaloneClusterClient(config);
+		StandaloneClusterClient out = new StandaloneClusterClient(config);
 		out.setDetached(true);
 
 		try {
@@ -204,7 +204,7 @@ public class ClientTest extends TestLogger {
 			Props.create(SuccessReturningActor.class),
 			JobMaster.JOB_MANAGER_NAME);
 
-		ClusterClient out = new StandaloneClusterClient(config);
+		StandaloneClusterClient out = new StandaloneClusterClient(config);
 		out.setDetached(true);
 		JobSubmissionResult result = out.run(program.getPlanWithJars(), 1);
 
@@ -222,7 +222,7 @@ public class ClientTest extends TestLogger {
 				Props.create(FailureReturningActor.class),
 				JobMaster.JOB_MANAGER_NAME);
 
-		ClusterClient out = new StandaloneClusterClient(config);
+		StandaloneClusterClient out = new StandaloneClusterClient(config);
 		out.setDetached(true);
 
 		try {
@@ -259,7 +259,7 @@ public class ClientTest extends TestLogger {
 			}).when(packagedProgramMock).invokeInteractiveModeForExecution();
 
 			try {
-				ClusterClient client = new StandaloneClusterClient(config);
+				StandaloneClusterClient client = new StandaloneClusterClient(config);
 				client.setDetached(true);
 				client.run(packagedProgramMock, 1);
 				fail("Creating the local execution environment should not be possible");

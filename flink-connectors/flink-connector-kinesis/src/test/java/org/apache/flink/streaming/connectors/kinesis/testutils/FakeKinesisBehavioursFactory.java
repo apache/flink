@@ -77,28 +77,39 @@ public class FakeKinesisBehavioursFactory {
 	//  Behaviours related to fetching records, used mainly in ShardConsumerTest
 	// ------------------------------------------------------------------------
 
-	public static KinesisProxyInterface totalNumOfRecordsAfterNumOfGetRecordsCalls(final int numOfRecords, final int numOfGetRecordsCalls) {
-		return new SingleShardEmittingFixNumOfRecordsKinesis(numOfRecords, numOfGetRecordsCalls);
+	public static KinesisProxyInterface totalNumOfRecordsAfterNumOfGetRecordsCalls(
+			final int numOfRecords,
+			final int numOfGetRecordsCalls,
+			final long millisBehindLatest) {
+		return new SingleShardEmittingFixNumOfRecordsKinesis(numOfRecords, numOfGetRecordsCalls, millisBehindLatest);
 	}
 
 	public static KinesisProxyInterface totalNumOfRecordsAfterNumOfGetRecordsCallsWithUnexpectedExpiredIterator(
-		final int numOfRecords, final int numOfGetRecordsCall, final int orderOfCallToExpire) {
+			final int numOfRecords,
+			final int numOfGetRecordsCall,
+			final int orderOfCallToExpire,
+			final long millisBehindLatest) {
 		return new SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis(
-			numOfRecords, numOfGetRecordsCall, orderOfCallToExpire);
+			numOfRecords, numOfGetRecordsCall, orderOfCallToExpire, millisBehindLatest);
 	}
 
 	private static class SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis extends SingleShardEmittingFixNumOfRecordsKinesis {
 
-		private boolean expiredOnceAlready = false;
-		private boolean expiredIteratorRefreshed = false;
+		private final long millisBehindLatest;
 		private final int orderOfCallToExpire;
 
-		public SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis(final int numOfRecords,
-																			final int numOfGetRecordsCalls,
-																			final int orderOfCallToExpire) {
-			super(numOfRecords, numOfGetRecordsCalls);
+		private boolean expiredOnceAlready = false;
+		private boolean expiredIteratorRefreshed = false;
+
+		public SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis(
+				final int numOfRecords,
+				final int numOfGetRecordsCalls,
+				final int orderOfCallToExpire,
+				final long millisBehindLatest) {
+			super(numOfRecords, numOfGetRecordsCalls, millisBehindLatest);
 			checkArgument(orderOfCallToExpire <= numOfGetRecordsCalls,
 				"can not test unexpected expired iterator if orderOfCallToExpire is larger than numOfGetRecordsCalls");
+			this.millisBehindLatest = millisBehindLatest;
 			this.orderOfCallToExpire = orderOfCallToExpire;
 		}
 
@@ -116,6 +127,7 @@ public class FakeKinesisBehavioursFactory {
 				// assuming that the maxRecordsToGet is always large enough
 				return new GetRecordsResult()
 					.withRecords(shardItrToRecordBatch.get(shardIterator))
+					.withMillisBehindLatest(millisBehindLatest)
 					.withNextShardIterator(
 						(Integer.valueOf(shardIterator) == totalNumOfGetRecordsCalls - 1)
 							? null : String.valueOf(Integer.valueOf(shardIterator) + 1)); // last next shard iterator is null
@@ -142,11 +154,17 @@ public class FakeKinesisBehavioursFactory {
 
 		protected final int totalNumOfRecords;
 
+		private final long millisBehindLatest;
+
 		protected final Map<String, List<Record>> shardItrToRecordBatch;
 
-		public SingleShardEmittingFixNumOfRecordsKinesis(final int numOfRecords, final int numOfGetRecordsCalls) {
+		public SingleShardEmittingFixNumOfRecordsKinesis(
+				final int numOfRecords,
+				final int numOfGetRecordsCalls,
+				final long millistBehindLatest) {
 			this.totalNumOfRecords = numOfRecords;
 			this.totalNumOfGetRecordsCalls = numOfGetRecordsCalls;
+			this.millisBehindLatest = millistBehindLatest;
 
 			// initialize the record batches that we will be fetched
 			this.shardItrToRecordBatch = new HashMap<>();
@@ -176,6 +194,7 @@ public class FakeKinesisBehavioursFactory {
 			// assuming that the maxRecordsToGet is always large enough
 			return new GetRecordsResult()
 				.withRecords(shardItrToRecordBatch.get(shardIterator))
+				.withMillisBehindLatest(millisBehindLatest)
 				.withNextShardIterator(
 					(Integer.valueOf(shardIterator) == totalNumOfGetRecordsCalls - 1)
 						? null : String.valueOf(Integer.valueOf(shardIterator) + 1)); // last next shard iterator is null

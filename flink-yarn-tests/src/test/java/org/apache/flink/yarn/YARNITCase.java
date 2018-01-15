@@ -19,6 +19,7 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -28,6 +29,8 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -49,35 +52,43 @@ public class YARNITCase extends YarnTestBase {
 
 	@Ignore("The cluster cannot be stopped yet.")
 	@Test
-	public void testPerJobMode() {
+	public void testPerJobMode() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
-		YarnClusterDescriptorV2 yarnClusterDescriptorV2 = new YarnClusterDescriptorV2(configuration, System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR));
+		final YarnClient yarnClient = YarnClient.createYarnClient();
 
-		yarnClusterDescriptorV2.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-		yarnClusterDescriptorV2.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+		try (final Flip6YarnClusterDescriptor flip6YarnClusterDescriptor = new Flip6YarnClusterDescriptor(
+			configuration,
+			System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR),
+			yarnClient)) {
 
-		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setMasterMemoryMB(768)
-			.setTaskManagerMemoryMB(1024)
-			.setSlotsPerTaskManager(1)
-			.setNumberTaskManagers(1)
-			.createClusterSpecification();
+			flip6YarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
+			flip6YarnClusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(2);
+			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
+				.setMasterMemoryMB(768)
+				.setTaskManagerMemoryMB(1024)
+				.setSlotsPerTaskManager(1)
+				.setNumberTaskManagers(1)
+				.createClusterSpecification();
 
-		env.addSource(new InfiniteSource())
-			.shuffle()
-			.addSink(new DiscardingSink<Integer>());
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(2);
 
-		final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+			env.addSource(new InfiniteSource())
+				.shuffle()
+				.addSink(new DiscardingSink<Integer>());
 
-		File testingJar = YarnTestBase.findFile("..", new TestingYarnClusterDescriptor.TestJarFinder("flink-yarn-tests"));
+			final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-		jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
+			File testingJar = YarnTestBase.findFile("..", new TestingYarnClusterDescriptor.TestJarFinder("flink-yarn-tests"));
 
-		YarnClusterClient clusterClient = yarnClusterDescriptorV2.deployJobCluster(clusterSpecification, jobGraph);
+			jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
+
+			ClusterClient<ApplicationId> clusterClient = flip6YarnClusterDescriptor.deployJobCluster(clusterSpecification, jobGraph);
+
+			clusterClient.shutdown();
+		}
 	}
 
 	private static class InfiniteSource implements ParallelSourceFunction<Integer> {

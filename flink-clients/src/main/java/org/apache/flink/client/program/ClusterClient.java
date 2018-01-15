@@ -52,6 +52,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsErroneous;
 import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsFound;
@@ -62,6 +63,7 @@ import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -91,8 +93,10 @@ import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Encapsulates the functionality necessary to submit a program to a remote cluster.
+ *
+ * @param <T> type of the cluster id
  */
-public abstract class ClusterClient {
+public abstract class ClusterClient<T> {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -122,7 +126,7 @@ public abstract class ClusterClient {
 	 * been run inside the user JAR. We pass the Client to every instance of the ContextEnvironment
 	 * which lets us access the execution result here.
 	 */
-	private JobExecutionResult lastJobExecutionResult;
+	protected JobExecutionResult lastJobExecutionResult;
 
 	/** Switch for blocking/detached job submission of the client. */
 	private boolean detachedJobSubmission = false;
@@ -260,11 +264,7 @@ public abstract class ClusterClient {
 	 */
 	public void shutdown() throws Exception {
 		synchronized (this) {
-			try {
-				finalizeCluster();
-			} finally {
-				actorSystemLoader.shutdown();
-			}
+			actorSystemLoader.shutdown();
 
 			if (highAvailabilityServices != null) {
 				highAvailabilityServices.close();
@@ -304,7 +304,7 @@ public abstract class ClusterClient {
 					highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
 					timeout);
 
-			return AkkaUtils.getInetSockeAddressFromAkkaURL(leaderConnectionInfo.getAddress());
+			return AkkaUtils.getInetSocketAddressFromAkkaURL(leaderConnectionInfo.getAddress());
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to retrieve JobManager address", e);
 		}
@@ -668,9 +668,9 @@ public abstract class ClusterClient {
 	 * @param jobId job id
 	 * @param savepointDirectory directory the savepoint should be written to
 	 * @return path future where the savepoint is located
-	 * @throws Exception if  no connection to the cluster could be established
+	 * @throws FlinkException if no connection to the cluster could be established
 	 */
-	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
+	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) throws FlinkException {
 		final ActorGateway jobManager = getJobManagerGateway();
 
 		Future<Object> response = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobId, Option.apply(savepointDirectory)),
@@ -689,6 +689,39 @@ public abstract class ClusterClient {
 					new IllegalStateException("Unknown JobManager response of type " + responseMessage.getClass()));
 			}
 		});
+	}
+
+	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath, Time timeout) throws FlinkException {
+		final ActorGateway jobManager = getJobManagerGateway();
+
+		Object msg = new JobManagerMessages.DisposeSavepoint(savepointPath);
+		CompletableFuture<Object> responseFuture = FutureUtils.toJava(
+			jobManager.ask(
+				msg,
+				FutureUtils.toFiniteDuration(timeout)));
+
+		return responseFuture.thenApply(
+			(Object response) -> {
+				if (response instanceof JobManagerMessages.DisposeSavepointSuccess$) {
+					return Acknowledge.get();
+				} else if (response instanceof JobManagerMessages.DisposeSavepointFailure) {
+					JobManagerMessages.DisposeSavepointFailure failureResponse = (JobManagerMessages.DisposeSavepointFailure) response;
+
+					if (failureResponse.cause() instanceof ClassNotFoundException) {
+						throw new CompletionException(
+							new ClassNotFoundException("Savepoint disposal failed, because of a " +
+								"missing class. This is most likely caused by a custom state " +
+								"instance, which cannot be disposed without the user code class " +
+								"loader. Please provide the program jar with which you have created " +
+								"the savepoint via -j <JAR> for disposal.",
+								failureResponse.cause().getCause()));
+					} else {
+						throw new CompletionException(failureResponse.cause());
+					}
+				} else {
+					throw new CompletionException(new FlinkRuntimeException("Unknown response type " + response.getClass().getSimpleName() + '.'));
+				}
+			});
 	}
 
 	/**
@@ -852,7 +885,7 @@ public abstract class ClusterClient {
 	 * @return ActorGateway of the current job manager leader
 	 * @throws Exception
 	 */
-	public ActorGateway getJobManagerGateway() throws Exception {
+	public ActorGateway getJobManagerGateway() throws FlinkException {
 		log.debug("Looking up JobManager");
 
 		try {
@@ -903,17 +936,14 @@ public abstract class ClusterClient {
 	 * May return new messages from the cluster.
 	 * Messages can be for example about failed containers or container launch requests.
 	 */
-	protected abstract List<String> getNewMessages();
+	public abstract List<String> getNewMessages();
 
 	/**
-	 * Returns a string representation of the cluster.
+	 * Returns the cluster id identifying the cluster to which the client is connected.
+	 *
+	 * @return cluster id of the connected cluster
 	 */
-	public abstract String getClusterIdentifier();
-
-	/**
-	 * Request the cluster to shut down or disconnect.
-	 */
-	protected abstract void finalizeCluster();
+	public abstract T getClusterId();
 
 	/**
 	 * Set the mode of this client (detached or blocking job execution).

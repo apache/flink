@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -40,6 +41,7 @@ import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
 /**
  * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 1.x.
  */
+@Internal
 public class Elasticsearch1ApiCallBridge implements ElasticsearchApiCallBridge {
 
 	private static final long serialVersionUID = -2632363720584123682L;

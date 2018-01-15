@@ -177,7 +177,21 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		//TODO: change akka address to tcp host and port, the getAddress() interface should return a standard tcp address
 		Tuple2<String, Integer> hostPort = parseHostPort(getAddress());
 
-		resourceManagerClient.registerApplicationMaster(hostPort.f0, hostPort.f1, webInterfaceUrl);
+		final int restPort;
+
+		if (webInterfaceUrl != null) {
+			final int lastColon = webInterfaceUrl.lastIndexOf(':');
+
+			if (lastColon == -1) {
+				restPort = -1;
+			} else {
+				restPort = Integer.valueOf(webInterfaceUrl.substring(lastColon + 1));
+			}
+		} else {
+			restPort = -1;
+		}
+
+		resourceManagerClient.registerApplicationMaster(hostPort.f0, restPort, webInterfaceUrl);
 
 		return resourceManagerClient;
 	}

@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.CliFrontend;
 import org.apache.flink.configuration.CoreOptions;
 
 import org.apache.commons.cli.CommandLine;
@@ -27,16 +26,16 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
+
+import java.util.Collection;
 
 /**
  * A simple command line parser (based on Apache Commons CLI) that extracts command
  * line options.
  */
 public class CliFrontendParser {
-
-	private static final Logger LOG = LoggerFactory.getLogger(CliFrontendParser.class);
 
 	static final Option HELP_OPTION = new Option("h", "help", false,
 			"Show the help message for the CLI Frontend or the action.");
@@ -137,25 +136,16 @@ public class CliFrontendParser {
 		CANCEL_WITH_SAVEPOINT_OPTION.setOptionalArg(true);
 	}
 
-	private static final Options RUN_OPTIONS = getRunOptions(buildGeneralOptions(new Options()));
-	private static final Options INFO_OPTIONS = getInfoOptions(buildGeneralOptions(new Options()));
-	private static final Options LIST_OPTIONS = getListOptions(buildGeneralOptions(new Options()));
-	private static final Options CANCEL_OPTIONS = getCancelOptions(buildGeneralOptions(new Options()));
-	private static final Options STOP_OPTIONS = getStopOptions(buildGeneralOptions(new Options()));
-	private static final Options SAVEPOINT_OPTIONS = getSavepointOptions(buildGeneralOptions(new Options()));
+	private static final Options RUN_OPTIONS = getRunCommandOptions();
 
 	private static Options buildGeneralOptions(Options options) {
 		options.addOption(HELP_OPTION);
 		// backwards compatibility: ignore verbose flag (-v)
 		options.addOption(new Option("v", "verbose", false, "This option is deprecated."));
-		// add general options of all CLIs
-		for (CustomCommandLine customCLI : CliFrontend.getCustomCommandLineList()) {
-			customCLI.addGeneralOptions(options);
-		}
 		return options;
 	}
 
-	public static Options getProgramSpecificOptions(Options options) {
+	private static Options getProgramSpecificOptions(Options options) {
 		options.addOption(JAR_OPTION);
 		options.addOption(CLASS_OPTION);
 		options.addOption(CLASSPATH_OPTION);
@@ -163,7 +153,6 @@ public class CliFrontendParser {
 		options.addOption(ARGS_OPTION);
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
-		options.addOption(ZOOKEEPER_NAMESPACE_OPTION);
 		return options;
 	}
 
@@ -173,53 +162,40 @@ public class CliFrontendParser {
 		options.addOption(PARALLELISM_OPTION);
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
-		options.addOption(ZOOKEEPER_NAMESPACE_OPTION);
 		return options;
 	}
 
-	private static Options getRunOptions(Options options) {
+	public static Options getRunCommandOptions() {
+		Options options = buildGeneralOptions(new Options());
 		options = getProgramSpecificOptions(options);
 		options.addOption(SAVEPOINT_PATH_OPTION);
-		options.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
-
-		options = getJobManagerAddressOption(options);
-		return addCustomCliOptions(options, true);
+		return options.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
 	}
 
-	private static Options getJobManagerAddressOption(Options options) {
-		options.addOption(ADDRESS_OPTION);
-		return options;
+	static Options getInfoCommandOptions() {
+		Options options = buildGeneralOptions(new Options());
+		return getProgramSpecificOptions(options);
 	}
 
-	private static Options getInfoOptions(Options options) {
-		options = getProgramSpecificOptions(options);
-		options = getJobManagerAddressOption(options);
-		return addCustomCliOptions(options, false);
-	}
-
-	private static Options getListOptions(Options options) {
+	static Options getListCommandOptions() {
+		Options options = buildGeneralOptions(new Options());
 		options.addOption(RUNNING_OPTION);
-		options.addOption(SCHEDULED_OPTION);
-		options = getJobManagerAddressOption(options);
-		return addCustomCliOptions(options, false);
+		return options.addOption(SCHEDULED_OPTION);
 	}
 
-	private static Options getCancelOptions(Options options) {
-		options.addOption(CANCEL_WITH_SAVEPOINT_OPTION);
-		options = getJobManagerAddressOption(options);
-		return addCustomCliOptions(options, false);
+	static Options getCancelCommandOptions() {
+		Options options = buildGeneralOptions(new Options());
+		return options.addOption(CANCEL_WITH_SAVEPOINT_OPTION);
 	}
 
-	private static Options getStopOptions(Options options) {
-		options = getJobManagerAddressOption(options);
-		return addCustomCliOptions(options, false);
+	static Options getStopCommandOptions() {
+		return buildGeneralOptions(new Options());
 	}
 
-	private static Options getSavepointOptions(Options options) {
-		options = getJobManagerAddressOption(options);
+	static Options getSavepointCommandOptions() {
+		Options options = buildGeneralOptions(new Options());
 		options.addOption(SAVEPOINT_DISPOSE_OPTION);
-		options.addOption(JAR_OPTION);
-		return addCustomCliOptions(options, false);
+		return options.addOption(JAR_OPTION);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -229,9 +205,7 @@ public class CliFrontendParser {
 	private static Options getRunOptionsWithoutDeprecatedOptions(Options options) {
 		Options o = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
 		o.addOption(SAVEPOINT_PATH_OPTION);
-		o.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
-
-		return getJobManagerAddressOption(o);
+		return o.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
 	}
 
 	private static Options getInfoOptionsWithoutDeprecatedOptions(Options options) {
@@ -242,24 +216,18 @@ public class CliFrontendParser {
 
 	private static Options getListOptionsWithoutDeprecatedOptions(Options options) {
 		options.addOption(RUNNING_OPTION);
-		options.addOption(SCHEDULED_OPTION);
-		options = getJobManagerAddressOption(options);
-		return options;
+		return options.addOption(SCHEDULED_OPTION);
 	}
 
 	private static Options getCancelOptionsWithoutDeprecatedOptions(Options options) {
-		options.addOption(CANCEL_WITH_SAVEPOINT_OPTION);
-		options = getJobManagerAddressOption(options);
-		return options;
+		return options.addOption(CANCEL_WITH_SAVEPOINT_OPTION);
 	}
 
 	private static Options getStopOptionsWithoutDeprecatedOptions(Options options) {
-		options = getJobManagerAddressOption(options);
 		return options;
 	}
 
 	private static Options getSavepointOptionsWithoutDeprecatedOptions(Options options) {
-		options = getJobManagerAddressOption(options);
 		options.addOption(SAVEPOINT_DISPOSE_OPTION);
 		options.addOption(JAR_OPTION);
 		return options;
@@ -268,22 +236,22 @@ public class CliFrontendParser {
 	/**
 	 * Prints the help for the client.
 	 */
-	public static void printHelp() {
+	public static void printHelp(Collection<CustomCommandLine<?>> customCommandLines) {
 		System.out.println("./flink <ACTION> [OPTIONS] [ARGUMENTS]");
 		System.out.println();
 		System.out.println("The following actions are available:");
 
-		printHelpForRun();
+		printHelpForRun(customCommandLines);
 		printHelpForInfo();
-		printHelpForList();
-		printHelpForStop();
-		printHelpForCancel();
-		printHelpForSavepoint();
+		printHelpForList(customCommandLines);
+		printHelpForStop(customCommandLines);
+		printHelpForCancel(customCommandLines);
+		printHelpForSavepoint(customCommandLines);
 
 		System.out.println();
 	}
 
-	public static void printHelpForRun() {
+	public static void printHelpForRun(Collection<CustomCommandLine<?>> customCommandLines) {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
@@ -293,7 +261,7 @@ public class CliFrontendParser {
 		formatter.setSyntaxPrefix("  \"run\" action options:");
 		formatter.printHelp(" ", getRunOptionsWithoutDeprecatedOptions(new Options()));
 
-		printCustomCliOptions(formatter, true);
+		printCustomCliOptions(customCommandLines, formatter, true);
 
 		System.out.println();
 	}
@@ -308,12 +276,10 @@ public class CliFrontendParser {
 		formatter.setSyntaxPrefix("  \"info\" action options:");
 		formatter.printHelp(" ", getInfoOptionsWithoutDeprecatedOptions(new Options()));
 
-		printCustomCliOptions(formatter, false);
-
 		System.out.println();
 	}
 
-	public static void printHelpForList() {
+	public static void printHelpForList(Collection<CustomCommandLine<?>> customCommandLines) {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
@@ -323,12 +289,12 @@ public class CliFrontendParser {
 		formatter.setSyntaxPrefix("  \"list\" action options:");
 		formatter.printHelp(" ", getListOptionsWithoutDeprecatedOptions(new Options()));
 
-		printCustomCliOptions(formatter, false);
+		printCustomCliOptions(customCommandLines, formatter, false);
 
 		System.out.println();
 	}
 
-	public static void printHelpForStop() {
+	public static void printHelpForStop(Collection<CustomCommandLine<?>> customCommandLines) {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
@@ -338,12 +304,12 @@ public class CliFrontendParser {
 		formatter.setSyntaxPrefix("  \"stop\" action options:");
 		formatter.printHelp(" ", getStopOptionsWithoutDeprecatedOptions(new Options()));
 
-		printCustomCliOptions(formatter, false);
+		printCustomCliOptions(customCommandLines, formatter, false);
 
 		System.out.println();
 	}
 
-	public static void printHelpForCancel() {
+	public static void printHelpForCancel(Collection<CustomCommandLine<?>> customCommandLines) {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
@@ -353,12 +319,12 @@ public class CliFrontendParser {
 		formatter.setSyntaxPrefix("  \"cancel\" action options:");
 		formatter.printHelp(" ", getCancelOptionsWithoutDeprecatedOptions(new Options()));
 
-		printCustomCliOptions(formatter, false);
+		printCustomCliOptions(customCommandLines, formatter, false);
 
 		System.out.println();
 	}
 
-	public static void printHelpForSavepoint() {
+	public static void printHelpForSavepoint(Collection<CustomCommandLine<?>> customCommandLines) {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
@@ -368,25 +334,9 @@ public class CliFrontendParser {
 		formatter.setSyntaxPrefix("  \"savepoint\" action options:");
 		formatter.printHelp(" ", getSavepointOptionsWithoutDeprecatedOptions(new Options()));
 
-		printCustomCliOptions(formatter, false);
+		printCustomCliOptions(customCommandLines, formatter, false);
 
 		System.out.println();
-	}
-
-	/**
-	 * Adds custom cli options.
-	 * @param options The options to add options to
-	 * @param runOptions Whether to include run options
-	 * @return Options with additions
-	 */
-	private static Options addCustomCliOptions(Options options, boolean runOptions) {
-		for (CustomCommandLine cli: CliFrontend.getCustomCommandLineList()) {
-			cli.addGeneralOptions(options);
-			if (runOptions) {
-				cli.addRunOptions(options);
-			}
-		}
-		return options;
 	}
 
 	/**
@@ -394,19 +344,20 @@ public class CliFrontendParser {
 	 * @param formatter The formatter to use for printing
 	 * @param runOptions True if the run options should be printed, False to print only general options
 	 */
-	private static void printCustomCliOptions(HelpFormatter formatter, boolean runOptions) {
+	private static void printCustomCliOptions(
+			Collection<CustomCommandLine<?>> customCommandLines,
+			HelpFormatter formatter,
+			boolean runOptions) {
 		// prints options from all available command-line classes
-		for (CustomCommandLine cli: CliFrontend.getCustomCommandLineList()) {
-			if (cli.getId() != null) {
-				formatter.setSyntaxPrefix("  Options for " + cli.getId() + " mode:");
-				Options customOpts = new Options();
-				cli.addGeneralOptions(customOpts);
-				if (runOptions) {
-					cli.addRunOptions(customOpts);
-				}
-				formatter.printHelp(" ", customOpts);
-				System.out.println();
+		for (CustomCommandLine cli: customCommandLines) {
+			formatter.setSyntaxPrefix("  Options for " + cli.getId() + " mode:");
+			Options customOpts = new Options();
+			cli.addGeneralOptions(customOpts);
+			if (runOptions) {
+				cli.addRunOptions(customOpts);
 			}
+			formatter.printHelp(" ", customOpts);
+			System.out.println();
 		}
 	}
 
@@ -425,58 +376,37 @@ public class CliFrontendParser {
 		}
 	}
 
-	public static ListOptions parseListCommand(String[] args) throws CliArgsException {
-		try {
-			DefaultParser parser = new DefaultParser();
-			CommandLine line = parser.parse(LIST_OPTIONS, args, false);
-			return new ListOptions(line);
-		}
-		catch (ParseException e) {
-			throw new CliArgsException(e.getMessage());
-		}
-	}
+	public static CommandLine parse(Options options, String[] args, boolean stopAtNonOptions) throws CliArgsException {
+		final DefaultParser parser = new DefaultParser();
 
-	public static CancelOptions parseCancelCommand(String[] args) throws CliArgsException {
 		try {
-			DefaultParser parser = new DefaultParser();
-			CommandLine line = parser.parse(CANCEL_OPTIONS, args, false);
-			return new CancelOptions(line);
-		}
-		catch (ParseException e) {
-			throw new CliArgsException(e.getMessage());
-		}
-	}
-
-	public static StopOptions parseStopCommand(String[] args) throws CliArgsException {
-		try {
-			DefaultParser parser = new DefaultParser();
-			CommandLine line = parser.parse(STOP_OPTIONS, args, false);
-			return new StopOptions(line);
+			return parser.parse(options, args, stopAtNonOptions);
 		} catch (ParseException e) {
 			throw new CliArgsException(e.getMessage());
 		}
 	}
 
-	public static SavepointOptions parseSavepointCommand(String[] args) throws CliArgsException {
-		try {
-			DefaultParser parser = new DefaultParser();
-			CommandLine line = parser.parse(SAVEPOINT_OPTIONS, args, false);
-			return new SavepointOptions(line);
+	/**
+	 * Merges the given {@link Options} into a new Options object.
+	 *
+	 * @param optionsA options to merge, can be null if none
+	 * @param optionsB options to merge, can be null if none
+	 * @return
+	 */
+	static Options mergeOptions(@Nullable Options optionsA, @Nullable Options optionsB) {
+		final Options resultOptions = new Options();
+		if (optionsA != null) {
+			for (Option option : optionsA.getOptions()) {
+				resultOptions.addOption(option);
+			}
 		}
-		catch (ParseException e) {
-			throw new CliArgsException(e.getMessage());
-		}
-	}
 
-	public static InfoOptions parseInfoCommand(String[] args) throws CliArgsException {
-		try {
-			DefaultParser parser = new DefaultParser();
-			CommandLine line = parser.parse(INFO_OPTIONS, args, true);
-			return new InfoOptions(line);
+		if (optionsB != null) {
+			for (Option option : optionsB.getOptions()) {
+				resultOptions.addOption(option);
+			}
 		}
-		catch (ParseException e) {
-			throw new CliArgsException(e.getMessage());
-		}
-	}
 
+		return resultOptions;
+	}
 }

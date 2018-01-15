@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -39,6 +40,7 @@ import java.util.Properties;
 /**
  * Flink Sink to produce data into a Kafka topic. This producer is compatible with Kafka 0.10.x
  */
+@PublicEvolving
 public class FlinkKafkaProducer010<T> extends FlinkKafkaProducer09<T> {
 
 	private static final long serialVersionUID = 1L;

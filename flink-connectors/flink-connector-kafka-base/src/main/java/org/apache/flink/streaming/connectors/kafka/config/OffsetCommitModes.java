@@ -17,9 +17,12 @@
 
 package org.apache.flink.streaming.connectors.kafka.config;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * Utilities for {@link OffsetCommitMode}.
  */
+@Internal
 public class OffsetCommitModes {
 
 	/**
