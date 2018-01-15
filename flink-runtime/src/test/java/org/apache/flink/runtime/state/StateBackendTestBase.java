@@ -1298,6 +1298,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			keyedBackend.setCurrentKey("abc");
 			assertNull(state.get());
+			state.add(null);
+			assertNull(state.get());
 
 			keyedBackend.setCurrentKey("def");
 			assertNull(state.get());
@@ -1311,6 +1313,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.update(Arrays.asList());
 			assertNull(state.get());
 			state.update(Arrays.asList(10L, 16L));
+			assertThat(state.get(), containsInAnyOrder(16L, 10L));
+			state.add(null);
 			assertThat(state.get(), containsInAnyOrder(16L, 10L));
 
 			keyedBackend.setCurrentKey("abc");
@@ -1335,6 +1339,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.addAll(Arrays.asList(5L, 6L));
 			assertThat(state.get(), containsInAnyOrder(3L, 4L, 5L, 6L));
 
+			state.add(null);
+			assertThat(state.get(), containsInAnyOrder(3L, 4L, 5L, 6L));
 			state.update(Arrays.asList(1L, 2L));
 			assertThat(state.get(), containsInAnyOrder(1L, 2L));
 
