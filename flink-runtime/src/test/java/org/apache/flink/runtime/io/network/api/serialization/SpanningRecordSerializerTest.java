@@ -39,7 +39,7 @@ import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.
 public class SpanningRecordSerializerTest {
 
 	@Test
-	public void testHasData() {
+	public void testHasData() throws IOException {
 		final int segmentSize = 16;
 
 		final SpanningRecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<>();
@@ -47,32 +47,26 @@ public class SpanningRecordSerializerTest {
 
 		Assert.assertFalse(serializer.hasData());
 
-		try {
-			serializer.addRecord(randomIntRecord);
-			Assert.assertTrue(serializer.hasData());
+		serializer.addRecord(randomIntRecord);
+		Assert.assertTrue(serializer.hasData());
 
-			serializer.setNextBufferBuilder(createBufferBuilder(segmentSize));
-			Assert.assertTrue(serializer.hasData());
+		serializer.setNextBufferBuilder(createBufferBuilder(segmentSize));
+		Assert.assertTrue(serializer.hasData());
 
-			serializer.clear();
-			Assert.assertFalse(serializer.hasData());
+		serializer.clear();
+		Assert.assertFalse(serializer.hasData());
 
-			serializer.setNextBufferBuilder(createBufferBuilder(segmentSize));
+		serializer.setNextBufferBuilder(createBufferBuilder(segmentSize));
 
-			serializer.addRecord(randomIntRecord);
-			Assert.assertTrue(serializer.hasData());
+		serializer.addRecord(randomIntRecord);
+		Assert.assertTrue(serializer.hasData());
 
-			serializer.addRecord(randomIntRecord);
-			Assert.assertTrue(serializer.hasData());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail(e.getMessage());
-		}
+		serializer.addRecord(randomIntRecord);
+		Assert.assertTrue(serializer.hasData());
 	}
 
 	@Test
-	public void testEmptyRecords() {
+	public void testEmptyRecords() throws IOException {
 		final int segmentSize = 11;
 
 		final SpanningRecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<>();
@@ -86,107 +80,77 @@ public class SpanningRecordSerializerTest {
 			Assert.fail(e.getMessage());
 		}
 
-		try {
-			SerializationTestType emptyRecord = new SerializationTestType() {
-				@Override
-				public SerializationTestType getRandom(Random rnd) {
-					throw new UnsupportedOperationException();
-				}
+		SerializationTestType emptyRecord = new SerializationTestType() {
+			@Override
+			public SerializationTestType getRandom(Random rnd) {
+				throw new UnsupportedOperationException();
+			}
 
-				@Override
-				public int length() {
-					throw new UnsupportedOperationException();
-				}
+			@Override
+			public int length() {
+				throw new UnsupportedOperationException();
+			}
 
-				@Override
-				public void write(DataOutputView out) {}
+			@Override
+			public void write(DataOutputView out) {}
 
-				@Override
-				public void read(DataInputView in) {}
+			@Override
+			public void read(DataInputView in) {}
 
-				@Override
-				public int hashCode() {
-					throw new UnsupportedOperationException();
-				}
+			@Override
+			public int hashCode() {
+				throw new UnsupportedOperationException();
+			}
 
-				@Override
-				public boolean equals(Object obj) {
-					throw new UnsupportedOperationException();
-				}
-			};
+			@Override
+			public boolean equals(Object obj) {
+				throw new UnsupportedOperationException();
+			}
+		};
 
-			RecordSerializer.SerializationResult result = serializer.addRecord(emptyRecord);
-			Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD, result);
+		RecordSerializer.SerializationResult result = serializer.addRecord(emptyRecord);
+		Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD, result);
 
-			result = serializer.addRecord(emptyRecord);
-			Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD, result);
+		result = serializer.addRecord(emptyRecord);
+		Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD, result);
 
-			result = serializer.addRecord(emptyRecord);
-			Assert.assertEquals(RecordSerializer.SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL, result);
+		result = serializer.addRecord(emptyRecord);
+		Assert.assertEquals(RecordSerializer.SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL, result);
 
-			result = serializer.setNextBufferBuilder(createBufferBuilder(segmentSize));
-			Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD, result);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail(e.getMessage());
-		}
+		result = serializer.setNextBufferBuilder(createBufferBuilder(segmentSize));
+		Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD, result);
 	}
 
 	@Test
-	public void testIntRecordsSpanningMultipleSegments() {
+	public void testIntRecordsSpanningMultipleSegments() throws Exception {
 		final int segmentSize = 1;
 		final int numValues = 10;
 
-		try {
-			test(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail("Test encountered an unexpected exception.");
-		}
+		test(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
 	}
 
 	@Test
-	public void testIntRecordsWithAlignedSegments() {
+	public void testIntRecordsWithAlignedSegments() throws Exception {
 		final int segmentSize = 64;
 		final int numValues = 64;
 
-		try {
-			test(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail("Test encountered an unexpected exception.");
-		}
+		test(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
 	}
 
 	@Test
-	public void testIntRecordsWithUnalignedSegments() {
+	public void testIntRecordsWithUnalignedSegments() throws Exception {
 		final int segmentSize = 31;
 		final int numValues = 248; // least common multiple => last record should align
 
-		try {
-			test(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail("Test encountered an unexpected exception.");
-		}
+		test(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
 	}
 
 	@Test
-	public void testRandomRecords() {
+	public void testRandomRecords() throws Exception {
 		final int segmentSize = 127;
 		final int numValues = 100000;
 
-		try {
-			test(Util.randomRecords(numValues), segmentSize);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail("Test encountered an unexpected exception.");
-		}
+		test(Util.randomRecords(numValues), segmentSize);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
