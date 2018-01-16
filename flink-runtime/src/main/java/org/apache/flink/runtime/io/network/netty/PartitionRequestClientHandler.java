@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.TransportException;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Maps;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
 
@@ -270,12 +272,15 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		boolean releaseNettyBuffer = true;
 
 		try {
+			ByteBuf nettyBuffer = bufferOrEvent.getNettyBuffer();
+			final int receivedSize = nettyBuffer.readableBytes();
+
 			if (bufferOrEvent.isBuffer()) {
 				// ---- Buffer ------------------------------------------------
 
 				// Early return for empty buffers. Otherwise Netty's readBytes() throws an
 				// IndexOutOfBoundsException.
-				if (bufferOrEvent.getSize() == 0) {
+				if (receivedSize == 0) {
 					inputChannel.onEmptyBuffer(bufferOrEvent.sequenceNumber, -1);
 					return true;
 				}
@@ -292,8 +297,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 					Buffer buffer = bufferProvider.requestBuffer();
 
 					if (buffer != null) {
-						buffer.setSize(bufferOrEvent.getSize());
-						bufferOrEvent.getNettyBuffer().readBytes(buffer.getNioBuffer());
+						nettyBuffer.readBytes(buffer.asByteBuf(), receivedSize);
 
 						inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, -1);
 
@@ -312,11 +316,12 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 			else {
 				// ---- Event -------------------------------------------------
 				// TODO We can just keep the serialized data in the Netty buffer and release it later at the reader
-				byte[] byteArray = new byte[bufferOrEvent.getSize()];
-				bufferOrEvent.getNettyBuffer().readBytes(byteArray);
+				byte[] byteArray = new byte[receivedSize];
+				nettyBuffer.readBytes(byteArray);
 
 				MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
-				Buffer buffer = new Buffer(memSeg, FreeingBufferRecycler.INSTANCE, false);
+				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false);
+				buffer.setSize(receivedSize);
 
 				inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, -1);
 
@@ -364,7 +369,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	 */
 	private class BufferListenerTask implements BufferListener, Runnable {
 
-		private final AtomicReference<Buffer> availableBuffer = new AtomicReference<Buffer>();
+		private final AtomicReference<Buffer> availableBuffer = new AtomicReference<>();
 
 		private NettyMessage.BufferResponse stagedBufferResponse;
 
@@ -425,7 +430,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 			finally {
 				if (!success) {
 					if (buffer != null) {
-						buffer.recycle();
+						buffer.recycleBuffer();
 					}
 				}
 			}
@@ -449,9 +454,8 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 					throw new IllegalStateException("Running buffer availability task w/o a buffer.");
 				}
 
-				buffer.setSize(stagedBufferResponse.getSize());
-
-				stagedBufferResponse.getNettyBuffer().readBytes(buffer.getNioBuffer());
+				ByteBuf nettyBuffer = stagedBufferResponse.getNettyBuffer();
+				nettyBuffer.readBytes(buffer.asByteBuf(), nettyBuffer.readableBytes());
 				stagedBufferResponse.releaseBuffer();
 
 				RemoteInputChannel inputChannel = inputChannels.get(stagedBufferResponse.receiverId);
@@ -481,7 +485,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 			finally {
 				if (!success) {
 					if (buffer != null) {
-						buffer.recycle();
+						buffer.recycleBuffer();
 					}
 				}
 			}

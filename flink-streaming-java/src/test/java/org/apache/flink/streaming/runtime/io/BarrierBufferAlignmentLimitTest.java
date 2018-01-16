@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
@@ -277,11 +278,11 @@ public class BarrierBufferAlignmentLimitTest {
 		MemorySegment memory = MemorySegmentFactory.allocateUnpooledSegment(PAGE_SIZE);
 		memory.put(0, bytes);
 
-		Buffer buf = new Buffer(memory, FreeingBufferRecycler.INSTANCE);
+		Buffer buf = new NetworkBuffer(memory, FreeingBufferRecycler.INSTANCE);
 		buf.setSize(size);
 
 		// retain an additional time so it does not get disposed after being read by the input gate
-		buf.retain();
+		buf.retainBuffer();
 
 		return new BufferOrEvent(buf, channel);
 	}
@@ -296,6 +297,7 @@ public class BarrierBufferAlignmentLimitTest {
 		assertEquals(expected.isBuffer(), present.isBuffer());
 
 		if (expected.isBuffer()) {
+			assertEquals(expected.getBuffer().getMaxCapacity(), present.getBuffer().getMaxCapacity());
 			assertEquals(expected.getBuffer().getSize(), present.getBuffer().getSize());
 			MemorySegment expectedMem = expected.getBuffer().getMemorySegment();
 			MemorySegment presentMem = present.getBuffer().getMemorySegment();

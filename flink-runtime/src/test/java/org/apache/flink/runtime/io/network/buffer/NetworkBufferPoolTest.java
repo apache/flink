@@ -146,7 +146,7 @@ public class NetworkBufferPoolTest {
 
 			// the recycled buffers should go to the global pool
 			for (Buffer b : buffers) {
-				b.recycle();
+				b.recycleBuffer();
 			}
 			assertEquals(globalPool.getTotalNumberOfMemorySegments(), globalPool.getNumberOfAvailableMemorySegments());
 
@@ -284,7 +284,7 @@ public class NetworkBufferPoolTest {
 				}
 
 				for (Buffer buffer : buffers) {
-					buffer.recycle();
+					buffer.recycleBuffer();
 				}
 			});
 			bufferRecycler.start();

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -252,7 +253,7 @@ class LocalBufferPool implements BufferPool {
 				}
 				else {
 					try {
-						boolean needMoreBuffers = listener.notifyBufferAvailable(new Buffer(segment, this));
+						boolean needMoreBuffers = listener.notifyBufferAvailable(new NetworkBuffer(segment, this));
 						if (needMoreBuffers) {
 							registeredListeners.add(listener);
 						}

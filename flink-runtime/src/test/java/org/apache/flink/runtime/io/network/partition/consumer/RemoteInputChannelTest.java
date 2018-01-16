@@ -69,10 +69,10 @@ public class RemoteInputChannelTest {
 		// Setup
 		final SingleInputGate inputGate = mock(SingleInputGate.class);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
-		final Buffer buffer = TestBufferFactory.createBuffer();
+		final Buffer buffer = TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE);
 
 		// The test
-		inputChannel.onBuffer(buffer.retain(), 0, -1);
+		inputChannel.onBuffer(buffer.retainBuffer(), 0, -1);
 
 		// This does not yet throw the exception, but sets the error at the channel.
 		inputChannel.onBuffer(buffer, 29, -1);
@@ -103,7 +103,7 @@ public class RemoteInputChannelTest {
 
 		// Setup
 		final ExecutorService executor = Executors.newFixedThreadPool(2);
-		final Buffer buffer = TestBufferFactory.createBuffer();
+		final Buffer buffer = TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE);
 
 		try {
 			// Test
@@ -119,7 +119,7 @@ public class RemoteInputChannelTest {
 							for (int j = 0; j < 128; j++) {
 								// this is the same buffer over and over again which will be
 								// recycled by the RemoteInputChannel
-								inputChannel.onBuffer(buffer.retain(), j, -1);
+								inputChannel.onBuffer(buffer.retainBuffer(), j, -1);
 							}
 
 							if (inputChannel.isReleased()) {
@@ -155,7 +155,7 @@ public class RemoteInputChannelTest {
 		finally {
 			executor.shutdown();
 			assertFalse(buffer.isRecycled());
-			buffer.recycle();
+			buffer.recycleBuffer();
 			assertTrue(buffer.isRecycled());
 		}
 	}
@@ -372,7 +372,7 @@ public class RemoteInputChannelTest {
 				0, bufferPool.getNumberOfAvailableMemorySegments());
 
 			// Recycle one floating buffer
-			floatingBufferQueue.poll().recycle();
+			floatingBufferQueue.poll().recycleBuffer();
 
 			// Assign the floating buffer to the listener and the channel is still waiting for more floating buffers
 			verify(bufferPool, times(15)).requestBuffer();
@@ -385,7 +385,7 @@ public class RemoteInputChannelTest {
 				0, bufferPool.getNumberOfAvailableMemorySegments());
 
 			// Recycle one more floating buffer
-			floatingBufferQueue.poll().recycle();
+			floatingBufferQueue.poll().recycleBuffer();
 
 			// Assign the floating buffer to the listener and the channel is still waiting for more floating buffers
 			verify(bufferPool, times(15)).requestBuffer();
@@ -411,7 +411,7 @@ public class RemoteInputChannelTest {
 				0, bufferPool.getNumberOfAvailableMemorySegments());
 
 			// Recycle one exclusive buffer
-			exclusiveBuffer.recycle();
+			exclusiveBuffer.recycleBuffer();
 
 			// The exclusive buffer is returned to the channel directly
 			verify(bufferPool, times(15)).requestBuffer();
@@ -474,7 +474,7 @@ public class RemoteInputChannelTest {
 				0, bufferPool.getNumberOfAvailableMemorySegments());
 
 			// Recycle one floating buffer
-			floatingBuffer.recycle();
+			floatingBuffer.recycleBuffer();
 
 			// The floating buffer is returned to local buffer directly because the channel is not waiting
 			// for floating buffers
@@ -488,7 +488,7 @@ public class RemoteInputChannelTest {
 				1, bufferPool.getNumberOfAvailableMemorySegments());
 
 			// Recycle one exclusive buffer
-			exclusiveBuffer.recycle();
+			exclusiveBuffer.recycleBuffer();
 
 			// Return one extra floating buffer to the local pool because the number of available buffers
 			// already equals to required buffers
@@ -566,7 +566,7 @@ public class RemoteInputChannelTest {
 				0, bufferPool.getNumberOfAvailableMemorySegments());
 
 			// Recycle one exclusive buffer
-			exclusiveBuffer.recycle();
+			exclusiveBuffer.recycleBuffer();
 
 			// Return one extra floating buffer to the local pool because the number of available buffers
 			// is more than required buffers
@@ -580,7 +580,7 @@ public class RemoteInputChannelTest {
 				1, bufferPool.getNumberOfAvailableMemorySegments());
 
 			// Recycle one floating buffer
-			floatingBuffer.recycle();
+			floatingBuffer.recycleBuffer();
 
 			// The floating buffer is returned to local pool directly because the channel is not waiting for
 			// floating buffers
@@ -654,7 +654,7 @@ public class RemoteInputChannelTest {
 
 			// Recycle three floating buffers to trigger notify buffer available
 			for (Buffer buffer : floatingBuffers) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 
 			verify(channel1, times(1)).notifyBufferAvailable(any(Buffer.class));
@@ -920,7 +920,7 @@ public class RemoteInputChannelTest {
 			@Override
 			public Void call() throws Exception {
 				for (Buffer buffer : exclusiveBuffers) {
-					buffer.recycle();
+					buffer.recycleBuffer();
 				}
 
 				return null;
@@ -948,7 +948,7 @@ public class RemoteInputChannelTest {
 			@Override
 			public Void call() throws Exception {
 				for (Buffer buffer : floatingBuffers) {
-					buffer.recycle();
+					buffer.recycleBuffer();
 				}
 
 				return null;

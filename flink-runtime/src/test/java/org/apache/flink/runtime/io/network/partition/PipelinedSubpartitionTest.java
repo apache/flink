@@ -19,11 +19,9 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.TestConsumerCallback;
@@ -107,7 +105,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		verify(listener, times(1)).notifyBuffersAvailable(eq(0L));
 
 		// Add data to the queue...
-		subpartition.add(createBuffer());
+		subpartition.add(createBuffer(BUFFER_SIZE));
 		assertEquals(1, subpartition.getTotalNumberOfBuffers());
 		assertEquals(BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
 
@@ -127,7 +125,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(0, subpartition.getBuffersInBacklog());
 
 		// Add data to the queue...
-		subpartition.add(createBuffer());
+		subpartition.add(createBuffer(BUFFER_SIZE));
 
 		assertEquals(2, subpartition.getTotalNumberOfBuffers());
 		assertEquals(1, subpartition.getBuffersInBacklog());
@@ -135,7 +133,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		verify(listener, times(2)).notifyBuffersAvailable(eq(1L));
 
 		// Add event to the queue...
-		Buffer event = createBuffer();
+		Buffer event = createBuffer(BUFFER_SIZE);
 		event.tagAsEvent();
 		subpartition.add(event);
 
@@ -239,7 +237,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 				numberOfBuffers++;
 
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 
 			@Override
@@ -290,10 +288,8 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 	private void testCleanupReleasedPartition(boolean createView) throws Exception {
 		PipelinedSubpartition partition = createSubpartition();
 
-		Buffer buffer1 = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
-			FreeingBufferRecycler.INSTANCE);
-		Buffer buffer2 = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
-			FreeingBufferRecycler.INSTANCE);
+		Buffer buffer1 = createBuffer(4096);
+		Buffer buffer2 = createBuffer(4096);
 		boolean buffer1Recycled;
 		boolean buffer2Recycled;
 		try {
@@ -315,11 +311,11 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		} finally {
 			buffer1Recycled = buffer1.isRecycled();
 			if (!buffer1Recycled) {
-				buffer1.recycle();
+				buffer1.recycleBuffer();
 			}
 			buffer2Recycled = buffer2.isRecycled();
 			if (!buffer2Recycled) {
-				buffer2.recycle();
+				buffer2.recycleBuffer();
 			}
 		}
 		if (!buffer1Recycled) {

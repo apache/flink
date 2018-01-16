@@ -64,7 +64,7 @@ public class ResultPartitionTest {
 			// Pipelined, send message => notify
 			ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
 			ResultPartition partition = createPartition(notifier, ResultPartitionType.PIPELINED, true);
-			partition.writeBuffer(TestBufferFactory.createBuffer(), 0);
+			partition.writeBuffer(TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE), 0);
 			verify(notifier, times(1))
 				.notifyPartitionConsumable(
 					eq(partition.getJobId()),
@@ -76,7 +76,7 @@ public class ResultPartitionTest {
 			// Pipelined, don't send message => don't notify
 			ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
 			ResultPartition partition = createPartition(notifier, ResultPartitionType.PIPELINED, false);
-			partition.writeBuffer(TestBufferFactory.createBuffer(), 0);
+			partition.writeBuffer(TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE), 0);
 			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
 		}
 
@@ -84,7 +84,7 @@ public class ResultPartitionTest {
 			// Blocking, send message => don't notify
 			ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
 			ResultPartition partition = createPartition(notifier, ResultPartitionType.BLOCKING, true);
-			partition.writeBuffer(TestBufferFactory.createBuffer(), 0);
+			partition.writeBuffer(TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE), 0);
 			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
 		}
 
@@ -92,7 +92,7 @@ public class ResultPartitionTest {
 			// Blocking, don't send message => don't notify
 			ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
 			ResultPartition partition = createPartition(notifier, ResultPartitionType.BLOCKING, false);
-			partition.writeBuffer(TestBufferFactory.createBuffer(), 0);
+			partition.writeBuffer(TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE), 0);
 			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
 		}
 	}
@@ -114,7 +114,7 @@ public class ResultPartitionTest {
 	 */
 	protected void testAddOnFinishedPartition(final ResultPartitionType pipelined)
 		throws Exception {
-		Buffer buffer = TestBufferFactory.createBuffer();
+		Buffer buffer = TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE);
 		ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
 		try {
 			ResultPartition partition = createPartition(notifier, pipelined, true);
@@ -128,7 +128,7 @@ public class ResultPartitionTest {
 		} finally {
 			if (!buffer.isRecycled()) {
 				Assert.fail("buffer not recycled");
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 			// should not have notified either
 			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
@@ -152,7 +152,7 @@ public class ResultPartitionTest {
 	 */
 	protected void testAddOnReleasedPartition(final ResultPartitionType pipelined)
 		throws Exception {
-		Buffer buffer = TestBufferFactory.createBuffer();
+		Buffer buffer = TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE);
 		ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
 		try {
 			ResultPartition partition = createPartition(notifier, pipelined, true);
@@ -162,7 +162,7 @@ public class ResultPartitionTest {
 		} finally {
 			if (!buffer.isRecycled()) {
 				Assert.fail("buffer not recycled");
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 			// should not have notified either
 			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
@@ -217,14 +217,14 @@ public class ResultPartitionTest {
 		throws Exception {
 		ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
 		ResultPartition partition = createPartition(notifier, pipelined, true);
-		Buffer buffer = TestBufferFactory.createBuffer();
+		Buffer buffer = TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE);
 		try {
 			// partition.add() adds the buffer without recycling it (if not spilling)
 			partition.writeBuffer(buffer, 0);
 			assertFalse("buffer should not be recycled (still in the queue)", buffer.isRecycled());
 		} finally {
 			if (!buffer.isRecycled()) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 			// should have been notified for pipelined partitions
 			if (pipelined.isPipelined()) {

@@ -22,7 +22,8 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.event.task.IntegerTaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -32,17 +33,15 @@ import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.powermock.api.mockito.PowerMockito.spy;
 
+/**
+ * Tests for the serialization and deserialization of the various {@link NettyMessage} sub-classes.
+ */
 public class NettyMessageSerializationTest {
 
 	private final EmbeddedChannel channel = new EmbeddedChannel(
@@ -54,39 +53,8 @@ public class NettyMessageSerializationTest {
 
 	@Test
 	public void testEncodeDecode() {
-		{
-			Buffer buffer = spy(new Buffer(MemorySegmentFactory.allocateUnpooledSegment(1024), mock(BufferRecycler.class)));
-			ByteBuffer nioBuffer = buffer.getNioBuffer();
-
-			for (int i = 0; i < 1024; i += 4) {
-				nioBuffer.putInt(i);
-			}
-
-			NettyMessage.BufferResponse expected = new NettyMessage.BufferResponse(buffer, random.nextInt(), new InputChannelID(), random.nextInt());
-			NettyMessage.BufferResponse actual = encodeAndDecode(expected);
-
-			// Verify recycle has been called on buffer instance
-			verify(buffer, times(1)).recycle();
-
-			final ByteBuf retainedSlice = actual.getNettyBuffer();
-
-			// Ensure not recycled and same size as original buffer
-			assertEquals(1, retainedSlice.refCnt());
-			assertEquals(1024, retainedSlice.readableBytes());
-
-			nioBuffer = retainedSlice.nioBuffer();
-			for (int i = 0; i < 1024; i += 4) {
-				assertEquals(i, nioBuffer.getInt());
-			}
-
-			// Release the retained slice
-			actual.releaseBuffer();
-			assertEquals(0, retainedSlice.refCnt());
-
-			assertEquals(expected.sequenceNumber, actual.sequenceNumber);
-			assertEquals(expected.receiverId, actual.receiverId);
-			assertEquals(expected.backlog, actual.backlog);
-		}
+		testEncodeDecodeBuffer(false);
+		testEncodeDecodeBuffer(true);
 
 		{
 			{
@@ -169,12 +137,50 @@ public class NettyMessageSerializationTest {
 		}
 	}
 
+	private void testEncodeDecodeBuffer(boolean testReadOnlyBuffer) {
+		NetworkBuffer buffer = new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(1024), FreeingBufferRecycler.INSTANCE);
+
+		for (int i = 0; i < 1024; i += 4) {
+			buffer.writeInt(i);
+		}
+
+		Buffer testBuffer = testReadOnlyBuffer ? buffer.readOnlySlice() : buffer;
+
+		NettyMessage.BufferResponse expected = new NettyMessage.BufferResponse(
+			testBuffer, random.nextInt(), new InputChannelID(), random.nextInt());
+		NettyMessage.BufferResponse actual = encodeAndDecode(expected);
+
+		// Verify recycle has been called on buffer instance (LengthFieldBasedFrameDecoder creates a new one)
+		assertTrue(buffer.isRecycled());
+		assertTrue(testBuffer.isRecycled());
+
+		final ByteBuf retainedSlice = actual.getNettyBuffer();
+
+		// Ensure not recycled and same size as original buffer
+		assertEquals(1, retainedSlice.refCnt());
+		assertEquals(1024, retainedSlice.readableBytes());
+
+		for (int i = 0; i < 1024; i += 4) {
+			assertEquals(i, retainedSlice.readInt());
+		}
+
+		// Release the retained slice
+		actual.releaseBuffer();
+		assertEquals(0, retainedSlice.refCnt());
+		assertTrue(buffer.isRecycled());
+		assertTrue(testBuffer.isRecycled());
+
+		assertEquals(expected.sequenceNumber, actual.sequenceNumber);
+		assertEquals(expected.receiverId, actual.receiverId);
+		assertEquals(expected.backlog, actual.backlog);
+	}
+
 	@SuppressWarnings("unchecked")
 	private <T extends NettyMessage> T encodeAndDecode(T msg) {
 		channel.writeOutbound(msg);
 		ByteBuf encoded = (ByteBuf) channel.readOutbound();
 
-		channel.writeInbound(encoded);
+		assertTrue(channel.writeInbound(encoded));
 
 		return (T) channel.readInbound();
 	}

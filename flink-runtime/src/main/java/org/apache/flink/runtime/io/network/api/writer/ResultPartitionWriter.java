@@ -57,13 +57,13 @@ public interface ResultPartitionWriter {
 		try {
 			for (int subpartition = 0; subpartition < getNumberOfSubpartitions(); subpartition++) {
 				// retain the buffer so that it can be recycled by each channel of targetPartition
-				buffer.retain();
+				buffer.retainBuffer();
 				writeBuffer(buffer, subpartition);
 			}
 		} finally {
 			// we do not need to further retain the eventBuffer
 			// (it will be recycled after the last channel stops using it)
-			buffer.recycle();
+			buffer.recycleBuffer();
 		}
 	}
 }

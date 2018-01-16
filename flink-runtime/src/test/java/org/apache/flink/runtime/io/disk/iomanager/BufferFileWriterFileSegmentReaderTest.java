@@ -18,12 +18,13 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
-import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
-import org.apache.flink.runtime.testutils.DiscardingRecycler;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.util.event.NotificationListener;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -35,6 +36,8 @@ import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static org.apache.flink.runtime.io.disk.iomanager.BufferFileWriterReaderTest.fillBufferWithAscendingNumbers;
+import static org.apache.flink.runtime.io.disk.iomanager.BufferFileWriterReaderTest.verifyBufferFilledWithAscendingNumbers;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -44,7 +47,7 @@ public class BufferFileWriterFileSegmentReaderTest {
 
 	private static final int BUFFER_SIZE = 32 * 1024;
 
-	private static final BufferRecycler BUFFER_RECYCLER = new DiscardingRecycler();
+	private static final BufferRecycler BUFFER_RECYCLER = FreeingBufferRecycler.INSTANCE;
 
 	private static final Random random = new Random();
 
@@ -108,9 +111,7 @@ public class BufferFileWriterFileSegmentReaderTest {
 
 			int size = getNextMultipleOf(getRandomNumberInRange(minBufferSize, BUFFER_SIZE), 4);
 
-			buffer.setSize(size);
-
-			currentNumber = fillBufferWithAscendingNumbers(buffer, currentNumber);
+			currentNumber = fillBufferWithAscendingNumbers(buffer, currentNumber, size);
 
 			writer.writeBlock(buffer);
 		}
@@ -153,9 +154,9 @@ public class BufferFileWriterFileSegmentReaderTest {
 
 			fileSegment.getFileChannel().read(buffer, fileSegment.getPosition());
 
-			currentNumber = verifyBufferFilledWithAscendingNumbers(
-					new Buffer(MemorySegmentFactory.wrap(buffer.array()), BUFFER_RECYCLER), 
-					currentNumber, fileSegment.getLength());
+			Buffer buffer1 = new NetworkBuffer(MemorySegmentFactory.wrap(buffer.array()), BUFFER_RECYCLER);
+			buffer1.setSize(fileSegment.getLength());
+			currentNumber = verifyBufferFilledWithAscendingNumbers(buffer1, currentNumber);
 		}
 
 		reader.close();
@@ -178,30 +179,6 @@ public class BufferFileWriterFileSegmentReaderTest {
 	}
 
 	private Buffer createBuffer() {
-		return new Buffer(MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE), BUFFER_RECYCLER);
-	}
-
-	public static int fillBufferWithAscendingNumbers(Buffer buffer, int currentNumber) {
-		MemorySegment segment = buffer.getMemorySegment();
-
-		final int size = buffer.getSize();
-
-		for (int i = 0; i < size; i += 4) {
-			segment.putInt(i, currentNumber++);
-		}
-
-		return currentNumber;
-	}
-
-	private int verifyBufferFilledWithAscendingNumbers(Buffer buffer, int currentNumber, int size) {
-		MemorySegment segment = buffer.getMemorySegment();
-
-		for (int i = 0; i < size; i += 4) {
-			if (segment.getInt(i) != currentNumber++) {
-				throw new IllegalStateException("Read unexpected number from buffer.");
-			}
-		}
-
-		return currentNumber;
+		return new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE), BUFFER_RECYCLER);
 	}
 }

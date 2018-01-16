@@ -518,7 +518,7 @@ public class LocalInputChannelTest {
 				BufferOrEvent boe;
 				while ((boe = inputGate.getNextBufferOrEvent()) != null) {
 					if (boe.isBuffer()) {
-						boe.getBuffer().recycle();
+						boe.getBuffer().recycleBuffer();
 
 						// Check that we don't receive too many buffers
 						if (++numberOfBuffersPerChannel[boe.getChannelIndex()]

@@ -69,7 +69,7 @@ public interface TestConsumerCallback {
 		public void onBuffer(Buffer buffer) {
 			super.onBuffer(buffer);
 
-			buffer.recycle();
+			buffer.recycleBuffer();
 		}
 
 		@Override
