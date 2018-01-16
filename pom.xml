@@ -766,22 +766,6 @@ under the License.
 			<id>aggregate-scaladoc</id>
 		</profile>
 
-		<profile>
-			<!--japicmp 0.7 does not support deactivation from the command
-				line, so we have to use a workaround with profiles instead.
-				This can be removed when upgrading japicmp to 0.10+.
-				-->
-			<id>skip-japicmp</id>
-			<activation>
-				<property>
-					<name>japicmp.skip</name>
-					<value>true</value>
-				</property>
-			</activation>
-			<properties>
-				<japicmp.skip>true</japicmp.skip>
-			</properties>
-		</profile>
 
 		<profile>
 			<!-- used for SNAPSHOT and regular releases -->
@@ -1435,7 +1419,7 @@ under the License.
 				<plugin>
 					<groupId>com.github.siom79.japicmp</groupId>
 					<artifactId>japicmp-maven-plugin</artifactId>
-					<version>0.7.0</version>
+					<version>0.11.0</version>
 					<configuration>
 						<oldVersion>
 							<dependency>
@@ -1480,7 +1464,6 @@ under the License.
 							<!-- Don't break build on newly added maven modules -->
 							<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
 						</parameter>
-						<skip>${japicmp.skip}</skip>
 						<dependencies>
 							<dependency>
 								<groupId>org.apache.flink</groupId>
