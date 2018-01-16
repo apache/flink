@@ -30,6 +30,7 @@ import org.apache.flink.testutils.serialization.types.SerializationTestType;
 
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -38,200 +39,108 @@ import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 public class LargeRecordsTest {
+	private final static int NUM_RECORDS = 99;
+	private final static int SEGMENT_SIZE = 32 * 1024;
 
 	@Test
-	public void testHandleMixedLargeRecords() {
-		try {
-			final int NUM_RECORDS = 99;
-			final int SEGMENT_SIZE = 32 * 1024;
-
-			final RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<SerializationTestType>();
-			final RecordDeserializer<SerializationTestType> deserializer = new AdaptiveSpanningRecordDeserializer<SerializationTestType>();
-
-			List<SerializationTestType> originalRecords = new ArrayList<SerializationTestType>((NUM_RECORDS + 1) / 2);
-			List<SerializationTestType> deserializedRecords = new ArrayList<SerializationTestType>((NUM_RECORDS + 1) / 2);
-			
-			LargeObjectType genLarge = new LargeObjectType();
-			
-			Random rnd = new Random();
-			
-			for (int i = 0; i < NUM_RECORDS; i++) {
-				if (i % 2 == 0) {
-					originalRecords.add(new IntType(42));
-					deserializedRecords.add(new IntType());
-				} else {
-					originalRecords.add(genLarge.getRandom(rnd));
-					deserializedRecords.add(new LargeObjectType());
-				}
-			}
-
-			// -------------------------------------------------------------------------------------------------------------
-
-			serializer.setNextBufferBuilder(createBufferBuilder(SEGMENT_SIZE));
-			
-			int numRecordsDeserialized = 0;
-			
-			for (SerializationTestType record : originalRecords) {
-
-				// serialize record
-				if (serializer.addRecord(record).isFullBuffer()) {
-
-					// buffer is full => move to deserializer
-					deserializer.setNextMemorySegment(serializer.getCurrentBuffer().getMemorySegment(), SEGMENT_SIZE);
-
-					// deserialize records, as many complete as there are
-					while (numRecordsDeserialized < deserializedRecords.size()) {
-						SerializationTestType next = deserializedRecords.get(numRecordsDeserialized);
-					
-						if (deserializer.getNextRecord(next).isFullRecord()) {
-							assertEquals(originalRecords.get(numRecordsDeserialized), next);
-							numRecordsDeserialized++;
-						} else {
-							break;
-						}
-					}
-
-					// move buffers as long as necessary (for long records)
-					while (serializer.setNextBufferBuilder(createBufferBuilder(SEGMENT_SIZE)).isFullBuffer()) {
-						deserializer.setNextMemorySegment(serializer.getCurrentBuffer().getMemorySegment(), SEGMENT_SIZE);
-					}
-					
-					// deserialize records, as many as there are in the last buffer
-					while (numRecordsDeserialized < deserializedRecords.size()) {
-						SerializationTestType next = deserializedRecords.get(numRecordsDeserialized);
-					
-						if (deserializer.getNextRecord(next).isFullRecord()) {
-							assertEquals(originalRecords.get(numRecordsDeserialized), next);
-							numRecordsDeserialized++;
-						} else {
-							break;
-						}
-					}
-				}
-			}
-			
-			// move the last (incomplete buffer)
-			Buffer last = serializer.getCurrentBuffer();
-			deserializer.setNextMemorySegment(last.getMemorySegment(), last.getSize());
-			serializer.clear();
-			
-			// deserialize records, as many as there are in the last buffer
-			while (numRecordsDeserialized < deserializedRecords.size()) {
-				SerializationTestType next = deserializedRecords.get(numRecordsDeserialized);
-			
-				assertTrue(deserializer.getNextRecord(next).isFullRecord());
-				assertEquals(originalRecords.get(numRecordsDeserialized), next);
-				numRecordsDeserialized++;
-			}
-			
-			// might be that the last big records has not yet been fully moved, and a small one is missing
-			assertFalse(serializer.hasSerializedData());
-			assertFalse(deserializer.hasUnfinishedData());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+	public void testHandleMixedLargeRecords() throws IOException {
+		RecordDeserializer<SerializationTestType> deserializer = new AdaptiveSpanningRecordDeserializer<>();
+		testHandleMixedLargeRecords(deserializer);
 	}
-	
+
 	@Test
-	public void testHandleMixedLargeRecordsSpillingAdaptiveSerializer() {
-		try {
-			final int NUM_RECORDS = 99;
-			final int SEGMENT_SIZE = 32 * 1024;
+	public void testHandleMixedLargeRecordsSpillingAdaptiveSerializer() throws IOException {
+		RecordDeserializer<SerializationTestType> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<>(
+				new String[]{System.getProperty("java.io.tmpdir")});
+		testHandleMixedLargeRecords(deserializer);
+	}
 
-			final RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<SerializationTestType>();
-			
-			final RecordDeserializer<SerializationTestType> deserializer =
-					new SpillingAdaptiveSpanningRecordDeserializer<SerializationTestType>(
-							new String[] { System.getProperty("java.io.tmpdir") } );
+	private void testHandleMixedLargeRecords(RecordDeserializer<SerializationTestType> deserializer) throws IOException {
+		final int NUM_RECORDS = 99;
+		final int SEGMENT_SIZE = 32 * 1024;
 
-			List<SerializationTestType> originalRecords = new ArrayList<>((NUM_RECORDS + 1) / 2);
-			List<SerializationTestType> deserializedRecords = new ArrayList<>((NUM_RECORDS + 1) / 2);
-			
-			LargeObjectType genLarge = new LargeObjectType();
-			
-			Random rnd = new Random();
-			
-			for (int i = 0; i < NUM_RECORDS; i++) {
-				if (i % 2 == 0) {
-					originalRecords.add(new IntType(42));
-					deserializedRecords.add(new IntType());
-				} else {
-					originalRecords.add(genLarge.getRandom(rnd));
-					deserializedRecords.add(new LargeObjectType());
-				}
+		final RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<>();
+
+		List<SerializationTestType> originalRecords = new ArrayList<>((NUM_RECORDS + 1) / 2);
+		List<SerializationTestType> deserializedRecords = new ArrayList<>((NUM_RECORDS + 1) / 2);
+
+		LargeObjectType genLarge = new LargeObjectType();
+
+		Random rnd = new Random();
+
+		for (int i = 0; i < NUM_RECORDS; i++) {
+			if (i % 2 == 0) {
+				originalRecords.add(new IntType(42));
+				deserializedRecords.add(new IntType());
+			} else {
+				originalRecords.add(genLarge.getRandom(rnd));
+				deserializedRecords.add(new LargeObjectType());
 			}
+		}
 
-			// -------------------------------------------------------------------------------------------------------------
+		// -------------------------------------------------------------------------------------------------------------
 
-			serializer.setNextBufferBuilder(createBufferBuilder(SEGMENT_SIZE));
-			
-			int numRecordsDeserialized = 0;
-			
-			for (SerializationTestType record : originalRecords) {
+		serializer.setNextBufferBuilder(createBufferBuilder(SEGMENT_SIZE));
 
-				// serialize record
-				if (serializer.addRecord(record).isFullBuffer()) {
+		int numRecordsDeserialized = 0;
 
-					// buffer is full => move to deserializer
+		for (SerializationTestType record : originalRecords) {
+
+			// serialize record
+			if (serializer.addRecord(record).isFullBuffer()) {
+
+				// buffer is full => move to deserializer
+				deserializer.setNextMemorySegment(serializer.getCurrentBuffer().getMemorySegment(), SEGMENT_SIZE);
+
+				// deserialize records, as many complete as there are
+				while (numRecordsDeserialized < deserializedRecords.size()) {
+					SerializationTestType next = deserializedRecords.get(numRecordsDeserialized);
+
+					if (deserializer.getNextRecord(next).isFullRecord()) {
+						assertEquals(originalRecords.get(numRecordsDeserialized), next);
+						numRecordsDeserialized++;
+					} else {
+						break;
+					}
+				}
+
+				// move buffers as long as necessary (for long records)
+				while (serializer.setNextBufferBuilder(createBufferBuilder(SEGMENT_SIZE)).isFullBuffer()) {
 					deserializer.setNextMemorySegment(serializer.getCurrentBuffer().getMemorySegment(), SEGMENT_SIZE);
+				}
 
-					// deserialize records, as many complete as there are
-					while (numRecordsDeserialized < deserializedRecords.size()) {
-						SerializationTestType next = deserializedRecords.get(numRecordsDeserialized);
-					
-						if (deserializer.getNextRecord(next).isFullRecord()) {
-							assertEquals(originalRecords.get(numRecordsDeserialized), next);
-							numRecordsDeserialized++;
-						} else {
-							break;
-						}
-					}
+				// deserialize records, as many as there are in the last buffer
+				while (numRecordsDeserialized < deserializedRecords.size()) {
+					SerializationTestType next = deserializedRecords.get(numRecordsDeserialized);
 
-					// move buffers as long as necessary (for long records)
-					while (serializer.setNextBufferBuilder(createBufferBuilder(SEGMENT_SIZE)).isFullBuffer()) {
-						deserializer.setNextMemorySegment(serializer.getCurrentBuffer().getMemorySegment(), SEGMENT_SIZE);
-					}
-					
-					// deserialize records, as many as there are in the last buffer
-					while (numRecordsDeserialized < deserializedRecords.size()) {
-						SerializationTestType next = deserializedRecords.get(numRecordsDeserialized);
-					
-						if (deserializer.getNextRecord(next).isFullRecord()) {
-							assertEquals(originalRecords.get(numRecordsDeserialized), next);
-							numRecordsDeserialized++;
-						} else {
-							break;
-						}
+					if (deserializer.getNextRecord(next).isFullRecord()) {
+						assertEquals(originalRecords.get(numRecordsDeserialized), next);
+						numRecordsDeserialized++;
+					} else {
+						break;
 					}
 				}
 			}
-			
-			// move the last (incomplete buffer)
-			Buffer last = serializer.getCurrentBuffer();
-			deserializer.setNextMemorySegment(last.getMemorySegment(), last.getSize());
-			serializer.clear();
-			
-			// deserialize records, as many as there are in the last buffer
-			while (numRecordsDeserialized < deserializedRecords.size()) {
-				SerializationTestType next = deserializedRecords.get(numRecordsDeserialized);
-			
-				assertTrue(deserializer.getNextRecord(next).isFullRecord());
-				assertEquals(originalRecords.get(numRecordsDeserialized), next);
-				numRecordsDeserialized++;
-			}
-			
-			// might be that the last big records has not yet been fully moved, and a small one is missing
-			assertFalse(serializer.hasSerializedData());
-			assertFalse(deserializer.hasUnfinishedData());
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+
+		// move the last (incomplete buffer)
+		Buffer last = serializer.getCurrentBuffer();
+		deserializer.setNextMemorySegment(last.getMemorySegment(), last.getSize());
+		serializer.clear();
+
+		// deserialize records, as many as there are in the last buffer
+		while (numRecordsDeserialized < deserializedRecords.size()) {
+			SerializationTestType next = deserializedRecords.get(numRecordsDeserialized);
+
+			assertTrue(deserializer.getNextRecord(next).isFullRecord());
+			assertEquals(originalRecords.get(numRecordsDeserialized), next);
+			numRecordsDeserialized++;
 		}
+
+		// might be that the last big records has not yet been fully moved, and a small one is missing
+		assertFalse(serializer.hasSerializedData());
+		assertFalse(deserializer.hasUnfinishedData());
 	}
 }
