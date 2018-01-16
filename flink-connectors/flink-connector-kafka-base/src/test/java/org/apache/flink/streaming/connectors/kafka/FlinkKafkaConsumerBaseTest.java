@@ -710,7 +710,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		@Override
 		public void addAll(List<T> values) throws Exception {
-			if (values != null && !values.isEmpty()) {
+			if (values != null) {
 				list.addAll(values);
 			}
 		}
