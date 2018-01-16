@@ -12,8 +12,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1881098330">Request</button>
-        <div id="-1881098330" class="collapse">
+        <button data-toggle="collapse" data-target="#1335553630">Request</button>
+        <div id="1335553630" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -23,8 +23,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-574888474">Response</button>
-        <div id="-574888474" class="collapse">
+        <button data-toggle="collapse" data-target="#-1653203810">Response</button>
+        <div id="-1653203810" class="collapse">
           <pre>
             <code>
 {
@@ -56,8 +56,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1357269034">Request</button>
-        <div id="-1357269034" class="collapse">
+        <button data-toggle="collapse" data-target="#1859382926">Request</button>
+        <div id="1859382926" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -67,27 +67,27 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-642531372">Response</button>
-        <div id="-642531372" class="collapse">
+        <button data-toggle="collapse" data-target="#-1720846708">Response</button>
+        <div id="-1720846708" class="collapse">
           <pre>
             <code>
 {
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:DashboardConfiguration",
   "properties" : {
-    "refreshInterval" : {
+    "refresh-interval" : {
       "type" : "integer"
     },
-    "timeZoneName" : {
+    "timezone-name" : {
       "type" : "string"
     },
-    "timeZoneOffset" : {
+    "timezone-offset" : {
       "type" : "integer"
     },
-    "flinkVersion" : {
+    "flink-version" : {
       "type" : "string"
     },
-    "flinkRevision" : {
+    "flink-revision" : {
       "type" : "string"
     }
   }
@@ -112,8 +112,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1353094089">Request</button>
-        <div id="-1353094089" class="collapse">
+        <button data-toggle="collapse" data-target="#1863557871">Request</button>
+        <div id="1863557871" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -123,8 +123,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1672532771">Response</button>
-        <div id="-1672532771" class="collapse">
+        <button data-toggle="collapse" data-target="#1544119189">Response</button>
+        <div id="1544119189" class="collapse">
           <pre>
             <code>
 {
@@ -172,8 +172,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1667487464">Request</button>
-        <div id="-1667487464" class="collapse">
+        <button data-toggle="collapse" data-target="#1549164496">Request</button>
+        <div id="1549164496" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -183,30 +183,12 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1356759103">Response</button>
-        <div id="-1356759103" class="collapse">
+        <button data-toggle="collapse" data-target="#1859892857">Response</button>
+        <div id="1859892857" class="collapse">
           <pre>
             <code>
 {
-  "type" : "object",
-  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:MetricCollectionResponseBody",
-  "properties" : {
-    "metrics" : {
-      "type" : "array",
-      "items" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:Metric",
-        "properties" : {
-          "id" : {
-            "type" : "string"
-          },
-          "value" : {
-            "type" : "string"
-          }
-        }
-      }
-    }
-  }
+  "type" : "any"
 }            </code>
           </pre>
          </div>
@@ -228,8 +210,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#1281196202">Request</button>
-        <div id="1281196202" class="collapse">
+        <button data-toggle="collapse" data-target="#202880866">Request</button>
+        <div id="202880866" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -239,39 +221,24 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#1630160880">Response</button>
-        <div id="1630160880" class="collapse">
+        <button data-toggle="collapse" data-target="#551845544">Response</button>
+        <div id="551845544" class="collapse">
           <pre>
             <code>
 {
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:JobIdsWithStatusOverview",
   "properties" : {
-    "jobsWithStatus" : {
+    "jobs" : {
       "type" : "array",
       "items" : {
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:JobIdsWithStatusOverview:JobIdWithStatus",
         "properties" : {
-          "jobId" : {
-            "type" : "object",
-            "id" : "urn:jsonschema:org:apache:flink:api:common:JobID",
-            "properties" : {
-              "upperPart" : {
-                "type" : "integer"
-              },
-              "lowerPart" : {
-                "type" : "integer"
-              },
-              "bytes" : {
-                "type" : "array",
-                "items" : {
-                  "type" : "integer"
-                }
-              }
-            }
+          "id" : {
+            "type" : "any"
           },
-          "jobStatus" : {
+          "status" : {
             "type" : "string",
             "enum" : [ "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
           }
@@ -300,8 +267,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#1710504926">Request</button>
-        <div id="1710504926" class="collapse">
+        <button data-toggle="collapse" data-target="#1001109870">Request</button>
+        <div id="1001109870" class="collapse">
           <pre>
             <code>
 {
@@ -322,8 +289,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-476159276">Response</button>
-        <div id="-476159276" class="collapse">
+        <button data-toggle="collapse" data-target="#-1185554332">Response</button>
+        <div id="-1185554332" class="collapse">
           <pre>
             <code>
 {
@@ -355,8 +322,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-297252120">Request</button>
-        <div id="-297252120" class="collapse">
+        <button data-toggle="collapse" data-target="#-1375567456">Request</button>
+        <div id="-1375567456" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -366,8 +333,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-374492226">Response</button>
-        <div id="-374492226" class="collapse">
+        <button data-toggle="collapse" data-target="#-1452807562">Response</button>
+        <div id="-1452807562" class="collapse">
           <pre>
             <code>
 {
@@ -377,56 +344,7 @@
     "jobs" : {
       "type" : "array",
       "items" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:JobDetails",
-        "properties" : {
-          "jobId" : {
-            "type" : "object",
-            "id" : "urn:jsonschema:org:apache:flink:api:common:JobID",
-            "properties" : {
-              "upperPart" : {
-                "type" : "integer"
-              },
-              "lowerPart" : {
-                "type" : "integer"
-              },
-              "bytes" : {
-                "type" : "array",
-                "items" : {
-                  "type" : "integer"
-                }
-              }
-            }
-          },
-          "jobName" : {
-            "type" : "string"
-          },
-          "startTime" : {
-            "type" : "integer"
-          },
-          "endTime" : {
-            "type" : "integer"
-          },
-          "duration" : {
-            "type" : "integer"
-          },
-          "status" : {
-            "type" : "string",
-            "enum" : [ "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
-          },
-          "lastUpdateTime" : {
-            "type" : "integer"
-          },
-          "tasksPerState" : {
-            "type" : "array",
-            "items" : {
-              "type" : "integer"
-            }
-          },
-          "numTasks" : {
-            "type" : "integer"
-          }
-        }
+        "type" : "any"
       }
     }
   }
@@ -471,8 +389,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#1776493329">Request</button>
-        <div id="1776493329" class="collapse">
+        <button data-toggle="collapse" data-target="#-1644926507">Request</button>
+        <div id="-1644926507" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -482,8 +400,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#1961476153">Response</button>
-        <div id="1961476153" class="collapse">
+        <button data-toggle="collapse" data-target="#-1459943683">Response</button>
+        <div id="-1459943683" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -517,8 +435,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-782366323">Request</button>
-        <div id="-782366323" class="collapse">
+        <button data-toggle="collapse" data-target="#-1860681659">Request</button>
+        <div id="-1860681659" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -528,12 +446,122 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-2007597011">Response</button>
-        <div id="-2007597011" class="collapse">
+        <button data-toggle="collapse" data-target="#1209054949">Response</button>
+        <div id="1209054949" class="collapse">
           <pre>
             <code>
 {
-  "type" : "any"
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobDetailsInfo",
+  "properties" : {
+    "jid" : {
+      "type" : "any"
+    },
+    "name" : {
+      "type" : "string"
+    },
+    "isStoppable" : {
+      "type" : "boolean"
+    },
+    "state" : {
+      "type" : "string",
+      "enum" : [ "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
+    },
+    "start-time" : {
+      "type" : "integer"
+    },
+    "end-time" : {
+      "type" : "integer"
+    },
+    "duration" : {
+      "type" : "integer"
+    },
+    "now" : {
+      "type" : "integer"
+    },
+    "timestamps" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "type" : "integer"
+      }
+    },
+    "vertices" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobDetailsInfo:JobVertexDetailsInfo",
+        "properties" : {
+          "id" : {
+            "type" : "any"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "parallelism" : {
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+          },
+          "start-time" : {
+            "type" : "integer"
+          },
+          "end-time" : {
+            "type" : "integer"
+          },
+          "duration" : {
+            "type" : "integer"
+          },
+          "tasks" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer"
+            }
+          },
+          "metrics" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobDetailsInfo:JobVertexMetrics",
+            "properties" : {
+              "read-bytes" : {
+                "type" : "integer"
+              },
+              "read-bytes-complete" : {
+                "type" : "boolean"
+              },
+              "write-bytes" : {
+                "type" : "integer"
+              },
+              "write-bytes-complete" : {
+                "type" : "boolean"
+              },
+              "read-records" : {
+                "type" : "integer"
+              },
+              "read-records-complete" : {
+                "type" : "boolean"
+              },
+              "write-records" : {
+                "type" : "integer"
+              },
+              "write-records-complete" : {
+                "type" : "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    "status-counts" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "type" : "integer"
+      }
+    },
+    "plan" : {
+      "type" : "string"
+    }
+  }
 }            </code>
           </pre>
          </div>
@@ -565,8 +593,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-775433959">Request</button>
-        <div id="-775433959" class="collapse">
+        <button data-toggle="collapse" data-target="#-1853749295">Request</button>
+        <div id="-1853749295" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -576,12 +604,39 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-455270359">Response</button>
-        <div id="-455270359" class="collapse">
+        <button data-toggle="collapse" data-target="#-1533585695">Response</button>
+        <div id="-1533585695" class="collapse">
           <pre>
             <code>
 {
-  "type" : "any"
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobAccumulatorsInfo",
+  "properties" : {
+    "job-accumulators" : {
+      "type" : "array",
+      "items" : {
+        "type" : "any"
+      }
+    },
+    "user-task-accumulators" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobAccumulatorsInfo:UserTaskAccumulator",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        }
+      }
+    }
+  }
 }            </code>
           </pre>
          </div>
@@ -613,8 +668,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-128702999">Request</button>
-        <div id="-128702999" class="collapse">
+        <button data-toggle="collapse" data-target="#-1207018335">Request</button>
+        <div id="-1207018335" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -624,8 +679,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#438202683">Response</button>
-        <div id="438202683" class="collapse">
+        <button data-toggle="collapse" data-target="#-640112653">Response</button>
+        <div id="-640112653" class="collapse">
           <pre>
             <code>
 {
@@ -636,19 +691,19 @@
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:Counts",
       "properties" : {
-        "numberRestoredCheckpoints" : {
+        "restored" : {
           "type" : "integer"
         },
-        "totalNumberCheckpoints" : {
+        "total" : {
           "type" : "integer"
         },
-        "numberInProgressCheckpoints" : {
+        "in_progress" : {
           "type" : "integer"
         },
-        "numberCompletedCheckpoints" : {
+        "completed" : {
           "type" : "integer"
         },
-        "numberFailedCheckpoints" : {
+        "failed" : {
           "type" : "integer"
         }
       }
@@ -657,36 +712,36 @@
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:Summary",
       "properties" : {
-        "stateSize" : {
+        "state_size" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics",
           "properties" : {
-            "minimum" : {
+            "min" : {
               "type" : "integer"
             },
-            "maximum" : {
+            "max" : {
               "type" : "integer"
             },
-            "average" : {
+            "avg" : {
               "type" : "integer"
             }
           }
         },
-        "duration" : {
+        "end_to_end_duration" : {
           "type" : "object",
           "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
         },
-        "alignmentBuffered" : {
+        "alignment_buffered" : {
           "type" : "object",
           "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
         }
       }
     },
-    "latestCheckpoints" : {
+    "latest" : {
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:LatestCheckpoints",
       "properties" : {
-        "completedCheckpointStatistics" : {
+        "completed" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics:CompletedCheckpointStatistics",
           "properties" : {
@@ -697,65 +752,65 @@
               "type" : "string",
               "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
             },
-            "savepoint" : {
+            "is_savepoint" : {
               "type" : "boolean"
             },
-            "triggerTimestamp" : {
+            "trigger_timestamp" : {
               "type" : "integer"
             },
-            "latestAckTimestamp" : {
+            "latest_ack_timestamp" : {
               "type" : "integer"
             },
-            "stateSize" : {
+            "state_size" : {
               "type" : "integer"
             },
-            "duration" : {
+            "end_to_end_duration" : {
               "type" : "integer"
             },
-            "alignmentBuffered" : {
+            "alignment_buffered" : {
               "type" : "integer"
             },
-            "numSubtasks" : {
+            "num_subtasks" : {
               "type" : "integer"
             },
-            "numAckSubtasks" : {
+            "num_acknowledged_subtasks" : {
               "type" : "integer"
             },
-            "checkpointStatisticsPerTask" : {
+            "tasks" : {
               "type" : "object",
               "additionalProperties" : {
                 "type" : "object",
                 "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics",
                 "properties" : {
-                  "checkpointId" : {
+                  "id" : {
                     "type" : "integer"
                   },
-                  "checkpointStatus" : {
+                  "status" : {
                     "type" : "string",
                     "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
                   },
-                  "latestAckTimestamp" : {
+                  "latest_ack_timestamp" : {
                     "type" : "integer"
                   },
-                  "stateSize" : {
+                  "state_size" : {
                     "type" : "integer"
                   },
-                  "duration" : {
+                  "end_to_end_duration" : {
                     "type" : "integer"
                   },
-                  "alignmentBuffered" : {
+                  "alignment_buffered" : {
                     "type" : "integer"
                   },
-                  "numSubtasks" : {
+                  "num_subtasks" : {
                     "type" : "integer"
                   },
-                  "numAckSubtasks" : {
+                  "num_acknowledged_subtasks" : {
                     "type" : "integer"
                   }
                 }
               }
             },
-            "externalPath" : {
+            "external_path" : {
               "type" : "string"
             },
             "discarded" : {
@@ -763,11 +818,11 @@
             }
           }
         },
-        "savepointStatistics" : {
+        "savepoint" : {
           "type" : "object",
           "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics:CompletedCheckpointStatistics"
         },
-        "failedCheckpointStatistics" : {
+        "failed" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics:FailedCheckpointStatistics",
           "properties" : {
@@ -778,59 +833,59 @@
               "type" : "string",
               "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
             },
-            "savepoint" : {
+            "is_savepoint" : {
               "type" : "boolean"
             },
-            "triggerTimestamp" : {
+            "trigger_timestamp" : {
               "type" : "integer"
             },
-            "latestAckTimestamp" : {
+            "latest_ack_timestamp" : {
               "type" : "integer"
             },
-            "stateSize" : {
+            "state_size" : {
               "type" : "integer"
             },
-            "duration" : {
+            "end_to_end_duration" : {
               "type" : "integer"
             },
-            "alignmentBuffered" : {
+            "alignment_buffered" : {
               "type" : "integer"
             },
-            "numSubtasks" : {
+            "num_subtasks" : {
               "type" : "integer"
             },
-            "numAckSubtasks" : {
+            "num_acknowledged_subtasks" : {
               "type" : "integer"
             },
-            "checkpointStatisticsPerTask" : {
+            "tasks" : {
               "type" : "object",
               "additionalProperties" : {
                 "type" : "object",
                 "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics"
               }
             },
-            "failureTimestamp" : {
+            "failure_timestamp" : {
               "type" : "integer"
             },
-            "failureMessage" : {
+            "failure_message" : {
               "type" : "string"
             }
           }
         },
-        "restoredCheckpointStatistics" : {
+        "restored" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:RestoredCheckpointStatistics",
           "properties" : {
             "id" : {
               "type" : "integer"
             },
-            "restoreTimestamp" : {
+            "restore_timestamp" : {
               "type" : "integer"
             },
-            "savepoint" : {
+            "is_savepoint" : {
               "type" : "boolean"
             },
-            "externalPath" : {
+            "external_path" : {
               "type" : "string"
             }
           }
@@ -850,31 +905,31 @@
             "type" : "string",
             "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
           },
-          "savepoint" : {
+          "is_savepoint" : {
             "type" : "boolean"
           },
-          "triggerTimestamp" : {
+          "trigger_timestamp" : {
             "type" : "integer"
           },
-          "latestAckTimestamp" : {
+          "latest_ack_timestamp" : {
             "type" : "integer"
           },
-          "stateSize" : {
+          "state_size" : {
             "type" : "integer"
           },
-          "duration" : {
+          "end_to_end_duration" : {
             "type" : "integer"
           },
-          "alignmentBuffered" : {
+          "alignment_buffered" : {
             "type" : "integer"
           },
-          "numSubtasks" : {
+          "num_subtasks" : {
             "type" : "integer"
           },
-          "numAckSubtasks" : {
+          "num_acknowledged_subtasks" : {
             "type" : "integer"
           },
-          "checkpointStatisticsPerTask" : {
+          "tasks" : {
             "type" : "object",
             "additionalProperties" : {
               "type" : "object",
@@ -916,8 +971,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-583364334">Request</button>
-        <div id="-583364334" class="collapse">
+        <button data-toggle="collapse" data-target="#-1661679670">Request</button>
+        <div id="-1661679670" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -927,12 +982,43 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1680506711">Response</button>
-        <div id="-1680506711" class="collapse">
+        <button data-toggle="collapse" data-target="#1536145249">Response</button>
+        <div id="1536145249" class="collapse">
           <pre>
             <code>
 {
-  "type" : "any"
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointConfigInfo",
+  "properties" : {
+    "mode" : {
+      "type" : "string",
+      "enum" : [ "AT_LEAST_ONCE", "EXACTLY_ONCE" ]
+    },
+    "interval" : {
+      "type" : "integer"
+    },
+    "timeout" : {
+      "type" : "integer"
+    },
+    "min_pause" : {
+      "type" : "integer"
+    },
+    "max_concurrent" : {
+      "type" : "integer"
+    },
+    "externalization" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointConfigInfo:ExternalizedCheckpointInfo",
+      "properties" : {
+        "enabled" : {
+          "type" : "boolean"
+        },
+        "delete_on_cancellation" : {
+          "type" : "boolean"
+        }
+      }
+    }
+  }
 }            </code>
           </pre>
          </div>
@@ -966,8 +1052,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#2012912423">Request</button>
-        <div id="2012912423" class="collapse">
+        <button data-toggle="collapse" data-target="#934597087">Request</button>
+        <div id="934597087" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -977,81 +1063,81 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#1953455481">Response</button>
-        <div id="1953455481" class="collapse">
+        <button data-toggle="collapse" data-target="#875140145">Response</button>
+        <div id="875140145" class="collapse">
           <pre>
             <code>
 {
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails",
   "properties" : {
-    "checkpointId" : {
+    "id" : {
       "type" : "integer"
     },
-    "checkpointStatus" : {
+    "status" : {
       "type" : "string",
       "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
     },
-    "latestAckTimestamp" : {
+    "latest_ack_timestamp" : {
       "type" : "integer"
     },
-    "stateSize" : {
+    "state_size" : {
       "type" : "integer"
     },
-    "duration" : {
+    "end_to_end_duration" : {
       "type" : "integer"
     },
-    "alignmentBuffered" : {
+    "alignment_buffered" : {
       "type" : "integer"
     },
-    "numSubtasks" : {
+    "num_subtasks" : {
       "type" : "integer"
     },
-    "numAckSubtasks" : {
+    "num_acknowledged_subtasks" : {
       "type" : "integer"
     },
     "summary" : {
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:Summary",
       "properties" : {
-        "stateSize" : {
+        "state_size" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics",
           "properties" : {
-            "minimum" : {
+            "min" : {
               "type" : "integer"
             },
-            "maximum" : {
+            "max" : {
               "type" : "integer"
             },
-            "average" : {
+            "avg" : {
               "type" : "integer"
             }
           }
         },
-        "duration" : {
+        "end_to_end_duration" : {
           "type" : "object",
           "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
         },
-        "checkpointDuration" : {
+        "checkpoint_duration" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:CheckpointDuration",
           "properties" : {
-            "synchronousDuration" : {
+            "sync" : {
               "type" : "object",
               "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
             },
-            "asynchronousDuration" : {
+            "async" : {
               "type" : "object",
               "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
             }
           }
         },
-        "checkpointAlignment" : {
+        "alignment" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:CheckpointAlignment",
           "properties" : {
-            "bufferedData" : {
+            "buffered" : {
               "type" : "object",
               "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
             },
@@ -1063,7 +1149,7 @@
         }
       }
     },
-    "subtaskCheckpointStatistics" : {
+    "subtasks" : {
       "type" : "array",
       "items" : {
         "type" : "object",
@@ -1072,7 +1158,7 @@
           "index" : {
             "type" : "integer"
           },
-          "checkpointStatus" : {
+          "status" : {
             "type" : "string"
           }
         }
@@ -1111,8 +1197,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#838171895">Request</button>
-        <div id="838171895" class="collapse">
+        <button data-toggle="collapse" data-target="#-240143441">Request</button>
+        <div id="-240143441" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -1122,8 +1208,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1184746847">Response</button>
-        <div id="-1184746847" class="collapse">
+        <button data-toggle="collapse" data-target="#2031905113">Response</button>
+        <div id="2031905113" class="collapse">
           <pre>
             <code>
 {
@@ -1137,59 +1223,59 @@
       "type" : "string",
       "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
     },
-    "savepoint" : {
+    "is_savepoint" : {
       "type" : "boolean"
     },
-    "triggerTimestamp" : {
+    "trigger_timestamp" : {
       "type" : "integer"
     },
-    "latestAckTimestamp" : {
+    "latest_ack_timestamp" : {
       "type" : "integer"
     },
-    "stateSize" : {
+    "state_size" : {
       "type" : "integer"
     },
-    "duration" : {
+    "end_to_end_duration" : {
       "type" : "integer"
     },
-    "alignmentBuffered" : {
+    "alignment_buffered" : {
       "type" : "integer"
     },
-    "numSubtasks" : {
+    "num_subtasks" : {
       "type" : "integer"
     },
-    "numAckSubtasks" : {
+    "num_acknowledged_subtasks" : {
       "type" : "integer"
     },
-    "checkpointStatisticsPerTask" : {
+    "tasks" : {
       "type" : "object",
       "additionalProperties" : {
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics",
         "properties" : {
-          "checkpointId" : {
+          "id" : {
             "type" : "integer"
           },
-          "checkpointStatus" : {
+          "status" : {
             "type" : "string",
             "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
           },
-          "latestAckTimestamp" : {
+          "latest_ack_timestamp" : {
             "type" : "integer"
           },
-          "stateSize" : {
+          "state_size" : {
             "type" : "integer"
           },
-          "duration" : {
+          "end_to_end_duration" : {
             "type" : "integer"
           },
-          "alignmentBuffered" : {
+          "alignment_buffered" : {
             "type" : "integer"
           },
-          "numSubtasks" : {
+          "num_subtasks" : {
             "type" : "integer"
           },
-          "numAckSubtasks" : {
+          "num_acknowledged_subtasks" : {
             "type" : "integer"
           }
         }
@@ -1227,8 +1313,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1357116178">Request</button>
-        <div id="-1357116178" class="collapse">
+        <button data-toggle="collapse" data-target="#1859535782">Request</button>
+        <div id="1859535782" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -1238,39 +1324,12 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#73579603">Response</button>
-        <div id="73579603" class="collapse">
+        <button data-toggle="collapse" data-target="#-1004735733">Response</button>
+        <div id="-1004735733" class="collapse">
           <pre>
             <code>
 {
-  "type" : "object",
-  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobConfigInfo",
-  "properties" : {
-    "jobId" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:api:common:JobID",
-      "properties" : {
-        "upperPart" : {
-          "type" : "integer"
-        },
-        "lowerPart" : {
-          "type" : "integer"
-        },
-        "bytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "integer"
-          }
-        }
-      }
-    },
-    "jobName" : {
-      "type" : "string"
-    },
-    "executionConfigInfo" : {
-      "type" : "any"
-    }
-  }
+  "type" : "any"
 }            </code>
           </pre>
          </div>
@@ -1302,8 +1361,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#794716208">Request</button>
-        <div id="794716208" class="collapse">
+        <button data-toggle="collapse" data-target="#-283599128">Request</button>
+        <div id="-283599128" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -1313,12 +1372,45 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-176158761">Response</button>
-        <div id="-176158761" class="collapse">
+        <button data-toggle="collapse" data-target="#-1254474097">Response</button>
+        <div id="-1254474097" class="collapse">
           <pre>
             <code>
 {
-  "type" : "any"
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfo",
+  "properties" : {
+    "root-exception" : {
+      "type" : "string"
+    },
+    "timestamp" : {
+      "type" : "integer"
+    },
+    "all-exceptions" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfo:ExecutionExceptionInfo",
+        "properties" : {
+          "exception" : {
+            "type" : "string"
+          },
+          "task" : {
+            "type" : "string"
+          },
+          "location" : {
+            "type" : "string"
+          },
+          "timestamp" : {
+            "type" : "integer"
+          }
+        }
+      }
+    },
+    "truncated" : {
+      "type" : "boolean"
+    }
+  }
 }            </code>
           </pre>
          </div>
@@ -1360,8 +1452,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1792172223">Request</button>
-        <div id="-1792172223" class="collapse">
+        <button data-toggle="collapse" data-target="#1424479737">Request</button>
+        <div id="1424479737" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -1371,30 +1463,12 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1481443862">Response</button>
-        <div id="-1481443862" class="collapse">
+        <button data-toggle="collapse" data-target="#1735208098">Response</button>
+        <div id="1735208098" class="collapse">
           <pre>
             <code>
 {
-  "type" : "object",
-  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:MetricCollectionResponseBody",
-  "properties" : {
-    "metrics" : {
-      "type" : "array",
-      "items" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:Metric",
-        "properties" : {
-          "id" : {
-            "type" : "string"
-          },
-          "value" : {
-            "type" : "string"
-          }
-        }
-      }
-    }
-  }
+  "type" : "any"
 }            </code>
           </pre>
          </div>
@@ -1426,8 +1500,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-895161707">Request</button>
-        <div id="-895161707" class="collapse">
+        <button data-toggle="collapse" data-target="#-1973477043">Request</button>
+        <div id="-1973477043" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -1437,18 +1511,12 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#597567777">Response</button>
-        <div id="597567777" class="collapse">
+        <button data-toggle="collapse" data-target="#-480747559">Response</button>
+        <div id="-480747559" class="collapse">
           <pre>
             <code>
 {
-  "type" : "object",
-  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
-  "properties" : {
-    "jsonPlan" : {
-      "type" : "string"
-    }
-  }
+  "type" : "any"
 }            </code>
           </pre>
          </div>
@@ -1481,8 +1549,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-2003025577">Request</button>
-        <div id="-2003025577" class="collapse">
+        <button data-toggle="collapse" data-target="#1213626383">Request</button>
+        <div id="1213626383" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -1492,12 +1560,36 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#736007659">Response</button>
-        <div id="736007659" class="collapse">
+        <button data-toggle="collapse" data-target="#-342307677">Response</button>
+        <div id="-342307677" class="collapse">
           <pre>
             <code>
 {
-  "type" : "any"
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexAccumulatorsInfo",
+  "properties" : {
+    "id" : {
+      "type" : "string"
+    },
+    "user-accumulators" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexAccumulatorsInfo:UserAccumulator",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        }
+      }
+    }
+  }
 }            </code>
           </pre>
          </div>
@@ -1540,8 +1632,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#197623875">Request</button>
-        <div id="197623875" class="collapse">
+        <button data-toggle="collapse" data-target="#-880691461">Request</button>
+        <div id="-880691461" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -1551,30 +1643,12 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#508352236">Response</button>
-        <div id="508352236" class="collapse">
+        <button data-toggle="collapse" data-target="#-569963100">Response</button>
+        <div id="-569963100" class="collapse">
           <pre>
             <code>
 {
-  "type" : "object",
-  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:MetricCollectionResponseBody",
-  "properties" : {
-    "metrics" : {
-      "type" : "array",
-      "items" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:Metric",
-        "properties" : {
-          "id" : {
-            "type" : "string"
-          },
-          "value" : {
-            "type" : "string"
-          }
-        }
-      }
-    }
-  }
+  "type" : "any"
 }            </code>
           </pre>
          </div>
@@ -1618,8 +1692,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-570514556">Request</button>
-        <div id="-570514556" class="collapse">
+        <button data-toggle="collapse" data-target="#-1648829892">Request</button>
+        <div id="-1648829892" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -1629,30 +1703,12 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-259786195">Response</button>
-        <div id="-259786195" class="collapse">
+        <button data-toggle="collapse" data-target="#-1338101531">Response</button>
+        <div id="-1338101531" class="collapse">
           <pre>
             <code>
 {
-  "type" : "object",
-  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:MetricCollectionResponseBody",
-  "properties" : {
-    "metrics" : {
-      "type" : "array",
-      "items" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:Metric",
-        "properties" : {
-          "id" : {
-            "type" : "string"
-          },
-          "value" : {
-            "type" : "string"
-          }
-        }
-      }
-    }
-  }
+  "type" : "any"
 }            </code>
           </pre>
          </div>
@@ -1685,8 +1741,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1181229237">Request</button>
-        <div id="-1181229237" class="collapse">
+        <button data-toggle="collapse" data-target="#2035422723">Request</button>
+        <div id="2035422723" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -1696,12 +1752,48 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#2091701353">Response</button>
-        <div id="2091701353" class="collapse">
+        <button data-toggle="collapse" data-target="#1013386017">Response</button>
+        <div id="1013386017" class="collapse">
           <pre>
             <code>
 {
-  "type" : "any"
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:SubtasksTimesInfo",
+  "properties" : {
+    "id" : {
+      "type" : "string"
+    },
+    "name" : {
+      "type" : "string"
+    },
+    "now" : {
+      "type" : "integer"
+    },
+    "subtasks" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:SubtasksTimesInfo:SubtaskTimeInfo",
+        "properties" : {
+          "subtask" : {
+            "type" : "integer"
+          },
+          "host" : {
+            "type" : "string"
+          },
+          "duration" : {
+            "type" : "integer"
+          },
+          "timestamps" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer"
+            }
+          }
+        }
+      }
+    }
+  }
 }            </code>
           </pre>
          </div>
@@ -1723,8 +1815,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1581342131">Request</button>
-        <div id="-1581342131" class="collapse">
+        <button data-toggle="collapse" data-target="#1635309829">Request</button>
+        <div id="1635309829" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -1734,39 +1826,39 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1331669657">Response</button>
-        <div id="-1331669657" class="collapse">
+        <button data-toggle="collapse" data-target="#1884982303">Response</button>
+        <div id="1884982303" class="collapse">
           <pre>
             <code>
 {
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:legacy:messages:ClusterOverviewWithVersion",
   "properties" : {
-    "numJobsRunningOrPending" : {
+    "taskmanagers" : {
       "type" : "integer"
     },
-    "numJobsFinished" : {
+    "slots-total" : {
       "type" : "integer"
     },
-    "numJobsCancelled" : {
+    "slots-available" : {
       "type" : "integer"
     },
-    "numJobsFailed" : {
+    "jobs-running" : {
       "type" : "integer"
     },
-    "numTaskManagersConnected" : {
+    "jobs-finished" : {
       "type" : "integer"
     },
-    "numSlotsTotal" : {
+    "jobs-cancelled" : {
       "type" : "integer"
     },
-    "numSlotsAvailable" : {
+    "jobs-failed" : {
       "type" : "integer"
     },
-    "version" : {
+    "flink-version" : {
       "type" : "string"
     },
-    "commitId" : {
+    "flink-commit" : {
       "type" : "string"
     }
   }
@@ -1791,8 +1883,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1212462017">Request</button>
-        <div id="-1212462017" class="collapse">
+        <button data-toggle="collapse" data-target="#2004189943">Request</button>
+        <div id="2004189943" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -1802,62 +1894,52 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#1694259450">Response</button>
-        <div id="1694259450" class="collapse">
+        <button data-toggle="collapse" data-target="#615944114">Response</button>
+        <div id="615944114" class="collapse">
           <pre>
             <code>
 {
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagersInfo",
   "properties" : {
-    "taskManagerInfos" : {
+    "taskmanagers" : {
       "type" : "array",
       "items" : {
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagerInfo",
         "properties" : {
-          "resourceId" : {
-            "type" : "object",
-            "id" : "urn:jsonschema:org:apache:flink:runtime:clusterframework:types:ResourceID",
-            "properties" : {
-              "resourceIdString" : {
-                "type" : "string"
-              },
-              "resourceID" : {
-                "type" : "object",
-                "$ref" : "urn:jsonschema:org:apache:flink:runtime:clusterframework:types:ResourceID"
-              }
-            }
+          "id" : {
+            "type" : "any"
           },
-          "address" : {
+          "path" : {
             "type" : "string"
           },
           "dataPort" : {
             "type" : "integer"
           },
-          "lastHeartbeat" : {
+          "timeSinceLastHeartbeat" : {
             "type" : "integer"
           },
-          "numberSlots" : {
+          "slotsNumber" : {
             "type" : "integer"
           },
-          "numberAvailableSlots" : {
+          "freeSlots" : {
             "type" : "integer"
           },
-          "hardwareDescription" : {
+          "hardware" : {
             "type" : "object",
             "id" : "urn:jsonschema:org:apache:flink:runtime:instance:HardwareDescription",
             "properties" : {
-              "numberOfCPUCores" : {
+              "cpuCores" : {
                 "type" : "integer"
               },
-              "sizeOfPhysicalMemory" : {
+              "physicalMemory" : {
                 "type" : "integer"
               },
-              "sizeOfJvmHeap" : {
+              "freeMemory" : {
                 "type" : "integer"
               },
-              "sizeOfManagedMemory" : {
+              "managedMemory" : {
                 "type" : "integer"
               }
             }
@@ -1897,8 +1979,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1209460381">Request</button>
-        <div id="-1209460381" class="collapse">
+        <button data-toggle="collapse" data-target="#2007191579">Request</button>
+        <div id="2007191579" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -1908,57 +1990,113 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1726867379">Response</button>
-        <div id="-1726867379" class="collapse">
+        <button data-toggle="collapse" data-target="#1489784581">Response</button>
+        <div id="1489784581" class="collapse">
           <pre>
             <code>
 {
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagerDetailsInfo",
   "properties" : {
-    "resourceId" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:clusterframework:types:ResourceID",
-      "properties" : {
-        "resourceIdString" : {
-          "type" : "string"
-        },
-        "resourceID" : {
-          "type" : "object",
-          "$ref" : "urn:jsonschema:org:apache:flink:runtime:clusterframework:types:ResourceID"
-        }
-      }
+    "id" : {
+      "type" : "any"
     },
-    "address" : {
+    "path" : {
       "type" : "string"
     },
     "dataPort" : {
       "type" : "integer"
     },
-    "lastHeartbeat" : {
+    "timeSinceLastHeartbeat" : {
       "type" : "integer"
     },
-    "numberSlots" : {
+    "slotsNumber" : {
       "type" : "integer"
     },
-    "numberAvailableSlots" : {
+    "freeSlots" : {
       "type" : "integer"
     },
-    "hardwareDescription" : {
+    "hardware" : {
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:instance:HardwareDescription",
       "properties" : {
-        "numberOfCPUCores" : {
+        "cpuCores" : {
           "type" : "integer"
         },
-        "sizeOfPhysicalMemory" : {
+        "physicalMemory" : {
           "type" : "integer"
         },
-        "sizeOfJvmHeap" : {
+        "freeMemory" : {
           "type" : "integer"
         },
-        "sizeOfManagedMemory" : {
+        "managedMemory" : {
           "type" : "integer"
+        }
+      }
+    },
+    "metrics" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagerMetricsInfo",
+      "properties" : {
+        "heapUsed" : {
+          "type" : "integer"
+        },
+        "heapCommitted" : {
+          "type" : "integer"
+        },
+        "heapMax" : {
+          "type" : "integer"
+        },
+        "nonHeapUsed" : {
+          "type" : "integer"
+        },
+        "nonHeapCommitted" : {
+          "type" : "integer"
+        },
+        "nonHeapMax" : {
+          "type" : "integer"
+        },
+        "directCount" : {
+          "type" : "integer"
+        },
+        "directUsed" : {
+          "type" : "integer"
+        },
+        "directMax" : {
+          "type" : "integer"
+        },
+        "mappedCount" : {
+          "type" : "integer"
+        },
+        "mappedUsed" : {
+          "type" : "integer"
+        },
+        "mappedMax" : {
+          "type" : "integer"
+        },
+        "memorySegmentsAvailable" : {
+          "type" : "integer"
+        },
+        "memorySegmentsTotal" : {
+          "type" : "integer"
+        },
+        "garbageCollectors" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagerMetricsInfo:GarbageCollectorInfo",
+            "properties" : {
+              "name" : {
+                "type" : "string"
+              },
+              "count" : {
+                "type" : "integer"
+              },
+              "time" : {
+                "type" : "integer"
+              }
+            }
+          }
         }
       }
     }
@@ -2004,8 +2142,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-1267828457">Request</button>
-        <div id="-1267828457" class="collapse">
+        <button data-toggle="collapse" data-target="#1948823503">Request</button>
+        <div id="1948823503" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -2015,30 +2153,12 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-957100096">Response</button>
-        <div id="-957100096" class="collapse">
+        <button data-toggle="collapse" data-target="#-2035415432">Response</button>
+        <div id="-2035415432" class="collapse">
           <pre>
             <code>
 {
-  "type" : "object",
-  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:MetricCollectionResponseBody",
-  "properties" : {
-    "metrics" : {
-      "type" : "array",
-      "items" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:Metric",
-        "properties" : {
-          "id" : {
-            "type" : "string"
-          },
-          "value" : {
-            "type" : "string"
-          }
-        }
-      }
-    }
-  }
+  "type" : "any"
 }            </code>
           </pre>
          </div>

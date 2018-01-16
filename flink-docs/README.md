@@ -34,3 +34,8 @@ To integrate a new endpoint into the generator
 The documentation must be regenerated whenever
 * a handler is added to/removed from a `RestServerEndpoint`
 * any used `MessageHeaders` class or any referenced `RequestBody`, `ResponseBody`, `MessageParameters` or `MessageParameter` class is modified.
+
+**Important**: Due to a shading issue (see https://issues.apache.org/jira/browse/FLINK-8254) a few more steps must be taken temporarily to generate a proper documentation:
+1. Checkout https://github.com/zentol/flink-shaded/tree/tmp_jackson and install `flink-shaded-jackson-module-jsonSchema2` into your local repo
+2. Replace all jackson-related dependencies in `flink-docs` with `flink-shaded-jackson` and `flink-shaded-jackson-module-jsonSchema`
+3. Adjust all jackson-related imports by replacing `import com.fasterxml.jackson` with `import org.apache.flink.shaded.jackson2.com.fasterxml.jackson`.
