@@ -95,7 +95,7 @@ The FsStateBackend is encouraged for:
 ### The RocksDBStateBackend
 
 <div class="alert alert-warning">
-  <strong>Note:</strong> The RocksDBStateBackend is not part of the default Flink distribution. To use the state backend, you need to add the following Maven dependency to your project:
+  <strong>Note:</strong> When running a job in the IDE you need to add the following Maven dependency to your project.
   {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
