@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CancelPartitionRequest;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CloseRequest;
@@ -48,14 +49,18 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 
 	private final PartitionRequestQueue outboundQueue;
 
+	private final boolean creditBasedEnabled;
+
 	PartitionRequestServerHandler(
 		ResultPartitionProvider partitionProvider,
 		TaskEventDispatcher taskEventDispatcher,
-		PartitionRequestQueue outboundQueue) {
+		PartitionRequestQueue outboundQueue,
+		boolean creditBasedEnabled) {
 
 		this.partitionProvider = partitionProvider;
 		this.taskEventDispatcher = taskEventDispatcher;
 		this.outboundQueue = outboundQueue;
+		this.creditBasedEnabled = creditBasedEnabled;
 	}
 
 	@Override
@@ -82,10 +87,17 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 				LOG.debug("Read channel on {}: {}.", ctx.channel().localAddress(), request);
 
 				try {
-					SequenceNumberingViewReader reader = new SequenceNumberingViewReader(
-						request.receiverId,
-						request.credit,
-						outboundQueue);
+					NetworkSequenceViewReader reader;
+					if (creditBasedEnabled) {
+						reader = new CreditBasedSequenceNumberingViewReader(
+							request.receiverId,
+							request.credit,
+							outboundQueue);
+					} else {
+						reader = new SequenceNumberingViewReader(
+							request.receiverId,
+							outboundQueue);
+					}
 
 					outboundQueue.notifyReaderCreated(reader);
 

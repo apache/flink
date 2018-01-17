@@ -42,7 +42,7 @@ public class NettyClientServerSslTest {
 	 */
 	@Test
 	public void testValidSslConnection() throws Exception {
-		NettyProtocol protocol = new NettyProtocol(null, null) {
+		NettyProtocol protocol = new NettyProtocol(null, null, true) {
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				return new ChannelHandler[0];
@@ -77,7 +77,7 @@ public class NettyClientServerSslTest {
 	 */
 	@Test
 	public void testInvalidSslConfiguration() throws Exception {
-		NettyProtocol protocol = new NettyProtocol(null, null) {
+		NettyProtocol protocol = new NettyProtocol(null, null, true) {
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				return new ChannelHandler[0];
@@ -116,7 +116,7 @@ public class NettyClientServerSslTest {
 	 */
 	@Test
 	public void testSslHandshakeError() throws Exception {
-		NettyProtocol protocol = new NettyProtocol(null, null) {
+		NettyProtocol protocol = new NettyProtocol(null, null, true) {
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				return new ChannelHandler[0];

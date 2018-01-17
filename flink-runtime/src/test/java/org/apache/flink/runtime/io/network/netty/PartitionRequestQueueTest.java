@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
@@ -62,7 +63,7 @@ public class PartitionRequestQueueTest {
 
 		EmbeddedChannel ch = new EmbeddedChannel(queue);
 
-		SequenceNumberingViewReader seqView = new SequenceNumberingViewReader(new InputChannelID(), 2, queue);
+		CreditBasedSequenceNumberingViewReader seqView = new CreditBasedSequenceNumberingViewReader(new InputChannelID(), 2, queue);
 		seqView.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
 		// Add available buffer to trigger enqueue the erroneous view
 		seqView.notifyBuffersAvailable(1);
@@ -101,7 +102,7 @@ public class PartitionRequestQueueTest {
 
 		final InputChannelID receiverId = new InputChannelID();
 		final PartitionRequestQueue queue = new PartitionRequestQueue();
-		final SequenceNumberingViewReader reader = new SequenceNumberingViewReader(receiverId, 2, queue);
+		final SequenceNumberingViewReader reader = new SequenceNumberingViewReader(receiverId, queue);
 		final EmbeddedChannel channel = new EmbeddedChannel(queue);
 
 		reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
@@ -170,7 +171,7 @@ public class PartitionRequestQueueTest {
 	}
 
 	/**
-	 * Tests {@link PartitionRequestQueue#enqueueAvailableReader(SequenceNumberingViewReader)},
+	 * Tests {@link PartitionRequestQueue#enqueueAvailableReader(NetworkSequenceViewReader)},
 	 * verifying the reader would be enqueued in the pipeline if the next sending buffer is an event
 	 * even though it has no available credits.
 	 */
@@ -184,7 +185,7 @@ public class PartitionRequestQueueTest {
 
 		final InputChannelID receiverId = new InputChannelID();
 		final PartitionRequestQueue queue = new PartitionRequestQueue();
-		final SequenceNumberingViewReader reader = new SequenceNumberingViewReader(receiverId, 0, queue);
+		final CreditBasedSequenceNumberingViewReader reader = new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
 		final EmbeddedChannel channel = new EmbeddedChannel(queue);
 
 		reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
@@ -219,7 +220,7 @@ public class PartitionRequestQueueTest {
 	}
 
 	/**
-	 * Tests {@link PartitionRequestQueue#enqueueAvailableReader(SequenceNumberingViewReader)},
+	 * Tests {@link PartitionRequestQueue#enqueueAvailableReader(NetworkSequenceViewReader)},
 	 * verifying the reader would be enqueued in the pipeline iff it has both available credits and buffers.
 	 */
 	@Test
@@ -232,7 +233,7 @@ public class PartitionRequestQueueTest {
 
 		final InputChannelID receiverId = new InputChannelID();
 		final PartitionRequestQueue queue = new PartitionRequestQueue();
-		final SequenceNumberingViewReader reader = new SequenceNumberingViewReader(receiverId, 0, queue);
+		final CreditBasedSequenceNumberingViewReader reader = new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
 		final EmbeddedChannel channel = new EmbeddedChannel(queue);
 
 		reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);

@@ -85,6 +85,8 @@ public class NetworkEnvironment {
 	/** Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate). */
 	private final int extraNetworkBuffersPerGate;
 
+	private final boolean enableCreditBased;
+
 	private boolean isShutdown;
 
 	public NetworkEnvironment(
@@ -99,7 +101,8 @@ public class NetworkEnvironment {
 			int partitionRequestInitialBackoff,
 			int partitionRequestMaxBackoff,
 			int networkBuffersPerChannel,
-			int extraNetworkBuffersPerGate) {
+			int extraNetworkBuffersPerGate,
+			boolean enableCreditBased) {
 
 		this.networkBufferPool = checkNotNull(networkBufferPool);
 		this.connectionManager = checkNotNull(connectionManager);
@@ -118,6 +121,8 @@ public class NetworkEnvironment {
 		isShutdown = false;
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		this.extraNetworkBuffersPerGate = extraNetworkBuffersPerGate;
+
+		this.enableCreditBased = enableCreditBased;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -223,14 +228,24 @@ public class NetworkEnvironment {
 	@VisibleForTesting
 	public void setupInputGate(SingleInputGate gate) throws IOException {
 		BufferPool bufferPool = null;
-
+		int maxNumberOfMemorySegments;
 		try {
-			int maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-				extraNetworkBuffersPerGate : Integer.MAX_VALUE;
-			// Create a buffer pool for floating buffers and assign exclusive buffers to input channels directly
-			bufferPool = networkBufferPool.createBufferPool(extraNetworkBuffersPerGate,
-				maxNumberOfMemorySegments);
-			gate.assignExclusiveSegments(networkBufferPool, networkBuffersPerChannel);
+			if (enableCreditBased) {
+				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
+					extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+
+				// Create a buffer pool for floating buffers and assign exclusive buffers to input channels directly
+				bufferPool = networkBufferPool.createBufferPool(extraNetworkBuffersPerGate,
+					maxNumberOfMemorySegments);
+				gate.assignExclusiveSegments(networkBufferPool, networkBuffersPerChannel);
+			} else {
+				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
+					gate.getNumberOfInputChannels() * networkBuffersPerChannel +
+						extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+
+				bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
+					maxNumberOfMemorySegments);
+			}
 			gate.setBufferPool(bufferPool);
 		} catch (Throwable t) {
 			if (bufferPool != null) {

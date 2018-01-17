@@ -38,9 +38,12 @@ public class NettyProtocol {
 	private final ResultPartitionProvider partitionProvider;
 	private final TaskEventDispatcher taskEventDispatcher;
 
-	NettyProtocol(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher) {
+	private final boolean creditBasedEnabled;
+
+	NettyProtocol(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher, boolean creditBasedEnabled) {
 		this.partitionProvider = partitionProvider;
 		this.taskEventDispatcher = taskEventDispatcher;
+		this.creditBasedEnabled = creditBasedEnabled;
 	}
 
 	/**
@@ -84,7 +87,7 @@ public class NettyProtocol {
 	public ChannelHandler[] getServerChannelHandlers() {
 		PartitionRequestQueue queueOfPartitionQueues = new PartitionRequestQueue();
 		PartitionRequestServerHandler serverHandler = new PartitionRequestServerHandler(
-			partitionProvider, taskEventDispatcher, queueOfPartitionQueues);
+			partitionProvider, taskEventDispatcher, queueOfPartitionQueues, creditBasedEnabled);
 
 		return new ChannelHandler[] {
 			messageEncoder,
@@ -138,6 +141,19 @@ public class NettyProtocol {
 			createFrameLengthDecoder(),
 			messageDecoder,
 			new PartitionRequestClientHandler()};
+	}
+
+	/**
+	 * Returns the client channel handlers for the new network credit-based mode.
+	 *
+	 * @return channel handlers
+	 */
+	public ChannelHandler[] getCreditBasedClientChannelHandlers() {
+		return new ChannelHandler[] {
+			messageEncoder,
+			createFrameLengthDecoder(),
+			messageDecoder,
+			new CreditBasedPartitionRequestClientHandler()};
 	}
 
 }

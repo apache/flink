@@ -217,6 +217,11 @@ public class NettyConfig {
 		SSLUtils.setSSLVerifyHostname(config, sslParams);
 	}
 
+	public boolean getCreditBasedEnabled() {
+		return config.getBoolean(ConfigConstants.TASK_MANAGER_NETWORK_CREDIT_BASED_ENABLED,
+			ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_CREDIT_BASED_ENABLED);
+	}
+
 	@Override
 	public String toString() {
 		String format = "NettyConfig [" +

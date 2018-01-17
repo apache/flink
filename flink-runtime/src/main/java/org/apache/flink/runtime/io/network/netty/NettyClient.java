@@ -192,7 +192,11 @@ class NettyClient {
 
 					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}
-				channel.pipeline().addLast(protocol.getClientChannelHandlers());
+				if (config.getCreditBasedEnabled()) {
+					channel.pipeline().addLast(protocol.getCreditBasedClientChannelHandlers());
+				} else {
+					channel.pipeline().addLast(protocol.getClientChannelHandlers());
+				}
 			}
 		});
 
