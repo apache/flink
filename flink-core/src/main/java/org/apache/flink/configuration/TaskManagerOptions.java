@@ -306,6 +306,17 @@ public class TaskManagerOptions {
 			.defaultValue(false)
 			.withDescription("Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.");
 
+	/**
+	 * Config parameter defining whether to enable credit-based flow control or not.
+	 *
+	 * @deprecated Will be removed for Flink 1.6 when the old code will be dropped in favour of
+	 * credit-based flow control.
+	 */
+	@Deprecated
+	public static final ConfigOption<Boolean> NETWORK_CREDIT_BASED_FLOW_CONTROL_ENABLED =
+			key("taskmanager.network.credit-based-flow-control.enabled")
+			.defaultValue(true);
+
 	// ------------------------------------------------------------------------
 	//  Task Options
 	// ------------------------------------------------------------------------

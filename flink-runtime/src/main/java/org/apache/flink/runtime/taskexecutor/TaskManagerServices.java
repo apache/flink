@@ -34,6 +34,7 @@ import org.apache.flink.runtime.io.network.LocalConnectionManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -388,9 +389,11 @@ public class TaskManagerServices {
 			segmentSize);
 
 		ConnectionManager connectionManager;
-
-		if (networkEnvironmentConfiguration.nettyConfig() != null) {
-			connectionManager = new NettyConnectionManager(networkEnvironmentConfiguration.nettyConfig());
+		boolean enableCreditBased = false;
+		NettyConfig nettyConfig = networkEnvironmentConfiguration.nettyConfig();
+		if (nettyConfig != null) {
+			connectionManager = new NettyConnectionManager(nettyConfig);
+			enableCreditBased = nettyConfig.isCreditBasedEnabled();
 		} else {
 			connectionManager = new LocalConnectionManager();
 		}
@@ -442,7 +445,8 @@ public class TaskManagerServices {
 			networkEnvironmentConfiguration.partitionRequestInitialBackoff(),
 			networkEnvironmentConfiguration.partitionRequestMaxBackoff(),
 			networkEnvironmentConfiguration.networkBuffersPerChannel(),
-			networkEnvironmentConfiguration.floatingNetworkBuffersPerGate());
+			networkEnvironmentConfiguration.floatingNetworkBuffersPerGate(),
+			enableCreditBased);
 	}
 
 	/**

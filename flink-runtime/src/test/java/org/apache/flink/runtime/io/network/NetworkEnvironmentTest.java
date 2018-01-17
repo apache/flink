@@ -71,7 +71,8 @@ public class NetworkEnvironmentTest {
 			0,
 			0,
 			2,
-			8);
+			8,
+			true);
 
 		// result partitions
 		ResultPartition rp1 = createResultPartition(ResultPartitionType.PIPELINED, 2);

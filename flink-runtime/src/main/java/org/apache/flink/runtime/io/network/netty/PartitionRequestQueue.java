@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -56,10 +57,10 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 	private final ChannelFutureListener writeListener = new WriteAndFlushNextMessageIfPossibleListener();
 
 	/** The readers which are already enqueued available for transferring data. */
-	private final ArrayDeque<SequenceNumberingViewReader> availableReaders = new ArrayDeque<>();
+	private final ArrayDeque<NetworkSequenceViewReader> availableReaders = new ArrayDeque<>();
 
 	/** All the readers created for the consumers' partition requests. */
-	private final ConcurrentMap<InputChannelID, SequenceNumberingViewReader> allReaders = new ConcurrentHashMap<>();
+	private final ConcurrentMap<InputChannelID, NetworkSequenceViewReader> allReaders = new ConcurrentHashMap<>();
 
 	private final Set<InputChannelID> released = Sets.newHashSet();
 
@@ -76,7 +77,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		super.channelRegistered(ctx);
 	}
 
-	void notifyReaderNonEmpty(final SequenceNumberingViewReader reader) {
+	void notifyReaderNonEmpty(final NetworkSequenceViewReader reader) {
 		// The notification might come from the same thread. For the initial writes this
 		// might happen before the reader has set its reference to the view, because
 		// creating the queue and the initial notification happen in the same method call.
@@ -101,7 +102,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 	 * <p>NOTE: Only one thread would trigger the actual enqueue after checking the reader's
 	 * availability, so there is no race condition here.
 	 */
-	private void enqueueAvailableReader(final SequenceNumberingViewReader reader) throws Exception {
+	private void enqueueAvailableReader(final NetworkSequenceViewReader reader) throws Exception {
 		if (!reader.isRegisteredAsAvailable() && reader.isAvailable()) {
 			// Queue an available reader for consumption. If the queue is empty,
 			// we try trigger the actual write. Otherwise this will be handled by
@@ -125,11 +126,11 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 	 * @return readers which are enqueued available for transferring data
 	 */
 	@VisibleForTesting
-	ArrayDeque<SequenceNumberingViewReader> getAvailableReaders() {
+	ArrayDeque<NetworkSequenceViewReader> getAvailableReaders() {
 		return availableReaders;
 	}
 
-	void notifyReaderCreated(final SequenceNumberingViewReader reader) {
+	public void notifyReaderCreated(final NetworkSequenceViewReader reader) {
 		allReaders.put(reader.getReceiverId(), reader);
 	}
 
@@ -155,7 +156,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 			return;
 		}
 
-		SequenceNumberingViewReader reader = allReaders.get(receiverId);
+		NetworkSequenceViewReader reader = allReaders.get(receiverId);
 		if (reader != null) {
 			reader.addCredit(credit);
 
@@ -170,8 +171,8 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		// The user event triggered event loop callback is used for thread-safe
 		// hand over of reader queues and cancelled producers.
 
-		if (msg.getClass() == SequenceNumberingViewReader.class) {
-			enqueueAvailableReader((SequenceNumberingViewReader) msg);
+		if (msg instanceof NetworkSequenceViewReader) {
+			enqueueAvailableReader((NetworkSequenceViewReader) msg);
 		} else if (msg.getClass() == InputChannelID.class) {
 			// Release partition view that get a cancel request.
 			InputChannelID toCancel = (InputChannelID) msg;
@@ -182,7 +183,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 			// Cancel the request for the input channel
 			int size = availableReaders.size();
 			for (int i = 0; i < size; i++) {
-				SequenceNumberingViewReader reader = availableReaders.poll();
+				NetworkSequenceViewReader reader = availableReaders.poll();
 				if (reader.getReceiverId().equals(toCancel)) {
 					reader.releaseAllResources();
 					reader.setRegisteredAsAvailable(false);
@@ -215,7 +216,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		BufferAndAvailability next = null;
 		try {
 			while (true) {
-				SequenceNumberingViewReader reader = availableReaders.poll();
+				NetworkSequenceViewReader reader = availableReaders.poll();
 
 				// No queue with available data. We allow this here, because
 				// of the write callbacks that are executed after each write.
@@ -312,7 +313,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
 	private void releaseAllResources() throws IOException {
 		// note: this is only ever executed by one thread: the Netty IO thread!
-		for (SequenceNumberingViewReader reader : allReaders.values()) {
+		for (NetworkSequenceViewReader reader : allReaders.values()) {
 			reader.releaseAllResources();
 			markAsReleased(reader.getReceiverId());
 		}
