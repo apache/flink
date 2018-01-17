@@ -51,12 +51,9 @@ public class Offer implements VirtualMachineLease {
 	private final long offeredTime;
 
 	private final List<Protos.Resource> resources;
+	private final Map<String, Double> aggregatedScalarResourceMap;
 	private final Map<String, Protos.Attribute> attributeMap;
 
-	private final double cpuCores;
-	private final double memoryMB;
-	private final double networkMbps;
-	private final double diskMB;
 	private final List<Range> portRanges;
 
 	public Offer(Protos.Offer offer) {
@@ -66,13 +63,17 @@ public class Offer implements VirtualMachineLease {
 		this.offeredTime = System.currentTimeMillis();
 
 		List<Protos.Resource> resources = new ArrayList<>(offer.getResourcesList().size());
-		Map<String, List<Protos.Resource>> resourceMap = new HashMap<>();
+		Map<String, List<Protos.Resource>> scalarResourceMap = new HashMap<>();
+		Map<String, List<Protos.Resource>> rangesResourceMap = new HashMap<>();
 		for (Protos.Resource resource : offer.getResourcesList()) {
 			switch (resource.getType()) {
 				case SCALAR:
+					resources.add(resource);
+					scalarResourceMap.computeIfAbsent(resource.getName(), k -> new ArrayList<>(2)).add(resource);
+					break;
 				case RANGES:
 					resources.add(resource);
-					resourceMap.computeIfAbsent(resource.getName(), k -> new ArrayList<>(2)).add(resource);
+					rangesResourceMap.computeIfAbsent(resource.getName(), k -> new ArrayList<>(2)).add(resource);
 					break;
 				default:
 					logger.debug("Unknown resource type " + resource.getType() + " for resource " + resource.getName() +
@@ -81,11 +82,14 @@ public class Offer implements VirtualMachineLease {
 		}
 		this.resources = Collections.unmodifiableList(resources);
 
-		this.cpuCores = aggregateScalarResource(resourceMap, "cpus");
-		this.memoryMB = aggregateScalarResource(resourceMap, "mem");
-		this.networkMbps = aggregateScalarResource(resourceMap, "network");
-		this.diskMB = aggregateScalarResource(resourceMap, "disk");
-		this.portRanges = Collections.unmodifiableList(aggregateRangesResource(resourceMap, "ports"));
+		Map<String, Double> aggregatedScalarResourceMap = scalarResourceMap.entrySet()
+			.stream()
+			.collect(Collectors.toMap(
+				e -> e.getKey(),
+				e -> e.getValue().stream().mapToDouble(r -> r.getScalar().getValue()).sum()
+			));
+		this.aggregatedScalarResourceMap = Collections.unmodifiableMap(aggregatedScalarResourceMap);
+		this.portRanges = Collections.unmodifiableList(aggregateRangesResource(rangesResourceMap, "ports"));
 
 		if (offer.getAttributesCount() > 0) {
 			Map<String, Protos.Attribute> attributeMap = new HashMap<>();
@@ -114,22 +118,26 @@ public class Offer implements VirtualMachineLease {
 
 	@Override
 	public double cpuCores() {
-		return cpuCores;
+		return aggregatedScalarResourceMap.getOrDefault("cpus", 0.0);
+	}
+
+	public double gpus() {
+		return getScalarValue("gpus");
 	}
 
 	@Override
 	public double memoryMB() {
-		return memoryMB;
+		return aggregatedScalarResourceMap.getOrDefault("mem", 0.0);
 	}
 
 	@Override
 	public double networkMbps() {
-		return networkMbps;
+		return aggregatedScalarResourceMap.getOrDefault("network", 0.0);
 	}
 
 	@Override
 	public double diskMB() {
-		return diskMB;
+		return aggregatedScalarResourceMap.getOrDefault("disk", 0.0);
 	}
 
 	public Protos.Offer getOffer(){
@@ -157,6 +165,16 @@ public class Offer implements VirtualMachineLease {
 	}
 
 	@Override
+	public Double getScalarValue(String name) {
+		return aggregatedScalarResourceMap.getOrDefault(name, 0.0);
+	}
+
+	@Override
+	public Map<String, Double> getScalarValues() {
+		return aggregatedScalarResourceMap;
+	}
+
+	@Override
 	public String toString() {
 		return "Offer{" +
 			"offer=" + offer +
@@ -166,13 +184,6 @@ public class Offer implements VirtualMachineLease {
 			", attributeMap=" + attributeMap +
 			", offeredTime=" + offeredTime +
 			'}';
-	}
-
-	private static double aggregateScalarResource(Map<String, List<Protos.Resource>> resourceMap, String resourceName) {
-		if (resourceMap.get(resourceName) == null) {
-			return 0.0;
-		}
-		return resourceMap.get(resourceName).stream().mapToDouble(r -> r.getScalar().getValue()).sum();
 	}
 
 	private static List<Range> aggregateRangesResource(Map<String, List<Protos.Resource>> resourceMap, String resourceName) {
