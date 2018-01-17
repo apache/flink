@@ -75,6 +75,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -82,6 +83,7 @@ import java.util.Collections;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
@@ -97,7 +99,6 @@ public class StreamTaskTerminationTest extends TestLogger {
 	public static final OneShotLatch RUN_LATCH = new OneShotLatch();
 	public static final OneShotLatch CHECKPOINTING_LATCH = new OneShotLatch();
 	private static final OneShotLatch CLEANUP_LATCH = new OneShotLatch();
-	private static final OneShotLatch HANDLE_ASYNC_EXCEPTION_LATCH = new OneShotLatch();
 
 	/**
 	 * FLINK-6833
@@ -209,8 +210,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 		}
 
 		@Override
-		protected void init() throws Exception {
-
+		protected void init() {
 		}
 
 		@Override
@@ -226,24 +226,16 @@ public class StreamTaskTerminationTest extends TestLogger {
 			// has been stopped
 			CLEANUP_LATCH.trigger();
 
-			// wait until handle async exception has been called to proceed with the termination of the
-			// StreamTask
-			HANDLE_ASYNC_EXCEPTION_LATCH.await();
+			// wait until all async checkpoint threads are terminated, so that no more exceptions can be reported
+			Assert.assertTrue(getAsyncOperationsThreadPool().awaitTermination(30L, TimeUnit.SECONDS));
 		}
 
 		@Override
-		protected void cancelTask() throws Exception {
-		}
-
-		@Override
-		public void handleAsyncException(String message, Throwable exception) {
-			super.handleAsyncException(message, exception);
-
-			HANDLE_ASYNC_EXCEPTION_LATCH.trigger();
+		protected void cancelTask() {
 		}
 	}
 
-	static class NoOpStreamOperator<T> extends AbstractStreamOperator<T> {
+	private static class NoOpStreamOperator<T> extends AbstractStreamOperator<T> {
 		private static final long serialVersionUID = 4517845269225218312L;
 	}
 
@@ -252,7 +244,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 		private static final long serialVersionUID = -5053068148933314100L;
 
 		@Override
-		public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
+		public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) {
 			throw new UnsupportedOperationException();
 		}
 
@@ -269,7 +261,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws IOException {
+			TaskKvStateRegistry kvStateRegistry) {
 			return null;
 		}
 

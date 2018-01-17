@@ -814,8 +814,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		private final long asyncStartNanos;
 
-		private final AtomicReference<CheckpointingOperation.AsynCheckpointState> asyncCheckpointState = new AtomicReference<>(
-			CheckpointingOperation.AsynCheckpointState.RUNNING);
+		private final AtomicReference<CheckpointingOperation.AsyncCheckpointState> asyncCheckpointState = new AtomicReference<>(
+			CheckpointingOperation.AsyncCheckpointState.RUNNING);
 
 		AsyncCheckpointRunnable(
 			StreamTask<?, ?> owner,
@@ -865,8 +865,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				checkpointMetrics.setAsyncDurationMillis(asyncDurationMillis);
 
-				if (asyncCheckpointState.compareAndSet(CheckpointingOperation.AsynCheckpointState.RUNNING,
-					CheckpointingOperation.AsynCheckpointState.COMPLETED)) {
+				if (asyncCheckpointState.compareAndSet(CheckpointingOperation.AsyncCheckpointState.RUNNING,
+					CheckpointingOperation.AsyncCheckpointState.COMPLETED)) {
 
 					reportCompletedSnapshotStates(
 						jobManagerTaskOperatorSubtaskStates,
@@ -917,62 +917,91 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 
 		private void handleExecutionException(Exception e) {
-			// the state is completed if an exception occurred in the acknowledgeCheckpoint call
-			// in order to clean up, we have to set it to RUNNING again.
-			asyncCheckpointState.compareAndSet(
-				CheckpointingOperation.AsynCheckpointState.COMPLETED,
-				CheckpointingOperation.AsynCheckpointState.RUNNING);
 
-			try {
-				cleanup();
-			} catch (Exception cleanupException) {
-				e.addSuppressed(cleanupException);
+			boolean didCleanup = false;
+			CheckpointingOperation.AsyncCheckpointState currentState = asyncCheckpointState.get();
+
+			while (CheckpointingOperation.AsyncCheckpointState.DISCARDED != currentState) {
+
+				if (asyncCheckpointState.compareAndSet(
+					currentState,
+					CheckpointingOperation.AsyncCheckpointState.DISCARDED)) {
+
+					didCleanup = true;
+
+					try {
+						cleanup();
+					} catch (Exception cleanupException) {
+						e.addSuppressed(cleanupException);
+					}
+
+					Exception checkpointException = new Exception(
+						"Could not materialize checkpoint " + checkpointMetaData.getCheckpointId() + " for operator " +
+							owner.getName() + '.',
+						e);
+
+					// We only report the exception for the original cause of fail and cleanup.
+					// Otherwise this followup exception could race the original exception in failing the task.
+					owner.asynchronousCheckpointExceptionHandler.tryHandleCheckpointException(
+						checkpointMetaData,
+						checkpointException);
+
+					currentState = CheckpointingOperation.AsyncCheckpointState.DISCARDED;
+				} else {
+					currentState = asyncCheckpointState.get();
+				}
 			}
 
-			Exception checkpointException = new Exception(
-				"Could not materialize checkpoint " + checkpointMetaData.getCheckpointId() + " for operator " +
-					owner.getName() + '.',
-				e);
-
-			owner.asynchronousCheckpointExceptionHandler.tryHandleCheckpointException(
-				checkpointMetaData,
-				checkpointException);
+			if (!didCleanup) {
+				LOG.trace("Caught followup exception from a failed checkpoint thread. This can be ignored.", e);
+			}
 		}
 
 		@Override
 		public void close() {
-			try {
-				cleanup();
-			} catch (Exception cleanupException) {
-				LOG.warn("Could not properly clean up the async checkpoint runnable.", cleanupException);
+			if (asyncCheckpointState.compareAndSet(
+				CheckpointingOperation.AsyncCheckpointState.RUNNING,
+				CheckpointingOperation.AsyncCheckpointState.DISCARDED)) {
+
+				try {
+					cleanup();
+				} catch (Exception cleanupException) {
+					LOG.warn("Could not properly clean up the async checkpoint runnable.", cleanupException);
+				}
+			} else {
+				logFailedCleanupAttempt();
 			}
 		}
 
 		private void cleanup() throws Exception {
-			if (asyncCheckpointState.compareAndSet(CheckpointingOperation.AsynCheckpointState.RUNNING, CheckpointingOperation.AsynCheckpointState.DISCARDED)) {
-				LOG.debug("Cleanup AsyncCheckpointRunnable for checkpoint {} of {}.", checkpointMetaData.getCheckpointId(), owner.getName());
-				Exception exception = null;
+			LOG.debug(
+				"Cleanup AsyncCheckpointRunnable for checkpoint {} of {}.",
+				checkpointMetaData.getCheckpointId(),
+				owner.getName());
 
-				// clean up ongoing operator snapshot results and non partitioned state handles
-				for (OperatorSnapshotFutures operatorSnapshotResult : operatorSnapshotsInProgress.values()) {
-					if (operatorSnapshotResult != null) {
-						try {
-							operatorSnapshotResult.cancel();
-						} catch (Exception cancelException) {
-							exception = ExceptionUtils.firstOrSuppressed(cancelException, exception);
-						}
+			Exception exception = null;
+
+			// clean up ongoing operator snapshot results and non partitioned state handles
+			for (OperatorSnapshotFutures operatorSnapshotResult : operatorSnapshotsInProgress.values()) {
+				if (operatorSnapshotResult != null) {
+					try {
+						operatorSnapshotResult.cancel();
+					} catch (Exception cancelException) {
+						exception = ExceptionUtils.firstOrSuppressed(cancelException, exception);
 					}
 				}
-
-				if (null != exception) {
-					throw exception;
-				}
-			} else {
-				LOG.debug("{} - asynchronous checkpointing operation for checkpoint {} has " +
-						"already been completed. Thus, the state handles are not cleaned up.",
-					owner.getName(),
-					checkpointMetaData.getCheckpointId());
 			}
+
+			if (null != exception) {
+				throw exception;
+			}
+		}
+
+		private void logFailedCleanupAttempt() {
+			LOG.debug("{} - asynchronous checkpointing operation for checkpoint {} has " +
+					"already been completed. Thus, the state handles are not cleaned up.",
+				owner.getName(),
+				checkpointMetaData.getCheckpointId());
 		}
 	}
 
@@ -1088,7 +1117,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			}
 		}
 
-		private enum AsynCheckpointState {
+		private enum AsyncCheckpointState {
 			RUNNING,
 			DISCARDED,
 			COMPLETED
