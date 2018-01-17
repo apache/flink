@@ -19,6 +19,7 @@
 package org.apache.flink.mesos.runtime.clusterframework;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.util.TestLogger;
 
 import com.netflix.fenzo.ConstraintEvaluator;
@@ -168,6 +169,17 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 
 		MesosTaskManagerParameters mesosTaskManagerParameters = MesosTaskManagerParameters.create(withHardHostAttrConstraintConfiguration(",:,"));
 		assertThat(mesosTaskManagerParameters.constraints().size(), is(0));
+	}
+
+	@Test(expected = IllegalConfigurationException.class)
+	public void testNegativeNumberOfGPUs() throws Exception {
+		MesosTaskManagerParameters.create(withGPUConfiguration(-1));
+	}
+
+	private static Configuration withGPUConfiguration(int gpus) {
+		Configuration config = new Configuration();
+		config.setInteger(MesosTaskManagerParameters.MESOS_RM_TASKS_GPUS, gpus);
+		return config;
 	}
 
 	private static Configuration withHardHostAttrConstraintConfiguration(final String configuration) {

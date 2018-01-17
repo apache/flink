@@ -62,6 +62,10 @@ public class MesosTaskManagerParameters {
 		key("mesos.resourcemanager.tasks.cpus")
 		.defaultValue(0.0);
 
+	public static final ConfigOption<Integer> MESOS_RM_TASKS_GPUS =
+		key("mesos.resourcemanager.tasks.gpus")
+		.defaultValue(0);
+
 	public static final ConfigOption<String> MESOS_RM_CONTAINER_TYPE =
 		key("mesos.resourcemanager.tasks.container.type")
 		.defaultValue("mesos");
@@ -105,6 +109,8 @@ public class MesosTaskManagerParameters {
 
 	private final double cpus;
 
+	private final int gpus;
+
 	private final ContainerType containerType;
 
 	private final Option<String> containerImageName;
@@ -125,6 +131,7 @@ public class MesosTaskManagerParameters {
 
 	public MesosTaskManagerParameters(
 			double cpus,
+			int gpus,
 			ContainerType containerType,
 			Option<String> containerImageName,
 			ContaineredTaskManagerParameters containeredParameters,
@@ -136,6 +143,7 @@ public class MesosTaskManagerParameters {
 			Option<String> taskManagerHostname) {
 
 		this.cpus = cpus;
+		this.gpus = gpus;
 		this.containerType = Preconditions.checkNotNull(containerType);
 		this.containerImageName = Preconditions.checkNotNull(containerImageName);
 		this.containeredParameters = Preconditions.checkNotNull(containeredParameters);
@@ -152,6 +160,13 @@ public class MesosTaskManagerParameters {
 	 */
 	public double cpus() {
 		return cpus;
+	}
+
+	/**
+	 * Get the GPU units to use for the TaskManager Process.
+	 */
+	public int gpus() {
+		return gpus;
 	}
 
 	/**
@@ -223,6 +238,7 @@ public class MesosTaskManagerParameters {
 	public String toString() {
 		return "MesosTaskManagerParameters{" +
 			"cpus=" + cpus +
+			", gpus=" + gpus +
 			", containerType=" + containerType +
 			", containerImageName=" + containerImageName +
 			", containeredParameters=" + containeredParameters +
@@ -252,6 +268,13 @@ public class MesosTaskManagerParameters {
 		double cpus = flinkConfig.getDouble(MESOS_RM_TASKS_CPUS);
 		if (cpus <= 0.0) {
 			cpus = Math.max(containeredParameters.numSlots(), 1.0);
+		}
+
+		int gpus = flinkConfig.getInteger(MESOS_RM_TASKS_GPUS);
+
+		if (gpus < 0) {
+			throw new IllegalConfigurationException(MESOS_RM_TASKS_GPUS.key() +
+				" cannot be negative");
 		}
 
 		// parse the containerization parameters
@@ -291,6 +314,7 @@ public class MesosTaskManagerParameters {
 
 		return new MesosTaskManagerParameters(
 			cpus,
+			gpus,
 			containerType,
 			Option.apply(imageName),
 			containeredParameters,
