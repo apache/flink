@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +64,8 @@ public class TaskExecutorLocalStateStoresManager {
 	/** Guarding lock for taskStateStoresByAllocationID and closed-flag. */
 	private final Object lock;
 
+	private final Thread shutdownHook;
+
 	@GuardedBy("lock")
 	private boolean closed;
 
@@ -89,6 +90,22 @@ public class TaskExecutorLocalStateStoresManager {
 				}
 			}
 		}
+
+		// install a shutdown hook
+		this.shutdownHook = new Thread("TaskExecutorLocalStateStoresManager shutdown hook") {
+			@Override
+			public void run() {
+				shutdown();
+			}
+		};
+		try {
+			Runtime.getRuntime().addShutdownHook(this.shutdownHook);
+		} catch (IllegalStateException e) {
+			// race, JVM is in shutdown already, we can safely ignore this
+			LOG.debug("Unable to add shutdown hook for TaskExecutorLocalStateStoresManager, shutdown already in progress", e);
+		} catch (Throwable t) {
+			LOG.warn("Error while adding shutdown hook for TaskExecutorLocalStateStoresManager", t);
+		}
 	}
 
 	@Nonnull
@@ -112,15 +129,6 @@ public class TaskExecutorLocalStateStoresManager {
 
 			// create the allocation base dirs, one inside each root dir.
 			File[] allocationBaseDirectories = allocationBaseDirectories(allocationID);
-
-			// also mkdir the dirs if this is the first task state store registered under this allocation id.
-			if (taskStateManagers.isEmpty()) {
-				for (File directory : allocationBaseDirectories) {
-					Preconditions.checkState(
-						directory.mkdir(),
-						"Could not create allocation base directory :" + directory);
-				}
-			}
 
 			LocalRecoveryDirectoryProviderImpl directoryProvider = new LocalRecoveryDirectoryProviderImpl(
 				allocationBaseDirectories,
@@ -178,11 +186,52 @@ public class TaskExecutorLocalStateStoresManager {
 			taskStateStoresByAllocationID.clear();
 		}
 
+		removeShutdownHook();
+
+		LOG.debug("Shutting down TaskExecutorLocalStateStoresManager.");
+
 		for (Map.Entry<AllocationID, Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl>> entry :
 			toRelease.entrySet()) {
 
 			doRelease(entry.getValue().values());
 			cleanupAllocationBaseDirs(entry.getKey());
+		}
+	}
+
+	@VisibleForTesting
+	public LocalRecoveryConfig.LocalRecoveryMode getLocalRecoveryMode() {
+		return localRecoveryMode;
+	}
+
+	@VisibleForTesting
+	File[] getLocalStateRootDirectories() {
+		return localStateRootDirectories;
+	}
+
+	@VisibleForTesting
+	String allocationSubDirString(AllocationID allocationID) {
+		return "aid_" + allocationID;
+	}
+
+	private File[] allocationBaseDirectories(AllocationID allocationID) {
+		File[] allocationDirectories = new File[localStateRootDirectories.length];
+		for (int i = 0; i < localStateRootDirectories.length; ++i) {
+			allocationDirectories[i] = new File(localStateRootDirectories[i], allocationSubDirString(allocationID));
+		}
+		return allocationDirectories;
+	}
+
+	private void removeShutdownHook() {
+		// Remove shutdown hook to prevent resource leaks, unless this is invoked by the shutdown hook itself
+		if (shutdownHook != Thread.currentThread()) {
+			try {
+				Runtime.getRuntime().removeShutdownHook(shutdownHook);
+			} catch (IllegalStateException e) {
+				// race, JVM is in shutdown already, we can safely ignore this
+				LOG.debug("Unable to remove shutdown hook, shutdown already in progress", e);
+			} catch (Throwable t) {
+				LOG.warn("Exception while unregistering IOManager's shutdown hook.", t);
+			}
 		}
 	}
 
@@ -198,29 +247,6 @@ public class TaskExecutorLocalStateStoresManager {
 				}
 			}
 		}
-	}
-
-	@VisibleForTesting
-	File[] getLocalStateRootDirectories() {
-		return localStateRootDirectories;
-	}
-
-	@VisibleForTesting
-	public LocalRecoveryConfig.LocalRecoveryMode getLocalRecoveryMode() {
-		return localRecoveryMode;
-	}
-
-	private File[] allocationBaseDirectories(AllocationID allocationID) {
-		File[] allocationDirectories = new File[localStateRootDirectories.length];
-		for (int i = 0; i < localStateRootDirectories.length; ++i) {
-			allocationDirectories[i] = new File(localStateRootDirectories[i], allocationSubDirString(allocationID));
-		}
-		return allocationDirectories;
-	}
-
-	@VisibleForTesting
-	String allocationSubDirString(AllocationID allocationID) {
-		return "aid_" + allocationID;
 	}
 
 	/**

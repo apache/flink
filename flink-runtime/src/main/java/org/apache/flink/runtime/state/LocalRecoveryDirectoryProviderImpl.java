@@ -90,9 +90,7 @@ public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirector
 
 		for (File allocationBaseDir : allocationBaseDirs) {
 			Preconditions.checkNotNull(allocationBaseDir);
-			if (!allocationBaseDir.isDirectory()) {
-				throw new IllegalStateException("Local recovery allocation base directory " + allocationBaseDir + " does not exist!");
-			}
+			allocationBaseDir.mkdirs();
 		}
 	}
 

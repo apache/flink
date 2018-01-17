@@ -120,9 +120,7 @@ public class RestAPIDocGenerator {
 		List<MessageHeaders> specs = restEndpoint.getSpecs();
 		specs.forEach(spec -> html.append(createHtmlEntry(spec)));
 
-		if (Files.exists(outputFile)) {
-			Files.delete(outputFile);
-		}
+		Files.deleteIfExists(outputFile);
 		Files.write(outputFile, html.toString().getBytes(StandardCharsets.UTF_8));
 	}
 
