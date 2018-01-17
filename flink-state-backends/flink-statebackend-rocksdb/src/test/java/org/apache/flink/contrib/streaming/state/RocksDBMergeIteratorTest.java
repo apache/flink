@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
+import org.apache.flink.util.IOUtils;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -53,7 +54,7 @@ public class RocksDBMergeIteratorTest {
 	@Test
 	public void testEmptyMergeIterator() throws IOException {
 		RocksDBKeyedStateBackend.RocksDBMergeIterator emptyIterator =
-				new RocksDBKeyedStateBackend.RocksDBMergeIterator(Collections.EMPTY_LIST, 2);
+				new RocksDBKeyedStateBackend.RocksDBMergeIterator(Collections.emptyList(), 2);
 		Assert.assertFalse(emptyIterator.isValid());
 	}
 
@@ -74,8 +75,7 @@ public class RocksDBMergeIteratorTest {
 	public void testMergeIterator(int maxParallelism) throws Exception {
 		Random random = new Random(1234);
 
-		RocksDB rocksDB = RocksDB.open(tempFolder.getRoot().getAbsolutePath());
-		try {
+		try (RocksDB rocksDB = RocksDB.open(tempFolder.getRoot().getAbsolutePath())) {
 			List<Tuple2<RocksIterator, Integer>> rocksIteratorsWithKVStateId = new ArrayList<>();
 			List<Tuple2<ColumnFamilyHandle, Integer>> columnFamilyHandlesWithKeyCount = new ArrayList<>();
 
@@ -83,7 +83,7 @@ public class RocksDBMergeIteratorTest {
 
 			for (int c = 0; c < NUM_KEY_VAL_STATES; ++c) {
 				ColumnFamilyHandle handle = rocksDB.createColumnFamily(
-						new ColumnFamilyDescriptor(("column-" + c).getBytes(ConfigConstants.DEFAULT_CHARSET)));
+					new ColumnFamilyDescriptor(("column-" + c).getBytes(ConfigConstants.DEFAULT_CHARSET)));
 
 				ByteArrayOutputStreamWithPos bos = new ByteArrayOutputStreamWithPos();
 				DataOutputStream dos = new DataOutputStream(bos);
@@ -113,39 +113,41 @@ public class RocksDBMergeIteratorTest {
 				++id;
 			}
 
-			RocksDBKeyedStateBackend.RocksDBMergeIterator mergeIterator = new RocksDBKeyedStateBackend.RocksDBMergeIterator(rocksIteratorsWithKVStateId, maxParallelism <= Byte.MAX_VALUE ? 1 : 2);
+			try (RocksDBKeyedStateBackend.RocksDBMergeIterator mergeIterator = new RocksDBKeyedStateBackend.RocksDBMergeIterator(
+				rocksIteratorsWithKVStateId,
+				maxParallelism <= Byte.MAX_VALUE ? 1 : 2)) {
 
-			int prevKVState = -1;
-			int prevKey = -1;
-			int prevKeyGroup = -1;
-			int totalKeysActual = 0;
+				int prevKVState = -1;
+				int prevKey = -1;
+				int prevKeyGroup = -1;
+				int totalKeysActual = 0;
 
-			while (mergeIterator.isValid()) {
-				ByteBuffer bb = ByteBuffer.wrap(mergeIterator.key());
+				while (mergeIterator.isValid()) {
+					ByteBuffer bb = ByteBuffer.wrap(mergeIterator.key());
 
-				int keyGroup = maxParallelism > Byte.MAX_VALUE ? bb.getShort() : bb.get();
-				int key = bb.getInt();
+					int keyGroup = maxParallelism > Byte.MAX_VALUE ? bb.getShort() : bb.get();
+					int key = bb.getInt();
 
-				Assert.assertTrue(keyGroup >= prevKeyGroup);
-				Assert.assertTrue(key >= prevKey);
-				Assert.assertEquals(prevKeyGroup != keyGroup, mergeIterator.isNewKeyGroup());
-				Assert.assertEquals(prevKVState != mergeIterator.kvStateId(), mergeIterator.isNewKeyValueState());
+					Assert.assertTrue(keyGroup >= prevKeyGroup);
+					Assert.assertTrue(key >= prevKey);
+					Assert.assertEquals(prevKeyGroup != keyGroup, mergeIterator.isNewKeyGroup());
+					Assert.assertEquals(prevKVState != mergeIterator.kvStateId(), mergeIterator.isNewKeyValueState());
 
-				prevKeyGroup = keyGroup;
-				prevKVState = mergeIterator.kvStateId();
+					prevKeyGroup = keyGroup;
+					prevKVState = mergeIterator.kvStateId();
 
-				//System.out.println(keyGroup + " " + key + " " + mergeIterator.kvStateId());
-				mergeIterator.next();
-				++totalKeysActual;
+					mergeIterator.next();
+					++totalKeysActual;
+				}
+
+				Assert.assertEquals(totalKeysExpected, totalKeysActual);
 			}
 
-			Assert.assertEquals(totalKeysExpected, totalKeysActual);
+			IOUtils.closeQuietly(rocksDB.getDefaultColumnFamily());
 
 			for (Tuple2<ColumnFamilyHandle, Integer> handleWithCount : columnFamilyHandlesWithKeyCount) {
-				rocksDB.dropColumnFamily(handleWithCount.f0);
+				IOUtils.closeQuietly(handleWithCount.f0);
 			}
-		} finally {
-			rocksDB.close();
 		}
 	}
 
