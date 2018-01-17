@@ -75,6 +75,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -82,6 +83,7 @@ import java.util.Collections;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
@@ -226,20 +228,12 @@ public class StreamTaskTerminationTest extends TestLogger {
 			// has been stopped
 			CLEANUP_LATCH.trigger();
 
-			// wait until handle async exception has been called to proceed with the termination of the
-			// StreamTask
-			HANDLE_ASYNC_EXCEPTION_LATCH.await();
+			// wait until all async checkpoint threads are terminated, so that no more exceptions can be reported
+			Assert.assertTrue(getAsyncOperationsThreadPool().awaitTermination(30L, TimeUnit.SECONDS));
 		}
 
 		@Override
 		protected void cancelTask() throws Exception {
-		}
-
-		@Override
-		public void handleAsyncException(String message, Throwable exception) {
-			super.handleAsyncException(message, exception);
-
-			HANDLE_ASYNC_EXCEPTION_LATCH.trigger();
 		}
 	}
 
