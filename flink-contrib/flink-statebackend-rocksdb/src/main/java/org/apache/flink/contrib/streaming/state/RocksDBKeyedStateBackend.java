@@ -151,9 +151,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** File suffix of sstable files. */
 	private static final String SST_FILE_SUFFIX = ".sst";
 
-	/** Bytes for the name of the column descriptor for the default column family. */
-	public static final byte[] DEFAULT_COLUMN_FAMILY_NAME_BYTES = "default".getBytes(ConfigConstants.DEFAULT_CHARSET);
-
 	/** String that identifies the operator that owns this backend. */
 	private final String operatorIdentifier;
 
@@ -325,29 +322,31 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		if (db != null) {
 
 			// RocksDB's native memory management requires that *all* CFs (including default) are closed before the
-			// DB is closed. So we start with the ones created by Flink...
+			// DB is closed. See:
+			// https://github.com/facebook/rocksdb/wiki/RocksJava-Basics#opening-a-database-with-column-families
+			// Start with default CF ...
+			IOUtils.closeQuietly(defaultColumnFamily);
+
+			// ... continue with the ones created by Flink...
 			for (Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> columnMetaData :
 				kvStateInformation.values()) {
 				IOUtils.closeQuietly(columnMetaData.f0);
 			}
 
-			// ... close the default CF ...
-			IOUtils.closeQuietly(defaultColumnFamily);
-
 			// ... and finally close the DB instance ...
 			IOUtils.closeQuietly(db);
 
-			// invalidate the reference before releasing the lock so that other accesses will not cause crashes
+			// invalidate the reference
 			db = null;
+
+			kvStateInformation.clear();
+			restoredKvStateMetaInfos.clear();
+
+			IOUtils.closeQuietly(dbOptions);
+			IOUtils.closeQuietly(columnOptions);
+
+			cleanInstanceBasePath();
 		}
-
-		kvStateInformation.clear();
-		restoredKvStateMetaInfos.clear();
-
-		IOUtils.closeQuietly(dbOptions);
-		IOUtils.closeQuietly(columnOptions);
-
-		cleanInstanceBasePath();
 	}
 
 	private void cleanInstanceBasePath() {
@@ -451,10 +450,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		List<ColumnFamilyDescriptor> columnFamilyDescriptors =
 			new ArrayList<>(1 + stateColumnFamilyDescriptors.size());
 
+		// we add the required descriptor for the default CF in FIRST position, see
+		// https://github.com/facebook/rocksdb/wiki/RocksJava-Basics#opening-a-database-with-column-families
+		columnFamilyDescriptors.add(new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, columnOptions));
 		columnFamilyDescriptors.addAll(stateColumnFamilyDescriptors);
-
-		// we add the required descriptor for the default CF in last position.
-		columnFamilyDescriptors.add(new ColumnFamilyDescriptor(DEFAULT_COLUMN_FAMILY_NAME_BYTES, columnOptions));
 
 		RocksDB dbRef;
 
@@ -821,8 +820,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateBackend.instanceRocksDBPath.getAbsolutePath(),
 				columnFamilyDescriptors, columnFamilyHandles);
 
-			// extract and store the default column family which is located at the last index
-			stateBackend.defaultColumnFamily = columnFamilyHandles.remove(columnFamilyHandles.size() - 1);
+			// extract and store the default column family which is located at the first index
+			stateBackend.defaultColumnFamily = columnFamilyHandles.remove(0);
 
 			for (int i = 0; i < columnFamilyDescriptors.size(); ++i) {
 				RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> stateMetaInfoSnapshot = stateMetaInfoSnapshots.get(i);
@@ -1003,8 +1002,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				columnFamilyDescriptors,
 				columnFamilyHandles)) {
 
+				final ColumnFamilyHandle defaultColumnFamily = columnFamilyHandles.remove(0);
+
+				Preconditions.checkState(columnFamilyHandles.size() == columnFamilyDescriptors.size());
+
 				try {
-					// iterating only the requested descriptors automatically skips the default column family handle
 					for (int i = 0; i < columnFamilyDescriptors.size(); ++i) {
 						ColumnFamilyHandle columnFamilyHandle = columnFamilyHandles.get(i);
 						ColumnFamilyDescriptor columnFamilyDescriptor = columnFamilyDescriptors.get(i);
@@ -1061,9 +1063,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						} // releases native iterator resources
 					}
 				} finally {
+
 					//release native tmp db column family resources
-					for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
-						IOUtils.closeQuietly(columnFamilyHandle);
+					IOUtils.closeQuietly(defaultColumnFamily);
+
+					for (ColumnFamilyHandle flinkColumnFamilyHandle : columnFamilyHandles) {
+						IOUtils.closeQuietly(flinkColumnFamilyHandle);
 					}
 				}
 			} // releases native tmp db resources
@@ -1141,7 +1146,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		byte[] nameBytes = descriptor.getName().getBytes(ConfigConstants.DEFAULT_CHARSET);
-		Preconditions.checkState(!Arrays.equals(DEFAULT_COLUMN_FAMILY_NAME_BYTES, nameBytes),
+		Preconditions.checkState(!Arrays.equals(RocksDB.DEFAULT_COLUMN_FAMILY, nameBytes),
 			"The chosen state name 'default' collides with the name of the default column family!");
 
 		ColumnFamilyDescriptor columnDescriptor = new ColumnFamilyDescriptor(nameBytes, columnOptions);
