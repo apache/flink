@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -184,9 +185,7 @@ public class TaskManagerServicesConfiguration {
 			slots = 1;
 		}
 
-		final String[] tmpDirs = configuration.getString(
-			ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(",|" + File.pathSeparator);
+		final String[] tmpDirs = parseTempDirectories(configuration);
 
 		final NetworkEnvironmentConfiguration networkConfig = parseNetworkEnvironmentConfiguration(
 			configuration,
@@ -434,6 +433,17 @@ public class TaskManagerServicesConfiguration {
 				numProxyServerQueryThreads,
 				numStateServerNetworkThreads,
 				numStateServerQueryThreads);
+	}
+
+	/**
+	 * Extracts the task manager directories for temporary files as defined by
+	 * {@link org.apache.flink.configuration.CoreOptions#TMP_DIRS}.
+	 *
+	 * @param configuration configuration object
+	 * @return array of configured directories (in order)
+	 */
+	public static String[] parseTempDirectories(Configuration configuration) {
+		return configuration.getString(CoreOptions.TMP_DIRS).split(",|" + File.pathSeparator);
 	}
 
 	/**

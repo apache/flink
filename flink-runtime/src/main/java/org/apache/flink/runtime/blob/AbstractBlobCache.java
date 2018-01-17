@@ -103,8 +103,7 @@ public abstract class AbstractBlobCache implements Closeable {
 		this.readWriteLock = new ReentrantReadWriteLock();
 
 		// configure and create the storage directory
-		String storageDirectory = blobClientConfig.getString(BlobServerOptions.STORAGE_DIRECTORY);
-		this.storageDir = BlobUtils.initLocalStorageDirectory(storageDirectory);
+		this.storageDir = BlobUtils.initLocalStorageDirectory(blobClientConfig);
 		log.info("Created BLOB cache storage directory " + storageDir);
 
 		// configure the number of fetch retries

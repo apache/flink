@@ -19,8 +19,11 @@
 package org.apache.flink.mesos.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.mesos.configuration.MesosOptions;
+import org.apache.flink.mesos.runtime.clusterframework.MesosConfigKeys;
 import org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameters;
 import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
@@ -36,6 +39,7 @@ import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import scala.concurrent.duration.Duration;
@@ -152,4 +156,32 @@ public class MesosEntrypointUtils {
 		overlay.configure(containerSpec);
 	}
 
+	/**
+	 * Loads the global configuration, adds the given dynamic properties configuration, and sets
+	 * the temp directory paths.
+	 *
+	 * @param dynamicProperties dynamic properties to integrate
+	 * @param log logger instance
+	 * @return the loaded and adapted global configuration
+	 */
+	public static Configuration loadConfiguration(Configuration dynamicProperties, Logger log) {
+		Configuration configuration =
+			GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);
+
+		// read the environment variables
+		final Map<String, String> envs = System.getenv();
+		final String tmpDirs = envs.get(MesosConfigKeys.ENV_FLINK_TMP_DIR);
+
+		// configure local directory
+		if (configuration.contains(CoreOptions.TMP_DIRS)) {
+			log.info("Overriding Mesos' temporary file directories with those " +
+				"specified in the Flink config: " + configuration.getValue(CoreOptions.TMP_DIRS));
+		}
+		else if (tmpDirs != null) {
+			log.info("Setting directories for temporary files to: {}", tmpDirs);
+			configuration.setString(CoreOptions.TMP_DIRS, tmpDirs);
+		}
+
+		return configuration;
+	}
 }
