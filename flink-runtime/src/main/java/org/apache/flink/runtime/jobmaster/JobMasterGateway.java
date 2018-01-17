@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -36,6 +36,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -54,7 +55,7 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@link JobMaster} rpc gateway interface
+ * {@link JobMaster} rpc gateway interface.
  */
 public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRpcGateway<JobMasterId>, RestfulGateway {
 
@@ -224,14 +225,14 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 			@RpcTimeout final Time timeout);
 
 	/**
-	 * Sends the heartbeat to job manager from task manager
+	 * Sends the heartbeat to job manager from task manager.
 	 *
 	 * @param resourceID unique id of the task manager
 	 */
 	void heartbeatFromTaskManager(final ResourceID resourceID);
 
 	/**
-	 * Sends heartbeat request from the resource manager
+	 * Sends heartbeat request from the resource manager.
 	 *
 	 * @param resourceID unique id of the resource manager
 	 */
@@ -246,18 +247,24 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 	CompletableFuture<JobDetails> requestJobDetails(@RpcTimeout Time timeout);
 
 	/**
-	 * Request the {@link ArchivedExecutionGraph} of the currently executed job.
-	 *
-	 * @param timeout for the rpc call
-	 * @return Future archived execution graph derived from the currently executed job
-	 */
-	CompletableFuture<AccessExecutionGraph> requestArchivedExecutionGraph(@RpcTimeout Time timeout);
-
-	/**
 	 * Requests the current job status.
 	 *
 	 * @param timeout for the rpc call
 	 * @return Future containing the current job status
 	 */
 	CompletableFuture<JobStatus> requestJobStatus(@RpcTimeout Time timeout);
+
+	/**
+	 * Requests the {@link ArchivedExecutionGraph} for the given jobId. If there is no such graph, then
+	 * the future is completed with a {@link FlinkJobNotFoundException}.
+	 *
+	 * <p>Note: We enforce that the returned future contains a {@link ArchivedExecutionGraph} unlike
+	 * the super interface.
+	 *
+	 * @param jobId identifying the job whose AccessExecutionGraph is requested
+	 * @param timeout for the asynchronous operation
+	 * @return Future containing the AccessExecutionGraph for the given jobId, otherwise {@link FlinkJobNotFoundException}
+	 */
+	@Override
+	CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
 }

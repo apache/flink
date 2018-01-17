@@ -54,14 +54,14 @@ public interface RestfulGateway extends RpcGateway {
 	CompletableFuture<String> requestRestAddress(@RpcTimeout  Time timeout);
 
 	/**
-	 * Requests the AccessExecutionGraph for the given jobId. If there is no such graph, then
+	 * Requests the {@link AccessExecutionGraph} for the given jobId. If there is no such graph, then
 	 * the future is completed with a {@link FlinkJobNotFoundException}.
 	 *
 	 * @param jobId identifying the job whose AccessExecutionGraph is requested
 	 * @param timeout for the asynchronous operation
 	 * @return Future containing the AccessExecutionGraph for the given jobId, otherwise {@link FlinkJobNotFoundException}
 	 */
-	CompletableFuture<AccessExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
+	CompletableFuture<? extends AccessExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
 
 	/**
 	 * Requests job details currently being executed on the Flink cluster.
