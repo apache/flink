@@ -39,7 +39,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -784,11 +783,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	@Override
-	public CompletableFuture<AccessExecutionGraph> requestArchivedExecutionGraph(Time timeout) {
-		return CompletableFuture.completedFuture(ArchivedExecutionGraph.createFrom(executionGraph));
-	}
-
-	@Override
 	public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
 		return CompletableFuture.completedFuture(executionGraph.getState());
 	}
@@ -803,9 +797,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	@Override
-	public CompletableFuture<AccessExecutionGraph> requestJob(JobID jobId, Time timeout) {
+	public CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, Time timeout) {
 		if (jobGraph.getJobID().equals(jobId)) {
-			return requestArchivedExecutionGraph(timeout);
+			return CompletableFuture.completedFuture(ArchivedExecutionGraph.createFrom(executionGraph));
 		} else {
 			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
 		}

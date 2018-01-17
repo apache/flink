@@ -331,13 +331,13 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	@Override
-	public CompletableFuture<AccessExecutionGraph> requestJob(JobID jobId, Time timeout) {
+	public CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, Time timeout) {
 		final JobManagerRunner jobManagerRunner = jobManagerRunners.get(jobId);
 
 		if (jobManagerRunner == null) {
 			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
 		} else {
-			return jobManagerRunner.getJobManagerGateway().requestArchivedExecutionGraph(timeout);
+			return jobManagerRunner.getJobManagerGateway().requestJob(jobId, timeout);
 		}
 	}
 
