@@ -186,7 +186,7 @@ public class AbstractID implements Comparable<AbstractID>, java.io.Serializable 
 		long l = 0;
 
 		for (int i = 0; i < SIZE_OF_LONG; ++i) {
-			l |= (ba[offset + SIZE_OF_LONG - 1 - i] & 0xffL) << ((long) i << 3);
+			l |= (ba[offset + SIZE_OF_LONG - 1 - i] & 0xffL) << (i << 3);
 		}
 
 		return l;
