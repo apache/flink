@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.util.TestNotificationListener;
 
 import org.junit.AfterClass;
@@ -83,7 +84,7 @@ public class AsynchronousBufferFileWriterTest {
 
 		exception.expect(IOException.class);
 
-		Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
+		Buffer buffer = new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
 			FreeingBufferRecycler.INSTANCE);
 		try {
 			writer.writeBlock(buffer);

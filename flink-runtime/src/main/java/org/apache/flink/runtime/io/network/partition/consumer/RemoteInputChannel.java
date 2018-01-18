@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -35,11 +36,12 @@ import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -140,9 +142,9 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		this.initialCredit = segments.size();
 		this.numRequiredBuffers = segments.size();
 
-		synchronized(bufferQueue) {
+		synchronized (bufferQueue) {
 			for (MemorySegment segment : segments) {
-				bufferQueue.addExclusiveBuffer(new Buffer(segment, this), numRequiredBuffers);
+				bufferQueue.addExclusiveBuffer(new NetworkBuffer(segment, this), numRequiredBuffers);
 			}
 		}
 	}
@@ -312,7 +314,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 					ExceptionUtils.rethrow(t);
 				}
 			}
-			numAddedBuffers = bufferQueue.addExclusiveBuffer(new Buffer(segment, this), numRequiredBuffers);
+			numAddedBuffers = bufferQueue.addExclusiveBuffer(new NetworkBuffer(segment, this), numRequiredBuffers);
 		}
 
 		if (numAddedBuffers > 0 && unannouncedCredit.getAndAdd(numAddedBuffers) == 0) {
