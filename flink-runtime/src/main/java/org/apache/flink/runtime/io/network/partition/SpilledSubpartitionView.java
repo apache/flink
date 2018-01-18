@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -62,6 +63,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	private final BufferFileWriter spillWriter;
 
 	/** The synchronous file reader to do the actual I/O. */
+	@GuardedBy("this")
 	private final BufferFileReader fileReader;
 
 	/** The buffer pool to read data into. */
@@ -77,6 +79,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	private AtomicBoolean isReleased = new AtomicBoolean();
 
 	/** The next buffer to hand out. */
+	@GuardedBy("this")
 	private Buffer nextBuffer;
 
 	/** Flag indicating whether a spill is still in progress. */
@@ -129,12 +132,15 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		}
 
 		Buffer current;
-		if (nextBuffer == null) {
-			current = requestAndFillBuffer();
+		boolean nextBufferIsEvent;
+		synchronized (this) {
+			if (nextBuffer == null) {
+				current = requestAndFillBuffer();
+			} else {
+				current = nextBuffer;
+			}
 			nextBuffer = requestAndFillBuffer();
-		} else {
-			current = nextBuffer;
-			nextBuffer = requestAndFillBuffer();
+			nextBufferIsEvent = nextBuffer != null && !nextBuffer.isBuffer();
 		}
 
 		if (current == null) {
@@ -142,12 +148,13 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		}
 
 		int newBacklog = parent.decreaseBuffersInBacklog(current);
-		boolean nextBufferIsEvent = nextBuffer != null && !nextBuffer.isBuffer();
 		return new BufferAndBacklog(current, newBacklog, nextBufferIsEvent);
 	}
 
 	@Nullable
 	private Buffer requestAndFillBuffer() throws IOException, InterruptedException {
+		assert Thread.holdsLock(this);
+
 		if (fileReader.hasReachedEndOfFile()) {
 			return null;
 		}
@@ -180,11 +187,14 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 			// which can bring down the network.
 			spillWriter.closeAndDelete();
 
-			fileReader.close();
-			if (nextBuffer != null) {
-				nextBuffer.recycleBuffer();
-				nextBuffer = null;
+			synchronized (this) {
+				fileReader.close();
+				if (nextBuffer != null) {
+					nextBuffer.recycleBuffer();
+					nextBuffer = null;
+				}
 			}
+
 			bufferPool.destroy();
 		}
 	}
@@ -196,15 +206,17 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 
 	@Override
 	public boolean nextBufferIsEvent() {
-		if (nextBuffer == null) {
-			try {
-				nextBuffer = requestAndFillBuffer();
-			} catch (Exception e) {
-				// we can ignore this here (we will get it again once getNextBuffer() is called)
-				return false;
+		synchronized (this) {
+			if (nextBuffer == null) {
+				try {
+					nextBuffer = requestAndFillBuffer();
+				} catch (Exception e) {
+					// we can ignore this here (we will get it again once getNextBuffer() is called)
+					return false;
+				}
 			}
+			return nextBuffer != null && !nextBuffer.isBuffer();
 		}
-		return nextBuffer != null && !nextBuffer.isBuffer();
 	}
 
 	@Override
