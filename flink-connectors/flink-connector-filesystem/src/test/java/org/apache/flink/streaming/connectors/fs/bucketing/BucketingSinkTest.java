@@ -34,6 +34,7 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileConstants;
@@ -70,7 +71,7 @@ import java.util.Map;
 /**
  * Tests for the {@link BucketingSink}.
  */
-public class BucketingSinkTest {
+public class BucketingSinkTest extends TestLogger {
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
