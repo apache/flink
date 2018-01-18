@@ -119,7 +119,7 @@ public class RuntimeMonitorHandler extends RedirectHandler<JobManagerGateway> im
 				if (throwable != null) {
 					LOG.debug("Error while handling request.", throwable);
 
-					Optional<Throwable> optNotFound = ExceptionUtils.findThrowable(throwable, NotFoundException.class);
+					Optional<NotFoundException> optNotFound = ExceptionUtils.findThrowable(throwable, NotFoundException.class);
 
 					if (optNotFound.isPresent()) {
 						// this should result in a 404 error code (not found)

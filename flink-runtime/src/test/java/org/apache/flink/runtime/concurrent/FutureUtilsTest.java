@@ -31,14 +31,19 @@ import org.mockito.invocation.InvocationOnMock;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
@@ -239,6 +244,38 @@ public class FutureUtilsTest extends TestLogger {
 			future.get();
 		} catch (ExecutionException e) {
 			assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
+		}
+	}
+
+	@Test
+	public void testRetryWithDelayAndPredicate() throws Exception {
+		final ScheduledExecutorService retryExecutor = Executors.newSingleThreadScheduledExecutor();
+		final String retryableExceptionMessage = "first exception";
+		class TestStringSupplier implements Supplier<CompletableFuture<String>> {
+			private final AtomicInteger counter = new AtomicInteger();
+
+			@Override
+			public CompletableFuture<String> get() {
+				if (counter.getAndIncrement() == 0) {
+					return FutureUtils.completedExceptionally(new RuntimeException(retryableExceptionMessage));
+				} else {
+					return FutureUtils.completedExceptionally(new RuntimeException("should propagate"));
+				}
+			}
+		}
+
+		try {
+			FutureUtils.retryWithDelay(
+				new TestStringSupplier(),
+				1,
+				Time.seconds(0),
+				throwable ->
+					throwable instanceof RuntimeException && throwable.getMessage().contains(retryableExceptionMessage),
+				new ScheduledExecutorServiceAdapter(retryExecutor)).get();
+		} catch (final ExecutionException e) {
+			assertThat(e.getMessage(), containsString("Could not complete the operation"));
+		} finally {
+			retryExecutor.shutdownNow();
 		}
 	}
 }

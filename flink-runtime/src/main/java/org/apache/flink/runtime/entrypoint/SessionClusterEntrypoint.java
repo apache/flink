@@ -35,6 +35,7 @@ import org.apache.flink.runtime.dispatcher.FileArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -121,7 +122,8 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			dispatcherGatewayRetriever,
 			resourceManagerGatewayRetriever,
 			rpcService.getExecutor(),
-			new AkkaQueryServiceRetriever(actorSystem, timeout));
+			new AkkaQueryServiceRetriever(actorSystem, timeout),
+			highAvailabilityServices.getWebMonitorLeaderElectionService());
 
 		LOG.debug("Starting Dispatcher REST endpoint.");
 		dispatcherRestEndpoint.start();
@@ -227,11 +229,12 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 	}
 
 	protected DispatcherRestEndpoint createDispatcherRestEndpoint(
-			Configuration configuration,
-			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
-			LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-			Executor executor,
-			MetricQueryServiceRetriever metricQueryServiceRetriever) throws Exception {
+		Configuration configuration,
+		LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
+		LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+		Executor executor,
+		MetricQueryServiceRetriever metricQueryServiceRetriever,
+		LeaderElectionService leaderElectionService) throws Exception {
 
 		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(configuration);
 
@@ -242,7 +245,9 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			restHandlerConfiguration,
 			resourceManagerGatewayRetriever,
 			executor,
-			metricQueryServiceRetriever);
+			metricQueryServiceRetriever,
+			leaderElectionService,
+			this);
 	}
 
 	protected Dispatcher createDispatcher(

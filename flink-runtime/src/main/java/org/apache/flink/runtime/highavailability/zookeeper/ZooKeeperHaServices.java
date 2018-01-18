@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.highavailability.zookeeper;
 
-import org.apache.curator.framework.CuratorFramework;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -34,6 +32,8 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
+
+import org.apache.curator.framework.CuratorFramework;
 
 import java.io.IOException;
 import java.util.concurrent.Executor;
@@ -85,6 +85,8 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	private static final String DISPATCHER_LEADER_PATH = "/dispatcher_lock";
 
 	private static final String JOB_MANAGER_LEADER_PATH = "/job_manager_lock";
+
+	private static final String REST_SERVER_LEADER_PATH = "/rest_server_lock";
 
 	// ------------------------------------------------------------------------
 	
@@ -142,6 +144,11 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	}
 
 	@Override
+	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
+		return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, REST_SERVER_LEADER_PATH);
+	}
+
+	@Override
 	public LeaderElectionService getResourceManagerLeaderElectionService() {
 		return ZooKeeperUtils.createLeaderElectionService(client, configuration, RESOURCE_MANAGER_LEADER_PATH);
 	}
@@ -154,6 +161,11 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	@Override
 	public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
 		return ZooKeeperUtils.createLeaderElectionService(client, configuration, getPathForJobManager(jobID));
+	}
+
+	@Override
+	public LeaderElectionService getWebMonitorLeaderElectionService() {
+		return ZooKeeperUtils.createLeaderElectionService(client, configuration, REST_SERVER_LEADER_PATH);
 	}
 
 	@Override

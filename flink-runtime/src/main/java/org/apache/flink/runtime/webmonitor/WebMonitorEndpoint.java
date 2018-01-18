@@ -22,6 +22,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.leaderelection.LeaderContender;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
@@ -91,6 +93,7 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusHead
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.FileUtils;
@@ -104,6 +107,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -112,7 +116,7 @@ import java.util.concurrent.Executor;
  *
  * @param <T> type of the leader gateway
  */
-public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndpoint {
+public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndpoint implements LeaderContender {
 
 	protected final GatewayRetriever<T> leaderRetriever;
 	private final Configuration clusterConfiguration;
@@ -125,6 +129,10 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 	private final MetricFetcher<T> metricFetcher;
 
+	private final LeaderElectionService leaderElectionService;
+
+	private final FatalErrorHandler fatalErrorHandler;
+
 	public WebMonitorEndpoint(
 			RestServerEndpointConfiguration endpointConfiguration,
 			GatewayRetriever<T> leaderRetriever,
@@ -132,7 +140,9 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			RestHandlerConfiguration restConfiguration,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
 			Executor executor,
-			MetricQueryServiceRetriever metricQueryServiceRetriever) {
+			MetricQueryServiceRetriever metricQueryServiceRetriever,
+			LeaderElectionService leaderElectionService,
+			FatalErrorHandler fatalErrorHandler) {
 		super(endpointConfiguration);
 		this.leaderRetriever = Preconditions.checkNotNull(leaderRetriever);
 		this.clusterConfiguration = Preconditions.checkNotNull(clusterConfiguration);
@@ -152,6 +162,9 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			metricQueryServiceRetriever,
 			executor,
 			restConfiguration.getTimeout());
+
+		this.leaderElectionService = Preconditions.checkNotNull(leaderElectionService);
+		this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
 	}
 
 	@Override
@@ -468,6 +481,12 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	}
 
 	@Override
+	public void start() throws Exception {
+		super.start();
+		leaderElectionService.start(this);
+	}
+
+	@Override
 	public void shutdown(Time timeout) {
 		super.shutdown(timeout);
 
@@ -481,5 +500,37 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		} catch (Throwable t) {
 			log.warn("Error while deleting cache directory {}", tmpDir, t);
 		}
+
+		try {
+			leaderElectionService.stop();
+		} catch (Exception e) {
+			log.warn("Error while stopping leaderElectionService", e);
+		}
 	}
+
+	//-------------------------------------------------------------------------
+	// LeaderContender
+	//-------------------------------------------------------------------------
+
+	@Override
+	public void grantLeadership(final UUID leaderSessionID) {
+		log.info("{} was granted leadership with leaderSessionID={}", getRestAddress(), leaderSessionID);
+		leaderElectionService.confirmLeaderSessionID(leaderSessionID);
+	}
+
+	@Override
+	public void revokeLeadership() {
+		log.info("{} lost leadership", getRestAddress());
+	}
+
+	@Override
+	public String getAddress() {
+		return getRestAddress();
+	}
+
+	@Override
+	public void handleError(final Exception exception) {
+		fatalErrorHandler.onFatalError(exception);
+	}
+
 }
