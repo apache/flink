@@ -129,7 +129,7 @@ public class RecordWriterTest {
 			BufferProvider bufferProvider = mock(BufferProvider.class);
 			when(bufferProvider.requestBufferBuilderBlocking()).thenAnswer(request);
 
-			ResultPartitionWriter partitionWriter = spy(new RecyclingPartitionWriter(bufferProvider));
+			ResultPartitionWriter partitionWriter = new RecyclingPartitionWriter(bufferProvider);
 
 			final RecordWriter<IntValue> recordWriter = new RecordWriter<IntValue>(partitionWriter);
 
@@ -163,9 +163,8 @@ public class RecordWriterTest {
 
 			recordWriter.clearBuffers();
 
-			// Verify that buffer have been requested, but only one has been written out.
+			// Verify that buffer have been requested twice
 			verify(bufferProvider, times(2)).requestBufferBuilderBlocking();
-			verify(partitionWriter, times(1)).writeBuffer(any(Buffer.class), anyInt());
 
 			// Verify that the written out buffer has only been recycled once
 			// (by the partition writer).
