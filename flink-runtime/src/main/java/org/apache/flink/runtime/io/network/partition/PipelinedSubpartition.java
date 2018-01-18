@@ -67,6 +67,16 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	@Override
 	public boolean add(Buffer buffer) throws IOException {
+		return add(buffer, false);
+	}
+
+	@Override
+	public void finish() throws IOException {
+		add(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), true);
+		LOG.debug("Finished {}.", this);
+	}
+
+	private boolean add(Buffer buffer, boolean finish) throws IOException {
 		checkNotNull(buffer);
 
 		// view reference accessible outside the lock, but assigned inside the locked scope
@@ -83,6 +93,10 @@ class PipelinedSubpartition extends ResultSubpartition {
 			reader = readView;
 			updateStatistics(buffer);
 			increaseBuffersInBacklog(buffer);
+
+			if (finish) {
+				isFinished = true;
+			}
 		}
 
 		// Notify the listener outside of the synchronized block
@@ -91,33 +105,6 @@ class PipelinedSubpartition extends ResultSubpartition {
 		}
 
 		return true;
-	}
-
-	@Override
-	public void finish() throws IOException {
-		final Buffer buffer = EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE);
-
-		// view reference accessible outside the lock, but assigned inside the locked scope
-		final PipelinedSubpartitionView reader;
-
-		synchronized (buffers) {
-			if (isFinished || isReleased) {
-				return;
-			}
-
-			buffers.add(buffer);
-			reader = readView;
-			updateStatistics(buffer);
-
-			isFinished = true;
-		}
-
-		LOG.debug("Finished {}.", this);
-
-		// Notify the listener outside of the synchronized block
-		if (reader != null) {
-			reader.notifyBuffersAvailable(1);
-		}
 	}
 
 	@Override
