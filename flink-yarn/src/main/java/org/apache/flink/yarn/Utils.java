@@ -72,9 +72,6 @@ public final class Utils {
 	/** Keytab file name populated in YARN container. */
 	public static final String KEYTAB_FILE_NAME = "krb5.keytab";
 
-	/** KRB5 file name populated in YARN container for secure IT run. */
-	public static final String KRB5_FILE_NAME = "krb5.conf";
-
 	/** Yarn site xml file name populated in YARN container for secure IT run. */
 	public static final String YARN_SITE_FILE_NAME = "yarn-site.xml";
 
@@ -375,20 +372,11 @@ public final class Utils {
 
 		//To support Yarn Secure Integration Test Scenario
 		LocalResource yarnConfResource = null;
-		LocalResource krb5ConfResource = null;
-		boolean hasKrb5 = false;
-		if (remoteYarnConfPath != null && remoteKrb5Path != null) {
+		if (remoteYarnConfPath != null) {
 			log.info("TM:Adding remoteYarnConfPath {} to the container local resource bucket", remoteYarnConfPath);
 			Path yarnConfPath = new Path(remoteYarnConfPath);
 			FileSystem fs = yarnConfPath.getFileSystem(yarnConfig);
 			yarnConfResource = registerLocalResource(fs, yarnConfPath);
-
-			log.info("TM:Adding remoteKrb5Path {} to the container local resource bucket", remoteKrb5Path);
-			Path krb5ConfPath = new Path(remoteKrb5Path);
-			fs = krb5ConfPath.getFileSystem(yarnConfig);
-			krb5ConfResource = registerLocalResource(fs, krb5ConfPath);
-
-			hasKrb5 = true;
 		}
 
 		// register Flink Jar with remote HDFS
@@ -426,9 +414,8 @@ public final class Utils {
 		taskManagerLocalResources.put("flink-conf.yaml", flinkConf);
 
 		//To support Yarn Secure Integration Test Scenario
-		if (yarnConfResource != null && krb5ConfResource != null) {
+		if (yarnConfResource != null) {
 			taskManagerLocalResources.put(YARN_SITE_FILE_NAME, yarnConfResource);
-			taskManagerLocalResources.put(KRB5_FILE_NAME, krb5ConfResource);
 		}
 
 		if (keytabResource != null) {
@@ -455,7 +442,7 @@ public final class Utils {
 
 		String launchCommand = BootstrapTools.getTaskManagerShellCommand(
 				flinkConfig, tmParams, ".", ApplicationConstants.LOG_DIR_EXPANSION_VAR,
-				hasLogback, hasLog4j, hasKrb5, taskManagerMainClass);
+				hasLogback, hasLog4j, false, taskManagerMainClass);
 
 		log.info("Starting TaskManagers with command: " + launchCommand);
 

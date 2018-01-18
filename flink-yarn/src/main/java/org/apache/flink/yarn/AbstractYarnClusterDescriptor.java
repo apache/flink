@@ -826,35 +826,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		Path remoteKrb5Path = null;
 		Path remoteYarnSiteXmlPath = null;
 		boolean hasKrb5 = false;
-		if (System.getenv("IN_TESTS") != null) {
-			String krb5Config = System.getProperty("java.security.krb5.conf");
-			if (krb5Config != null && krb5Config.length() != 0) {
-				File krb5 = new File(krb5Config);
-				LOG.info("Adding KRB5 configuration {} to the AM container local resource bucket", krb5.getAbsolutePath());
-				Path krb5ConfPath = new Path(krb5.getAbsolutePath());
-				remoteKrb5Path = setupSingleLocalResource(
-					Utils.KRB5_FILE_NAME,
-					fs,
-					appId,
-					krb5ConfPath,
-					localResources,
-					homeDir,
-					"");
-
-				File f = new File(System.getenv("YARN_CONF_DIR"), Utils.YARN_SITE_FILE_NAME);
-				LOG.info("Adding Yarn configuration {} to the AM container local resource bucket", f.getAbsolutePath());
-				Path yarnSitePath = new Path(f.getAbsolutePath());
-				remoteYarnSiteXmlPath = setupSingleLocalResource(
-					Utils.YARN_SITE_FILE_NAME,
-					fs,
-					appId,
-					yarnSitePath,
-					localResources,
-					homeDir,
-					"");
-				hasKrb5 = true;
-			}
-		}
 
 		// setup security tokens
 		Path remotePathKeytab = null;
