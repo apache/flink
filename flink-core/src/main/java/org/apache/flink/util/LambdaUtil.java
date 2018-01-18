@@ -18,6 +18,8 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.util.function.ThrowingConsumer;
+
 /**
  * This class offers utility functions for Java's lambda features.
  */

@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.util;
+package org.apache.flink.util.function;
+
+import org.apache.flink.annotation.Public;
 
 /**
  * This interface is basically Java's {@link java.util.function.Consumer} interface enhanced with the ability to throw
@@ -24,6 +26,7 @@ package org.apache.flink.util;
  *
  * @param <T> type of the consumed elements.
  */
+@Public
 @FunctionalInterface
 public interface ThrowingConsumer<T> {
 

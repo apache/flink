@@ -21,21 +21,18 @@ package org.apache.flink.util.function;
 import org.apache.flink.annotation.Public;
 
 /**
- * A functional interface for a {@link java.util.function.Supplier} that may
- * throw exceptions.
- *
- * @param <R> The type of the result of the supplier.
- * @param <E> The type of Exceptions thrown by this function.
+ * Similar to a {@link Runnable}, this interface is used to capture a block of code
+ * to be executed. In contrast to {@code Runnable}, this interface allows throwing
+ * checked exceptions.
  */
 @Public
 @FunctionalInterface
-public interface SupplierWithException<R, E extends Throwable> {
+public interface RunnableWithException {
 
 	/**
-	 * Gets the result of this supplier.
+	 * The work method.
 	 *
-	 * @return The result of thus supplier.
-	 * @throws E This function may throw an exception.
+	 * @throws Exception Exceptions may be thrown.
 	 */
-	R get() throws E;
+	void run() throws Exception;
 }

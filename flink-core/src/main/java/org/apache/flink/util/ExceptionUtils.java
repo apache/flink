@@ -25,6 +25,7 @@
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.function.RunnableWithException;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -394,12 +395,6 @@ public final class ExceptionUtils {
 				rethrow(t);
 			}
 		}
-	}
-
-	@FunctionalInterface
-	public interface RunnableWithException {
-
-		void run() throws Exception;
 	}
 
 	// ------------------------------------------------------------------------
