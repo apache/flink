@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -26,10 +25,10 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.ArrayDeque;
 
@@ -70,9 +69,6 @@ class SpillableSubpartition extends ResultSubpartition {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SpillableSubpartition.class);
 
-	/** Buffers are kept in this queue as long as we weren't ask to release any. */
-	private final ArrayDeque<Buffer> buffers = new ArrayDeque<>();
-
 	/** The I/O manager used for spilling buffers to disk. */
 	private final IOManager ioManager;
 
@@ -84,10 +80,6 @@ class SpillableSubpartition extends ResultSubpartition {
 
 	/** Flag indicating whether the subpartition has been released. */
 	private volatile boolean isReleased;
-
-	/** The number of non-event buffers currently in this subpartition */
-	@GuardedBy("buffers")
-	private int buffersInBacklog;
 
 	/** The read view to consume this subpartition. */
 	private ResultSubpartitionView readView;
@@ -264,39 +256,6 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	@VisibleForTesting
-	public int getBuffersInBacklog() {
-		return buffersInBacklog;
-	}
-
-	/**
-	 * Decreases the number of non-event buffers by one after fetching a non-event
-	 * buffer from this subpartition (for access by the subpartition views).
-	 *
-	 * @return backlog after the operation
-	 */
-	public int decreaseBuffersInBacklog(Buffer buffer) {
-		synchronized (buffers) {
-			if (buffer != null && buffer.isBuffer()) {
-				buffersInBacklog--;
-			}
-			return buffersInBacklog;
-		}
-	}
-
-	/**
-	 * Increases the number of non-event buffers by one after adding a non-event
-	 * buffer into this subpartition.
-	 */
-	private void increaseBuffersInBacklog(Buffer buffer) {
-		assert Thread.holdsLock(buffers);
-
-		if (buffer != null && buffer.isBuffer()) {
-			buffersInBacklog++;
-		}
-	}
-
-	@Override
 	public int unsynchronizedGetNumberOfQueuedBuffers() {
 		// since we do not synchronize, the size may actually be lower than 0!
 		return Math.max(buffers.size(), 0);
@@ -307,7 +266,7 @@ class SpillableSubpartition extends ResultSubpartition {
 		return String.format("SpillableSubpartition [%d number of buffers (%d bytes)," +
 				"%d number of buffers in backlog, finished? %s, read view? %s, spilled? %s]",
 			getTotalNumberOfBuffers(), getTotalNumberOfBytes(),
-			buffersInBacklog, isFinished, readView != null, spillWriter != null);
+			getBuffersInBacklog(), isFinished, readView != null, spillWriter != null);
 	}
 
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -27,9 +26,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.GuardedBy;
+
 import java.io.IOException;
-import java.util.ArrayDeque;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -43,9 +41,6 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	// ------------------------------------------------------------------------
 
-	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
-	private final ArrayDeque<Buffer> buffers = new ArrayDeque<>();
-
 	/** The read view to consume this subpartition. */
 	private PipelinedSubpartitionView readView;
 
@@ -54,10 +49,6 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	/** Flag indicating whether the subpartition has been released. */
 	private volatile boolean isReleased;
-
-	/** The number of non-event buffers currently in this subpartition. */
-	@GuardedBy("buffers")
-	private int buffersInBacklog;
 
 	// ------------------------------------------------------------------------
 
@@ -141,10 +132,10 @@ class PipelinedSubpartition extends ResultSubpartition {
 	BufferAndBacklog pollBuffer() {
 		synchronized (buffers) {
 			Buffer buffer = buffers.pollFirst();
-			decreaseBuffersInBacklog(buffer);
+			decreaseBuffersInBacklogUnsafe(buffer);
 
 			if (buffer != null) {
-				return new BufferAndBacklog(buffer, buffersInBacklog, _nextBufferIsEvent());
+				return new BufferAndBacklog(buffer, getBuffersInBacklog(), _nextBufferIsEvent());
 			} else {
 				return null;
 			}
@@ -173,36 +164,6 @@ class PipelinedSubpartition extends ResultSubpartition {
 	@Override
 	public boolean isReleased() {
 		return isReleased;
-	}
-
-	@Override
-	@VisibleForTesting
-	public int getBuffersInBacklog() {
-		return buffersInBacklog;
-	}
-
-	/**
-	 * Decreases the number of non-event buffers by one after fetching a non-event
-	 * buffer from this subpartition.
-	 */
-	private void decreaseBuffersInBacklog(Buffer buffer) {
-		assert Thread.holdsLock(buffers);
-
-		if (buffer != null && buffer.isBuffer()) {
-			buffersInBacklog--;
-		}
-	}
-
-	/**
-	 * Increases the number of non-event buffers by one after adding a non-event
-	 * buffer into this subpartition.
-	 */
-	private void increaseBuffersInBacklog(Buffer buffer) {
-		assert Thread.holdsLock(buffers);
-
-		if (buffer != null && buffer.isBuffer()) {
-			buffersInBacklog++;
-		}
 	}
 
 	@Override
@@ -250,7 +211,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 		return String.format(
 			"PipelinedSubpartition [number of buffers: %d (%d bytes), number of buffers in backlog: %d, finished? %s, read view? %s]",
-			numBuffers, numBytes, buffersInBacklog, finished, hasReadView);
+			numBuffers, numBytes, getBuffersInBacklog(), finished, hasReadView);
 	}
 
 	@Override

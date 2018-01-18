@@ -21,7 +21,10 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import java.io.IOException;
+import java.util.ArrayDeque;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -35,6 +38,13 @@ public abstract class ResultSubpartition {
 
 	/** The parent partition this subpartition belongs to. */
 	protected final ResultPartition parent;
+
+	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
+	protected final ArrayDeque<Buffer> buffers = new ArrayDeque<>();
+
+	/** The number of non-event buffers currently in this subpartition */
+	@GuardedBy("buffers")
+	private int buffersInBacklog;
 
 	// - Statistics ----------------------------------------------------------
 
@@ -104,7 +114,9 @@ public abstract class ResultSubpartition {
 	 * scenarios since it does not make any concurrency guarantees.
 	 */
 	@VisibleForTesting
-	abstract public int getBuffersInBacklog();
+	public int getBuffersInBacklog() {
+		return buffersInBacklog;
+	}
 
 	/**
 	 * Makes a best effort to get the current size of the queue.
@@ -112,6 +124,38 @@ public abstract class ResultSubpartition {
 	 * any way.
 	 */
 	abstract public int unsynchronizedGetNumberOfQueuedBuffers();
+
+	/**
+	 * Decreases the number of non-event buffers by one after fetching a non-event
+	 * buffer from this subpartition (for access by the subpartition views).
+	 *
+	 * @return backlog after the operation
+	 */
+	public int decreaseBuffersInBacklog(Buffer buffer) {
+		synchronized (buffers) {
+			return decreaseBuffersInBacklogUnsafe(buffer);
+		}
+	}
+
+	protected int decreaseBuffersInBacklogUnsafe(Buffer buffer) {
+		assert Thread.holdsLock(buffers);
+		if (buffer != null && buffer.isBuffer()) {
+			buffersInBacklog--;
+		}
+		return buffersInBacklog;
+	}
+
+	/**
+	 * Increases the number of non-event buffers by one after adding a non-event
+	 * buffer into this subpartition.
+	 */
+	protected void increaseBuffersInBacklog(Buffer buffer) {
+		assert Thread.holdsLock(buffers);
+
+		if (buffer != null && buffer.isBuffer()) {
+			buffersInBacklog++;
+		}
+	}
 
 	// ------------------------------------------------------------------------
 
