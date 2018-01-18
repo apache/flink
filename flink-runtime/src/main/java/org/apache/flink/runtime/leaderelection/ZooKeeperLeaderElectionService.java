@@ -413,4 +413,11 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 	public void unhandledError(String message, Throwable e) {
 		leaderContender.handleError(new FlinkException("Unhandled error in ZooKeeperLeaderElectionService: " + message, e));
 	}
+
+	@Override
+	public String toString() {
+		return "ZooKeeperLeaderElectionService{" +
+			"leaderPath='" + leaderPath + '\'' +
+			'}';
+	}
 }

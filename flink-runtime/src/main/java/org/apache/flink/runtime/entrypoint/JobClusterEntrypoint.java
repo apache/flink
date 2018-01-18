@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRestEndpoint;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -119,7 +120,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			jobMasterGatewayRetriever,
 			resourceManagerGatewayRetriever,
 			rpcService.getExecutor(),
-			new AkkaQueryServiceRetriever(actorSystem, timeout));
+			new AkkaQueryServiceRetriever(actorSystem, timeout),
+			highAvailabilityServices.getWebMonitorLeaderElectionService());
 
 		LOG.debug("Starting JobMaster REST endpoint.");
 		jobMasterRestEndpoint.start();
@@ -163,7 +165,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			GatewayRetriever<JobMasterGateway> jobMasterGatewayRetriever,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			Executor executor,
-			MetricQueryServiceRetriever metricQueryServiceRetriever) throws ConfigurationException {
+			MetricQueryServiceRetriever metricQueryServiceRetriever,
+			LeaderElectionService leaderElectionService) throws ConfigurationException {
 
 		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(configuration);
 
@@ -174,7 +177,9 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			restHandlerConfiguration,
 			resourceManagerGatewayRetriever,
 			executor,
-			metricQueryServiceRetriever);
+			metricQueryServiceRetriever,
+			leaderElectionService,
+			this);
 
 	}
 

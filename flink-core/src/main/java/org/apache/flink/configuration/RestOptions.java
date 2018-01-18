@@ -41,4 +41,34 @@ public class RestOptions {
 	public static final ConfigOption<Integer> REST_PORT =
 		key("rest.port")
 			.defaultValue(9067);
+
+	/**
+	 * The time in ms to wait for the leader address, e.g., Dispatcher or WebMonitorEndpoint.
+	 */
+	public static final ConfigOption<Integer> AWAIT_LEADER_TIMEOUT =
+		key("rest.await-leader-timeout")
+			.defaultValue(30_000);
+
+	/**
+	 * The number of attempts to retry a retryable operation.
+	 * @see #RETRY_DELAY
+	 */
+	public static final ConfigOption<Integer> RETRY_MAX_ATTEMPTS =
+		key("rest.retry.max-attempts")
+			.defaultValue(20);
+
+	/**
+	 * The time in ms to wait between retries.
+	 * @see #RETRY_MAX_ATTEMPTS
+	 */
+	public static final ConfigOption<Integer> RETRY_DELAY =
+		key("rest.retry.delay")
+			.defaultValue(3_000);
+
+	/**
+	 * The maximum time in ms to establish a TCP connection.
+	 */
+	public static final ConfigOption<Integer> CONNECTION_TIMEOUT =
+		key("rest.connection-timeout")
+			.defaultValue(15_000);
 }

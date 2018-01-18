@@ -286,7 +286,7 @@ public final class ExceptionUtils {
 	 * @param searchType the type of exception to search for in the chain.
 	 * @return Optional throwable of the requested type if available, otherwise empty
 	 */
-	public static Optional<Throwable> findThrowable(Throwable throwable, Class<?> searchType) {
+	public static <T extends Throwable> Optional<T> findThrowable(Throwable throwable, Class<T> searchType) {
 		if (throwable == null || searchType == null) {
 			return Optional.empty();
 		}
@@ -294,7 +294,7 @@ public final class ExceptionUtils {
 		Throwable t = throwable;
 		while (t != null) {
 			if (searchType.isAssignableFrom(t.getClass())) {
-				return Optional.of(t);
+				return Optional.of(searchType.cast(t));
 			} else {
 				t = t.getCause();
 			}

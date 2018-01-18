@@ -19,60 +19,73 @@
 package org.apache.flink.client.program.rest;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A configuration object for {@link RestClusterClient}s.
  */
 public final class RestClusterClientConfiguration {
 
-	private final String blobServerAddress;
-
 	private final RestClientConfiguration restClientConfiguration;
 
-	private final String restServerAddress;
+	private final int awaitLeaderTimeout;
 
-	private final int restServerPort;
+	private final int retryMaxAttempts;
+
+	private final int retryDelay;
 
 	private RestClusterClientConfiguration(
-			String blobServerAddress,
-			RestClientConfiguration endpointConfiguration,
-			String restServerAddress,
-			int restServerPort) {
-		this.blobServerAddress = Preconditions.checkNotNull(blobServerAddress);
+			final RestClientConfiguration endpointConfiguration,
+			final int awaitLeaderTimeout,
+			final int retryMaxAttempts,
+			final int retryDelay) {
+		checkArgument(awaitLeaderTimeout >= 0, "awaitLeaderTimeout must be equal to or greater than 0");
+		checkArgument(retryMaxAttempts >= 0, "retryMaxAttempts must be equal to or greater than 0");
+		checkArgument(retryDelay >= 0, "retryDelay must be equal to or greater than 0");
+
 		this.restClientConfiguration = Preconditions.checkNotNull(endpointConfiguration);
-		this.restServerAddress = Preconditions.checkNotNull(restServerAddress);
-		this.restServerPort = restServerPort;
-	}
-
-	public String getBlobServerAddress() {
-		return blobServerAddress;
-	}
-
-	public String getRestServerAddress() {
-		return restServerAddress;
-	}
-
-	public int getRestServerPort() {
-		return restServerPort;
+		this.awaitLeaderTimeout = awaitLeaderTimeout;
+		this.retryMaxAttempts = retryMaxAttempts;
+		this.retryDelay = retryDelay;
 	}
 
 	public RestClientConfiguration getRestClientConfiguration() {
 		return restClientConfiguration;
 	}
 
+	/**
+	 * @see RestOptions#AWAIT_LEADER_TIMEOUT
+	 */
+	public int getAwaitLeaderTimeout() {
+		return awaitLeaderTimeout;
+	}
+
+	/**
+	 * @see RestOptions#RETRY_MAX_ATTEMPTS
+	 */
+	public int getRetryMaxAttempts() {
+		return retryMaxAttempts;
+	}
+
+	/**
+	 * @see RestOptions#RETRY_DELAY
+	 */
+	public int getRetryDelay() {
+		return retryDelay;
+	}
+
 	public static RestClusterClientConfiguration fromConfiguration(Configuration config) throws ConfigurationException {
-		String blobServerAddress = config.getString(JobManagerOptions.ADDRESS);
-
-		String serverAddress = config.getString(RestOptions.REST_ADDRESS);
-		int serverPort = config.getInteger(RestOptions.REST_PORT);
-
 		RestClientConfiguration restClientConfiguration = RestClientConfiguration.fromConfiguration(config);
 
-		return new RestClusterClientConfiguration(blobServerAddress, restClientConfiguration, serverAddress, serverPort);
+		final int awaitLeaderTimeout = config.getInteger(RestOptions.AWAIT_LEADER_TIMEOUT);
+		final int retryMaxAttempts = config.getInteger(RestOptions.RETRY_MAX_ATTEMPTS);
+		final int retryDelay = config.getInteger(RestOptions.RETRY_DELAY);
+
+		return new RestClusterClientConfiguration(restClientConfiguration, awaitLeaderTimeout, retryMaxAttempts, retryDelay);
 	}
 }

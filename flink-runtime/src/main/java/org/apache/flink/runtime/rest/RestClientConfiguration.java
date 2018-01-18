@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
@@ -36,8 +37,11 @@ public final class RestClientConfiguration {
 	@Nullable
 	private final SSLEngine sslEngine;
 
-	private RestClientConfiguration(@Nullable SSLEngine sslEngine) {
+	private final int connectionTimeout;
+
+	private RestClientConfiguration(@Nullable SSLEngine sslEngine, final int connectionTimeout) {
 		this.sslEngine = sslEngine;
+		this.connectionTimeout = connectionTimeout;
 	}
 
 	/**
@@ -48,6 +52,13 @@ public final class RestClientConfiguration {
 
 	public SSLEngine getSslEngine() {
 		return sslEngine;
+	}
+
+	/**
+	 * @see RestOptions#CONNECTION_TIMEOUT
+	 */
+	public int getConnectionTimeout() {
+		return connectionTimeout;
 	}
 
 	/**
@@ -76,6 +87,8 @@ public final class RestClientConfiguration {
 			}
 		}
 
-		return new RestClientConfiguration(sslEngine);
+		final int connectionTimeout = config.getInteger(RestOptions.CONNECTION_TIMEOUT);
+
+		return new RestClientConfiguration(sslEngine, connectionTimeout);
 	}
 }
