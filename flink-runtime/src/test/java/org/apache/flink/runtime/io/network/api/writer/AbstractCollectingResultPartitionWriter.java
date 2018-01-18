@@ -34,6 +34,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public abstract class AbstractCollectingResultPartitionWriter implements ResultPartitionWriter {
 	private final BufferProvider bufferProvider;
+	private final ArrayDeque<BufferConsumer> bufferConsumers = new ArrayDeque<>();
 
 	public AbstractCollectingResultPartitionWriter(BufferProvider bufferProvider) {
 		this.bufferProvider = checkNotNull(bufferProvider);
@@ -60,8 +61,25 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 	}
 
 	@Override
-	public void writeBuffer(Buffer buffer, int subpartitionIndex) throws IOException {
-		deserializeBuffer(buffer);
+	public void addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
+		checkState(targetChannel < getNumberOfSubpartitions());
+
+		bufferConsumers.add(bufferConsumer);
+
+		while (!bufferConsumers.isEmpty()) {
+			bufferConsumer = bufferConsumers.peek();
+			Buffer buffer = bufferConsumer.build();
+			try {
+				deserializeBuffer(buffer);
+				if (!bufferConsumers.peek().isFinished()) {
+					break;
+				}
+				bufferConsumers.pop().close();
+			}
+			finally {
+				buffer.recycleBuffer();
+			}
+		}
 	}
 
 	protected abstract void deserializeBuffer(Buffer buffer) throws IOException;

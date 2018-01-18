@@ -26,6 +26,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import java.io.Closeable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Not thread safe class for producing {@link Buffer}.
@@ -43,13 +44,34 @@ public class BufferConsumer implements Closeable {
 
 	private int currentReaderPosition = 0;
 
+	/**
+	 * Constructs {@link BufferConsumer} instance with content that can be changed by {@link BufferBuilder}.
+	 */
 	public BufferConsumer(
 			MemorySegment memorySegment,
 			BufferRecycler recycler,
 			PositionMarker currentWriterPosition) {
+		this(
+			new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), true),
+			currentWriterPosition,
+			0);
+	}
 
-		this.buffer = new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), true);
+	/**
+	 * Constructs {@link BufferConsumer} instance with static content.
+	 */
+	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer) {
+		this(new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), isBuffer),
+			() -> -memorySegment.size(),
+			0);
+		checkState(memorySegment.size() > 0);
+		checkState(isFinished(), "BufferConsumer with static size must be finished after construction!");
+	}
+
+	private BufferConsumer(Buffer buffer, BufferBuilder.PositionMarker currentWriterPosition, int currentReaderPosition) {
+		this.buffer = checkNotNull(buffer);
 		this.writerPosition = new CachedPositionMarker(checkNotNull(currentWriterPosition));
+		this.currentReaderPosition = currentReaderPosition;
 	}
 
 	public boolean isFinished() {
@@ -67,11 +89,30 @@ public class BufferConsumer implements Closeable {
 		return slice.retainBuffer();
 	}
 
+	/**
+	 * @return a retained copy of self with separate indexes - it allows two read from the same {@link MemorySegment}
+	 * twice.
+	 *
+	 * <p>WARNING: newly returned {@link BufferConsumer} will have reader index copied from the original buffer. In
+	 * other words, data already consumed before copying will not be visible to the returned copies.
+	 */
+	public BufferConsumer copy() {
+		return new BufferConsumer(buffer.retainBuffer(), writerPosition.positionMarker, currentReaderPosition);
+	}
+
+	public boolean isBuffer() {
+		return buffer.isBuffer();
+	}
+
 	@Override
 	public void close() {
 		if (!buffer.isRecycled()) {
 			buffer.recycleBuffer();
 		}
+	}
+
+	public boolean isRecycled() {
+		return buffer.isRecycled();
 	}
 
 	public int getWrittenBytes() {

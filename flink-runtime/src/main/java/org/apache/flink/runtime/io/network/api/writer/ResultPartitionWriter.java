@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
@@ -38,13 +38,13 @@ public interface ResultPartitionWriter {
 	int getNumTargetKeyGroups();
 
 	/**
-	 * Adds a buffer to the subpartition with the given index.
+	 * Adds the bufferConsumer to the subpartition with the given index.
 	 *
 	 * <p>For PIPELINED {@link org.apache.flink.runtime.io.network.partition.ResultPartitionType}s,
 	 * this will trigger the deployment of consuming tasks after the first buffer has been added.
 	 *
-	 * <p>This method takes the ownership of the passed {@code buffer} and thus is responsible for releasing it's
-	 * resources.
+	 * <p>This method takes the ownership of the passed {@code bufferConsumer} and thus is responsible for releasing
+	 * it's resources.
 	 */
-	void writeBuffer(Buffer buffer, int subpartitionIndex) throws IOException;
+	void addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException;
 }

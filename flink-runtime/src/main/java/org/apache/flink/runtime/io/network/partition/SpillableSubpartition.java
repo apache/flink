@@ -24,13 +24,13 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -61,7 +61,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>Note on thread safety. Synchronizing on {@code buffers} is used to synchronize
  * writes and reads. Synchronizing on {@code this} is used against concurrent
- * {@link #add(Buffer)} and clean ups {@link #release()} / {@link #finish()} which
+ * {@link #add(BufferConsumer)} and clean ups {@link #release()} / {@link #finish()} which
  * also are touching {@code spillWriter}. Since we do not want to block reads during
  * spilling, we need those two synchronization. Probably this model could be simplified.
  */
@@ -91,47 +91,33 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public synchronized boolean add(Buffer buffer) throws IOException {
-		checkNotNull(buffer);
+	public synchronized boolean add(BufferConsumer bufferConsumer) throws IOException {
+		checkNotNull(bufferConsumer);
 
 		synchronized (buffers) {
 			if (isFinished || isReleased) {
-				buffer.recycleBuffer();
+				bufferConsumer.close();
 				return false;
 			}
 
-			if (spillWriter == null) {
-				buffers.add(buffer);
-				// The number of buffers are needed later when creating
-				// the read views. If you ever remove this line here,
-				// make sure to still count the number of buffers.
-				updateStatistics(buffer);
-				increaseBuffersInBacklog(buffer);
+			buffers.add(bufferConsumer);
+			// The number of buffers are needed later when creating
+			// the read views. If you ever remove this line here,
+			// make sure to still count the number of buffers.
+			updateStatistics(bufferConsumer);
+			increaseBuffersInBacklog(bufferConsumer);
 
-				return true;
+			if (spillWriter != null) {
+				spillFinishedBufferConsumers();
 			}
 		}
-
-		// Didn't return early => go to disk
-		try {
-			// retain buffer for updateStatistics() below
-			spillWriter.writeBlock(buffer.retainBuffer());
-			synchronized (buffers) {
-				// See the note above, but only do this if the buffer was correctly added!
-				updateStatistics(buffer);
-				increaseBuffersInBacklog(buffer);
-			}
-		} finally {
-			buffer.recycleBuffer();
-		}
-
 		return true;
 	}
 
 	@Override
 	public synchronized void finish() throws IOException {
 		synchronized (buffers) {
-			if (add(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE))) {
+			if (add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE))) {
 				isFinished = true;
 			}
 		}
@@ -153,8 +139,8 @@ class SpillableSubpartition extends ResultSubpartition {
 			}
 
 			// Release all available buffers
-			for (Buffer buffer : buffers) {
-				buffer.recycleBuffer();
+			for (BufferConsumer buffer : buffers) {
+				buffer.close();
 			}
 			buffers.clear();
 
@@ -231,23 +217,36 @@ class SpillableSubpartition extends ResultSubpartition {
 				spillWriter = ioManager.createBufferFileWriter(ioManager.createChannel());
 
 				int numberOfBuffers = buffers.size();
-				long spilledBytes = 0;
-
-				// Spill all buffers
-				for (int i = 0; i < numberOfBuffers; i++) {
-					Buffer buffer = buffers.remove();
-					spilledBytes += buffer.getSize();
-					spillWriter.writeBlock(buffer);
-				}
+				long spilledBytes = spillFinishedBufferConsumers();
 
 				LOG.debug("Spilling {} bytes for sub partition {} of {}.", spilledBytes, index, parent.getPartitionId());
 
-				return numberOfBuffers;
+				return numberOfBuffers - buffers.size();
 			}
 		}
 
 		// Else: We have already spilled and don't hold any buffers
 		return 0;
+	}
+
+	private long spillFinishedBufferConsumers() throws IOException {
+		long spilledBytes = 0;
+
+		while (!buffers.isEmpty()) {
+			BufferConsumer bufferConsumer = buffers.peek();
+			Buffer buffer = bufferConsumer.build();
+			updateStatistics(buffer);
+			spillWriter.writeBlock(buffer);
+
+			if (bufferConsumer.isFinished()) {
+				bufferConsumer.close();
+				buffers.poll();
+			}
+			else {
+				return spilledBytes;
+			}
+		}
+		return spilledBytes;
 	}
 
 	@Override

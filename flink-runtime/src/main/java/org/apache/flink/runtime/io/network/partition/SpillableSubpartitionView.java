@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -41,7 +42,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	private final SpillableSubpartition parent;
 
 	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
-	private final ArrayDeque<Buffer> buffers;
+	private final ArrayDeque<BufferConsumer> buffers;
 
 	/** IO manager if we need to spill (for spilled case). */
 	private final IOManager ioManager;
@@ -65,13 +66,13 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	 * The next buffer to hand out. Everytime this is set to a non-null value,
 	 * a listener notification happens.
 	 */
-	private Buffer nextBuffer;
+	private BufferConsumer nextBuffer;
 
 	private volatile SpilledSubpartitionView spilledView;
 
 	SpillableSubpartitionView(
 		SpillableSubpartition parent,
-		ArrayDeque<Buffer> buffers,
+		ArrayDeque<BufferConsumer> buffers,
 		IOManager ioManager,
 		int memorySegmentSize,
 		BufferAvailabilityListener listener) {
@@ -109,9 +110,14 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 
 				int numBuffers = buffers.size();
 				for (int i = 0; i < numBuffers; i++) {
-					Buffer buffer = buffers.remove();
-					spilledBytes += buffer.getSize();
-					spillWriter.writeBlock(buffer);
+					try (BufferConsumer bufferConsumer = buffers.remove()) {
+						Buffer buffer = bufferConsumer.build();
+						checkState(bufferConsumer.isFinished(), "BufferConsumer must be finished before " +
+							"spilling. Otherwise we would not be able to simply remove it from the queue. This should " +
+							"be guaranteed by creating ResultSubpartitionView only once Subpartition isFinished.");
+						spilledBytes += buffer.getSize();
+						spillWriter.writeBlock(buffer);
+					}
 				}
 
 				spilledView = new SpilledSubpartitionView(
@@ -142,15 +148,19 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 			if (isReleased.get()) {
 				return null;
 			} else if (nextBuffer != null) {
-				current = nextBuffer;
-				nextBuffer = buffers.poll();
-				newBacklog = parent.decreaseBuffersInBacklog(current);
+				current = nextBuffer.build();
+				if (nextBuffer.isFinished()) {
+					newBacklog = parent.decreaseBuffersInBacklogUnsafe(nextBuffer.isBuffer());
+					nextBuffer.close();
+					nextBuffer = buffers.poll();
+				}
 
 				if (nextBuffer != null) {
 					listener.notifyBuffersAvailable(1);
 					nextBufferIsEvent = !nextBuffer.isBuffer();
 				}
 
+				parent.updateStatistics(current);
 				// if we are spilled (but still process a non-spilled nextBuffer), we don't know the
 				// state of nextBufferIsEvent...
 				if (spilledView == null) {
@@ -186,7 +196,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 			// we are never giving this buffer out in getNextBuffer(), so we need to clean it up
 			synchronized (buffers) {
 				if (nextBuffer != null) {
-					nextBuffer.recycleBuffer();
+					nextBuffer.close();
 					nextBuffer = null;
 				}
 			}

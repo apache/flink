@@ -100,6 +100,39 @@ public class BufferBuilderAndConsumerTest {
 		assertContent(bufferConsumer, 42);
 	}
 
+	@Test(expected = IllegalStateException.class)
+	public void creatingBufferConsumerTwice() {
+		BufferBuilder bufferBuilder = createBufferBuilder();
+		bufferBuilder.createBufferConsumer();
+		bufferBuilder.createBufferConsumer();
+	}
+
+	@Test
+	public void copy() {
+		BufferBuilder bufferBuilder = createBufferBuilder();
+		BufferConsumer bufferConsumer1 = bufferBuilder.createBufferConsumer();
+
+		bufferBuilder.append(toByteBuffer(0, 1));
+
+		BufferConsumer bufferConsumer2 = bufferConsumer1.copy();
+
+		bufferBuilder.append(toByteBuffer(2));
+
+		assertContent(bufferConsumer1, 0, 1, 2);
+		assertContent(bufferConsumer2, 0, 1, 2);
+
+		BufferConsumer bufferConsumer3 = bufferConsumer1.copy();
+
+		bufferBuilder.append(toByteBuffer(3, 42));
+
+		BufferConsumer bufferConsumer4 = bufferConsumer1.copy();
+
+		assertContent(bufferConsumer1, 3, 42);
+		assertContent(bufferConsumer2, 3, 42);
+		assertContent(bufferConsumer3, 3, 42);
+		assertContent(bufferConsumer4, 3, 42);
+	}
+
 	@Test
 	public void buildEmptyBuffer() {
 		Buffer buffer = buildSingleBuffer(createBufferBuilder());

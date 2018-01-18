@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
 import javax.annotation.concurrent.GuardedBy;
 
@@ -40,7 +41,7 @@ public abstract class ResultSubpartition {
 	protected final ResultPartition parent;
 
 	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
-	protected final ArrayDeque<Buffer> buffers = new ArrayDeque<>();
+	protected final ArrayDeque<BufferConsumer> buffers = new ArrayDeque<>();
 
 	/** The number of non-event buffers currently in this subpartition */
 	@GuardedBy("buffers")
@@ -59,8 +60,11 @@ public abstract class ResultSubpartition {
 		this.parent = parent;
 	}
 
-	protected void updateStatistics(Buffer buffer) {
+	protected void updateStatistics(BufferConsumer buffer) {
 		totalNumberOfBuffers++;
+	}
+
+	protected void updateStatistics(Buffer buffer) {
 		totalNumberOfBytes += buffer.getSize();
 	}
 
@@ -89,13 +93,13 @@ public abstract class ResultSubpartition {
 	 * <p>The request may be executed synchronously, or asynchronously, depending on the
 	 * implementation.
 	 *
-	 * @param buffer
+	 * @param bufferConsumer
 	 * 		the buffer to add (transferring ownership to this writer)
 	 *
 	 * @throws IOException
 	 * 		thrown in case of errors while adding the buffer
 	 */
-	abstract public boolean add(Buffer buffer) throws IOException;
+	abstract public boolean add(BufferConsumer bufferConsumer) throws IOException;
 
 	abstract public void finish() throws IOException;
 
@@ -133,13 +137,13 @@ public abstract class ResultSubpartition {
 	 */
 	public int decreaseBuffersInBacklog(Buffer buffer) {
 		synchronized (buffers) {
-			return decreaseBuffersInBacklogUnsafe(buffer);
+			return decreaseBuffersInBacklogUnsafe(buffer != null && buffer.isBuffer());
 		}
 	}
 
-	protected int decreaseBuffersInBacklogUnsafe(Buffer buffer) {
+	protected int decreaseBuffersInBacklogUnsafe(boolean isBuffer) {
 		assert Thread.holdsLock(buffers);
-		if (buffer != null && buffer.isBuffer()) {
+		if (isBuffer) {
 			buffersInBacklog--;
 		}
 		return buffersInBacklog;
@@ -149,7 +153,7 @@ public abstract class ResultSubpartition {
 	 * Increases the number of non-event buffers by one after adding a non-event
 	 * buffer into this subpartition.
 	 */
-	protected void increaseBuffersInBacklog(Buffer buffer) {
+	protected void increaseBuffersInBacklog(BufferConsumer buffer) {
 		assert Thread.holdsLock(buffers);
 
 		if (buffer != null && buffer.isBuffer()) {

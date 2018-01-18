@@ -25,7 +25,6 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -143,9 +142,8 @@ public class RecordWriter<T extends IOReadableWritable> {
 		}
 	}
 
-	public void broadcastEvent(AbstractEvent event) throws IOException, InterruptedException {
-		final Buffer eventBuffer = EventSerializer.toBuffer(event);
-		try {
+	public BufferConsumer broadcastEvent(AbstractEvent event) throws IOException, InterruptedException {
+		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event)) {
 			for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
 				RecordSerializer<T> serializer = serializers[targetChannel];
 
@@ -153,13 +151,10 @@ public class RecordWriter<T extends IOReadableWritable> {
 					tryWriteAndClearBuffer(targetChannel, serializer);
 
 					// retain the buffer so that it can be recycled by each channel of targetPartition
-					targetPartition.writeBuffer(eventBuffer.readOnlySlice().retainBuffer(), targetChannel);
+					targetPartition.addBufferConsumer(eventBufferConsumer.copy(), targetChannel);
 				}
 			}
-		} finally {
-			// we do not need to further retain the eventBuffer
-			// (it will be recycled after the last channel stops using it)
-			eventBuffer.recycleBuffer();
+			return eventBufferConsumer;
 		}
 	}
 
@@ -202,19 +197,16 @@ public class RecordWriter<T extends IOReadableWritable> {
 			int targetChannel,
 			RecordSerializer<T> serializer) throws IOException {
 
-		Optional<BufferConsumer> bufferConsumer = bufferConsumers[targetChannel];
-		if (!bufferConsumer.isPresent()) {
+		if (!bufferConsumers[targetChannel].isPresent()) {
 			return false;
 		}
+		BufferConsumer bufferConsumer = bufferConsumers[targetChannel].get();
+		bufferConsumers[targetChannel] = Optional.empty();
 
-		numBytesOut.inc(bufferConsumer.get().getWrittenBytes());
-		try {
-			targetPartition.writeBuffer(bufferConsumer.get().build(), targetChannel);
-			return true;
-		} finally {
-			serializer.clear();
-			closeBufferConsumer(targetChannel);
-		}
+		numBytesOut.inc(bufferConsumer.getWrittenBytes());
+		serializer.clear();
+		targetPartition.addBufferConsumer(bufferConsumer, targetChannel);
+		return true;
 	}
 
 	private void closeBufferConsumer(int targetChannel) {

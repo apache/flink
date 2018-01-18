@@ -23,6 +23,7 @@ import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
@@ -238,8 +239,8 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void writeBuffer(Buffer buffer, int subpartitionIndex) throws IOException {
-		checkNotNull(buffer);
+	public void addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
+		checkNotNull(bufferConsumer);
 
 		ResultSubpartition subpartition;
 		try {
@@ -247,11 +248,11 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 			subpartition = subpartitions[subpartitionIndex];
 		}
 		catch (Exception ex) {
-			buffer.recycleBuffer();
+			bufferConsumer.close();
 			throw ex;
 		}
 
-		if (subpartition.add(buffer)) {
+		if (subpartition.add(bufferConsumer)) {
 			notifyPipelinedConsumers();
 		}
 	}

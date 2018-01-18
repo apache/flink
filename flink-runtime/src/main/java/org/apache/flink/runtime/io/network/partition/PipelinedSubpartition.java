@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,33 +58,33 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public boolean add(Buffer buffer) throws IOException {
-		return add(buffer, false);
+	public boolean add(BufferConsumer bufferConsumer) throws IOException {
+		return add(bufferConsumer, false);
 	}
 
 	@Override
 	public void finish() throws IOException {
-		add(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), true);
+		add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE), true);
 		LOG.debug("Finished {}.", this);
 	}
 
-	private boolean add(Buffer buffer, boolean finish) throws IOException {
-		checkNotNull(buffer);
+	private boolean add(BufferConsumer bufferConsumer, boolean finish) throws IOException {
+		checkNotNull(bufferConsumer);
 
 		// view reference accessible outside the lock, but assigned inside the locked scope
 		final PipelinedSubpartitionView reader;
 
 		synchronized (buffers) {
 			if (isFinished || isReleased) {
-				buffer.recycleBuffer();
+				bufferConsumer.close();
 				return false;
 			}
 
-			// Add the buffer and update the stats
-			buffers.add(buffer);
+			// Add the bufferConsumer and update the stats
+			buffers.add(bufferConsumer);
 			reader = readView;
-			updateStatistics(buffer);
-			increaseBuffersInBacklog(buffer);
+			updateStatistics(bufferConsumer);
+			increaseBuffersInBacklog(bufferConsumer);
 
 			if (finish) {
 				isFinished = true;
@@ -109,10 +110,10 @@ class PipelinedSubpartition extends ResultSubpartition {
 			}
 
 			// Release all available buffers
-			Buffer buffer;
-			while ((buffer = buffers.poll()) != null) {
-				buffer.recycleBuffer();
+			for (BufferConsumer buffer : buffers) {
+				buffer.close();
 			}
+			buffers.clear();
 
 			view = readView;
 			readView = null;
@@ -131,14 +132,19 @@ class PipelinedSubpartition extends ResultSubpartition {
 	@Nullable
 	BufferAndBacklog pollBuffer() {
 		synchronized (buffers) {
-			Buffer buffer = buffers.pollFirst();
-			decreaseBuffersInBacklogUnsafe(buffer);
-
-			if (buffer != null) {
-				return new BufferAndBacklog(buffer, getBuffersInBacklog(), _nextBufferIsEvent());
-			} else {
+			BufferConsumer bufferConsumer = buffers.peek();
+			if (bufferConsumer == null) {
 				return null;
 			}
+
+			Buffer buffer = bufferConsumer.build();
+			if (bufferConsumer.isFinished()) {
+				buffers.pop().close();
+				decreaseBuffersInBacklogUnsafe(bufferConsumer.isBuffer());
+			}
+
+			updateStatistics(buffer);
+			return new BufferAndBacklog(buffer, getBuffersInBacklog(), _nextBufferIsEvent());
 		}
 	}
 

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
@@ -48,6 +49,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Timer;
@@ -442,11 +444,13 @@ public class LocalInputChannelTest {
 		}
 
 		@Override
-		public BufferOrEvent getNextBufferOrEvent() throws Exception {
+		public BufferConsumerAndChannel getNextBufferConsumer() throws Exception {
 			if (channelIndexes.size() > 0) {
 				final int channelIndex = channelIndexes.remove(0);
-
-				return new BufferOrEvent(bufferProvider.requestBufferBlocking(), channelIndex);
+				BufferBuilder bufferBuilder = bufferProvider.requestBufferBuilderBlocking();
+				bufferBuilder.append(ByteBuffer.wrap(new byte[4]));
+				bufferBuilder.finish();
+				return new BufferConsumerAndChannel(bufferBuilder.createBufferConsumer(), channelIndex);
 			}
 
 			return null;
