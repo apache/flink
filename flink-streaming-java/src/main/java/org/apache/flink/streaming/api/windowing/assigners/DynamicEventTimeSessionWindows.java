@@ -53,7 +53,7 @@ public class DynamicEventTimeSessionWindows<T> extends MergingWindowAssigner<T, 
 
 	@Override
 	public Collection<TimeWindow> assignWindows(T element, long timestamp, WindowAssignerContext context) {
-		long sessionTimeout = sessionWindowTimeGapExtractor.extract(element, timestamp, context);
+		long sessionTimeout = sessionWindowTimeGapExtractor.extract(element);
 		if (sessionTimeout <= 0) {
 			throw new IllegalArgumentException("Dynamic session time gap must satisfy 0 < gap");
 		}

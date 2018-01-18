@@ -46,7 +46,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyCollection;
-import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -65,9 +64,9 @@ public class DynamicProcessingTimeSessionWindowsTest extends TestLogger {
 
 		WindowAssigner.WindowAssignerContext mockContext = mock(WindowAssigner.WindowAssignerContext.class);
 		SessionWindowTimeGapExtractor<String> extractor = mock(SessionWindowTimeGapExtractor.class);
-		when(extractor.extract(eq("gap5000"), anyLong(), any())).thenReturn(5000L);
-		when(extractor.extract(eq("gap4000"), anyLong(), any())).thenReturn(4000L);
-		when(extractor.extract(eq("gap9000"), anyLong(), any())).thenReturn(9000L);
+		when(extractor.extract(eq("gap5000"))).thenReturn(5000L);
+		when(extractor.extract(eq("gap4000"))).thenReturn(4000L);
+		when(extractor.extract(eq("gap9000"))).thenReturn(9000L);
 
 		DynamicProcessingTimeSessionWindows<String> assigner = DynamicProcessingTimeSessionWindows.withDynamicGap(extractor);
 
@@ -85,7 +84,7 @@ public class DynamicProcessingTimeSessionWindowsTest extends TestLogger {
 	public void testMergeSinglePointWindow() {
 		MergingWindowAssigner.MergeCallback callback = mock(MergingWindowAssigner.MergeCallback.class);
 		SessionWindowTimeGapExtractor extractor = mock(SessionWindowTimeGapExtractor.class);
-		when(extractor.extract(any(), anyLong(), any())).thenReturn(5000L);
+		when(extractor.extract(any())).thenReturn(5000L);
 
 		DynamicProcessingTimeSessionWindows assigner = DynamicProcessingTimeSessionWindows.withDynamicGap(extractor);
 
@@ -98,7 +97,7 @@ public class DynamicProcessingTimeSessionWindowsTest extends TestLogger {
 	public void testMergeSingleWindow() {
 		MergingWindowAssigner.MergeCallback callback = mock(MergingWindowAssigner.MergeCallback.class);
 		SessionWindowTimeGapExtractor extractor = mock(SessionWindowTimeGapExtractor.class);
-		when(extractor.extract(any(), anyLong(), any())).thenReturn(5000L);
+		when(extractor.extract(any())).thenReturn(5000L);
 
 		DynamicProcessingTimeSessionWindows assigner = DynamicProcessingTimeSessionWindows.withDynamicGap(extractor);
 
@@ -111,7 +110,7 @@ public class DynamicProcessingTimeSessionWindowsTest extends TestLogger {
 	public void testMergeConsecutiveWindows() {
 		MergingWindowAssigner.MergeCallback callback = mock(MergingWindowAssigner.MergeCallback.class);
 		SessionWindowTimeGapExtractor extractor = mock(SessionWindowTimeGapExtractor.class);
-		when(extractor.extract(any(), anyLong(), any())).thenReturn(5000L);
+		when(extractor.extract(any())).thenReturn(5000L);
 
 		DynamicProcessingTimeSessionWindows assigner = DynamicProcessingTimeSessionWindows.withDynamicGap(extractor);
 
@@ -139,7 +138,7 @@ public class DynamicProcessingTimeSessionWindowsTest extends TestLogger {
 	public void testMergeCoveringWindow() {
 		MergingWindowAssigner.MergeCallback callback = mock(MergingWindowAssigner.MergeCallback.class);
 		SessionWindowTimeGapExtractor extractor = mock(SessionWindowTimeGapExtractor.class);
-		when(extractor.extract(any(), anyLong(), any())).thenReturn(5000L);
+		when(extractor.extract(any())).thenReturn(5000L);
 
 		DynamicProcessingTimeSessionWindows assigner = DynamicProcessingTimeSessionWindows.withDynamicGap(extractor);
 
@@ -167,7 +166,7 @@ public class DynamicProcessingTimeSessionWindowsTest extends TestLogger {
 		WindowAssigner.WindowAssignerContext mockContext = mock(WindowAssigner.WindowAssignerContext.class);
 		try {
 			SessionWindowTimeGapExtractor extractor = mock(SessionWindowTimeGapExtractor.class);
-			when(extractor.extract(any(), anyLong(), any())).thenReturn(-1L);
+			when(extractor.extract(any())).thenReturn(-1L);
 
 			DynamicProcessingTimeSessionWindows assigner = DynamicProcessingTimeSessionWindows.withDynamicGap(extractor);
 			assigner.assignWindows(Lists.newArrayList(new Object()), 1, mockContext);
@@ -178,7 +177,7 @@ public class DynamicProcessingTimeSessionWindowsTest extends TestLogger {
 
 		try {
 			SessionWindowTimeGapExtractor extractor = mock(SessionWindowTimeGapExtractor.class);
-			when(extractor.extract(any(), anyLong(), any())).thenReturn(-1L);
+			when(extractor.extract(any())).thenReturn(-1L);
 
 			DynamicProcessingTimeSessionWindows assigner = DynamicProcessingTimeSessionWindows.withDynamicGap(extractor);
 			assigner.assignWindows(Lists.newArrayList(new Object()), 1, mockContext);
@@ -192,7 +191,7 @@ public class DynamicProcessingTimeSessionWindowsTest extends TestLogger {
 	@Test
 	public void testProperties() {
 		SessionWindowTimeGapExtractor extractor = mock(SessionWindowTimeGapExtractor.class);
-		when(extractor.extract(any(), anyLong(), any())).thenReturn(5000L);
+		when(extractor.extract(any())).thenReturn(5000L);
 
 		DynamicProcessingTimeSessionWindows assigner = DynamicProcessingTimeSessionWindows.withDynamicGap(extractor);
 

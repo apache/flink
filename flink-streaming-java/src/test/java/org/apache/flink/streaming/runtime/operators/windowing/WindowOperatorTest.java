@@ -90,7 +90,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -1266,7 +1265,7 @@ public class WindowOperatorTest extends TestLogger {
 		closeCalled.set(0);
 
 		SessionWindowTimeGapExtractor<Tuple2<String, Integer>> extractor = mock(SessionWindowTimeGapExtractor.class);
-		when(extractor.extract(any(Tuple2.class), anyLong(), any())).thenAnswer(invocation -> {
+		when(extractor.extract(any(Tuple2.class))).thenAnswer(invocation -> {
 			Tuple2<String, Integer> element = (Tuple2<String, Integer>) invocation.getArguments()[0];
 			switch (element.f0) {
 				case "key1":
@@ -1350,7 +1349,7 @@ public class WindowOperatorTest extends TestLogger {
 		closeCalled.set(0);
 
 		SessionWindowTimeGapExtractor<Tuple2<String, Integer>> extractor = mock(SessionWindowTimeGapExtractor.class);
-		when(extractor.extract(any(Tuple2.class), anyLong(), any())).thenAnswer(invocation -> {
+		when(extractor.extract(any(Tuple2.class))).thenAnswer(invocation -> {
 			Tuple2<String, Integer> element = (Tuple2<String, Integer>) invocation.getArguments()[0];
 			switch (element.f0) {
 				case "key1":

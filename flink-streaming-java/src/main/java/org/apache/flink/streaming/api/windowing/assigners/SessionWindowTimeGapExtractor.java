@@ -26,5 +26,5 @@ import java.io.Serializable;
  * @param <T> The type of elements that this {@code SessionWindowTimeGapExtractor} can extract session time gaps from.
  */
 public interface SessionWindowTimeGapExtractor<T> extends Serializable {
-	long extract(T element, long timestamp, WindowAssigner.WindowAssignerContext context);
+	long extract(T element);
 }

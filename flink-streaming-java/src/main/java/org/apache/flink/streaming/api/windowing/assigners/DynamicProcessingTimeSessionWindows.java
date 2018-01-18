@@ -54,7 +54,7 @@ public class DynamicProcessingTimeSessionWindows<T> extends MergingWindowAssigne
 	@Override
 	public Collection<TimeWindow> assignWindows(T element, long timestamp, WindowAssignerContext context) {
 		long currentProcessingTime = context.getCurrentProcessingTime();
-		long sessionTimeout = sessionWindowTimeGapExtractor.extract(element, timestamp, context);
+		long sessionTimeout = sessionWindowTimeGapExtractor.extract(element);
 		if (sessionTimeout <= 0) {
 			throw new IllegalArgumentException("Dynamic session time gap must satisfy 0 < gap");
 		}
