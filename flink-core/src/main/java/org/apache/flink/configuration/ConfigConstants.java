@@ -209,12 +209,6 @@ public final class ConfigConstants {
 
 	/**
 	 * The config parameter defining the directories for temporary files, separated by
-	 * Config parameter defining whether to enable credit-based flow control or not.
-	 */
-	public static final String TASK_MANAGER_NETWORK_CREDIT_BASED_ENABLED = "taskmanager.network.credit-based.enabled";
-
-	/**
-	 * The config parameter defining the directories for temporary files, separated by
 	 * ",", "|", or the system's {@link java.io.File#pathSeparator}.
 	 *
 	 * @deprecated Use {@link CoreOptions#TMP_DIRS} instead
@@ -1349,11 +1343,6 @@ public final class ConfigConstants {
 	 * The default value to override ssl support for task manager's data transport.
 	 */
 	public static final boolean DEFAULT_TASK_MANAGER_DATA_SSL_ENABLED = true;
-
-	/**
-	 *  Default setting for the switch for credit-based flow control.
-	 */
-	public static final boolean DEFAULT_TASK_MANAGER_NETWORK_CREDIT_BASED_ENABLED = true;
 
 	/**
 	 * The default directory for temporary files of the task manager.

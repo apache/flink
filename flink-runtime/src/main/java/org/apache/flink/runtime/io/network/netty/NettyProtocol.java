@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 
@@ -136,24 +137,14 @@ public class NettyProtocol {
 	 * @return channel handlers
 	 */
 	public ChannelHandler[] getClientChannelHandlers() {
+		NetworkClientHandler networkClientHandler =
+			creditBasedEnabled ? new CreditBasedPartitionRequestClientHandler() :
+				new PartitionRequestClientHandler();
 		return new ChannelHandler[] {
 			messageEncoder,
 			createFrameLengthDecoder(),
 			messageDecoder,
-			new PartitionRequestClientHandler()};
-	}
-
-	/**
-	 * Returns the client channel handlers for the new network credit-based mode.
-	 *
-	 * @return channel handlers
-	 */
-	public ChannelHandler[] getCreditBasedClientChannelHandlers() {
-		return new ChannelHandler[] {
-			messageEncoder,
-			createFrameLengthDecoder(),
-			messageDecoder,
-			new CreditBasedPartitionRequestClientHandler()};
+			networkClientHandler};
 	}
 
 }

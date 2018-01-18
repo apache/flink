@@ -320,7 +320,7 @@ public class TaskManagerServices {
 		NettyConfig nettyConfig = networkEnvironmentConfiguration.nettyConfig();
 		if (nettyConfig != null) {
 			connectionManager = new NettyConnectionManager(nettyConfig);
-			enableCreditBased = nettyConfig.getCreditBasedEnabled();
+			enableCreditBased = nettyConfig.isCreditBasedEnabled();
 		} else {
 			connectionManager = new LocalConnectionManager();
 		}

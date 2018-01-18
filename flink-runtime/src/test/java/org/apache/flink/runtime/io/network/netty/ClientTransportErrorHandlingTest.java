@@ -380,7 +380,7 @@ public class ClientTransportErrorHandlingTest {
 				mock(TaskEventDispatcher.class),
 				true);
 
-		return new EmbeddedChannel(protocol.getCreditBasedClientChannelHandlers());
+		return new EmbeddedChannel(protocol.getClientChannelHandlers());
 	}
 
 	private RemoteInputChannel addInputChannel(NetworkClientHandler clientHandler)

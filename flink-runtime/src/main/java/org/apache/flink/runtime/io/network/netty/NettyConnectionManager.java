@@ -48,7 +48,7 @@ public class NettyConnectionManager implements ConnectionManager {
 		NettyProtocol partitionRequestProtocol = new NettyProtocol(
 			partitionProvider,
 			taskEventDispatcher,
-			client.getConfig().getCreditBasedEnabled());
+			client.getConfig().isCreditBasedEnabled());
 
 		client.init(partitionRequestProtocol, bufferPool);
 		server.init(partitionRequestProtocol, bufferPool);
