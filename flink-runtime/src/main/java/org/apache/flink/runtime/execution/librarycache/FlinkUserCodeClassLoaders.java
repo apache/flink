@@ -110,16 +110,17 @@ public class FlinkUserCodeClassLoaders {
 		protected synchronized Class<?> loadClass(
 			String name, boolean resolve) throws ClassNotFoundException {
 
-			for (String alwaysParentFirstPattern : alwaysParentFirstPatterns) {
-				if (name.startsWith(alwaysParentFirstPattern)) {
-					return super.loadClass(name, resolve);
-				}
-			}
-
 			// First, check if the class has already been loaded
 			Class<?> c = findLoadedClass(name);
 
 			if (c == null) {
+				// check whether the class should go parent-first
+				for (String alwaysParentFirstPattern : alwaysParentFirstPatterns) {
+					if (name.startsWith(alwaysParentFirstPattern)) {
+						return super.loadClass(name, resolve);
+					}
+				}
+
 				try {
 					// check the URLs
 					c = findClass(name);
