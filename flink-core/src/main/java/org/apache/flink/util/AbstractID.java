@@ -18,9 +18,9 @@
 
 package org.apache.flink.util;
 
-import java.util.Random;
-
 import org.apache.flink.annotation.PublicEvolving;
+
+import java.util.Random;
 
 /**
  * A statistically unique identification number.
@@ -32,25 +32,25 @@ public class AbstractID implements Comparable<AbstractID>, java.io.Serializable 
 
 	private static final Random RND = new Random();
 
-	/** The size of a long in bytes */
+	/** The size of a long in bytes. */
 	private static final int SIZE_OF_LONG = 8;
 
-	/** The size of the ID in byte */
+	/** The size of the ID in byte. */
 	public static final int SIZE = 2 * SIZE_OF_LONG;
 
 	// ------------------------------------------------------------------------
 
-	/** The upper part of the actual ID */
+	/** The upper part of the actual ID. */
 	protected final long upperPart;
 
-	/** The lower part of the actual ID */
+	/** The lower part of the actual ID. */
 	protected final long lowerPart;
 
-	/** The memoized value returned by toString() */
+	/** The memoized value returned by toString(). */
 	private String toString;
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Constructs a new ID with a specific bytes value.
 	 */
@@ -130,7 +130,7 @@ public class AbstractID implements Comparable<AbstractID>, java.io.Serializable 
 	// --------------------------------------------------------------------------------------------
 	//  Standard Utilities
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj == this) {
@@ -166,8 +166,8 @@ public class AbstractID implements Comparable<AbstractID>, java.io.Serializable 
 
 	@Override
 	public int compareTo(AbstractID o) {
-		int diff1 = (this.upperPart < o.upperPart) ? -1 : ((this.upperPart == o.upperPart) ? 0 : 1);
-		int diff2 = (this.lowerPart < o.lowerPart) ? -1 : ((this.lowerPart == o.lowerPart) ? 0 : 1);
+		int diff1 = Long.compare(this.upperPart, o.upperPart);
+		int diff2 = Long.compare(this.lowerPart, o.lowerPart);
 		return diff1 == 0 ? diff2 : diff1;
 	}
 

@@ -19,7 +19,7 @@
 package org.apache.flink.util;
 
 /**
- * Base class for state migration related exceptions
+ * Base class for state migration related exceptions.
  */
 public class StateMigrationException extends FlinkException {
 	private static final long serialVersionUID = 8268516412747670839L;

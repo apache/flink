@@ -33,9 +33,9 @@ import java.util.Map;
 /**
  * This is the abstract base class for registries that allow to register instances of {@link Closeable}, which are all
  * closed if this registry is closed.
- * 
+ *
  * <p>Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
- * 
+ *
  * <p>All methods in this class are thread-safe.
  *
  * @param <C> Type of the closeable this registers

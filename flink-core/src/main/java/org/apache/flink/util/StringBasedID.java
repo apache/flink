@@ -29,7 +29,7 @@ public class StringBasedID implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * Uses a String as internal representation
+	 * Uses a String as internal representation.
 	 */
 	private final String keyString;
 

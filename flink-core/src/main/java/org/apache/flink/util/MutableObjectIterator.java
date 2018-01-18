@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
@@ -23,7 +24,7 @@ import java.io.IOException;
 
 /**
  * A simple iterator interface. The key differences to the {@link java.util.Iterator} are
- * 
+ *
  * <ul>
  *   <li>It has two distinct <code>next()</code>, where one variant allows to pass an object that may
  *       be reused, if the type is mutable.</li>
@@ -31,23 +32,23 @@ import java.io.IOException;
  *       splitting it over two different functions such as <code>hasNext()</code> and <code>next()</code>
  *       </li>
  * </ul>
- * 
+ *
  * @param <E> The element type of the collection iterated over.
  */
 @Internal
 public interface MutableObjectIterator<E> {
-	
+
 	/**
 	 * Gets the next element from the collection. The contents of that next element is put into the
 	 * given reuse object, if the type is mutable.
-	 * 
+	 *
 	 * @param reuse The target object into which to place next element if E is mutable.
 	 * @return The filled object or <code>null</code> if the iterator is exhausted.
-	 * 
-	 * @throws IOException Thrown, if a problem occurred in the underlying I/O layer or in the 
+	 *
+	 * @throws IOException Thrown, if a problem occurred in the underlying I/O layer or in the
 	 *                     serialization / deserialization logic
 	 */
-	public E next(E reuse) throws IOException;
+	E next(E reuse) throws IOException;
 
 	/**
 	 * Gets the next element from the collection. The iterator implementation
@@ -58,5 +59,5 @@ public interface MutableObjectIterator<E> {
 	 * @throws IOException Thrown, if a problem occurred in the underlying I/O layer or in the
 	 *                     serialization / deserialization logic
 	 */
-	public E next() throws IOException;
+	E next() throws IOException;
 }

@@ -18,14 +18,16 @@
 
 package org.apache.flink.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
-
-import org.apache.flink.util.MathUtils;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+/**
+ * Tests for the {@link MathUtils}.
+ */
 public class MathUtilTest {
 
 	@Test
@@ -43,14 +45,13 @@ public class MathUtilTest {
 		assertEquals(13, MathUtils.log2floor((0x1 << 13) + 1));
 		assertEquals(30, MathUtils.log2floor(Integer.MAX_VALUE));
 		assertEquals(31, MathUtils.log2floor(-1));
-		
+
 		try {
 			MathUtils.log2floor(0);
 			fail();
-		}
-		catch (ArithmeticException aex) {}
+		} catch (ArithmeticException ignored) {}
 	}
-	
+
 	@Test
 	public void testRoundDownToPowerOf2() {
 		assertEquals(0, MathUtils.roundDownToPowerOf2(0));

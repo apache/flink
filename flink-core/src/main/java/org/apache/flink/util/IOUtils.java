@@ -28,20 +28,19 @@ import java.net.Socket;
 
 /**
  * An utility class for I/O related functionality.
- * 
  */
 public final class IOUtils {
 
 	/** The block size for byte operations in byte. */
 	private static final int BLOCKSIZE = 4096;
-	
+
 	// ------------------------------------------------------------------------
 	//  Byte copy operations
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Copies from one stream to another.
-	 * 
+	 *
 	 * @param in
 	 *        InputStream to read from
 	 * @param out
@@ -80,7 +79,7 @@ public final class IOUtils {
 	/**
 	 * Copies from one stream to another. <strong>closes the input and output
 	 * streams at the end</strong>.
-	 * 
+	 *
 	 * @param in
 	 *        InputStream to read from
 	 * @param out
@@ -94,7 +93,7 @@ public final class IOUtils {
 
 	/**
 	 * Copies from one stream to another.
-	 * 
+	 *
 	 * @param in
 	 *        InputStream to read from
 	 * @param out
@@ -112,10 +111,10 @@ public final class IOUtils {
 	// ------------------------------------------------------------------------
 	//  Stream input skipping
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Reads len bytes in a loop.
-	 * 
+	 *
 	 * @param in
 	 *        The InputStream to read from
 	 * @param buf
@@ -142,7 +141,7 @@ public final class IOUtils {
 
 	/**
 	 * Similar to readFully(). Skips bytes in a loop.
-	 * 
+	 *
 	 * @param in
 	 *        The InputStream to skip bytes from
 	 * @param len
@@ -163,11 +162,11 @@ public final class IOUtils {
 	// ------------------------------------------------------------------------
 	//  Silent I/O cleanup / closing
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Close the AutoCloseable objects and <b>ignore</b> any {@link Exception} or
 	 * null pointers. Must only be used for cleanup in exception handlers.
-	 * 
+	 *
 	 * @param log
 	 *        the log to record problems to at debug level. Can be <code>null</code>.
 	 * @param closeables
@@ -190,7 +189,7 @@ public final class IOUtils {
 	/**
 	 * Closes the stream ignoring {@link IOException}. Must only be called in
 	 * cleaning up from exception handlers.
-	 * 
+	 *
 	 * @param stream
 	 *        the stream to close
 	 */
@@ -200,7 +199,7 @@ public final class IOUtils {
 
 	/**
 	 * Closes the socket ignoring {@link IOException}.
-	 * 
+	 *
 	 * @param sock
 	 *        the socket to close
 	 */
@@ -254,6 +253,8 @@ public final class IOUtils {
 	}
 
 	/**
+	 * Closes the given AutoCloseable.
+	 *
 	 * <p><b>Important:</b> This method is expected to never throw an exception.
 	 */
 	public static void closeQuietly(AutoCloseable closeable) {
@@ -263,7 +264,7 @@ public final class IOUtils {
 			}
 		} catch (Throwable ignored) {}
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	/**

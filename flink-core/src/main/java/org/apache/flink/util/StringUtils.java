@@ -18,10 +18,6 @@
 
 package org.apache.flink.util;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Random;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -29,6 +25,10 @@ import org.apache.flink.types.StringValue;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Random;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -43,7 +43,7 @@ public final class StringUtils {
 	/**
 	 * Given an array of bytes it will convert the bytes to a hex string
 	 * representation of the bytes.
-	 * 
+	 *
 	 * @param bytes
 	 *        the bytes to convert in a hex string
 	 * @param start
@@ -56,8 +56,6 @@ public final class StringUtils {
 		if (bytes == null) {
 			throw new IllegalArgumentException("bytes == null");
 		}
-		
-		
 
 		int length = end - start;
 		char[] out = new char[length * 2];
@@ -73,7 +71,7 @@ public final class StringUtils {
 	/**
 	 * Given an array of bytes it will convert the bytes to a hex string
 	 * representation of the bytes.
-	 * 
+	 *
 	 * @param bytes
 	 *        the bytes to convert in a hex string
 	 * @return hex string representation of the byte array
@@ -85,7 +83,7 @@ public final class StringUtils {
 	/**
 	 * Given a hex string this will return the byte array corresponding to the
 	 * string .
-	 * 
+	 *
 	 * @param hex
 	 *        the hex String array
 	 * @return a byte array that is a hex string representation of the given
@@ -104,7 +102,7 @@ public final class StringUtils {
 	 * object is an array. In that case, it will use the {@link #arrayToString(Object)}
 	 * method to create a string representation of the array that includes all contained
 	 * elements.
-	 * 
+	 *
 	 * @param o The object for which to create the string representation.
 	 * @return The string representation of the object.
 	 */
@@ -115,14 +113,14 @@ public final class StringUtils {
 		if (o.getClass().isArray()) {
 			return arrayToString(o);
 		}
-		
+
 		return o.toString();
 	}
-	
+
 	/**
 	 * Returns a string representation of the given array. This method takes an Object
 	 * to allow also all types of primitive type arrays.
-	 * 
+	 *
 	 * @param array The array to create a string representation for.
 	 * @return The string representation of the array.
 	 * @throws IllegalArgumentException If the given object is no array.
@@ -131,7 +129,7 @@ public final class StringUtils {
 		if (array == null) {
 			throw new NullPointerException();
 		}
-		
+
 		if (array instanceof int[]) {
 			return Arrays.toString((int[]) array);
 		}
@@ -159,20 +157,20 @@ public final class StringUtils {
 		if (array instanceof short[]) {
 			return Arrays.toString((short[]) array);
 		}
-		
+
 		if (array.getClass().isArray()) {
 			return "<unknown array type>";
 		} else {
 			throw new IllegalArgumentException("The given argument is no array.");
 		}
 	}
-	
+
 	/**
 	 * Replaces control characters by their escape-coded version. For example,
 	 * if the string contains a line break character ('\n'), this character will
 	 * be replaced by the two characters backslash '\' and 'n'. As a consequence, the
 	 * resulting string will not contain any more control characters.
-	 * 
+	 *
 	 * @param str The string in which to replace the control characters.
 	 * @return The string with the replaced characters.
 	 */
@@ -205,11 +203,11 @@ public final class StringUtils {
 
 		return sb.toString();
 	}
-	
+
 	/**
 	 * Creates a random string with a length within the given interval. The string contains only characters that
 	 * can be represented as a single code point.
-	 * 
+	 *
 	 * @param rnd The random used to create the strings.
 	 * @param minLength The minimum string length.
 	 * @param maxLength The maximum string length (inclusive).
@@ -217,18 +215,18 @@ public final class StringUtils {
 	 */
 	public static String getRandomString(Random rnd, int minLength, int maxLength) {
 		int len = rnd.nextInt(maxLength - minLength + 1) + minLength;
-		
+
 		char[] data = new char[len];
 		for (int i = 0; i < data.length; i++) {
 			data[i] = (char) (rnd.nextInt(0x7fff) + 1);
 		}
 		return new String(data);
 	}
-	
+
 	/**
 	 * Creates a random string with a length within the given interval. The string contains only characters that
 	 * can be represented as a single code point.
-	 * 
+	 *
 	 * @param rnd The random used to create the strings.
 	 * @param minLength The minimum string length.
 	 * @param maxLength The maximum string length (inclusive).
@@ -238,10 +236,10 @@ public final class StringUtils {
 	 */
 	public static String getRandomString(Random rnd, int minLength, int maxLength, char minValue, char maxValue) {
 		int len = rnd.nextInt(maxLength - minLength + 1) + minLength;
-		
+
 		char[] data = new char[len];
 		int diff = maxValue - minValue + 1;
-		
+
 		for (int i = 0; i < data.length; i++) {
 			data[i] = (char) (rnd.nextInt(diff) + minValue);
 		}
@@ -254,7 +252,7 @@ public final class StringUtils {
 	 *
 	 * @param str The string to write
 	 * @param out The output to write to
-	 *   
+	 *
 	 * @throws IOException Thrown, if the writing or the serialization fails.
 	 */
 	public static void writeString(@Nonnull String str, DataOutputView out) throws IOException {
@@ -267,7 +265,7 @@ public final class StringUtils {
 	 *
 	 * @param in The input to read from
 	 * @return The deserialized String
-	 * 
+	 *
 	 * @throws IOException Thrown, if the reading or the deserialization fails.
 	 */
 	public static String readString(DataInputView in) throws IOException {
@@ -277,10 +275,10 @@ public final class StringUtils {
 	/**
 	 * Writes a String to the given output. The string may be null.
 	 * The written string can be read with {@link #readNullableString(DataInputView)}-
-	 * 
+	 *
 	 * @param str The string to write, or null.
 	 * @param out The output to write to.
-	 * 
+	 *
 	 * @throws IOException Thrown, if the writing or the serialization fails.
 	 */
 	public static void writeNullableString(@Nullable String str, DataOutputView out) throws IOException {
@@ -291,14 +289,14 @@ public final class StringUtils {
 			out.writeBoolean(false);
 		}
 	}
-	
+
 	/**
 	 * Reads a String from the given input. The string may be null and must have been written with
 	 * {@link #writeNullableString(String, DataOutputView)}.
-	 * 
+	 *
 	 * @param in The input to read from.
 	 * @return The deserialized string, or null.
-	 * 
+	 *
 	 * @throws IOException Thrown, if the reading or the deserialization fails.
 	 */
 	public static @Nullable String readNullableString(DataInputView in) throws IOException {
@@ -312,7 +310,7 @@ public final class StringUtils {
 	/**
 	 * Checks if the string is null, empty, or contains only whitespace characters.
 	 * A whitespace character is defined via {@link Character#isWhitespace(char)}.
-	 * 
+	 *
 	 * @param str The string to check
 	 * @return True, if the string is null or blank, false otherwise.
 	 */
@@ -334,11 +332,11 @@ public final class StringUtils {
 	 * If both string arguments are non-null, this method concatenates them with ' and '.
 	 * If only one of the arguments is non-null, this method returns the non-null argument.
 	 * If both arguments are null, this method returns null.
-	 * 
+	 *
 	 * @param s1 The first string argument
 	 * @param s2 The second string argument
-	 * 
-	 * @return The concatenated string, or non-null argument, or null 
+	 *
+	 * @return The concatenated string, or non-null argument, or null
 	 */
 	@Nullable
 	public static String concatenateWithAnd(@Nullable String s1, @Nullable String s2) {
@@ -346,12 +344,12 @@ public final class StringUtils {
 			return s2 == null ? s1 : s1 + " and " + s2;
 		}
 		else {
-			return s2 != null ? s2 : null;
+			return s2;
 		}
 	}
 
 	// ------------------------------------------------------------------------
 
-	/** Prevent instantiation of this utility class */
+	/** Prevent instantiation of this utility class. */
 	private StringUtils() {}
 }

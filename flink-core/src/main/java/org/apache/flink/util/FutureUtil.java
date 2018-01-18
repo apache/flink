@@ -23,6 +23,9 @@ import org.apache.flink.annotation.Internal;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RunnableFuture;
 
+/**
+ * Simple utility class to work with Java's Futures.
+ */
 @Internal
 public class FutureUtil {
 

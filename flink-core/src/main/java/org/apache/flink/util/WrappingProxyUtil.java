@@ -20,6 +20,9 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
 
+/**
+ * Utilits for working with {@link WrappingProxy}.
+ */
 @Internal
 public final class WrappingProxyUtil {
 

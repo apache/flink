@@ -24,6 +24,9 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * Tests for the {@link ResourceGuard}.
+ */
 public class ResourceGuardTest extends TestLogger {
 
 	@Test
@@ -128,20 +131,20 @@ public class ResourceGuardTest extends TestLogger {
 	@Test
 	public void testLeaseCloseIsIdempotent() throws Exception {
 		ResourceGuard resourceGuard = new ResourceGuard();
-		ResourceGuard.Lease lease_1 = resourceGuard.acquireResource();
-		ResourceGuard.Lease lease_2 = resourceGuard.acquireResource();
+		ResourceGuard.Lease lease1 = resourceGuard.acquireResource();
+		ResourceGuard.Lease lease2 = resourceGuard.acquireResource();
 		Assert.assertEquals(2, resourceGuard.getLeaseCount());
-		lease_1.close();
+		lease1.close();
 		Assert.assertEquals(1, resourceGuard.getLeaseCount());
-		lease_1.close();
+		lease1.close();
 		Assert.assertEquals(1, resourceGuard.getLeaseCount());
-		lease_2.close();
+		lease2.close();
 		Assert.assertEquals(0, resourceGuard.getLeaseCount());
-		ResourceGuard.Lease lease_3 = resourceGuard.acquireResource();
+		ResourceGuard.Lease lease3 = resourceGuard.acquireResource();
 		Assert.assertEquals(1, resourceGuard.getLeaseCount());
-		lease_2.close();
+		lease2.close();
 		Assert.assertEquals(1, resourceGuard.getLeaseCount());
-		lease_3.close();
+		lease3.close();
 		Assert.assertEquals(0, resourceGuard.getLeaseCount());
 		resourceGuard.close();
 	}

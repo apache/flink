@@ -34,7 +34,6 @@ public class PropertiesUtil {
 	 * @param key key in Properties
 	 * @param defaultValue default value if value is not set
 	 * @return default or value of key
-	 * @throws IllegalArgumentException
 	 */
 	public static int getInt(Properties config, String key, int defaultValue) {
 		String val = config.getProperty(key);
@@ -58,7 +57,6 @@ public class PropertiesUtil {
 	 * @param key key in Properties
 	 * @param defaultValue default value if value is not set
 	 * @return default or value of key
-	 * @throws IllegalArgumentException
 	 */
 	public static long getLong(Properties config, String key, long defaultValue) {
 		String val = config.getProperty(key);
@@ -82,12 +80,11 @@ public class PropertiesUtil {
 	 * @param key key in Properties
 	 * @param defaultValue default value if value is not set
 	 * @return default or value of key
-	 * @throws IllegalArgumentException
 	 */
 	public static long getLong(Properties config, String key, long defaultValue, Logger logger) {
 		try {
 			return getLong(config, key, defaultValue);
-		} catch(IllegalArgumentException iae) {
+		} catch (IllegalArgumentException iae) {
 			logger.warn(iae.getMessage());
 			return defaultValue;
 		}
@@ -112,7 +109,7 @@ public class PropertiesUtil {
 	}
 
 	// ------------------------------------------------------------------------
-	
-	/** Private default constructor to prevent instantiation */
+
+	/** Private default constructor to prevent instantiation. */
 	private PropertiesUtil() {}
 }

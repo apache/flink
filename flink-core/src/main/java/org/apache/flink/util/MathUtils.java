@@ -22,13 +22,13 @@ package org.apache.flink.util;
  * Collection of simple mathematical routines.
  */
 public final class MathUtils {
-	
+
 	/**
 	 * Computes the logarithm of the given value to the base of 2, rounded down. It corresponds to the
 	 * position of the highest non-zero bit. The position is counted, starting with 0 from the least
 	 * significant bit to the most significant bit. For example, <code>log2floor(16) = 4</code>, and
 	 * <code>log2floor(10) = 3</code>.
-	 * 
+	 *
 	 * @param value The value to compute the logarithm for.
 	 * @return The logarithm (rounded down) to the base of 2.
 	 * @throws ArithmeticException Thrown, if the given value is zero.
@@ -40,11 +40,11 @@ public final class MathUtils {
 
 		return 31 - Integer.numberOfLeadingZeros(value);
 	}
-	
+
 	/**
 	 * Computes the logarithm of the given value to the base of 2. This method throws an error,
 	 * if the given argument is not a power of 2.
-	 * 
+	 *
 	 * @param value The value to compute the logarithm for.
 	 * @return The logarithm to the base of 2.
 	 * @throws ArithmeticException Thrown, if the given value is zero.
@@ -59,25 +59,25 @@ public final class MathUtils {
 		}
 		return 31 - Integer.numberOfLeadingZeros(value);
 	}
-	
+
 	/**
 	 * Decrements the given number down to the closest power of two. If the argument is a
 	 * power of two, it remains unchanged.
-	 * 
+	 *
 	 * @param value The value to round down.
 	 * @return The closest value that is a power of two and less or equal than the given value.
 	 */
 	public static int roundDownToPowerOf2(int value) {
 		return Integer.highestOneBit(value);
 	}
-	
+
 	/**
 	 * Casts the given value to a 32 bit integer, if it can be safely done. If the cast would change the numeric
 	 * value, this method raises an exception.
-	 * <p>
-	 * This method is a protection in places where one expects to be able to safely case, but where unexpected
+	 *
+	 * <p>This method is a protection in places where one expects to be able to safely case, but where unexpected
 	 * situations could make the cast unsafe and would cause hidden problems that are hard to track down.
-	 * 
+	 *
 	 * @param value The value to be cast to an integer.
 	 * @return The given value as an integer.
 	 * @see Math#toIntExact(long)
@@ -106,7 +106,7 @@ public final class MathUtils {
 	 * The hash function has the <i>full avalanche</i> property, meaning that every bit of the value to be hashed
 	 * affects every bit of the hash value.
 	 *
-	 * It is crucial to use different hash functions to partition data across machines and the internal partitioning of
+	 * <p>It is crucial to use different hash functions to partition data across machines and the internal partitioning of
 	 * data structures. This hash function is intended for partitioning internally in data structures.
 	 *
 	 * @param code The integer to be hashed.
@@ -125,7 +125,7 @@ public final class MathUtils {
 	/**
 	 * This function hashes an integer value.
 	 *
-	 * It is crucial to use different hash functions to partition data across machines and the internal partitioning of
+	 * <p>It is crucial to use different hash functions to partition data across machines and the internal partitioning of
 	 * data structures. This hash function is intended for partitioning across machines.
 	 *
 	 * @param code The integer to be hashed.
@@ -154,7 +154,7 @@ public final class MathUtils {
 	}
 
 	/**
-	 * Round the given number to the next power of two
+	 * Round the given number to the next power of two.
 	 * @param x number to round
 	 * @return x rounded up to the next power of two
 	 */
@@ -198,7 +198,7 @@ public final class MathUtils {
 	}
 
 	// ============================================================================================
-	
+
 	/**
 	 * Prevent Instantiation through private constructor.
 	 */

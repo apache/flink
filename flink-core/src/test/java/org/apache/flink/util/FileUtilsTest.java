@@ -51,7 +51,7 @@ public class FileUtilsTest {
 	@Test
 	public void testDeletePathIfEmpty() throws IOException {
 		final FileSystem localFs = FileSystem.getLocalFileSystem();
-		
+
 		final File dir = tmp.newFolder();
 		assertTrue(dir.exists());
 
