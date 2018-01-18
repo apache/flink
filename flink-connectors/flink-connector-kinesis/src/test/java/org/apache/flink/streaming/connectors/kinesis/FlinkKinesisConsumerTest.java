@@ -548,7 +548,12 @@ public class FlinkKinesisConsumerTest {
 		public void update(List<T> values) throws Exception {
 			list.clear();
 
-			if (values != null || !values.isEmpty()) {
+			addAll(values);
+		}
+
+		@Override
+		public void addAll(List<T> values) throws Exception {
+			if (values != null) {
 				list.addAll(values);
 			}
 		}
