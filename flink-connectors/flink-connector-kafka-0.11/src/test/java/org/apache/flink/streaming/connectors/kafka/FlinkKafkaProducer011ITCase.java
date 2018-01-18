@@ -89,7 +89,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			testHarness1.setup();
 			testHarness1.open();
 			testHarness1.processElement(42, 0);
-			OperatorStateHandles snapshot = testHarness1.snapshot(0, 0);
+			OperatorSubtaskState snapshot = testHarness1.snapshot(0, 0);
 			testHarness1.processElement(43, 0);
 			testHarness1.notifyOfCompletedCheckpoint(0);
 			try {
