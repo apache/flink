@@ -240,21 +240,19 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	@Override
 	public void writeBuffer(Buffer buffer, int subpartitionIndex) throws IOException {
 		checkNotNull(buffer);
-		boolean success = false;
 
+		ResultSubpartition subpartition;
 		try {
 			checkInProduceState();
-
-			final ResultSubpartition subpartition = subpartitions[subpartitionIndex];
-
-			// retain for buffer use after add() but also to have a simple path for recycle()
-			buffer.retainBuffer();
-			success = subpartition.add(buffer);
-		} finally {
-			if (success) {
-				notifyPipelinedConsumers();
-			}
+			subpartition = subpartitions[subpartitionIndex];
+		}
+		catch (Exception ex) {
 			buffer.recycleBuffer();
+			throw ex;
+		}
+
+		if (subpartition.add(buffer)) {
+			notifyPipelinedConsumers();
 		}
 	}
 
