@@ -31,7 +31,6 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -127,8 +126,8 @@ public class ResultPartitionTest {
 			// expected => ignored
 		} finally {
 			if (!buffer.isRecycled()) {
-				Assert.fail("buffer not recycled");
 				buffer.recycleBuffer();
+				Assert.fail("buffer not recycled");
 			}
 			// should not have notified either
 			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
@@ -161,8 +160,8 @@ public class ResultPartitionTest {
 			partition.writeBuffer(buffer, 0);
 		} finally {
 			if (!buffer.isRecycled()) {
-				Assert.fail("buffer not recycled");
 				buffer.recycleBuffer();
+				Assert.fail("buffer not recycled");
 			}
 			// should not have notified either
 			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
