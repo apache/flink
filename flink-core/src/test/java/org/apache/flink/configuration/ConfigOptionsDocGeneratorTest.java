@@ -15,15 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.configuration;
+
+import org.apache.flink.api.java.tuple.Tuple2;
+
+import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.List;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for the ConfigOptionsDocGenerator.
+ */
+@SuppressWarnings("unused")
 public class ConfigOptionsDocGeneratorTest {
 
 	static class TestConfigGroup {
@@ -67,8 +74,8 @@ public class ConfigOptionsDocGeneratorTest {
 	}
 
 	@ConfigGroups(groups = {
-			@ConfigGroup(name = "firstGroup", keyPrefix = "first"),
-			@ConfigGroup(name = "secondGroup", keyPrefix = "second")})
+	@ConfigGroup(name = "firstGroup", keyPrefix = "first"),
+	@ConfigGroup(name = "secondGroup", keyPrefix = "second")})
 	static class TestConfigMultipleSubGroup {
 		public static ConfigOption<Integer> firstOption = ConfigOptions
 			.key("first.option.a")
@@ -103,58 +110,58 @@ public class ConfigOptionsDocGeneratorTest {
 		}
 
 		assertEquals("<table class=\"table table-bordered\">" +
-		             "<thead>" +
-		             "<tr>" +
-		             "<th class=\"text-left\" style=\"width: 20%\">Key</th>" +
-		             "<th class=\"text-left\" style=\"width: 15%\">Default Value</th>" +
-		             "<th class=\"text-left\" style=\"width: 65%\">Description</th>" +
-		             "</tr>" +
-		             "</thead>" +
-		             "<tbody>" +
-		             "<tr>" +
-		             "<td><h5>first.option.a</h5></td>" +
-		             "<td>2</td>" +
-		             "<td>This is example description for the first option.</td>" +
-		             "</tr>" +
-		             "</tbody>" +
-		             "</table>", tablesConverted.get("firstGroup"));
+				"<thead>" +
+				"<tr>" +
+				"<th class=\"text-left\" style=\"width: 20%\">Key</th>" +
+				"<th class=\"text-left\" style=\"width: 15%\">Default Value</th>" +
+				"<th class=\"text-left\" style=\"width: 65%\">Description</th>" +
+				"</tr>" +
+				"</thead>" +
+				"<tbody>" +
+				"<tr>" +
+				"<td><h5>first.option.a</h5></td>" +
+				"<td>2</td>" +
+				"<td>This is example description for the first option.</td>" +
+				"</tr>" +
+				"</tbody>" +
+				"</table>", tablesConverted.get("firstGroup"));
 		assertEquals("<table class=\"table table-bordered\">" +
-		             "<thead>" +
-		             "<tr>" +
-		             "<th class=\"text-left\" style=\"width: 20%\">Key</th>" +
-		             "<th class=\"text-left\" style=\"width: 15%\">Default Value</th>" +
-		             "<th class=\"text-left\" style=\"width: 65%\">Description</th>" +
-		             "</tr>" +
-		             "</thead>" +
-		             "<tbody>" +
-		             "<tr>" +
-		             "<td><h5>second.option.a</h5></td>" +
-		             "<td>(none)</td>" +
-		             "<td>This is long example description for the second option.</td>" +
-		             "</tr>" +
-		             "</tbody>" +
-		             "</table>", tablesConverted.get("secondGroup"));
+				"<thead>" +
+				"<tr>" +
+				"<th class=\"text-left\" style=\"width: 20%\">Key</th>" +
+				"<th class=\"text-left\" style=\"width: 15%\">Default Value</th>" +
+				"<th class=\"text-left\" style=\"width: 65%\">Description</th>" +
+				"</tr>" +
+				"</thead>" +
+				"<tbody>" +
+				"<tr>" +
+				"<td><h5>second.option.a</h5></td>" +
+				"<td>(none)</td>" +
+				"<td>This is long example description for the second option.</td>" +
+				"</tr>" +
+				"</tbody>" +
+				"</table>", tablesConverted.get("secondGroup"));
 		assertEquals("<table class=\"table table-bordered\">" +
-		             "<thead>" +
-		             "<tr>" +
-		             "<th class=\"text-left\" style=\"width: 20%\">Key</th>" +
-		             "<th class=\"text-left\" style=\"width: 15%\">Default Value</th>" +
-		             "<th class=\"text-left\" style=\"width: 65%\">Description</th>" +
-		             "</tr>" +
-		             "</thead>" +
-		             "<tbody>" +
-		             "<tr>" +
-		             "<td><h5>fourth.option.a</h5></td>" +
-		             "<td>(none)</td>" +
-		             "<td>This is long example description for the fourth option.</td>" +
-		             "</tr>" +
-		             "<tr>" +
-		             "<td><h5>third.option.a</h5></td>" +
-		             "<td>2</td>" +
-		             "<td>This is example description for the third option.</td>" +
-		             "</tr>" +
-		             "</tbody>" +
-		             "</table>", tablesConverted.get("default"));
+				"<thead>" +
+				"<tr>" +
+				"<th class=\"text-left\" style=\"width: 20%\">Key</th>" +
+				"<th class=\"text-left\" style=\"width: 15%\">Default Value</th>" +
+				"<th class=\"text-left\" style=\"width: 65%\">Description</th>" +
+				"</tr>" +
+				"</thead>" +
+				"<tbody>" +
+				"<tr>" +
+				"<td><h5>fourth.option.a</h5></td>" +
+				"<td>(none)</td>" +
+				"<td>This is long example description for the fourth option.</td>" +
+				"</tr>" +
+				"<tr>" +
+				"<td><h5>third.option.a</h5></td>" +
+				"<td>2</td>" +
+				"<td>This is example description for the third option.</td>" +
+				"</tr>" +
+				"</tbody>" +
+				"</table>", tablesConverted.get("default"));
 	}
 
 }

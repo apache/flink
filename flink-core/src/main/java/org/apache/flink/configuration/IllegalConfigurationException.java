@@ -33,7 +33,7 @@ public class IllegalConfigurationException extends RuntimeException {
 
 	/**
 	 * Constructs an new IllegalConfigurationException with the given error message.
-	 * 
+	 *
 	 * @param message The error message for the exception.
 	 */
 	public IllegalConfigurationException(String message) {

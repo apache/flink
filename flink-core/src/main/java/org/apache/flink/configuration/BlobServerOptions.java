@@ -62,7 +62,7 @@ public class BlobServerOptions {
 	 * a range of ports: "50100-50200"
 	 * or a list of ranges and or points: "50100-50200,50300-50400,51234"
 	 *
-	 * Setting the port to 0 will let the OS choose an available port.
+	 * <p>Setting the port to 0 will let the OS choose an available port.
 	 */
 	public static final ConfigOption<String> PORT =
 		key("blob.server.port")

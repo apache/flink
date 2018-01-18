@@ -18,9 +18,9 @@
 
 package org.apache.flink.configuration;
 
-import static org.apache.flink.configuration.ConfigOptions.key;
-
 import org.apache.flink.annotation.PublicEvolving;
+
+import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
  * Configuration options for the JobManager.
@@ -31,8 +31,8 @@ public class JobManagerOptions {
 	/**
 	 * The config parameter defining the network address to connect to
 	 * for communication with the job manager.
-	 * 
-	 * <p>This value is only interpreted in setups where a single JobManager with static 
+	 *
+	 * <p>This value is only interpreted in setups where a single JobManager with static
 	 * name or address exists (simple standalone setups, or container setups with dynamic
 	 * service name resolution). It is not used in many high-availability setups, when a
 	 * leader-election service (like ZooKeeper) is used to elect and discover the JobManager
@@ -45,7 +45,7 @@ public class JobManagerOptions {
 	/**
 	 * The config parameter defining the network port to connect to
 	 * for communication with the job manager.
-	 * 
+	 *
 	 * <p>Like {@link JobManagerOptions#ADDRESS}, this value is only interpreted in setups where
 	 * a single JobManager with static name/address and port exists (simple standalone setups,
 	 * or container setups with dynamic service name resolution).
@@ -58,7 +58,7 @@ public class JobManagerOptions {
 		.defaultValue(6123);
 
 	/**
-	 * JVM heap size (in megabytes) for the JobManager
+	 * JVM heap size (in megabytes) for the JobManager.
 	 */
 	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY =
 		key("jobmanager.heap.mb")
@@ -83,7 +83,7 @@ public class JobManagerOptions {
 	 * This option specifies the interval in order to trigger a resource manager reconnection if the connection
 	 * to the resource manager has been lost.
 	 *
-	 * This option is only intended for internal use.
+	 * <p>This option is only intended for internal use.
 	 */
 	public static final ConfigOption<Long> RESOURCE_MANAGER_RECONNECT_INTERVAL =
 		key("jobmanager.resourcemanager.reconnect-interval")

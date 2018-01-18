@@ -35,14 +35,14 @@ public class TaskManagerOptions {
 	// @TODO Migrate 'taskmanager.*' config options from ConfigConstants
 
 	/**
-	 * JVM heap size (in megabytes) for the TaskManagers
+	 * JVM heap size (in megabytes) for the TaskManagers.
 	 */
 	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY =
 			key("taskmanager.heap.mb")
 			.defaultValue(1024);
 
 	/**
-	 * Whether to kill the TaskManager when the task thread throws an OutOfMemoryError
+	 * Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.
 	 */
 	public static final ConfigOption<Boolean> KILL_ON_OUT_OF_MEMORY =
 			key("taskmanager.jvm-exit-on-oom")
@@ -61,7 +61,7 @@ public class TaskManagerOptions {
 	 * The default network port range the task manager expects incoming IPC connections. The {@code "0"} means that
 	 * the TaskManager searches for a free port.
 	 */
-	public static final ConfigOption<String> RPC_PORT = 
+	public static final ConfigOption<String> RPC_PORT =
 		key("taskmanager.rpc.port")
 			.defaultValue("0");
 
@@ -131,14 +131,14 @@ public class TaskManagerOptions {
 			.defaultValue(0.1f);
 
 	/**
-	 * Minimum memory size for network buffers (in bytes)
+	 * Minimum memory size for network buffers (in bytes).
 	 */
 	public static final ConfigOption<Long> NETWORK_BUFFERS_MEMORY_MIN =
 			key("taskmanager.network.memory.min")
 			.defaultValue(64L << 20); // 64 MB
 
 	/**
-	 * Maximum memory size for network buffers (in bytes)
+	 * Maximum memory size for network buffers (in bytes).
 	 */
 	public static final ConfigOption<Long> NETWORK_BUFFERS_MEMORY_MAX =
 			key("taskmanager.network.memory.max")
@@ -147,7 +147,7 @@ public class TaskManagerOptions {
 	/**
 	 * Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel).
 	 *
-	 * Reasoning: 1 buffer for in-flight data in the subpartition + 1 buffer for parallel serialization
+	 * <p>Reasoning: 1 buffer for in-flight data in the subpartition + 1 buffer for parallel serialization.
 	 */
 	public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
 			key("taskmanager.network.memory.buffers-per-channel")
@@ -219,6 +219,6 @@ public class TaskManagerOptions {
 
 	// ------------------------------------------------------------------------
 
-	/** Not intended to be instantiated */
+	/** Not intended to be instantiated. */
 	private TaskManagerOptions() {}
 }

@@ -29,10 +29,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A {@code ConfigOption} describes a configuration parameter. It encapsulates
  * the configuration key, deprecated older versions of the key, and an optional
  * default value for the configuration parameter.
- * 
+ *
  * <p>{@code ConfigOptions} are built via the {@link ConfigOptions} class.
  * Once created, a config option is immutable.
- * 
+ *
  * @param <T> The type of value associated with the configuration option.
  */
 @PublicEvolving
@@ -42,16 +42,16 @@ public class ConfigOption<T> {
 
 	// ------------------------------------------------------------------------
 
-	/** The current key for that config option */
+	/** The current key for that config option. */
 	private final String key;
 
-	/** The list of deprecated keys, in the order to be checked */
+	/** The list of deprecated keys, in the order to be checked. */
 	private final String[] deprecatedKeys;
 
-	/** The default value for this option */
+	/** The default value for this option. */
 	private final T defaultValue;
 
-	/** The description for this option */
+	/** The description for this option. */
 	private final String description;
 
 	// ------------------------------------------------------------------------
@@ -88,11 +88,11 @@ public class ConfigOption<T> {
 	/**
 	 * Creates a new config option, using this option's key and default value, and
 	 * adding the given deprecated keys.
-	 * 
+	 *
 	 * <p>When obtaining a value from the configuration via {@link Configuration#getValue(ConfigOption)},
 	 * the deprecated keys will be checked in the order provided to this method. The first key for which
 	 * a value is found will be used - that value will be returned.
-	 * 
+	 *
 	 * @param deprecatedKeys The deprecated keys, in the order in which they should be checked.
 	 * @return A new config options, with the given deprecated keys.
 	 */

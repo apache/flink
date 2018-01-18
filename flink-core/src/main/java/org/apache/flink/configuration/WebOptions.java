@@ -27,6 +27,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  */
 @PublicEvolving
 public class WebOptions {
+
 	/**
 	 * Config parameter defining the runtime monitor web-frontend server address.
 	 */
@@ -61,7 +62,7 @@ public class WebOptions {
 			.withDeprecatedKeys("jobmanager.web.refresh-interval");
 
 	/**
-	 * Config parameter to override SSL support for the JobManager Web UI
+	 * Config parameter to override SSL support for the JobManager Web UI.
 	 */
 	public static final ConfigOption<Boolean> SSL_ENABLED =
 		key("web.ssl.enabled")
@@ -156,8 +157,8 @@ public class WebOptions {
 		.key("web.timeout")
 		.defaultValue(10L * 1000L);
 
+	// ------------------------------------------------------------------------
 
-	private WebOptions() {
-		throw new IllegalAccessError();
-	}
+	/** Not meant to be instantiated. */
+	private WebOptions() {}
 }

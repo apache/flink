@@ -81,7 +81,6 @@ public class CoreOptions {
 		.key("classloader.parent-first-patterns")
 		.defaultValue("java.;scala.;org.apache.flink.;javax.annotation;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback");
 
-
 	// ------------------------------------------------------------------------
 	//  process parameters
 	// ------------------------------------------------------------------------

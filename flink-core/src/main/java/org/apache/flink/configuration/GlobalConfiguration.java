@@ -18,17 +18,18 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-
-import org.apache.flink.annotation.Internal;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 
 /**
  * Global configuration object for Flink. Similar to Java properties configuration
@@ -65,8 +66,8 @@ public final class GlobalConfiguration {
 
 	/**
 	 * Loads the configuration files from the specified directory.
-	 * <p>
-	 * YAML files are supported as configuration files.
+	 *
+	 * <p>YAML files are supported as configuration files.
 	 *
 	 * @param configDir
 	 *        the directory which contains the configuration files
@@ -132,21 +133,21 @@ public final class GlobalConfiguration {
 
 	/**
 	 * Loads a YAML-file of key-value pairs.
-	 * <p>
-	 * Colon and whitespace ": " separate key and value (one per line). The hash tag "#" starts a single-line comment.
-	 * <p>
-	 * Example:
-	 * 
+	 *
+	 * <p>Colon and whitespace ": " separate key and value (one per line). The hash tag "#" starts a single-line comment.
+	 *
+	 * <p>Example:
+	 *
 	 * <pre>
 	 * jobmanager.rpc.address: localhost # network address for communication with the job manager
 	 * jobmanager.rpc.port   : 6123      # network port to connect to for communication with the job manager
 	 * taskmanager.rpc.port  : 6122      # network port the task manager expects incoming IPC connections
 	 * </pre>
-	 * <p>
-	 * This does not span the whole YAML specification, but only the *syntax* of simple YAML key-value pairs (see issue
+	 *
+	 * <p>This does not span the whole YAML specification, but only the *syntax* of simple YAML key-value pairs (see issue
 	 * #113 on GitHub). If at any point in time, there is a need to go beyond simple key-value pairs syntax
 	 * compatibility will allow to introduce a YAML parser library.
-	 * 
+	 *
 	 * @param file the YAML file to read from
 	 * @see <a href="http://www.yaml.org/spec/1.2/spec.html">YAML 1.2 specification</a>
 	 */

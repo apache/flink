@@ -22,7 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * Akka configuration options.
- *
  * TODO: Migrate other akka config options to this file
  */
 @PublicEvolving

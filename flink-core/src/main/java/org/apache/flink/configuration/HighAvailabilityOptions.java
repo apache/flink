@@ -32,33 +32,33 @@ public class HighAvailabilityOptions {
 	//  Required High Availability Options
 	// ------------------------------------------------------------------------
 
-	/** 
+	/**
 	 * Defines high-availability mode used for the cluster execution.
 	 * A value of "NONE" signals no highly available setup.
 	 * To enable high-availability, set this mode to "ZOOKEEPER".
 	 */
-	public static final ConfigOption<String> HA_MODE = 
+	public static final ConfigOption<String> HA_MODE =
 			key("high-availability")
 			.defaultValue("NONE")
 			.withDeprecatedKeys("recovery.mode");
 
 	/**
-	 * The ID of the Flink cluster, used to separate multiple Flink clusters 
+	 * The ID of the Flink cluster, used to separate multiple Flink clusters
 	 * Needs to be set for standalone clusters, is automatically inferred in YARN and Mesos.
 	 */
-	public static final ConfigOption<String> HA_CLUSTER_ID = 
+	public static final ConfigOption<String> HA_CLUSTER_ID =
 			key("high-availability.cluster-id")
 			.defaultValue("/default")
 			.withDeprecatedKeys("high-availability.zookeeper.path.namespace", "recovery.zookeeper.path.namespace");
 
 	/**
-	 * File system path (URI) where Flink persists metadata in high-availability setups
+	 * File system path (URI) where Flink persists metadata in high-availability setups.
 	 */
 	public static final ConfigOption<String> HA_STORAGE_PATH =
 			key("high-availability.storageDir")
 			.noDefaultValue()
 			.withDeprecatedKeys("high-availability.zookeeper.storageDir", "recovery.zookeeper.storageDir");
-	
+
 
 	// ------------------------------------------------------------------------
 	//  Recovery Options
@@ -67,7 +67,7 @@ public class HighAvailabilityOptions {
 	/**
 	 * Optional port (range) used by the job manager in high-availability mode.
 	 */
-	public static final ConfigOption<String> HA_JOB_MANAGER_PORT_RANGE = 
+	public static final ConfigOption<String> HA_JOB_MANAGER_PORT_RANGE =
 			key("high-availability.jobmanager.port")
 			.defaultValue("0")
 			.withDeprecatedKeys("recovery.jobmanager.port");
@@ -75,7 +75,7 @@ public class HighAvailabilityOptions {
 	/**
 	 * The time before a JobManager after a fail over recovers the current jobs.
 	 */
-	public static final ConfigOption<String> HA_JOB_DELAY = 
+	public static final ConfigOption<String> HA_JOB_DELAY =
 			key("high-availability.job.delay")
 			.noDefaultValue()
 			.withDeprecatedKeys("recovery.job.delay");
@@ -93,7 +93,7 @@ public class HighAvailabilityOptions {
 			.withDeprecatedKeys("recovery.zookeeper.quorum");
 
 	/**
-	 * The root path under which Flink stores its entries in ZooKeeper
+	 * The root path under which Flink stores its entries in ZooKeeper.
 	 */
 	public static final ConfigOption<String> HA_ZOOKEEPER_ROOT =
 			key("high-availability.zookeeper.path.root")
@@ -139,7 +139,7 @@ public class HighAvailabilityOptions {
 	//  ZooKeeper Client Settings
 	// ------------------------------------------------------------------------
 
-	public static final ConfigOption<Integer> ZOOKEEPER_SESSION_TIMEOUT = 
+	public static final ConfigOption<Integer> ZOOKEEPER_SESSION_TIMEOUT =
 			key("high-availability.zookeeper.client.session-timeout")
 			.defaultValue(60000)
 			.withDeprecatedKeys("recovery.zookeeper.client.session-timeout");
@@ -149,17 +149,17 @@ public class HighAvailabilityOptions {
 			.defaultValue(15000)
 			.withDeprecatedKeys("recovery.zookeeper.client.connection-timeout");
 
-	public static final ConfigOption<Integer> ZOOKEEPER_RETRY_WAIT = 
+	public static final ConfigOption<Integer> ZOOKEEPER_RETRY_WAIT =
 			key("high-availability.zookeeper.client.retry-wait")
 			.defaultValue(5000)
 			.withDeprecatedKeys("recovery.zookeeper.client.retry-wait");
 
-	public static final ConfigOption<Integer> ZOOKEEPER_MAX_RETRY_ATTEMPTS = 
+	public static final ConfigOption<Integer> ZOOKEEPER_MAX_RETRY_ATTEMPTS =
 			key("high-availability.zookeeper.client.max-retry-attempts")
 			.defaultValue(3)
 			.withDeprecatedKeys("recovery.zookeeper.client.max-retry-attempts");
 
-	public static final ConfigOption<String> ZOOKEEPER_RUNNING_JOB_REGISTRY_PATH = 
+	public static final ConfigOption<String> ZOOKEEPER_RUNNING_JOB_REGISTRY_PATH =
 			key("high-availability.zookeeper.path.running-registry")
 			.defaultValue("/running_job_registry/");
 
@@ -169,6 +169,6 @@ public class HighAvailabilityOptions {
 
 	// ------------------------------------------------------------------------
 
-	/** Not intended to be instantiated */
+	/** Not intended to be instantiated. */
 	private HighAvailabilityOptions() {}
 }

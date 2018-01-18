@@ -31,17 +31,17 @@ import java.lang.reflect.Modifier;
 public class ConfigDocsCompletenessChecker {
 
 	public static void main(String[] args) throws Exception {
-		
+
 		String configFileContents = FileUtils.readFileToString(new File("docs/setup/config.md"));
 		Field[] fields = ConfigConstants.class.getFields();
-		
+
 		for (Field field : fields) {
 			if (Modifier.isStatic(field.getModifiers()) && field.getType().equals(String.class) &&
-					!field.getName().startsWith("DEFAULT"))
-			{
+					!field.getName().startsWith("DEFAULT")) {
+
 				Object val = field.get(null);
-				if (!configFileContents.contains((String)val)) {
-					System.out.println("++++ "+val+" is not mentioned in the configuration file!!!");
+				if (!configFileContents.contains((String) val)) {
+					System.out.println("++++ " + val + " is not mentioned in the configuration file!!!");
 				}
 			}
 		}

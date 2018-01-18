@@ -84,12 +84,12 @@ public class ResourceManagerOptions {
 
 	/**
 	 * Similar to the {@see CONTAINERIZED_MASTER_ENV_PREFIX}, this configuration prefix allows
-	 * setting custom environment variables for the workers (TaskManagers)
+	 * setting custom environment variables for the workers (TaskManagers).
 	 */
 	public static final String CONTAINERIZED_TASK_MANAGER_ENV_PREFIX = "containerized.taskmanager.env.";
-	
+
 	// ---------------------------------------------------------------------------------------------
 
-	/** Not intended to be instantiated */
+	/** Not intended to be instantiated. */
 	private ResourceManagerOptions() {}
 }

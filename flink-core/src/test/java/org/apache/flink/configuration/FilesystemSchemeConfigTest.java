@@ -37,6 +37,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the configuration of the default file system scheme.
+ */
 public class FilesystemSchemeConfigTest extends TestLogger {
 
 	@Rule

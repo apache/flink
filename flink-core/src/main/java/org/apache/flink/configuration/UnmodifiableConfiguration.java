@@ -27,13 +27,13 @@ import java.util.Properties;
  */
 @Public
 public class UnmodifiableConfiguration extends Configuration {
-	
+
 	private static final long serialVersionUID = -8151292629158972280L;
 
 	/**
 	 * Creates a new UnmodifiableConfiguration, which holds a copy of the given configuration
 	 * that cannot be altered.
-	 * 
+	 *
 	 * @param config The configuration with the original contents.
 	 */
 	public UnmodifiableConfiguration(Configuration config) {
@@ -43,7 +43,6 @@ public class UnmodifiableConfiguration extends Configuration {
 	// --------------------------------------------------------------------------------------------
 	//  All mutating methods must fail
 	// --------------------------------------------------------------------------------------------
-
 
 	@Override
 	public void addAllToProperties(Properties props) {

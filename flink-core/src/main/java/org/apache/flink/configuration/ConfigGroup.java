@@ -15,15 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.configuration;
 
-import java.lang.annotation.Target;
 import org.apache.flink.annotation.Internal;
+
+import java.lang.annotation.Target;
 
 /**
  * A class that specifies a group of {@link ConfigOption}. The name of the group will be used as the basis for the
  * filename of the generated html file, as defined in {@link ConfigOptionsDocGenerator}.
- * 
+ *
  * @see ConfigGroups
  */
 @Target({})

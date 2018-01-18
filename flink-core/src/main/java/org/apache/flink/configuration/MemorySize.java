@@ -27,14 +27,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * MemorySize is a representation of a number of bytes, viewable in different units.
- * 
+ *
  * <h2>Parsing</h2>
- * 
- * The size can be parsed from a text expression. If the expression is a pure number,
+ *
+ * <p>The size can be parsed from a text expression. If the expression is a pure number,
  * the value will be interpreted as bytes.
- * 
+ *
  * <p>To make larger values more compact, the common size suffixes are supported:
- * 
+ *
  * <ul>
  *     <li>q or 1b or 1bytes (bytes)
  *     <li>1k or 1kb or 1kibibytes (interpreted as kibibytes = 1024 bytes)
@@ -63,12 +63,12 @@ public class MemorySize implements java.io.Serializable {
 
 	// ------------------------------------------------------------------------
 
-	/** The memory size, in bytes */
+	/** The memory size, in bytes. */
 	private final long bytes;
 
 	/**
 	 * Constructs a new MemorySize.
-	 * 
+	 *
 	 * @param bytes The size, in bytes. Must be zero or larger.
 	 */
 	public MemorySize(long bytes) {
@@ -122,7 +122,7 @@ public class MemorySize implements java.io.Serializable {
 
 	@Override
 	public boolean equals(Object obj) {
-		return obj == this || 
+		return obj == this ||
 				(obj != null && obj.getClass() == this.getClass() && ((MemorySize) obj).bytes == this.bytes);
 	}
 
@@ -138,10 +138,10 @@ public class MemorySize implements java.io.Serializable {
 	/**
 	 * Parses the given string as as MemorySize.
 	 * The supported expressions are listed under {@link MemorySize}.
-	 * 
+	 *
 	 * @param text The string to parse
 	 * @return The parsed MemorySize
-	 * 
+	 *
 	 * @throws IllegalArgumentException Thrown, if the expression cannot be parsed.
 	 */
 	public static MemorySize parse(String text) throws IllegalArgumentException {
@@ -151,10 +151,10 @@ public class MemorySize implements java.io.Serializable {
 	/**
 	 * Parses the given string as bytes.
 	 * The supported expressions are listed under {@link MemorySize}.
-	 * 
+	 *
 	 * @param text The string to parse
 	 * @return The parsed size, in bytes.
-	 * 
+	 *
 	 * @throws IllegalArgumentException Thrown, if the expression cannot be parsed.
 	 */
 	public static long parseBytes(String text) throws IllegalArgumentException {
@@ -208,7 +208,7 @@ public class MemorySize implements java.io.Serializable {
 				multiplier = 1024L * 1024L * 1024L * 1024L;
 			}
 			else {
-				throw new IllegalArgumentException("Memory size unit '" + unit + 
+				throw new IllegalArgumentException("Memory size unit '" + unit +
 						"' does not match any of the recognized units: " + ALL_UNITS);
 			}
 		}
@@ -217,7 +217,7 @@ public class MemorySize implements java.io.Serializable {
 
 		// check for overflow
 		if (result / multiplier != value) {
-			throw new IllegalArgumentException("The value '" + text + 
+			throw new IllegalArgumentException("The value '" + text +
 					"' cannot be re represented as 64bit number of bytes (numeric overflow).");
 		}
 

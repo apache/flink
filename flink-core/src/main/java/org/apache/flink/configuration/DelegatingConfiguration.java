@@ -111,7 +111,7 @@ public final class DelegatingConfiguration extends Configuration {
 	public int getInteger(ConfigOption<Integer> configOption) {
 		return  this.backingConfig.getInteger(prefixOption(configOption, prefix));
 	}
-	
+
 	@Override
 	public int getInteger(ConfigOption<Integer> configOption, int overrideDefault) {
 		return this.backingConfig.getInteger(configOption, overrideDefault);
@@ -282,7 +282,7 @@ public final class DelegatingConfiguration extends Configuration {
 			return this.backingConfig.keySet();
 		}
 
-		final HashSet<String> set = new HashSet<String>();
+		final HashSet<String> set = new HashSet<>();
 		int prefixLen = this.prefix.length();
 
 		for (String key : this.backingConfig.keySet()) {
@@ -307,7 +307,7 @@ public final class DelegatingConfiguration extends Configuration {
 			prefixed.put(prefix + entry.getKey(), entry.getValue());
 		}
 
-		return prefixed; 
+		return prefixed;
 	}
 
 	@Override
@@ -367,7 +367,7 @@ public final class DelegatingConfiguration extends Configuration {
 		}
 
 		String[] deprecated = deprecatedKeys.toArray(new String[deprecatedKeys.size()]);
-		return new ConfigOption<T>(key,
+		return new ConfigOption<>(key,
 			option.description(),
 			option.defaultValue(),
 			deprecated);

@@ -27,6 +27,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  */
 @Internal
 public class RestOptions {
+
 	/**
 	 * The address that the server binds itself to / the client connects to.
 	 */

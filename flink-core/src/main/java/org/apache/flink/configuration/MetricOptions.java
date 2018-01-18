@@ -15,12 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
+/**
+ * Configuration options for metrics and metric reporters.
+ */
 @PublicEvolving
 public class MetricOptions {
 
@@ -78,7 +82,7 @@ public class MetricOptions {
 		key("metrics.scope.operator")
 			.defaultValue("<host>.taskmanager.<tm_id>.<job_name>.<operator_name>.<subtask_index>");
 
-	/** The number of measured latencies to maintain at each operator */
+	/** The number of measured latencies to maintain at each operator. */
 	public static final ConfigOption<Integer> LATENCY_HISTORY_SIZE =
 		key("metrics.latency.history-size")
 			.defaultValue(128);
