@@ -141,7 +141,6 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 		this.initialCredit = segments.size();
 		this.numRequiredBuffers = segments.size();
-		this.unannouncedCredit.addAndGet(this.initialCredit);
 
 		synchronized (bufferQueue) {
 			for (MemorySegment segment : segments) {
@@ -426,6 +425,10 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 	public InputChannelID getInputChannelId() {
 		return id;
+	}
+
+	public int getInitialCredit() {
+		return initialCredit;
 	}
 
 	public BufferProvider getBufferProvider() throws IOException {
