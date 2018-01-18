@@ -145,7 +145,6 @@ public class PartitionRequestClientHandlerTest {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
 		final SingleInputGate inputGate = createSingleInputGate();
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
-		inputGate.setInputChannel(inputChannel.getPartitionId().getPartitionId(), inputChannel);
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
 			inputGate.setBufferPool(bufferPool);
@@ -256,8 +255,6 @@ public class PartitionRequestClientHandlerTest {
 		final SingleInputGate inputGate = createSingleInputGate();
 		final RemoteInputChannel inputChannel1 = createRemoteInputChannel(inputGate, client);
 		final RemoteInputChannel inputChannel2 = createRemoteInputChannel(inputGate, client);
-		inputGate.setInputChannel(inputChannel1.getPartitionId().getPartitionId(), inputChannel1);
-		inputGate.setInputChannel(inputChannel2.getPartitionId().getPartitionId(), inputChannel2);
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
@@ -358,7 +355,6 @@ public class PartitionRequestClientHandlerTest {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
 		final SingleInputGate inputGate = createSingleInputGate();
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client);
-		inputGate.setInputChannel(inputChannel.getPartitionId().getPartitionId(), inputChannel);
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
@@ -406,7 +402,7 @@ public class PartitionRequestClientHandlerTest {
 	 *
 	 * @return The new created single input gate.
 	 */
-	private SingleInputGate createSingleInputGate() {
+	static SingleInputGate createSingleInputGate() {
 		return new SingleInputGate(
 			"InputGate",
 			new JobID(),
@@ -424,7 +420,7 @@ public class PartitionRequestClientHandlerTest {
 	 * @param inputGate The input gate owns the created input channel.
 	 * @return The new created remote input channel.
 	 */
-	private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) throws Exception {
+	static RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) throws Exception {
 		return createRemoteInputChannel(inputGate, mock(PartitionRequestClient.class));
 	}
 
@@ -435,20 +431,41 @@ public class PartitionRequestClientHandlerTest {
 	 * @param client The client is used to send partition request.
 	 * @return The new created remote input channel.
 	 */
-	private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate, PartitionRequestClient client) throws Exception {
+	static RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate, PartitionRequestClient client) throws Exception {
+		return createRemoteInputChannel(inputGate, client, 0, 0);
+	}
+
+	/**
+	 * Creates and returns a remote input channel for the specific input gate with specific partition request client.
+	 *
+	 * @param inputGate The input gate owns the created input channel.
+	 * @param client The client is used to send partition request.
+	 * @param initialBackoff initial back off (in ms) for retriggering subpartition requests (must be <tt>&gt; 0</tt> to activate)
+	 * @param maxBackoff after which delay (in ms) to stop retriggering subpartition requests
+	 * @return The new created remote input channel.
+	 */
+	static RemoteInputChannel createRemoteInputChannel(
+			SingleInputGate inputGate,
+			PartitionRequestClient client,
+			int initialBackoff,
+			int maxBackoff) throws Exception {
 		final ConnectionManager connectionManager = mock(ConnectionManager.class);
 		when(connectionManager.createPartitionRequestClient(any(ConnectionID.class)))
 			.thenReturn(client);
 
-		return new RemoteInputChannel(
+		ResultPartitionID partitionId = new ResultPartitionID();
+		RemoteInputChannel inputChannel = new RemoteInputChannel(
 			inputGate,
 			0,
-			new ResultPartitionID(),
+			partitionId,
 			mock(ConnectionID.class),
 			connectionManager,
-			0,
-			0,
+			initialBackoff,
+			maxBackoff,
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+
+		inputGate.setInputChannel(partitionId.getPartitionId(), inputChannel);
+		return inputChannel;
 	}
 
 	/**
