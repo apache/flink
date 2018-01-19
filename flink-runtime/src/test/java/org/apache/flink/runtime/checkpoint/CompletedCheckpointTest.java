@@ -85,8 +85,8 @@ public class CompletedCheckpointTest {
 		StreamStateHandle metadataHandle = mock(StreamStateHandle.class);
 
 		boolean discardSubsumed = true;
-		CheckpointProperties props = new CheckpointProperties(false, false, discardSubsumed, true, true, true, true);
-		
+		CheckpointProperties props = new CheckpointProperties(false, CheckpointType.CHECKPOINT, discardSubsumed, true, true, true, true);
+
 		CompletedCheckpoint checkpoint = new CompletedCheckpoint(
 				new JobID(), 0, 0, 1,
 				operatorStates,
@@ -124,7 +124,7 @@ public class CompletedCheckpointTest {
 			StreamStateHandle metadataHandle = mock(StreamStateHandle.class);
 
 			// Keep
-			CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
+			CheckpointProperties props = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
 			CompletedCheckpoint checkpoint = new CompletedCheckpoint(
 					new JobID(), 0, 0, 1,
 					new HashMap<>(operatorStates),
@@ -141,7 +141,7 @@ public class CompletedCheckpointTest {
 			verify(metadataHandle, times(0)).discardState();
 
 			// Discard
-			props = new CheckpointProperties(false, false, true, true, true, true, true);
+			props = new CheckpointProperties(false, CheckpointType.CHECKPOINT, true, true, true, true, true);
 			checkpoint = new CompletedCheckpoint(
 					new JobID(), 0, 0, 1,
 					new HashMap<>(operatorStates),
