@@ -71,4 +71,13 @@ public interface ArchivedExecutionGraphStore extends Closeable {
 	 * @return Collection of job details of all currently stored jobs
 	 */
 	Collection<JobDetails> getAvailableJobDetails();
+
+	/**
+	 * Return the {@link JobDetails}} for the given job.
+	 *
+	 * @param jobId identifying the job for which to retrieve the {@link JobDetails}
+	 * @return {@link JobDetails} of the requested job or null if the job is not available
+	 */
+	@Nullable
+	JobDetails getAvailableJobDetails(JobID jobId);
 }

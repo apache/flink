@@ -191,6 +191,12 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
 		return jobDetailsCache.asMap().values();
 	}
 
+	@Nullable
+	@Override
+	public JobDetails getAvailableJobDetails(JobID jobId) {
+		return jobDetailsCache.getIfPresent(jobId);
+	}
+
 	@Override
 	public void close() throws IOException {
 		cleanupFuture.cancel(false);

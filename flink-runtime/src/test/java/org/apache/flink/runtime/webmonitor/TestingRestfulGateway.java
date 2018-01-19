@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 
@@ -39,6 +40,7 @@ import java.util.function.Supplier;
 public class TestingRestfulGateway implements RestfulGateway {
 
 	static final Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> DEFAULT_REQUEST_JOB_FUNCTION = jobId -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
+	static final Function<JobID, CompletableFuture<JobStatus>> DEFAULT_REQUEST_JOB_STATUS_FUNCTION = jobId -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	static final Supplier<CompletableFuture<MultipleJobsDetails>> DEFAULT_REQUEST_MULTIPLE_JOB_DETAILS_SUPPLIER = () -> CompletableFuture.completedFuture(new MultipleJobsDetails(Collections.emptyList()));
 	static final Supplier<CompletableFuture<ClusterOverview>> DEFAULT_REQUEST_CLUSTER_OVERVIEW_SUPPLIER = () -> CompletableFuture.completedFuture(new ClusterOverview(0, 0, 0, 0, 0, 0, 0));
 	static final Supplier<CompletableFuture<Collection<String>>> DEFAULT_REQUEST_METRIC_QUERY_SERVICE_PATHS_SUPPLIER = () -> CompletableFuture.completedFuture(Collections.emptyList());
@@ -52,6 +54,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 	protected String restAddress;
 
 	protected Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction;
+
+	protected Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction;
 
 	protected Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier;
 
@@ -67,6 +71,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 			LOCALHOST,
 			LOCALHOST,
 			DEFAULT_REQUEST_JOB_FUNCTION,
+			DEFAULT_REQUEST_JOB_STATUS_FUNCTION,
 			DEFAULT_REQUEST_MULTIPLE_JOB_DETAILS_SUPPLIER,
 			DEFAULT_REQUEST_CLUSTER_OVERVIEW_SUPPLIER,
 			DEFAULT_REQUEST_METRIC_QUERY_SERVICE_PATHS_SUPPLIER,
@@ -78,6 +83,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 			String hostname,
 			String restAddress,
 			Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction,
+			Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction,
 			Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier,
 			Supplier<CompletableFuture<ClusterOverview>> requestClusterOverviewSupplier,
 			Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServicePathsSupplier,
@@ -86,6 +92,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 		this.hostname = hostname;
 		this.restAddress = restAddress;
 		this.requestJobFunction = requestJobFunction;
+		this.requestJobStatusFunction = requestJobStatusFunction;
 		this.requestMultipleJobDetailsSupplier = requestMultipleJobDetailsSupplier;
 		this.requestClusterOverviewSupplier = requestClusterOverviewSupplier;
 		this.requestMetricQueryServicePathsSupplier = requestMetricQueryServicePathsSupplier;
@@ -100,6 +107,11 @@ public class TestingRestfulGateway implements RestfulGateway {
 	@Override
 	public CompletableFuture<? extends AccessExecutionGraph> requestJob(JobID jobId, Time timeout) {
 		return requestJobFunction.apply(jobId);
+	}
+
+	@Override
+	public CompletableFuture<JobStatus> requestJobStatus(JobID jobId, Time timeout) {
+		return requestJobStatusFunction.apply(jobId);
 	}
 
 	@Override
@@ -144,6 +156,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 		private String hostname = LOCALHOST;
 		private String restAddress = LOCALHOST;
 		private Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction;
+		private Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction;
 		private Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier;
 		private Supplier<CompletableFuture<ClusterOverview>> requestClusterOverviewSupplier;
 		private Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServicePathsSupplier;
@@ -151,6 +164,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 
 		public Builder() {
 			requestJobFunction = DEFAULT_REQUEST_JOB_FUNCTION;
+			requestJobStatusFunction = DEFAULT_REQUEST_JOB_STATUS_FUNCTION;
 			requestMultipleJobDetailsSupplier = DEFAULT_REQUEST_MULTIPLE_JOB_DETAILS_SUPPLIER;
 			requestClusterOverviewSupplier = DEFAULT_REQUEST_CLUSTER_OVERVIEW_SUPPLIER;
 			requestMetricQueryServicePathsSupplier = DEFAULT_REQUEST_METRIC_QUERY_SERVICE_PATHS_SUPPLIER;
@@ -177,6 +191,11 @@ public class TestingRestfulGateway implements RestfulGateway {
 			return this;
 		}
 
+		public Builder setRequestJobStatusFunction(Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction) {
+			this.requestJobStatusFunction = requestJobStatusFunction;
+			return this;
+		}
+
 		public Builder setRequestMultipleJobDetailsSupplier(Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier) {
 			this.requestMultipleJobDetailsSupplier = requestMultipleJobDetailsSupplier;
 			return this;
@@ -198,7 +217,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 		}
 
 		public TestingRestfulGateway build() {
-			return new TestingRestfulGateway(address, hostname, restAddress, requestJobFunction, requestMultipleJobDetailsSupplier, requestClusterOverviewSupplier, requestMetricQueryServicePathsSupplier, requestTaskManagerMetricQueryServicePathsSupplier);
+			return new TestingRestfulGateway(address, hostname, restAddress, requestJobFunction, requestJobStatusFunction, requestMultipleJobDetailsSupplier, requestClusterOverviewSupplier, requestMetricQueryServicePathsSupplier, requestTaskManagerMetricQueryServicePathsSupplier);
 		}
 	}
 }

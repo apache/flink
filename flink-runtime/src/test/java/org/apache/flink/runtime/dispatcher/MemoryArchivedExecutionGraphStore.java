@@ -73,6 +73,18 @@ public class MemoryArchivedExecutionGraphStore implements ArchivedExecutionGraph
 			.collect(Collectors.toList());
 	}
 
+	@Nullable
+	@Override
+	public JobDetails getAvailableJobDetails(JobID jobId) {
+		final ArchivedExecutionGraph archivedExecutionGraph = serializableExecutionGraphs.get(jobId);
+
+		if (archivedExecutionGraph != null) {
+			return WebMonitorUtils.createDetailsForJob(archivedExecutionGraph);
+		} else {
+			return null;
+		}
+	}
+
 	@Override
 	public void close() throws IOException {
 		serializableExecutionGraphs.clear();
