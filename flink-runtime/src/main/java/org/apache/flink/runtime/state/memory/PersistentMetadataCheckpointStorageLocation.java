@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
 
 /**
@@ -33,10 +34,6 @@ import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
  */
 public class PersistentMetadataCheckpointStorageLocation extends FsCheckpointStorageLocation {
 
-	/** The internal pointer for the {@link MemoryStateBackend}'s storage location (data inline with
-	 * state handles) that gets sent to the TaskManagers to describe this storage. */
-	static final String LOCATION_POINTER = "(embedded)";
-
 	/**
 	 * Creates a checkpoint storage persists metadata to a file system and stores state
 	 * in line in state handles with the metadata.
@@ -45,14 +42,7 @@ public class PersistentMetadataCheckpointStorageLocation extends FsCheckpointSto
 	 * @param checkpointDir The directory where the checkpoint metadata will be written.
 	 */
 	public PersistentMetadataCheckpointStorageLocation(FileSystem fileSystem, Path checkpointDir) {
-		super(fileSystem, checkpointDir, checkpointDir, checkpointDir);
-	}
-
-	// ------------------------------------------------------------------------
-
-	@Override
-	public String getLocationAsPointer() {
-		return LOCATION_POINTER;
+		super(fileSystem, checkpointDir, checkpointDir, checkpointDir, CheckpointStorageLocationReference.getDefault());
 	}
 
 	// ------------------------------------------------------------------------

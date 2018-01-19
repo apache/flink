@@ -74,6 +74,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Map;
@@ -468,7 +469,13 @@ public abstract class AbstractStreamOperator<OUT>
 		if (checkpointType == CheckpointType.CHECKPOINT) {
 			return checkpointStreamFactory;
 		} else if (checkpointType == CheckpointType.SAVEPOINT) {
-			return container.createSavepointStreamFactory(this, checkpointOptions.getTargetLocation());
+
+			// temporary fix: hard-code back conversion of the location reference to a string
+			String targetAsString = new String(
+					checkpointOptions.getTargetLocation().getReferenceBytes(),
+					StandardCharsets.UTF_8);
+
+			return container.createSavepointStreamFactory(this, targetAsString);
 		} else {
 			throw new IllegalStateException("Unknown checkpoint type " + checkpointType);
 		}

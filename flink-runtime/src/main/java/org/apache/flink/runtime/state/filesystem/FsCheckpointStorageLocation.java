@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.filesystem;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 
 import java.io.IOException;
@@ -42,22 +43,22 @@ public class FsCheckpointStorageLocation implements CheckpointStorageLocation {
 
 	private final Path metadataFilePath;
 
-	private final String qualifiedCheckpointDirectory;
+	private final CheckpointStorageLocationReference reference;
 
 	public FsCheckpointStorageLocation(
 			FileSystem fileSystem,
 			Path checkpointDir,
 			Path sharedStateDir,
-			Path taskOwnedStateDir) {
+			Path taskOwnedStateDir,
+			CheckpointStorageLocationReference reference) {
 
 		this.fileSystem = checkNotNull(fileSystem);
 		this.checkpointDirectory = checkNotNull(checkpointDir);
 		this.sharedStateDirectory = checkNotNull(sharedStateDir);
 		this.taskOwnedStateDirectory = checkNotNull(taskOwnedStateDir);
+		this.reference = checkNotNull(reference);
 
 		this.metadataFilePath = new Path(checkpointDir, AbstractFsCheckpointStorage.METADATA_FILE_NAME);
-
-		this.qualifiedCheckpointDirectory = checkpointDir.makeQualified(fileSystem).toString();
 	}
 
 	// ------------------------------------------------------------------------
@@ -91,7 +92,7 @@ public class FsCheckpointStorageLocation implements CheckpointStorageLocation {
 
 	@Override
 	public String markCheckpointAsFinished() throws IOException {
-		return qualifiedCheckpointDirectory;
+		return checkpointDirectory.toString();
 	}
 
 	@Override
@@ -102,8 +103,8 @@ public class FsCheckpointStorageLocation implements CheckpointStorageLocation {
 	}
 
 	@Override
-	public String getLocationAsPointer() {
-		return qualifiedCheckpointDirectory;
+	public CheckpointStorageLocationReference getLocationReference() {
+		return reference;
 	}
 
 	// ------------------------------------------------------------------------

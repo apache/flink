@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
 
@@ -50,7 +51,7 @@ public class NonPersistentMetadataCheckpointStorageLocation implements Checkpoin
 	public void disposeOnFailure() {}
 
 	@Override
-	public String getLocationAsPointer() {
-		return PersistentMetadataCheckpointStorageLocation.LOCATION_POINTER;
+	public CheckpointStorageLocationReference getLocationReference() {
+		return CheckpointStorageLocationReference.getDefault();
 	}
 }

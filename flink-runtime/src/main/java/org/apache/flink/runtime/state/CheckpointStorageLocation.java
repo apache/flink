@@ -53,13 +53,12 @@ public interface CheckpointStorageLocation {
 	void disposeOnFailure() throws IOException;
 
 	/**
-	 * Gets the location encoded as a string pointer.
+	 * Gets a reference to the storage location. This reference is sent to the
+	 * target storage location via checkpoint RPC messages and checkpoint barriers,
+	 * in a format avoiding backend-specific classes.
 	 *
-	 * <p>This pointer is used to send the target storage location via checkpoint RPC messages
-	 * and checkpoint barriers, in a format avoiding backend-specific classes.
-	 *
-	 * <p>That string encodes the location typically in a backend-specific way.
-	 * For example, file-based backends can encode paths here.
+	 * <p>If there is no custom location information that needs to be communicated,
+	 * this method can simply return {@link CheckpointStorageLocationReference#getDefault()}.
 	 */
-	String getLocationAsPointer();
+	CheckpointStorageLocationReference getLocationReference();
 }
