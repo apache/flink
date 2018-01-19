@@ -70,7 +70,9 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
@@ -78,10 +80,12 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.ExceptionUtils;
@@ -108,12 +112,16 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -137,11 +145,14 @@ public class TaskExecutorTest extends TestLogger {
 	private final Time timeout = Time.milliseconds(10000L);
 	private final File tempDir = new File(System.getProperty("java.io.tmpdir"));
 
+	private TimerService<AllocationID> timerService;
+
 	private TestingRpcService rpc;
 
 	@Before
 	public void setup() {
 		rpc = new TestingRpcService();
+		timerService = new TimerService<>(TestingUtils.defaultExecutor(), timeout.toMilliseconds());
 	}
 
 	@After
@@ -149,6 +160,11 @@ public class TaskExecutorTest extends TestLogger {
 		if (rpc != null) {
 			rpc.stopService();
 			rpc = null;
+		}
+
+		if (timerService != null) {
+			timerService.stop();
+			timerService = null;
 		}
 	}
 
@@ -1447,6 +1463,155 @@ public class TaskExecutorTest extends TestLogger {
 		} finally {
 			taskExecutor.shutDown();
 			taskExecutor.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+		}
+	}
+
+	/**
+	 * Tests that the heartbeat is stopped once the TaskExecutor detects that the RM is no longer leader.
+	 *
+	 * <p>See FLINK-8462
+	 */
+	@Test
+	public void testRMHeartbeatStopWhenLeadershipRevoked() throws Exception {
+		final long heartbeatInterval = 1L;
+		final long heartbeatTimeout = 10000L;
+		final long pollTimeout = 1000L;
+		final TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(new Configuration());
+		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
+		final RecordingHeartbeatServices heartbeatServices = new RecordingHeartbeatServices(heartbeatInterval, heartbeatTimeout);
+		final ResourceID rmResourceID = ResourceID.generate();
+
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService);
+
+		final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
+		final TestingLeaderRetrievalService rmLeaderRetrievalService = new TestingLeaderRetrievalService();
+		haServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
+
+		final String rmAddress = "rm";
+		final TestingResourceManagerGateway rmGateway = new TestingResourceManagerGateway(
+			ResourceManagerId.generate(),
+			rmResourceID,
+			heartbeatInterval,
+			rmAddress,
+			rmAddress);
+
+		rpc.registerGateway(rmAddress, rmGateway);
+
+		final TaskExecutor taskExecutor = new TaskExecutor(
+			rpc,
+			taskManagerConfiguration,
+			taskManagerLocation,
+			mock(MemoryManager.class),
+			mock(IOManager.class),
+			new TaskExecutorLocalStateStoresManager(),
+			mock(NetworkEnvironment.class),
+			haServices,
+			heartbeatServices,
+			mock(TaskManagerMetricGroup.class),
+			mock(BroadcastVariableManager.class),
+			mock(FileCache.class),
+			taskSlotTable,
+			mock(JobManagerTable.class),
+			mock(JobLeaderService.class),
+			testingFatalErrorHandler);
+
+		try {
+			taskExecutor.start();
+
+			final BlockingQueue<ResourceID> unmonitoredTargets = heartbeatServices.getUnmonitoredTargets();
+			final BlockingQueue<ResourceID> monitoredTargets = heartbeatServices.getMonitoredTargets();
+
+			rmLeaderRetrievalService.notifyListener(rmAddress, rmGateway.getFencingToken().toUUID());
+
+			// wait for TM registration by checking the registered heartbeat targets
+			assertThat(
+				monitoredTargets.poll(pollTimeout, TimeUnit.MILLISECONDS),
+				equalTo(rmResourceID));
+
+			// let RM lose leadership
+			rmLeaderRetrievalService.notifyListener(null, null);
+
+			// the timeout should not have triggered since it is much higher
+			assertThat(unmonitoredTargets.poll(pollTimeout, TimeUnit.MILLISECONDS), equalTo(rmResourceID));
+
+			testingFatalErrorHandler.rethrowError();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	/**
+	 * Special {@link HeartbeatServices} which creates a {@link RecordingHeartbeatManagerImpl}.
+	 */
+	private static final class RecordingHeartbeatServices extends HeartbeatServices {
+
+		private final BlockingQueue<ResourceID> unmonitoredTargets;
+
+		private final BlockingQueue<ResourceID> monitoredTargets;
+
+		public RecordingHeartbeatServices(long heartbeatInterval, long heartbeatTimeout) {
+			super(heartbeatInterval, heartbeatTimeout);
+
+			this.unmonitoredTargets = new ArrayBlockingQueue<>(1);
+			this.monitoredTargets = new ArrayBlockingQueue<>(1);
+		}
+
+		@Override
+		public <I, O> HeartbeatManager<I, O> createHeartbeatManager(ResourceID resourceId, HeartbeatListener<I, O> heartbeatListener, ScheduledExecutor scheduledExecutor, Logger log) {
+			return new RecordingHeartbeatManagerImpl<>(
+				heartbeatTimeout,
+				resourceId,
+				heartbeatListener,
+				scheduledExecutor,
+				scheduledExecutor,
+				log,
+				unmonitoredTargets,
+				monitoredTargets);
+		}
+
+		public BlockingQueue<ResourceID> getUnmonitoredTargets() {
+			return unmonitoredTargets;
+		}
+
+		public BlockingQueue<ResourceID> getMonitoredTargets() {
+			return monitoredTargets;
+		}
+	}
+
+	/**
+	 * {@link HeartbeatManagerImpl} which records the unmonitored targets.
+	 */
+	private static final class RecordingHeartbeatManagerImpl<I, O> extends HeartbeatManagerImpl<I, O> {
+
+		private final BlockingQueue<ResourceID> unmonitoredTargets;
+
+		private final BlockingQueue<ResourceID> monitoredTargets;
+
+		public RecordingHeartbeatManagerImpl(
+				long heartbeatTimeoutIntervalMs,
+				ResourceID ownResourceID,
+				HeartbeatListener<I, O> heartbeatListener,
+				Executor executor,
+				ScheduledExecutor scheduledExecutor,
+				Logger log,
+				BlockingQueue<ResourceID> unmonitoredTargets,
+				BlockingQueue<ResourceID> monitoredTargets) {
+			super(heartbeatTimeoutIntervalMs, ownResourceID, heartbeatListener, executor, scheduledExecutor, log);
+			this.unmonitoredTargets = unmonitoredTargets;
+			this.monitoredTargets = monitoredTargets;
+		}
+
+		@Override
+		public void unmonitorTarget(ResourceID resourceID) {
+			super.unmonitorTarget(resourceID);
+			unmonitoredTargets.offer(resourceID);
+		}
+
+		@Override
+		public void monitorTarget(ResourceID resourceID, HeartbeatTarget<O> heartbeatTarget) {
+			super.monitorTarget(resourceID, heartbeatTarget);
+			monitoredTargets.offer(resourceID);
 		}
 	}
 }
