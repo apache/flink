@@ -164,7 +164,6 @@ object FlinkRuleSets {
     // translate to Flink DataSet nodes
     DataSetWindowAggregateRule.INSTANCE,
     DataSetAggregateRule.INSTANCE,
-    DataSetAggregateWithNullValuesRule.INSTANCE,
     DataSetDistinctRule.INSTANCE,
     DataSetCalcRule.INSTANCE,
     DataSetJoinRule.INSTANCE,

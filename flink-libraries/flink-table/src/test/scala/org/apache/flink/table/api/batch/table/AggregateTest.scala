@@ -66,21 +66,9 @@ class AggregateTest extends TableTestBase {
     val sourceTable = util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable.select('a.avg,'b.sum,'c.count)
 
-    val setValues = unaryNode(
-      "DataSetValues",
-      batchTableNode(0),
-      tuples(List(null,null,null)),
-      term("values","a","b","c")
-    )
-    val union = unaryNode(
-      "DataSetUnion",
-      setValues,
-      term("union","a","b","c")
-    )
-
     val expected = unaryNode(
       "DataSetAggregate",
-      union,
+      batchTableNode(0),
       term("select",
         "AVG(a) AS TMP_0",
         "SUM(b) AS TMP_1",
@@ -106,22 +94,9 @@ class AggregateTest extends TableTestBase {
       term("where", "=(a, 1)")
     )
 
-    val setValues =  unaryNode(
-      "DataSetValues",
-      calcNode,
-      tuples(List(null,null,null)),
-      term("values","a","b","c")
-    )
-
-    val union = unaryNode(
-      "DataSetUnion",
-      setValues,
-      term("union","a","b","c")
-    )
-
     val expected = unaryNode(
       "DataSetAggregate",
-      union,
+      calcNode,
       term("select",
         "AVG(a) AS TMP_0",
         "SUM(b) AS TMP_1",
@@ -148,23 +123,11 @@ class AggregateTest extends TableTestBase {
       term("where", "=(a, 1)")
     )
 
-    val setValues =  unaryNode(
-      "DataSetValues",
-      calcNode,
-      tuples(List(null,null,null,null)),
-      term("values","a","b","c","$f3")
-    )
-
-    val union = unaryNode(
-      "DataSetUnion",
-      setValues,
-      term("union","a","b","c","$f3")
-    )
-
     val expected = unaryNode(
       "DataSetAggregate",
-      union,
-      term("select",
+      calcNode,
+      term(
+        "select",
         "AVG(a) AS TMP_0",
         "SUM(b) AS TMP_1",
         "COUNT(c) AS TMP_2",

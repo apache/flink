@@ -114,19 +114,11 @@ class GroupingSetsTest extends TableTestBase {
       "DataSetCalc",
       unaryNode(
         "DataSetAggregate",
-        unaryNode(
-          "DataSetUnion",
-          unaryNode(
-            "DataSetValues",
-            batchTableNode(0),
-            tuples(List(null, null, null)),
-            term("values", "a", "b", "c")
-          ),
-          term("union", "a", "b", "c")
-        ),
+        batchTableNode(0),
         term("select", "AVG(a) AS a")
       ),
-      term("select", "null AS b", "null AS c", "a", "0 AS g", "0 AS gb", "0 AS gc",
+      term(
+        "select", "null AS b", "null AS c", "a", "0 AS g", "0 AS gb", "0 AS gc",
         "0 AS gib", "0 AS gic", "0 AS gid")
     )
 
@@ -189,19 +181,11 @@ class GroupingSetsTest extends TableTestBase {
       "DataSetCalc",
       unaryNode(
         "DataSetAggregate",
-        unaryNode(
-          "DataSetUnion",
-          unaryNode(
-            "DataSetValues",
-            batchTableNode(0),
-            tuples(List(null, null, null)),
-            term("values", "a", "b", "c")
-          ),
-          term("union", "a", "b", "c")
-        ),
+        batchTableNode(0),
         term("select", "AVG(a) AS a")
       ),
-      term("select", "null AS b", "null AS c", "a", "0 AS g", "0 AS gb", "0 AS gc",
+      term(
+        "select", "null AS b", "null AS c", "a", "0 AS g", "0 AS gb", "0 AS gc",
         "0 AS gib", "0 AS gic", "0 AS gid")
     )
 
