@@ -274,41 +274,21 @@ public class DispatcherTest extends TestLogger {
 		final JobID failedJobId = new JobID();
 		onCompletionActions = dispatcher.new DispatcherOnCompleteActions(failedJobId);
 
+		final JobStatus expectedState = JobStatus.FAILED;
 		final ArchivedExecutionGraph failedExecutionGraph = new ArchivedExecutionGraphBuilder()
 			.setJobID(failedJobId)
-			.setState(JobStatus.FAILED)
+			.setState(expectedState)
 			.setFailureCause(new ErrorInfo(new RuntimeException("expected"), 1L))
 			.build();
 
 		onCompletionActions.jobReachedGloballyTerminalState(failedExecutionGraph);
 
 		assertThat(
-			dispatcherGateway.isJobExecutionResultPresent(failedJobId, TIMEOUT).get(),
-			equalTo(true));
+			dispatcherGateway.requestJobStatus(failedJobId, TIMEOUT).get(),
+			equalTo(expectedState));
 		assertThat(
-			dispatcherGateway.getJobExecutionResult(failedJobId, TIMEOUT)
-				.get()
-				.isSuccess(),
-			equalTo(false));
-
-		final JobID successJobId = new JobID();
-		onCompletionActions = dispatcher.new DispatcherOnCompleteActions(successJobId);
-
-		final ArchivedExecutionGraph succeededExecutionGraph = new ArchivedExecutionGraphBuilder()
-			.setJobID(successJobId)
-			.setState(JobStatus.FINISHED)
-			.build();
-
-		onCompletionActions.jobReachedGloballyTerminalState(succeededExecutionGraph);
-
-		assertThat(
-			dispatcherGateway.isJobExecutionResultPresent(successJobId, TIMEOUT).get(),
-			equalTo(true));
-		assertThat(
-			dispatcherGateway.getJobExecutionResult(successJobId, TIMEOUT)
-				.get()
-				.isSuccess(),
-			equalTo(true));
+			dispatcherGateway.requestJob(failedJobId, TIMEOUT).get(),
+			equalTo(failedExecutionGraph));
 	}
 
 	@Test
@@ -317,7 +297,7 @@ public class DispatcherTest extends TestLogger {
 
 		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 		try {
-			dispatcherGateway.getJobExecutionResult(new JobID(), TIMEOUT).get();
+			dispatcherGateway.requestJob(new JobID(), TIMEOUT).get();
 		} catch (ExecutionException e) {
 			final Throwable throwable = ExceptionUtils.stripExecutionException(e);
 			assertThat(throwable, instanceOf(FlinkJobNotFoundException.class));
