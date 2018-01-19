@@ -173,6 +173,7 @@ public class DispatcherTest extends TestLogger {
 			new BlobServer(blobServerConfig, new VoidBlobStore()),
 			heartbeatServices,
 			NoOpMetricRegistry.INSTANCE,
+			new MemoryArchivedExecutionGraphStore(),
 			fatalErrorHandler,
 			TEST_JOB_ID);
 
@@ -344,6 +345,7 @@ public class DispatcherTest extends TestLogger {
 				BlobServer blobServer,
 				HeartbeatServices heartbeatServices,
 				MetricRegistry metricRegistry,
+				ArchivedExecutionGraphStore archivedExecutionGraphStore,
 				FatalErrorHandler fatalErrorHandler,
 				JobID expectedJobId) throws Exception {
 			super(
@@ -355,6 +357,7 @@ public class DispatcherTest extends TestLogger {
 				blobServer,
 				heartbeatServices,
 				metricRegistry,
+				archivedExecutionGraphStore,
 				fatalErrorHandler,
 				null);
 

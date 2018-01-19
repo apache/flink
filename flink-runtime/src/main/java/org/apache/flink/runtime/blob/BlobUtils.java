@@ -306,7 +306,7 @@ public class BlobUtils {
 	/**
 	 * Adds a shutdown hook to the JVM and returns the Thread, which has been registered.
 	 */
-	static Thread addShutdownHook(final Closeable service, final Logger logger) {
+	public static Thread addShutdownHook(final Closeable service, final Logger logger) {
 		checkNotNull(service);
 		checkNotNull(logger);
 

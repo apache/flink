@@ -242,6 +242,10 @@ Default value is `1 minute`.
 - `restart-strategy.failure-rate.delay`: Delay between restart attempts, used if the default restart strategy is set to "failure-rate".
 Default value is the `akka.ask.timeout`.
 
+- `jobstore.cache-size`: The job store cache size in bytes which is used to keep completed jobs in memory (DEFAULT: `52428800` (`50` MB)).
+
+- `jobstore.expiration-time`: The time in seconds after which a completed job expires and is purged from the job store (DEFAULT: `3600`).
+
 ## Full Reference
 
 ### HDFS

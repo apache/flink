@@ -72,6 +72,7 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -824,7 +825,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		Collection<JobStatus> jobStatuses = Collections.singleton(executionGraph.getState());
 
 		return resourceOverviewFuture.thenApply(
-			(ResourceOverview resourceOverview) -> ClusterOverview.create(resourceOverview, jobStatuses));
+			(ResourceOverview resourceOverview) -> new ClusterOverview(
+				resourceOverview,
+				JobsOverview.create(jobStatuses)));
 	}
 
 	@Override

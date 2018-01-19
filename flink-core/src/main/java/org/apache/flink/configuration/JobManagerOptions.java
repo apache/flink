@@ -96,6 +96,23 @@ public class JobManagerOptions {
 		key("jobmanager.archive.fs.dir")
 			.noDefaultValue();
 
+	/**
+	 * The job store cache size in bytes which is used to keep completed
+	 * jobs in memory.
+	 */
+	public static final ConfigOption<Long> JOB_STORE_CACHE_SIZE =
+		key("jobstore.cache-size")
+		.defaultValue(50L * 1024L * 1024L)
+		.withDescription("The job store cache size in bytes which is used to keep completed jobs in memory.");
+
+	/**
+	 * The time in seconds after which a completed job expires and is purged from the job store.
+	 */
+	public static final ConfigOption<Long> JOB_STORE_EXPIRATION_TIME =
+		key("jobstore.expiration-time")
+		.defaultValue(60L * 60L)
+		.withDescription("The time in seconds after which a completed job expires and is purged from the job store.");
+
 	// ---------------------------------------------------------------------------------------------
 
 	private JobManagerOptions() {
