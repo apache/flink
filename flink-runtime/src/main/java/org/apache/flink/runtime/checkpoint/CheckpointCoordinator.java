@@ -98,7 +98,7 @@ public class CheckpointCoordinator {
 
 	/** The executor used for asynchronous calls, like potentially blocking I/O */
 	private final Executor executor;
-	
+
 	/** Tasks who need to be sent a message when a checkpoint is started */
 	private final ExecutionVertex[] tasksToTrigger;
 
@@ -602,12 +602,9 @@ public class CheckpointCoordinator {
 				}
 				// end of lock scope
 
-				CheckpointOptions checkpointOptions;
-				if (!props.isSavepoint()) {
-					checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
-				} else {
-					checkpointOptions = CheckpointOptions.forSavepoint(checkpointStorageLocation.getLocationAsPointer());
-				}
+				final CheckpointOptions checkpointOptions = new CheckpointOptions(
+						props.getCheckpointType(),
+						checkpointStorageLocation.getLocationReference());
 
 				// send the messages to the tasks that trigger their checkpoint
 				for (Execution execution: executions) {

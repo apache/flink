@@ -26,6 +26,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -33,6 +34,8 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
+
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.junit.Test;
 
 public class EventSerializerTest {
@@ -45,7 +48,10 @@ public class EventSerializerTest {
 		CheckpointOptions checkpoint = CheckpointOptions.forCheckpointWithDefaultLocation();
 		testCheckpointBarrierSerialization(id, timestamp, checkpoint);
 
-		CheckpointOptions savepoint = CheckpointOptions.forSavepoint("1289031838919123");
+		final byte[] reference = new byte[] { 15, 52, 52, 11, 0, 0, 0, 0, -1, -23, -19, 35 };
+
+		CheckpointOptions savepoint = new CheckpointOptions(
+				CheckpointType.SAVEPOINT, new CheckpointStorageLocationReference(reference));
 		testCheckpointBarrierSerialization(id, timestamp, savepoint);
 	}
 
@@ -148,7 +154,7 @@ public class EventSerializerTest {
 	 * @throws IOException
 	 */
 	private boolean checkIsEvent(
-			AbstractEvent event, 
+			AbstractEvent event,
 			Class<? extends AbstractEvent> eventClass) throws IOException {
 
 		final Buffer serializedEvent = EventSerializer.toBuffer(event);

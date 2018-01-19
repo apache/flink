@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
 import javax.annotation.Nullable;
 
@@ -80,6 +81,7 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 		fileSystem.mkdirs(checkpointDir);
 
 		return new FsCheckpointStorageLocation(
-						fileSystem, checkpointDir, sharedStateDirectory, taskOwnedStateDirectory);
+						fileSystem, checkpointDir, sharedStateDirectory, taskOwnedStateDirectory,
+						CheckpointStorageLocationReference.getDefault());
 	}
 }
