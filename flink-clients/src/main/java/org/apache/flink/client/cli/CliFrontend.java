@@ -1072,8 +1072,11 @@ public class CliFrontend {
 			LOG.warn("Could not load CLI class {}.", flinkYarnSessionCLI, e);
 		}
 
-		customCommandLines.add(new Flip6DefaultCLI(configuration));
-		customCommandLines.add(new DefaultCLI(configuration));
+		if (configuration.getString(CoreOptions.MODE).equalsIgnoreCase(CoreOptions.FLIP6_MODE)) {
+			customCommandLines.add(new Flip6DefaultCLI(configuration));
+		} else {
+			customCommandLines.add(new DefaultCLI(configuration));
+		}
 
 		return customCommandLines;
 	}
