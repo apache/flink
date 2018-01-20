@@ -31,7 +31,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * Message headers for the {@link SubtaskExecutionAttemptAccumulatorsHandler}.
  */
-public class SubtaskExecutionAttemptAccumulatorsHeaders implements MessageHeaders<EmptyRequestBody, SubtaskExecutionAttemptDetailsInfo, SubtaskAttemptMessageParameters> {
+public class SubtaskExecutionAttemptAccumulatorsHeaders implements MessageHeaders<EmptyRequestBody, SubtaskExecutionAttemptAccumulatorsInfo, SubtaskAttemptMessageParameters> {
 
 	private static final SubtaskExecutionAttemptAccumulatorsHeaders INSTANCE = new SubtaskExecutionAttemptAccumulatorsHeaders();
 
@@ -58,8 +58,8 @@ public class SubtaskExecutionAttemptAccumulatorsHeaders implements MessageHeader
 	}
 
 	@Override
-	public Class<SubtaskExecutionAttemptDetailsInfo> getResponseClass() {
-		return SubtaskExecutionAttemptDetailsInfo.class;
+	public Class<SubtaskExecutionAttemptAccumulatorsInfo> getResponseClass() {
+		return SubtaskExecutionAttemptAccumulatorsInfo.class;
 	}
 
 	@Override
