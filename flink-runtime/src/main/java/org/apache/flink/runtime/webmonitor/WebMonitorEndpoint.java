@@ -376,7 +376,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			leaderRetriever,
 			timeout,
 			responseHeaders,
-			null,
+			SubtaskExecutionAttemptDetailsHeaders.getInstance(),
 			executionGraphCache,
 			executor,
 			metricFetcher);
@@ -386,7 +386,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			leaderRetriever,
 			timeout,
 			responseHeaders,
-			null,
+			SubtaskExecutionAttemptAccumulatorsHeaders.getInstance(),
 			executionGraphCache,
 			executor
 		);
@@ -396,7 +396,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			leaderRetriever,
 			timeout,
 			responseHeaders,
-			null,
+			SubtaskCurrentAttemptDetailsHeaders.getInstance(),
 			executionGraphCache,
 			executor,
 			metricFetcher
