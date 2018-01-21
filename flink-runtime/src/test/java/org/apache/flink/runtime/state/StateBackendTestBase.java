@@ -1308,7 +1308,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.update(null);
 			assertNull(state.get());
 			// update(emptyList) should remain the value null
-			state.update(Arrays.asList());
+			state.update(Collections.emptyList());
 			assertNull(state.get());
 			state.update(Arrays.asList(10L, 16L));
 			assertThat(state.get(), containsInAnyOrder(16L, 10L));
@@ -1320,7 +1320,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			assertNull(state.get());
 			state.addAll(null);
 			assertNull(state.get());
-			state.addAll(new ArrayList<>());
+			state.addAll(Collections.emptyList());
 			assertNull(state.get());
 			state.addAll(Arrays.asList(3L, 4L));
 			assertThat(state.get(), containsInAnyOrder(3L, 4L));
