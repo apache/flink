@@ -19,6 +19,8 @@ package org.apache.flink.streaming.runtime.streamrecord;
 
 import org.apache.flink.annotation.Internal;
 
+import java.util.Objects;
+
 /**
  * One value in a data stream. This stores the value and an optional associated timestamp.
  *
@@ -168,15 +170,13 @@ public final class StreamRecord<T> extends StreamElement {
 		if (this == o) {
 			return true;
 		}
-		else if (o != null && getClass() == o.getClass()) {
-			StreamRecord<?> that = (StreamRecord<?>) o;
-			return this.hasTimestamp == that.hasTimestamp &&
-					(!this.hasTimestamp || this.timestamp == that.timestamp) &&
-					(this.value == null ? that.value == null : this.value.equals(that.value));
-		}
-		else {
+		if (!(o instanceof StreamRecord)) {
 			return false;
 		}
+		StreamRecord<?> that = (StreamRecord<?>) o;
+		return hasTimestamp == that.hasTimestamp &&
+			(!hasTimestamp || timestamp == that.timestamp) &&
+			Objects.equals(value, that.value);
 	}
 
 	@Override
