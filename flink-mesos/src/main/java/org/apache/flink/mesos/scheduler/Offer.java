@@ -54,6 +54,11 @@ public class Offer implements VirtualMachineLease {
 	private final Map<String, Double> aggregatedScalarResourceMap;
 	private final Map<String, Protos.Attribute> attributeMap;
 
+	private final double cpuCores;
+	private final double memoryMB;
+	private final double networkMbps;
+	private final double diskMB;
+
 	private final List<Range> portRanges;
 
 	public Offer(Protos.Offer offer) {
@@ -63,13 +68,22 @@ public class Offer implements VirtualMachineLease {
 		this.offeredTime = System.currentTimeMillis();
 
 		List<Protos.Resource> resources = new ArrayList<>(offer.getResourcesList().size());
-		Map<String, Double> scalarResourceMap = new HashMap<>();
+		Map<String, Double> aggregatedScalarResourceMap = new HashMap<String, Double>() {
+			@Override
+			public Double remove(Object key) {
+				if (super.containsKey(key)) {
+					return super.remove(key);
+				} else {
+					return 0.0;
+				}
+			}
+		};
 		Map<String, List<Protos.Resource>> rangesResourceMap = new HashMap<>();
 		for (Protos.Resource resource : offer.getResourcesList()) {
 			switch (resource.getType()) {
 				case SCALAR:
 					resources.add(resource);
-					scalarResourceMap.merge(resource.getName(), resource.getScalar().getValue(), Double::sum);
+					aggregatedScalarResourceMap.merge(resource.getName(), resource.getScalar().getValue(), Double::sum);
 					break;
 				case RANGES:
 					resources.add(resource);
@@ -81,7 +95,12 @@ public class Offer implements VirtualMachineLease {
 			}
 		}
 		this.resources = Collections.unmodifiableList(resources);
-		this.aggregatedScalarResourceMap = Collections.unmodifiableMap(scalarResourceMap);
+
+		this.cpuCores = aggregatedScalarResourceMap.remove("cpus");
+		this.memoryMB = aggregatedScalarResourceMap.remove("mem");
+		this.networkMbps = aggregatedScalarResourceMap.remove("network");
+		this.diskMB = aggregatedScalarResourceMap.remove("disk");
+		this.aggregatedScalarResourceMap = Collections.unmodifiableMap(aggregatedScalarResourceMap);
 		this.portRanges = Collections.unmodifiableList(aggregateRangesResource(rangesResourceMap, "ports"));
 
 		if (offer.getAttributesCount() > 0) {
@@ -111,7 +130,7 @@ public class Offer implements VirtualMachineLease {
 
 	@Override
 	public double cpuCores() {
-		return aggregatedScalarResourceMap.getOrDefault("cpus", 0.0);
+		return cpuCores;
 	}
 
 	public double gpus() {
@@ -120,17 +139,17 @@ public class Offer implements VirtualMachineLease {
 
 	@Override
 	public double memoryMB() {
-		return aggregatedScalarResourceMap.getOrDefault("mem", 0.0);
+		return memoryMB;
 	}
 
 	@Override
 	public double networkMbps() {
-		return aggregatedScalarResourceMap.getOrDefault("network", 0.0);
+		return networkMbps;
 	}
 
 	@Override
 	public double diskMB() {
-		return aggregatedScalarResourceMap.getOrDefault("disk", 0.0);
+		return diskMB;
 	}
 
 	public Protos.Offer getOffer(){
