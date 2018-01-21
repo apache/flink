@@ -53,4 +53,8 @@ trait DataStreamRel extends FlinkRelNode {
     */
   def consumesRetractions: Boolean = false
 
+  /**
+    * Whether the [[DataStreamRel]] produces retraction messages.
+    */
+  def producesRetractions: Boolean = false
 }
