@@ -24,6 +24,8 @@ import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -36,6 +38,7 @@ import org.rocksdb.WriteOptions;
 import sun.misc.Unsafe;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -51,37 +54,43 @@ public class RocksDBPerformanceTest extends TestLogger {
 	@Rule
 	public final RetryRule retry = new RetryRule();
 
-	@Test(timeout = 2000)
-	@RetryOnFailure(times = 3)
-	public void testRocksDbMergePerformance() throws Exception {
-		final File rocksDir = tmp.newFolder();
+	private File rocksDir;
+	private Options options;
+	private WriteOptions writeOptions;
+
+	private final String key = "key";
+	private final String value = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ7890654321";
+
+	private final byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
+	private final byte[] valueBytes = value.getBytes(StandardCharsets.UTF_8);
+
+	@Before
+	public void init() throws IOException {
+		rocksDir = tmp.newFolder();
 
 		// ensure the RocksDB library is loaded to a distinct location each retry
 		NativeLibraryLoader.getInstance().loadLibrary(rocksDir.getAbsolutePath());
 
-		final String key = "key";
-		final String value = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ7890654321";
+		options = new Options()
+				.setCompactionStyle(CompactionStyle.LEVEL)
+				.setLevelCompactionDynamicLevelBytes(true)
+				.setIncreaseParallelism(4)
+				.setUseFsync(false)
+				.setMaxOpenFiles(-1)
+				.setCreateIfMissing(true)
+				.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
 
-		final byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
-		final byte[] valueBytes = value.getBytes(StandardCharsets.UTF_8);
+		writeOptions = new WriteOptions()
+				.setSync(false)
+				.setDisableWAL(true);
+	}
 
+	@Test(timeout = 2000)
+	@RetryOnFailure(times = 3)
+	public void testRocksDbMergePerformance() throws Exception {
 		final int num = 50000;
 
-		try (
-			final Options options = new Options()
-					.setCompactionStyle(CompactionStyle.LEVEL)
-					.setLevelCompactionDynamicLevelBytes(true)
-					.setIncreaseParallelism(4)
-					.setUseFsync(false)
-					.setMaxOpenFiles(-1)
-					.setCreateIfMissing(true)
-					.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
-
-			final WriteOptions writeOptions = new WriteOptions()
-					.setSync(false)
-					.setDisableWAL(true);
-
-			final RocksDB rocksDB = RocksDB.open(options, rocksDir.getAbsolutePath())) {
+		try (RocksDB rocksDB = RocksDB.open(options, rocksDir.getAbsolutePath())) {
 
 			// ----- insert -----
 			log.info("begin insert");
@@ -131,34 +140,9 @@ public class RocksDBPerformanceTest extends TestLogger {
 	@Test(timeout = 2000)
 	@RetryOnFailure(times = 3)
 	public void testRocksDbRangeGetPerformance() throws Exception {
-		final File rocksDir = tmp.newFolder();
-
-		// ensure the RocksDB library is loaded to a distinct location each retry
-		NativeLibraryLoader.getInstance().loadLibrary(rocksDir.getAbsolutePath());
-
-		final String key = "key";
-		final String value = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ7890654321";
-
-		final byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
-		final byte[] valueBytes = value.getBytes(StandardCharsets.UTF_8);
-
 		final int num = 50000;
 
-		try (
-			final Options options = new Options()
-					.setCompactionStyle(CompactionStyle.LEVEL)
-					.setLevelCompactionDynamicLevelBytes(true)
-					.setIncreaseParallelism(4)
-					.setUseFsync(false)
-					.setMaxOpenFiles(-1)
-					.setCreateIfMissing(true)
-					.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
-
-			final WriteOptions writeOptions = new WriteOptions()
-					.setSync(false)
-					.setDisableWAL(true);
-
-			final RocksDB rocksDB = RocksDB.open(options, rocksDir.getAbsolutePath())) {
+		try (RocksDB rocksDB = RocksDB.open(options, rocksDir.getAbsolutePath())) {
 
 			final byte[] keyTemplate = Arrays.copyOf(keyBytes, keyBytes.length + 4);
 
@@ -210,5 +194,11 @@ public class RocksDBPerformanceTest extends TestLogger {
 		}
 
 		return true;
+	}
+
+	@After
+	public void close() {
+		options.close();
+		writeOptions.close();
 	}
 }
