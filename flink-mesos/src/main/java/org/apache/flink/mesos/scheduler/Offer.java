@@ -63,13 +63,13 @@ public class Offer implements VirtualMachineLease {
 		this.offeredTime = System.currentTimeMillis();
 
 		List<Protos.Resource> resources = new ArrayList<>(offer.getResourcesList().size());
-		Map<String, List<Protos.Resource>> scalarResourceMap = new HashMap<>();
+		Map<String, Double> scalarResourceMap = new HashMap<>();
 		Map<String, List<Protos.Resource>> rangesResourceMap = new HashMap<>();
 		for (Protos.Resource resource : offer.getResourcesList()) {
 			switch (resource.getType()) {
 				case SCALAR:
 					resources.add(resource);
-					scalarResourceMap.computeIfAbsent(resource.getName(), k -> new ArrayList<>(2)).add(resource);
+					scalarResourceMap.merge(resource.getName(), resource.getScalar().getValue(), Double::sum);
 					break;
 				case RANGES:
 					resources.add(resource);
@@ -81,14 +81,7 @@ public class Offer implements VirtualMachineLease {
 			}
 		}
 		this.resources = Collections.unmodifiableList(resources);
-
-		Map<String, Double> aggregatedScalarResourceMap = scalarResourceMap.entrySet()
-			.stream()
-			.collect(Collectors.toMap(
-				e -> e.getKey(),
-				e -> e.getValue().stream().mapToDouble(r -> r.getScalar().getValue()).sum()
-			));
-		this.aggregatedScalarResourceMap = Collections.unmodifiableMap(aggregatedScalarResourceMap);
+		this.aggregatedScalarResourceMap = Collections.unmodifiableMap(scalarResourceMap);
 		this.portRanges = Collections.unmodifiableList(aggregateRangesResource(rangesResourceMap, "ports"));
 
 		if (offer.getAttributesCount() > 0) {
