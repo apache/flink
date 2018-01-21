@@ -140,14 +140,9 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 		MesosTaskManagerParameters.create(withGPUConfiguration(-1.0));
 	}
 
-	@Test(expected = IllegalConfigurationException.class)
-	public void testNotWholeNumberOfGPUs() throws Exception {
-		MesosTaskManagerParameters.create(withGPUConfiguration(1.5));
-	}
-
 	@Test
 	public void testWholeNumberOfGPUs() {
-		MesosTaskManagerParameters params = MesosTaskManagerParameters.create(withGPUConfiguration(1.0));
+		MesosTaskManagerParameters params = MesosTaskManagerParameters.create(withGPUConfiguration(1.1));
 		assertEquals(Double.doubleToLongBits(1.0), Double.doubleToLongBits(params.gpus()));
 	}
 

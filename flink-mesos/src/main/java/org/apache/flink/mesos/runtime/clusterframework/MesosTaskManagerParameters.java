@@ -254,14 +254,10 @@ public class MesosTaskManagerParameters {
 			cpus = Math.max(containeredParameters.numSlots(), 1.0);
 		}
 
-		double gpus = flinkConfig.getDouble(MESOS_RM_TASKS_GPUS, 0.0);
+		double gpus = Math.floor(flinkConfig.getDouble(MESOS_RM_TASKS_GPUS, 0.0));
 		if (gpus < 0) {
 			throw new IllegalConfigurationException(MESOS_RM_TASKS_GPUS.key() +
 				" cannot be negative");
-		}
-		if (gpus % 1 != 0) {
-			throw new IllegalConfigurationException(MESOS_RM_TASKS_GPUS.key() +
-				" must be whole numbers");
 		}
 
 		// parse the containerization parameters
