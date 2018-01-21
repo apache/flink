@@ -30,7 +30,7 @@ import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.CRowKeySelector
-import org.apache.flink.table.runtime.join.NonWindowInnerJoin
+import org.apache.flink.table.runtime.join.{NonWindowInnerJoin, NonWindowLeftRightJoin, NonWindowLeftRightJoinWithNonEquiPredicates}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
 
@@ -59,6 +59,9 @@ class DataStreamJoin(
   override def deriveRowType(): RelDataType = schema.relDataType
 
   override def needsUpdatesAsRetraction: Boolean = true
+
+  // outer join will generate retractions
+  override def producesRetractions: Boolean = joinType != JoinRelType.INNER
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamJoin(
@@ -137,10 +140,10 @@ class DataStreamJoin(
       right.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
 
     val (connectOperator, nullCheck) = joinType match {
-      case JoinRelType.INNER => (leftDataStream.connect(rightDataStream), false)
+      case JoinRelType.INNER | JoinRelType.LEFT => (leftDataStream.connect(rightDataStream), false)
       case _ =>
         throw TableException(s"Unsupported join type '$joinType'. Currently only " +
-          s"non-window inner joins with at least one equality predicate are supported")
+          s"non-window inner/left joins with at least one equality predicate are supported")
     }
 
     val generator = new FunctionCodeGenerator(
@@ -176,14 +179,34 @@ class DataStreamJoin(
       body,
       returnType)
 
-    val coMapFun =
-      new NonWindowInnerJoin(
-        leftSchema.typeInfo,
-        rightSchema.typeInfo,
-        CRowTypeInfo(returnType),
-        genFunction.name,
-        genFunction.code,
-        queryConfig)
+    val coMapFun = joinType match {
+      case JoinRelType.INNER =>
+        new NonWindowInnerJoin(
+          leftSchema.typeInfo,
+          rightSchema.typeInfo,
+          CRowTypeInfo(returnType),
+          genFunction.name,
+          genFunction.code,
+          queryConfig)
+      case JoinRelType.LEFT if joinInfo.isEqui =>
+        new NonWindowLeftRightJoin(
+          leftSchema.typeInfo,
+          rightSchema.typeInfo,
+          CRowTypeInfo(returnType),
+          genFunction.name,
+          genFunction.code,
+          joinType == JoinRelType.LEFT,
+          queryConfig)
+      case JoinRelType.LEFT =>
+        new NonWindowLeftRightJoinWithNonEquiPredicates(
+          leftSchema.typeInfo,
+          rightSchema.typeInfo,
+          CRowTypeInfo(returnType),
+          genFunction.name,
+          genFunction.code,
+          joinType == JoinRelType.LEFT,
+          queryConfig)
+    }
 
     val joinOpName = joinToString(getRowType, joinCondition, joinType, getExpressionString)
     connectOperator

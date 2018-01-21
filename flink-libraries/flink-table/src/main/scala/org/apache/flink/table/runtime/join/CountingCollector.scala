@@ -16,35 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime
+package org.apache.flink.table.runtime.join
 
-import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 /**
-  * The collector to wrap a [[Row]] into a [[CRow]] and collect it multiple times.
+  * This collector is used to count how many rows have been collected. It will not collect data
+  * actually.
   */
-class CRowWrappingMultiOutputCollector() extends Collector[Row] {
+class CountingCollector extends Collector[Row] {
+  // count how many records may be emitted
+  private var emitCnt: Long = 0L
 
-  private var out: Collector[CRow] = _
-  private val outCRow: CRow = new CRow()
-  private var times: Long = 0L
+  override def collect(record: Row): Unit = emitCnt += 1
 
-  def setCollector(collector: Collector[CRow]): Unit = this.out = collector
+  def reset(): Unit = emitCnt = 0
 
-  def setChange(change: Boolean): Unit = this.outCRow.change = change
+  def getEmitCnt: Long = emitCnt
 
-  def setTimes(times: Long): Unit = this.times = times
-
-  override def collect(record: Row): Unit = {
-    outCRow.row = record
-    var i: Long = 0L
-    while (i < times) {
-      out.collect(outCRow)
-      i += 1
-    }
-  }
-
-  override def close(): Unit = out.close()
+  override def close(): Unit = {}
 }

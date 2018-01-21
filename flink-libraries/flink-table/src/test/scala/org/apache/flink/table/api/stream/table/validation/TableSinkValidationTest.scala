@@ -62,4 +62,20 @@ class TableSinkValidationTest extends TableTestBase {
     // must fail because table is updating table without full key
     env.execute()
   }
+
+  @Test(expected = classOf[TableException])
+  def testAppendSinkOnLeftJoin(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+
+    ds1.leftOuterJoin(ds2, 'a === 'd && 'b === 'h)
+      .select('c, 'g)
+      .writeToSink(new TestAppendSink)
+
+    // must fail because table is not append-only
+    env.execute()
+  }
 }
