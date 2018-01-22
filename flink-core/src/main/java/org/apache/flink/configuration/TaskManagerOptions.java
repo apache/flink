@@ -39,14 +39,16 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY =
 			key("taskmanager.heap.mb")
-			.defaultValue(1024);
+			.defaultValue(1024)
+			.withDescription("JVM heap size (in megabytes) for the TaskManagers.");
 
 	/**
 	 * Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.
 	 */
 	public static final ConfigOption<Boolean> KILL_ON_OUT_OF_MEMORY =
 			key("taskmanager.jvm-exit-on-oom")
-			.defaultValue(false);
+			.defaultValue(false)
+			.withDescription("Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.");
 
 	/**
 	 * Whether the quarantine monitor for task managers shall be started. The quarantine monitor
@@ -55,7 +57,18 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Boolean> EXIT_ON_FATAL_AKKA_ERROR =
 			key("taskmanager.exit-on-fatal-akka-error")
-			.defaultValue(false);
+			.defaultValue(false)
+			.withDescription("Whether the quarantine monitor for task managers shall be started. The quarantine monitor" +
+				" shuts down the actor system if it detects that it has quarantined another actor system" +
+				" or if it has been quarantined by another actor system.");
+
+	/**
+	 * The config parameter defining the task manager's hostname.
+	 */
+	public static final ConfigOption<String> HOST =
+		key("taskmanager.host")
+			.noDefaultValue()
+			.withDescription("The config parameter defining the task manager's hostname.");
 
 	/**
 	 * The default network port range the task manager expects incoming IPC connections. The {@code "0"} means that
@@ -63,7 +76,63 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<String> RPC_PORT =
 		key("taskmanager.rpc.port")
-			.defaultValue("0");
+			.defaultValue("0")
+			.withDescription(" The task manager’s IPC port. Accepts a list of ports (“50100,50101”), ranges" +
+				" (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid" +
+				" collisions when multiple TaskManagers are running on the same machine.");
+
+	/**
+	 * The default network port the task manager expects to receive transfer envelopes on. The {@code 0} means that
+	 * the TaskManager searches for a free port.
+	 */
+	public static final ConfigOption<Integer> DATA_PORT =
+		key("taskmanager.data.port")
+			.defaultValue(0)
+			.withDescription("The task manager’s port used for data exchange operations.");
+
+	/**
+	 * Config parameter to override SSL support for taskmanager's data transport.
+	 */
+	public static final ConfigOption<Boolean> DATA_SSL_ENABLED =
+		key("taskmanager.data.ssl.enabled")
+			.defaultValue(true)
+			.withDescription("Config parameter to override SSL support for taskmanager's data transport.");
+
+	/**
+	 * The initial registration pause between two consecutive registration attempts. The pause
+	 * is doubled for each new registration attempt until it reaches the maximum registration pause.
+	 */
+	public static final ConfigOption<String> INITIAL_REGISTRATION_PAUSE =
+		key("taskmanager.initial-registration-pause")
+			.defaultValue("500 ms")
+			.withDescription("The initial registration pause between two consecutive registration attempts. The pause" +
+				" is doubled for each new registration attempt until it reaches the maximum registration pause.");
+
+	/**
+	 * The pause after a registration has been refused by the job manager before retrying to connect.
+	 */
+	public static final ConfigOption<String> REFUSED_REGISTRATION_PAUSE =
+		key("taskmanager.refused-registration-pause")
+			.defaultValue("10 s")
+			.withDescription("The pause after a registration has been refused by the job manager before retrying to connect.");
+
+	/**
+	 * Defines the maximum time it can take for the TaskManager registration. If the duration is
+	 * exceeded without a successful registration, then the TaskManager terminates.
+	 */
+	public static final ConfigOption<String> MAX_REGISTRATION_DURATION =
+		key("taskmanager.maxRegistrationDuration")
+			.defaultValue("Inf")
+			.withDescription("Defines the maximum time it can take for the TaskManager registration. If the duration is" +
+				" exceeded without a successful registration, then the TaskManager terminates.");
+
+	/**
+	 * The config parameter defining the number of task slots of a task manager.
+	 */
+	public static final ConfigOption<Integer> NUM_TASK_SLOTS =
+		key("taskmanager.numberOfTaskSlots")
+			.defaultValue(1)
+			.withDescription("The config parameter defining the number of task slots of a task manager.");
 
 	// ------------------------------------------------------------------------
 	//  Managed Memory Options
@@ -74,7 +143,8 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Integer> MEMORY_SEGMENT_SIZE =
 			key("taskmanager.memory.segment-size")
-			.defaultValue(32768);
+			.defaultValue(32768)
+			.withDescription("Size of memory buffers used by the network stack and the memory manager (in bytes).");
 
 	/**
 	 * Amount of memory to be allocated by the task manager's memory manager (in megabytes). If not
@@ -82,7 +152,9 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Long> MANAGED_MEMORY_SIZE =
 			key("taskmanager.memory.size")
-			.defaultValue(-1L);
+			.defaultValue(-1L)
+			.withDescription("Amount of memory to be allocated by the task manager's memory manager (in megabytes)." +
+				" If not set, a relative fraction will be allocated.");
 
 	/**
 	 * Fraction of free memory allocated by the memory manager if {@link #MANAGED_MEMORY_SIZE} is
@@ -128,21 +200,24 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Float> NETWORK_BUFFERS_MEMORY_FRACTION =
 			key("taskmanager.network.memory.fraction")
-			.defaultValue(0.1f);
+			.defaultValue(0.1f)
+			.withDescription("Fraction of JVM memory to use for network buffers.");
 
 	/**
 	 * Minimum memory size for network buffers (in bytes).
 	 */
 	public static final ConfigOption<Long> NETWORK_BUFFERS_MEMORY_MIN =
 			key("taskmanager.network.memory.min")
-			.defaultValue(64L << 20); // 64 MB
+			.defaultValue(64L << 20) // 64 MB
+			.withDescription("Minimum memory size for network buffers (in bytes).");
 
 	/**
 	 * Maximum memory size for network buffers (in bytes).
 	 */
 	public static final ConfigOption<Long> NETWORK_BUFFERS_MEMORY_MAX =
 			key("taskmanager.network.memory.max")
-			.defaultValue(1024L << 20); // 1 GB
+			.defaultValue(1024L << 20) // 1 GB
+			.withDescription("Maximum memory size for network buffers (in bytes).");
 
 	/**
 	 * Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel).
@@ -151,14 +226,16 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
 			key("taskmanager.network.memory.buffers-per-channel")
-			.defaultValue(2);
+			.defaultValue(2)
+			.withDescription("Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel).");
 
 	/**
 	 * Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate).
 	 */
 	public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
 			key("taskmanager.network.memory.floating-buffers-per-gate")
-			.defaultValue(8);
+			.defaultValue(8)
+			.withDescription("Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate).");
 
 	/**
 	 * Minimum backoff for partition requests of input channels.
@@ -166,7 +243,8 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_INITIAL =
 			key("taskmanager.network.request-backoff.initial")
 			.defaultValue(100)
-			.withDeprecatedKeys("taskmanager.net.request-backoff.initial");
+			.withDeprecatedKeys("taskmanager.net.request-backoff.initial")
+			.withDescription("Minimum backoff for partition requests of input channels.");
 
 	/**
 	 * Maximum backoff for partition requests of input channels.
@@ -174,7 +252,8 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_MAX =
 			key("taskmanager.network.request-backoff.max")
 			.defaultValue(10000)
-			.withDeprecatedKeys("taskmanager.net.request-backoff.max");
+			.withDeprecatedKeys("taskmanager.net.request-backoff.max")
+			.withDescription("Maximum backoff for partition requests of input channels.");
 
 	/**
 	 * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue
@@ -182,7 +261,8 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Boolean> NETWORK_DETAILED_METRICS =
 			key("taskmanager.network.detailed-metrics")
-			.defaultValue(false);
+			.defaultValue(false)
+			.withDescription("Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.");
 
 	// ------------------------------------------------------------------------
 	//  Task Options
