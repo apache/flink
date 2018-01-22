@@ -83,7 +83,7 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 					});
 
 					if (list == null) {
-						LOG.warn("Jar storage directory {} has been deleted.", jarDir.getAbsolutePath());
+						LOG.warn("Jar storage directory {} has been deleted externally. Previously uploaded jars are no longer available.", jarDir.getAbsolutePath());
 						list = new File[0];
 					}
 
@@ -155,7 +155,6 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 					return writer.toString();
 				}
 				catch (Exception e) {
-					LOG.warn("Failed to fetch jar list.", e);
 					throw new CompletionException(new FlinkException("Failed to fetch jar list.", e));
 				}
 			},
