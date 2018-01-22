@@ -507,9 +507,7 @@ You have to configure `jobmanager.archive.fs.dir` in order to archive terminated
 
 The configuration keys in this section are relevant for the SlotManager running in the Flip-6 ResourceManager
 
-- `slotmanager.request-timeout`: Timeout after which a slot request will be discarded by the SlotManager. The value is specified in milli seconds (DEFAULT: `300000`).
-
-- `slotmanager.taskmanager-timeout`: Timeout after which an idling task manager's container is released (DEFAULT: `30000`).
+{% include generated/slot_manager_configuration.html %}
 
 ## Background
 
