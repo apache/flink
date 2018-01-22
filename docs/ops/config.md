@@ -350,16 +350,7 @@ These parameters allow for advanced tuning. The default values are sufficient wh
 
 ### File Systems
 
-The parameters define the behavior of tasks that create result files.
-
-- `fs.default-scheme`: The default filesystem scheme to be used, with the necessary authority to contact, e.g. the host:port of the NameNode in the case of HDFS (if needed).
-By default, this is set to `file:///` which points to the local filesystem. This means that the local
-filesystem is going to be used to search for user-specified files **without** an explicit scheme
-definition. This scheme is used **ONLY** if no other scheme is specified (explicitly) in the user-provided `URI`.
-
-- `fs.overwrite-files`: Specifies whether file output writers should overwrite existing files by default. Set to *true* to overwrite by default, *false* otherwise. (DEFAULT: false)
-
-- `fs.output.always-create-directory`: File writers running with a parallelism larger than one create a directory for the output file path and put the different result files (one per parallel writer task) into that directory. If this option is set to *true*, writers with a parallelism of 1 will also create a directory and place a single result file into it. If the option is set to *false*, the writer will directly create the file directly at the output path, without creating a containing directory. (DEFAULT: false)
+{% include generated/file_system_configuration.html %}
 
 ### Compiler/Optimizer
 

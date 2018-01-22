@@ -643,12 +643,18 @@ public final class ConfigConstants {
 
 	/**
 	 * Key to specify whether the file systems should simply overwrite existing files.
+	 *
+	 * @deprecated Use {@link CoreOptions#FILESYTEM_DEFAULT_OVERRIDE} instead.
 	 */
+	@Deprecated
 	public static final String FILESYSTEM_DEFAULT_OVERWRITE_KEY = "fs.overwrite-files";
 
 	/**
 	 * Key to specify whether the file systems should always create a directory for the output, even with a parallelism of one.
+	 *
+	 * @deprecated Use {@link CoreOptions#FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY} instead.
 	 */
+	@Deprecated
 	public static final String FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY = "fs.output.always-create-directory";
 
 	// ---------------------------- Compiler -------------------------------
@@ -1555,7 +1561,10 @@ public final class ConfigConstants {
 
 	/**
 	 * The default behavior for output directory creating (create only directory when parallelism &gt; 1).
+	 *
+	 * @deprecated Use {@link CoreOptions#FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY} instead.
 	 */
+	@Deprecated
 	public static final boolean DEFAULT_FILESYSTEM_ALWAYS_CREATE_DIRECTORY = false;
 
 
