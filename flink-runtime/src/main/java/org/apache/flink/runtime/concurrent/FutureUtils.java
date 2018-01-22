@@ -459,13 +459,15 @@ public class FutureUtils {
 	 * @return The timeout enriched future
 	 */
 	public static <T> CompletableFuture<T> orTimeout(CompletableFuture<T> future, long timeout, TimeUnit timeUnit) {
-		final ScheduledFuture<?> timeoutFuture = Delayer.delay(new Timeout(future), timeout, timeUnit);
+		if (!future.isDone()) {
+			final ScheduledFuture<?> timeoutFuture = Delayer.delay(new Timeout(future), timeout, timeUnit);
 
-		future.whenComplete((T value, Throwable throwable) -> {
-			if (!timeoutFuture.isDone()) {
-				timeoutFuture.cancel(false);
-			}
-		});
+			future.whenComplete((T value, Throwable throwable) -> {
+				if (!timeoutFuture.isDone()) {
+					timeoutFuture.cancel(false);
+				}
+			});
+		}
 
 		return future;
 	}
