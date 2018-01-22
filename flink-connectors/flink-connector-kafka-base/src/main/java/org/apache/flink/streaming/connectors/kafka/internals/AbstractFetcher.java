@@ -62,9 +62,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public abstract class AbstractFetcher<T, KPH> {
 
-	protected static final int NO_TIMESTAMPS_WATERMARKS = 0;
-	protected static final int PERIODIC_WATERMARKS = 1;
-	protected static final int PUNCTUATED_WATERMARKS = 2;
+	private static final int NO_TIMESTAMPS_WATERMARKS = 0;
+	private static final int PERIODIC_WATERMARKS = 1;
+	private static final int PUNCTUATED_WATERMARKS = 2;
 
 	// ------------------------------------------------------------------------
 
@@ -73,7 +73,7 @@ public abstract class AbstractFetcher<T, KPH> {
 
 	/** The lock that guarantees that record emission and state updates are atomic,
 	 * from the view of taking a checkpoint. */
-	protected final Object checkpointLock;
+	private final Object checkpointLock;
 
 	/** All partitions (and their state) that this fetcher is subscribed to. */
 	private final List<KafkaTopicPartitionState<KPH>> subscribedPartitionStates;
@@ -90,7 +90,7 @@ public abstract class AbstractFetcher<T, KPH> {
 	protected final ClosableBlockingQueue<KafkaTopicPartitionState<KPH>> unassignedPartitionsQueue;
 
 	/** The mode describing whether the fetcher also generates timestamps and watermarks. */
-	protected final int timestampWatermarkMode;
+	private final int timestampWatermarkMode;
 
 	/**
 	 * Optional timestamp extractor / watermark generator that will be run per Kafka partition,
@@ -413,7 +413,7 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * Record emission, if a timestamp will be attached from an assigner that is
 	 * also a periodic watermark generator.
 	 */
-	protected void emitRecordWithTimestampAndPeriodicWatermark(
+	private void emitRecordWithTimestampAndPeriodicWatermark(
 			T record, KafkaTopicPartitionState<KPH> partitionState, long offset, long kafkaEventTimestamp) {
 		@SuppressWarnings("unchecked")
 		final KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH> withWatermarksState =
@@ -440,7 +440,7 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * Record emission, if a timestamp will be attached from an assigner that is
 	 * also a punctuated watermark generator.
 	 */
-	protected void emitRecordWithTimestampAndPunctuatedWatermark(
+	private void emitRecordWithTimestampAndPunctuatedWatermark(
 			T record, KafkaTopicPartitionState<KPH> partitionState, long offset, long kafkaEventTimestamp) {
 		@SuppressWarnings("unchecked")
 		final KafkaTopicPartitionStateWithPunctuatedWatermarks<T, KPH> withWatermarksState =
@@ -646,7 +646,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		private final KafkaTopicPartitionState<?> ktp;
 		private final OffsetGaugeType gaugeType;
 
-		public OffsetGauge(KafkaTopicPartitionState<?> ktp, OffsetGaugeType gaugeType) {
+		OffsetGauge(KafkaTopicPartitionState<?> ktp, OffsetGaugeType gaugeType) {
 			this.ktp = ktp;
 			this.gaugeType = gaugeType;
 		}
