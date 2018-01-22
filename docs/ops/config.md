@@ -247,7 +247,7 @@ Default value is the `akka.ask.timeout`.
 ### HDFS
 
 <div class="alert alert-warning">
-  <strong>Note:</strong> These keys are deprecated and it is recommended to configure the Hadoop path with the environment variable *HADOOP_CONF_DIR* instead.
+  <strong>Note:</strong> These keys are deprecated and it is recommended to configure the Hadoop path with the environment variable <code>HADOOP_CONF_DIR</code> instead.
 </div>
 
 These parameters configure the default HDFS used by Flink. Setups that do not specify a HDFS configuration have to specify the full path to HDFS files (`hdfs://address:port/path/to/files`) Files will also be written with default HDFS parameters (block size, replication factor).
