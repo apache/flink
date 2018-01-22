@@ -19,18 +19,19 @@
 package org.apache.flink.queryablestate.exceptions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.FlinkException;
 
 /**
  * Exception to fail Future if the Task Manager on which the
- * {@code Client Proxy} is running on, does not know the active
- * Job Manager.
+ * {@code Client Proxy} is running on, does not know the location
+ * of a requested state.
  */
 @Internal
-public class UnknownJobManagerException extends Exception {
+public class UnknownLocationException extends FlinkException {
 
 	private static final long serialVersionUID = 9092442511708951209L;
 
-	public UnknownJobManagerException() {
-		super("Unknown JobManager. Either the JobManager has not registered yet or has lost leadership.");
+	public UnknownLocationException(String msg) {
+		super(msg);
 	}
 }
