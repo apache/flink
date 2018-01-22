@@ -616,56 +616,86 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	@Override
-	public CompletableFuture<KvStateLocation> lookupKvStateLocation(final String registrationName) {
-		if (log.isDebugEnabled()) {
-			log.debug("Lookup key-value state for job {} with registration " +
+	public CompletableFuture<KvStateLocation> requestKvStateLocation(final JobID jobId, final String registrationName) {
+		// sanity check for the correct JobID
+		if (jobGraph.getJobID().equals(jobId)) {
+			if (log.isDebugEnabled()) {
+				log.debug("Lookup key-value state for job {} with registration " +
 					"name {}.", jobGraph.getJobID(), registrationName);
-		}
+			}
 
-		final KvStateLocationRegistry registry = executionGraph.getKvStateLocationRegistry();
-		final KvStateLocation location = registry.getKvStateLocation(registrationName);
-		if (location != null) {
-			return CompletableFuture.completedFuture(location);
+			final KvStateLocationRegistry registry = executionGraph.getKvStateLocationRegistry();
+			final KvStateLocation location = registry.getKvStateLocation(registrationName);
+			if (location != null) {
+				return CompletableFuture.completedFuture(location);
+			} else {
+				return FutureUtils.completedExceptionally(new UnknownKvStateLocation(registrationName));
+			}
 		} else {
-			return FutureUtils.completedExceptionally(new UnknownKvStateLocation(registrationName));
+			if (log.isDebugEnabled()) {
+				log.debug("Request of key-value state location for unknown job {} received.", jobId);
+			}
+			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
 		}
 	}
 
 	@Override
-	public void notifyKvStateRegistered(
+	public CompletableFuture<Acknowledge> notifyKvStateRegistered(
+			final JobID jobId,
 			final JobVertexID jobVertexId,
 			final KeyGroupRange keyGroupRange,
 			final String registrationName,
 			final KvStateID kvStateId,
 			final InetSocketAddress kvStateServerAddress) {
-		if (log.isDebugEnabled()) {
-			log.debug("Key value state registered for job {} under name {}.",
+		if (jobGraph.getJobID().equals(jobId)) {
+			if (log.isDebugEnabled()) {
+				log.debug("Key value state registered for job {} under name {}.",
 					jobGraph.getJobID(), registrationName);
-		}
+			}
 
-		try {
-			executionGraph.getKvStateLocationRegistry().notifyKvStateRegistered(
+			try {
+				executionGraph.getKvStateLocationRegistry().notifyKvStateRegistered(
 					jobVertexId, keyGroupRange, registrationName, kvStateId, kvStateServerAddress);
-		} catch (Exception e) {
-			log.error("Failed to notify KvStateRegistry about registration {}.", registrationName);
+
+				return CompletableFuture.completedFuture(Acknowledge.get());
+			} catch (Exception e) {
+				log.error("Failed to notify KvStateRegistry about registration {}.", registrationName);
+				return FutureUtils.completedExceptionally(e);
+			}
+		} else {
+			if (log.isDebugEnabled()) {
+				log.debug("Notification about key-value state registration for unknown job {} received.", jobId);
+			}
+			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
 		}
 	}
 
 	@Override
-	public void notifyKvStateUnregistered(
+	public CompletableFuture<Acknowledge> notifyKvStateUnregistered(
+			JobID jobId,
 			JobVertexID jobVertexId,
 			KeyGroupRange keyGroupRange,
 			String registrationName) {
-		if (log.isDebugEnabled()) {
-			log.debug("Key value state unregistered for job {} under name {}.",
+		if (jobGraph.getJobID().equals(jobId)) {
+			if (log.isDebugEnabled()) {
+				log.debug("Key value state unregistered for job {} under name {}.",
 					jobGraph.getJobID(), registrationName);
-		}
+			}
 
-		try {
-			executionGraph.getKvStateLocationRegistry().notifyKvStateUnregistered(
+			try {
+				executionGraph.getKvStateLocationRegistry().notifyKvStateUnregistered(
 					jobVertexId, keyGroupRange, registrationName);
-		} catch (Exception e) {
-			log.error("Failed to notify KvStateRegistry about registration {}.", registrationName);
+
+				return CompletableFuture.completedFuture(Acknowledge.get());
+			} catch (Exception e) {
+				log.error("Failed to notify KvStateRegistry about registration {}.", registrationName);
+				return FutureUtils.completedExceptionally(e);
+			}
+		} else {
+			if (log.isDebugEnabled()) {
+				log.debug("Notification about key-value state deregistration for unknown job {} received.", jobId);
+			}
+			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
 		}
 	}
 

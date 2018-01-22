@@ -944,9 +944,20 @@ class TaskManager(
       val kvStateRegistry = network.getKvStateRegistry()
 
       kvStateRegistry.registerListener(
+        HighAvailabilityServices.DEFAULT_JOB_ID,
         new ActorGatewayKvStateRegistryListener(
           jobManagerGateway,
           kvStateServer.getServerAddress))
+    }
+
+    val proxy = network.getKvStateProxy
+
+    if (proxy != null) {
+      proxy.updateKvStateLocationOracle(
+        HighAvailabilityServices.DEFAULT_JOB_ID,
+        new ActorGatewayKvStateLocationOracle(
+          jobManagerGateway,
+          config.getTimeout()))
     }
 
     // start a blob service, if a blob server is specified
@@ -1050,7 +1061,14 @@ class TaskManager(
     connectionUtils = None
 
     if (network.getKvStateRegistry != null) {
-      network.getKvStateRegistry.unregisterListener()
+      network.getKvStateRegistry.unregisterListener(HighAvailabilityServices.DEFAULT_JOB_ID)
+    }
+
+    val proxy = network.getKvStateProxy
+
+    if (proxy != null) {
+      // clear the key-value location oracle
+      proxy.updateKvStateLocationOracle(HighAvailabilityServices.DEFAULT_JOB_ID, null)
     }
     
     // failsafe shutdown of the metrics registry
@@ -1437,28 +1455,6 @@ class TaskManager(
   }
 
   override def notifyLeaderAddress(leaderAddress: String, leaderSessionID: UUID): Unit = {
-    val proxy = network.getKvStateProxy
-    if (proxy != null) {
-
-      val askTimeoutString = config.getConfiguration.getString(AkkaOptions.ASK_TIMEOUT)
-
-      val timeout = Duration(askTimeoutString)
-
-      if (!timeout.isFinite) {
-        throw new IllegalConfigurationException(AkkaOptions.ASK_TIMEOUT.key +
-          " is not a finite timeout ('" + askTimeoutString + "')")
-      }
-
-      if (leaderAddress != null) {
-        val actorGwFuture: Future[ActorGateway] =
-          AkkaUtils.getActorRefFuture(
-            leaderAddress, context.system, timeout.asInstanceOf[FiniteDuration]
-          ).map(actor => new AkkaActorGateway(actor, leaderSessionID))(context.system.dispatcher)
-
-        proxy.updateJobManager(FutureUtils.toJava(actorGwFuture))
-      }
-    }
-
     self ! JobManagerLeaderAddress(leaderAddress, leaderSessionID)
   }
 
