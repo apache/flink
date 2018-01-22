@@ -83,9 +83,6 @@ public abstract class AbstractFetcher<T, KPH> {
 	/** The mode describing whether the fetcher also generates timestamps and watermarks. */
 	protected final int timestampWatermarkMode;
 
-	/** Flag whether to register metrics for the fetcher. */
-	protected final boolean useMetrics;
-
 	/**
 	 * Optional timestamp extractor / watermark generator that will be run per Kafka partition,
 	 * to exploit per-partition timestamp characteristics.
@@ -116,10 +113,10 @@ public abstract class AbstractFetcher<T, KPH> {
 			ProcessingTimeService processingTimeProvider,
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
+			MetricGroup consumerMetricGroup,
 			boolean useMetrics) throws Exception {
 		this.sourceContext = checkNotNull(sourceContext);
 		this.checkpointLock = sourceContext.getCheckpointLock();
-		this.useMetrics = useMetrics;
 		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
 
 		// figure out what we watermark mode we will be using
@@ -161,6 +158,10 @@ public abstract class AbstractFetcher<T, KPH> {
 		// all seed partitions are not assigned yet, so should be added to the unassigned partitions queue
 		for (KafkaTopicPartitionState<KPH> partition : subscribedPartitionStates) {
 			unassignedPartitionsQueue.add(partition);
+		}
+
+		if (useMetrics) {
+			addOffsetStateGauge(checkNotNull(consumerMetricGroup));
 		}
 
 		// if we have periodic watermarks, kick off the interval scheduler

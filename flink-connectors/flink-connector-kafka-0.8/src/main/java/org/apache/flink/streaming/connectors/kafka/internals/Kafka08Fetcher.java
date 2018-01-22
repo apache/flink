@@ -95,6 +95,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long autoCommitInterval,
+			MetricGroup consumerMetricGroup,
 			boolean useMetrics) throws Exception {
 		super(
 				sourceContext,
@@ -104,6 +105,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 				runtimeContext.getProcessingTimeService(),
 				runtimeContext.getExecutionConfig().getAutoWatermarkInterval(),
 				runtimeContext.getUserCodeClassLoader(),
+				consumerMetricGroup,
 				useMetrics);
 
 		this.deserializer = checkNotNull(deserializer);
@@ -173,12 +175,6 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 				periodicCommitter.setName("Periodic Kafka partition offset committer");
 				periodicCommitter.setDaemon(true);
 				periodicCommitter.start();
-			}
-
-			// register offset metrics
-			if (useMetrics) {
-				final MetricGroup kafkaMetricGroup = runtimeContext.getMetricGroup().addGroup("KafkaConsumer");
-				addOffsetStateGauge(kafkaMetricGroup);
 			}
 
 			// Main loop polling elements from the unassignedPartitions queue to the threads

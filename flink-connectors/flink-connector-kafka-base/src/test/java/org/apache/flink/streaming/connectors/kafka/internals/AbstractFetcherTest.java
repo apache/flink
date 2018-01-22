@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
@@ -411,6 +412,7 @@ public class AbstractFetcherTest {
 				processingTimeProvider,
 				autoWatermarkInterval,
 				TestFetcher.class.getClassLoader(),
+				new UnregisteredMetricsGroup(),
 				false);
 		}
 
