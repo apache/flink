@@ -332,19 +332,7 @@ The following parameters configure Flink's JobManager and TaskManagers.
 
 These parameters allow for advanced tuning. The default values are sufficient when running concurrent high-throughput jobs on a large cluster.
 
-- `taskmanager.net.num-arenas`: The number of Netty arenas (DEFAULT: **taskmanager.numberOfTaskSlots**).
-
-- `taskmanager.net.server.numThreads`: The number of Netty server threads (DEFAULT: **taskmanager.numberOfTaskSlots**).
-
-- `taskmanager.net.client.numThreads`: The number of Netty client threads (DEFAULT: **taskmanager.numberOfTaskSlots**).
-
-- `taskmanager.net.server.backlog`: The netty server connection backlog.
-
-- `taskmanager.net.client.connectTimeoutSec`: The Netty client connection timeout (DEFAULT: **120 seconds**).
-
-- `taskmanager.net.sendReceiveBufferSize`: The Netty send and receive buffer size. This defaults to the system buffer size (`cat /proc/sys/net/ipv4/tcp_[rw]mem`) and is 4 MiB in modern Linux.
-
-- `taskmanager.net.transport`: The Netty transport type, either "nio" or "epoll" (DEFAULT: **nio**).
+{% include generated/netty_configuration.html %}
 
 ### Web Frontend
 
