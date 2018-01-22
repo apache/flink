@@ -262,13 +262,14 @@ These parameters configure the default HDFS used by Flink. Setups that do not sp
 
 - `fs.hdfs.hdfssite`: The absolute path of Hadoop's own configuration file "hdfs-site.xml" (DEFAULT: null).
 
-### JobManager &amp; TaskManager
+### JobManager
 
-The following parameters configure Flink's JobManager and TaskManagers.
+{% include generated/job_manager_configuration.html %}
 
-- `jobmanager.rpc.address`: The external address of the JobManager, which is the master/coordinator of the distributed system (DEFAULT: **localhost**). **Note:** The address (host name or IP) should be accessible by all nodes including the client.
+### TaskManager
 
-- `jobmanager.rpc.port`: The port number of the JobManager (DEFAULT: **6123**).
+The following parameters configure Flink's TaskManagers.
+
 
 - `taskmanager.hostname`: The hostname of the network interface that the TaskManager binds to. By default, the TaskManager searches for network interfaces that can connect to the JobManager and other TaskManagers. This option can be used to define a hostname if that strategy fails for some reason. Because different TaskManagers need different values for this option, it usually is specified in an additional non-shared TaskManager-specific config file.
 
@@ -277,8 +278,6 @@ The following parameters configure Flink's JobManager and TaskManagers.
 - `taskmanager.data.port`: The task manager's port used for data exchange operations (DEFAULT: **0**, which lets the OS choose a free port).
 
 - `taskmanager.data.ssl.enabled`: Enable SSL support for the taskmanager data transport. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: **true**)
-
-- `jobmanager.heap.mb`: JVM heap size (in megabytes) for the JobManager (DEFAULT: **256**).
 
 - `taskmanager.heap.mb`: JVM heap size (in megabytes) for the TaskManagers, which are the parallel workers of the system. In contrast to Hadoop, Flink runs operators (e.g., join, aggregate) and user-defined functions (e.g., Map, Reduce, CoGroup) inside the TaskManager (including sorting/hashing/caching), so this value should be as large as possible (DEFAULT: **512**). On YARN setups, this value is automatically configured to the size of the TaskManager's YARN container, minus a certain tolerance value.
 
@@ -322,7 +321,6 @@ The following parameters configure Flink's JobManager and TaskManagers.
 
 - `taskmanager.exit-on-fatal-akka-error`: Whether the TaskManager shall be terminated in case of a fatal Akka error (quarantining event). (DEFAULT: **false**)
 
-- `jobmanager.tdd.offload.minsize`: Maximum size of the `TaskDeploymentDescriptor`'s serialized task and job information to still transmit them via RPC. Larger blobs may be offloaded to the BLOB server. (DEFAULT: **1 KiB**).
 
 ### Distributed Coordination (via Akka)
 
