@@ -193,7 +193,12 @@ public class TaskManagerServicesConfiguration {
 		}
 
 		final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
-		final String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
+		String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
+
+		if (localStateRootDir.length == 0) {
+			// default to temp dirs.
+			localStateRootDir = tmpDirs;
+		}
 
 		final NetworkEnvironmentConfiguration networkConfig = parseNetworkEnvironmentConfiguration(
 			configuration,

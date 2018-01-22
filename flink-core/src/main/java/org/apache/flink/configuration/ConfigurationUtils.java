@@ -27,6 +27,8 @@ import java.io.File;
  */
 public class ConfigurationUtils {
 
+	private static final String[] EMPTY = new String[0];
+
 	/**
 	 * Extracts the task manager directories for temporary files as defined by
 	 * {@link org.apache.flink.configuration.CoreOptions#TMP_DIRS}.
@@ -34,6 +36,7 @@ public class ConfigurationUtils {
 	 * @param configuration configuration object
 	 * @return array of configured directories (in order)
 	 */
+	@Nonnull
 	public static String[] parseTempDirectories(Configuration configuration) {
 		return splitPaths(configuration.getString(CoreOptions.TMP_DIRS));
 	}
@@ -45,15 +48,15 @@ public class ConfigurationUtils {
 	 * @param configuration configuration object
 	 * @return array of configured directories (in order)
 	 */
+	@Nonnull
 	public static String[] parseLocalStateDirectories(Configuration configuration) {
-		String configValue = configuration.getString(
-			ConfigConstants.TASK_MANAGER_LOCAL_STATE_ROOT_DIR_KEY,
-			configuration.getString(CoreOptions.TMP_DIRS));
+		String configValue = configuration.getString(ConfigConstants.TASK_MANAGER_LOCAL_STATE_ROOT_DIR_KEY, "");
 		return splitPaths(configValue);
 	}
 
+	@Nonnull
 	private static String[] splitPaths(@Nonnull String separatedPaths) {
-		return separatedPaths.split(",|" + File.pathSeparator);
+		return separatedPaths.length() > 0 ? separatedPaths.split(",|" + File.pathSeparator) : EMPTY;
 	}
 
 	// Make sure that we cannot instantiate this class
