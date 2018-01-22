@@ -336,23 +336,7 @@ The following parameters configure Flink's TaskManagers.
 
 ### SSL Settings
 
-- `security.ssl.enabled`: Turns on SSL for internal network communication. This can be optionally overridden by flags defined in different transport modules (DEFAULT: **false**).
-
-- `security.ssl.keystore`: The Java keystore file to be used by the flink endpoint for its SSL Key and Certificate.
-
-- `security.ssl.keystore-password`: The secret to decrypt the keystore file.
-
-- `security.ssl.key-password`: The secret to decrypt the server key in the keystore.
-
-- `security.ssl.truststore`: The truststore file containing the public CA certificates to be used by flink endpoints to verify the peer's certificate.
-
-- `security.ssl.truststore-password`: The secret to decrypt the truststore.
-
-- `security.ssl.protocol`: The SSL protocol version to be supported for the ssl transport (DEFAULT: **TLSv1.2**). Note that it doesn't support comma separated list.
-
-- `security.ssl.algorithms`: The comma separated list of standard SSL algorithms to be supported. Read more [here](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites) (DEFAULT: **TLS_RSA_WITH_AES_128_CBC_SHA**).
-
-- `security.ssl.verify-hostname`: Flag to enable peer's hostname verification during ssl handshake (DEFAULT: **true**).
+{% include generated/security_configuration.html %}
 
 ### Network communication (via Netty)
 
