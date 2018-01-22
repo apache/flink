@@ -153,8 +153,8 @@ public class WebOptions {
 	/**
 	 * Timeout for asynchronous operations by the WebRuntimeMonitor in milliseconds.
 	 */
-	public static final ConfigOption<Long> TIMEOUT = ConfigOptions
-		.key("web.timeout")
+	public static final ConfigOption<Long> TIMEOUT =
+		key("web.timeout")
 		.defaultValue(10L * 1000L);
 
 	// ------------------------------------------------------------------------

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -38,26 +37,27 @@ import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
-import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 
-import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * {@link JobMaster} rpc gateway interface.
  */
-public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRpcGateway<JobMasterId>, RestfulGateway {
+public interface JobMasterGateway extends
+	CheckpointCoordinatorGateway,
+	FencedRpcGateway<JobMasterId>,
+	RestfulGateway,
+	KvStateLocationOracle,
+	KvStateRegistryGateway {
 
 	/**
 	 * Cancels the currently executed job.
@@ -145,42 +145,6 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 	void disconnectResourceManager(
 		final ResourceManagerId resourceManagerId,
 		final Exception cause);
-
-	/**
-	 * Requests a {@link KvStateLocation} for the specified {@link InternalKvState} registration name.
-	 *
-	 * @param registrationName Name under which the KvState has been registered.
-	 * @return Future of the requested {@link InternalKvState} location
-	 */
-	CompletableFuture<KvStateLocation> lookupKvStateLocation(final String registrationName);
-
-	/**
-	 * Notifies that queryable state has been registered.
-	 *
-	 * @param jobVertexId          JobVertexID the KvState instance belongs to.
-	 * @param keyGroupRange        Key group range the KvState instance belongs to.
-	 * @param registrationName     Name under which the KvState has been registered.
-	 * @param kvStateId            ID of the registered KvState instance.
-	 * @param kvStateServerAddress Server address where to find the KvState instance.
-	 */
-	void notifyKvStateRegistered(
-			final JobVertexID jobVertexId,
-			final KeyGroupRange keyGroupRange,
-			final String registrationName,
-			final KvStateID kvStateId,
-			final InetSocketAddress kvStateServerAddress);
-
-	/**
-	 * Notifies that queryable state has been unregistered.
-	 *
-	 * @param jobVertexId      JobVertexID the KvState instance belongs to.
-	 * @param keyGroupRange    Key group index the KvState instance belongs to.
-	 * @param registrationName Name under which the KvState has been registered.
-	 */
-	void notifyKvStateUnregistered(
-			JobVertexID jobVertexId,
-			KeyGroupRange keyGroupRange,
-			String registrationName);
 
 	/**
 	 * Request the classloading props of this job.

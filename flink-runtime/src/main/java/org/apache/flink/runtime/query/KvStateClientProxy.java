@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.query;
 
-import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobmaster.KvStateLocationOracle;
 
-import java.util.concurrent.CompletableFuture;
+import javax.annotation.Nullable;
 
 /**
  * An interface for the Queryable State Client Proxy running on each Task Manager in the cluster.
@@ -47,19 +48,25 @@ public interface KvStateClientProxy extends KvStateServer {
 	 * <p>This is useful in settings where high-availability is enabled and
 	 * a failed Job Manager is replaced by a new one.
 	 *
-	 * <p><b>IMPORTANT: </b> this method may be called by a different thread than the {@link #getJobManagerFuture()}.
+	 * <p><b>IMPORTANT: </b> this method may be called by a different thread than
+	 * the {@link #getKvStateLocationOracle(JobID)}.
 	 *
-	 * @param leadingJobManager the currently leading job manager.
+	 * @param jobId identifying the job for which to update the key-value state location oracle
+	 * @param kvStateLocationOracle the key-value state location oracle for the given {@link JobID},
+	 *                                 or null if there is no oracle anymore
 	 * */
-	void updateJobManager(CompletableFuture<ActorGateway> leadingJobManager) throws Exception;
+	void updateKvStateLocationOracle(
+		JobID jobId,
+		@Nullable KvStateLocationOracle kvStateLocationOracle);
 
 	/**
-	 * Retrieves a future containing the currently leading Job Manager.
+	 * Retrieves a future containing the currently leading key-value state location oracle.
 	 *
 	 * <p><b>IMPORTANT: </b> this method may be called by a different thread than the
-	 * {@link #updateJobManager(CompletableFuture)}.
+	 * {@link #updateKvStateLocationOracle(JobID, KvStateLocationOracle)}.
 	 *
-	 * @return A {@link CompletableFuture} containing the currently active Job Manager.
+	 * @param jobId identifying the job for which to request the key-value state location oracle
+	 * @return The key-value state location oracle for the given {@link JobID} or null if none.
 	 */
-	CompletableFuture<ActorGateway> getJobManagerFuture();
+	@Nullable KvStateLocationOracle getKvStateLocationOracle(JobID jobId);
 }

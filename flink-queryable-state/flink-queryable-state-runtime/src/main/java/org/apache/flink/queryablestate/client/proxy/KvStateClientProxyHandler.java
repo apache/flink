@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.queryablestate.exceptions.UnknownKvStateIdException;
 import org.apache.flink.queryablestate.exceptions.UnknownKvStateKeyGroupLocationException;
+import org.apache.flink.queryablestate.exceptions.UnknownLocationException;
 import org.apache.flink.queryablestate.messages.KvStateInternalRequest;
 import org.apache.flink.queryablestate.messages.KvStateRequest;
 import org.apache.flink.queryablestate.messages.KvStateResponse;
@@ -33,18 +34,17 @@ import org.apache.flink.queryablestate.network.messages.MessageSerializer;
 import org.apache.flink.queryablestate.network.stats.DisabledKvStateRequestStats;
 import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
 import org.apache.flink.queryablestate.server.KvStateServerImpl;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.jobmaster.KvStateLocationOracle;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.query.KvStateClientProxy;
 import org.apache.flink.runtime.query.KvStateLocation;
-import org.apache.flink.runtime.query.KvStateMessage;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 
-import akka.dispatch.OnComplete;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,11 +53,7 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-
-import scala.concurrent.duration.FiniteDuration;
-import scala.reflect.ClassTag$;
 
 /**
  * This handler acts as an internal (to the Flink cluster) client that receives
@@ -205,32 +201,32 @@ public class KvStateClientProxyHandler extends AbstractServerHandler<KvStateRequ
 			return cachedFuture;
 		}
 
-		LOG.debug("Retrieving location for state={} of job={} from the job manager.", jobId, queryableStateName);
+		final KvStateLocationOracle kvStateLocationOracle = proxy.getKvStateLocationOracle(jobId);
 
-		final CompletableFuture<KvStateLocation> location = new CompletableFuture<>();
-		lookupCache.put(cacheKey, location);
-		return proxy.getJobManagerFuture().thenComposeAsync(
-				jobManagerGateway -> {
-					final Object msg = new KvStateMessage.LookupKvStateLocation(jobId, queryableStateName);
-					jobManagerGateway.ask(msg, FiniteDuration.apply(1000L, TimeUnit.MILLISECONDS))
-							.mapTo(ClassTag$.MODULE$.<KvStateLocation>apply(KvStateLocation.class))
-							.onComplete(new OnComplete<KvStateLocation>() {
+		if (kvStateLocationOracle != null) {
+			LOG.debug("Retrieving location for state={} of job={} from the key-value state location oracle.", jobId, queryableStateName);
+			final CompletableFuture<KvStateLocation> location = new CompletableFuture<>();
+			lookupCache.put(cacheKey, location);
 
-								@Override
-								public void onComplete(Throwable failure, KvStateLocation loc) throws Throwable {
-									if (failure != null) {
-										if (failure instanceof FlinkJobNotFoundException) {
-											// if the jobId was wrong, remove the entry from the cache.
-											lookupCache.remove(cacheKey);
-										}
-										location.completeExceptionally(failure);
-									} else {
-										location.complete(loc);
-									}
-								}
-							}, Executors.directExecutionContext());
-					return location;
-				}, queryExecutor);
+			kvStateLocationOracle
+				.requestKvStateLocation(jobId, queryableStateName)
+				.whenComplete(
+					(KvStateLocation kvStateLocation, Throwable throwable) -> {
+						if (throwable != null) {
+							if (ExceptionUtils.stripCompletionException(throwable) instanceof FlinkJobNotFoundException) {
+								// if the jobId was wrong, remove the entry from the cache.
+								lookupCache.remove(cacheKey);
+							}
+							location.completeExceptionally(throwable);
+						} else {
+							location.complete(kvStateLocation);
+						}
+					});
+
+			return location;
+		} else {
+			return FutureUtils.completedExceptionally(new UnknownLocationException("Could not contact the state location oracle to retrieve the state location."));
+		}
 	}
 
 	@Override
