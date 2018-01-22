@@ -104,6 +104,24 @@ public abstract class AbstractFetcher<T, KPH> {
 	private volatile long maxWatermarkSoFar = Long.MIN_VALUE;
 
 	// ------------------------------------------------------------------------
+	//  Metrics
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Flag indicating whether or not metrics should be exposed.
+	 * If {@code true}, offset metrics (e.g. current offset, committed offset) and
+	 * Kafka-shipped metrics will be registered.
+	 */
+	private final boolean useMetrics;
+
+	/**
+	 * The metric group which all metrics for the consumer should be registered to.
+	 * This metric group is defined under the user scope "KafkaConsumer".
+	 */
+	private final MetricGroup consumerMetricGroup;
+
+	private final MetricGroup currentOffsetsMetricGroup;
+	private final MetricGroup committedOffsetsMetricGroup;
 
 	protected AbstractFetcher(
 			SourceContext<T> sourceContext,
@@ -118,6 +136,11 @@ public abstract class AbstractFetcher<T, KPH> {
 		this.sourceContext = checkNotNull(sourceContext);
 		this.checkpointLock = sourceContext.getCheckpointLock();
 		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
+
+		this.useMetrics = useMetrics;
+		this.consumerMetricGroup = checkNotNull(consumerMetricGroup);
+		this.currentOffsetsMetricGroup = consumerMetricGroup.addGroup("current-offsets");
+		this.committedOffsetsMetricGroup = consumerMetricGroup.addGroup("committed-offsets");
 
 		// figure out what we watermark mode we will be using
 		this.watermarksPeriodic = watermarksPeriodic;
@@ -160,8 +183,9 @@ public abstract class AbstractFetcher<T, KPH> {
 			unassignedPartitionsQueue.add(partition);
 		}
 
+		// register metrics for the initial seed partitions
 		if (useMetrics) {
-			addOffsetStateGauge(checkNotNull(consumerMetricGroup));
+			addOffsetStateGauge(subscribedPartitionStates);
 		}
 
 		// if we have periodic watermarks, kick off the interval scheduler
@@ -198,6 +222,10 @@ public abstract class AbstractFetcher<T, KPH> {
 				watermarksPeriodic,
 				watermarksPunctuated,
 				userCodeClassLoader);
+
+		if (useMetrics) {
+			addOffsetStateGauge(newPartitionStates);
+		}
 
 		for (KafkaTopicPartitionState<KPH> newPartitionState : newPartitionStates) {
 			subscribedPartitionStates.add(newPartitionState);
@@ -560,17 +588,14 @@ public abstract class AbstractFetcher<T, KPH> {
 	// ------------------------- Metrics ----------------------------------
 
 	/**
-	 * Add current and committed offsets to metric group.
+	 * For each partition, register a gauge to expose current offsets and committed offsets.
 	 *
-	 * @param metricGroup The metric group to use
+	 * @param partitionOffsetStates The partition offset state holders, whose values will be used to update metrics
 	 */
-	protected void addOffsetStateGauge(MetricGroup metricGroup) {
-		// add current offsets to gage
-		MetricGroup currentOffsets = metricGroup.addGroup("current-offsets");
-		MetricGroup committedOffsets = metricGroup.addGroup("committed-offsets");
-		for (KafkaTopicPartitionState<KPH> ktp : subscribedPartitionStates) {
-			currentOffsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.CURRENT_OFFSET));
-			committedOffsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.COMMITTED_OFFSET));
+	private void addOffsetStateGauge(List<KafkaTopicPartitionState<KPH>> partitionOffsetStates) {
+		for (KafkaTopicPartitionState<KPH> ktp : partitionOffsetStates) {
+			currentOffsetsMetricGroup.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.CURRENT_OFFSET));
+			committedOffsetsMetricGroup.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.COMMITTED_OFFSET));
 		}
 	}
 
