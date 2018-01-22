@@ -135,7 +135,10 @@ public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirector
 		return rootDirectories.length;
 	}
 
-	@Override
+	/**
+	 * Proactive cleanup of all allocation base directories. This will remove all files and directories in the
+	 * allocation base directories except the subdirectory for the current JobID.
+	 */
 	public void cleanupAllocationBaseDirectories() throws IOException {
 
 		String jobSubDirString = jobSubDirString();

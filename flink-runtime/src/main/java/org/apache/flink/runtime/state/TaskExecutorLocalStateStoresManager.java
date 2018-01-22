@@ -51,6 +51,9 @@ public class TaskExecutorLocalStateStoresManager {
 	@GuardedBy("lock")
 	private final Map<AllocationID, Map<JobVertexSubtaskKey, TaskLocalStateStore>> taskStateStoresByAllocationID;
 
+	/** The configured mode for local recovery on this task manager. */
+	private final LocalRecoveryConfig.LocalRecoveryMode localRecoveryMode;
+
 	/** This is the root directory for all local state of this task manager / executor. */
 	private final File[] localStateRootDirectories;
 
@@ -64,10 +67,12 @@ public class TaskExecutorLocalStateStoresManager {
 	private boolean closed;
 
 	public TaskExecutorLocalStateStoresManager(
+		@Nonnull LocalRecoveryConfig.LocalRecoveryMode localRecoveryMode,
 		@Nonnull File[] localStateRootDirectories,
 		@Nonnull Executor discardExecutor) {
 
 		this.taskStateStoresByAllocationID = new HashMap<>();
+		this.localRecoveryMode = localRecoveryMode;
 		this.localStateRootDirectories = localStateRootDirectories;
 		this.discardExecutor = discardExecutor;
 		this.lock = new Object();
@@ -103,6 +108,17 @@ public class TaskExecutorLocalStateStoresManager {
 
 			final JobVertexSubtaskKey taskKey = new JobVertexSubtaskKey(jobVertexID, subtaskIndex);
 
+			LocalRecoveryDirectoryProviderImpl directoryProvider = new LocalRecoveryDirectoryProviderImpl(
+				localStateRootDirectories,
+				jobId,
+				allocationID,
+				jobVertexID,
+				subtaskIndex);
+
+			LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(
+				localRecoveryMode,
+				directoryProvider);
+
 			return taskStateManagers.computeIfAbsent(
 				taskKey,
 				k -> new TaskLocalStateStoreImpl(
@@ -110,7 +126,7 @@ public class TaskExecutorLocalStateStoresManager {
 					allocationID,
 					jobVertexID,
 					subtaskIndex,
-					localStateRootDirectories,
+					localRecoveryConfig,
 					discardExecutor));
 		}
 	}
@@ -163,6 +179,11 @@ public class TaskExecutorLocalStateStoresManager {
 	@VisibleForTesting
 	File[] getLocalStateRootDirectories() {
 		return localStateRootDirectories;
+	}
+
+	@VisibleForTesting
+	public LocalRecoveryConfig.LocalRecoveryMode getLocalRecoveryMode() {
+		return localRecoveryMode;
 	}
 
 	/**

@@ -18,13 +18,22 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+
+import java.io.IOException;
+
+import static org.apache.flink.runtime.state.LocalRecoveryConfig.LocalRecoveryMode;
+import static org.apache.flink.runtime.state.LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED;
+import static org.apache.flink.test.checkpointing.AbstractEventTimeWindowCheckpointingITCase.StateBackendEnum;
+import static org.apache.flink.test.checkpointing.AbstractEventTimeWindowCheckpointingITCase.StateBackendEnum.FILE_ASYNC;
+import static org.apache.flink.test.checkpointing.AbstractEventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_FULLY_ASYNC;
+import static org.apache.flink.test.checkpointing.AbstractEventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
 
 /**
  * This test delegates to instances of {@link AbstractEventTimeWindowCheckpointingITCase} that have been reconfigured
@@ -37,51 +46,33 @@ public class LocalRecoveryITCase extends TestLogger {
 
 	@Test
 	public void testLocalRecoveryHeapBackendFileBased() throws Exception {
-		AbstractEventTimeWindowCheckpointingITCase windowChkITCase =
-			new AbstractEventTimeWindowCheckpointingITCase(
-				AbstractEventTimeWindowCheckpointingITCase.StateBackendEnum.FILE_ASYNC) {
-
-				@Override
-				public void startTestCluster() throws Exception {
-					super.startTestCluster();
-					FsStateBackend backend = (FsStateBackend) this.stateBackend;
-					backend.setLocalRecoveryMode(FsStateBackend.LocalRecoveryMode.ENABLE_FILE_BASED);
-				}
-			};
-
-		executeTest(windowChkITCase);
+		executeTest(
+			FILE_ASYNC,
+			ENABLE_FILE_BASED);
 	}
 
 	@Test
 	public void testLocalRecoveryRocksIncrementalFileBased() throws Exception {
-		AbstractEventTimeWindowCheckpointingITCase windowChkITCase =
-			new AbstractEventTimeWindowCheckpointingITCase(
-				AbstractEventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK) {
-
-				@Override
-				public void startTestCluster() throws Exception {
-					super.startTestCluster();
-					RocksDBStateBackend backend = (RocksDBStateBackend) this.stateBackend;
-					backend.setLocalRecoveryMode(RocksDBStateBackend.LocalRecoveryMode.ENABLE_FILE_BASED);
-				}
-			};
-
-		executeTest(windowChkITCase);
+		executeTest(
+			ROCKSDB_INCREMENTAL_ZK,
+			ENABLE_FILE_BASED);
 	}
 
 	@Test
 	public void testLocalRecoveryRocksFullFileBased() throws Exception {
-		AbstractEventTimeWindowCheckpointingITCase windowChkITCase =
-			new AbstractEventTimeWindowCheckpointingITCase(
-				AbstractEventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_FULLY_ASYNC) {
+		executeTest(
+			ROCKSDB_FULLY_ASYNC,
+			ENABLE_FILE_BASED);
+	}
 
-				@Override
-				public void startTestCluster() throws Exception {
-					super.startTestCluster();
-					RocksDBStateBackend backend = (RocksDBStateBackend) this.stateBackend;
-					backend.setLocalRecoveryMode(RocksDBStateBackend.LocalRecoveryMode.ENABLE_FILE_BASED);
-				}
-			};
+	private void executeTest(
+		StateBackendEnum backendEnum,
+		LocalRecoveryMode recoveryMode) throws Exception {
+
+		AbstractEventTimeWindowCheckpointingITCase windowChkITCase =
+			new AbstractEventTimeWindowCheckpointingITCaseWithLocalRecovery(
+				backendEnum,
+				recoveryMode);
 
 		executeTest(windowChkITCase);
 	}
@@ -90,7 +81,6 @@ public class LocalRecoveryITCase extends TestLogger {
 		delegate.name = testName;
 		delegate.tempFolder.create();
 		try {
-
 			delegate.startTestCluster();
 			delegate.testTumblingTimeWindow();
 			delegate.stopTestCluster();
@@ -100,6 +90,31 @@ public class LocalRecoveryITCase extends TestLogger {
 			delegate.stopTestCluster();
 		} finally {
 			delegate.tempFolder.delete();
+		}
+	}
+
+	private static class AbstractEventTimeWindowCheckpointingITCaseWithLocalRecovery
+		extends AbstractEventTimeWindowCheckpointingITCase {
+
+		private final LocalRecoveryMode recoveryMode;
+
+		AbstractEventTimeWindowCheckpointingITCaseWithLocalRecovery(
+			StateBackendEnum stateBackendEnum,
+			LocalRecoveryMode recoveryMode) {
+
+			super(stateBackendEnum);
+			this.recoveryMode = recoveryMode;
+		}
+
+		@Override
+		protected Configuration createClusterConfig() throws IOException {
+			Configuration config = super.createClusterConfig();
+
+			config.setString(
+				CheckpointingOptions.LOCAL_RECOVERY,
+				recoveryMode.toString());
+
+			return config;
 		}
 	}
 }

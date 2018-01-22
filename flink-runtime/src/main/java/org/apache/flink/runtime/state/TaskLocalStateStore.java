@@ -57,10 +57,10 @@ public interface TaskLocalStateStore {
 	void dispose();
 
 	/**
-	 * Returns the {@link LocalRecoveryDirectoryProviderImpl} for this task local state store.
+	 * Returns the {@link LocalRecoveryConfig} for this task local state store.
 	 */
 	@Nonnull
-	LocalRecoveryDirectoryProvider getLocalRecoveryRootDirectoryProvider();
+	LocalRecoveryConfig getLocalRecoveryConfig();
 
 	/**
 	 * Notifies that the checkpoint with the given id was confirmed as complete. This prunes the checkpoint history

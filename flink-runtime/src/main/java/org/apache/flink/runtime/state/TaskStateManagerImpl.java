@@ -132,8 +132,8 @@ public class TaskStateManagerImpl implements TaskStateManager {
 
 	@Nonnull
 	@Override
-	public LocalRecoveryDirectoryProvider createLocalRecoveryRootDirectoryProvider() {
-		return localStateStore.getLocalRecoveryRootDirectoryProvider();
+	public LocalRecoveryConfig createLocalRecoveryConfig() {
+		return localStateStore.getLocalRecoveryConfig();
 	}
 
 	/**

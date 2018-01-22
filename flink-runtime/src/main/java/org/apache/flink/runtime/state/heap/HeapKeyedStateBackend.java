@@ -51,6 +51,7 @@ import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
@@ -59,7 +60,6 @@ import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -119,7 +119,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/**
 	 * The configuration for local recovery.
 	 */
-	private final FsStateBackend.LocalRecoveryConfig localRecoveryConfig;
+	private final LocalRecoveryConfig localRecoveryConfig;
 
 	/**
 	 * The snapshot strategy for this backend. This determines, e.g., if snapshots are synchronous or asynchronous.
@@ -134,7 +134,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			KeyGroupRange keyGroupRange,
 			boolean asynchronousSnapshots,
 			ExecutionConfig executionConfig,
-			FsStateBackend.LocalRecoveryConfig localRecoveryConfig) {
+			LocalRecoveryConfig localRecoveryConfig) {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
 		this.localRecoveryConfig = Preconditions.checkNotNull(localRecoveryConfig);
@@ -506,7 +506,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@VisibleForTesting
-	public FsStateBackend.LocalRecoveryConfig getLocalRecoveryConfig() {
+	public LocalRecoveryConfig getLocalRecoveryConfig() {
 		return localRecoveryConfig;
 	}
 
@@ -618,8 +618,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					!Objects.equals(UncompressedStreamCompressionDecorator.INSTANCE, keyGroupCompressionDecorator));
 
 			LocalRecoveryDirectoryProvider directoryProvider =
-				FsStateBackend.LocalRecoveryMode.ENABLE_FILE_BASED.equals(localRecoveryConfig.getLocalRecoveryMode()) ?
-					localRecoveryConfig.getLocalStateDirectories() :
+				LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED.equals(localRecoveryConfig.getLocalRecoveryMode()) ?
+					localRecoveryConfig.getLocalStateDirectoryProvider() :
 					null;
 
 			final ThrowingSupplier<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier =

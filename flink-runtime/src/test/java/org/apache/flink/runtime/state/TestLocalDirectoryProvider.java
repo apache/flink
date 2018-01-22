@@ -18,20 +18,23 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+
+import java.io.File;
+
 /**
- * Base class for backend-specific configurations for task-local state recovery. This gives access to the root
- * directories into which all file-based snapshots can be written.
+ * Easy-to-construct implementation of {@link LocalRecoveryDirectoryProvider} to use in tests.
  */
-public class LocalRecoveryConfigBase {
+public class TestLocalDirectoryProvider extends LocalRecoveryDirectoryProviderImpl {
 
-	/** Encapsulates the root directories and the subtask-specific path. */
-	private final LocalRecoveryDirectoryProvider localStateDirectories;
-
-	protected LocalRecoveryConfigBase(LocalRecoveryDirectoryProvider directoryProvider) {
-		this.localStateDirectories = directoryProvider;
-	}
-
-	public LocalRecoveryDirectoryProvider getLocalStateDirectories() {
-		return localStateDirectories;
+	public TestLocalDirectoryProvider() {
+		super(
+			new File(System.getProperty("java.io.tmpdir")),
+			new JobID(),
+			new AllocationID(),
+			new JobVertexID(),
+			0);
 	}
 }

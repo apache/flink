@@ -63,6 +63,7 @@ import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
@@ -217,7 +218,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private UUID backendUID;
 
 	/** The configuration of local recovery. */
-	private final RocksDBStateBackend.LocalRecoveryConfig localRecoveryConfig;
+	private final LocalRecoveryConfig localRecoveryConfig;
 
 	/** The snapshot strategy, e.g., if we use full or incremental checkpoints, local state, and so on. */
 	private final SnapshotStrategy<SnapshotResult<KeyedStateHandle>> snapshotStrategy;
@@ -234,7 +235,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
 		boolean enableIncrementalCheckpointing,
-		RocksDBStateBackend.LocalRecoveryConfig localRecoveryConfig
+		LocalRecoveryConfig localRecoveryConfig
 	) throws IOException {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
@@ -304,7 +305,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@VisibleForTesting
-	public RocksDBStateBackend.LocalRecoveryConfig getLocalRecoveryConfig() {
+	public LocalRecoveryConfig getLocalRecoveryConfig() {
 		return localRecoveryConfig;
 	}
 
@@ -1552,7 +1553,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			LocalRecoveryDirectoryProvider directoryProvider =
 				isWithLocalRecovery(checkpointOptions.getCheckpointType(), localRecoveryConfig.getLocalRecoveryMode()) ?
-					localRecoveryConfig.getLocalStateDirectories() :
+					localRecoveryConfig.getLocalStateDirectoryProvider() :
 					null;
 
 			final ThrowingSupplier<CheckpointStreamWithResultProvider, Exception> supplier =
@@ -1629,9 +1630,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private boolean isWithLocalRecovery(
 			CheckpointOptions.CheckpointType checkpointType,
-			RocksDBStateBackend.LocalRecoveryMode recoveryMode) {
+			LocalRecoveryConfig.LocalRecoveryMode recoveryMode) {
 			// we use local recovery when it is activated and we are not taking a savepoint.
-			return RocksDBStateBackend.LocalRecoveryMode.ENABLE_FILE_BASED.equals(recoveryMode)
+			return LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED.equals(recoveryMode)
 				&& !CheckpointOptions.CheckpointType.SAVEPOINT.equals(checkpointType);
 		}
 	}
@@ -1673,10 +1674,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			SnapshotDirectory snapshotDirectory;
 
-			if (RocksDBStateBackend.LocalRecoveryMode.ENABLE_FILE_BASED.equals(
-				// create a "permanent" snapshot directory for local recovery.
+			if (LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED.equals(
 				localRecoveryConfig.getLocalRecoveryMode())) {
-				LocalRecoveryDirectoryProvider directoryProvider = localRecoveryConfig.getLocalStateDirectories();
+				// create a "permanent" snapshot directory for local recovery.
+				LocalRecoveryDirectoryProvider directoryProvider = localRecoveryConfig.getLocalStateDirectoryProvider();
 				File directory = directoryProvider.subtaskSpecificCheckpointDirectory(checkpointId);
 
 				if (!directory.mkdirs()) {
@@ -2151,10 +2152,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private SnapshotResult<StreamStateHandle> materializeMetaData() throws Exception {
 
-			RocksDBStateBackend.LocalRecoveryConfig localRecoveryConfig = stateBackend.localRecoveryConfig;
-			LocalRecoveryDirectoryProvider directoryProvider = RocksDBStateBackend.LocalRecoveryMode.ENABLE_FILE_BASED
+			LocalRecoveryConfig localRecoveryConfig = stateBackend.localRecoveryConfig;
+			LocalRecoveryDirectoryProvider directoryProvider = LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED
 				.equals(localRecoveryConfig.getLocalRecoveryMode()) ?
-				localRecoveryConfig.getLocalStateDirectories() :
+				localRecoveryConfig.getLocalStateDirectoryProvider() :
 				null;
 
 			CheckpointStreamWithResultProvider streamWithResultProvider =

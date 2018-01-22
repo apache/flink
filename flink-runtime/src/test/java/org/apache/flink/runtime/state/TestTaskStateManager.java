@@ -25,9 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
@@ -36,12 +34,10 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Implementation of {@link TaskStateManager} for tests.
@@ -57,35 +53,47 @@ public class TestTaskStateManager implements TaskStateManager {
 	private final Map<Long, TaskStateSnapshot> taskManagerTaskStateSnapshotsByCheckpointId;
 	private CheckpointResponder checkpointResponder;
 	private OneShotLatch waitForReportLatch;
-	private LocalRecoveryDirectoryProvider localRecoveryDirectoryProvider;
+	private LocalRecoveryConfig localRecoveryDirectoryProvider;
 
 	public TestTaskStateManager() {
-		this(new JobID(), new ExecutionAttemptID(), new TestCheckpointResponder());
+		this(
+			new JobID(),
+			new ExecutionAttemptID(),
+			new TestCheckpointResponder(),
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED);
+	}
+
+	public TestTaskStateManager(LocalRecoveryConfig.LocalRecoveryMode recoveryMode) {
+		this(
+			new JobID(),
+			new ExecutionAttemptID(),
+			new TestCheckpointResponder(),
+			recoveryMode);
 	}
 
 	public TestTaskStateManager(
 		JobID jobId,
 		ExecutionAttemptID executionAttemptID) {
-
-		this(jobId, executionAttemptID, null);
-	}
-
-	public TestTaskStateManager(
-		JobID jobId,
-		ExecutionAttemptID executionAttemptID,
-		CheckpointResponder checkpointResponder) {
-		this(jobId, executionAttemptID, checkpointResponder, createTestLocalRecoveryDirectoryProvider());
+		this(jobId, executionAttemptID, null, LocalRecoveryConfig.LocalRecoveryMode.DISABLED);
 	}
 
 	public TestTaskStateManager(
 		JobID jobId,
 		ExecutionAttemptID executionAttemptID,
 		CheckpointResponder checkpointResponder,
-		LocalRecoveryDirectoryProvider localRecoveryDirectoryProvider) {
+		LocalRecoveryConfig.LocalRecoveryMode localRecoveryMode) {
+		this(jobId, executionAttemptID, checkpointResponder, new TestLocalRecoveryConfig(localRecoveryMode));
+	}
+
+	public TestTaskStateManager(
+		JobID jobId,
+		ExecutionAttemptID executionAttemptID,
+		CheckpointResponder checkpointResponder,
+		LocalRecoveryConfig localRecoveryConfig) {
 		this.jobId = jobId;
 		this.executionAttemptID = executionAttemptID;
 		this.checkpointResponder = checkpointResponder;
-		this.localRecoveryDirectoryProvider = localRecoveryDirectoryProvider;
+		this.localRecoveryDirectoryProvider = localRecoveryConfig;
 		this.jobManagerTaskStateSnapshotsByCheckpointId = new HashMap<>();
 		this.taskManagerTaskStateSnapshotsByCheckpointId = new HashMap<>();
 		this.reportedCheckpointId = -1L;
@@ -153,12 +161,12 @@ public class TestTaskStateManager implements TaskStateManager {
 
 	@Nonnull
 	@Override
-	public LocalRecoveryDirectoryProvider createLocalRecoveryRootDirectoryProvider() {
+	public LocalRecoveryConfig createLocalRecoveryConfig() {
 		return Preconditions.checkNotNull(localRecoveryDirectoryProvider,
 			"Local state directory was never set for this test object!");
 	}
 
-	public void setLocalRecoveryDirectoryProvider(LocalRecoveryDirectoryProvider recoveryDirectoryProvider) {
+	public void setLocalRecoveryConfig(LocalRecoveryConfig recoveryDirectoryProvider) {
 		this.localRecoveryDirectoryProvider = recoveryDirectoryProvider;
 	}
 
@@ -256,13 +264,5 @@ public class TestTaskStateManager implements TaskStateManager {
 
 		setReportedCheckpointId(latestId);
 		setJobManagerTaskStateSnapshotsByCheckpointId(taskStateSnapshotsByCheckpointId);
-	}
-
-	private static LocalRecoveryDirectoryProvider createTestLocalRecoveryDirectoryProvider() {
-		File rootDir = new File(System.getProperty("java.io.tmpdir"), "testLocalState_" + UUID.randomUUID());
-		if (!rootDir.exists()) {
-			Preconditions.checkState(rootDir.mkdirs());
-		}
-		return new LocalRecoveryDirectoryProviderImpl(rootDir, new JobID(), new AllocationID(), new JobVertexID(), 0);
 	}
 }

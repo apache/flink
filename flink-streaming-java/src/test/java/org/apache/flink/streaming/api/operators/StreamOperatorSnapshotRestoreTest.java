@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -25,20 +26,25 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -124,18 +130,31 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 
 		//-------------------------------------------------------------------------- snapshot
 
-		StateBackend stateBackend = createStateBackend(mode != ONLY_JM_RECOVERY);
+		StateBackend stateBackend = createStateBackend();
 
 		TestOneInputStreamOperator op = new TestOneInputStreamOperator(false);
+
+		MockEnvironment mockEnvironment = new MockEnvironment(
+			"test",
+			1024L * 1024L,
+			new MockInputSplitProvider(),
+			1024 * 1024,
+			new Configuration(),
+			new ExecutionConfig(),
+			new TestTaskStateManager(
+				mode != ONLY_JM_RECOVERY ?
+					LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED :
+					LocalRecoveryConfig.LocalRecoveryMode.DISABLED),
+			MAX_PARALLELISM,
+			1,
+			0);
 
 		KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(
 				op,
 				(KeySelector<Integer, Integer>) value -> value,
 				TypeInformation.of(Integer.class),
-				MAX_PARALLELISM,
-				1 /* num subtasks */,
-				0 /* subtask index */);
+				mockEnvironment);
 
 		testHarness.setStateBackend(stateBackend);
 		testHarness.open();
@@ -183,6 +202,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 		OperatorSubtaskState jobManagerOwnedState = snapshotWithLocalState.getJobManagerOwnedState();
 		OperatorSubtaskState taskLocalState = snapshotWithLocalState.getTaskLocalState();
 
+		// We check if local state was created when we enabled local recovery
 		Assert.assertTrue(mode > ONLY_JM_RECOVERY == (taskLocalState != null && taskLocalState.hasState()));
 
 		if (mode == TM_REMOVE_JM_RECOVERY) {
@@ -202,17 +222,13 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 		testHarness.close();
 	}
 
-	protected StateBackend createStateBackend(boolean testLocalRecover) throws IOException {
-		return createStateBackendInternal(testLocalRecover);
+	protected StateBackend createStateBackend() throws IOException {
+		return createStateBackendInternal();
 	}
 
-	protected final FsStateBackend createStateBackendInternal(boolean testLocalRecover) throws IOException {
+	protected final FsStateBackend createStateBackendInternal() throws IOException {
 		File checkpointDir = temporaryFolder.newFolder();
-		FsStateBackend stateBackend = new FsStateBackend(checkpointDir.toURI());
-		if (testLocalRecover) {
-			stateBackend.setLocalRecoveryMode(FsStateBackend.LocalRecoveryMode.ENABLE_FILE_BASED);
-		}
-		return stateBackend;
+		return new FsStateBackend(checkpointDir.toURI());
 	}
 
 	static class TestOneInputStreamOperator

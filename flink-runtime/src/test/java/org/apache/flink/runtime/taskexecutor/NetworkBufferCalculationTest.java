@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.testutils.category.OldAndFlip6;
@@ -123,6 +124,7 @@ public class NetworkBufferCalculationTest extends TestLogger {
 			InetAddress.getLoopbackAddress(),
 			new String[] {},
 			new String[] {},
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
 			networkConfig,
 			QueryableStateConfiguration.disabled(),
 			1,

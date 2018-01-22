@@ -30,12 +30,8 @@ import java.io.IOException;
 public class IncrementalRocksStreamOperatorSnapshotRestoreTest extends StreamOperatorSnapshotRestoreTest {
 
 	@Override
-	protected StateBackend createStateBackend(boolean testLocalRecover) throws IOException {
-		FsStateBackend stateBackend = createStateBackendInternal(testLocalRecover);
-		RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(stateBackend, true);
-		if (testLocalRecover) {
-			rocksDBStateBackend.setLocalRecoveryMode(RocksDBStateBackend.LocalRecoveryMode.ENABLE_FILE_BASED);
-		}
-		return rocksDBStateBackend;
+	protected StateBackend createStateBackend() throws IOException {
+		FsStateBackend stateBackend = createStateBackendInternal();
+		return new RocksDBStateBackend(stateBackend, true);
 	}
 }

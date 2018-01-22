@@ -63,8 +63,9 @@ public interface TaskStateManager extends CheckpointListener {
 	PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID);
 
 	/**
-	 * Returns the base directories for all file-based local state of the owning subtask.
+	 * Returns the configuration for local recovery, i.e. the base directories for all file-based local state of the
+	 * owning subtask and the general mode for local recovery.
 	 */
 	@Nonnull
-	LocalRecoveryDirectoryProvider createLocalRecoveryRootDirectoryProvider();
+	LocalRecoveryConfig createLocalRecoveryConfig();
 }

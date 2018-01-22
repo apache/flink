@@ -16,22 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state;
-
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.streaming.api.operators.StreamOperatorSnapshotRestoreTest;
-
-import java.io.IOException;
+package org.apache.flink.runtime.state;
 
 /**
- * Test snapshot/restore of stream operators for RocksDB (full snapshots).
+ * Easy-to-construct implementation of {@link LocalRecoveryConfig}.
  */
-public class RocksStreamOperatorSnapshotRestoreTest extends StreamOperatorSnapshotRestoreTest {
+public class TestLocalRecoveryConfig extends LocalRecoveryConfig {
 
-	@Override
-	protected StateBackend createStateBackend() throws IOException {
-		FsStateBackend stateBackend = createStateBackendInternal();
-		return new RocksDBStateBackend(stateBackend, false);
+	public TestLocalRecoveryConfig(LocalRecoveryMode mode) {
+		super(mode, new TestLocalDirectoryProvider());
+	}
+
+	public static TestLocalRecoveryConfig disabled() {
+		return new TestLocalRecoveryConfig(LocalRecoveryMode.DISABLED);
+	}
+
+	public static TestLocalRecoveryConfig fileBased() {
+		return new TestLocalRecoveryConfig(LocalRecoveryMode.ENABLE_FILE_BASED);
 	}
 }

@@ -43,6 +43,7 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOut
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -188,7 +189,8 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		TestTaskStateManager taskStateManagerTestMock = new TestTaskStateManager(
 			jobID,
 			executionAttemptID,
-			checkpointResponderMock);
+			checkpointResponderMock,
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED);
 
 		StreamMockEnvironment mockEnv = new StreamMockEnvironment(
 			testHarness.jobConfig,

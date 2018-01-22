@@ -189,8 +189,14 @@ public class TaskStateManagerImplTest {
 
 			File[] rootDirs = new File[]{tmpFolder.newFolder(), tmpFolder.newFolder(), tmpFolder.newFolder()};
 
+			LocalRecoveryDirectoryProviderImpl directoryProvider =
+				new LocalRecoveryDirectoryProviderImpl(rootDirs, jobID, allocationID, jobVertexID, 0);
+
+			LocalRecoveryConfig localRecoveryConfig =
+				new LocalRecoveryConfig(LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED, directoryProvider);
+
 			TaskLocalStateStore taskLocalStateStore =
-				new TaskLocalStateStoreImpl(jobID, allocationID, jobVertexID, 13, rootDirs, directExecutor);
+				new TaskLocalStateStoreImpl(jobID, allocationID, jobVertexID, 13, localRecoveryConfig, directExecutor);
 
 			TaskStateManager taskStateManager = taskStateManager(
 				jobID,
@@ -199,19 +205,23 @@ public class TaskStateManagerImplTest {
 				null,
 				taskLocalStateStore);
 
-			LocalRecoveryDirectoryProvider directoryProviderFromTaskLocalStateStore =
-				taskLocalStateStore.getLocalRecoveryRootDirectoryProvider();
+			LocalRecoveryConfig localRecoveryConfFromTaskLocalStateStore =
+				taskLocalStateStore.getLocalRecoveryConfig();
 
-			LocalRecoveryDirectoryProvider directoryProviderFromTaskStateManager =
-				taskStateManager.createLocalRecoveryRootDirectoryProvider();
+			LocalRecoveryConfig localRecoveryConfFromTaskStateManager =
+				taskStateManager.createLocalRecoveryConfig();
 
 
 			for (int i = 0; i < 10; ++i) {
 				Assert.assertEquals(rootDirs[i % rootDirs.length],
-					directoryProviderFromTaskLocalStateStore.rootDirectory(i));
+					localRecoveryConfFromTaskLocalStateStore.getLocalStateDirectoryProvider().rootDirectory(i));
 				Assert.assertEquals(rootDirs[i % rootDirs.length],
-					directoryProviderFromTaskStateManager.rootDirectory(i));
+					localRecoveryConfFromTaskStateManager.getLocalStateDirectoryProvider().rootDirectory(i));
 			}
+
+			Assert.assertEquals(
+				localRecoveryConfFromTaskLocalStateStore.getLocalRecoveryMode(),
+				localRecoveryConfFromTaskStateManager.getLocalRecoveryMode());
 		} finally {
 			tmpFolder.delete();
 		}

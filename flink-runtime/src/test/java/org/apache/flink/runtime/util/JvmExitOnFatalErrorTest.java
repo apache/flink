@@ -59,6 +59,7 @@ import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -73,7 +74,6 @@ import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -185,7 +185,7 @@ public class JvmExitOnFatalErrorTest {
 						allocationID,
 						jobVertexId,
 						0,
-						new File[]{temporaryFolder.newFolder()},
+						TestLocalRecoveryConfig.disabled(),
 						executor);
 
 				final TaskStateManager slotStateManager =

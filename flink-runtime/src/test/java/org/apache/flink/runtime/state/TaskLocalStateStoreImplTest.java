@@ -59,12 +59,18 @@ public class TaskLocalStateStoreImplTest {
 		this.subtaskIdx = 0;
 		this.rootDirs = new File[]{temporaryFolder.newFolder(), temporaryFolder.newFolder()};
 
+		LocalRecoveryDirectoryProviderImpl directoryProvider =
+			new LocalRecoveryDirectoryProviderImpl(rootDirs, jobID, allocationID, jobVertexID, subtaskIdx);
+
+		LocalRecoveryConfig localRecoveryConfig =
+			new LocalRecoveryConfig(LocalRecoveryConfig.LocalRecoveryMode.DISABLED, directoryProvider);
+
 		this.taskLocalStateStore = new TaskLocalStateStoreImpl(
 			jobID,
 			allocationID,
 			jobVertexID,
 			subtaskIdx,
-			rootDirs,
+			localRecoveryConfig,
 			Executors.directExecutor());
 	}
 
@@ -79,11 +85,11 @@ public class TaskLocalStateStoreImplTest {
 	@Test
 	public void getLocalRecoveryRootDirectoryProvider() {
 
-		LocalRecoveryDirectoryProvider directoryProvider = taskLocalStateStore.getLocalRecoveryRootDirectoryProvider();
-		Assert.assertEquals(rootDirs.length, directoryProvider.rootDirectoryCount());
+		LocalRecoveryConfig directoryProvider = taskLocalStateStore.getLocalRecoveryConfig();
+		Assert.assertEquals(rootDirs.length, directoryProvider.getLocalStateDirectoryProvider().rootDirectoryCount());
 
 		for (int i = 0; i < rootDirs.length; ++i) {
-			Assert.assertEquals(rootDirs[i], directoryProvider.selectRootDirectory(i));
+			Assert.assertEquals(rootDirs[i], directoryProvider.getLocalStateDirectoryProvider().selectRootDirectory(i));
 		}
 	}
 

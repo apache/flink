@@ -34,6 +34,8 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.LocalRecoveryDirectoryProviderImpl;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateObject;
@@ -51,7 +53,6 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nullable;
 
-import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -71,7 +72,7 @@ public class LocalStateForwardingTest {
 	 * async checkpointing thread to the {@link org.apache.flink.runtime.state.TaskStateManager}.
 	 */
 	@Test
-	public void testForwardingFromSnapshotToTaskStateManager() throws Exception {
+	public void testReportingFromSnapshotToTaskStateManager() throws Exception {
 
 		TestTaskStateManager taskStateManager = new TestTaskStateManager();
 
@@ -129,7 +130,7 @@ public class LocalStateForwardingTest {
 	 * reported to {@link org.apache.flink.runtime.taskmanager.CheckpointResponder} and {@link TaskLocalStateStoreImpl}.
 	 */
 	@Test
-	public void testForwardingFromTaskStateManagerToResponderAndTaskLocalStateStore() throws Exception {
+	public void testReportingFromTaskStateManagerToResponderAndTaskLocalStateStore() throws Exception {
 
 		final JobID jobID = new JobID();
 		final AllocationID allocationID = new AllocationID();
@@ -168,9 +169,20 @@ public class LocalStateForwardingTest {
 
 		Executor executor = Executors.directExecutor();
 
+		LocalRecoveryDirectoryProviderImpl directoryProvider = new LocalRecoveryDirectoryProviderImpl(
+			temporaryFolder.newFolder(),
+			jobID,
+			allocationID,
+			jobVertexID,
+			subtaskIdx);
+
+		LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(
+			LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED,
+			directoryProvider);
+
 		try {
 			TaskLocalStateStore taskLocalStateStore =
-				new TaskLocalStateStoreImpl(jobID, allocationID, jobVertexID, subtaskIdx, new File[]{temporaryFolder.newFolder()}, executor) {
+				new TaskLocalStateStoreImpl(jobID, allocationID, jobVertexID, subtaskIdx, localRecoveryConfig, executor) {
 					@Override
 					public void storeLocalState(
 						@Nonnegative long checkpointId,

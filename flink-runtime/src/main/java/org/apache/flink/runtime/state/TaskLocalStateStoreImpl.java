@@ -78,9 +78,9 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 	@Nonnegative
 	private final int subtaskIndex;
 
-	/** Provider for local checkpoint directories. */
+	/** The configured mode for local recovery. */
 	@Nonnull
-	private final LocalRecoveryDirectoryProvider directoryProvider;
+	private final LocalRecoveryConfig localRecoveryConfig;
 
 	/** Executor that runs the discarding of released state objects. */
 	@Nonnull
@@ -104,7 +104,7 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 		@Nonnull AllocationID allocationID,
 		@Nonnull JobVertexID jobVertexID,
 		@Nonnegative int subtaskIndex,
-		@Nonnull File[] localStateRootDirectories,
+		@Nonnull LocalRecoveryConfig localRecoveryConfig,
 		@Nonnull Executor discardExecutor) {
 
 		this.jobID = jobID;
@@ -115,19 +115,7 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 		this.lock = new Object();
 		this.storedTaskStateByCheckpointID = new TreeMap<>();
 		this.discarded = false;
-		this.directoryProvider = new LocalRecoveryDirectoryProviderImpl(
-			localStateRootDirectories,
-			jobID,
-			allocationID,
-			jobVertexID,
-			subtaskIndex);
-
-		// Proactively cleanup potential leftover data from previous jobs under this allocation/slot.
-		try {
-			this.directoryProvider.cleanupAllocationBaseDirectories();
-		} catch (IOException e) {
-			LOG.warn("Exception in proactive cleanup of orphaned local state subdirectories!", e);
-		}
+		this.localRecoveryConfig = localRecoveryConfig;
 	}
 
 	@Override
@@ -194,6 +182,8 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 			// discard all remaining state objects.
 			syncDiscardLocalStateForCollection(statesCopy);
 
+			LocalRecoveryDirectoryProvider directoryProvider = localRecoveryConfig.getLocalStateDirectoryProvider();
+
 			// delete all state directories for this job.
 			for (int i = 0; i < directoryProvider.rootDirectoryCount(); ++i) {
 				try {
@@ -209,8 +199,8 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 
 	@Override
 	@Nonnull
-	public LocalRecoveryDirectoryProvider getLocalRecoveryRootDirectoryProvider() {
-		return directoryProvider;
+	public LocalRecoveryConfig getLocalRecoveryConfig() {
+		return localRecoveryConfig;
 	}
 
 	@Override
@@ -246,9 +236,7 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 
 	private void asyncDiscardLocalStateForCollection(Collection<Map.Entry<Long, TaskStateSnapshot>> toDiscard) {
 		if (!toDiscard.isEmpty()) {
-			discardExecutor.execute(() -> {
-				syncDiscardLocalStateForCollection(toDiscard);
-			});
+			discardExecutor.execute(() -> syncDiscardLocalStateForCollection(toDiscard));
 		}
 	}
 
@@ -276,6 +264,7 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 			LOG.warn("Exception while discarding local state of checkpoint " + checkpointID + ".", discardEx);
 		}
 
+		LocalRecoveryDirectoryProvider directoryProvider = localRecoveryConfig.getLocalStateDirectoryProvider();
 		File checkpointBaseDirectory = directoryProvider.jobAndCheckpointBaseDirectory(checkpointID);
 		LOG.debug("Deleting local state directory {} of checkpoint {} for {}/{}/{}/{}.",
 			checkpointBaseDirectory, checkpointID, jobID, jobVertexID, subtaskIndex);
@@ -304,7 +293,7 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 			", jobVertexID=" + jobVertexID +
 			", allocationID=" + allocationID +
 			", subtaskIndex=" + subtaskIndex +
-			", directoryProvider=" + directoryProvider +
+			", localRecoveryConfig=" + localRecoveryConfig +
 			'}';
 	}
 }

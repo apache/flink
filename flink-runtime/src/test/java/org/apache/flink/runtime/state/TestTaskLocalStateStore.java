@@ -36,16 +36,16 @@ public class TestTaskLocalStateStore implements TaskLocalStateStore {
 
 	private final SortedMap<Long, TaskStateSnapshot> taskStateSnapshotsByCheckpointID;
 
-	private final LocalRecoveryDirectoryProvider localRecoveryDirectoryProvider;
+	private final LocalRecoveryConfig localRecoveryConfig;
 
 	private boolean disposed;
 
 	public TestTaskLocalStateStore() {
-		this(null);
+		this(TestLocalRecoveryConfig.disabled());
 	}
 
-	public TestTaskLocalStateStore(LocalRecoveryDirectoryProvider localRecoveryDirectoryProvider) {
-		this.localRecoveryDirectoryProvider = localRecoveryDirectoryProvider;
+	public TestTaskLocalStateStore(@Nonnull LocalRecoveryConfig localRecoveryConfig) {
+		this.localRecoveryConfig = localRecoveryConfig;
 		this.taskStateSnapshotsByCheckpointID = new TreeMap<>();
 		this.disposed = false;
 	}
@@ -80,9 +80,9 @@ public class TestTaskLocalStateStore implements TaskLocalStateStore {
 
 	@Nonnull
 	@Override
-	public LocalRecoveryDirectoryProvider getLocalRecoveryRootDirectoryProvider() {
+	public LocalRecoveryConfig getLocalRecoveryConfig() {
 		Preconditions.checkState(!disposed);
-		return Preconditions.checkNotNull(localRecoveryDirectoryProvider);
+		return Preconditions.checkNotNull(localRecoveryConfig);
 	}
 
 	@Override
