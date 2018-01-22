@@ -191,7 +191,10 @@ public final class ConfigConstants {
 
 	/**
 	 * The config parameter defining the task manager's hostname.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#HOST} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_HOSTNAME_KEY = "taskmanager.hostname";
 
 	/**
@@ -207,7 +210,10 @@ public final class ConfigConstants {
 
 	/**
 	 * Config parameter to override SSL support for taskmanager's data transport.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#DATA_SSL_ENABLED} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_DATA_SSL_ENABLED = "taskmanager.data.ssl.enabled";
 
 	/**
@@ -284,39 +290,60 @@ public final class ConfigConstants {
 
 	/**
 	 * The config parameter defining the number of task slots of a task manager.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#NUM_TASK_SLOTS} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_NUM_TASK_SLOTS = "taskmanager.numberOfTaskSlots";
 
 	/**
 	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#DEBUG_MEMORY_USAGE_START_LOG_THREAD} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD = "taskmanager.debug.memory.startLogThread";
 
 	/**
 	 * The interval (in ms) for the log thread to log the current memory usage.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = "taskmanager.debug.memory.logIntervalMs";
 
 	/**
 	 * Defines the maximum time it can take for the TaskManager registration. If the duration is
 	 * exceeded without a successful registration, then the TaskManager terminates.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#MAX_REGISTRATION_DURATION} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
 
 	/**
 	 * The initial registration pause between two consecutive registration attempts. The pause
 	 * is doubled for each new registration attempt until it reaches the maximum registration pause.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#INITIAL_REGISTRATION_PAUSE} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_INITIAL_REGISTRATION_PAUSE = "taskmanager.initial-registration-pause";
 
 	/**
 	 * The maximum registration pause between two consecutive registration attempts.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#MAX_REGISTRATION_PAUSE} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_MAX_REGISTARTION_PAUSE = "taskmanager.max-registration-pause";
 
 	/**
 	 * The pause after a registration has been refused by the job manager before retrying to connect.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#REFUSED_REGISTRATION_PAUSE} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "taskmanager.refused-registration-pause";
 
 	/**
@@ -1359,12 +1386,18 @@ public final class ConfigConstants {
 	/**
 	 * The default network port the task manager expects to receive transfer envelopes on. The {@code 0} means that
 	 * the TaskManager searches for a free port.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#DATA_PORT} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_TASK_MANAGER_DATA_PORT = 0;
 
 	/**
 	 * The default value to override ssl support for task manager's data transport.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#DATA_SSL_ENABLED} instead
 	 */
+	@Deprecated
 	public static final boolean DEFAULT_TASK_MANAGER_DATA_SSL_ENABLED = true;
 
 	/**
@@ -1407,32 +1440,50 @@ public final class ConfigConstants {
 
 	/**
 	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#DEBUG_MEMORY_USAGE_START_LOG_THREAD} instead
 	 */
+	@Deprecated
 	public static final boolean DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD = false;
 
 	/**
 	 * The interval (in ms) for the log thread to log the current memory usage.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS} instead
 	 */
+	@Deprecated
 	public static final long DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = 5000L;
 
 	/**
 	 * The default task manager's maximum registration duration.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#MAX_REGISTRATION_DURATION} instead
 	 */
+	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION = "Inf";
 
 	/**
 	 * The default task manager's initial registration pause.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#INITIAL_REGISTRATION_PAUSE} instead
 	 */
+	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_INITIAL_REGISTRATION_PAUSE = "500 ms";
 
 	/**
 	 * The default task manager's maximum registration pause.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#MAX_REGISTRATION_PAUSE} instead
 	 */
+	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_PAUSE = "30 s";
 
 	/**
 	 * The default task manager's refused registration pause.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#REFUSED_REGISTRATION_PAUSE} instead
 	 */
+	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "10 s";
 
 	/**
