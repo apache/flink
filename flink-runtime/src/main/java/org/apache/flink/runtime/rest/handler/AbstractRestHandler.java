@@ -30,6 +30,7 @@ import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
@@ -74,7 +75,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 			Map<String, String> responseHeaders,
 			MessageHeaders<R, P, M> messageHeaders) {
 		super(localRestAddress, leaderRetriever, timeout, responseHeaders);
-		this.messageHeaders = messageHeaders;
+		this.messageHeaders = Preconditions.checkNotNull(messageHeaders);
 	}
 
 	public MessageHeaders<R, P, M> getMessageHeaders() {
