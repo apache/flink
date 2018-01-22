@@ -80,9 +80,6 @@ public class KafkaConsumerThread extends Thread {
 	/** The queue of unassigned partitions that we need to assign to the Kafka consumer. */
 	private final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue;
 
-	/** We get this from the outside to publish metrics. **/
-	private final MetricGroup kafkaMetricGroup;
-
 	/** The indirections on KafkaConsumer methods, for cases where KafkaConsumer compatibility is broken. */
 	private final KafkaConsumerCallBridge consumerCallBridge;
 
@@ -91,6 +88,16 @@ public class KafkaConsumerThread extends Thread {
 
 	/** Flag whether to add Kafka's metrics to the Flink metrics. */
 	private final boolean useMetrics;
+
+	/**
+	 * @deprecated We should only be publishing to the {{@link #consumerMetricGroup}}.
+	 *             This is kept to retain compatibility for metrics.
+	 **/
+	@Deprecated
+	private final MetricGroup subtaskMetricGroup;
+
+	/** We get this from the outside to publish metrics. */
+	private final MetricGroup consumerMetricGroup;
 
 	/** Reference to the Kafka consumer, once it is created. */
 	private volatile KafkaConsumer<byte[], byte[]> consumer;
@@ -118,11 +125,12 @@ public class KafkaConsumerThread extends Thread {
 			Handover handover,
 			Properties kafkaProperties,
 			ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue,
-			MetricGroup kafkaMetricGroup,
 			KafkaConsumerCallBridge consumerCallBridge,
 			String threadName,
 			long pollTimeout,
-			boolean useMetrics) {
+			boolean useMetrics,
+			MetricGroup consumerMetricGroup,
+			MetricGroup subtaskMetricGroup) {
 
 		super(threadName);
 		setDaemon(true);
@@ -130,7 +138,8 @@ public class KafkaConsumerThread extends Thread {
 		this.log = checkNotNull(log);
 		this.handover = checkNotNull(handover);
 		this.kafkaProperties = checkNotNull(kafkaProperties);
-		this.kafkaMetricGroup = checkNotNull(kafkaMetricGroup);
+		this.consumerMetricGroup = checkNotNull(consumerMetricGroup);
+		this.subtaskMetricGroup = checkNotNull(subtaskMetricGroup);
 		this.consumerCallBridge = checkNotNull(consumerCallBridge);
 
 		this.unassignedPartitionsQueue = checkNotNull(unassignedPartitionsQueue);
@@ -178,7 +187,10 @@ public class KafkaConsumerThread extends Thread {
 				} else {
 					// we have Kafka metrics, register them
 					for (Map.Entry<MetricName, ? extends Metric> metric: metrics.entrySet()) {
-						kafkaMetricGroup.gauge(metric.getKey().name(), new KafkaMetricWrapper(metric.getValue()));
+						consumerMetricGroup.gauge(metric.getKey().name(), new KafkaMetricWrapper(metric.getValue()));
+
+						// TODO this metric is kept for compatibility purposes; should remove in the future
+						subtaskMetricGroup.gauge(metric.getKey().name(), new KafkaMetricWrapper(metric.getValue()));
 					}
 				}
 			}
