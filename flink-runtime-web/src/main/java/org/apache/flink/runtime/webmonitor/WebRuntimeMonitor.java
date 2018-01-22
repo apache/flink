@@ -188,13 +188,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		if (webSubmitAllow) {
 			// create storage for uploads
 			this.uploadDir = getUploadDir(config);
-			// the upload directory should either 1. exist and writable or 2. can be created and writable
-			if (!(uploadDir.exists() && uploadDir.canWrite()) && !(uploadDir.mkdirs() && uploadDir.canWrite())) {
-				throw new IOException(
-					String.format("Jar upload directory %s cannot be created or is not writable.",
-						uploadDir.getAbsolutePath()));
-			}
-			LOG.info("Using directory {} for web frontend JAR file uploads", uploadDir);
+			checkAndCreateUploadDir(uploadDir);
 		}
 		else {
 			this.uploadDir = null;
@@ -577,5 +571,29 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		boolean uploadDirSpecified = configuration.contains(WebOptions.UPLOAD_DIR);
 		return uploadDirSpecified ? baseDir : new File(baseDir, "flink-web-" + UUID.randomUUID());
+	}
+
+	public static void logExternalUploadDirDeletion(File uploadDir) {
+		LOG.warn("Jar storage directory {} has been deleted externally. Previously uploaded jars are no longer available.", uploadDir.getAbsolutePath());
+	}
+
+	/**
+	 * Checks whether the given directory exists and is writable. If it doesn't exist this method will attempt to create
+	 * it.
+	 *
+	 * @param uploadDir directory to check
+	 * @throws IOException if the directory does not exist and cannot be created, or if the directory isn't writable
+	 */
+	public static synchronized void checkAndCreateUploadDir(File uploadDir) throws IOException {
+		if (uploadDir.exists() && uploadDir.canWrite()) {
+			LOG.info("Using directory {} for web frontend JAR file uploads.", uploadDir);
+		} else if (uploadDir.mkdirs() && uploadDir.canWrite()) {
+			LOG.info("Created directory {} for web frontend JAR file uploads.", uploadDir);
+		} else {
+			LOG.warn("Jar upload directory {} cannot be created or is not writable.", uploadDir.getAbsolutePath());
+			throw new IOException(
+				String.format("Jar upload directory %s cannot be created or is not writable.",
+					uploadDir.getAbsolutePath()));
+		}
 	}
 }

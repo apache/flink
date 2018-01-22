@@ -21,12 +21,14 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractJsonRequestHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
+import org.apache.flink.runtime.webmonitor.WebRuntimeMonitor;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.File;
 import java.io.FilenameFilter;
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -64,6 +66,17 @@ public class JarDeleteHandler extends AbstractJsonRequestHandler {
 							return name.equals(file);
 						}
 					});
+
+					if (list == null) {
+						WebRuntimeMonitor.logExternalUploadDirDeletion(jarDir);
+						try {
+							WebRuntimeMonitor.checkAndCreateUploadDir(jarDir);
+						} catch (IOException ioe) {
+							// entire directory doesn't exist anymore, continue as if deletion succeeded
+						}
+						list = new File[0];
+					}
+
 					boolean success = false;
 					for (File f: list) {
 						// although next to impossible for multiple files, we still delete them.

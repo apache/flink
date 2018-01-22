@@ -23,6 +23,7 @@ import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractJsonRequestHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
 import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandler;
+import org.apache.flink.runtime.webmonitor.WebRuntimeMonitor;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -76,6 +77,16 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 							return name.endsWith(".jar");
 						}
 					});
+
+					if (list == null) {
+						WebRuntimeMonitor.logExternalUploadDirDeletion(jarDir);
+						try {
+							WebRuntimeMonitor.checkAndCreateUploadDir(jarDir);
+						} catch (IOException ioe) {
+							// re-throwing an exception here breaks the UI
+						}
+						list = new File[0];
+					}
 
 					// last modified ascending order
 					Arrays.sort(list, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
