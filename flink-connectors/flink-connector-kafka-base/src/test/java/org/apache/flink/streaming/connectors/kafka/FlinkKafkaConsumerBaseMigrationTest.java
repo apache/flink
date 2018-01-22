@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -376,7 +377,8 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 				Arrays.asList("dummy-topic"),
 				null,
 				(KeyedDeserializationSchema< T >) mock(KeyedDeserializationSchema.class),
-				discoveryInterval);
+				discoveryInterval,
+				false);
 
 			this.fetcher = fetcher;
 			this.partitions = partitions;
@@ -393,7 +395,9 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 				StreamingRuntimeContext runtimeContext,
-				OffsetCommitMode offsetCommitMode) throws Exception {
+				OffsetCommitMode offsetCommitMode,
+				MetricGroup consumerMetricGroup,
+				boolean useMetrics) throws Exception {
 			return fetcher;
 		}
 

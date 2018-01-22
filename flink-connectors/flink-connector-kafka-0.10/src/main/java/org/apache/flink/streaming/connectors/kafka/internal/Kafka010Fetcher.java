@@ -53,10 +53,11 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
 			String taskNameWithSubtasks,
-			MetricGroup metricGroup,
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
+			MetricGroup subtaskMetricGroup,
+			MetricGroup consumerMetricGroup,
 			boolean useMetrics) throws Exception {
 		super(
 				sourceContext,
@@ -67,10 +68,11 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 				autoWatermarkInterval,
 				userCodeClassLoader,
 				taskNameWithSubtasks,
-				metricGroup,
 				deserializer,
 				kafkaProperties,
 				pollTimeout,
+				subtaskMetricGroup,
+				consumerMetricGroup,
 				useMetrics);
 	}
 
