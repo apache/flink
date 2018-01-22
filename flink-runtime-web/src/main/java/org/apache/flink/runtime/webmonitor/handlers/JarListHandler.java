@@ -27,6 +27,9 @@ import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -43,6 +46,8 @@ import java.util.jar.Manifest;
  * Handle request for listing uploaded jars.
  */
 public class JarListHandler extends AbstractJsonRequestHandler {
+
+	private static final Logger LOG = LoggerFactory.getLogger(JarListHandler.class);
 
 	static final String JAR_LIST_REST_PATH = "/jars";
 
@@ -76,6 +81,11 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 							return name.endsWith(".jar");
 						}
 					});
+
+					if (list == null) {
+						LOG.warn("Jar storage directory {} has been deleted.", jarDir.getAbsolutePath());
+						list = new File[0];
+					}
 
 					// last modified ascending order
 					Arrays.sort(list, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
@@ -145,6 +155,7 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 					return writer.toString();
 				}
 				catch (Exception e) {
+					LOG.warn("Failed to fetch jar list.", e);
 					throw new CompletionException(new FlinkException("Failed to fetch jar list.", e));
 				}
 			},
