@@ -86,6 +86,10 @@ public class MesosTaskManagerParameters {
 		key("mesos.resourcemanager.tasks.container.volumes")
 		.noDefaultValue();
 
+	public static final ConfigOption<String> MESOS_RM_CONTAINER_DOCKER_PARAMETERS =
+		key("mesos.resourcemanager.tasks.container.docker.parameters")
+		.noDefaultValue();
+
 	public static final ConfigOption<String> MESOS_CONSTRAINTS_HARD_HOSTATTR =
 		key("mesos.constraints.hard.hostattribute")
 		.noDefaultValue();
@@ -109,6 +113,8 @@ public class MesosTaskManagerParameters {
 
 	private final List<Protos.Volume> containerVolumes;
 
+	private final List<Protos.Parameter> dockerParameters;
+
 	private final List<ConstraintEvaluator> constraints;
 
 	private final String command;
@@ -123,6 +129,7 @@ public class MesosTaskManagerParameters {
 			Option<String> containerImageName,
 			ContaineredTaskManagerParameters containeredParameters,
 			List<Protos.Volume> containerVolumes,
+			List<Protos.Parameter> dockerParameters,
 			List<ConstraintEvaluator> constraints,
 			String command,
 			Option<String> bootstrapCommand,
@@ -133,6 +140,7 @@ public class MesosTaskManagerParameters {
 		this.containerImageName = Preconditions.checkNotNull(containerImageName);
 		this.containeredParameters = Preconditions.checkNotNull(containeredParameters);
 		this.containerVolumes = Preconditions.checkNotNull(containerVolumes);
+		this.dockerParameters = Preconditions.checkNotNull(dockerParameters);
 		this.constraints = Preconditions.checkNotNull(constraints);
 		this.command = Preconditions.checkNotNull(command);
 		this.bootstrapCommand = Preconditions.checkNotNull(bootstrapCommand);
@@ -177,6 +185,13 @@ public class MesosTaskManagerParameters {
 	}
 
 	/**
+	 * Get Docker runtime parameters.
+	 */
+	public List<Protos.Parameter> dockerParameters() {
+		return dockerParameters;
+	}
+
+	/**
 	 * Get the placement constraints.
 	 */
 	public List<ConstraintEvaluator> constraints() {
@@ -212,6 +227,7 @@ public class MesosTaskManagerParameters {
 			", containerImageName=" + containerImageName +
 			", containeredParameters=" + containeredParameters +
 			", containerVolumes=" + containerVolumes +
+			", dockerParameters=" + dockerParameters +
 			", constraints=" + constraints +
 			", taskManagerHostName=" + taskManagerHostname +
 			", command=" + command +
@@ -260,7 +276,11 @@ public class MesosTaskManagerParameters {
 
 		Option<String> containerVolOpt = Option.<String>apply(flinkConfig.getString(MESOS_RM_CONTAINER_VOLUMES));
 
+		Option<String> dockerParamsOpt = Option.<String>apply(flinkConfig.getString(MESOS_RM_CONTAINER_DOCKER_PARAMETERS));
+
 		List<Protos.Volume> containerVolumes = buildVolumes(containerVolOpt);
+
+		List<Protos.Parameter> dockerParameters = buildDockerParameters(dockerParamsOpt);
 
 		//obtain Task Manager Host Name from the configuration
 		Option<String> taskManagerHostname = Option.apply(flinkConfig.getString(MESOS_TM_HOSTNAME));
@@ -275,6 +295,7 @@ public class MesosTaskManagerParameters {
 			Option.apply(imageName),
 			containeredParameters,
 			containerVolumes,
+			dockerParameters,
 			constraints,
 			tmCommand,
 			tmBootstrapCommand,
@@ -362,6 +383,32 @@ public class MesosTaskManagerParameters {
 				}
 			}
 			return volumes;
+		}
+	}
+
+	public static List<Protos.Parameter> buildDockerParameters(Option<String> dockerParameters) {
+		if (dockerParameters.isEmpty()) {
+			return Collections.emptyList();
+		} else {
+			String[] dockerParameterSpecifications = dockerParameters.get().split(",");
+
+			List<Protos.Parameter> parameters = new ArrayList<>(dockerParameterSpecifications.length);
+
+			for (String dockerParameterSpecification : dockerParameterSpecifications) {
+				if (!dockerParameterSpecification.trim().isEmpty()) {
+					// split with the limit of 2 in case the value includes '='
+					String[] match = dockerParameterSpecification.split("=", 2);
+					if (match.length != 2) {
+						throw new IllegalArgumentException("Docker parameter specification is invalid, given: "
+							+ dockerParameterSpecification);
+					}
+					Protos.Parameter.Builder parameter = Protos.Parameter.newBuilder();
+					parameter.setKey(match[0]);
+					parameter.setValue(match[1]);
+					parameters.add(parameter.build());
+				}
+			}
+			return parameters;
 		}
 	}
 
