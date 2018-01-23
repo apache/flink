@@ -70,7 +70,7 @@ public class ConfigOptionsDocGenerator {
 	private static void createTable(String rootDir, String module, String packageName, String outputDirectory) throws IOException, ClassNotFoundException {
 		Path configDir = Paths.get(rootDir, module, "src/main/java", packageName.replaceAll("\\.", "/"));
 
-		Pattern p = Pattern.compile("(([a-zA-Z]*)(Options|Config))\\.java");
+		Pattern p = Pattern.compile("(([a-zA-Z]*)(Options|Config|Parameters))\\.java");
 		try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir)) {
 			for (Path entry : stream) {
 				String fileName = entry.getFileName().toString();
