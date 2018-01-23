@@ -515,6 +515,56 @@ public class FlinkKinesisConsumerTest {
 		assertTrue(typeInformation.createSerializer(new ExecutionConfig()) instanceof PojoSerializer);
 	}
 
+	/**
+	 * FLINK-8484: ensure that a state change in the StreamShardMetadata other than {@link StreamShardMetadata#shardId} or
+	 * {@link StreamShardMetadata#streamName} does not result in the shard not being able to be restored.
+	 * This handles the corner case where the stored shard metadata is open (no ending sequence number), but after the
+	 * job restore, the shard has been closed (ending number set) due to re-sharding, and we can no longer rely on
+	 * {@link StreamShardMetadata#equals(Object)} to find back the sequence number in the collection of restored shard metadata.
+	 */
+	@Test
+	public void testFindSequenceNumberToRestoreFrom() {
+		final String streamName = "fakeStream1";
+		final String shardId = "shard-000001";
+		final String sequenceNumber = "789";
+
+		Properties config = TestUtils.getStandardProperties();
+		FlinkKinesisConsumer<String> consumer = new FlinkKinesisConsumer<>(streamName, new SimpleStringSchema(), config);
+
+		// having the current kinesis shard we're trying to find the restored state for
+		final StreamShardMetadata current = new StreamShardMetadata();
+		current.setShardId(shardId);
+		current.setStreamName(streamName);
+		final HashMap<StreamShardMetadata, SequenceNumber> sequenceNumsToRestore = new HashMap<>();
+
+		// create some non-matching shards
+		final StreamShardMetadata differentStreamName = new StreamShardMetadata();
+		differentStreamName.setStreamName("fakeStream2");
+		differentStreamName.setShardId(shardId);
+
+		final StreamShardMetadata differentShardId = new StreamShardMetadata();
+		differentShardId.setStreamName(streamName);
+		differentShardId.setShardId("shard-000002");
+
+		// create the matching shard
+		final StreamShardMetadata match = new StreamShardMetadata();
+		match.setStreamName(streamName);
+		match.setShardId(shardId);
+		// ensure the sequence number isn't set (shard is considered in OPEN state)
+		match.setEndingSequenceNumber(null);
+
+		sequenceNumsToRestore.put(differentStreamName, new SequenceNumber("123"));
+		sequenceNumsToRestore.put(differentShardId, new SequenceNumber("456"));
+		sequenceNumsToRestore.put(match, new SequenceNumber(sequenceNumber));
+
+		assertEquals(sequenceNumber, consumer.findSequenceNumberToRestoreFrom(current, sequenceNumsToRestore).getSequenceNumber());
+
+		// alter the ending sequence number (indicating the shard is now closed) and ensure we're still able to find the sequence number
+
+		match.setEndingSequenceNumber("99999");
+		assertEquals(sequenceNumber, consumer.findSequenceNumberToRestoreFrom(current, sequenceNumsToRestore).getSequenceNumber());
+	}
+
 	private static final class TestingListState<T> implements ListState<T> {
 
 		private final List<T> list = new ArrayList<>();

@@ -210,16 +210,18 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		for (StreamShardHandle shard : allShards) {
 			StreamShardMetadata kinesisStreamShard = KinesisDataFetcher.convertToStreamShardMetadata(shard);
 			if (sequenceNumsToRestore != null) {
-				if (sequenceNumsToRestore.containsKey(kinesisStreamShard)) {
+				// find the sequence number for the given converted kinesis shard in our restored state
+				final SequenceNumber restoredSequenceNumber = findSequenceNumberToRestoreFrom(kinesisStreamShard, sequenceNumsToRestore);
+				if (restoredSequenceNumber != null) {
 					// if the shard was already seen and is contained in the state,
 					// just use the sequence number stored in the state
 					fetcher.registerNewSubscribedShardState(
-						new KinesisStreamShardState(kinesisStreamShard, shard, sequenceNumsToRestore.get(kinesisStreamShard)));
+						new KinesisStreamShardState(kinesisStreamShard, shard, restoredSequenceNumber));
 
 					if (LOG.isInfoEnabled()) {
 						LOG.info("Subtask {} is seeding the fetcher with restored shard {}," +
 								" starting state set to the restored sequence number {}",
-							getRuntimeContext().getIndexOfThisSubtask(), shard.toString(), sequenceNumsToRestore.get(kinesisStreamShard));
+							getRuntimeContext().getIndexOfThisSubtask(), shard.toString(), restoredSequenceNumber);
 					}
 				} else {
 					// the shard wasn't discovered in the previous run, therefore should be consumed from the beginning
@@ -265,6 +267,27 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		// check that the fetcher has terminated before fully closing
 		fetcher.awaitTermination();
 		sourceContext.close();
+	}
+
+	/**
+	 * Tries to find the {@link SequenceNumber} for a given {@code kinesisStreamShard} in the list of the restored stream shards' metadata,
+	 * by comparing the stream name and shard id for equality.
+	 * @param current				the current Kinesis shard we're trying to find the restored sequence number for
+	 * @param sequenceNumsToRestore	the restored sequence numbers
+	 * @return the sequence number, if any, or {@code null} if no matching shard is found
+	 */
+	@VisibleForTesting
+	SequenceNumber findSequenceNumberToRestoreFrom(StreamShardMetadata current, HashMap<StreamShardMetadata, SequenceNumber> sequenceNumsToRestore) {
+		checkNotNull(current.getStreamName(), "Stream name not set on the current metadata shard");
+		checkNotNull(current.getShardId(), "Shard id not set on the current metadata shard");
+
+		for (final Map.Entry<StreamShardMetadata, SequenceNumber> entry : sequenceNumsToRestore.entrySet()) {
+			if (current.getStreamName().equals(entry.getKey().getStreamName())
+				&& current.getShardId().equals(entry.getKey().getShardId())) {
+				return entry.getValue();
+			}
+		}
+		return null;
 	}
 
 	@Override
