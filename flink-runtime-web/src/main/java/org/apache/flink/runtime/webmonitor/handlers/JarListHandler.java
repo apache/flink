@@ -23,12 +23,10 @@ import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractJsonRequestHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
 import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandler;
+import org.apache.flink.runtime.webmonitor.WebRuntimeMonitor;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -46,8 +44,6 @@ import java.util.jar.Manifest;
  * Handle request for listing uploaded jars.
  */
 public class JarListHandler extends AbstractJsonRequestHandler {
-
-	private static final Logger LOG = LoggerFactory.getLogger(JarListHandler.class);
 
 	static final String JAR_LIST_REST_PATH = "/jars";
 
@@ -83,7 +79,12 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 					});
 
 					if (list == null) {
-						LOG.warn("Jar storage directory {} has been deleted externally. Previously uploaded jars are no longer available.", jarDir.getAbsolutePath());
+						WebRuntimeMonitor.logExternalUploadDirDeletion(jarDir);
+						try {
+							WebRuntimeMonitor.checkAndCreateUploadDir(jarDir);
+						} catch (IOException ioe) {
+							// re-throwing an exception here breaks the UI
+						}
 						list = new File[0];
 					}
 
