@@ -208,6 +208,16 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		for (StreamShardHandle shard : allShards) {
 			StreamShardMetadata kinesisStreamShard = KinesisDataFetcher.convertToStreamShardMetadata(shard);
 			if (sequenceNumsToRestore != null) {
+
+				// We need to do this to make sure that a shard that was closed after this restored state was taken will be properly
+				// detected and have its sequence numbers restored. A shard will be closed when re-sharding, which can happen when
+				// scaling up & down the Kinesis stream, and if the state is not synchronized, then the equality check of the current
+				// Kinesis shard will not match the stored state, which will cause us to re-read the entire shard from the event horizon.
+				if (updateKinesisShardStateWithMissingEndingSequenceNumber(kinesisStreamShard, sequenceNumsToRestore)) {
+					if (LOG.isInfoEnabled()) {
+						LOG.info("Updated local stored state for shard {} with a new ending number: {}", kinesisStreamShard.getShardId(), sequenceNumsToRestore.get(kinesisStreamShard));
+					}
+				}
 				if (sequenceNumsToRestore.containsKey(kinesisStreamShard)) {
 					// if the shard was already seen and is contained in the state,
 					// just use the sequence number stored in the state
@@ -263,6 +273,45 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		// check that the fetcher has terminated before fully closing
 		fetcher.awaitTermination();
 		sourceContext.close();
+	}
+
+	/**
+	 * Synchronizes the Kinesis shard information from the current Kinesis shard with the restored state, if we find
+	 * a shard that match the shardId and streamName. If we find one, and its ending key is different that what we
+	 * have in our stored state, then we update the stored's shard's metadata's ending number.
+	 *
+	 * @param current				the current Kinesis shard we're trying to synchronize.
+	 * @param sequenceNumsToRestore	the (re)stored shard metadata and their sequence numbers.
+	 * @return {@code true} if the local state was updated with the current Kinesis shard's ending number.
+	 */
+	@VisibleForTesting
+	boolean updateKinesisShardStateWithMissingEndingSequenceNumber(StreamShardMetadata current, HashMap<StreamShardMetadata, SequenceNumber> sequenceNumsToRestore) {
+		checkNotNull(current.getStreamName(), "Stream name not set on the current metadata shard");
+		checkNotNull(current.getShardId(), "Shard id not set on the current metadata shard");
+
+		// short-circuit: if the current shard doesn't have an ending sequence number, then there's no point in trying to update the local state
+		// since that's the only property that can change.
+		if (current.getEndingSequenceNumber() == null) {
+			return false;
+		}
+
+		// try to find the matching shard based on the id & stream name
+		for (Map.Entry<StreamShardMetadata, SequenceNumber> entry : sequenceNumsToRestore.entrySet()) {
+			if (current.getStreamName().equals(entry.getKey().getStreamName())
+				&& current.getShardId().equals(entry.getKey().getShardId())) {
+				// synchronize the local state if the ending sequence number is different
+				if (!current.getEndingSequenceNumber().equals(entry.getKey().getEndingSequenceNumber())) {
+					// ugly, but since the hashcode will change, we'll need to remove it and add it back
+					sequenceNumsToRestore.remove(entry.getKey());
+					entry.getKey().setEndingSequenceNumber(current.getEndingSequenceNumber());
+					sequenceNumsToRestore.put(entry.getKey(), entry.getValue());
+					return true;
+				}
+				// we already found the matching shard
+				break;
+			}
+		}
+		return false;
 	}
 
 	@Override
