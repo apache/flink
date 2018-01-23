@@ -38,7 +38,7 @@ import java.util.List;
  * @param <V> The type of the value.
  */
 public class HeapListState<K, N, V>
-		extends AbstractHeapMergingState<K, N, V, Iterable<V>, ArrayList<V>, ListState<V>, ListStateDescriptor<V>>
+		extends AbstractHeapMergingState<K, N, V, Iterable<V>, List<V>, ListState<V>, ListStateDescriptor<V>>
 		implements InternalListState<N, V> {
 
 	/**
@@ -50,7 +50,7 @@ public class HeapListState<K, N, V>
 	 */
 	public HeapListState(
 			ListStateDescriptor<V> stateDesc,
-			StateTable<K, N, ArrayList<V>> stateTable,
+			StateTable<K, N, List<V>> stateTable,
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
@@ -74,8 +74,8 @@ public class HeapListState<K, N, V>
 			return;
 		}
 
-		final StateTable<K, N, ArrayList<V>> map = stateTable;
-		ArrayList<V> list = map.get(namespace);
+		final StateTable<K, N, List<V>> map = stateTable;
+		List<V> list = map.get(namespace);
 
 		if (list == null) {
 			list = new ArrayList<>();
@@ -89,7 +89,7 @@ public class HeapListState<K, N, V>
 		Preconditions.checkState(namespace != null, "No namespace given.");
 		Preconditions.checkState(key != null, "No key given.");
 
-		ArrayList<V> result = stateTable.get(key, namespace);
+		List<V> result = stateTable.get(key, namespace);
 
 		if (result == null) {
 			return null;
@@ -117,7 +117,7 @@ public class HeapListState<K, N, V>
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected ArrayList<V> mergeState(ArrayList<V> a, ArrayList<V> b) {
+	protected List<V> mergeState(List<V> a, List<V> b) {
 		a.addAll(b);
 		return a;
 	}
@@ -128,9 +128,16 @@ public class HeapListState<K, N, V>
 
 		if (values != null && !values.isEmpty()) {
 			final N namespace = currentNamespace;
-			final StateTable<K, N, ArrayList<V>> map = stateTable;
+			final StateTable<K, N, List<V>> map = stateTable;
+			List<V> list = map.get(namespace);
 
-			map.put(namespace, new ArrayList<>(values));
+			if (list == null) {
+				list = new ArrayList<>(values);
+				map.put(namespace, list);
+			} else {
+				list.clear();
+				list.addAll(values);
+			}
 		}
 	}
 
@@ -138,17 +145,16 @@ public class HeapListState<K, N, V>
 	public void addAll(List<V> values) throws Exception {
 		if (values != null && !values.isEmpty()) {
 			final N namespace = currentNamespace;
-			final StateTable<K, N, ArrayList<V>> map = stateTable;
+			final StateTable<K, N, List<V>> map = stateTable;
 
-			ArrayList<V> list = map.get(currentNamespace);
+			List<V> list = map.get(currentNamespace);
 
 			if (list == null) {
-				list = new ArrayList<>();
+				list = new ArrayList<>(values);
+				map.put(namespace, list);
+			} else {
+				list.addAll(values);
 			}
-
-			list.addAll(values);
-
-			map.put(namespace, list);
 		}
 	}
 }
