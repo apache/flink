@@ -101,8 +101,8 @@ public final class WebMonitorUtils {
 
 			String outFilePath = logFilePath.substring(0, logFilePath.length() - 3).concat("out");
 
-			LOG.info("Determined location of JobManager log file: {}", logFilePath);
-			LOG.info("Determined location of JobManager stdout file: {}", outFilePath);
+			LOG.info("Determined location of main cluster component log file: {}", logFilePath);
+			LOG.info("Determined location of main cluster component stdout file: {}", outFilePath);
 
 			return new LogFileLocation(resolveFileLocation(logFilePath), resolveFileLocation(outFilePath));
 		}

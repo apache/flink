@@ -57,8 +57,11 @@ import org.apache.flink.runtime.rest.handler.job.metrics.JobVertexMetricsHandler
 import org.apache.flink.runtime.rest.handler.job.metrics.SubtaskMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.TaskManagerMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.savepoints.SavepointHandlers;
+import org.apache.flink.runtime.rest.handler.legacy.ConstantTextHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
+import org.apache.flink.runtime.rest.handler.legacy.files.LogFileHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
+import org.apache.flink.runtime.rest.handler.legacy.files.StdoutFileHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.files.WebContentHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerDetailsHandler;
@@ -100,6 +103,8 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
+
+import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
@@ -473,11 +478,48 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		handlers.add(Tuple2.of(SubtaskCurrentAttemptDetailsHeaders.getInstance(), subtaskCurrentAttemptDetailsHandler));
 		handlers.add(Tuple2.of(JobVertexTaskManagersHeaders.getInstance(), jobVertexTaskManagersHandler));
 
-		// This handler MUST be added last, as it otherwise masks all subsequent GET handlers
 		optWebContent.ifPresent(
 			webContent -> handlers.add(Tuple2.of(WebContentHandlerSpecification.getInstance(), webContent)));
 
+		// load the log and stdout file handler for the main cluster component
+		final WebMonitorUtils.LogFileLocation logFileLocation = WebMonitorUtils.LogFileLocation.find(clusterConfiguration);
+
+		final ChannelInboundHandler logFileHandler = createStaticFileHandler(
+			restAddressFuture,
+			timeout,
+			logFileLocation.logFile);
+
+		final ChannelInboundHandler stdoutFileHandler = createStaticFileHandler(
+			restAddressFuture,
+			timeout,
+			logFileLocation.stdOutFile);
+
+		handlers.add(Tuple2.of(LogFileHandlerSpecification.getInstance(), logFileHandler));
+		handlers.add(Tuple2.of(StdoutFileHandlerSpecification.getInstance(), stdoutFileHandler));
+
 		return handlers;
+	}
+
+	@Nonnull
+	private ChannelInboundHandler createStaticFileHandler(
+			CompletableFuture<String> restAddressFuture,
+			Time timeout,
+			File fileToServe) {
+
+		if (fileToServe == null) {
+			return new ConstantTextHandler("(file unavailable)");
+		} else {
+			try {
+				return new StaticFileServerHandler<>(
+					leaderRetriever,
+					restAddressFuture,
+					timeout,
+					fileToServe);
+			} catch (IOException e) {
+				log.info("Cannot load log file handler.", e);
+				return new ConstantTextHandler("(log file unavailable)");
+			}
+		}
 	}
 
 	@Override
