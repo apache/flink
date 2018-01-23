@@ -356,6 +356,10 @@ The following parameters configure Flink's JobManager and TaskManagers.
 
 - `akka.ssl.enabled`: Turns on SSL for Akka's remote communication. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: **true**).
 
+### REST
+
+{% include generated/rest_configuration.html %}
+
 ### SSL Settings
 
 - `security.ssl.enabled`: Turns on SSL for internal network communication. This can be optionally overridden by flags defined in different transport modules (DEFAULT: **false**).
