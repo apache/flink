@@ -42,7 +42,10 @@ public final class ConfigConstants {
 
 	/**
 	 * The config parameter defining the default parallelism for jobs.
+	 *
+	 * @deprecated use {@link CoreOptions#DEFAULT_PARALLELISM} instead
 	 */
+	@Deprecated
 	public static final String DEFAULT_PARALLELISM_KEY = "parallelism.default";
 
 	// ---------------------------- Restart strategies ------------------------
@@ -1268,7 +1271,10 @@ public final class ConfigConstants {
 
 	/**
 	 * The default parallelism for operations.
+	 *
+	 * @deprecated use {@link CoreOptions#DEFAULT_PARALLELISM} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_PARALLELISM = 1;
 
 	/**
