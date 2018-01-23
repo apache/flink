@@ -147,7 +147,7 @@ public class ConfigOptionsDocGenerator {
 		htmlTable.append("    <thead>\n");
 		htmlTable.append("        <tr>\n");
 		htmlTable.append("            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n");
-		htmlTable.append("            <th class=\"text-left\" style=\"width: 15%\">Default Value</th>\n");
+		htmlTable.append("            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n");
 		htmlTable.append("            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n");
 		htmlTable.append("        </tr>\n");
 		htmlTable.append("    </thead>\n");
