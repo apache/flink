@@ -540,6 +540,10 @@ Previously this key was named `recovery.mode` and the default value was `standal
 
 - `env.ssh.opts`: Additional command line options passed to SSH clients when starting or stopping JobManager, TaskManager, and Zookeeper services (start-cluster.sh, stop-cluster.sh, start-zookeeper-quorum.sh, stop-zookeeper-quorum.sh).
 
+### Checkpointing
+
+{% include generated/checkpointing_configuration.html %}
+
 ### Queryable State
 
 {% include generated/queryable_state_configuration.html %}

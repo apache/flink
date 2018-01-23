@@ -31,12 +31,14 @@ public class CheckpointingOptions {
 	/** The state backend to be used to store and checkpoint state. */
 	public static final ConfigOption<String> STATE_BACKEND = ConfigOptions
 			.key("state.backend")
-			.noDefaultValue();
+			.noDefaultValue()
+			.withDescription("The state backend to be used to store and checkpoint state.");
 
 	/** The maximum number of completed checkpoints to retain.*/
 	public static final ConfigOption<Integer> MAX_RETAINED_CHECKPOINTS = ConfigOptions
 			.key("state.checkpoints.num-retained")
-			.defaultValue(1);
+			.defaultValue(1)
+			.withDescription("The maximum number of completed checkpoints to retain.");
 
 	/** Option whether the state backend should use an asynchronous snapshot method where
 	 * possible and configurable.
@@ -45,7 +47,10 @@ public class CheckpointingOptions {
 	 * asynchronous snapshots, and ignore this option. */
 	public static final ConfigOption<Boolean> ASYNC_SNAPSHOTS = ConfigOptions
 			.key("state.backend.async")
-			.defaultValue(true);
+			.defaultValue(true)
+			.withDescription("Option whether the state backend should use an asynchronous snapshot method where" +
+				" possible and configurable. Some state backends may not support asynchronous snapshots, or only support" +
+				" asynchronous snapshots, and ignore this option.");
 
 	/** Option whether the state backend should create incremental checkpoints,
 	 * if possible. For an incremental checkpoint, only a diff from the previous
@@ -55,7 +60,11 @@ public class CheckpointingOptions {
 	 * this option.*/
 	public static final ConfigOption<Boolean> INCREMENTAL_CHECKPOINTS = ConfigOptions
 			.key("state.backend.incremental")
-			.defaultValue(false);
+			.defaultValue(false)
+			.withDescription("Option whether the state backend should create incremental checkpoints, if possible. For" +
+				" an incremental checkpoint, only a diff from the previous checkpoint is stored, rather than the" +
+				" complete checkpoint state. Some state backends may not support incremental checkpoints and ignore" +
+				" this option.");
 
 	// ------------------------------------------------------------------------
 	//  Options specific to the file-system-based state backends
@@ -66,19 +75,25 @@ public class CheckpointingOptions {
 	public static final ConfigOption<String> SAVEPOINT_DIRECTORY = ConfigOptions
 			.key("state.savepoints.dir")
 			.noDefaultValue()
-			.withDeprecatedKeys("savepoints.state.backend.fs.dir");
+			.withDeprecatedKeys("savepoints.state.backend.fs.dir")
+			.withDescription("The default directory for savepoints. Used by the state backends that write savepoints to" +
+				" file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend).");
 
 	/** The default directory used for checkpoints. Used by the state backends that write
 	 * checkpoints to file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend). */
 	public static final ConfigOption<String> CHECKPOINTS_DIRECTORY = ConfigOptions
 			.key("state.checkpoints.dir")
-			.noDefaultValue();
+			.noDefaultValue()
+			.withDescription("The default directory used for checkpoints. Used by the state backends that write" +
+				" checkpoints to file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend).");
 
 	/** The minimum size of state data files. All state chunks smaller than that
 	 * are stored inline in the root checkpoint metadata file. */
 	public static final ConfigOption<Integer> FS_SMALL_FILE_THRESHOLD = ConfigOptions
 			.key("state.backend.fs.memory-threshold")
-			.defaultValue(1024);
+			.defaultValue(1024)
+			.withDescription("The minimum size of state data files. All state chunks smaller than that are stored" +
+				" inline in the root checkpoint metadata file.");
 
 	// ------------------------------------------------------------------------
 	//  Options specific to the RocksDB state backend
@@ -88,5 +103,6 @@ public class CheckpointingOptions {
 	public static final ConfigOption<String> ROCKSDB_LOCAL_DIRECTORIES = ConfigOptions
 			.key("state.backend.rocksdb.localdir")
 			.noDefaultValue()
-			.withDeprecatedKeys("state.backend.rocksdb.checkpointdir");
+			.withDeprecatedKeys("state.backend.rocksdb.checkpointdir")
+			.withDescription("The local directory (on the TaskManager) where RocksDB puts its files.");
 }
