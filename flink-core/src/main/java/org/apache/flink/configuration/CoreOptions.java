@@ -114,9 +114,9 @@ public class CoreOptions {
 	//  program
 	// ------------------------------------------------------------------------
 
-	public static final ConfigOption<Integer> DEFAULT_PARALLELISM_KEY = ConfigOptions
+	public static final ConfigOption<Integer> DEFAULT_PARALLELISM = ConfigOptions
 		.key("parallelism.default")
-		.defaultValue(-1);
+		.defaultValue(1);
 
 	// ------------------------------------------------------------------------
 	//  file systems
