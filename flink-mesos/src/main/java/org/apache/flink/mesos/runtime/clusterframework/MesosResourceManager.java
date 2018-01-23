@@ -670,6 +670,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 				1,
 				new HashMap<>(taskManagerParameters.containeredParameters().taskManagerEnv())),
 			taskManagerParameters.containerVolumes(),
+			taskManagerParameters.dockerParameters(),
 			taskManagerParameters.constraints(),
 			taskManagerParameters.command(),
 			taskManagerParameters.bootstrapCommand(),
