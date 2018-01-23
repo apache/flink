@@ -25,7 +25,6 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 
@@ -33,14 +32,12 @@ import java.io.IOException;
 import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * {@link ResultPartitionWriter} that collects records or events on the List.
  */
-public class RecordOrEventCollectingResultPartitionWriter<T> implements ResultPartitionWriter {
+public class RecordOrEventCollectingResultPartitionWriter<T> extends AbstractCollectingResultPartitionWriter {
 	private final Collection<Object> output;
-	private final BufferProvider bufferProvider;
 	private final NonReusingDeserializationDelegate<T> delegate;
 	private final RecordDeserializer<DeserializationDelegate<T>> deserializer = new AdaptiveSpanningRecordDeserializer<>();
 
@@ -48,36 +45,13 @@ public class RecordOrEventCollectingResultPartitionWriter<T> implements ResultPa
 			Collection<Object> output,
 			BufferProvider bufferProvider,
 			TypeSerializer<T> serializer) {
-
+		super(bufferProvider);
 		this.output = checkNotNull(output);
-		this.bufferProvider = checkNotNull(bufferProvider);
 		this.delegate = new NonReusingDeserializationDelegate<>(checkNotNull(serializer));
 	}
 
 	@Override
-	public BufferProvider getBufferProvider() {
-		return bufferProvider;
-	}
-
-	@Override
-	public ResultPartitionID getPartitionId() {
-		return new ResultPartitionID();
-	}
-
-	@Override
-	public int getNumberOfSubpartitions() {
-		return 1;
-	}
-
-	@Override
-	public int getNumTargetKeyGroups() {
-		return 1;
-	}
-
-	@Override
-	public void writeBuffer(Buffer buffer, int targetChannel) throws IOException {
-		checkState(targetChannel < getNumberOfSubpartitions());
-
+	protected void deserializeBuffer(Buffer buffer) throws IOException {
 		if (buffer.isBuffer()) {
 			deserializer.setNextBuffer(buffer);
 
