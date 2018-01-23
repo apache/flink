@@ -286,6 +286,10 @@ These parameters configure the default HDFS used by Flink. Setups that do not sp
 
 {% include generated/blob_server_configuration.html %}
 
+### Heartbeat Manager
+
+{% include generated/heartbeat_manager_configuration.html %}
+
 ### SSL Settings
 
 {% include generated/security_configuration.html %}
