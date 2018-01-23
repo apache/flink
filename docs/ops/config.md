@@ -332,6 +332,10 @@ The following parameters configure Flink's JobManager and TaskManagers.
 
 {% include generated/rest_configuration.html %}
 
+### Blob Server
+
+{% include generated/blob_server_configuration.html %}
+
 ### SSL Settings
 
 - `security.ssl.enabled`: Turns on SSL for internal network communication. This can be optionally overridden by flags defined in different transport modules (DEFAULT: **false**).
