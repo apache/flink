@@ -2414,6 +2414,17 @@ SHA1(string)
     <tr>
       <td>
         {% highlight text %}
+SHA224(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-224 hash of the string argument as a string of 56 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>    
+    
+    <tr>
+      <td>
+        {% highlight text %}
 SHA256(string)
 {% endhighlight %}
       </td>
@@ -2421,6 +2432,28 @@ SHA256(string)
         <p>Returns the SHA-256 hash of the string argument as a string of 64 hexadecimal digits; null if <i>string</i> is null.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+SHA384(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-384 hash of the string argument as a string of 96 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>  
+
+    <tr>
+      <td>
+        {% highlight text %}
+SHA512(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-512 hash of the string argument as a string of 128 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>          
   </tbody>
 </table>
 
