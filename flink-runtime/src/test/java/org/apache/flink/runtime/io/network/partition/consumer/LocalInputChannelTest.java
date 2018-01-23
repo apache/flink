@@ -59,6 +59,7 @@ import java.util.concurrent.Future;
 
 import scala.Tuple2;
 
+import static org.apache.flink.util.FutureUtil.waitForAll;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -170,10 +171,7 @@ public class LocalInputChannelTest {
 						partitionIds)));
 			}
 
-			// Wait for all to finish
-			for (Future<?> result : results) {
-				result.get();
-			}
+			waitForAll(60_000L, results);
 		}
 		finally {
 			networkBuffers.destroyAllBufferPools();

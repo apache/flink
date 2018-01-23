@@ -40,6 +40,7 @@ import java.util.concurrent.Future;
 
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.BUFFER_SIZE;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
+import static org.apache.flink.util.FutureUtil.waitForAll;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -308,14 +309,10 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		Future<Boolean> producerResult = executorService.submit(
 			new TestSubpartitionProducer(subpartition, isSlowProducer, producerSource));
-
 		Future<Boolean> consumerResult = executorService.submit(consumer);
 
-		// Wait for producer and consumer to finish
-		producerResult.get();
-		consumerResult.get();
+		waitForAll(60_000L, producerResult, consumerResult);
 	}
-
 
 	/**
 	 * Tests cleanup of {@link PipelinedSubpartition#release()} with no read view attached.
