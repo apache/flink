@@ -21,9 +21,9 @@ package org.apache.flink.api.common.io;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.OptimizerOptions;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
@@ -97,20 +97,18 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	}
 
 	protected static void loadConfigParameters(Configuration parameters) {
-		int maxSamples = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
-				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
-		int minSamples = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
-			ConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES);
+		int maxSamples = parameters.getInteger(OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES);
+		int minSamples = parameters.getInteger(OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES);
 		
 		if (maxSamples < 0) {
 			LOG.error("Invalid default maximum number of line samples: " + maxSamples + ". Using default value of " +
-				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
-			maxSamples = ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES;
+				OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES.key());
+			maxSamples = OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES.defaultValue();
 		}
 		if (minSamples < 0) {
 			LOG.error("Invalid default minimum number of line samples: " + minSamples + ". Using default value of " +
-				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES);
-			minSamples = ConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES;
+				OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES.key());
+			minSamples = OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES.defaultValue();
 		}
 		
 		DEFAULT_MAX_NUM_SAMPLES = maxSamples;
@@ -123,10 +121,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			DEFAULT_MIN_NUM_SAMPLES = minSamples;
 		}
 		
-		int maxLen = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_SAMPLE_LENGTH_KEY,
-				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
+		int maxLen = parameters.getInteger(OptimizerOptions.DELIMITED_FORMAT_MAX_SAMPLE_LEN);
 		if (maxLen <= 0) {
-			maxLen = ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN;
+			maxLen = OptimizerOptions.DELIMITED_FORMAT_MAX_SAMPLE_LEN.defaultValue();
 			LOG.error("Invalid value for the maximum sample record length. Using default value of " + maxLen + '.');
 		} else if (maxLen < DEFAULT_READ_BUFFER_SIZE) {
 			maxLen = DEFAULT_READ_BUFFER_SIZE;
