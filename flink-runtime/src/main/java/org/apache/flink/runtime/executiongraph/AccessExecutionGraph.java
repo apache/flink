@@ -70,7 +70,7 @@ public interface AccessExecutionGraph {
 	 * @return failure causing exception, or null
 	 */
 	@Nullable
-	ErrorInfo getFailureCause();
+	ErrorInfo getFailureInfo();
 
 	/**
 	 * Returns the job vertex for the given {@link JobVertexID}.

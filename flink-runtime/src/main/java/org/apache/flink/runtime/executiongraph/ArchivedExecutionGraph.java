@@ -143,7 +143,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	}
 
 	@Override
-	public ErrorInfo getFailureCause() {
+	public ErrorInfo getFailureInfo() {
 		return failureCause;
 	}
 
