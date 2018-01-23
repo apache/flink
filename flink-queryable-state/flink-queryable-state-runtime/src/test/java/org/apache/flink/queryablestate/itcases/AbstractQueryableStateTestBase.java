@@ -340,7 +340,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 						.mapTo(ClassTag$.MODULE$.<JobManagerMessages.JobFound>apply(JobManagerMessages.JobFound.class)))
 				.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
-		String failureCause = jobFound.executionGraph().getFailureCause().getExceptionAsString();
+		String failureCause = jobFound.executionGraph().getFailureInfo().getExceptionAsString();
 
 		assertEquals(JobStatus.FAILED, jobFound.executionGraph().getState());
 		assertTrue("Not instance of SuppressRestartsException", failureCause.startsWith("org.apache.flink.runtime.execution.SuppressRestartsException"));

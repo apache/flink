@@ -252,7 +252,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
 
-		assertEquals(exception, eg.getFailureCause().getException());
+		assertEquals(exception, eg.getFailureCause());
 	}
 
 	// ------------------------------------------------------------------------

@@ -136,6 +136,10 @@ public class SerializedThrowable extends Exception implements Serializable {
 		return originalErrorClassName;
 	}
 
+	public String getFullStringifiedStackTrace() {
+		return fullStringifiedStackTrace;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Override the behavior of Throwable
 	// ------------------------------------------------------------------------

@@ -818,7 +818,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		waitUntilJobStatus(eg, JobStatus.FAILED, 1000);
 
-		final Throwable t = eg.getFailureCause().getException();
+		final Throwable t = eg.getFailureCause();
 		if (!(t instanceof NoResourceAvailableException)) {
 			ExceptionUtils.rethrowException(t, t.getMessage());
 		}
