@@ -16,18 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state.util;
-
-import org.apache.flink.annotation.VisibleForTesting;
+package org.apache.flink.contrib.streaming.state.benchmark;
 
 import java.util.List;
 
 /**
- * Utils to simulate StringAppendTestOperator's merge operations in RocksDB.
+ * Utils to simulate getPreMergedValue() in RocksDBListState for performance testing purpose only.
  */
 public class MergeUtils {
-	@VisibleForTesting
-	protected static final byte DELIMITER = ',';
+	private static final byte DELIMITER = ',';
 
 	/**
 	 * Merge operands into a single value that can be put directly into RocksDB.
