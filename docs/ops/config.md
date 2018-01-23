@@ -278,6 +278,10 @@ These parameters configure the default HDFS used by Flink. Setups that do not sp
 
 {% include generated/heartbeat_manager_configuration.html %}
 
+### REST
+
+{% include generated/rest_configuration.html %}
+
 ### SSL Settings
 
 {% include generated/security_configuration.html %}
