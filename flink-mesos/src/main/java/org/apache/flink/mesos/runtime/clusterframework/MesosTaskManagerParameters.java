@@ -56,11 +56,13 @@ public class MesosTaskManagerParameters {
 
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_MEMORY_MB =
 		key("mesos.resourcemanager.tasks.mem")
-		.defaultValue(1024);
+		.defaultValue(1024)
+		.withDescription("Memory to assign to the Mesos workers in MB.");
 
 	public static final ConfigOption<Double> MESOS_RM_TASKS_CPUS =
 		key("mesos.resourcemanager.tasks.cpus")
-		.defaultValue(0.0);
+		.defaultValue(0.0)
+		.withDescription("CPUs to assign to the Mesos workers.");
 
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_GPUS =
 		key("mesos.resourcemanager.tasks.gpus")
@@ -68,11 +70,13 @@ public class MesosTaskManagerParameters {
 
 	public static final ConfigOption<String> MESOS_RM_CONTAINER_TYPE =
 		key("mesos.resourcemanager.tasks.container.type")
-		.defaultValue("mesos");
+		.defaultValue("mesos")
+		.withDescription("Type of the containerization used: “mesos” or “docker”.");
 
 	public static final ConfigOption<String> MESOS_RM_CONTAINER_IMAGE_NAME =
 		key("mesos.resourcemanager.tasks.container.image.name")
-		.noDefaultValue();
+		.noDefaultValue()
+		.withDescription("Image name to use for the container.");
 
 	public static final ConfigOption<String> MESOS_TM_HOSTNAME =
 		key("mesos.resourcemanager.tasks.hostname")
@@ -88,15 +92,20 @@ public class MesosTaskManagerParameters {
 
 	public static final ConfigOption<String> MESOS_RM_CONTAINER_VOLUMES =
 		key("mesos.resourcemanager.tasks.container.volumes")
-		.noDefaultValue();
+		.noDefaultValue()
+		.withDescription("A comma separated list of [host_path:]container_path[:RO|RW]. This allows for mounting" +
+			" additional volumes into your container.");
 
 	public static final ConfigOption<String> MESOS_RM_CONTAINER_DOCKER_PARAMETERS =
 		key("mesos.resourcemanager.tasks.container.docker.parameters")
-		.noDefaultValue();
+		.noDefaultValue()
+		.withDescription("Custom parameters to be passed into docker run command when using the docker containerizer." +
+			" Comma separated list of \"key=value\" pairs. The \"value\" may contain '='.");
 
 	public static final ConfigOption<String> MESOS_CONSTRAINTS_HARD_HOSTATTR =
 		key("mesos.constraints.hard.hostattribute")
-		.noDefaultValue();
+		.noDefaultValue()
+		.withDescription("Constraints for task placement on mesos.");
 
 	/**
 	 * Value for {@code MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE} setting. Tells to use the Mesos containerizer.
