@@ -413,11 +413,7 @@ definition. This scheme is used **ONLY** if no other scheme is specified (explic
 
 ### Compiler/Optimizer
 
-- `compiler.delimited-informat.max-line-samples`: The maximum number of line samples taken by the compiler for delimited inputs. The samples are used to estimate the number of records. This value can be overridden for a specific input with the input format's parameters (DEFAULT: 10).
-
-- `compiler.delimited-informat.min-line-samples`: The minimum number of line samples taken by the compiler for delimited inputs. The samples are used to estimate the number of records. This value can be overridden for a specific input with the input format's parameters (DEFAULT: 2).
-
-- `compiler.delimited-informat.max-sample-len`: The maximal length of a line sample that the compiler takes for delimited inputs. If the length of a single sample exceeds this value (possible because of misconfiguration of the parser), the sampling aborts. This value can be overridden for a specific input with the input format's parameters (DEFAULT: 2097152 (= 2 MiBytes)).
+{% include generated/optimizer_configuration.html %}
 
 ### Runtime Algorithms
 
