@@ -76,8 +76,9 @@ public interface AccessExecutionGraph {
 	 * Returns the job vertex for the given {@link JobVertexID}.
 	 *
 	 * @param id id of job vertex to be returned
-	 * @return job vertex for the given id, or null
+	 * @return job vertex for the given id, or {@code null}
 	 */
+	@Nullable
 	AccessExecutionJobVertex getJobVertex(JobVertexID id);
 
 	/**

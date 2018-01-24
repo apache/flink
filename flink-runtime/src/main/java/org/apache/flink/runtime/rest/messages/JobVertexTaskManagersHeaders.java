@@ -36,6 +36,8 @@ public class JobVertexTaskManagersHeaders implements MessageHeaders<EmptyRequest
 		"/:" + JobVertexIdPathParameter.KEY +
 		"/taskmanagers";
 
+	private JobVertexTaskManagersHeaders() {}
+
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {
 		return EmptyRequestBody.class;

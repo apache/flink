@@ -30,7 +30,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
-import java.util.List;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 
@@ -56,18 +56,18 @@ public class JobVertexTaskManagersInfo implements ResponseBody {
 	private final long now;
 
 	@JsonProperty(VERTEX_TASK_FIELD_TASK_MANAGERS)
-	private List<TaskManagersInfo> taskManagers;
+	private Collection<TaskManagersInfo> taskManagerInfos;
 
 	@JsonCreator
 	public JobVertexTaskManagersInfo(
 			@JsonDeserialize(using = JobVertexIDDeserializer.class) @JsonProperty(VERTEX_TASK_FIELD_ID) JobVertexID jobVertexID,
 			@JsonProperty(VERTEX_TASK_FIELD_NAME) String name,
 			@JsonProperty(VERTEX_TASK_FIELD_NOW) long now,
-			@JsonProperty(VERTEX_TASK_FIELD_TASK_MANAGERS) List<TaskManagersInfo> taskManagers) {
+			@JsonProperty(VERTEX_TASK_FIELD_TASK_MANAGERS) Collection<TaskManagersInfo> taskManagerInfos) {
 		this.jobVertexID = checkNotNull(jobVertexID);
 		this.name = checkNotNull(name);
 		this.now = now;
-		this.taskManagers = checkNotNull(taskManagers);
+		this.taskManagerInfos = checkNotNull(taskManagerInfos);
 	}
 
 	@Override
@@ -82,12 +82,12 @@ public class JobVertexTaskManagersInfo implements ResponseBody {
 		return Objects.equals(jobVertexID, that.jobVertexID) &&
 			Objects.equals(name, that.name) &&
 			now == that.now &&
-			Objects.equals(taskManagers, that.taskManagers);
+			Objects.equals(taskManagerInfos, that.taskManagerInfos);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(jobVertexID, name, now, taskManagers);
+		return Objects.hash(jobVertexID, name, now, taskManagerInfos);
 	}
 
 	// ---------------------------------------------------

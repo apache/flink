@@ -26,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
@@ -41,6 +42,7 @@ import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -50,7 +52,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * Request handler for the job vertex task managers.
+ * A request handler that provides the details of a job vertex, including id, name, and the
+ * runtime and metrics of all its subtasks aggregated by TaskManager.
  */
 public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<JobVertexTaskManagersInfo, JobVertexMessageParameters> {
 	private MetricFetcher<?> metricFetcher;
@@ -65,7 +68,7 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 			Executor executor,
 			MetricFetcher<?> metricFetcher) {
 		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
-		this.metricFetcher = metricFetcher;
+		this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
 	}
 
 	@Override
@@ -76,23 +79,24 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 		JobVertexID jobVertexID = request.getPathParameter(JobVertexIdPathParameter.class);
 		AccessExecutionJobVertex jobVertex = executionGraph.getJobVertex(jobVertexID);
 
+		if (jobVertex == null) {
+			throw new NotFoundException(String.format("JobVertex %s not found", jobVertexID));
+		}
+
 		// Build a map that groups tasks by TaskManager
 		Map<String, List<AccessExecutionVertex>> taskManagerVertices = new HashMap<>();
 		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
 			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
-			String taskManager = location == null ? "(unassigned)" : location.getHostname() + ":" + location.dataPort();
-			List<AccessExecutionVertex> vertices = taskManagerVertices.get(taskManager);
-			if (vertices == null) {
-				vertices = new ArrayList<>();
-				taskManagerVertices.put(taskManager, vertices);
-			}
-
+			String taskManager = location == null ? "(unassigned)" : location.getHostname() + ':' + location.dataPort();
+			List<AccessExecutionVertex> vertices = taskManagerVertices.computeIfAbsent(
+				taskManager,
+				ignored -> new ArrayList<>(4));
 			vertices.add(vertex);
 		}
 
 		final long now = System.currentTimeMillis();
 
-		List<JobVertexTaskManagersInfo.TaskManagersInfo> taskManagersInfoList = new ArrayList<>();
+		List<JobVertexTaskManagersInfo.TaskManagersInfo> taskManagersInfoList = new ArrayList<>(4);
 		for (Map.Entry<String, List<AccessExecutionVertex>> entry : taskManagerVertices.entrySet()) {
 			String host = entry.getKey();
 			List<AccessExecutionVertex> taskVertices = entry.getValue();
@@ -141,8 +145,10 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 				duration = -1L;
 			}
 
-			ExecutionState jobVertexState =
-				ExecutionJobVertex.getAggregateJobVertexState(tasksPerState, taskVertices.size());
+			ExecutionState jobVertexState = ExecutionJobVertex.getAggregateJobVertexState(
+				tasksPerState,
+				taskVertices.size());
+
 			final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
 				counts.getNumBytesInLocal() + counts.getNumBytesInRemote(),
 				counts.isNumBytesInLocalComplete() && counts.isNumBytesInRemoteComplete(),
@@ -153,11 +159,18 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 				counts.getNumRecordsOut(),
 				counts.isNumRecordsOutComplete());
 
-			Map<ExecutionState, Integer> statusCounts = new HashMap<>();
+			Map<ExecutionState, Integer> statusCounts = new HashMap<>(ExecutionState.values().length);
 			for (ExecutionState state : ExecutionState.values()) {
 				statusCounts.put(state, tasksPerState[state.ordinal()]);
 			}
-			taskManagersInfoList.add(new JobVertexTaskManagersInfo.TaskManagersInfo(host, jobVertexState, startTime, endTime, duration, jobVertexMetrics, statusCounts));
+			taskManagersInfoList.add(new JobVertexTaskManagersInfo.TaskManagersInfo(
+				host,
+				jobVertexState,
+				startTime,
+				endTime,
+				duration,
+				jobVertexMetrics,
+				statusCounts));
 		}
 
 		return new JobVertexTaskManagersInfo(jobVertexID, jobVertex.getName(), now, taskManagersInfoList);

@@ -33,4 +33,8 @@ public class NotFoundException extends RestHandlerException {
 	public NotFoundException(String message) {
 		super(message, HttpResponseStatus.NOT_FOUND);
 	}
+
+	public NotFoundException(String message, Throwable cause) {
+		super(message, HttpResponseStatus.NOT_FOUND, cause);
+	}
 }
