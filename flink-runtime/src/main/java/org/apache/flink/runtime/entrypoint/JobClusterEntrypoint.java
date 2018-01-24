@@ -144,6 +144,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			highAvailabilityServices,
 			jobManagerServices,
 			heartbeatServices,
+			blobServer,
 			metricRegistry,
 			this,
 			jobMasterRestEndpoint.getRestAddress());
@@ -191,6 +192,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			HighAvailabilityServices highAvailabilityServices,
 			JobManagerServices jobManagerServices,
 			HeartbeatServices heartbeatServices,
+			BlobServer blobServer,
 			MetricRegistry metricRegistry,
 			FatalErrorHandler fatalErrorHandler,
 			@Nullable String restAddress) throws Exception {
@@ -204,6 +206,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			rpcService,
 			highAvailabilityServices,
 			heartbeatServices,
+			blobServer,
 			jobManagerServices,
 			metricRegistry,
 			new TerminatingOnCompleteActions(jobGraph.getJobID()),
