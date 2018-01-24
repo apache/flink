@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -437,7 +436,7 @@ public abstract class AbstractStreamOperator<OUT>
 					"Key Group " + keyGroupIdx + " does not belong to the local range.");
 
 				timeServiceManager.restoreStateForKeyGroup(
-					new DataInputViewStreamWrapper(streamProvider.getStream()),
+					streamProvider.getStream(),
 					keyGroupIdx, getUserCodeClassloader());
 			}
 		}
