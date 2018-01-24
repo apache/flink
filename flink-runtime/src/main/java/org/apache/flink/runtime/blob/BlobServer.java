@@ -603,7 +603,16 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 		try (FileOutputStream fos = new FileOutputStream(incomingFile)) {
 			md.update(value);
 			fos.write(value);
+		} catch (IOException ioe) {
+			// delete incomingFile from a failed download
+			if (!incomingFile.delete() && incomingFile.exists()) {
+				LOG.warn("Could not delete the staging file {} for job {}.",
+					incomingFile, jobId);
+			}
+			throw ioe;
+		}
 
+		try {
 			// persist file
 			blobKey = moveTempFileToStore(incomingFile, jobId, md.digest(), blobType);
 
