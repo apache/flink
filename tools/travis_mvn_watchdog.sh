@@ -67,6 +67,7 @@ flink-libraries/flink-gelly-scala,\
 flink-libraries/flink-gelly-examples,\
 flink-libraries/flink-ml,\
 flink-libraries/flink-python,\
+flink-libraries/flink-streaming-python,\
 flink-libraries/flink-table,\
 flink-queryable-state/flink-queryable-state-runtime,\
 flink-queryable-state/flink-queryable-state-client-java"
@@ -568,6 +569,12 @@ case $TEST in
 			printf "Running Shaded Presto S3 end-to-end test\n"
 			printf "==============================================================================\n"
 			FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_shaded_presto_s3.sh
+			EXIT_CODE=$(($EXIT_CODE+$?))
+
+			printf "\n==============================================================================\n"
+			printf "Running Streaming Python Wordcount end-to-end test\n"
+			printf "==============================================================================\n"
+			FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_streaming_python_wordcount.sh
 			EXIT_CODE=$(($EXIT_CODE+$?))
 		else
 			printf "\n==============================================================================\n"

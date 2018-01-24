@@ -42,6 +42,7 @@ under the License.
 		<module>flink-ml</module>
 		<module>flink-cep</module>
 		<module>flink-cep-scala</module>
+		<module>flink-streaming-python</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
