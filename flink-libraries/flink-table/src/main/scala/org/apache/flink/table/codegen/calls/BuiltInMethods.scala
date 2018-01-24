@@ -96,5 +96,18 @@ object BuiltInMethods {
     Types.lookupMethod(
       classOf[ScalarFunctions], "concat_ws", classOf[String], classOf[Array[String]])
 
+  val LPAD = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "lpad",
+    classOf[String],
+    classOf[Integer],
+    classOf[String])
+  val RPAD = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "rpad",
+    classOf[String],
+    classOf[Integer],
+    classOf[String])
+
   val BIN = Types.lookupMethod(classOf[JLong], "toBinaryString", classOf[Long])
 }

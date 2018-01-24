@@ -67,6 +67,24 @@ object ScalarSqlFunctions {
       OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC)),
     SqlFunctionCategory.NUMERIC)
 
+  val LPAD = new SqlFunction(
+    "LPAD",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(
+      ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.FORCE_NULLABLE),
+    null,
+    OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.INTEGER, SqlTypeFamily.CHARACTER),
+    SqlFunctionCategory.STRING)
+
+  val RPAD = new SqlFunction(
+    "RPAD",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(
+      ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.FORCE_NULLABLE),
+    null,
+    OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.INTEGER, SqlTypeFamily.CHARACTER),
+    SqlFunctionCategory.STRING)
+
   val MD5 = new SqlFunction(
     "MD5",
     SqlKind.OTHER_FUNCTION,
