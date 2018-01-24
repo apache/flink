@@ -193,6 +193,8 @@ object FunctionCatalog {
     "overlay" -> classOf[Overlay],
     "concat" -> classOf[Concat],
     "concat_ws" -> classOf[ConcatWs],
+    "lpad" -> classOf[Lpad],
+    "rpad" -> classOf[Rpad],
 
     // math functions
     "plus" -> classOf[Plus],

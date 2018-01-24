@@ -109,17 +109,17 @@ object ScalarFunctions {
   }
 
   /**
-    * Returns the string str, left-padded with the string pad to a length of len characters.
+    * Returns the string str left-padded with the string pad to a length of len characters.
     * If str is longer than len, the return value is shortened to len characters.
     */
   def lpad(base: String, len: Integer, pad: String): String = {
     if (len < 0) {
       return null
+    } else if (len == 0) {
+      return ""
     }
-    var data = "".toCharArray
-    if (data.length < len) {
-      data = new Array[Char](len)
-    }
+
+    val data = new Array[Char](len)
     val baseChars = base.toCharArray
     val padChars = pad.toCharArray
 
@@ -129,12 +129,10 @@ object ScalarFunctions {
     // Copy the padding
     var i = 0
     while (i < pos) {
-      {
-        var j = 0
-        while (j < pad.length && j < pos - i) {
-          data(i + j) = padChars(j)
-          j += 1
-        }
+      var j = 0
+      while (j < pad.length && j < pos - i) {
+        data(i + j) = padChars(j)
+        j += 1
       }
       i += pad.length
     }
@@ -145,21 +143,22 @@ object ScalarFunctions {
       data(pos + i) = baseChars(i)
       i += 1
     }
+
     new String(data)
   }
 
   /**
-    * Returns the string str, right-padded with the string pad to a length of len characters.
+    * Returns the string str right-padded with the string pad to a length of len characters.
     * If str is longer than len, the return value is shortened to len characters.
     */
   def rpad(base: String, len: Integer, pad: String): String = {
     if (len < 0) {
       return null
+    } else if (len == 0) {
+      return ""
     }
-    var data = "".toCharArray
-    if (data.length < len) {
-      data = new Array[Char](len)
-    }
+
+    val data = new Array[Char](len)
     val baseChars = base.toCharArray
     val padChars = pad.toCharArray
 

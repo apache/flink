@@ -476,6 +476,22 @@ trait ImplicitExpressionOperations {
   def position(haystack: Expression) = Position(expr, haystack)
 
   /**
+    * Returns a string left-padded with the given pad string to a length of len characters. If
+    * the string is longer than len, the return value is shortened to len characters.
+    *
+    * e.g. "hi".lpad(4, '??') returns "??hi",  "hi".lpad(1, '??') returns "h"
+    */
+  def lpad(len: Expression, pad: Expression) = Lpad(expr, len, pad)
+
+  /**
+    * Returns a string right-padded with the given pad string to a length of len characters. If
+    * the string is longer than len, the return value is shortened to len characters.
+    *
+    * e.g. "hi".rpad(4, '??') returns "hi??",  "hi".rpad(1, '??') returns "h"
+    */
+  def rpad(len: Expression, pad: Expression) = Rpad(expr, len, pad)
+
+  /**
     * For windowing function to config over window
     * e.g.:
     * table

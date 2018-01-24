@@ -362,7 +362,14 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("LPAD(f33,1,'??')", "null")
     testSqlApi("LPAD('\u0061\u0062',1,'??')", "a") // the unicode of ab is \u0061\u0062
     testSqlApi("LPAD('⎨⎨',1,'??')", "⎨")
+    testSqlApi("LPAD('äääääääää',2,'??')", "ää")
+    testSqlApi("LPAD('äääääääää',10,'??')", "?äääääääää")
 
+    testAllApis(
+      "äää".lpad(13, "12345"),
+      "'äää'.lpad(13, '12345')",
+      "LPAD('äää',13,'12345')",
+      "1234512345äää")
   }
 
   @Test
@@ -375,6 +382,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("RPAD(f33,1,'??')", "null")
     testSqlApi("RPAD('\u0061\u0062',1,'??')", "a") // the unicode of ab is \u0061\u0062
     testSqlApi("RPAD('üö',1,'??')", "ü")
+
+    testAllApis(
+      "äää".rpad(13, "12345"),
+      "'äää'.rpad(13, '12345')",
+      "RPAD('äää',13,'12345')",
+      "äää1234512345")
   }
 
   @Test

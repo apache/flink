@@ -1765,7 +1765,7 @@ LPAD(text string, len integer, pad string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the string text, left-padded with the string pad to a length of len characters. If text is longer than len, the return value is shortened to len characters. E.g. <code>LPAD('hi',4,'??')</code> returns <code>??hi</code> <code>LPAD('hi',1,'??')</code> returns <code>h</code></p>
+        <p>Returns the string text left-padded with the string pad to a length of len characters. If text is longer than len, the return value is shortened to len characters. E.g. <code>LPAD('hi',4,'??')</code> returns <code>??hi</code>, <code>LPAD('hi',1,'??')</code> returns <code>h</code>.</p>
       </td>
     </tr>
     <tr>
@@ -1775,7 +1775,7 @@ RPAD(text string, len integer, pad string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the string text, right-padded with the string pad to a length of len characters. If text is longer than len, the return value is shortened to len characters. E.g. <code>RPAD('hi',4,'??')</code> returns <code>hi??</code> <code>RPAD('hi',1,'??')</code> returns <code>h</code></p>
+        <p>Returns the string text right-padded with the string pad to a length of len characters. If text is longer than len, the return value is shortened to len characters. E.g. <code>RPAD('hi',4,'??')</code> returns <code>hi??</code>, <code>RPAD('hi',1,'??')</code> returns <code>h</code>.</p>
       </td>
     </tr>
 
