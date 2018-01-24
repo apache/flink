@@ -25,16 +25,17 @@ import org.apache.flink.annotation.Public;
  * an exception.
  *
  * @param <T> type of the consumed elements.
+ * @param <E> type of the exception thrown.
  */
 @Public
 @FunctionalInterface
-public interface ThrowingConsumer<T> {
+public interface ThrowingConsumer<T, E extends Throwable> {
 
 	/**
 	 * Performs this operation on the given argument.
 	 *
 	 * @param t the input argument
-	 * @throws Exception on errors during consumption
+	 * @throws E on errors during consumption
 	 */
-	void accept(T t) throws Exception;
+	void accept(T t) throws E;
 }
