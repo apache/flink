@@ -21,8 +21,8 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -52,7 +52,7 @@ public class InternalTimeServiceManager<K, N> {
 
 	private final ProcessingTimeService processingTimeService;
 
-	private final Map<String, HeapInternalTimerService<K, N>> timerServices;
+	public final Map<String, HeapInternalTimerService<K, N>> timerServices;
 
 	InternalTimeServiceManager(
 			int totalKeyGroups,
@@ -111,36 +111,29 @@ public class InternalTimeServiceManager<K, N> {
 
 	//////////////////				Fault Tolerance Methods				///////////////////
 
-	public void snapshotStateForKeyGroup(DataOutputViewStreamWrapper stream, int keyGroupIdx) throws Exception {
-		stream.writeInt(timerServices.size());
+	public void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx) throws IOException {
+		InternalTimerServiceSerializationProxy<K, N> serializationProxy =
+			new InternalTimerServiceSerializationProxy<>(timerServices, keyGroupIdx);
 
-		for (Map.Entry<String, HeapInternalTimerService<K, N>> entry : timerServices.entrySet()) {
-			String serviceName = entry.getKey();
-			HeapInternalTimerService<?, ?> timerService = entry.getValue();
-
-			stream.writeUTF(serviceName);
-			timerService.snapshotTimersForKeyGroup(stream, keyGroupIdx);
-		}
+		serializationProxy.write(stream);
 	}
 
-	public void restoreStateForKeyGroup(DataInputViewStreamWrapper stream, int keyGroupIdx,
-										ClassLoader userCodeClassLoader) throws IOException, ClassNotFoundException {
+	public void restoreStateForKeyGroup(
+			DataInputView stream,
+			int keyGroupIdx,
+			ClassLoader userCodeClassLoader) throws IOException {
 
-		int noOfTimerServices = stream.readInt();
-		for (int i = 0; i < noOfTimerServices; i++) {
-			String serviceName = stream.readUTF();
+		InternalTimerServiceSerializationProxy<K, N> serializationProxy =
+			new InternalTimerServiceSerializationProxy<>(
+				timerServices,
+				userCodeClassLoader,
+				totalKeyGroups,
+				localKeyGroupRange,
+				keyContext,
+				processingTimeService,
+				keyGroupIdx);
 
-			HeapInternalTimerService<K, N> timerService = timerServices.get(serviceName);
-			if (timerService == null) {
-				timerService = new HeapInternalTimerService<>(
-					totalKeyGroups,
-					localKeyGroupRange,
-					keyContext,
-					processingTimeService);
-				timerServices.put(serviceName, timerService);
-			}
-			timerService.restoreTimersForKeyGroup(stream, keyGroupIdx, userCodeClassLoader);
-		}
+		serializationProxy.read(stream);
 	}
 
 	////////////////////			Methods used ONLY IN TESTS				////////////////////
