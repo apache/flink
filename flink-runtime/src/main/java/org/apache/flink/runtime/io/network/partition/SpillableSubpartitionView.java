@@ -89,7 +89,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		}
 
 		if (nextBuffer != null) {
-			listener.notifyBuffersAvailable(1);
+			listener.notifyDataAvailable();
 		}
 	}
 
@@ -143,20 +143,24 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		Buffer current = null;
 		boolean nextBufferIsEvent = false;
 		int newBacklog = 0; // this is always correct if current is non-null!
+		boolean isMoreAvailable = false;
 
 		synchronized (buffers) {
 			if (isReleased.get()) {
 				return null;
 			} else if (nextBuffer != null) {
 				current = nextBuffer.build();
+
 				if (nextBuffer.isFinished()) {
 					newBacklog = parent.decreaseBuffersInBacklogUnsafe(nextBuffer.isBuffer());
 					nextBuffer.close();
 					nextBuffer = buffers.poll();
 				}
 
+				isMoreAvailable = buffers.size() > 0;
 				if (nextBuffer != null) {
-					listener.notifyBuffersAvailable(1);
+					isMoreAvailable = true;
+					listener.notifyDataAvailable();
 					nextBufferIsEvent = !nextBuffer.isBuffer();
 				}
 
@@ -164,7 +168,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 				// if we are spilled (but still process a non-spilled nextBuffer), we don't know the
 				// state of nextBufferIsEvent...
 				if (spilledView == null) {
-					return new BufferAndBacklog(current, newBacklog, nextBufferIsEvent);
+					return new BufferAndBacklog(current, isMoreAvailable, newBacklog, nextBufferIsEvent);
 				}
 			}
 		} // else: spilled
@@ -172,7 +176,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		SpilledSubpartitionView spilled = spilledView;
 		if (spilled != null) {
 			if (current != null) {
-				return new BufferAndBacklog(current, newBacklog, spilled.nextBufferIsEvent());
+				return new BufferAndBacklog(current, isMoreAvailable, newBacklog, spilled.nextBufferIsEvent());
 			} else {
 				return spilled.getNextBuffer();
 			}
@@ -182,7 +186,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	}
 
 	@Override
-	public void notifyBuffersAvailable(long buffers) {
+	public void notifyDataAvailable() {
 		// We do the availability listener notification one by one
 	}
 

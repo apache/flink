@@ -167,12 +167,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 
 		// Create the read view
 		ResultSubpartitionView readView = spy(partition
-			.createReadView(new BufferAvailabilityListener() {
-				@Override
-				public void notifyBuffersAvailable(long numBuffers) {
-
-				}
-			}));
+			.createReadView(new NoOpBufferAvailablityListener()));
 
 		// The released state check (of the parent) needs to be independent
 		// of the released state of the view.
@@ -223,7 +218,6 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		SpilledSubpartitionView reader = (SpilledSubpartitionView) partition.createReadView(listener);
 
 		assertEquals(1, listener.getNumNotifications());
-		assertEquals(5, listener.getNumNotifiedBuffers());
 
 		assertFalse(reader.nextBufferIsEvent()); // buffer
 		BufferAndBacklog read = reader.getNextBuffer();
@@ -315,7 +309,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		SpillableSubpartitionView reader = (SpillableSubpartitionView) partition.createReadView(listener);
 
 		// Initial notification
-		assertEquals(1, listener.getNumNotifiedBuffers());
+		assertEquals(1, listener.getNumNotifications());
 		assertFalse(bufferConsumer.isRecycled());
 
 		assertFalse(reader.nextBufferIsEvent());
@@ -325,7 +319,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(2, partition.getBuffersInBacklog());
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		read.buffer().recycleBuffer();
-		assertEquals(2, listener.getNumNotifiedBuffers());
+		assertEquals(2, listener.getNumNotifications());
 		assertFalse(bufferConsumer.isRecycled());
 		assertFalse(read.nextBufferIsEvent());
 
@@ -338,8 +332,8 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		//TODO: re-enable this?
 //		assertEquals(BUFFER_DATA_SIZE * 4 + 4, partition.getTotalNumberOfBytes());
 
-		listener.awaitNotifications(5, 30_000);
-		assertEquals(5, listener.getNumNotifiedBuffers());
+		listener.awaitNotifications(3, 30_000);
+		assertEquals(3, listener.getNumNotifications());
 
 		assertFalse(reader.nextBufferIsEvent()); // second buffer (retained in SpillableSubpartition#nextBuffer)
 		read = reader.getNextBuffer();
@@ -555,7 +549,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 			if (createView) {
 				// Create a read view
 				partition.finish();
-				partition.createReadView(numBuffers -> {});
+				partition.createReadView(new NoOpBufferAvailablityListener());
 			}
 
 			// one instance of the buffers is placed in the view's nextBuffer and not released
@@ -668,7 +662,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 			ResultSubpartitionView view = null;
 			if (createView) {
 				partition.finish();
-				view = partition.createReadView(numBuffers -> {});
+				view = partition.createReadView(new NoOpBufferAvailablityListener());
 			}
 			if (spilled) {
 				// note: in case we create a view, one buffer will already reside in the view and
@@ -704,33 +698,6 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(createView ? 3 : 2, partition.getTotalNumberOfBuffers());
 		//TODO: re-enable this?
 //		assertEquals((createView ? 4 : 0) + 2 * BUFFER_DATA_SIZE, partition.getTotalNumberOfBytes());
-	}
-
-	private static class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {
-
-		private long numNotifiedBuffers;
-		private long numNotifications;
-
-		@Override
-		public void notifyBuffersAvailable(long numBuffers) {
-			numNotifiedBuffers += numBuffers;
-			++numNotifications;
-		}
-
-		long getNumNotifiedBuffers() {
-			return numNotifiedBuffers;
-		}
-
-		public long getNumNotifications() {
-			return numNotifications;
-		}
-
-		void awaitNotifications(long awaitedNumNotifiedBuffers, long timeoutMillis) throws InterruptedException {
-			long deadline = System.currentTimeMillis() + timeoutMillis;
-			while (numNotifiedBuffers < awaitedNumNotifiedBuffers && System.currentTimeMillis() < deadline) {
-				Thread.sleep(1);
-			}
-		}
 	}
 
 	/**

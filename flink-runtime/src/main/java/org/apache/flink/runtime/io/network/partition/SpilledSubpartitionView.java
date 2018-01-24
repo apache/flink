@@ -105,7 +105,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		// Otherwise, we notify only when the spill writer callback happens.
 		if (!spillWriter.registerAllRequestsProcessedListener(this)) {
 			isSpillInProgress = false;
-			availabilityListener.notifyBuffersAvailable(numberOfSpilledBuffers);
+			availabilityListener.notifyDataAvailable();
 			LOG.debug("No spilling in progress. Notified about {} available buffers.", numberOfSpilledBuffers);
 		} else {
 			LOG.debug("Spilling in progress. Waiting with notification about {} available buffers.", numberOfSpilledBuffers);
@@ -120,7 +120,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	@Override
 	public void onNotification() {
 		isSpillInProgress = false;
-		availabilityListener.notifyBuffersAvailable(numberOfSpilledBuffers);
+		availabilityListener.notifyDataAvailable();
 		LOG.debug("Finished spilling. Notified about {} available buffers.", numberOfSpilledBuffers);
 	}
 
@@ -148,7 +148,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		}
 
 		int newBacklog = parent.decreaseBuffersInBacklog(current);
-		return new BufferAndBacklog(current, newBacklog, nextBufferIsEvent);
+		return new BufferAndBacklog(current, newBacklog > 0, newBacklog, nextBufferIsEvent);
 	}
 
 	@Nullable
@@ -166,7 +166,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	}
 
 	@Override
-	public void notifyBuffersAvailable(long buffers) {
+	public void notifyDataAvailable() {
 		// We do the availability listener notification either directly on
 		// construction of this view (when everything has been spilled) or
 		// as soon as spilling is done and we are notified about it in the

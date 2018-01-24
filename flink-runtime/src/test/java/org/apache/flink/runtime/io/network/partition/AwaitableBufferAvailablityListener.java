@@ -19,13 +19,29 @@
 package org.apache.flink.runtime.io.network.partition;
 
 /**
- * Listener interface implemented by consumers of {@link ResultSubpartitionView}
- * that want to be notified of availability of further buffers.
+ * Test implementation of {@link BufferAvailabilityListener}.
  */
-public interface BufferAvailabilityListener {
+class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {
 
-	/**
-	 * Called whenever there might be new data available.
-	 */
-	void notifyDataAvailable();
+	private long numNotifications;
+
+	@Override
+	public void notifyDataAvailable() {
+		++numNotifications;
+	}
+
+	public long getNumNotifications() {
+		return numNotifications;
+	}
+
+	public void resetNotificationCounters() {
+		numNotifications = 0;
+	}
+
+	void awaitNotifications(long awaitedNumNotifications, long timeoutMillis) throws InterruptedException {
+		long deadline = System.currentTimeMillis() + timeoutMillis;
+		while (numNotifications < awaitedNumNotifications && System.currentTimeMillis() < deadline) {
+			Thread.sleep(1);
+		}
+	}
 }

@@ -93,6 +93,9 @@ public abstract class ResultSubpartition {
 	 * <p>The request may be executed synchronously, or asynchronously, depending on the
 	 * implementation.
 	 *
+	 * <p><strong>IMPORTANT:</strong> Before adding new {@link BufferConsumer} previously added must be in finished
+	 * state. Because of the performance reasons, this is only enforced during the data reading.
+	 *
 	 * @param bufferConsumer
 	 * 		the buffer to add (transferring ownership to this writer)
 	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
@@ -100,6 +103,8 @@ public abstract class ResultSubpartition {
 	 * 		thrown in case of errors while adding the buffer
 	 */
 	abstract public boolean add(BufferConsumer bufferConsumer) throws IOException;
+
+	abstract public void flush();
 
 	abstract public void finish() throws IOException;
 
@@ -170,12 +175,14 @@ public abstract class ResultSubpartition {
 	public static final class BufferAndBacklog {
 
 		private final Buffer buffer;
+		private final boolean isMoreAvailable;
 		private final int buffersInBacklog;
 		private final boolean nextBufferIsEvent;
 
-		public BufferAndBacklog(Buffer buffer, int buffersInBacklog, boolean nextBufferIsEvent) {
+		public BufferAndBacklog(Buffer buffer, boolean isMoreAvailable, int buffersInBacklog, boolean nextBufferIsEvent) {
 			this.buffer = checkNotNull(buffer);
 			this.buffersInBacklog = buffersInBacklog;
+			this.isMoreAvailable = isMoreAvailable;
 			this.nextBufferIsEvent = nextBufferIsEvent;
 		}
 
@@ -183,9 +190,14 @@ public abstract class ResultSubpartition {
 			return buffer;
 		}
 
+		public boolean isMoreAvailable() {
+			return isMoreAvailable;
+		}
+
 		public int buffersInBacklog() {
 			return buffersInBacklog;
 		}
+
 
 		public boolean nextBufferIsEvent() {
 			return nextBufferIsEvent;

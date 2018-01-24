@@ -115,11 +115,22 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
+	public void flush() {
+		synchronized (buffers) {
+			if (readView != null) {
+				readView.notifyDataAvailable();
+			}
+		}
+	}
+
+	@Override
 	public synchronized void finish() throws IOException {
 		synchronized (buffers) {
 			if (add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE))) {
 				isFinished = true;
 			}
+
+			flush();
 		}
 
 		// If we are spilling/have spilled, wait for the writer to finish

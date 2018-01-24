@@ -52,8 +52,8 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 	}
 
 	@Override
-	public void notifyBuffersAvailable(long numBuffers) {
-		availabilityListener.notifyBuffersAvailable(numBuffers);
+	public void notifyDataAvailable() {
+		availabilityListener.notifyDataAvailable();
 	}
 
 	@Override

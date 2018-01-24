@@ -64,6 +64,7 @@ import scala.Tuple2;
 
 import static org.apache.flink.util.FutureUtil.waitForAll;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -361,9 +362,9 @@ public class LocalInputChannelTest {
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 
 		when(partitionManager.createSubpartitionView(
-				any(ResultPartitionID.class),
-				anyInt(),
-				any(BufferAvailabilityListener.class))).thenReturn(reader);
+			any(ResultPartitionID.class),
+			anyInt(),
+			any(BufferAvailabilityListener.class))).thenReturn(reader);
 
 		LocalInputChannel channel = new LocalInputChannel(
 			gate,
@@ -379,11 +380,7 @@ public class LocalInputChannelTest {
 		when(reader.getNextBuffer()).thenReturn(null);
 		when(reader.isReleased()).thenReturn(false);
 
-		try {
-			channel.getNextBuffer();
-			fail("Did not throw expected IllegalStateException");
-		} catch (IllegalStateException ignored) {
-		}
+		assertFalse(channel.getNextBuffer().isPresent());
 
 		// Null buffer and released
 		when(reader.getNextBuffer()).thenReturn(null);
@@ -394,6 +391,9 @@ public class LocalInputChannelTest {
 			fail("Did not throw expected CancelTaskException");
 		} catch (CancelTaskException ignored) {
 		}
+
+		channel.releaseAllResources();
+		assertFalse(channel.getNextBuffer().isPresent());
 	}
 
 	// ---------------------------------------------------------------------------------------------

@@ -202,6 +202,10 @@ public class StreamConfig implements Serializable {
 		return config.getLong(BUFFER_TIMEOUT, DEFAULT_TIMEOUT);
 	}
 
+	public boolean isFlushAlwaysEnabled() {
+		return getBufferTimeout() == 0;
+	}
+
 	public void setStreamOperator(StreamOperator<?> operator) {
 		if (operator != null) {
 			config.setClass(USER_FUNCTION, operator.getClass());

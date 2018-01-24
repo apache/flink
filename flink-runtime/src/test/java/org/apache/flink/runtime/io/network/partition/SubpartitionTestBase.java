@@ -24,6 +24,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.io.IOException;
+
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -126,5 +128,16 @@ public abstract class SubpartitionTestBase extends TestLogger {
 
 		// Verify that parent release is reflected at partition view
 		assertTrue(view.isReleased());
+	}
+
+	protected void assertNextBuffer(
+			ResultSubpartitionView readView,
+			int expectedReadableBufferSize,
+			boolean expectedIsMoreAvailable,
+			int expectedBuffersInBacklog) throws IOException, InterruptedException {
+		ResultSubpartition.BufferAndBacklog bufferAndBacklog = readView.getNextBuffer();
+		assertEquals(expectedReadableBufferSize, bufferAndBacklog.buffer().readableBytes());
+		assertEquals(expectedIsMoreAvailable, bufferAndBacklog.isMoreAvailable());
+		assertEquals(expectedBuffersInBacklog, bufferAndBacklog.buffersInBacklog());
 	}
 }

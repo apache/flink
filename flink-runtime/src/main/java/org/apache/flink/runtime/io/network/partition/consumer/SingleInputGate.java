@@ -509,39 +509,39 @@ public class SingleInputGate implements InputGate {
 
 		InputChannel currentChannel;
 		boolean moreAvailable;
-		synchronized (inputChannelsWithData) {
-			while (inputChannelsWithData.size() == 0) {
-				if (isReleased) {
-					throw new IllegalStateException("Released");
+		Optional<BufferAndAvailability> result = Optional.empty();
+
+		do {
+			synchronized (inputChannelsWithData) {
+				while (inputChannelsWithData.size() == 0) {
+					if (isReleased) {
+						throw new IllegalStateException("Released");
+					}
+
+					if (blocking) {
+						inputChannelsWithData.wait();
+					}
+					else {
+						return Optional.empty();
+					}
 				}
 
-				if (blocking) {
-					inputChannelsWithData.wait();
-				}
-				else {
-					return Optional.empty();
-				}
+				currentChannel = inputChannelsWithData.remove();
+				enqueuedInputChannelsWithData.clear(currentChannel.getChannelIndex());
+				moreAvailable = inputChannelsWithData.size() > 0;
 			}
 
-			currentChannel = inputChannelsWithData.remove();
-			enqueuedInputChannelsWithData.clear(currentChannel.getChannelIndex());
-			moreAvailable = inputChannelsWithData.size() > 0;
-		}
+			result = currentChannel.getNextBuffer();
+		} while (!result.isPresent());
 
-		final BufferAndAvailability result = currentChannel.getNextBuffer();
-		// Sanity check that notifications only happen when data is available
-		if (result == null) {
-			throw new IllegalStateException("Bug in input gate/channel logic: input gate got " +
-					"notified by channel about available data, but none was available.");
-		}
 		// this channel was now removed from the non-empty channels queue
 		// we re-add it in case it has more data, because in that case no "non-empty" notification
 		// will come for that channel
-		if (result.moreAvailable()) {
+		if (result.get().moreAvailable()) {
 			queueChannel(currentChannel);
 		}
 
-		final Buffer buffer = result.buffer();
+		final Buffer buffer = result.get().buffer();
 		if (buffer.isBuffer()) {
 			return Optional.of(new BufferOrEvent(buffer, currentChannel.getChannelIndex(), moreAvailable));
 		}

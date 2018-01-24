@@ -19,13 +19,10 @@
 package org.apache.flink.runtime.io.network.partition;
 
 /**
- * Listener interface implemented by consumers of {@link ResultSubpartitionView}
- * that want to be notified of availability of further buffers.
+ * Test implementation of {@link BufferAvailabilityListener}.
  */
-public interface BufferAvailabilityListener {
-
-	/**
-	 * Called whenever there might be new data available.
-	 */
-	void notifyDataAvailable();
+class NoOpBufferAvailablityListener implements BufferAvailabilityListener {
+	@Override
+	public void notifyDataAvailable() {
+	}
 }

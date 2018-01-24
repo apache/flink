@@ -41,6 +41,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createEventBufferConsumer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.BUFFER_SIZE;
@@ -52,7 +53,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -75,23 +75,112 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		return new PipelinedSubpartition(0, parent);
 	}
 
+	@Test(expected = IllegalStateException.class)
+	public void testAddTwoNonFinishedBuffer() throws Exception {
+		final ResultSubpartition subpartition = createSubpartition();
+		AwaitableBufferAvailablityListener availablityListener = new AwaitableBufferAvailablityListener();
+		ResultSubpartitionView readView = subpartition.createReadView(availablityListener);
+		availablityListener.resetNotificationCounters();
+
+		try {
+			subpartition.add(createBufferBuilder().createBufferConsumer());
+			subpartition.add(createBufferBuilder().createBufferConsumer());
+			assertNull(readView.getNextBuffer());
+		} finally {
+			subpartition.release();
+		}
+	}
+
+	@Test
+	public void testAddEmptyNonFinishedBuffer() throws Exception {
+		final ResultSubpartition subpartition = createSubpartition();
+		AwaitableBufferAvailablityListener availablityListener = new AwaitableBufferAvailablityListener();
+		ResultSubpartitionView readView = subpartition.createReadView(availablityListener);
+		availablityListener.resetNotificationCounters();
+
+		try {
+			assertEquals(0, availablityListener.getNumNotifications());
+
+			BufferBuilder bufferBuilder = createBufferBuilder();
+			subpartition.add(bufferBuilder.createBufferConsumer());
+
+			assertEquals(0, availablityListener.getNumNotifications());
+			assertNull(readView.getNextBuffer());
+
+			bufferBuilder.finish();
+			bufferBuilder = createBufferBuilder();
+			subpartition.add(bufferBuilder.createBufferConsumer());
+
+			assertEquals(1, availablityListener.getNumNotifications()); // notification from finishing previous buffer.
+			assertNull(readView.getNextBuffer());
+			assertEquals(1, subpartition.getBuffersInBacklog());
+		} finally {
+			readView.releaseAllResources();
+			subpartition.release();
+		}
+	}
+
+	@Test
+	public void testAddNonEmptyNotFinishedBuffer() throws Exception {
+		final ResultSubpartition subpartition = createSubpartition();
+		AwaitableBufferAvailablityListener availablityListener = new AwaitableBufferAvailablityListener();
+		ResultSubpartitionView readView = subpartition.createReadView(availablityListener);
+		availablityListener.resetNotificationCounters();
+
+		try {
+			assertEquals(0, availablityListener.getNumNotifications());
+
+			BufferBuilder bufferBuilder = createBufferBuilder();
+			bufferBuilder.append(ByteBuffer.allocate(1024));
+			subpartition.add(bufferBuilder.createBufferConsumer());
+
+			assertNextBuffer(readView, 1024, false, 1);
+			assertEquals(1, subpartition.getBuffersInBacklog());
+		} finally {
+			readView.releaseAllResources();
+			subpartition.release();
+		}
+	}
+
+	@Test
+	public void testMultipleEmptyBuffers() throws Exception {
+		final ResultSubpartition subpartition = createSubpartition();
+		AwaitableBufferAvailablityListener availablityListener = new AwaitableBufferAvailablityListener();
+		ResultSubpartitionView readView = subpartition.createReadView(availablityListener);
+		availablityListener.resetNotificationCounters();
+
+		try {
+			assertEquals(0, availablityListener.getNumNotifications());
+
+			subpartition.add(createFilledBufferConsumer(0));
+
+			assertEquals(1, availablityListener.getNumNotifications());
+			subpartition.add(createFilledBufferConsumer(0));
+			assertEquals(2, availablityListener.getNumNotifications());
+
+			subpartition.add(createFilledBufferConsumer(0));
+			assertEquals(2, availablityListener.getNumNotifications());
+			assertEquals(3, subpartition.getBuffersInBacklog());
+
+			subpartition.add(createFilledBufferConsumer(1024));
+			assertEquals(2, availablityListener.getNumNotifications());
+
+			assertNextBuffer(readView, 1024, false, 0);
+		} finally {
+			readView.releaseAllResources();
+			subpartition.release();
+		}
+	}
+
 	@Test
 	public void testIllegalReadViewRequest() throws Exception {
 		final PipelinedSubpartition subpartition = createSubpartition();
 
 		// Successful request
-		assertNotNull(subpartition.createReadView(new BufferAvailabilityListener() {
-			@Override
-			public void notifyBuffersAvailable(long numBuffers) {
-			}
-		}));
+		assertNotNull(subpartition.createReadView(new NoOpBufferAvailablityListener()));
 
 		try {
-			subpartition.createReadView(new BufferAvailabilityListener() {
-				@Override
-				public void notifyBuffersAvailable(long numBuffers) {
-				}
-			});
+			subpartition.createReadView(new NoOpBufferAvailablityListener());
 
 			fail("Did not throw expected exception after duplicate notifyNonEmpty view request.");
 		} catch (IllegalStateException expected) {
@@ -110,7 +199,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		assertFalse(view.nextBufferIsEvent());
 		assertNull(view.getNextBuffer());
 		assertFalse(view.nextBufferIsEvent()); // also after getNextBuffer()
-		verify(listener, times(1)).notifyBuffersAvailable(eq(0L));
+		verify(listener, times(0)).notifyDataAvailable();
 
 		// Add data to the queue...
 		subpartition.add(createFilledBufferConsumer(BUFFER_SIZE));
@@ -122,7 +211,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 //		assertEquals(BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
 
 		// ...should have resulted in a notification
-		verify(listener, times(1)).notifyBuffersAvailable(eq(1L));
+		verify(listener, times(1)).notifyDataAvailable();
 
 		// ...and one available result
 		assertFalse(view.nextBufferIsEvent());
@@ -144,7 +233,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(1, subpartition.getBuffersInBacklog());
 		// TODO: re-enable?
 //		assertEquals(2 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
-		verify(listener, times(2)).notifyBuffersAvailable(eq(1L));
+		verify(listener, times(2)).notifyDataAvailable();
 
 		assertFalse(view.nextBufferIsEvent());
 		read = view.getNextBuffer();
@@ -171,7 +260,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(2, subpartition.getBuffersInBacklog()); // two buffers (events don't count)
 		// TODO: re-enable?
 //		assertEquals(5 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
-		verify(listener, times(5)).notifyBuffersAvailable(eq(1L));
+		verify(listener, times(4)).notifyDataAvailable();
 
 		assertFalse(view.nextBufferIsEvent()); // the first buffer
 		read = view.getNextBuffer();
@@ -199,7 +288,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		assertEquals(5, subpartition.getTotalNumberOfBuffers());
 		assertEquals(5 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
-		verify(listener, times(5)).notifyBuffersAvailable(eq(1L));
+		verify(listener, times(4)).notifyDataAvailable();
 	}
 
 	@Test
@@ -357,7 +446,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 			// create the read view first
 			ResultSubpartitionView view = null;
 			if (createView) {
-				view = partition.createReadView(numBuffers -> {});
+				view = partition.createReadView(new NoOpBufferAvailablityListener());
 			}
 
 			partition.release();

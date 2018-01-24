@@ -30,6 +30,10 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class BufferBuilderTestUtils {
 	public static final int BUFFER_SIZE = 32 * 1024;
 
+	public static BufferBuilder createBufferBuilder() {
+		return createBufferBuilder(BUFFER_SIZE);
+	}
+
 	public static BufferBuilder createBufferBuilder(int size) {
 		return createFilledBufferBuilder(size, 0);
 	}

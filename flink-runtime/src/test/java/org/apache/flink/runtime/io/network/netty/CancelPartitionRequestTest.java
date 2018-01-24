@@ -45,7 +45,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.CancelPartitionRequest;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
-import static org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.connect;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
@@ -88,7 +87,7 @@ public class CancelPartitionRequestTest {
 					@Override
 					public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
 						BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[2];
-						listener.notifyBuffersAvailable(Long.MAX_VALUE);
+						listener.notifyDataAvailable();
 						return view;
 					}
 				});
@@ -139,7 +138,7 @@ public class CancelPartitionRequestTest {
 						@Override
 						public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
 							BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[2];
-							listener.notifyBuffersAvailable(Long.MAX_VALUE);
+							listener.notifyDataAvailable();
 							return view;
 						}
 					});
@@ -194,11 +193,11 @@ public class CancelPartitionRequestTest {
 		public BufferAndBacklog getNextBuffer() throws IOException, InterruptedException {
 			Buffer buffer = bufferProvider.requestBufferBlocking();
 			buffer.setSize(buffer.getMaxCapacity()); // fake some data
-			return new BufferAndBacklog(buffer, 0, false);
+			return new BufferAndBacklog(buffer, true, 0, false);
 		}
 
 		@Override
-		public void notifyBuffersAvailable(long buffers) {
+		public void notifyDataAvailable() {
 		}
 
 		@Override

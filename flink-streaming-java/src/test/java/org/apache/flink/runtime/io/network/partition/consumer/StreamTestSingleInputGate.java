@@ -37,6 +37,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
@@ -93,9 +94,9 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			inputQueues[channelIndex] = new ConcurrentLinkedQueue<InputValue<Object>>();
 			inputChannels[channelIndex] = new TestInputChannel(inputGate, i);
 
-			final Answer<BufferAndAvailability> answer = new Answer<BufferAndAvailability>() {
+			final Answer<Optional<BufferAndAvailability>> answer = new Answer<Optional<BufferAndAvailability>>() {
 				@Override
-				public BufferAndAvailability answer(InvocationOnMock invocationOnMock) throws Throwable {
+				public Optional<BufferAndAvailability> answer(InvocationOnMock invocationOnMock) throws Throwable {
 					ConcurrentLinkedQueue<InputValue<Object>> inputQueue = inputQueues[channelIndex];
 					InputValue<Object> input;
 					boolean moreAvailable;
@@ -106,7 +107,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 					if (input != null && input.isStreamEnd()) {
 						when(inputChannels[channelIndex].getInputChannel().isReleased()).thenReturn(
 							true);
-						return new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), moreAvailable, 0);
+						return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), moreAvailable, 0));
 					} else if (input != null && input.isStreamRecord()) {
 						Object inputElement = input.getStreamRecord();
 
@@ -117,15 +118,12 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 						bufferBuilder.finish();
 
 						// Call getCurrentBuffer to ensure size is set
-						return new BufferAndAvailability(buildSingleBuffer(bufferBuilder), moreAvailable, 0);
+						return Optional.of(new BufferAndAvailability(buildSingleBuffer(bufferBuilder), moreAvailable, 0));
 					} else if (input != null && input.isEvent()) {
 						AbstractEvent event = input.getEvent();
-						return new BufferAndAvailability(EventSerializer.toBuffer(event), moreAvailable, 0);
+						return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(event), moreAvailable, 0));
 					} else {
-						synchronized (inputQueue) {
-							inputQueue.wait();
-							return answer(invocationOnMock);
-						}
+						return Optional.empty();
 					}
 				}
 			};

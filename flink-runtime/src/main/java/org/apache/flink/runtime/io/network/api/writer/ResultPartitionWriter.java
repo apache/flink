@@ -45,6 +45,14 @@ public interface ResultPartitionWriter {
 	 *
 	 * <p>This method takes the ownership of the passed {@code bufferConsumer} and thus is responsible for releasing
 	 * it's resources.
+	 *
+	 * <p>To avoid problems with data re-ordering, before adding new {@link BufferConsumer} the previously added one
+	 * the given {@code subpartitionIndex} must be marked as {@link BufferConsumer#isFinished()}.
 	 */
 	void addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException;
+
+	/**
+	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers}.
+	 */
+	void flush();
 }

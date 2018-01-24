@@ -68,7 +68,7 @@ public class ServerTransportErrorHandlingTest {
 				@Override
 				public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
 					BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[2];
-					listener.notifyBuffersAvailable(Long.MAX_VALUE);
+					listener.notifyDataAvailable();
 					return new CancelPartitionRequestTest.InfiniteSubpartitionView(outboundBuffers, sync);
 				}
 			});

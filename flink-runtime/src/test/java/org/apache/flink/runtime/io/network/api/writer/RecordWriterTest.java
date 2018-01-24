@@ -62,10 +62,7 @@ import java.util.concurrent.Future;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -180,7 +177,6 @@ public class RecordWriterTest {
 
 		// Fill a buffer, but don't write it out.
 		recordWriter.emit(new IntValue(0));
-		verify(partitionWriter, never()).addBufferConsumer(any(BufferConsumer.class), anyInt());
 
 		// Clear all buffers.
 		recordWriter.clearBuffers();
@@ -428,6 +424,10 @@ public class RecordWriterTest {
 		public void addBufferConsumer(BufferConsumer buffer, int targetChannel) throws IOException {
 			queues[targetChannel].add(buffer);
 		}
+
+		@Override
+		public void flush() {
+		}
 	}
 
 	private static BufferOrEvent parseBuffer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
@@ -476,6 +476,10 @@ public class RecordWriterTest {
 		@Override
 		public void addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
 			bufferConsumer.close();
+		}
+
+		@Override
+		public void flush() {
 		}
 	}
 
