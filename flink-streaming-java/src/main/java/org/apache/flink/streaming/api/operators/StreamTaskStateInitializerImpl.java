@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -214,7 +213,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 				"Key Group " + keyGroupIdx + " does not belong to the local range.");
 
 			timeServiceManager.restoreStateForKeyGroup(
-				new DataInputViewStreamWrapper(streamProvider.getStream()),
+				streamProvider.getStream(),
 				keyGroupIdx, environment.getUserClassLoader());
 		}
 
