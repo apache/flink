@@ -149,12 +149,14 @@ trait CommonCalc {
     // conditions, etc. We only want to account for computations, not for simple projections.
     // CASTs in RexProgram are reduced as far as possible by ReduceExpressionsRule
     // in normalization stage. So we should ignore CASTs here in optimization stage.
+    // Also, we add 1 to take calc RelNode number into consideration, so the cost of merged calc
+    // RelNode will less than the total cost of un-merged calcs.
     val compCnt = calcProgram.getExprList.asScala.toList.count {
       case _: RexInputRef => false
       case _: RexLiteral => false
       case c: RexCall if c.getOperator.getName.equals("CAST") => false
       case _ => true
-    }
+    } + 1
 
     val newRowCnt = estimateRowCount(calcProgram, rowCnt)
     planner.getCostFactory.makeCost(newRowCnt, newRowCnt * compCnt, 0)

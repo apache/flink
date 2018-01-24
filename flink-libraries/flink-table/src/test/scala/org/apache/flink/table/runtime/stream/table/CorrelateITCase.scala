@@ -65,6 +65,26 @@ class CorrelateITCase extends AbstractTestBase {
   }
 
   @Test
+  def testCrossJoinWithMultiFilter(): Unit = {
+    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val func0 = new TableFunc0
+
+    val result = t
+      .join(func0('c) as('d, 'e))
+      .select('c, 'd, 'e)
+      .where('e > 10)
+      .where('e > 20)
+      .select('c, 'd)
+      .toAppendStream[Row]
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList("Jack#22,Jack", "Anna#44,Anna")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
   def testLeftOuterJoinWithoutPredicates(): Unit = {
     val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
     val func0 = new TableFunc0
