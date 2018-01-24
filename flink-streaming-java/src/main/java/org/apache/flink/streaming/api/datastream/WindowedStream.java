@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
@@ -68,6 +69,8 @@ import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
+
+import java.lang.reflect.Type;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -268,10 +271,7 @@ public class WindowedStream<T, K, W extends Window> {
 		function = input.getExecutionEnvironment().clean(function);
 		reduceFunction = input.getExecutionEnvironment().clean(reduceFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		final String opName = generateOperatorName(windowAssigner, trigger, evictor, udfName);
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, reduceFunction, function);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -357,10 +357,7 @@ public class WindowedStream<T, K, W extends Window> {
 		function = input.getExecutionEnvironment().clean(function);
 		reduceFunction = input.getExecutionEnvironment().clean(reduceFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		final String opName = generateOperatorName(windowAssigner, trigger, evictor, udfName);
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, reduceFunction, function);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -517,10 +514,7 @@ public class WindowedStream<T, K, W extends Window> {
 		function = input.getExecutionEnvironment().clean(function);
 		foldFunction = input.getExecutionEnvironment().clean(foldFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		final String opName = generateOperatorName(windowAssigner, trigger, evictor, udfName);
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, foldFunction, function);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -627,10 +621,7 @@ public class WindowedStream<T, K, W extends Window> {
 		windowFunction = input.getExecutionEnvironment().clean(windowFunction);
 		foldFunction = input.getExecutionEnvironment().clean(foldFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		final String opName = generateOperatorName(windowAssigner, trigger, evictor, udfName);
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, foldFunction, windowFunction);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -818,10 +809,7 @@ public class WindowedStream<T, K, W extends Window> {
 		windowFunction = input.getExecutionEnvironment().clean(windowFunction);
 		aggregateFunction = input.getExecutionEnvironment().clean(aggregateFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		final String opName = generateOperatorName(windowAssigner, trigger, evictor, udfName);
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, aggregateFunction, windowFunction);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -973,10 +961,7 @@ public class WindowedStream<T, K, W extends Window> {
 		windowFunction = input.getExecutionEnvironment().clean(windowFunction);
 		aggregateFunction = input.getExecutionEnvironment().clean(aggregateFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		final String opName = generateOperatorName(windowAssigner, trigger, evictor, udfName);
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, aggregateFunction, windowFunction);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -1052,9 +1037,8 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
 	public <R> SingleOutputStreamOperator<R> apply(WindowFunction<T, R, K, W> function, TypeInformation<R> resultType) {
-		String callLocation = Utils.getCallLocationName();
 		function = input.getExecutionEnvironment().clean(function);
-		return apply(new InternalIterableWindowFunction<>(function), resultType, callLocation);
+		return apply(new InternalIterableWindowFunction<>(function), resultType, function);
 	}
 
 	/**
@@ -1089,16 +1073,13 @@ public class WindowedStream<T, K, W extends Window> {
 	 */
 	@Internal
 	public <R> SingleOutputStreamOperator<R> process(ProcessWindowFunction<T, R, K, W> function, TypeInformation<R> resultType) {
-		String callLocation = Utils.getCallLocationName();
 		function = input.getExecutionEnvironment().clean(function);
-		return apply(new InternalIterableProcessWindowFunction<>(function), resultType, callLocation);
+		return apply(new InternalIterableProcessWindowFunction<>(function), resultType, function);
 	}
 
-	private <R> SingleOutputStreamOperator<R> apply(InternalWindowFunction<Iterable<T>, R, K, W> function, TypeInformation<R> resultType, String callLocation) {
+	private <R> SingleOutputStreamOperator<R> apply(InternalWindowFunction<Iterable<T>, R, K, W> function, TypeInformation<R> resultType, Function originalFunction) {
 
-		String udfName = "WindowedStream." + callLocation;
-
-		final String opName = generateOperatorName(windowAssigner, trigger, evictor, udfName);
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, originalFunction, null);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		WindowOperator<K, T, Iterable<T>, R, W> operator;
@@ -1187,10 +1168,7 @@ public class WindowedStream<T, K, W extends Window> {
 		function = input.getExecutionEnvironment().clean(function);
 		reduceFunction = input.getExecutionEnvironment().clean(reduceFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		final String opName = generateOperatorName(windowAssigner, trigger, evictor, udfName);
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, reduceFunction, function);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -1286,10 +1264,7 @@ public class WindowedStream<T, K, W extends Window> {
 		function = input.getExecutionEnvironment().clean(function);
 		foldFunction = input.getExecutionEnvironment().clean(foldFunction);
 
-		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowedStream." + callLocation;
-
-		final String opName = generateOperatorName(windowAssigner, trigger, evictor, udfName);
+		final String opName = generateOperatorName(windowAssigner, trigger, evictor, foldFunction, function);
 		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
@@ -1331,16 +1306,37 @@ public class WindowedStream<T, K, W extends Window> {
 		return input.transform(opName, resultType, operator);
 	}
 
+	private static String generateFunctionName(Function function) {
+		Class<? extends Function> functionClass = function.getClass();
+		if (functionClass.isAnonymousClass()) {
+			// getSimpleName returns an empty String for anonymous classes
+			Type[] interfaces = functionClass.getInterfaces();
+			if (interfaces.length == 0) {
+				// extends an existing class (like RichMapFunction)
+				Class<?> functionSuperClass = functionClass.getSuperclass();
+				return functionSuperClass.getSimpleName() + functionSuperClass.getName().substring(functionSuperClass.getEnclosingClass().getName().length());
+			} else {
+				// implements a Function interface
+				Class<?> functionInterface = functionClass.getInterfaces()[0];
+				return functionInterface.getSimpleName() + functionClass.getName().substring(functionClass.getEnclosingClass().getName().length());
+			}
+		} else {
+			return functionClass.getSimpleName();
+		}
+	}
+
 	private static String generateOperatorName(
 			WindowAssigner<?, ?> assigner,
 			Trigger<?, ?> trigger,
 			@Nullable Evictor<?, ?> evictor,
-			String udfName) {
+			Function function1,
+			@Nullable Function function2) {
 		return "Window(" +
 			assigner + ", " +
 			trigger.getClass().getSimpleName() + ", " +
-			(evictor == null ? "" : evictor.getClass().getSimpleName() + ", ") +
-			udfName +
+			(evictor == null ? "" : (evictor.getClass().getSimpleName() + ", ")) +
+			generateFunctionName(function1) +
+			(function2 == null ? "" : (", " + generateFunctionName(function2))) +
 			")";
 	}
 
