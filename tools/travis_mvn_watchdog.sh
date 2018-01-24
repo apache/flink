@@ -183,6 +183,28 @@ ARTIFACTS_FILE=${TRAVIS_JOB_NUMBER}.tar.gz
 # FUNCTIONS
 # =============================================================================
 
+print_system_info() {
+	FOLD_ESCAPE="\x0d\x1b"
+	COLOR_ON="\x5b\x30\x4b\x1b\x5b\x33\x33\x3b\x31\x6d"
+	COLOR_OFF="\x1b\x5b\x30\x6d"
+
+	echo -e "travis_fold:start:cpu_info${FOLD_ESCAPE}${COLOR_ON}CPU information${COLOR_OFF}"
+	lscpu
+	echo -en "travis_fold:end:cpu_info${FOLD_ESCAPE}"
+
+	echo -e "travis_fold:start:mem_info${FOLD_ESCAPE}${COLOR_ON}Memory information${COLOR_OFF}"
+	cat /proc/meminfo
+	echo -en "travis_fold:end:mem_info${FOLD_ESCAPE}"
+
+	echo -e "travis_fold:start:disk_info${FOLD_ESCAPE}${COLOR_ON}Disk information${COLOR_OFF}"
+	df -hH
+	echo -en "travis_fold:end:disk_info${FOLD_ESCAPE}"
+
+	echo -e "travis_fold:start:cache_info${FOLD_ESCAPE}${COLOR_ON}Cache information${COLOR_OFF}"
+	du -s --si $HOME/.m2
+	echo -en "travis_fold:end:cache_info${FOLD_ESCAPE}"
+}
+
 upload_artifacts_s3() {
 	echo "PRODUCED build artifacts."
 
@@ -433,24 +455,7 @@ WD_PID=$!
 
 echo "STARTED watchdog (${WD_PID})."
 
-
-# Print and fold CPU, memory, and filesystem info
-FOLD_ESCAPE="\x0d\x1b"
-COLOR_ON="\x5b\x30\x4b\x1b\x5b\x33\x33\x3b\x31\x6d"
-COLOR_OFF="\x1b\x5b\x30\x6d"
-
-echo -e "travis_fold:start:cpu_info${FOLD_ESCAPE}${COLOR_ON}CPU information${COLOR_OFF}"
-lscpu
-echo -en "travis_fold:end:cpu_info${FOLD_ESCAPE}"
-
-echo -e "travis_fold:start:mem_info${FOLD_ESCAPE}${COLOR_ON}Memory information${COLOR_OFF}"
-cat /proc/meminfo
-echo -en "travis_fold:end:mem_info${FOLD_ESCAPE}"
-
-echo -e "travis_fold:start:disk_info${FOLD_ESCAPE}${COLOR_ON}Disk information${COLOR_OFF}"
-df -hH
-echo -en "travis_fold:end:disk_info${FOLD_ESCAPE}"
-
+print_system_info
 
 # Make sure to be in project root
 cd $HERE/../
