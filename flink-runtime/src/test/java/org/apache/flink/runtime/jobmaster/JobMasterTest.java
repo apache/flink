@@ -27,7 +27,6 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -113,10 +112,6 @@ public class JobMasterTest extends TestLogger {
 				heartbeatServices,
 				Executors.newScheduledThreadPool(1),
 				blobServer,
-				new BlobLibraryCacheManager(
-					blobServer,
-					FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
-					new String[0]),
 				new NoRestartStrategy.NoRestartStrategyFactory(),
 				testingTimeout,
 				null,
@@ -217,10 +212,6 @@ public class JobMasterTest extends TestLogger {
 				heartbeatServices,
 				Executors.newScheduledThreadPool(1),
 				blobServer,
-				new BlobLibraryCacheManager(
-					blobServer,
-					FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
-					new String[0]),
 				new NoRestartStrategy.NoRestartStrategyFactory(),
 				testingTimeout,
 				null,

@@ -30,12 +30,11 @@ import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
-
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -46,7 +45,6 @@ public class JobManagerServices {
 
 	public final ScheduledExecutorService executorService;
 
-	public final BlobServer blobServer;
 	public final BlobLibraryCacheManager libraryCacheManager;
 
 	public final RestartStrategyFactory restartStrategyFactory;
@@ -55,24 +53,23 @@ public class JobManagerServices {
 
 	public JobManagerServices(
 			ScheduledExecutorService executorService,
-			BlobServer blobServer,
 			BlobLibraryCacheManager libraryCacheManager,
 			RestartStrategyFactory restartStrategyFactory,
 			Time rpcAskTimeout) {
 
 		this.executorService = checkNotNull(executorService);
-		this.blobServer = checkNotNull(blobServer);
 		this.libraryCacheManager = checkNotNull(libraryCacheManager);
 		this.restartStrategyFactory = checkNotNull(restartStrategyFactory);
 		this.rpcAskTimeout = checkNotNull(rpcAskTimeout);
 	}
 
 	/**
-	 * 
+	 * Shutdown the {@link JobMaster} services.
+	 *
 	 * <p>This method makes sure all services are closed or shut down, even when an exception occurred
 	 * in the shutdown of one component. The first encountered exception is thrown, with successive
 	 * exceptions added as suppressed exceptions.
-	 * 
+	 *
 	 * @throws Exception The first Exception encountered during shutdown.
 	 */
 	public void shutdown() throws Exception {
@@ -85,16 +82,6 @@ public class JobManagerServices {
 		}
 
 		libraryCacheManager.shutdown();
-		try {
-			blobServer.close();
-		}
-		catch (Throwable t) {
-			if (firstException == null) {
-				firstException = t;
-			} else {
-				firstException.addSuppressed(t);
-			}
-		}
 
 		if (firstException != null) {
 			ExceptionUtils.rethrowException(firstException, "Error while shutting down JobManager services");
@@ -102,16 +89,15 @@ public class JobManagerServices {
 	}
 
 	// ------------------------------------------------------------------------
-	//  Creating the components from a configuration 
+	//  Creating the components from a configuration
 	// ------------------------------------------------------------------------
-	
 
 	public static JobManagerServices fromConfiguration(
 			Configuration config,
 			BlobServer blobServer) throws Exception {
 
-		Preconditions.checkNotNull(config);
-		Preconditions.checkNotNull(blobServer);
+		checkNotNull(config);
+		checkNotNull(blobServer);
 
 		final String classLoaderResolveOrder =
 			config.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
@@ -139,7 +125,6 @@ public class JobManagerServices {
 
 		return new JobManagerServices(
 			futureExecutor,
-			blobServer,
 			libraryCacheManager,
 			RestartStrategyFactory.createRestartStrategyFactory(config),
 			Time.of(timeout.length(), timeout.unit()));
