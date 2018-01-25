@@ -73,7 +73,9 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 			Tuple2.of(MigrationVersion.v1_2, AbstractStateBackend.MEMORY_STATE_BACKEND_NAME),
 			Tuple2.of(MigrationVersion.v1_2, AbstractStateBackend.ROCKSDB_STATE_BACKEND_NAME),
 			Tuple2.of(MigrationVersion.v1_3, AbstractStateBackend.MEMORY_STATE_BACKEND_NAME),
-			Tuple2.of(MigrationVersion.v1_3, AbstractStateBackend.ROCKSDB_STATE_BACKEND_NAME));
+			Tuple2.of(MigrationVersion.v1_3, AbstractStateBackend.ROCKSDB_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_4, AbstractStateBackend.MEMORY_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_4, AbstractStateBackend.ROCKSDB_STATE_BACKEND_NAME));
 	}
 
 	/**
@@ -81,7 +83,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 	 * TODO change these values accordingly, e.g. to generate for 1.3 with RocksDB,
 	 * TODO set as (MigrationVersion.v1_3, AbstractStateBackend.ROCKSDB_STATE_BACKEND_NAME)
 	 */
-	private final MigrationVersion flinkGenerateSavepointVersion = MigrationVersion.v1_3;
+	private final MigrationVersion flinkGenerateSavepointVersion = MigrationVersion.v1_4;
 	private final String flinkGenerateSavepointBackendType = AbstractStateBackend.ROCKSDB_STATE_BACKEND_NAME;
 
 	private final MigrationVersion testMigrateVersion;
