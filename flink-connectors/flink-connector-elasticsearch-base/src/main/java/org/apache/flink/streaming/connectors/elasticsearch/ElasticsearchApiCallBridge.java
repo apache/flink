@@ -41,8 +41,7 @@ import java.util.Map;
 public abstract class ElasticsearchApiCallBridge implements Serializable {
 
 	/**
-	 * Creates an Elasticsearch client implementing {@link AutoCloseable}. This can
-	 * be a {@link org.elasticsearch.client.Client} or {@link org.elasticsearch.client.RestHighLevelClient}
+	 * Creates an Elasticsearch client implementing {@link AutoCloseable}.
 	 *
 	 * @param clientConfig The configuration to use when constructing the client.
 	 * @return The created client.
