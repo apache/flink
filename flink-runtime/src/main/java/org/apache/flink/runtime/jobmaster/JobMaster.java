@@ -34,13 +34,13 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -100,8 +100,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 
@@ -787,7 +785,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	@Override
 	public CompletableFuture<AccessExecutionGraph> requestArchivedExecutionGraph(Time timeout) {
-		return CompletableFuture.completedFuture(executionGraph.archive());
+		return CompletableFuture.completedFuture(ArchivedExecutionGraph.createFrom(executionGraph));
 	}
 
 	@Override
@@ -989,60 +987,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			@Nullable final Throwable error) {
 		validateRunsInMainThread();
 
-		final JobID jobID = executionGraph.getJobID();
-		final String jobName = executionGraph.getJobName();
-		final JobResult.Builder builder = new JobResult.Builder()
-			.jobId(jobID)
-			.netRuntime(0);
-
 		if (newJobStatus.isGloballyTerminalState()) {
-			switch (newJobStatus) {
-				case FINISHED:
-					try {
-						// TODO get correct job duration
-						// job done, let's get the accumulators
-						final Map<String, SerializedValue<Object>> accumulatorsSerialized = executionGraph.getAccumulatorsSerialized();
-						builder.accumulatorResults(accumulatorsSerialized);
-						executor.execute(() -> jobCompletionActions.jobFinished(builder.build()));
-					}
-					catch (Exception e) {
-						log.error("Cannot fetch final accumulators for job {} ({})", jobName, jobID, e);
-
-						final JobExecutionException exception = new JobExecutionException(jobID,
-								"Failed to retrieve accumulator results. " +
-								"The job is registered as 'FINISHED (successful), but this notification describes " +
-								"a failure, since the resulting accumulators could not be fetched.", e);
-
-						executor.execute(() -> jobCompletionActions.jobFailed(builder
-							.serializedThrowable(new SerializedThrowable(exception))
-							.build()));
-					}
-					break;
-
-				case CANCELED: {
-					final JobExecutionException exception = new JobExecutionException(
-						jobID, "Job was cancelled.", new Exception("The job was cancelled"));
-
-					executor.execute(() -> jobCompletionActions.jobFailed(builder
-						.serializedThrowable(new SerializedThrowable(exception))
-						.build()));
-					break;
-				}
-
-				case FAILED: {
-					final Throwable unpackedError = SerializedThrowable.get(error, userCodeLoader);
-					final JobExecutionException exception = new JobExecutionException(
-							jobID, "Job execution failed.", unpackedError);
-					executor.execute(() -> jobCompletionActions.jobFailed(builder
-						.serializedThrowable(new SerializedThrowable(exception))
-						.build()));
-					break;
-				}
-
-				default:
-					// this can happen only if the enum is buggy
-					throw new IllegalStateException(newJobStatus.toString());
-			}
+			final ArchivedExecutionGraph archivedExecutionGraph = ArchivedExecutionGraph.createFrom(executionGraph);
+			executor.execute(() -> jobCompletionActions.jobReachedGloballyTerminalState(archivedExecutionGraph));
 		}
 	}
 

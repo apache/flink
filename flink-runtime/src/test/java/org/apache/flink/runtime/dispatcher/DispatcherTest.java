@@ -26,11 +26,14 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
@@ -45,6 +48,7 @@ import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -54,7 +58,6 @@ import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -270,11 +273,13 @@ public class DispatcherTest extends TestLogger {
 		final JobID failedJobId = new JobID();
 		onCompletionActions = dispatcher.new DispatcherOnCompleteActions(failedJobId);
 
-		onCompletionActions.jobFailed(new JobResult.Builder()
-			.jobId(failedJobId)
-			.serializedThrowable(new SerializedThrowable(new RuntimeException("expected")))
-			.netRuntime(Long.MAX_VALUE)
-			.build());
+		final ArchivedExecutionGraph failedExecutionGraph = new ArchivedExecutionGraphBuilder()
+			.setJobID(failedJobId)
+			.setState(JobStatus.FAILED)
+			.setFailureCause(new ErrorInfo(new RuntimeException("expected"), 1L))
+			.build();
+
+		onCompletionActions.jobReachedGloballyTerminalState(failedExecutionGraph);
 
 		assertThat(
 			dispatcherGateway.isJobExecutionResultPresent(failedJobId, TIMEOUT).get(),
@@ -288,10 +293,12 @@ public class DispatcherTest extends TestLogger {
 		final JobID successJobId = new JobID();
 		onCompletionActions = dispatcher.new DispatcherOnCompleteActions(successJobId);
 
-		onCompletionActions.jobFinished(new JobResult.Builder()
-			.jobId(successJobId)
-			.netRuntime(Long.MAX_VALUE)
-			.build());
+		final ArchivedExecutionGraph succeededExecutionGraph = new ArchivedExecutionGraphBuilder()
+			.setJobID(successJobId)
+			.setState(JobStatus.FINISHED)
+			.build();
+
+		onCompletionActions.jobReachedGloballyTerminalState(succeededExecutionGraph);
 
 		assertThat(
 			dispatcherGateway.isJobExecutionResultPresent(successJobId, TIMEOUT).get(),

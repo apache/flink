@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 
 /**
  * Interface for completion actions once a Flink job has reached
@@ -27,18 +27,11 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 public interface OnCompletionActions {
 
 	/**
-	 * Job finished successfully.
+	 * Job reached a globally terminal state.
 	 *
-	 * @param result of the job execution
+	 * @param executionGraph serializable execution graph
 	 */
-	void jobFinished(JobResult result);
-
-	/**
-	 * Job failed with an exception.
-	 *
-	 * @param result The result of the job carrying the failure cause.
-	 */
-	void jobFailed(JobResult result);
+	void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph);
 
 	/**
 	 * Job was finished by another JobMaster.

@@ -29,6 +29,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
@@ -265,12 +266,7 @@ public class JobMasterTest extends TestLogger {
 	private static final class NoOpOnCompletionActions implements OnCompletionActions {
 
 		@Override
-		public void jobFinished(final JobResult result) {
-
-		}
-
-		@Override
-		public void jobFailed(final JobResult result) {
+		public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
 
 		}
 

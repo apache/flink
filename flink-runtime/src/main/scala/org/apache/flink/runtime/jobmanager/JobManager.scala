@@ -1727,7 +1727,10 @@ class JobManager(
           }(context.dispatcher))
 
           try {
-            archive ! decorateMessage(ArchiveExecutionGraph(jobID, eg.archive()))
+            archive ! decorateMessage(
+              ArchiveExecutionGraph(
+                jobID,
+                ArchivedExecutionGraph.createFrom(eg)))
           } catch {
             case t: Throwable => log.warn(s"Could not archive the execution graph $eg.", t)
           }
