@@ -350,11 +350,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
 			fail("Restore from savepoints from version before Flink 1.3.x should have failed if discovery is enabled.");
 		} catch (Exception e) {
-			if (testMigrateVersion == MigrationVersion.v1_1) {
-				Assert.assertTrue(e.getCause() instanceof IllegalArgumentException);
-			} else {
-				Assert.assertTrue(e instanceof IllegalArgumentException);
-			}
+			Assert.assertTrue(e instanceof IllegalArgumentException);
 		}
 	}
 
