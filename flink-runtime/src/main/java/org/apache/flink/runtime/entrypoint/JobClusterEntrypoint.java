@@ -25,6 +25,8 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -34,7 +36,6 @@ import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRestEndpoint;
-import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -54,15 +55,12 @@ import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.SerializedThrowable;
 
 import akka.actor.ActorSystem;
 
 import javax.annotation.Nullable;
 
 import java.util.concurrent.Executor;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Base class for per-job cluster entry points.
@@ -298,23 +296,16 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		}
 
 		@Override
-		public void jobFinished(JobResult result) {
+		public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
 			LOG.info("Job({}) finished.", jobId);
 
-			shutDownAndTerminate(true, ApplicationStatus.SUCCEEDED, null);
-		}
+			final ErrorInfo errorInfo = executionGraph.getFailureInfo();
 
-		@Override
-		public void jobFailed(JobResult result) {
-			checkArgument(result.getSerializedThrowable().isPresent());
-
-			final SerializedThrowable serializedThrowable = result.getSerializedThrowable().get();
-
-			final String errorMessage = serializedThrowable.getMessage();
-
-			LOG.info("Job({}) failed: {}.", jobId, errorMessage);
-
-			shutDownAndTerminate(true, ApplicationStatus.FAILED, errorMessage);
+			if (errorInfo == null) {
+				shutDownAndTerminate(true, ApplicationStatus.SUCCEEDED, null);
+			} else {
+				shutDownAndTerminate(true, ApplicationStatus.FAILED, errorInfo.getExceptionAsString());
+			}
 		}
 
 		@Override

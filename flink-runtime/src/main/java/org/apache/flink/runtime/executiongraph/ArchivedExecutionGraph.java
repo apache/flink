@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
@@ -30,12 +31,17 @@ import org.apache.flink.util.SerializedValue;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+/**
+ * An archived execution graph represents a serializable form of the {@link ExecutionGraph}.
+ */
 public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializable {
 
 	private static final long serialVersionUID = 7231383912742578428L;
@@ -47,10 +53,10 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	/** The name of the original job graph. */
 	private final String jobName;
 
-	/** All job vertices that are part of this graph */
+	/** All job vertices that are part of this graph. */
 	private final Map<JobVertexID, ArchivedExecutionJobVertex> tasks;
 
-	/** All vertices, in the order in which they were created **/
+	/** All vertices, in the order in which they were created. **/
 	private final List<ArchivedExecutionJobVertex> verticesInCreationOrder;
 
 	/**
@@ -65,7 +71,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 
 	// ------ Execution status and progress. These values are volatile, and accessed under the lock -------
 
-	/** Current status of the job execution */
+	/** Current status of the job execution. */
 	private final JobStatus state;
 
 	/**
@@ -142,6 +148,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		return state;
 	}
 
+	@Nullable
 	@Override
 	public ErrorInfo getFailureInfo() {
 		return failureCause;
@@ -253,11 +260,9 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 
 		private int currPos;
 
-
 		public AllVerticesIterator(Iterator<ArchivedExecutionJobVertex> jobVertices) {
 			this.jobVertices = jobVertices;
 		}
-
 
 		@Override
 		public boolean hasNext() {
@@ -290,5 +295,49 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		public void remove() {
 			throw new UnsupportedOperationException();
 		}
+	}
+
+	/**
+	 * Create a {@link ArchivedExecutionGraph} from the given {@link ExecutionGraph}.
+	 *
+	 * @param executionGraph to create the ArchivedExecutionGraph from
+	 * @return ArchivedExecutionGraph created from the given ExecutionGraph
+	 */
+	public static ArchivedExecutionGraph createFrom(ExecutionGraph executionGraph) {
+		final int numberVertices = executionGraph.getTotalNumberOfVertices();
+
+		Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = new HashMap<>(numberVertices);
+		List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder = new ArrayList<>(numberVertices);
+
+		for (ExecutionJobVertex task : executionGraph.getVerticesTopologically()) {
+			ArchivedExecutionJobVertex archivedTask = task.archive();
+			archivedVerticesInCreationOrder.add(archivedTask);
+			archivedTasks.put(task.getJobVertexId(), archivedTask);
+		}
+
+		final Map<String, SerializedValue<Object>> serializedUserAccumulators = executionGraph.getAccumulatorsSerialized();
+
+		final long[] timestamps = new long[JobStatus.values().length];
+
+		for (JobStatus jobStatus : JobStatus.values()) {
+			final int ordinal = jobStatus.ordinal();
+			timestamps[ordinal] = executionGraph.getStatusTimestamp(jobStatus);
+		}
+
+		return new ArchivedExecutionGraph(
+			executionGraph.getJobID(),
+			executionGraph.getJobName(),
+			archivedTasks,
+			archivedVerticesInCreationOrder,
+			timestamps,
+			executionGraph.getState(),
+			executionGraph.getFailureInfo(),
+			executionGraph.getJsonPlan(),
+			executionGraph.getAccumulatorResultsStringified(),
+			serializedUserAccumulators,
+			executionGraph.getArchivedExecutionConfig(),
+			executionGraph.isStoppable(),
+			executionGraph.getCheckpointCoordinatorConfiguration(),
+			executionGraph.getCheckpointStatsSnapshot());
 	}
 }

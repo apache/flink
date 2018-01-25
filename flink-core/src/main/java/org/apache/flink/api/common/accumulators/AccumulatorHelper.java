@@ -173,4 +173,23 @@ public class AccumulatorHelper {
 		return accumulators;
 	}
 
+	/**
+	 * Serializes the given accumulators.
+	 *
+	 * @param accumulators to serialize
+	 * @return Map of serialized accumulators
+	 * @throws IOException if an accumulator could not be serialized
+	 */
+	public static Map<String, SerializedValue<Object>> serializeAccumulators(Map<String, Accumulator<?, ?>> accumulators) throws IOException {
+		final Map<String, SerializedValue<Object>> serializedAccumulators = new HashMap<>(accumulators.size());
+
+		for (Map.Entry<String, Accumulator<?, ?>> stringAccumulatorEntry : accumulators.entrySet()) {
+			serializedAccumulators.put(
+				stringAccumulatorEntry.getKey(),
+				new SerializedValue<>(stringAccumulatorEntry.getValue()));
+		}
+
+		return serializedAccumulators;
+	}
+
 }
