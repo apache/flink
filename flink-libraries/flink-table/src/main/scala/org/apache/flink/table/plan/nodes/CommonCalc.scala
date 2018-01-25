@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.plan.{RelOptCost, RelOptPlanner}
+import org.apache.calcite.rel.metadata.RelMdUtil
 import org.apache.calcite.rex._
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.table.api.TableConfig
@@ -27,6 +28,7 @@ import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 trait CommonCalc {
 
@@ -141,6 +143,7 @@ trait CommonCalc {
   }
 
   private[flink] def computeSelfCost(
+      rexBuilder: RexBuilder,
       calcProgram: RexProgram,
       planner: RelOptPlanner,
       rowCnt: Double): RelOptCost = {
@@ -151,26 +154,40 @@ trait CommonCalc {
     // in normalization stage. So we should ignore CASTs here in optimization stage.
     // Also, we add 1 to take calc RelNode number into consideration, so the cost of merged calc
     // RelNode will less than the total cost of un-merged calcs.
-    val compCnt = calcProgram.getExprList.asScala.toList.count {
-      case _: RexInputRef => false
-      case _: RexLiteral => false
-      case c: RexCall if c.getOperator.getName.equals("CAST") => false
-      case _ => true
-    } + 1
+    val compCnt = calcProgram.getExprList.asScala.toList.count(isCom(_)) + 1
 
-    val newRowCnt = estimateRowCount(calcProgram, rowCnt)
+    val newRowCnt = estimateRowCount(rexBuilder, calcProgram, rowCnt)
     planner.getCostFactory.makeCost(newRowCnt, newRowCnt * compCnt, 0)
   }
 
   private[flink] def estimateRowCount(
+      rexBuilder: RexBuilder,
       calcProgram: RexProgram,
       rowCnt: Double): Double = {
 
     if (calcProgram.getCondition != null) {
       // we reduce the result card to push filters down
-      (rowCnt * 0.75).max(1.0)
+      val exprs = RexUtil.composeConjunction(
+        rexBuilder,
+        calcProgram.getExprList.filter(isCom(_)),
+        true)
+      val selectivity = RelMdUtil.guessSelectivity(exprs, false)
+      (rowCnt * selectivity).max(1.0)
     } else {
       rowCnt
+    }
+  }
+
+  /**
+    * Return true if the input rexNode do not access a field or literal, i.e. computations,
+    * conditions, etc.
+    */
+  private[flink] def isCom(rexNode: RexNode): Boolean = {
+    rexNode match {
+      case _: RexInputRef => false
+      case _: RexLiteral => false
+      case c: RexCall if c.getOperator.getName.equals("CAST") => false
+      case _ => true
     }
   }
 }

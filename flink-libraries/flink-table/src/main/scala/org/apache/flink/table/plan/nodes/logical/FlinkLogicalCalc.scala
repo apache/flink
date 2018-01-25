@@ -43,13 +43,13 @@ class FlinkLogicalCalc(
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val child = this.getInput
     val rowCnt = mq.getRowCount(child)
-    computeSelfCost(calcProgram, planner, rowCnt)
+    computeSelfCost(cluster.getRexBuilder, calcProgram, planner, rowCnt)
   }
 
   override def estimateRowCount(metadata: RelMetadataQuery): Double = {
     val child = this.getInput
     val rowCnt = metadata.getRowCount(child)
-    estimateRowCount(calcProgram, rowCnt)
+    estimateRowCount(cluster.getRexBuilder, calcProgram, rowCnt)
   }
 }
 
