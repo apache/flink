@@ -93,7 +93,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -163,7 +162,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	// --------- job manager connections -----------
 
-	private Map<ResourceID, JobManagerConnection> jobManagerConnections;
+	private final Map<ResourceID, JobManagerConnection> jobManagerConnections;
 
 	// --------- task slot allocation table -----------
 
@@ -195,7 +194,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			JobLeaderService jobLeaderService,
 			FatalErrorHandler fatalErrorHandler) {
 
-		super(rpcService, AkkaRpcServiceUtils.createRandomName(TaskExecutor.TASK_MANAGER_NAME));
+		super(rpcService, AkkaRpcServiceUtils.createRandomName(TASK_MANAGER_NAME));
 
 		checkArgument(taskManagerConfiguration.getNumberSlots() > 0, "The number of slots has to be larger than 0.");
 
@@ -978,10 +977,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			ResourceID resourceID,
 			JobMasterGateway jobMasterGateway,
 			int blobPort) {
-		Preconditions.checkNotNull(jobID);
-		Preconditions.checkNotNull(resourceID);
-		Preconditions.checkNotNull(jobMasterGateway);
-		Preconditions.checkArgument(blobPort > 0 && blobPort < MAX_BLOB_PORT, "Blob server port is out of range.");
+		checkNotNull(jobID);
+		checkNotNull(resourceID);
+		checkNotNull(jobMasterGateway);
+		checkArgument(blobPort > 0 && blobPort < MAX_BLOB_PORT, "Blob server port is out of range.");
 
 		TaskManagerActions taskManagerActions = new TaskManagerActionsImpl(jobMasterGateway);
 
@@ -1029,7 +1028,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	}
 
 	private void disassociateFromJobManager(JobManagerConnection jobManagerConnection, Exception cause) throws IOException {
-		Preconditions.checkNotNull(jobManagerConnection);
+		checkNotNull(jobManagerConnection);
 		JobMasterGateway jobManagerGateway = jobManagerConnection.getJobManagerGateway();
 		jobManagerGateway.disconnectTaskManager(getResourceID(), cause);
 		jobManagerConnection.getLibraryCacheManager().shutdown();
@@ -1104,36 +1103,40 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	}
 
 	private void freeSlotInternal(AllocationID allocationId, Throwable cause) {
-		Preconditions.checkNotNull(allocationId);
+		checkNotNull(allocationId);
 
 		try {
-			TaskSlot taskSlot = taskSlotTable.freeSlot(allocationId, cause);
+			final JobID jobId = taskSlotTable.getOwningJob(allocationId);
 
-			if (taskSlot != null && isConnectedToResourceManager()) {
-				// the slot was freed. Tell the RM about it
-				ResourceManagerGateway resourceManagerGateway = resourceManagerConnection.getTargetGateway();
+			final int slotIndex = taskSlotTable.freeSlot(allocationId, cause);
 
-				resourceManagerGateway.notifySlotAvailable(
-					resourceManagerConnection.getRegistrationId(),
-					new SlotID(getResourceID(), taskSlot.getIndex()),
-					allocationId);
+			if (slotIndex != -1) {
 
-				// check whether we still have allocated slots for the same job
-				final JobID jobId = taskSlot.getJobId();
-				final Iterator<Task> tasks = taskSlotTable.getTasks(jobId);
+				if (isConnectedToResourceManager()) {
+					// the slot was freed. Tell the RM about it
+					ResourceManagerGateway resourceManagerGateway = resourceManagerConnection.getTargetGateway();
 
-				if (!tasks.hasNext()) {
-					// we can remove the job from the job leader service
-					try {
-						jobLeaderService.removeJob(jobId);
-					} catch (Exception e) {
-						log.info("Could not remove job {} from JobLeaderService.", jobId, e);
+					resourceManagerGateway.notifySlotAvailable(
+						resourceManagerConnection.getRegistrationId(),
+						new SlotID(getResourceID(), slotIndex),
+						allocationId);
+				}
+
+				if (jobId != null) {
+					// check whether we still have allocated slots for the same job
+					if (taskSlotTable.getAllocationIdsPerJob(jobId).isEmpty()) {
+						// we can remove the job from the job leader service
+						try {
+							jobLeaderService.removeJob(jobId);
+						} catch (Exception e) {
+							log.info("Could not remove job {} from JobLeaderService.", jobId, e);
+						}
+
+						closeJobManagerConnection(
+							jobId,
+							new FlinkException("TaskExecutor " + getAddress() +
+								" has no more allocated slots for job " + jobId + '.'));
 					}
-
-					closeJobManagerConnection(
-						jobId,
-						new FlinkException("TaskExecutor " + getAddress() +
-							" has no more allocated slots for job " + jobId + '.'));
 				}
 			}
 		} catch (SlotNotFoundException e) {
@@ -1141,13 +1144,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 	}
 
-	private void freeSlotInternal(AllocationID allocationId) {
-		freeSlotInternal(allocationId, new Exception("The slot " + allocationId + " is being freed."));
-	}
-
 	private void timeoutSlot(AllocationID allocationId, UUID ticket) {
-		Preconditions.checkNotNull(allocationId);
-		Preconditions.checkNotNull(ticket);
+		checkNotNull(allocationId);
+		checkNotNull(ticket);
 
 		if (taskSlotTable.isValidTimeout(allocationId, ticket)) {
 			freeSlotInternal(allocationId, new Exception("The slot " + allocationId + " has timed out."));
@@ -1285,7 +1284,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		private final JobMasterGateway jobMasterGateway;
 
 		private TaskManagerActionsImpl(JobMasterGateway jobMasterGateway) {
-			this.jobMasterGateway = Preconditions.checkNotNull(jobMasterGateway);
+			this.jobMasterGateway = checkNotNull(jobMasterGateway);
 		}
 
 		@Override
@@ -1318,7 +1317,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		@Override
 		public void freeSlot(final AllocationID allocationId) {
-			runAsync(() -> TaskExecutor.this.freeSlotInternal(allocationId));
+			runAsync(() ->
+				freeSlotInternal(
+					allocationId,
+					new FlinkException("TaskSlotTable requested freeing the TaskSlot " + allocationId + '.')));
 		}
 
 		@Override

@@ -61,12 +61,14 @@ import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -89,6 +91,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
@@ -106,7 +109,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 
-import java.io.File;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
@@ -122,6 +124,7 @@ import java.util.concurrent.TimeoutException;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -143,7 +146,6 @@ import static org.mockito.Mockito.when;
 public class TaskExecutorTest extends TestLogger {
 
 	private final Time timeout = Time.milliseconds(10000L);
-	private final File tempDir = new File(System.getProperty("java.io.tmpdir"));
 
 	private TimerService<AllocationID> timerService;
 
@@ -1034,7 +1036,6 @@ public class TaskExecutorTest extends TestLogger {
 			mock(NetworkEnvironment.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
-
 			mock(TaskManagerMetricGroup.class),
 			mock(BroadcastVariableManager.class),
 			mock(FileCache.class),
@@ -1540,6 +1541,120 @@ public class TaskExecutorTest extends TestLogger {
 			testingFatalErrorHandler.rethrowError();
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	/**
+	 * Tests that a job is removed from the JobLeaderService once a TaskExecutor has
+	 * no more slots assigned to this job.
+	 *
+	 * <p>See FLINK-8504
+	 */
+	@Test
+	public void testRemoveJobFromJobLeaderService() throws Exception {
+		final Configuration configuration = new Configuration();
+		final TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
+		final LocalTaskManagerLocation localTaskManagerLocation = new LocalTaskManagerLocation();
+		final JobLeaderService jobLeaderService = new JobLeaderService(localTaskManagerLocation);
+		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(
+			Collections.singleton(ResourceProfile.UNKNOWN),
+			timerService);
+
+		final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
+
+		final TestingLeaderRetrievalService resourceManagerLeaderRetriever = new TestingLeaderRetrievalService();
+		haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
+
+		final TaskExecutor taskExecutor = new TaskExecutor(
+			rpc,
+			taskManagerConfiguration,
+			localTaskManagerLocation,
+			mock(MemoryManager.class),
+			mock(IOManager.class),
+			new TaskExecutorLocalStateStoresManager(),
+			mock(NetworkEnvironment.class),
+			haServices,
+			new HeartbeatServices(1000L, 1000L),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			new BroadcastVariableManager(),
+			mock(FileCache.class),
+			taskSlotTable,
+			new JobManagerTable(),
+			jobLeaderService,
+			testingFatalErrorHandler);
+
+		try {
+			final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+			final ResourceManagerId resourceManagerId = resourceManagerGateway.getFencingToken();
+
+			rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
+			resourceManagerLeaderRetriever.notifyListener(resourceManagerGateway.getAddress(), resourceManagerId.toUUID());
+
+			final JobID jobId = new JobID();
+
+			final CompletableFuture<LeaderRetrievalListener> startFuture = new CompletableFuture<>();
+			final CompletableFuture<Void> stopFuture = new CompletableFuture<>();
+
+			final StartStopNotifyingLeaderRetrievalService jobMasterLeaderRetriever = new StartStopNotifyingLeaderRetrievalService(
+				startFuture,
+				stopFuture);
+			haServices.setJobMasterLeaderRetriever(jobId, jobMasterLeaderRetriever);
+
+			taskExecutor.start();
+
+			final TaskExecutorGateway taskExecutorGateway = taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+
+			final SlotID slotId = new SlotID(localTaskManagerLocation.getResourceID(), 0);
+			final AllocationID allocationId = new AllocationID();
+
+			assertThat(startFuture.isDone(), is(false));
+			assertThat(jobLeaderService.containsJob(jobId), is(false));
+
+			taskExecutorGateway.requestSlot(
+				slotId,
+				jobId,
+				allocationId,
+				"foobar",
+				resourceManagerId,
+				timeout).get();
+
+			// wait until the job leader retrieval service for jobId is started
+			startFuture.get();
+			assertThat(jobLeaderService.containsJob(jobId), is(true));
+
+			taskExecutorGateway.freeSlot(allocationId, new FlinkException("Test exception"), timeout).get();
+
+			// wait that the job leader retrieval service for jobId stopped becaue it should get removed
+			stopFuture.get();
+			assertThat(jobLeaderService.containsJob(jobId), is(false));
+
+			testingFatalErrorHandler.rethrowError();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	private static final class StartStopNotifyingLeaderRetrievalService implements LeaderRetrievalService {
+		private final CompletableFuture<LeaderRetrievalListener> startFuture;
+
+		private final CompletableFuture<Void> stopFuture;
+
+		private StartStopNotifyingLeaderRetrievalService(
+				CompletableFuture<LeaderRetrievalListener> startFuture,
+				CompletableFuture<Void> stopFuture) {
+			this.startFuture = startFuture;
+			this.stopFuture = stopFuture;
+		}
+
+		@Override
+		public void start(LeaderRetrievalListener listener) throws Exception {
+			startFuture.complete(listener);
+		}
+
+		@Override
+		public void stop() throws Exception {
+			stopFuture.complete(null);
 		}
 	}
 
