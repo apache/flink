@@ -130,13 +130,12 @@ public class RecordWriter<T extends IOReadableWritable> {
 					if (result.isFullRecord()) {
 						break;
 					}
-				} else {
-					BufferBuilder bufferBuilder =
-						targetPartition.getBufferProvider().requestBufferBuilderBlocking();
-					checkState(!bufferConsumers[targetChannel].isPresent());
-					bufferConsumers[targetChannel] = Optional.of(bufferBuilder.createBufferConsumer());
-					result = serializer.setNextBufferBuilder(bufferBuilder);
 				}
+				BufferBuilder bufferBuilder =
+					targetPartition.getBufferProvider().requestBufferBuilderBlocking();
+				checkState(!bufferConsumers[targetChannel].isPresent());
+				bufferConsumers[targetChannel] = Optional.of(bufferBuilder.createBufferConsumer());
+				result = serializer.setNextBufferBuilder(bufferBuilder);
 			}
 			checkState(!serializer.hasSerializedData(), "All data should be written at once");
 		}
