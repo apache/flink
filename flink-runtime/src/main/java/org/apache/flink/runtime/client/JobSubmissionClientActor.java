@@ -18,11 +18,6 @@
 
 package org.apache.flink.runtime.client;
 
-import akka.actor.ActorRef;
-import akka.actor.Props;
-import akka.actor.Status;
-import akka.dispatch.Futures;
-
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
@@ -35,14 +30,19 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobClientMessages.SubmitJobAndWait;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedThrowable;
-import scala.concurrent.duration.FiniteDuration;
+
+import akka.actor.ActorRef;
+import akka.actor.Props;
+import akka.actor.Status;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletionException;
+
+import scala.concurrent.duration.FiniteDuration;
 
 
 /**
@@ -50,11 +50,11 @@ import java.util.concurrent.TimeUnit;
  */
 public class JobSubmissionClientActor extends JobClientActor {
 
-	/** JobGraph which shall be submitted to the JobManager */
+	/** JobGraph which shall be submitted to the JobManager. */
 	private JobGraph jobGraph;
-	/** true if a SubmitJobSuccess message has been received */
+	/** true if a SubmitJobSuccess message has been received. */
 	private boolean jobSuccessfullySubmitted = false;
-	/** The cluster configuration */
+	/** The cluster configuration. */
 	private final Configuration clientConfig;
 
 	public JobSubmissionClientActor(
@@ -65,7 +65,6 @@ public class JobSubmissionClientActor extends JobClientActor {
 		super(leaderRetrievalService, timeout, sysoutUpdates);
 		this.clientConfig = clientConfig;
 	}
-
 
 	@Override
 	public void connectedToJobManager() {
@@ -143,76 +142,60 @@ public class JobSubmissionClientActor extends JobClientActor {
 		LOG.info("Sending message to JobManager {} to submit job {} ({}) and wait for progress",
 			jobManager.path().toString(), jobGraph.getName(), jobGraph.getJobID());
 
-		Futures.future(new Callable<Object>() {
-			@Override
-			public Object call() throws Exception {
-				final ActorGateway jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID);
-				final AkkaJobManagerGateway akkaJobManagerGateway = new AkkaJobManagerGateway(jobManagerGateway);
+		final ActorGateway jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID);
+		final AkkaJobManagerGateway akkaJobManagerGateway = new AkkaJobManagerGateway(jobManagerGateway);
 
-				LOG.info("Upload jar files to job manager {}.", jobManager.path());
+		LOG.info("Upload jar files to job manager {}.", jobManager.path());
 
-				final CompletableFuture<InetSocketAddress> blobServerAddressFuture = JobClient.retrieveBlobServerAddress(
-					akkaJobManagerGateway,
-					Time.milliseconds(timeout.toMillis()));
-				final InetSocketAddress blobServerAddress;
+		final CompletableFuture<InetSocketAddress> blobServerAddressFuture = JobClient.retrieveBlobServerAddress(
+			akkaJobManagerGateway,
+			Time.milliseconds(timeout.toMillis()));
 
-				try {
-					blobServerAddress = blobServerAddressFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-				} catch (Exception e) {
-					getSelf().tell(
-						decorateMessage(new JobManagerMessages.JobResultFailure(
-							new SerializedThrowable(
-								new JobSubmissionException(
-									jobGraph.getJobID(),
-									"Could not retrieve BlobServer address.",
-									e)
-							)
-						)),
-						ActorRef.noSender());
-
-					return null;
-				}
-
+		final CompletableFuture<Void> jarUploadFuture = blobServerAddressFuture.thenAcceptAsync(
+			(InetSocketAddress blobServerAddress) -> {
 				try {
 					jobGraph.uploadUserJars(blobServerAddress, clientConfig);
-				} catch (IOException exception) {
-					getSelf().tell(
-						decorateMessage(new JobManagerMessages.JobResultFailure(
-							new SerializedThrowable(
-								new JobSubmissionException(
-									jobGraph.getJobID(),
-									"Could not upload the jar files to the job manager.",
-									exception)
-							)
-						)),
-						ActorRef.noSender());
-
-					return null;
+				} catch (IOException e) {
+					throw new CompletionException(
+						new JobSubmissionException(
+							jobGraph.getJobID(),
+							"Could not upload the jar files to the job manager.",
+							e));
 				}
+			},
+			getContext().dispatcher());
 
-				LOG.info("Submit job to the job manager {}.", jobManager.path());
+		jarUploadFuture
+			.thenAccept(
+				(Void ignored) -> {
+					LOG.info("Submit job to the job manager {}.", jobManager.path());
 
-				jobManager.tell(
-					decorateMessage(
-						new JobManagerMessages.SubmitJob(
-							jobGraph,
-							ListeningBehaviour.EXECUTION_RESULT_AND_STATE_CHANGES)),
-					getSelf());
+					jobManager.tell(
+						decorateMessage(
+							new JobManagerMessages.SubmitJob(
+								jobGraph,
+								ListeningBehaviour.EXECUTION_RESULT_AND_STATE_CHANGES)),
+						getSelf());
 
-				// issue a SubmissionTimeout message to check that we submit the job within
-				// the given timeout
-				getContext().system().scheduler().scheduleOnce(
-					timeout,
-					getSelf(),
-					decorateMessage(JobClientMessages.getSubmissionTimeout()),
-					getContext().dispatcher(),
-					ActorRef.noSender());
-
-				return null;
-			}
-		}, getContext().dispatcher());
+					// issue a SubmissionTimeout message to check that we submit the job within
+					// the given timeout
+					getContext().system().scheduler().scheduleOnce(
+						timeout,
+						getSelf(),
+						decorateMessage(JobClientMessages.getSubmissionTimeout()),
+						getContext().dispatcher(),
+						ActorRef.noSender());
+				})
+			.whenComplete(
+				(Void ignored, Throwable throwable) -> {
+					if (throwable != null) {
+						getSelf().tell(
+							decorateMessage(new JobManagerMessages.JobResultFailure(
+								new SerializedThrowable(ExceptionUtils.stripCompletionException(throwable)))),
+							ActorRef.noSender());
+					}
+				});
 	}
-
 
 	public static Props createActorProps(
 			LeaderRetrievalService leaderRetrievalService,
