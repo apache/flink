@@ -46,8 +46,8 @@ public class TaskLocalStateStoreImplTest {
 	private AllocationID allocationID;
 	private JobVertexID jobVertexID;
 	private int subtaskIdx;
-	private File[] rootDirs;
-	private TaskLocalStateStore taskLocalStateStore;
+	private File[] allocationBaseDirs;
+	private TaskLocalStateStoreImpl taskLocalStateStore;
 
 	@Before
 	public void before() throws Exception {
@@ -57,10 +57,10 @@ public class TaskLocalStateStoreImplTest {
 		this.allocationID = new AllocationID();
 		this.jobVertexID = new JobVertexID();
 		this.subtaskIdx = 0;
-		this.rootDirs = new File[]{temporaryFolder.newFolder(), temporaryFolder.newFolder()};
+		this.allocationBaseDirs = new File[]{temporaryFolder.newFolder(), temporaryFolder.newFolder()};
 
 		LocalRecoveryDirectoryProviderImpl directoryProvider =
-			new LocalRecoveryDirectoryProviderImpl(rootDirs, jobID, allocationID, jobVertexID, subtaskIdx);
+			new LocalRecoveryDirectoryProviderImpl(allocationBaseDirs, jobID, allocationID, jobVertexID, subtaskIdx);
 
 		LocalRecoveryConfig localRecoveryConfig =
 			new LocalRecoveryConfig(LocalRecoveryConfig.LocalRecoveryMode.DISABLED, directoryProvider);
@@ -86,10 +86,14 @@ public class TaskLocalStateStoreImplTest {
 	public void getLocalRecoveryRootDirectoryProvider() {
 
 		LocalRecoveryConfig directoryProvider = taskLocalStateStore.getLocalRecoveryConfig();
-		Assert.assertEquals(rootDirs.length, directoryProvider.getLocalStateDirectoryProvider().rootDirectoryCount());
+		Assert.assertEquals(
+			allocationBaseDirs.length,
+			directoryProvider.getLocalStateDirectoryProvider().allocationBaseDirsCount());
 
-		for (int i = 0; i < rootDirs.length; ++i) {
-			Assert.assertEquals(rootDirs[i], directoryProvider.getLocalStateDirectoryProvider().selectRootDirectory(i));
+		for (int i = 0; i < allocationBaseDirs.length; ++i) {
+			Assert.assertEquals(
+				allocationBaseDirs[i],
+				directoryProvider.getLocalStateDirectoryProvider().selectAllocationBaseDirectory(i));
 		}
 	}
 
@@ -121,7 +125,7 @@ public class TaskLocalStateStoreImplTest {
 		final int chkCount = 3 * TaskLocalStateStoreImpl.MAX_RETAINED_SNAPSHOTS;
 		final int lastRetained = chkCount - TaskLocalStateStoreImpl.MAX_RETAINED_SNAPSHOTS;
 		List<TaskStateSnapshot> taskStateSnapshots = storeStates(chkCount);
-		checkPrunedAndDiscared(taskStateSnapshots, 0, lastRetained);
+		checkPrunedAndDiscarded(taskStateSnapshots, 0, lastRetained);
 		checkStoredAsExpected(taskStateSnapshots, lastRetained, chkCount);
 	}
 
@@ -137,7 +141,7 @@ public class TaskLocalStateStoreImplTest {
 		final int confirmed = chkCount - 1;
 		List<TaskStateSnapshot> taskStateSnapshots = storeStates(chkCount);
 		taskLocalStateStore.confirmCheckpoint(confirmed);
-		checkPrunedAndDiscared(taskStateSnapshots, 0, confirmed);
+		checkPrunedAndDiscarded(taskStateSnapshots, 0, confirmed);
 		checkStoredAsExpected(taskStateSnapshots, confirmed, chkCount);
 	}
 
@@ -154,7 +158,7 @@ public class TaskLocalStateStoreImplTest {
 		taskLocalStateStore.confirmCheckpoint(confirmed);
 		taskLocalStateStore.dispose();
 
-		checkPrunedAndDiscared(taskStateSnapshots, 0, chkCount);
+		checkPrunedAndDiscarded(taskStateSnapshots, 0, chkCount);
 	}
 
 	private void checkStoredAsExpected(List<TaskStateSnapshot> history, int off, int len) throws Exception {
@@ -165,7 +169,7 @@ public class TaskLocalStateStoreImplTest {
 		}
 	}
 
-	private void checkPrunedAndDiscared(List<TaskStateSnapshot> history, int off, int len) throws Exception {
+	private void checkPrunedAndDiscarded(List<TaskStateSnapshot> history, int off, int len) throws Exception {
 		for (int i = off; i < len; ++i) {
 			Assert.assertNull(taskLocalStateStore.retrieveLocalState(i));
 			Mockito.verify(history.get(i)).discardState();

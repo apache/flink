@@ -106,7 +106,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	private OptionsFactory optionsFactory;
 
 	/** True if incremental checkpointing is enabled. */
-	private TernaryBoolean enableIncrementalCheckpointing;
+	private final TernaryBoolean enableIncrementalCheckpointing;
 
 	// -- runtime values, set on TaskManager when initializing / using the backend
 
@@ -215,7 +215,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * @param checkpointStreamBackend The backend write the checkpoint streams to.
 	 * @param enableIncrementalCheckpointing True if incremental checkpointing is enabled.
 	 */
-	public RocksDBStateBackend(StateBackend checkpointStreamBackend, boolean enableIncrementalCheckpointing) {
+	public RocksDBStateBackend(StateBackend checkpointStreamBackend, TernaryBoolean enableIncrementalCheckpointing) {
 		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
 	}
@@ -225,28 +225,15 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	@Deprecated
 	public RocksDBStateBackend(AbstractStateBackend checkpointStreamBackend) {
-		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
+		this(checkpointStreamBackend, TernaryBoolean.UNDEFINED);
 	}
 
 	/**
-	 * @deprecated Use {@link #RocksDBStateBackend(StateBackend, boolean)} instead.
+	 * @deprecated Use {@link #RocksDBStateBackend(StateBackend, TernaryBoolean)} instead.
 	 */
 	@Deprecated
 	public RocksDBStateBackend(AbstractStateBackend checkpointStreamBackend, boolean enableIncrementalCheckpointing) {
 		this(checkpointStreamBackend, TernaryBoolean.fromBoolean(enableIncrementalCheckpointing));
-	}
-
-	/**
-	 * Private constructor to help with the ternary boolean.
-	 *
-	 * @param checkpointStreamBackend The backend write the checkpoint streams to.
-	 * @param enableIncrementalCheckpointing True if incremental checkpointing is enabled.
-	 */
-	private RocksDBStateBackend(
-		AbstractStateBackend checkpointStreamBackend,
-		TernaryBoolean enableIncrementalCheckpointing) {
-		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
-		this.enableIncrementalCheckpointing = checkNotNull(enableIncrementalCheckpointing);
 	}
 
 	/**

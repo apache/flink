@@ -167,37 +167,6 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 	}
 
 	@Override
-	public void dispose() {
-
-		Collection<Map.Entry<Long, TaskStateSnapshot>> statesCopy;
-
-		synchronized (lock) {
-			discarded = true;
-			statesCopy = new ArrayList<>(storedTaskStateByCheckpointID.entrySet());
-			storedTaskStateByCheckpointID.clear();
-		}
-
-		discardExecutor.execute(() -> {
-
-			// discard all remaining state objects.
-			syncDiscardLocalStateForCollection(statesCopy);
-
-			LocalRecoveryDirectoryProvider directoryProvider = localRecoveryConfig.getLocalStateDirectoryProvider();
-
-			// delete all state directories for this job.
-			for (int i = 0; i < directoryProvider.rootDirectoryCount(); ++i) {
-				try {
-					File directoryToDelete = directoryProvider.selectAllocationBaseDirectory(i);
-					LOG.debug("Deleting local state directory {} of job {}.", directoryToDelete, jobID);
-					deleteDirectory(directoryToDelete);
-				} catch (IOException deleteEx) {
-					LOG.warn("Exception while deleting local state directory for job " + jobID + ".", deleteEx);
-				}
-			}
-		});
-	}
-
-	@Override
 	@Nonnull
 	public LocalRecoveryConfig getLocalRecoveryConfig() {
 		return localRecoveryConfig;
@@ -234,6 +203,36 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 		asyncDiscardLocalStateForCollection(toRemove);
 	}
 
+	/**
+	 * Disposes the state of all local snapshots managed by this object.
+	 */
+	public void dispose() {
+
+		Collection<Map.Entry<Long, TaskStateSnapshot>> statesCopy;
+
+		synchronized (lock) {
+			discarded = true;
+			statesCopy = new ArrayList<>(storedTaskStateByCheckpointID.entrySet());
+			storedTaskStateByCheckpointID.clear();
+		}
+
+		discardExecutor.execute(() -> {
+			// discard all remaining state objects.
+			syncDiscardLocalStateForCollection(statesCopy);
+
+			// delete the local state subdirectory that belong to this subtask.
+			LocalRecoveryDirectoryProvider directoryProvider = localRecoveryConfig.getLocalStateDirectoryProvider();
+			for (int i = 0; i < directoryProvider.allocationBaseDirsCount(); ++i) {
+				File subtaskBaseDirectory = directoryProvider.selectSubtaskBaseDirectory(i);
+				try {
+					deleteDirectory(subtaskBaseDirectory);
+				} catch (IOException e) {
+					LOG.warn("Exception when deleting local recovery subtask base dir: " + subtaskBaseDirectory, e);
+				}
+			}
+		});
+	}
+
 	private void asyncDiscardLocalStateForCollection(Collection<Map.Entry<Long, TaskStateSnapshot>> toDiscard) {
 		if (!toDiscard.isEmpty()) {
 			discardExecutor.execute(() -> syncDiscardLocalStateForCollection(toDiscard));
@@ -249,27 +248,27 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 	/**
 	 * Helper method that discards state objects with an executor and reports exceptions to the log.
 	 */
-	private void discardLocalStateForCheckpoint(long checkpointID, StateObject o) {
+	private void discardLocalStateForCheckpoint(long checkpointID, TaskStateSnapshot o) {
 
 		try {
 			if (LOG.isTraceEnabled()) {
-				LOG.trace("Discarding local state object of checkpoint {} for {}/{}/{}.",
+				LOG.trace("Discarding local task state snapshot of checkpoint {} for {}/{}/{}.",
 					checkpointID, jobID, jobVertexID, subtaskIndex);
 			} else {
-				LOG.debug("Discarding local state object {} of checkpoint {} for {}/{}/{}.",
+				LOG.debug("Discarding local task state snapshot {} of checkpoint {} for {}/{}/{}.",
 					o, checkpointID, jobID, jobVertexID, subtaskIndex);
 			}
 			o.discardState();
 		} catch (Exception discardEx) {
-			LOG.warn("Exception while discarding local state of checkpoint " + checkpointID + ".", discardEx);
+			LOG.warn("Exception while discarding local task state snapshot of checkpoint " + checkpointID + ".", discardEx);
 		}
 
 		LocalRecoveryDirectoryProvider directoryProvider = localRecoveryConfig.getLocalStateDirectoryProvider();
-		File checkpointBaseDirectory = directoryProvider.jobAndCheckpointBaseDirectory(checkpointID);
+		File checkpointDir = directoryProvider.subtaskSpecificCheckpointDirectory(checkpointID);
 		LOG.debug("Deleting local state directory {} of checkpoint {} for {}/{}/{}/{}.",
-			checkpointBaseDirectory, checkpointID, jobID, jobVertexID, subtaskIndex);
+			checkpointDir, checkpointID, jobID, jobVertexID, subtaskIndex);
 		try {
-			deleteDirectory(checkpointBaseDirectory);
+			deleteDirectory(checkpointDir);
 		} catch (IOException ex) {
 			LOG.warn("Exception while deleting local state directory of checkpoint " + checkpointID + ".", ex);
 		}

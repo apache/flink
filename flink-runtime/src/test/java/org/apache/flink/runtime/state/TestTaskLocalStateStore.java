@@ -63,7 +63,6 @@ public class TestTaskLocalStateStore implements TaskLocalStateStore {
 		return taskStateSnapshotsByCheckpointID.get(checkpointID);
 	}
 
-	@Override
 	public void dispose() {
 		if (!disposed) {
 			disposed = true;

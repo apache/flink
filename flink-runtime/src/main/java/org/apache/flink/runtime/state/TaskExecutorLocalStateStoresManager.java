@@ -22,6 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +33,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.File;
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -49,7 +51,7 @@ public class TaskExecutorLocalStateStoresManager {
 	 * this. Maps from allocation id to all the subtask's local state stores.
 	 */
 	@GuardedBy("lock")
-	private final Map<AllocationID, Map<JobVertexSubtaskKey, TaskLocalStateStore>> taskStateStoresByAllocationID;
+	private final Map<AllocationID, Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl>> taskStateStoresByAllocationID;
 
 	/** The configured mode for local recovery on this task manager. */
 	private final LocalRecoveryConfig.LocalRecoveryMode localRecoveryMode;
@@ -103,13 +105,25 @@ public class TaskExecutorLocalStateStoresManager {
 					"register a new TaskLocalStateStore.");
 			}
 
-			final Map<JobVertexSubtaskKey, TaskLocalStateStore> taskStateManagers =
+			final Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl> taskStateManagers =
 				this.taskStateStoresByAllocationID.computeIfAbsent(allocationID, k -> new HashMap<>());
 
 			final JobVertexSubtaskKey taskKey = new JobVertexSubtaskKey(jobVertexID, subtaskIndex);
 
+			// create the allocation base dirs, one inside each root dir.
+			File[] allocationBaseDirectories = allocationBaseDirectories(allocationID);
+
+			// also mkdir the dirs if this is the first task state store registered under this allocation id.
+			if (taskStateManagers.isEmpty()) {
+				for (File directory : allocationBaseDirectories) {
+					Preconditions.checkState(
+						directory.mkdir(),
+						"Could not create allocation base directory :" + directory);
+				}
+			}
+
 			LocalRecoveryDirectoryProviderImpl directoryProvider = new LocalRecoveryDirectoryProviderImpl(
-				localStateRootDirectories,
+				allocationBaseDirectories,
 				jobId,
 				allocationID,
 				jobVertexID,
@@ -133,7 +147,7 @@ public class TaskExecutorLocalStateStoresManager {
 
 	public void releaseLocalStateForAllocationId(@Nonnull AllocationID allocationID) {
 
-		Map<JobVertexSubtaskKey, TaskLocalStateStore> cleanupLocalStores;
+		Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl> cleanupLocalStores;
 
 		synchronized (lock) {
 			if (closed) {
@@ -145,28 +159,38 @@ public class TaskExecutorLocalStateStoresManager {
 		if (cleanupLocalStores != null) {
 			doRelease(cleanupLocalStores.values());
 		}
+
+		cleanupAllocationBaseDirs(allocationID);
 	}
 
 	public void shutdown() {
 
-		ArrayList<Map<JobVertexSubtaskKey, TaskLocalStateStore>> toRelease;
+		HashMap<AllocationID, Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl>> toRelease;
 
 		synchronized (lock) {
+
+			if (closed) {
+				return;
+			}
+
 			closed = true;
-			toRelease = new ArrayList<>(taskStateStoresByAllocationID.values());
+			toRelease = new HashMap<>(taskStateStoresByAllocationID);
 			taskStateStoresByAllocationID.clear();
 		}
 
-		for (Map<JobVertexSubtaskKey, TaskLocalStateStore> stateStoreMap : toRelease) {
-			doRelease(stateStoreMap.values());
+		for (Map.Entry<AllocationID, Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl>> entry :
+			toRelease.entrySet()) {
+
+			doRelease(entry.getValue().values());
+			cleanupAllocationBaseDirs(entry.getKey());
 		}
 	}
 
-	private void doRelease(Iterable<TaskLocalStateStore> toRelease) {
+	private void doRelease(Iterable<TaskLocalStateStoreImpl> toRelease) {
 
 		if (toRelease != null) {
 
-			for (TaskLocalStateStore stateStore : toRelease) {
+			for (TaskLocalStateStoreImpl stateStore : toRelease) {
 				try {
 					stateStore.dispose();
 				} catch (Exception disposeEx) {
@@ -184,6 +208,34 @@ public class TaskExecutorLocalStateStoresManager {
 	@VisibleForTesting
 	public LocalRecoveryConfig.LocalRecoveryMode getLocalRecoveryMode() {
 		return localRecoveryMode;
+	}
+
+	private File[] allocationBaseDirectories(AllocationID allocationID) {
+		File[] allocationDirectories = new File[localStateRootDirectories.length];
+		for (int i = 0; i < localStateRootDirectories.length; ++i) {
+			allocationDirectories[i] = new File(localStateRootDirectories[i], allocationSubDirString(allocationID));
+		}
+		return allocationDirectories;
+	}
+
+	@VisibleForTesting
+	String allocationSubDirString(AllocationID allocationID) {
+		return "aid_" + allocationID;
+	}
+
+	/**
+	 * Deletes the base dirs for this allocation id (recursively).
+	 */
+	private void cleanupAllocationBaseDirs(AllocationID allocationID) {
+		// clear the base dirs for this allocation id.
+		File[] allocationDirectories = allocationBaseDirectories(allocationID);
+		for (File directory : allocationDirectories) {
+			try {
+				FileUtils.deleteFileOrDirectory(directory);
+			} catch (IOException e) {
+				LOG.warn("Exception while deleting local state directory for allocation " + allocationID, e);
+			}
+		}
 	}
 
 	/**

@@ -22,51 +22,60 @@ import java.io.File;
 import java.io.Serializable;
 
 /**
- * Provides root directories and the subtask-specific path to build directories for file-based local recovery. Calls
- * to {@link #rootDirectory(long)} rotate over all available root directories.
+ * Provides directories for local recovery. It offers access to the allocation base directories (i.e. the root
+ * directories for all local state that is created under the same allocation id) and the subtask-specific paths, which
+ * contain the local state for one subtask. Access by checkpoint id rotates over all root directory indexes, in case
+ * that there is more than one. Selection methods are provided to pick the directory under a certain index. Directory
+ * structures are of the following shape:
+ *
+ * <p><blockquote><pre>
+ * |-----allocationBaseDirectory------|
+ * |-----subtaskBaseDirectory--------------------------------------|
+ * |-----subtaskSpecificCheckpointDirectory------------------------------|
+ *
+ * ../local_state_root_1/allocation_id/job_id/vertex_id_subtask_idx/chk_1/(state)
+ * ../local_state_root_2/allocation_id/job_id/vertex_id_subtask_idx/chk_2/(state)
+ *
+ * (...)
+ * </pre></blockquote><p>
  */
 public interface LocalRecoveryDirectoryProvider extends Serializable {
-	/**
-	 * Returns the local state root directory local state for the given checkpoint id w.r.t. our rotation over all
-	 * available root dirs.
-	 */
-	File rootDirectory(long checkpointId);
 
 	/**
-	 * Returns the local state base directory for the owning job and given checkpoint id w.r.t. our rotation over all
-	 * available root dirs. This directory is contained in the directory returned by {@link #rootDirectory(long)} for
-	 * the same checkpoint id.
+	 * Returns the local state allocation base directory for given checkpoint id w.r.t. our rotation
+	 * over all available allocation base directories.
 	 */
 	File allocationBaseDirectory(long checkpointId);
 
 	/**
-	 * Returns the local state checkpoint base directory for the given checkpoint id w.r.t. our rotation over all
-	 * available root dirs. This directory is contained in the directory returned by {@link #rootDirectory(long)} for
-	 * the same checkpoint id.
+	 * Returns the local state directory for the owning subtask the given checkpoint id w.r.t. our rotation over all
+	 * available available allocation base directories. This directory is contained in the directory returned by
+	 * {@link #allocationBaseDirectory(long)} for the same checkpoint id.
 	 */
-	File jobAndCheckpointBaseDirectory(long checkpointId);
+	File subtaskBaseDirectory(long checkpointId);
 
 	/**
 	 * Returns the local state directory for the specific operator subtask and the given checkpoint id w.r.t. our
 	 * rotation over all available root dirs. This directory is contained in the directory returned by
-	 * {@link #jobAndCheckpointBaseDirectory(long)} for the same checkpoint id.
+	 * {@link #subtaskBaseDirectory(long)} for the same checkpoint id.
 	 */
 	File subtaskSpecificCheckpointDirectory(long checkpointId);
 
 	/**
-	 * Returns a specific root dir for the given index < {@link #rootDirectoryCount()}. The index must be between
-	 * 0 (incl.) and {@link #rootDirectoryCount()} (excl.).
-	 */
-	File selectRootDirectory(int idx);
-
-	/**
-	 * Returns a specific job-and-allocation directory, which is a root dir plus the sub-dir for job-and-allocation.
-	 * The index must be between 0 (incl.) and {@link #rootDirectoryCount()} (excl.).
+	 * Returns a specific allocation base directory. The index must be between 0 (incl.) and
+	 * {@link #allocationBaseDirsCount()} (excl.).
 	 */
 	File selectAllocationBaseDirectory(int idx);
 
 	/**
-	 * Returns the total number of root directories.
+	 * Returns a specific subtask base directory. The index must be between 0 (incl.) and
+	 * {@link #allocationBaseDirsCount()} (excl.). This directory is direct a child of
+	 * {@link #selectSubtaskBaseDirectory(int)} given the same index.
 	 */
-	int rootDirectoryCount();
+	File selectSubtaskBaseDirectory(int idx);
+
+	/**
+	 * Returns the total number of allocation base directories.
+	 */
+	int allocationBaseDirsCount();
 }

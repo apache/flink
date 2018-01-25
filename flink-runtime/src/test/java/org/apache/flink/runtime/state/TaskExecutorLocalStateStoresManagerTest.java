@@ -154,21 +154,22 @@ public class TaskExecutorLocalStateStoresManagerTest {
 
 			for (int i = 0; i < 10; ++i) {
 				Assert.assertEquals(
-					rootDirs[(i & Integer.MAX_VALUE) % rootDirs.length],
-					directoryProvider.rootDirectory(i));
+					new File(
+						rootDirs[(i & Integer.MAX_VALUE) % rootDirs.length],
+						storesManager.allocationSubDirString(allocationID)),
+					directoryProvider.allocationBaseDirectory(i));
 			}
 
 			long chkId = 42L;
-			File rootDirChk42 = directoryProvider.rootDirectory(chkId);
+			File allocBaseDirChk42 = directoryProvider.allocationBaseDirectory(chkId);
 			File subtaskSpecificCheckpointDirectory = directoryProvider.subtaskSpecificCheckpointDirectory(chkId);
 			Assert.assertEquals(
 				new File(
-					rootDirChk42,
-					"aid_" + allocationID + File.separator +
-						"jid_" + jobID + File.separator +
-						"chk_" + chkId + File.separator +
-						"vtx_" + jobVertexID + File.separator +
-						subtaskIdx),
+					allocBaseDirChk42,
+					"jid_" + jobID + File.separator +
+						"vtx_" + jobVertexID + "_" +
+						"sti_" + subtaskIdx + File.separator +
+						"chk_" + chkId),
 				subtaskSpecificCheckpointDirectory);
 
 			Assert.assertTrue(subtaskSpecificCheckpointDirectory.mkdirs());
@@ -183,17 +184,36 @@ public class TaskExecutorLocalStateStoresManagerTest {
 
 			Assert.assertTrue(testFile.exists());
 
-			storesManager.shutdown();
-			Assert.assertFalse(testFile.exists());
-			Assert.assertFalse(subtaskSpecificCheckpointDirectory.exists());
-			Assert.assertTrue(rootDirChk42.exists());
-			File[] files = rootDirChk42.listFiles();
-			if (files != null) {
-				Assert.assertEquals(0, files.length);
-			}
+			// check cleanup after releasing allocation id
+			storesManager.releaseLocalStateForAllocationId(allocationID);
+			checkRootDirsClean(rootDirs);
 
+			AllocationID otherAllocationID = new AllocationID();
+
+			taskLocalStateStore =
+				storesManager.localStateStoreForSubtask(jobID, otherAllocationID, jobVertexID, subtaskIdx);
+
+			directoryProvider = taskLocalStateStore.getLocalRecoveryConfig().getLocalStateDirectoryProvider();
+
+			File chkDir = directoryProvider.subtaskSpecificCheckpointDirectory(23L);
+			chkDir.mkdirs();
+			testFile = new File(chkDir, "test");
+			Assert.assertTrue(testFile.createNewFile());
+
+			// check cleanup after shutdown
+			storesManager.shutdown();
+			checkRootDirsClean(rootDirs);
 		} finally {
 			tmp.delete();
+		}
+	}
+
+	private void checkRootDirsClean(File[] rootDirs) {
+		for (File rootDir : rootDirs) {
+			File[] files = rootDir.listFiles();
+			if (files != null) {
+				Assert.assertArrayEquals(new File[0], files);
+			}
 		}
 	}
 }

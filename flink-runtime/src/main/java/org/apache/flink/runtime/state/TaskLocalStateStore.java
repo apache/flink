@@ -52,11 +52,6 @@ public interface TaskLocalStateStore {
 	TaskStateSnapshot retrieveLocalState(long checkpointID);
 
 	/**
-	 * Disposes the state of all local snapshots managed by this object.
-	 */
-	void dispose();
-
-	/**
 	 * Returns the {@link LocalRecoveryConfig} for this task local state store.
 	 */
 	@Nonnull

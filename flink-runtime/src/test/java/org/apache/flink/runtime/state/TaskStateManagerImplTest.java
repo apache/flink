@@ -187,10 +187,10 @@ public class TaskStateManagerImplTest {
 		try {
 			tmpFolder.create();
 
-			File[] rootDirs = new File[]{tmpFolder.newFolder(), tmpFolder.newFolder(), tmpFolder.newFolder()};
+			File[] allocBaseDirs = new File[]{tmpFolder.newFolder(), tmpFolder.newFolder(), tmpFolder.newFolder()};
 
 			LocalRecoveryDirectoryProviderImpl directoryProvider =
-				new LocalRecoveryDirectoryProviderImpl(rootDirs, jobID, allocationID, jobVertexID, 0);
+				new LocalRecoveryDirectoryProviderImpl(allocBaseDirs, jobID, allocationID, jobVertexID, 0);
 
 			LocalRecoveryConfig localRecoveryConfig =
 				new LocalRecoveryConfig(LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED, directoryProvider);
@@ -213,10 +213,10 @@ public class TaskStateManagerImplTest {
 
 
 			for (int i = 0; i < 10; ++i) {
-				Assert.assertEquals(rootDirs[i % rootDirs.length],
-					localRecoveryConfFromTaskLocalStateStore.getLocalStateDirectoryProvider().rootDirectory(i));
-				Assert.assertEquals(rootDirs[i % rootDirs.length],
-					localRecoveryConfFromTaskStateManager.getLocalStateDirectoryProvider().rootDirectory(i));
+				Assert.assertEquals(allocBaseDirs[i % allocBaseDirs.length],
+					localRecoveryConfFromTaskLocalStateStore.getLocalStateDirectoryProvider().allocationBaseDirectory(i));
+				Assert.assertEquals(allocBaseDirs[i % allocBaseDirs.length],
+					localRecoveryConfFromTaskStateManager.getLocalStateDirectoryProvider().allocationBaseDirectory(i));
 			}
 
 			Assert.assertEquals(

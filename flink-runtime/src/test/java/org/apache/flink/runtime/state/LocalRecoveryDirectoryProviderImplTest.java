@@ -31,9 +31,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
 
 /**
  * Tests for {@link LocalRecoveryDirectoryProvider}.
@@ -47,15 +44,15 @@ public class LocalRecoveryDirectoryProviderImplTest {
 
 	private TemporaryFolder tmpFolder;
 	private LocalRecoveryDirectoryProviderImpl directoryProvider;
-	private File[] rootFolders;
+	private File[] allocBaseFolders;
 
 	@Before
 	public void setup() throws IOException {
 		this.tmpFolder = new TemporaryFolder();
 		this.tmpFolder.create();
-		this.rootFolders = new File[]{tmpFolder.newFolder(), tmpFolder.newFolder(), tmpFolder.newFolder()};
+		this.allocBaseFolders = new File[]{tmpFolder.newFolder(), tmpFolder.newFolder(), tmpFolder.newFolder()};
 		this.directoryProvider = new LocalRecoveryDirectoryProviderImpl(
-			rootFolders,
+			allocBaseFolders,
 			JOB_ID,
 			ALLOCATION_ID,
 			JOB_VERTEX_ID,
@@ -68,42 +65,22 @@ public class LocalRecoveryDirectoryProviderImplTest {
 	}
 
 	@Test
-	public void rootDirectory() throws Exception {
+	public void allocationBaseDir() throws Exception {
 		for (int i = 0; i < 10; ++i) {
-			Assert.assertEquals(rootFolders[i % rootFolders.length], directoryProvider.rootDirectory(i));
+			Assert.assertEquals(allocBaseFolders[i % allocBaseFolders.length], directoryProvider.allocationBaseDirectory(i));
 		}
 	}
 
 	@Test
-	public void selectRootDirectory() throws Exception {
-		for (int i = 0; i < rootFolders.length; ++i) {
-			Assert.assertEquals(rootFolders[i], directoryProvider.selectRootDirectory(i));
+	public void selectAllocationBaseDir() throws Exception {
+		for (int i = 0; i < allocBaseFolders.length; ++i) {
+			Assert.assertEquals(allocBaseFolders[i], directoryProvider.selectAllocationBaseDirectory(i));
 		}
 	}
 
 	@Test
-	public void rootDirectoryCount() throws Exception {
-		Assert.assertEquals(rootFolders.length, directoryProvider.rootDirectoryCount());
-	}
-
-	@Test
-	public void jobAndAllocationBaseDir() {
-		for (int i = 0; i < 10; ++i) {
-			Assert.assertEquals(
-				new File(directoryProvider.rootDirectory(i), directoryProvider.allocationSubDirString()),
-				directoryProvider.allocationBaseDirectory(i));
-		}
-	}
-
-	@Test
-	public void checkpointBaseDir() {
-		for (int i = 0; i < 10; ++i) {
-			Assert.assertEquals(
-				new File(
-					directoryProvider.allocationBaseDirectory(i),
-					directoryProvider.jobCheckpointSubDirString(i)),
-				directoryProvider.jobAndCheckpointBaseDirectory(i));
-		}
+	public void allocationBaseDirectoriesCount() throws Exception {
+		Assert.assertEquals(allocBaseFolders.length, directoryProvider.allocationBaseDirsCount());
 	}
 
 	@Test
@@ -111,8 +88,19 @@ public class LocalRecoveryDirectoryProviderImplTest {
 		for (int i = 0; i < 10; ++i) {
 			Assert.assertEquals(
 				new File(
-					directoryProvider.jobAndCheckpointBaseDirectory(i),
-					directoryProvider.subtaskSubDirString()),
+					directoryProvider.allocationBaseDirectory(i),
+					directoryProvider.subtaskDirString()),
+				directoryProvider.subtaskBaseDirectory(i));
+		}
+	}
+
+	@Test
+	public void subtaskCheckpointSpecificDirectory() {
+		for (int i = 0; i < 10; ++i) {
+			Assert.assertEquals(
+				new File(
+					directoryProvider.subtaskBaseDirectory(i),
+					directoryProvider.checkpointDirString(i)),
 				directoryProvider.subtaskSpecificCheckpointDirectory(i));
 		}
 	}
@@ -124,12 +112,13 @@ public class LocalRecoveryDirectoryProviderImplTest {
 			"aid_" + ALLOCATION_ID);
 
 		Assert.assertEquals(
-			directoryProvider.jobCheckpointSubDirString(42),
-			"jid_" + JOB_ID + File.separator + "chk_" + 42);
+			directoryProvider.subtaskDirString(),
+			"jid_" + JOB_ID + Path.SEPARATOR + "vtx_" + JOB_VERTEX_ID + "_sti_" + SUBTASK_INDEX);
 
+		final long checkpointId = 42;
 		Assert.assertEquals(
-			directoryProvider.subtaskSubDirString(),
-			"vtx_" + JOB_VERTEX_ID + Path.SEPARATOR + SUBTASK_INDEX);
+			directoryProvider.checkpointDirString(checkpointId),
+			"chk_" + checkpointId);
 	}
 
 	@Test
@@ -138,65 +127,6 @@ public class LocalRecoveryDirectoryProviderImplTest {
 			new LocalRecoveryDirectoryProviderImpl(new File[]{null}, JOB_ID, ALLOCATION_ID, JOB_VERTEX_ID, SUBTASK_INDEX);
 			Assert.fail();
 		} catch (NullPointerException ignore) {
-		}
-	}
-
-	@Test
-	public void testPreconditionsNonExistingFolder() {
-		try {
-			new LocalRecoveryDirectoryProviderImpl(new File[]{new File("123")}, JOB_ID, ALLOCATION_ID, JOB_VERTEX_ID, SUBTASK_INDEX);
-			Assert.fail();
-		} catch (IllegalStateException ignore) {
-		}
-	}
-
-	/**
-	 * This tests that the proactive cleanup will remove all directories under an allocation base dir that are not from
-	 * the current job.
-	 */
-	@Test
-	public void testProactiveCleanup() throws IOException {
-
-		List<File> toCleanup = new ArrayList<>(2 * directoryProvider.rootDirectoryCount());
-		List<File> toPreserve = new ArrayList<>(directoryProvider.rootDirectoryCount());
-
-		for (int i = 0; i< directoryProvider.rootDirectoryCount(); ++i) {
-
-			File allocBaseDir = directoryProvider.selectAllocationBaseDirectory(i);
-
-			// This should NOT be cleaned up later.
-			File jobChkDir = new File(allocBaseDir, directoryProvider.jobSubDirString());
-			Assert.assertTrue(jobChkDir.mkdirs());
-
-			// This should be cleaned up later.
-			File oldDir = new File(allocBaseDir, String.valueOf(UUID.randomUUID()));
-			Assert.assertTrue(oldDir.mkdirs());
-
-			// This should be cleaned up later.
-			File oldFile = new File(oldDir, String.valueOf(UUID.randomUUID()));
-			Assert.assertTrue(oldFile.createNewFile());
-
-			toPreserve.add(jobChkDir);
-			toCleanup.add(oldDir);
-			toCleanup.add(oldFile);
-		}
-
-		for (File file : toCleanup) {
-			Assert.assertTrue(file.exists());
-		}
-
-		for (File file : toPreserve) {
-			Assert.assertTrue(file.exists());
-		}
-
-		directoryProvider.cleanupAllocationBaseDirectories();
-
-		for (File file : toCleanup) {
-			Assert.assertFalse(file.exists());
-		}
-
-		for (File file : toPreserve) {
-			Assert.assertTrue(file.exists());
 		}
 	}
 }

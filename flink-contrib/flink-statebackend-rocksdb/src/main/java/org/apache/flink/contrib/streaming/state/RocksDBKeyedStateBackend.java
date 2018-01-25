@@ -1559,7 +1559,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			final ThrowingSupplier<CheckpointStreamWithResultProvider, Exception> supplier =
 				() -> new CheckpointStreamWithResultProvider.Factory().create(
 					checkpointId,
-					timestamp,
+					CheckpointedStateScope.EXCLUSIVE,
 					primaryStreamFactory,
 					directoryProvider);
 
@@ -1629,11 +1629,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		private boolean isWithLocalRecovery(
-			CheckpointOptions.CheckpointType checkpointType,
+			CheckpointType checkpointType,
 			LocalRecoveryConfig.LocalRecoveryMode recoveryMode) {
 			// we use local recovery when it is activated and we are not taking a savepoint.
 			return LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED.equals(recoveryMode)
-				&& !CheckpointOptions.CheckpointType.SAVEPOINT.equals(checkpointType);
+				&& !CheckpointType.SAVEPOINT.equals(checkpointType);
 		}
 	}
 
@@ -1653,7 +1653,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			CheckpointOptions checkpointOptions) throws Exception {
 
 			// for savepoints, we delegate to the full snapshot strategy because savepoints are always self-contained.
-			if (CheckpointOptions.CheckpointType.SAVEPOINT.equals(checkpointOptions.getCheckpointType())) {
+			if (CheckpointType.SAVEPOINT.equals(checkpointOptions.getCheckpointType())) {
 				return savepointDelegate.performSnapshot(
 					checkpointId,
 					checkpointTimestamp,
@@ -2161,7 +2161,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			CheckpointStreamWithResultProvider streamWithResultProvider =
 				new CheckpointStreamWithResultProvider.Factory().create(
 					checkpointId,
-					checkpointTimestamp,
+					CheckpointedStateScope.EXCLUSIVE,
 					checkpointStreamFactory,
 					directoryProvider);
 

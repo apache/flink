@@ -23,8 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -34,12 +32,10 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 
 /**
- * Provides root directories and the subtask-specific path to build directories for file-based local recovery. Calls
- * to {@link #rootDirectory(long)} rotate over all available root directories.
+ * Implementation of {@link LocalRecoveryDirectoryProvider}.
  */
 public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirectoryProvider {
 
@@ -51,7 +47,7 @@ public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirector
 
 	/** All available root directories that this can potentially deliver. */
 	@Nonnull
-	private final File[] rootDirectories;
+	private final File[] allocationBaseDirs;
 
 	/** JobID of the owning job. */
 	@Nonnull
@@ -70,112 +66,70 @@ public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirector
 	private final int subtaskIndex;
 
 	public LocalRecoveryDirectoryProviderImpl(
-		File rootDir,
+		File allocationBaseDir,
 		@Nonnull JobID jobID,
 		@Nonnull AllocationID allocationID,
 		@Nonnull JobVertexID jobVertexID,
 		@Nonnegative int subtaskIndex) {
-		this(new File[]{rootDir}, jobID, allocationID, jobVertexID, subtaskIndex);
+		this(new File[]{allocationBaseDir}, jobID, allocationID, jobVertexID, subtaskIndex);
 	}
 
 	public LocalRecoveryDirectoryProviderImpl(
-		@Nonnull File[] rootDirectories,
+		@Nonnull File[] allocationBaseDirs,
 		@Nonnull JobID jobID,
 		@Nonnull AllocationID allocationID,
 		@Nonnull JobVertexID jobVertexID,
 		@Nonnegative int subtaskIndex) {
 
-		Preconditions.checkArgument(rootDirectories.length > 0);
-		this.rootDirectories = rootDirectories;
+		Preconditions.checkArgument(allocationBaseDirs.length > 0);
+		this.allocationBaseDirs = allocationBaseDirs;
 		this.jobID = jobID;
 		this.allocationID = allocationID;
 		this.jobVertexID = jobVertexID;
 		this.subtaskIndex = subtaskIndex;
 
-		for (File rootDir : rootDirectories) {
-			Preconditions.checkNotNull(rootDir);
-			if (!rootDir.isDirectory()) {
-				throw new IllegalStateException("Local recovery root directory " + rootDir + " does not exist!");
+		for (File allocationBaseDir : allocationBaseDirs) {
+			Preconditions.checkNotNull(allocationBaseDir);
+			if (!allocationBaseDir.isDirectory()) {
+				throw new IllegalStateException("Local recovery allocation base directory " + allocationBaseDir + " does not exist!");
 			}
 		}
-	}
-
-	@Override
-	public File rootDirectory(long checkpointId) {
-		return selectRootDirectory((((int) checkpointId) & Integer.MAX_VALUE) % rootDirectories.length);
 	}
 
 	@Override
 	public File allocationBaseDirectory(long checkpointId) {
-		return new File(rootDirectory(checkpointId), allocationSubDirString());
+		return selectAllocationBaseDirectory((((int) checkpointId) & Integer.MAX_VALUE) % allocationBaseDirs.length);
 	}
 
 	@Override
-	public File jobAndCheckpointBaseDirectory(long checkpointId) {
-		return new File(allocationBaseDirectory(checkpointId), jobCheckpointSubDirString(checkpointId));
+	public File subtaskBaseDirectory(long checkpointId) {
+		return new File(allocationBaseDirectory(checkpointId), subtaskDirString());
 	}
 
 	@Override
 	public File subtaskSpecificCheckpointDirectory(long checkpointId) {
-		return new File(jobAndCheckpointBaseDirectory(checkpointId), subtaskSubDirString());
-	}
-
-	@Override
-	public File selectRootDirectory(int idx) {
-		return rootDirectories[idx];
+		return new File(subtaskBaseDirectory(checkpointId), checkpointDirString(checkpointId));
 	}
 
 	@Override
 	public File selectAllocationBaseDirectory(int idx) {
-		return new File(selectRootDirectory(idx), allocationSubDirString());
+		return allocationBaseDirs[idx];
 	}
 
 	@Override
-	public int rootDirectoryCount() {
-		return rootDirectories.length;
+	public File selectSubtaskBaseDirectory(int idx) {
+		return new File(selectAllocationBaseDirectory(idx), subtaskDirString());
 	}
 
-	/**
-	 * Proactive cleanup of all allocation base directories. This will remove all files and directories in the
-	 * allocation base directories except the subdirectory for the current JobID.
-	 */
-	public void cleanupAllocationBaseDirectories() throws IOException {
-
-		String jobSubDirString = jobSubDirString();
-
-		for (int i = 0; i < rootDirectoryCount(); ++i) {
-
-			// iterate all allocation base directories ...
-			File allocationBaseDir = selectAllocationBaseDirectory(i);
-
-			if (allocationBaseDir.isDirectory()) {
-
-				// ... detect all files that are not the subdir for the current job, running in this slot ...
-				File[] cleanupFiles = allocationBaseDir.listFiles((dir, name) -> !jobSubDirString.equals(name));
-				if (cleanupFiles != null) {
-
-					// ... and delete them.
-					IOException collectedExceptions = null;
-					for (File file : cleanupFiles) {
-						try {
-							FileUtils.deleteFileOrDirectory(file);
-						} catch (IOException e) {
-							collectedExceptions = ExceptionUtils.firstOrSuppressed(e, collectedExceptions);
-						}
-					}
-
-					if (collectedExceptions != null) {
-						throw collectedExceptions;
-					}
-				}
-			}
-		}
+	@Override
+	public int allocationBaseDirsCount() {
+		return allocationBaseDirs.length;
 	}
 
 	@Override
 	public String toString() {
 		return "LocalRecoveryDirectoryProvider{" +
-			"rootDirectories=" + Arrays.toString(rootDirectories) +
+			"rootDirectories=" + Arrays.toString(allocationBaseDirs) +
 			", jobID=" + jobID +
 			", allocationID=" + allocationID +
 			", jobVertexID=" + jobVertexID +
@@ -189,17 +143,12 @@ public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirector
 	}
 
 	@VisibleForTesting
-	String jobSubDirString() {
-		return "jid_" + jobID;
+	String subtaskDirString() {
+		return "jid_" + jobID + Path.SEPARATOR + "vtx_" + jobVertexID + "_sti_" + subtaskIndex;
 	}
 
 	@VisibleForTesting
-	String jobCheckpointSubDirString(long checkpointId) {
-		return  jobSubDirString() + Path.SEPARATOR + "chk_" + checkpointId;
-	}
-
-	@VisibleForTesting
-	String subtaskSubDirString() {
-		return "vtx_" + jobVertexID + Path.SEPARATOR + subtaskIndex;
+	String checkpointDirString(long checkpointId) {
+		return "chk_" + checkpointId;
 	}
 }
