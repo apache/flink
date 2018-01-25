@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -258,8 +259,11 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		}
 	}
 
-	private void shutDownAndTerminate(boolean cleanupHaData) {
+	private void shutDownAndTerminate(boolean cleanupHaData, ApplicationStatus status, String optionalDiagnostics) {
 		try {
+			if (resourceManager != null) {
+				resourceManager.shutDownCluster(status, optionalDiagnostics);
+			}
 			shutDown(cleanupHaData);
 		} catch (Throwable t) {
 			LOG.error("Could not properly shut down cluster entrypoint.", t);
@@ -292,7 +296,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		public void jobFinished(JobResult result) {
 			LOG.info("Job({}) finished.", jobId);
 
-			shutDownAndTerminate(true);
+			shutDownAndTerminate(true, ApplicationStatus.SUCCEEDED, null);
 		}
 
 		@Override
@@ -301,14 +305,14 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 
 			LOG.info("Job({}) failed.", jobId, result.getSerializedThrowable().get().getMessage());
 
-			shutDownAndTerminate(false);
+			shutDownAndTerminate(false, ApplicationStatus.FAILED, cause.getMessage());
 		}
 
 		@Override
 		public void jobFinishedByOther() {
 			LOG.info("Job({}) was finished by another JobManager.", jobId);
 
-			shutDownAndTerminate(false);
+			shutDownAndTerminate(false, ApplicationStatus.UNKNOWN, "Job was finished by another master");
 		}
 	}
 }
