@@ -47,7 +47,9 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -468,6 +470,16 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		@Override
 		public Iterable<S> get() {
 			return internalList;
+		}
+
+		@Override
+		public Iterator<S> iterator() {
+			Iterable<S> iterable = get();
+			if (iterable == null) {
+				return Collections.emptyIterator();
+			}
+
+			return iterable.iterator();
 		}
 
 		@Override

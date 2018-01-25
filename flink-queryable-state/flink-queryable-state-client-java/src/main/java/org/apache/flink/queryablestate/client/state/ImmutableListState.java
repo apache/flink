@@ -25,6 +25,8 @@ import org.apache.flink.queryablestate.client.state.serialization.KvStateSeriali
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -46,6 +48,16 @@ public final class ImmutableListState<V> extends ImmutableState implements ListS
 	@Override
 	public Iterable<V> get() {
 		return listState;
+	}
+
+	@Override
+	public Iterator<V> iterator() {
+		Iterable<V> iterable = get();
+		if (iterable == null) {
+			return Collections.emptyIterator();
+		}
+
+		return iterable.iterator();
 	}
 
 	@Override

@@ -57,7 +57,7 @@ public interface AppendingState<IN, OUT> extends State {
 	 * 
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
-	OUT get() throws Exception ;
+	OUT get() throws Exception;
 
 	/**
 	 * Updates the operator state accessible by {@link #get()} by adding the given value
@@ -71,5 +71,4 @@ public interface AppendingState<IN, OUT> extends State {
 	 * @throws IOException Thrown if the system cannot access the state.
 	 */
 	void add(IN value) throws Exception;
-	
 }

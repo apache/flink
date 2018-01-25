@@ -20,6 +20,7 @@ package org.apache.flink.api.common.state;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -36,6 +37,17 @@ import java.util.List;
  */
 @PublicEvolving
 public interface ListState<T> extends MergingState<T, Iterable<T>> {
+	/**
+	 * Returns an iterator of values in the state. If there is no value, the iterator will not have
+	 * any elements.
+	 *
+	 * This is added as complement of {@link #get()}. When using {@link #get()}, developers need to
+	 * consider the case of getting a `null`. This method instead takes care of that for developers.
+	 *
+	 * @return An iterator of state values. The iterator doesn't have elements if the state is empty.
+	 */
+	Iterator<T> iterator();
+
 	/**
 	 * Updates the operator state accessible by {@link #get()} by updating existing values to
 	 * to the given list of values. The next time {@link #get()} is called (for the same state

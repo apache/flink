@@ -27,6 +27,8 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -63,6 +65,16 @@ public class HeapListState<K, N, V>
 	@Override
 	public Iterable<V> get() {
 		return stateTable.get(currentNamespace);
+	}
+
+	@Override
+	public Iterator<V> iterator() {
+		Iterable<V> iterable = get();
+		if (iterable == null) {
+			return Collections.emptyIterator();
+		}
+
+		return iterable.iterator();
 	}
 
 	@Override

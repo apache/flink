@@ -1300,6 +1300,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			assertNull(state.get());
 			state.add(null);
 			assertNull(state.get());
+			assertFalse(state.iterator().hasNext());
 
 			keyedBackend.setCurrentKey("def");
 			assertNull(state.get());
@@ -1312,8 +1313,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			// update(emptyList) should remain the value null
 			state.update(Collections.emptyList());
 			assertNull(state.get());
+			assertFalse(state.iterator().hasNext());
 			state.update(Arrays.asList(10L, 16L));
 			assertThat(state.get(), containsInAnyOrder(16L, 10L));
+			assertThat(() -> state.iterator(), containsInAnyOrder(16L, 10L));
 			state.add(null);
 			assertThat(state.get(), containsInAnyOrder(16L, 10L));
 
@@ -1324,8 +1327,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			assertNull(state.get());
 			state.addAll(null);
 			assertNull(state.get());
+			assertFalse(state.iterator().hasNext());
 			state.addAll(Collections.emptyList());
 			assertNull(state.get());
+			assertFalse(state.iterator().hasNext());
 			state.addAll(Arrays.asList(3L, 4L));
 			assertThat(state.get(), containsInAnyOrder(3L, 4L));
 			state.addAll(null);
@@ -1339,6 +1344,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			state.add(null);
 			assertThat(state.get(), containsInAnyOrder(3L, 4L, 5L, 6L));
+			assertThat(() -> state.iterator(), containsInAnyOrder(3L, 4L, 5L, 6L));
 			state.update(Arrays.asList(1L, 2L));
 			assertThat(state.get(), containsInAnyOrder(1L, 2L));
 
@@ -1357,6 +1363,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			keyedBackend.setCurrentKey("g");
 			assertThat(state.get(), containsInAnyOrder(1L, 2L, 3L, 2L, 1L));
+			assertThat(() -> state.iterator(), containsInAnyOrder(1L, 2L, 3L, 2L, 1L));
 			state.update(Arrays.asList(5L, 6L));
 			assertThat(state.get(), containsInAnyOrder(5L, 6L));
 			state.clear();
