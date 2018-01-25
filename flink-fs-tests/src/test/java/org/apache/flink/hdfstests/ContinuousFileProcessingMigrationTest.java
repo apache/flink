@@ -203,17 +203,10 @@ public class ContinuousFileProcessingMigrationTest {
 		// compare if the results contain what they should contain and also if
 		// they are the same, as they should.
 
-		if (testMigrateVersion == MigrationVersion.v1_1) {
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(createSplitFromTimestampedSplit(split1))));
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(createSplitFromTimestampedSplit(split2))));
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(createSplitFromTimestampedSplit(split3))));
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(createSplitFromTimestampedSplit(split4))));
-		} else {
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split1)));
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split2)));
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split3)));
-			Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split4)));
-		}
+		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split1)));
+		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split2)));
+		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split3)));
+		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split4)));
 	}
 
 	/**
