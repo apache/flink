@@ -581,39 +581,7 @@ abstract class CodeGenerator(
   override def visitFieldAccess(rexFieldAccess: RexFieldAccess): GeneratedExpression = {
     val refExpr = rexFieldAccess.getReferenceExpr.accept(this)
     val index = rexFieldAccess.getField.getIndex
-    val fieldAccessExpr = generateFieldAccess(
-      refExpr.resultType,
-      refExpr.resultTerm,
-      index)
-
-    val resultTerm = newName("result")
-    val nullTerm = newName("isNull")
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldAccessExpr.resultType)
-    val defaultValue = primitiveDefaultValue(fieldAccessExpr.resultType)
-    val resultCode = if (nullCheck) {
-      s"""
-        |${refExpr.code}
-        |$resultTypeTerm $resultTerm;
-        |boolean $nullTerm;
-        |if (${refExpr.nullTerm}) {
-        |  $resultTerm = $defaultValue;
-        |  $nullTerm = true;
-        |}
-        |else {
-        |  ${fieldAccessExpr.code}
-        |  $resultTerm = ${fieldAccessExpr.resultTerm};
-        |  $nullTerm = ${fieldAccessExpr.nullTerm};
-        |}
-        |""".stripMargin
-    } else {
-      s"""
-        |${refExpr.code}
-        |${fieldAccessExpr.code}
-        |$resultTypeTerm $resultTerm = ${fieldAccessExpr.resultTerm};
-        |""".stripMargin
-    }
-
-    GeneratedExpression(resultTerm, nullTerm, resultCode, fieldAccessExpr.resultType)
+    generateFieldAccess(refExpr, index)
   }
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
@@ -1001,6 +969,21 @@ abstract class CodeGenerator(
         requireArray(array)
         generateArrayElement(this, array)
 
+      case DOT =>
+        // Due to https://issues.apache.org/jira/browse/CALCITE-2162, expression such as
+        // "array[1].a.b" won't work now.
+        if (operands.size > 2) {
+          throw new CodeGenException(
+            "A DOT operator with more than 2 operands is not supported yet.")
+        }
+        val fieldName = call.operands.get(1).asInstanceOf[RexLiteral].getValueAs(classOf[String])
+        val fieldIdx = operands
+          .head
+          .resultType
+          .asInstanceOf[CompositeType[_]]
+          .getFieldIndex(fieldName)
+        generateFieldAccess(operands.head, fieldIdx)
+
       case ScalarSqlFunctions.CONCAT =>
         generateConcat(this.nullCheck, operands)
 
@@ -1040,6 +1023,43 @@ abstract class CodeGenerator(
   // ----------------------------------------------------------------------------------------------
   // generator helping methods
   // ----------------------------------------------------------------------------------------------
+
+  private def generateFieldAccess(refExpr: GeneratedExpression, index: Int): GeneratedExpression = {
+
+    val fieldAccessExpr = generateFieldAccess(
+      refExpr.resultType,
+      refExpr.resultTerm,
+      index)
+
+    val resultTerm = newName("result")
+    val nullTerm = newName("isNull")
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldAccessExpr.resultType)
+    val defaultValue = primitiveDefaultValue(fieldAccessExpr.resultType)
+    val resultCode = if (nullCheck) {
+      s"""
+        |${refExpr.code}
+        |$resultTypeTerm $resultTerm;
+        |boolean $nullTerm;
+        |if (${refExpr.nullTerm}) {
+        |  $resultTerm = $defaultValue;
+        |  $nullTerm = true;
+        |}
+        |else {
+        |  ${fieldAccessExpr.code}
+        |  $resultTerm = ${fieldAccessExpr.resultTerm};
+        |  $nullTerm = ${fieldAccessExpr.nullTerm};
+        |}
+        |""".stripMargin
+    } else {
+      s"""
+        |${refExpr.code}
+        |${fieldAccessExpr.code}
+        |$resultTypeTerm $resultTerm = ${fieldAccessExpr.resultTerm};
+        |""".stripMargin
+    }
+
+    GeneratedExpression(resultTerm, nullTerm, resultCode, fieldAccessExpr.resultType)
+  }
 
   private def generateInputAccess(
       inputType: TypeInformation[_ <: Any],
