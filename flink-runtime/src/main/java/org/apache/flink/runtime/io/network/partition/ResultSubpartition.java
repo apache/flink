@@ -95,7 +95,7 @@ public abstract class ResultSubpartition {
 	 *
 	 * @param bufferConsumer
 	 * 		the buffer to add (transferring ownership to this writer)
-	 *
+	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
 	 * @throws IOException
 	 * 		thrown in case of errors while adding the buffer
 	 */
