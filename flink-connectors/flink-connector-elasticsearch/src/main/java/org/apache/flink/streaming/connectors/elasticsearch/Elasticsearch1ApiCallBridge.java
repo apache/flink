@@ -70,7 +70,7 @@ public class Elasticsearch1ApiCallBridge extends ElasticsearchApiCallBridge {
 	}
 
 	@Override
-	public Client createClient(Map<String, String> clientConfig) {
+	public AutoCloseable createClient(Map<String, String> clientConfig) {
 		if (transportAddresses == null) {
 
 			// Make sure that we disable http access to our embedded node
@@ -85,7 +85,7 @@ public class Elasticsearch1ApiCallBridge extends ElasticsearchApiCallBridge {
 				.data(false)
 				.node();
 
-			Client client = node.client();
+			AutoCloseable client = node.client();
 
 			if (LOG.isInfoEnabled()) {
 				LOG.info("Created Elasticsearch client from embedded node");
@@ -113,6 +113,11 @@ public class Elasticsearch1ApiCallBridge extends ElasticsearchApiCallBridge {
 
 			return transportClient;
 		}
+	}
+
+	@Override
+	public BulkProcessor.Builder createBulkProcessorBuilder(AutoCloseable client, BulkProcessor.Listener listener) {
+		return BulkProcessor.builder((Client) client, listener);
 	}
 
 	@Override

@@ -515,8 +515,13 @@ public class ElasticsearchSinkBaseTest {
 		private static final long serialVersionUID = -4272760730959041699L;
 
 		@Override
-		public Client createClient(Map<String, String> clientConfig) {
+		public AutoCloseable createClient(Map<String, String> clientConfig) {
 			return mock(Client.class);
+		}
+
+		@Override
+		public BulkProcessor.Builder createBulkProcessorBuilder(AutoCloseable client, BulkProcessor.Listener listener) {
+			return null;
 		}
 
 		@Nullable

@@ -30,14 +30,14 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-elasticsearch5.3_${scala.binary.version}</artifactId>
-	<name>flink-connector-elasticsearch5.3</name>
+	<artifactId>flink-connector-elasticsearch6_${scala.binary.version}</artifactId>
+	<name>flink-connector-elasticsearch6</name>
 
 	<packaging>jar</packaging>
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<elasticsearch.version>5.3.0</elasticsearch.version>
+		<elasticsearch.version>6.1.0</elasticsearch.version>
 	</properties>
 
 	<dependencies>
@@ -64,10 +64,10 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<!-- Dependency for Elasticsearch 5.x Java Client -->
+		<!-- Dependency for Elasticsearch 6.x REST Client -->
 		<dependency>
 			<groupId>org.elasticsearch.client</groupId>
-			<artifactId>transport</artifactId>
+			<artifactId>elasticsearch-rest-high-level-client</artifactId>
 			<version>${elasticsearch.version}</version>
 		</dependency>
 
@@ -112,6 +112,24 @@ under the License.
 				</exclusion>
 			</exclusions>
 			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<!--
+   			 Including elasticsearch transport dependency for tests. Netty3 is not here anymore in 6.x
+		-->
+
+		<dependency>
+			<groupId>org.elasticsearch.client</groupId>
+			<artifactId>transport</artifactId>
+			<version>${elasticsearch.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.elasticsearch.plugin</groupId>
+			<artifactId>transport-netty4-client</artifactId>
+			<version>${elasticsearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 

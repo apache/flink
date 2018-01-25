@@ -32,7 +32,6 @@ import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
@@ -58,7 +57,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>The version specific API calls for different Elasticsearch versions should be defined by a concrete implementation of
  * a {@link ElasticsearchApiCallBridge}, which is provided to the constructor of this class. This call bridge is used,
- * for example, to create a Elasticsearch {@link Client}, handle failed item responses, etc.
+ * for example, to create a Elasticsearch {@link Client} or {@RestHighLevelClient}, handle failed item responses, etc.
  *
  * @param <T> Type of the elements handled by this sink
  */
@@ -175,7 +174,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	private AtomicLong numPendingRequests = new AtomicLong(0);
 
 	/** Elasticsearch client created using the call bridge. */
-	private transient Client client;
+	private transient AutoCloseable client;
 
 	/** Bulk processor to buffer and send requests to Elasticsearch, created using the client. */
 	private transient BulkProcessor bulkProcessor;
@@ -337,7 +336,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	protected BulkProcessor buildBulkProcessor(BulkProcessor.Listener listener) {
 		checkNotNull(listener);
 
-		BulkProcessor.Builder bulkProcessorBuilder = BulkProcessor.builder(client, listener);
+		BulkProcessor.Builder bulkProcessorBuilder = callBridge.createBulkProcessorBuilder(client, listener);
 
 		// This makes flush() blocking
 		bulkProcessorBuilder.setConcurrentRequests(0);

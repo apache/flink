@@ -66,7 +66,7 @@ public class Elasticsearch5ApiCallBridge extends ElasticsearchApiCallBridge {
 	}
 
 	@Override
-	public Client createClient(Map<String, String> clientConfig) {
+	public AutoCloseable createClient(Map<String, String> clientConfig) {
 		Settings settings = Settings.builder().put(clientConfig)
 			.put(NetworkModule.HTTP_TYPE_KEY, Netty3Plugin.NETTY_HTTP_TRANSPORT_NAME)
 			.put(NetworkModule.TRANSPORT_TYPE_KEY, Netty3Plugin.NETTY_TRANSPORT_NAME)
@@ -87,6 +87,11 @@ public class Elasticsearch5ApiCallBridge extends ElasticsearchApiCallBridge {
 		}
 
 		return transportClient;
+	}
+
+	@Override
+	public BulkProcessor.Builder createBulkProcessorBuilder(AutoCloseable client, BulkProcessor.Listener listener) {
+		return BulkProcessor.builder((Client) client, listener);
 	}
 
 	@Override

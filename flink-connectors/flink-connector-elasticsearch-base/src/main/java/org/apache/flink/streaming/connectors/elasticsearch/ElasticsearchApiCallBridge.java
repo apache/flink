@@ -43,12 +43,14 @@ import java.util.concurrent.atomic.AtomicLong;
 public abstract class ElasticsearchApiCallBridge implements Serializable {
 
 	/**
-	 * Creates an Elasticsearch {@link Client}.
+	 * Creates an Elasticsearch Client either {@link Client} or {@RestHighLevelClient}.
 	 *
 	 * @param clientConfig The configuration to use when constructing the client.
 	 * @return The created client.
 	 */
-	public abstract Client createClient(Map<String, String> clientConfig);
+	public abstract AutoCloseable createClient(Map<String, String> clientConfig);
+
+	public abstract BulkProcessor.Builder createBulkProcessorBuilder(AutoCloseable client, BulkProcessor.Listener listener);
 
 	/**
 	 * Extracts the cause of failure of a bulk item action.
