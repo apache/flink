@@ -540,6 +540,11 @@ public class ElasticsearchSinkBaseTest {
 			return mock(Client.class);
 		}
 
+		@Override
+		public BulkProcessor.Builder createBulkProcessorBuilder(AutoCloseable client, BulkProcessor.Listener listener) {
+			return null;
+		}
+
 		@Nullable
 		@Override
 		public Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse) {
@@ -548,11 +553,6 @@ public class ElasticsearchSinkBaseTest {
 			} else {
 				return null;
 			}
-		}
-
-		@Override
-		public BulkProcessor.Builder createBulkProcessorBuilder(AutoCloseable client, BulkProcessor.Listener listener) {
-			return null;
 		}
 
 		@Override
