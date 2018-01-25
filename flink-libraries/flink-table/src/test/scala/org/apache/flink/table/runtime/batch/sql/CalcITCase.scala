@@ -29,7 +29,7 @@ import org.apache.flink.table.expressions.utils.SplitUDF
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.runtime.batch.table.OldHashCode
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.runtime.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase}
+import org.apache.flink.table.runtime.utils.{JavaPojos, TableProgramsCollectionTestBase, TableProgramsTestBase}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit._
@@ -387,6 +387,33 @@ class CalcITCase(
     val results = tEnv.sql(sqlQuery).toDataSet[Row].collect()
 
     val expected = List("a,a,d,d,e,e", "x,x,z,z,z,z").mkString("\n")
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testArrayElementAtFromTableForPojo(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val p1 = new JavaPojos.Pojo1();
+    p1.msg = "msg1";
+    val p2 = new JavaPojos.Pojo1();
+    p2.msg = "msg2";
+    val data = List(
+      (1, Array(p1)),
+      (2, Array(p2))
+    )
+    val stream = env.fromCollection(data)
+    tEnv.registerDataSet("T", stream, 'a, 'b)
+
+    val sqlQuery = "SELECT a, b[1].msg FROM T"
+
+    val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
+
+    val expected = List(
+      "1,msg1",
+      "2,msg2").mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 }

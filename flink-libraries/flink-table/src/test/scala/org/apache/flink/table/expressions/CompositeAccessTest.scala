@@ -116,6 +116,34 @@ class CompositeAccessTest extends CompositeTypeTestBase {
       "42")
     testSqlApi("f0.*", "42")
 
+    testAllApis(
+      'f8.at(1).get("_1"),
+      "f8.at(1).get('_1')",
+      "f8[1]._1",
+      "true"
+    )
+
+    testAllApis(
+      'f9.at(1).get("_1"),
+      "f9.at(1).get('_1')",
+      "f9[1]._1",
+      "null"
+    )
+
+    testAllApis(
+      'f10.at(1).get("stringField"),
+      "f10.at(1).get('stringField')",
+      "f10[1].stringField",
+      "Bob"
+    )
+
+    testAllApis(
+      'f11.at(1).get("myString"),
+      "f11.at(1).get('myString')",
+      "f11[1].myString",
+      "Hello"
+    )
+
     testTableApi(12.flatten(), "12.flatten()", "12")
 
     testTableApi('f5.flatten(), "f5.flatten()", "13")

@@ -28,7 +28,7 @@ import org.apache.flink.types.Row
 class CompositeTypeTestBase extends ExpressionTestBase {
 
   def testData: Row = {
-    val testData = new Row(8)
+    val testData = new Row(12)
     testData.setField(0, MyCaseClass(42, "Bob", booleanField = true))
     testData.setField(1, MyCaseClass2(MyCaseClass(25, "Timo", booleanField = false)))
     testData.setField(2, ("a", "b"))
@@ -37,6 +37,10 @@ class CompositeTypeTestBase extends ExpressionTestBase {
     testData.setField(5, 13)
     testData.setField(6, MyCaseClass2(null))
     testData.setField(7, Tuple1(true))
+    testData.setField(8, Array(Tuple1(true)))
+    testData.setField(9, Array(Tuple1(null)))
+    testData.setField(10, Array(MyCaseClass(42, "Bob", booleanField = true)))
+    testData.setField(11, Array(new MyPojo()))
     testData
   }
 
@@ -49,7 +53,11 @@ class CompositeTypeTestBase extends ExpressionTestBase {
       TypeExtractor.createTypeInfo(classOf[MyPojo]),
       Types.INT,
       createTypeInformation[MyCaseClass2],
-      createTypeInformation[Tuple1[Boolean]]
+      createTypeInformation[Tuple1[Boolean]],
+      createTypeInformation[Array[Tuple1[Boolean]]],
+      createTypeInformation[Array[Tuple1[Boolean]]],
+      createTypeInformation[Array[MyCaseClass]],
+      createTypeInformation[Array[MyPojo]]
       ).asInstanceOf[TypeInformation[Any]]
   }
 }

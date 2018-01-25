@@ -19,14 +19,17 @@ package org.apache.flink.table.codegen.calls
 
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
-import org.apache.calcite.util.BuiltInMethod
+import org.apache.calcite.rex.{RexCall, RexLiteral}
+import org.apache.calcite.util.{BuiltInMethod, NlsString}
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
+import org.apache.flink.api.java.typeutils._
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.plan.schema.CompositeRelDataType
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TimeIntervalTypeInfo, TypeCoercion}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 
@@ -982,6 +985,73 @@ object ScalarOperators {
           (leftTerm, rightTerm) => s"$leftTerm[$rightTerm - 1]"
         }
     }
+  }
+
+  def generateDot(
+      codeGenerator: CodeGenerator,
+      dot: RexCall,
+      record: GeneratedExpression,
+      subField: GeneratedExpression)
+  : GeneratedExpression = {
+    val nullTerm = newName("isNull")
+    val resultTerm = newName("result")
+    val resultType = FlinkTypeFactory.toTypeInfo(dot.getType)
+    val resultTypeTerm = boxedTypeTermForTypeInfo(resultType)
+    dot.operands.get(0).getType match {
+      case crdt: CompositeRelDataType => {
+        val fieldName = dot.operands.get(1).asInstanceOf[RexLiteral]
+          .getValue.asInstanceOf[NlsString].getValue
+        if (crdt.compositeType.isInstanceOf[TupleTypeInfo[_]]) {
+           return GeneratedExpression(resultTerm, nullTerm,
+            s"""
+                   |${record.code}
+                   |${subField.code}
+                   |${resultTypeTerm} $resultTerm = null;
+                   |if (${record.resultTerm} != null) {
+                   |  $resultTerm = (${resultTypeTerm}) ${record.resultTerm}.productElement(
+                   |      ${fieldName.substring(1).toInt} - 1);
+                   |}
+                   |boolean $nullTerm = ${resultTerm} == null;
+                   |""".stripMargin, resultType)
+        } else if (crdt.compositeType.isInstanceOf[CaseClassTypeInfo[_]]) {
+          return GeneratedExpression(resultTerm, nullTerm,
+            s"""
+               |${record.code}
+               |${resultTypeTerm} $resultTerm = null;
+               |if (${record.resultTerm} != null) {
+               |  $resultTerm = (${resultTypeTerm}) ${record.resultTerm}.${fieldName}();
+               |}
+               |boolean $nullTerm = ${resultTerm} == null;
+               |""".stripMargin, resultType)
+        } else if (crdt.compositeType.isInstanceOf[PojoTypeInfo[_]]) {
+          return GeneratedExpression(resultTerm, nullTerm,
+            s"""
+               |${record.code}
+               |${resultTypeTerm} $resultTerm = null;
+               |if (${record.resultTerm} != null) {
+               |  $resultTerm =
+               |    (${resultTypeTerm}) ${record.resultTerm}.${fieldName};
+               |}
+               |boolean $nullTerm = ${resultTerm} == null;
+               |""".stripMargin, resultType)
+        } else if (crdt.compositeType.isInstanceOf[RowTypeInfo]) {
+          val fieldIndex = dot.operands.get(0).getType.asInstanceOf[CompositeRelDataType]
+            .compositeType.getFieldIndex(fieldName)
+          return GeneratedExpression(resultTerm, nullTerm,
+            s"""
+               |${record.code}
+               |${resultTypeTerm} $resultTerm = null;
+               |if (${record.resultTerm} != null) {
+               |  $resultTerm = (${resultTypeTerm}) ${record.resultTerm}.getField(${fieldIndex});
+               |}
+               |boolean $nullTerm = ${resultTerm} == null;
+               |""".stripMargin, resultType)
+        }
+      }
+      case _ =>
+    }
+
+    throw new CodeGenException("Unsupported type: %s".format(dot.operands.get(0).getType))
   }
 
   def generateArrayElement(

@@ -1001,6 +1001,12 @@ abstract class CodeGenerator(
         requireArray(array)
         generateArrayElement(this, array)
 
+      case DOT =>
+        // Due to https://issues.apache.org/jira/browse/CALCITE-2162, expression such as
+        // "array[1].a.b" won't work now.
+        require(operands.size == 2)
+        generateDot(this, call, operands.head, operands(1))
+
       case ScalarSqlFunctions.CONCAT =>
         generateConcat(this.nullCheck, operands)
 

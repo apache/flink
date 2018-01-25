@@ -18,25 +18,29 @@
 
 package org.apache.flink.table.runtime.stream.sql
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation, Types}
+import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api
 import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.{TableEnvironment, Types}
+import org.apache.flink.table.api.{TableEnvironment, TableSchema}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.SplitUDF
 import org.apache.flink.table.expressions.utils.Func15
-import org.apache.flink.table.runtime.stream.sql.SqlITCase.TimestampAndWatermarkWithOffset
+import org.apache.flink.table.runtime.stream.sql.SqlITCase.{TestCaseClass, TimestampAndWatermarkWithOffset}
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
-import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
+import org.apache.flink.table.runtime.utils._
+import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.types.Row
 import org.apache.flink.table.utils.MemoryTableSinkUtil
 import org.junit.Assert._
 import org.junit._
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class SqlITCase extends StreamingWithStateTestBase {
@@ -470,6 +474,148 @@ class SqlITCase extends StreamingWithStateTestBase {
   }
 
   @Test
+  def testArrayElementAtFromTableForTuple(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = List(
+      (1, Array((12, 45), (2, 5))),
+      (2, Array(null, (1, 49))),
+      (3, Array((18, 42), (127, 454)))
+    )
+    val stream = env.fromCollection(data)
+    tEnv.registerDataStream("T", stream, 'a, 'b)
+
+    val sqlQuery = "SELECT a, b[1]._1 FROM T"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      "1,12",
+      "2,null",
+      "3,18")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testArrayElementAtFromTableForCaseClass(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = List(
+      (1, Array(TestCaseClass(12, 45), TestCaseClass(2, 5))),
+      (2, Array(TestCaseClass(41, 5), TestCaseClass(1, 49))),
+      (3, Array(TestCaseClass(18, 42), TestCaseClass(127, 454)))
+    )
+    val stream = env.fromCollection(data)
+    tEnv.registerDataStream("T", stream, 'a, 'b)
+
+    val sqlQuery = "SELECT a, b[1].f1 FROM T"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      "1,45",
+      "2,5",
+      "3,42")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testArrayElementAtFromTableForPojo(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val p1 = new JavaPojos.Pojo1();
+    p1.msg = "msg1";
+    val p2 = new JavaPojos.Pojo1();
+    p2.msg = "msg2";
+    val data = List(
+      (1, Array(p1)),
+      (2, Array(p2))
+    )
+    val stream = env.fromCollection(data)
+    tEnv.registerDataStream("T", stream, 'a, 'b)
+
+    val sqlQuery = "SELECT a, b[1].msg FROM T"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      "1,msg1",
+      "2,msg2")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testArrayElementAtFromTableForRow(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.registerTableSource("mytable", new StreamTableSource[Row] {
+      private val fieldNames: Array[String] = Array("name", "record")
+      private val fieldTypes: Array[TypeInformation[_]] =
+        Array(
+          Types.STRING,
+          ObjectArrayTypeInfo.getInfoFor(Types.ROW_NAMED(
+            Array[String]("longField", "strField", "floatField", "arrayField"),
+            Types.LONG,
+            Types.STRING,
+            Types.FLOAT,
+            ObjectArrayTypeInfo.getInfoFor(
+              Types.ROW_NAMED(Array[String]("nestedLong"), Types.LONG)))))
+        .asInstanceOf[Array[TypeInformation[_]]]
+
+      override def getDataStream(execEnv: api.environment.StreamExecutionEnvironment)
+          : DataStream[Row] = {
+        val nestRow1 = new Row(1)
+        nestRow1.setField(0, 1213L)
+        val mockRow1 = new Row(4)
+        mockRow1.setField(0, 273132121L)
+        mockRow1.setField(1, "str1")
+        mockRow1.setField(2, 123.4f)
+        mockRow1.setField(3, Array(nestRow1))
+        val mockRow2 = new Row(4)
+        mockRow2.setField(0, 27318121L)
+        mockRow2.setField(1, "str2")
+        mockRow2.setField(2, 987.2f)
+        mockRow2.setField(3, Array(nestRow1))
+        val data = List(
+          Row.of("Mary", Array(mockRow1, mockRow2)),
+          Row.of("Mary", Array(mockRow2, mockRow1))).asJava
+        execEnv.fromCollection(data, getReturnType)
+      }
+
+      override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
+      override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
+    })
+    StreamITCase.clear
+
+    val sqlQuery = "SELECT name, record[1].floatField, record[1].strField, " +
+      "record[2].longField, record[1].arrayField[1].nestedLong FROM mytable"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      "Mary,123.4,str1,27318121,1213",
+      "Mary,987.2,str2,273132121,1213")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
   def testHopStartEndWithHaving(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -615,6 +761,8 @@ class SqlITCase extends StreamingWithStateTestBase {
 }
 
 object SqlITCase {
+
+  case class TestCaseClass(f0: Integer, f1: Integer) extends Serializable
 
   class TimestampAndWatermarkWithOffset[T <: Product](
       offset: Long) extends AssignerWithPunctuatedWatermarks[T] {
