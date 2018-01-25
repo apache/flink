@@ -24,6 +24,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.common.accumulators.FailedAccumulatorSerialization;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
@@ -773,7 +774,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				final SerializedValue<Object> serializedValue = new SerializedValue<>(entry.getValue().getLocalValue());
 				result.put(entry.getKey(), serializedValue);
 			} catch (IOException ioe) {
-				LOG.info("Could not serialize accumulator " + entry.getKey() + '.', ioe);
+				LOG.error("Could not serialize accumulator " + entry.getKey() + '.', ioe);
+
+				try {
+					result.put(entry.getKey(), new SerializedValue<>(new FailedAccumulatorSerialization(ioe)));
+				} catch (IOException e) {
+					throw new RuntimeException("It should never happen that we cannot serialize the accumulator serialization exception.", e);
+				}
 			}
 		}
 
