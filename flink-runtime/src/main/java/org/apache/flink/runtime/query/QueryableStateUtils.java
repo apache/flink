@@ -73,10 +73,14 @@ public final class QueryableStateUtils {
 					KvStateRequestStats.class);
 			return constructor.newInstance(address, ports, eventLoopThreads, queryThreads, stats);
 		} catch (ClassNotFoundException e) {
-			LOG.warn("Could not load Queryable State Client Proxy. " +
-					"Probable reason: flink-queryable-state-runtime is not in the classpath. " +
-					"Please put the corresponding jar from the opt to the lib folder.");
-			LOG.debug("Caught exception", e);
+			final String msg = "Could not load Queryable State Client Proxy. " +
+				"Probable reason: flink-queryable-state-runtime is not in the classpath. " +
+				"Please put the corresponding jar from the opt to the lib folder.";
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(msg, e);
+			} else {
+				LOG.info(msg);
+			}
 			return null;
 		} catch (InvocationTargetException e) {
 			LOG.error("Queryable State Client Proxy could not be created: ", e.getTargetException());
@@ -128,10 +132,14 @@ public final class QueryableStateUtils {
 					KvStateRequestStats.class);
 			return constructor.newInstance(address, ports, eventLoopThreads, queryThreads, kvStateRegistry, stats);
 		} catch (ClassNotFoundException e) {
-			LOG.warn("Could not load Queryable State Server. " +
-					"Probable reason: flink-queryable-state-runtime is not in the classpath. " +
-					"Please put the corresponding jar from the opt to the lib folder.");
-			LOG.debug("Caught exception", e);
+			final String msg = "Could not load Queryable State Server. " +
+				"Probable reason: flink-queryable-state-runtime is not in the classpath. " +
+				"Please put the corresponding jar from the opt to the lib folder.";
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(msg, e);
+			} else {
+				LOG.info(msg);
+			}
 			return null;
 		} catch (InvocationTargetException e) {
 			LOG.error("Queryable State Server could not be created: ", e.getTargetException());
