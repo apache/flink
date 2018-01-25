@@ -1314,7 +1314,7 @@ public class WindowedStream<T, K, W extends Window> {
 			if (interfaces.length == 0) {
 				// extends an existing class (like RichMapFunction)
 				Class<?> functionSuperClass = functionClass.getSuperclass();
-				return functionSuperClass.getSimpleName() + functionSuperClass.getName().substring(functionSuperClass.getEnclosingClass().getName().length());
+				return functionSuperClass.getSimpleName() + functionClass.getName().substring(functionClass.getEnclosingClass().getName().length());
 			} else {
 				// implements a Function interface
 				Class<?> functionInterface = functionClass.getInterfaces()[0];
