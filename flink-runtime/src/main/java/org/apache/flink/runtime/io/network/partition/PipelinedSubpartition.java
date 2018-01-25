@@ -71,9 +71,6 @@ class PipelinedSubpartition extends ResultSubpartition {
 	private boolean add(BufferConsumer bufferConsumer, boolean finish) throws IOException {
 		checkNotNull(bufferConsumer);
 
-		// view reference accessible outside the lock, but assigned inside the locked scope
-		final PipelinedSubpartitionView reader;
-
 		synchronized (buffers) {
 			if (isFinished || isReleased) {
 				bufferConsumer.close();
@@ -82,18 +79,16 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 			// Add the bufferConsumer and update the stats
 			buffers.add(bufferConsumer);
-			reader = readView;
 			updateStatistics(bufferConsumer);
 			increaseBuffersInBacklog(bufferConsumer);
 
 			if (finish) {
 				isFinished = true;
 			}
-		}
 
-		// Notify the listener outside of the synchronized block
-		if (reader != null) {
-			reader.notifyBuffersAvailable(1);
+			if (readView != null) {
+				readView.notifyBuffersAvailable(1);
+			}
 		}
 
 		return true;
