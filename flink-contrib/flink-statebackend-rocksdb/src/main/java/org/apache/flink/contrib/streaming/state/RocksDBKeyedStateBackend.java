@@ -101,6 +101,7 @@ import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
 import org.rocksdb.Snapshot;
+import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,6 +118,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -184,6 +186,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * we can close it properly when the backend is closed. This is required by RocksDB's native memory management.
 	 */
 	private ColumnFamilyHandle defaultColumnFamily;
+
+	/**
+	 * The write options to use in the states. We disable write ahead logging.
+	 */
+	private final WriteOptions writeOptions;
 
 	/**
 	 * Information about the k/v states as we create them. This is used to retrieve the
@@ -261,7 +268,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		this.localRecoveryConfig = Preconditions.checkNotNull(localRecoveryConfig);
 		this.keyGroupPrefixBytes = getNumberOfKeyGroups() > (Byte.MAX_VALUE + 1) ? 2 : 1;
-		this.kvStateInformation = new HashMap<>();
+		this.kvStateInformation = new LinkedHashMap<>();
 		this.restoredKvStateMetaInfos = new HashMap<>();
 		this.materializedSstFiles = new TreeMap<>();
 		this.backendUID = UUID.randomUUID();
@@ -269,6 +276,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.snapshotStrategy = enableIncrementalCheckpointing ?
 			new IncrementalSnapshotStrategy() :
 			new FullSnapshotStrategy();
+
+		this.writeOptions = new WriteOptions().setDisableWAL(false);
 
 		LOG.debug("Setting initial keyed backend uid for operator {} to {}.", this.operatorIdentifier, this.backendUID);
 	}
@@ -339,11 +348,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			// invalidate the reference
 			db = null;
 
+			IOUtils.closeQuietly(columnOptions);
+			IOUtils.closeQuietly(dbOptions);
+			IOUtils.closeQuietly(writeOptions);
 			kvStateInformation.clear();
 			restoredKvStateMetaInfos.clear();
-
-			IOUtils.closeQuietly(dbOptions);
-			IOUtils.closeQuietly(columnOptions);
 
 			cleanInstanceBasePath();
 		}
@@ -361,6 +370,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	public int getKeyGroupPrefixBytes() {
 		return keyGroupPrefixBytes;
+	}
+
+	public WriteOptions getWriteOptions() {
+		return writeOptions;
 	}
 
 	/**
