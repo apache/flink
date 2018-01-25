@@ -26,6 +26,7 @@ import org.apache.flink.util.SerializedThrowable;
 
 import org.junit.Test;
 
+import java.io.InvalidClassException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.security.CodeSource;
@@ -109,7 +110,7 @@ public class SerializedThrowableTest {
 				InstantiationUtil.deserializeObject(serialized, getClass().getClassLoader());
 				fail("should fail with a class not found exception");
 			}
-			catch (ClassNotFoundException e) {
+			catch (ClassNotFoundException | InvalidClassException e) {
 				// as we want it
 			}
 			
