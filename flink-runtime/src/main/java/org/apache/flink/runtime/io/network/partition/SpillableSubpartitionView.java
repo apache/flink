@@ -182,7 +182,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	}
 
 	@Override
-	public void notifyBuffersAvailable(long buffers) throws IOException {
+	public void notifyBuffersAvailable(long buffers) {
 		// We do the availability listener notification one by one
 	}
 

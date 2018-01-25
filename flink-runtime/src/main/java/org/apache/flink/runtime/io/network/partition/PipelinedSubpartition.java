@@ -58,7 +58,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public boolean add(BufferConsumer bufferConsumer) throws IOException {
+	public boolean add(BufferConsumer bufferConsumer) {
 		return add(bufferConsumer, false);
 	}
 
@@ -68,7 +68,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 		LOG.debug("Finished {}.", this);
 	}
 
-	private boolean add(BufferConsumer bufferConsumer, boolean finish) throws IOException {
+	private boolean add(BufferConsumer bufferConsumer, boolean finish) {
 		checkNotNull(bufferConsumer);
 
 		synchronized (buffers) {

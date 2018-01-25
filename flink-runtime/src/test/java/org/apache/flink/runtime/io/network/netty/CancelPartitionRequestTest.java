@@ -198,7 +198,7 @@ public class CancelPartitionRequestTest {
 		}
 
 		@Override
-		public void notifyBuffersAvailable(long buffers) throws IOException {
+		public void notifyBuffersAvailable(long buffers) {
 		}
 
 		@Override

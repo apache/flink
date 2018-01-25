@@ -166,7 +166,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	}
 
 	@Override
-	public void notifyBuffersAvailable(long buffers) throws IOException {
+	public void notifyBuffersAvailable(long buffers) {
 		// We do the availability listener notification either directly on
 		// construction of this view (when everything has been spilled) or
 		// as soon as spilling is done and we are notified about it in the
