@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.clusterframework.types;
 
-import org.apache.flink.api.common.resources.Resource;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.resources.Resource;
 
 import javax.annotation.Nonnull;
 
