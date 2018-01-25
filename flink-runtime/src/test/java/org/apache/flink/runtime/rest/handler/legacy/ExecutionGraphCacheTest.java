@@ -88,9 +88,9 @@ public class ExecutionGraphCacheTest extends TestLogger {
 
 			assertEquals(expectedExecutionGraph, accessExecutionGraphFuture.get());
 
-			CompletableFuture<AccessExecutionGraph> accessExecutionGraphFuture2 = executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
+			accessExecutionGraphFuture = executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
 
-			assertEquals(expectedExecutionGraph, accessExecutionGraphFuture2.get());
+			assertEquals(expectedExecutionGraph, accessExecutionGraphFuture.get());
 
 			assertThat(restfulGateway.getNumRequestJobCalls(), Matchers.equalTo(1));
 		}
@@ -213,16 +213,7 @@ public class ExecutionGraphCacheTest extends TestLogger {
 		final Time timeout = Time.milliseconds(100L);
 		final Time timeToLive = Time.hours(1L);
 
-		final AtomicInteger requestJobCalls = new AtomicInteger(0);
-		final TestingRestfulGateway restfulGateway = TestingRestfulGateway.newBuilder()
-			.setRequestJobFunction(
-				jobId -> {
-					requestJobCalls.incrementAndGet();
-					assertThat(jobId, Matchers.equalTo(expectedJobId));
-					return CompletableFuture.completedFuture(expectedExecutionGraph);
-				}
-			)
-			.build();
+		final CountingRestfulGateway restfulGateway = createCountingRestfulGateway(expectedJobId, CompletableFuture.completedFuture(expectedExecutionGraph));
 
 		final int numConcurrentAccesses = 10;
 
@@ -249,7 +240,7 @@ public class ExecutionGraphCacheTest extends TestLogger {
 				assertEquals(expectedExecutionGraph, executionGraph);
 			}
 
-			assertThat(requestJobCalls.get(), Matchers.equalTo(1));
+			assertThat(restfulGateway.getNumRequestJobCalls(), Matchers.equalTo(1));
 		} finally {
 			ExecutorUtils.gracefulShutdown(5000L, TimeUnit.MILLISECONDS, executor);
 		}
@@ -349,7 +340,7 @@ public class ExecutionGraphCacheTest extends TestLogger {
 
 		private final JobID expectedJobId;
 
-		private int numRequestJobCalls = 0;
+		private AtomicInteger numRequestJobCalls = new AtomicInteger(0);
 
 		private CountingRestfulGateway(JobID expectedJobId, Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction) {
 			this.expectedJobId = Preconditions.checkNotNull(expectedJobId);
@@ -359,12 +350,12 @@ public class ExecutionGraphCacheTest extends TestLogger {
 		@Override
 		public CompletableFuture<? extends AccessExecutionGraph> requestJob(JobID jobId, Time timeout) {
 			assertThat(jobId, Matchers.equalTo(expectedJobId));
-			numRequestJobCalls++;
+			numRequestJobCalls.incrementAndGet();
 			return super.requestJob(jobId, timeout);
 		}
 
 		public int getNumRequestJobCalls() {
-			return numRequestJobCalls;
+			return numRequestJobCalls.get();
 		}
 	}
 
