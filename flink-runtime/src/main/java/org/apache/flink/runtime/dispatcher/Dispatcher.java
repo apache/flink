@@ -144,6 +144,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public void postStop() throws Exception {
+		log.info("Stopping dispatcher {}.", getAddress());
 		Throwable exception = null;
 
 		clearState();
@@ -175,6 +176,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		if (exception != null) {
 			throw new FlinkException("Could not properly terminate the Dispatcher.", exception);
 		}
+		log.info("Stopped dispatcher {}.", getAddress());
 	}
 
 	@Override
@@ -206,7 +208,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				new JobSubmissionException(jobId, "Could not retrieve the job status.", e));
 		}
 
-		if (jobSchedulingStatus == RunningJobsRegistry.JobSchedulingStatus.PENDING &&
+		if (jobSchedulingStatus != RunningJobsRegistry.JobSchedulingStatus.DONE &&
 			!jobManagerRunners.containsKey(jobId)) {
 			try {
 				submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph, null));
@@ -440,6 +442,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	private void clearState() throws Exception {
 		Exception exception = null;
 
+		log.info("Stopping all currently running jobs of dispatcher {}.", getAddress());
 		// stop all currently running JobManager since they run in the same process
 		for (JobManagerRunner jobManagerRunner : jobManagerRunners.values()) {
 			try {

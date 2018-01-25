@@ -71,6 +71,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.mockito.Mockito;
 
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -78,10 +79,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -304,6 +307,42 @@ public class DispatcherTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that a reelected Dispatcher can recover jobs.
+	 */
+	@Test
+	public void testJobRecovery() throws Exception {
+		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+		// elect the initial dispatcher as the leader
+		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		// submit the job to the current leader
+		dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+		// check that the job has been persisted
+		assertThat(submittedJobGraphStore.getJobIds(), contains(jobGraph.getJobID()));
+
+		jobMasterLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		assertThat(runningJobsRegistry.getJobSchedulingStatus(jobGraph.getJobID()), is(RunningJobsRegistry.JobSchedulingStatus.RUNNING));
+
+		// revoke the leadership which will stop all currently running jobs
+		dispatcherLeaderElectionService.notLeader();
+
+		// re-grant the leadership, this should trigger the job recovery
+		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		// wait until we have recovered the job
+		dispatcher.submitJobLatch.await();
+
+		// check whether the job has been recovered
+		final Collection<JobID> jobIds = dispatcherGateway.listJobs(TIMEOUT).get();
+
+		assertThat(jobIds, hasSize(1));
+		assertThat(jobIds, contains(jobGraph.getJobID()));
+	}
+
 	private static class TestingDispatcher extends Dispatcher {
 
 		private final JobID expectedJobId;
@@ -367,15 +406,8 @@ public class DispatcherTest extends TestLogger {
 		public CompletableFuture<Acknowledge> submitJob(final JobGraph jobGraph, final Time timeout) {
 			final CompletableFuture<Acknowledge> submitJobFuture = super.submitJob(jobGraph, timeout);
 
-			try {
-				submitJobFuture.get();
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+			submitJobFuture.thenAccept(ignored -> submitJobLatch.countDown());
 
-			submitJobLatch.countDown();
 			return submitJobFuture;
 		}
 
