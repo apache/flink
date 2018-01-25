@@ -21,8 +21,8 @@ package org.apache.flink.streaming.api.windowing.assigners;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
-import org.apache.flink.streaming.api.windowing.triggers.TypedEventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 import java.util.Collection;
@@ -62,7 +62,7 @@ public class DynamicEventTimeSessionWindows<T> extends MergingWindowAssigner<T, 
 
 	@Override
 	public Trigger<T, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-		return TypedEventTimeTrigger.create();
+		return EventTimeTrigger.create();
 	}
 
 	@Override
