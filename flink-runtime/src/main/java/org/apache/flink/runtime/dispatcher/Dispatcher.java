@@ -511,7 +511,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	private void jobReachedGloballyTerminalState(ArchivedExecutionGraph archivedExecutionGraph) {
-		Preconditions.checkArgument(archivedExecutionGraph.getState().isGloballyTerminalState(), "");
+		Preconditions.checkArgument(
+			archivedExecutionGraph.getState().isGloballyTerminalState(),
+			"Job " + archivedExecutionGraph.getJobID() + " is in state " +
+				archivedExecutionGraph.getState() + " which is not globally terminal.");
 		final JobResult jobResult = JobResult.createFrom(archivedExecutionGraph);
 
 		jobExecutionResultCache.put(jobResult);

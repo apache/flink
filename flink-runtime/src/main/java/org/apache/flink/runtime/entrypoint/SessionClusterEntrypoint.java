@@ -52,6 +52,8 @@ import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
+import org.apache.flink.shaded.guava18.com.google.common.base.Ticker;
+
 import akka.actor.ActorSystem;
 
 import javax.annotation.Nullable;
@@ -167,7 +169,8 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			tmpDir,
 			expirationTime,
 			maximumCacheSizeBytes,
-			scheduledExecutor);
+			scheduledExecutor,
+			Ticker.systemTicker());
 	}
 
 	@Override

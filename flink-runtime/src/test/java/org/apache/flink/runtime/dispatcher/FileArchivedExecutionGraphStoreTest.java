@@ -32,12 +32,13 @@ import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava18.com.google.common.base.Ticker;
 import org.apache.flink.shaded.guava18.com.google.common.cache.LoadingCache;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
+import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -46,10 +47,12 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertThat;
@@ -60,19 +63,12 @@ import static org.junit.Assert.assertThat;
 @Category(Flip6.class)
 public class FileArchivedExecutionGraphStoreTest extends TestLogger {
 
-	private static final List<JobStatus> GLOBALLY_TERMINAL_JOB_STATUS = new ArrayList<>(3);
-
-	private static final Random RANDOM = new Random();
+	private static final List<JobStatus> GLOBALLY_TERMINAL_JOB_STATUS = Arrays.stream(JobStatus.values())
+		.filter(JobStatus::isGloballyTerminalState)
+		.collect(Collectors.toList());
 
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-	@BeforeClass
-	public static void setup() {
-		GLOBALLY_TERMINAL_JOB_STATUS.add(JobStatus.FINISHED);
-		GLOBALLY_TERMINAL_JOB_STATUS.add(JobStatus.FAILED);
-		GLOBALLY_TERMINAL_JOB_STATUS.add(JobStatus.CANCELED);
-	}
 
 	/**
 	 * Tests that we can put {@link ArchivedExecutionGraph} into the
@@ -166,11 +162,14 @@ public class FileArchivedExecutionGraphStoreTest extends TestLogger {
 
 		final ManuallyTriggeredScheduledExecutor scheduledExecutor = new ManuallyTriggeredScheduledExecutor();
 
+		final ManualTicker manualTicker = new ManualTicker();
+
 		try (final FileArchivedExecutionGraphStore executionGraphStore = new FileArchivedExecutionGraphStore(
 			rootDir,
 			expirationTime,
 			10000L,
-			scheduledExecutor)) {
+			scheduledExecutor,
+			manualTicker)) {
 
 			final ArchivedExecutionGraph executionGraph = new ArchivedExecutionGraphBuilder().setState(JobStatus.FINISHED).build();
 
@@ -179,7 +178,7 @@ public class FileArchivedExecutionGraphStoreTest extends TestLogger {
 			// there should one execution graph
 			assertThat(executionGraphStore.size(), Matchers.equalTo(1));
 
-			Thread.sleep(expirationTime.toMilliseconds());
+			manualTicker.advanceTime(expirationTime.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			// this should trigger the cleanup after expiration
 			scheduledExecutor.triggerScheduledTasks();
@@ -231,7 +230,8 @@ public class FileArchivedExecutionGraphStoreTest extends TestLogger {
 			rootDir,
 			Time.hours(1L),
 			100L << 10,
-			TestingUtils.defaultScheduledExecutor())) {
+			TestingUtils.defaultScheduledExecutor(),
+			Ticker.systemTicker())) {
 
 			final LoadingCache<JobID, ArchivedExecutionGraph> executionGraphCache = executionGraphStore.getArchivedExecutionGraphCache();
 
@@ -256,16 +256,16 @@ public class FileArchivedExecutionGraphStoreTest extends TestLogger {
 			assertThat(storageDirectory.listFiles().length, Matchers.equalTo(executionGraphs.size()));
 
 			for (ArchivedExecutionGraph executionGraph : executionGraphs) {
-				assertThat(executionGraphStore.get(executionGraph.getJobID()), new PartialArchivedExecutionGraphMatcher(executionGraph));
+				assertThat(executionGraphStore.get(executionGraph.getJobID()), matchesPartiallyWith(executionGraph));
 			}
 		}
 	}
 
-	private Collection<ArchivedExecutionGraph> generateTerminalExecutionGraphs(int number) throws IOException {
+	private Collection<ArchivedExecutionGraph> generateTerminalExecutionGraphs(int number) {
 		final Collection<ArchivedExecutionGraph> executionGraphs = new ArrayList<>(number);
 
 		for (int i = 0; i < number; i++) {
-			final JobStatus state = GLOBALLY_TERMINAL_JOB_STATUS.get(RANDOM.nextInt(GLOBALLY_TERMINAL_JOB_STATUS.size()));
+			final JobStatus state = GLOBALLY_TERMINAL_JOB_STATUS.get(ThreadLocalRandom.current().nextInt(GLOBALLY_TERMINAL_JOB_STATUS.size()));
 			executionGraphs.add(
 				new ArchivedExecutionGraphBuilder()
 					.setState(state)
@@ -280,7 +280,22 @@ public class FileArchivedExecutionGraphStoreTest extends TestLogger {
 			storageDirectory,
 			Time.hours(1L),
 			10000L,
-			TestingUtils.defaultScheduledExecutor());
+			TestingUtils.defaultScheduledExecutor(),
+			Ticker.systemTicker());
+	}
+
+	private static final class ManualTicker extends Ticker {
+
+		private long currentTime = 0;
+
+		@Override
+		public long read() {
+			return currentTime;
+		}
+
+		void advanceTime(long duration, TimeUnit timeUnit) {
+			currentTime += timeUnit.toNanos(duration);
+		}
 	}
 
 	private static final class PartialArchivedExecutionGraphMatcher extends BaseMatcher<ArchivedExecutionGraph> {
@@ -312,8 +327,11 @@ public class FileArchivedExecutionGraphStoreTest extends TestLogger {
 
 		@Override
 		public void describeTo(Description description) {
-			description.appendText("Matches against " + ArchivedExecutionGraph.class.getSimpleName() + ": " +
-				archivedExecutionGraph);
+			description.appendText("Matches against " + ArchivedExecutionGraph.class.getSimpleName() + '.');
 		}
+	}
+
+	private static Matcher<ArchivedExecutionGraph> matchesPartiallyWith(ArchivedExecutionGraph executionGraph) {
+		return new PartialArchivedExecutionGraphMatcher(executionGraph);
 	}
 }

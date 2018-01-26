@@ -32,6 +32,7 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava18.com.google.common.base.Ticker;
 import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
 import org.apache.flink.shaded.guava18.com.google.common.cache.CacheLoader;
@@ -83,7 +84,8 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
 			File rootDir,
 			Time expirationTime,
 			long maximumCacheSizeBytes,
-			ScheduledExecutor scheduledExecutor) throws IOException {
+			ScheduledExecutor scheduledExecutor,
+			Ticker ticker) throws IOException {
 
 		final File storageDirectory = initExecutionGraphStorageDirectory(rootDir);
 
@@ -102,6 +104,7 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
 			.expireAfterWrite(expirationTime.toMilliseconds(), TimeUnit.MILLISECONDS)
 			.removalListener(
 				(RemovalListener<JobID, JobDetails>) notification -> deleteExecutionGraphFile(notification.getKey()))
+			.ticker(ticker)
 			.build();
 
 		this.archivedExecutionGraphCache = CacheBuilder.newBuilder()

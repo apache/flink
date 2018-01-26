@@ -107,10 +107,6 @@ public class ManuallyTriggeredScheduledExecutor extends ManuallyTriggeredDirectE
 			this.result = new CompletableFuture<>();
 		}
 
-		public boolean isPeriodic() {
-			return isPeriodic;
-		}
-
 		public void execute() {
 			if (!result.isDone()) {
 				if (!isPeriodic) {
