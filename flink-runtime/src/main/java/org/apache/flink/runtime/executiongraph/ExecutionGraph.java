@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.common.accumulators.FailedAccumulatorSerialization;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
@@ -51,7 +51,6 @@ import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.ExecutionGraphRestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -62,6 +61,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateBackend;
@@ -148,7 +148,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * local failover (meaning there is a concurrent global failover), the failover strategy has to
  * yield before the global failover.
  */
-public class ExecutionGraph implements AccessExecutionGraph, Archiveable<ArchivedExecutionGraph> {
+public class ExecutionGraph implements AccessExecutionGraph {
 
 	/** In place updater for the execution graph's current state. Avoids having to use an
 	 * AtomicReference and thus makes the frequent read access a bit faster */
@@ -761,16 +761,27 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	/**
 	 * Gets a serialized accumulator map.
 	 * @return The accumulator map with serialized accumulator values.
-	 * @throws IOException
 	 */
 	@Override
-	public Map<String, SerializedValue<Object>> getAccumulatorsSerialized() throws IOException {
+	public Map<String, SerializedValue<Object>> getAccumulatorsSerialized() {
 
 		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
 
 		Map<String, SerializedValue<Object>> result = new HashMap<>(accumulatorMap.size());
 		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
-			result.put(entry.getKey(), new SerializedValue<>(entry.getValue().getLocalValue()));
+
+			try {
+				final SerializedValue<Object> serializedValue = new SerializedValue<>(entry.getValue().getLocalValue());
+				result.put(entry.getKey(), serializedValue);
+			} catch (IOException ioe) {
+				LOG.error("Could not serialize accumulator " + entry.getKey() + '.', ioe);
+
+				try {
+					result.put(entry.getKey(), new SerializedValue<>(new FailedAccumulatorSerialization(ioe)));
+				} catch (IOException e) {
+					throw new RuntimeException("It should never happen that we cannot serialize the accumulator serialization exception.", e);
+				}
+			}
 		}
 
 		return result;
@@ -1686,41 +1697,5 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				}
 			}
 		}
-	}
-
-	@Override
-	public ArchivedExecutionGraph archive() {
-		Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = new HashMap<>(verticesInCreationOrder.size());
-		List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder = new ArrayList<>(verticesInCreationOrder.size());
-
-		for (ExecutionJobVertex task : verticesInCreationOrder) {
-			ArchivedExecutionJobVertex archivedTask = task.archive();
-			archivedVerticesInCreationOrder.add(archivedTask);
-			archivedTasks.put(task.getJobVertexId(), archivedTask);
-		}
-
-		Map<String, SerializedValue<Object>> serializedUserAccumulators;
-		try {
-			serializedUserAccumulators = getAccumulatorsSerialized();
-		} catch (Exception e) {
-			LOG.warn("Error occurred while archiving user accumulators.", e);
-			serializedUserAccumulators = Collections.emptyMap();
-		}
-
-		return new ArchivedExecutionGraph(
-			getJobID(),
-			getJobName(),
-			archivedTasks,
-			archivedVerticesInCreationOrder,
-			stateTimestamps,
-			getState(),
-			failureInfo,
-			getJsonPlan(),
-			getAccumulatorResultsStringified(),
-			serializedUserAccumulators,
-			getArchivedExecutionConfig(),
-			isStoppable(),
-			getCheckpointCoordinatorConfiguration(),
-			getCheckpointStatsSnapshot());
 	}
 }

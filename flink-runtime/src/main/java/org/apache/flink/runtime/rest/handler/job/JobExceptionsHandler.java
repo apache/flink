@@ -71,7 +71,7 @@ public class JobExceptionsHandler extends AbstractExecutionGraphHandler<JobExcep
 		ErrorInfo rootException = executionGraph.getFailureInfo();
 		String rootExceptionMessage = null;
 		Long rootTimestamp = null;
-		if (rootException != null && !rootException.getExceptionAsString().equals(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)) {
+		if (rootException != null) {
 			rootExceptionMessage = rootException.getExceptionAsString();
 			rootTimestamp = rootException.getTimestamp();
 		}
