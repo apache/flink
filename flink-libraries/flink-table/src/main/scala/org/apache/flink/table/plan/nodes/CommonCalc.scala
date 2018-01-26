@@ -28,7 +28,6 @@ import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
-import scala.collection.JavaConversions._
 
 trait CommonCalc {
 
@@ -143,7 +142,6 @@ trait CommonCalc {
   }
 
   private[flink] def computeSelfCost(
-      rexBuilder: RexBuilder,
       calcProgram: RexProgram,
       planner: RelOptPlanner,
       rowCnt: Double): RelOptCost = {
@@ -156,21 +154,17 @@ trait CommonCalc {
     // RelNode will less than the total cost of un-merged calcs.
     val compCnt = calcProgram.getExprList.asScala.toList.count(isCom(_)) + 1
 
-    val newRowCnt = estimateRowCount(rexBuilder, calcProgram, rowCnt)
+    val newRowCnt = estimateRowCount(calcProgram, rowCnt)
     planner.getCostFactory.makeCost(newRowCnt, newRowCnt * compCnt, 0)
   }
 
   private[flink] def estimateRowCount(
-      rexBuilder: RexBuilder,
       calcProgram: RexProgram,
       rowCnt: Double): Double = {
 
     if (calcProgram.getCondition != null) {
       // we reduce the result card to push filters down
-      val exprs = RexUtil.composeConjunction(
-        rexBuilder,
-        calcProgram.getExprList.filter(isCom(_)),
-        true)
+      val exprs = calcProgram.expandLocalRef(calcProgram.getCondition())
       val selectivity = RelMdUtil.guessSelectivity(exprs, false)
       (rowCnt * selectivity).max(1.0)
     } else {

@@ -72,14 +72,14 @@ class DataSetCalc(
     val child = this.getInput
     val rowCnt = metadata.getRowCount(child)
 
-    computeSelfCost(cluster.getRexBuilder, calcProgram, planner, rowCnt)
+    computeSelfCost(calcProgram, planner, rowCnt)
   }
 
   override def estimateRowCount(metadata: RelMetadataQuery): Double = {
     val child = this.getInput
     val rowCnt = metadata.getRowCount(child)
 
-    estimateRowCount(cluster.getRexBuilder, calcProgram, rowCnt)
+    estimateRowCount(calcProgram, rowCnt)
   }
 
   override def translateToPlan(

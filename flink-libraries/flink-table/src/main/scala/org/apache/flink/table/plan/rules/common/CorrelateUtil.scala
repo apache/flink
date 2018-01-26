@@ -18,9 +18,7 @@
 package org.apache.flink.table.plan.rules.common
 
 import org.apache.calcite.plan.volcano.RelSubset
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexProgram, RexProgramBuilder}
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableFunctionScan}
 
 /**
@@ -29,26 +27,15 @@ import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogical
 object CorrelateUtil {
 
   /**
-    * Find only calc and table function
+    * Get [[FlinkLogicalTableFunctionScan]] from the input calc. Returns None if there no table
+    * function at the end.
     */
-  def findCalcAndTableFunction(calc: FlinkLogicalCalc): Boolean = {
+  def getTableFunctionScan(calc: FlinkLogicalCalc): Option[FlinkLogicalTableFunctionScan] = {
     val child = calc.getInput.asInstanceOf[RelSubset].getOriginal
     child match {
-      case scan: FlinkLogicalTableFunctionScan => true
-      case calc: FlinkLogicalCalc => findCalcAndTableFunction(calc)
-      case _ => false
-    }
-  }
-
-  /**
-    * Get [[FlinkLogicalTableFunctionScan]] from the input calc.
-    */
-  def getTableScan(calc: FlinkLogicalCalc): RelNode = {
-    val child = calc.getInput.asInstanceOf[RelSubset].getOriginal
-    child match {
-      case scan: FlinkLogicalTableFunctionScan => scan
-      case calc: FlinkLogicalCalc => getTableScan(calc)
-      case _ => throw TableException("This must be a bug, could not find table scan")
+      case scan: FlinkLogicalTableFunctionScan => Some(scan)
+      case calc: FlinkLogicalCalc => getTableFunctionScan(calc)
+      case _ => None
     }
   }
 

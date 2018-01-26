@@ -42,7 +42,7 @@ class DataSetCorrelateRule
         // right node is a table function
         case scan: FlinkLogicalTableFunctionScan => true
         // a filter is pushed above the table function
-        case calc: FlinkLogicalCalc => CorrelateUtil.findCalcAndTableFunction(calc)
+        case calc: FlinkLogicalCalc if CorrelateUtil.getTableFunctionScan(calc).isDefined => true
         case _ => false
       }
     }
@@ -59,7 +59,7 @@ class DataSetCorrelateRule
             convertToCorrelate(rel.getRelList.get(0), condition)
 
           case calc: FlinkLogicalCalc =>
-            val tableScan = CorrelateUtil.getTableScan(calc)
+            val tableScan = CorrelateUtil.getTableFunctionScan(calc).get
             val newCalc = CorrelateUtil.getMergedCalc(calc)
             convertToCorrelate(
               tableScan,
