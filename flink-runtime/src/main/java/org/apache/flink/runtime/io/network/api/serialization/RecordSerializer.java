@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.core.io.IOReadableWritable;
@@ -30,16 +29,19 @@ import java.io.IOException;
  */
 public interface RecordSerializer<T extends IOReadableWritable> {
 
+	/**
+	 * Status of the serialization result.
+	 */
 	enum SerializationResult {
 		PARTIAL_RECORD_MEMORY_SEGMENT_FULL(false, true),
 		FULL_RECORD_MEMORY_SEGMENT_FULL(true, true),
 		FULL_RECORD(true, false);
-		
+
 		private final boolean isFullRecord;
 
 		private final boolean isFullBuffer;
-		
-		private SerializationResult(boolean isFullRecord, boolean isFullBuffer) {
+
+		SerializationResult(boolean isFullRecord, boolean isFullBuffer) {
 			this.isFullRecord = isFullRecord;
 			this.isFullBuffer = isFullBuffer;
 		}
@@ -71,7 +73,6 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	 * @param record the record to serialize
 	 * @return how much information was written to the target buffer and
 	 *         whether this buffer is full
-	 * @throws IOException
 	 */
 	SerializationResult addRecord(T record) throws IOException;
 
@@ -82,7 +83,6 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	 * @param bufferBuilder the new target buffer to use
 	 * @return how much information was written to the target buffer and
 	 *         whether this buffer is full
-	 * @throws IOException
 	 */
 	SerializationResult setNextBufferBuilder(BufferBuilder bufferBuilder) throws IOException;
 
@@ -90,7 +90,7 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	 * Retrieves the current target buffer and sets its size to the actual
 	 * number of written bytes.
 	 *
-	 * After calling this method, a new target buffer is required to continue
+	 * <p>After calling this method, a new target buffer is required to continue
 	 * writing (see {@link #setNextBufferBuilder(BufferBuilder)}).
 	 *
 	 * @return the target buffer that was used

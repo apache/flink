@@ -56,10 +56,10 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	private final int numChannels;
 
-	/** {@link RecordSerializer} per outgoing channel */
+	/** {@link RecordSerializer} per outgoing channel. */
 	private final RecordSerializer<T>[] serializers;
 
-	private final Random RNG = new XORShiftRandom();
+	private final Random rng = new XORShiftRandom();
 
 	private Counter numBytesOut = new SimpleCounter();
 
@@ -74,7 +74,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 		this.numChannels = writer.getNumberOfSubpartitions();
 
-		/**
+		/*
 		 * The runtime exposes a channel abstraction for the produced results
 		 * (see {@link ChannelSelector}). Every channel has an independent
 		 * serializer.
@@ -102,10 +102,10 @@ public class RecordWriter<T extends IOReadableWritable> {
 	}
 
 	/**
-	 * This is used to send LatencyMarks to a random target channel
+	 * This is used to send LatencyMarks to a random target channel.
 	 */
 	public void randomEmit(T record) throws IOException, InterruptedException {
-		sendToTarget(record, RNG.nextInt(numChannels));
+		sendToTarget(record, rng.nextInt(numChannels));
 	}
 
 	private void sendToTarget(T record, int targetChannel) throws IOException, InterruptedException {
@@ -203,7 +203,6 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	/**
 	 * Sets the metric group for this RecordWriter.
-	 * @param metrics
      */
 	public void setMetricGroup(TaskIOMetricGroup metrics) {
 		numBytesOut = metrics.getNumBytesOutCounter();
@@ -213,7 +212,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 	 * Writes the buffer to the {@link ResultPartitionWriter} and removes the
 	 * buffer from the serializer state.
 	 *
-	 * Needs to be synchronized on the serializer!
+	 * <p><b>Needs to be synchronized on the serializer!</b>
 	 */
 	private void writeAndClearBuffer(
 			Buffer buffer,
