@@ -300,6 +300,19 @@ class DataStreamTest extends AbstractTestBase {
   }
 
   /**
+    * Tests setting the parallelism after a partitioning operation (e.g., broadcast, rescale)
+    * should fail.
+    */
+  @Test(expected = classOf[UnsupportedOperationException])
+  def testParallelismFailAfterPartitioning(): Unit = {
+    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+
+    val src = env.fromElements(new Tuple2[Long, Long](0L, 0L))
+    val map = src.map(_ => (0L, 0L))
+    map.broadcast.setParallelism(1)
+  }
+
+  /**
    * Tests whether resource gets set.
    */
   /*
