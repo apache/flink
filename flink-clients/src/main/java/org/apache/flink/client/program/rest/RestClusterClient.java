@@ -204,7 +204,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 		final JobResult jobExecutionResult;
 		try {
-			jobExecutionResult = waitForResource(
+			jobExecutionResult = pollResourceAsync(
 				() -> {
 					final JobMessageParameters messageParameters = new JobMessageParameters();
 					messageParameters.jobPathParameter.resolve(jobGraph.getJobID());
@@ -319,7 +319,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 		return responseFuture.thenCompose(savepointTriggerResponseBody -> {
 			final SavepointTriggerId savepointTriggerId = savepointTriggerResponseBody.getSavepointTriggerId();
-			return waitForSavepointCompletion(jobId, savepointTriggerId);
+			return pollSavepointAsync(jobId, savepointTriggerId);
 		}).thenApply(savepointInfo -> {
 			if (savepointInfo.getFailureCause() != null) {
 				throw new CompletionException(savepointInfo.getFailureCause());
@@ -328,10 +328,10 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		});
 	}
 
-	private CompletableFuture<SavepointInfo> waitForSavepointCompletion(
+	private CompletableFuture<SavepointInfo> pollSavepointAsync(
 			final JobID jobId,
 			final SavepointTriggerId savepointTriggerId) {
-		return waitForResource(() -> {
+		return pollResourceAsync(() -> {
 			final SavepointStatusHeaders savepointStatusHeaders = SavepointStatusHeaders.getInstance();
 			final SavepointStatusMessageParameters savepointStatusMessageParameters =
 				savepointStatusHeaders.getUnresolvedMessageParameters();
@@ -366,10 +366,10 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	}
 
 	/**
-	 * Polls a {@code AsynchronouslyCreatedResource} until its
-	 * {@link AsynchronouslyCreatedResource#queueStatus() QueueStatus} becomes
-	 * {@link QueueStatus.Id#COMPLETED COMPLETED}. This method returns a {@code CompletableFuture}
-	 * which completes with {@link AsynchronouslyCreatedResource#resource()}.
+	 * Creates a {@code CompletableFuture} that polls a {@code AsynchronouslyCreatedResource} until
+	 * its {@link AsynchronouslyCreatedResource#queueStatus() QueueStatus} becomes
+	 * {@link QueueStatus.Id#COMPLETED COMPLETED}. The future completes with the result of
+	 * {@link AsynchronouslyCreatedResource#resource()}.
 	 *
 	 * @param resourceFutureSupplier The operation which polls for the
 	 *                               {@code AsynchronouslyCreatedResource}.
@@ -377,12 +377,12 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	 * @param <A>                    The type of the {@code AsynchronouslyCreatedResource}.
 	 * @return A {@code CompletableFuture} delivering the resource.
 	 */
-	private <R, A extends AsynchronouslyCreatedResource<R>> CompletableFuture<R> waitForResource(
+	private <R, A extends AsynchronouslyCreatedResource<R>> CompletableFuture<R> pollResourceAsync(
 			final Supplier<CompletableFuture<A>> resourceFutureSupplier) {
-		return waitForResource(resourceFutureSupplier, new CompletableFuture<>(), 0);
+		return pollResourceAsync(resourceFutureSupplier, new CompletableFuture<>(), 0);
 	}
 
-	private <R, A extends AsynchronouslyCreatedResource<R>> CompletableFuture<R> waitForResource(
+	private <R, A extends AsynchronouslyCreatedResource<R>> CompletableFuture<R> pollResourceAsync(
 			final Supplier<CompletableFuture<A>> resourceFutureSupplier,
 			final CompletableFuture<R> resultFuture,
 			final long attempt) {
@@ -395,7 +395,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 					resultFuture.complete(asynchronouslyCreatedResource.resource());
 				} else {
 					retryExecutorService.schedule(() -> {
-						waitForResource(resourceFutureSupplier, resultFuture, attempt + 1);
+						pollResourceAsync(resourceFutureSupplier, resultFuture, attempt + 1);
 					}, waitStrategy.sleepTime(attempt), TimeUnit.MILLISECONDS);
 				}
 			}
