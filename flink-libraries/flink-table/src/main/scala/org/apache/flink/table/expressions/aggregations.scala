@@ -136,7 +136,7 @@ case class Count(child: Expression) extends Aggregation {
   override private[flink] def resultType = BasicTypeInfo.LONG_TYPE_INFO
 
   override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
-    new SqlCountAggFunction()
+    new SqlCountAggFunction("COUNT")
   }
 }
 
