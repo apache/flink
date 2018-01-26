@@ -109,7 +109,7 @@ public class RestClient {
 
 		bootstrap = new Bootstrap();
 		bootstrap
-			.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, configuration.getConnectionTimeout())
+			.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Math.toIntExact(configuration.getConnectionTimeout()))
 			.group(group)
 			.channel(NioSocketChannel.class)
 			.handler(initializer);

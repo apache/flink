@@ -48,7 +48,7 @@ public class RestClientTest extends TestLogger {
 	@Test
 	public void testConnectionTimeout() throws Exception {
 		final Configuration config = new Configuration();
-		config.setInteger(RestOptions.CONNECTION_TIMEOUT, 1);
+		config.setLong(RestOptions.CONNECTION_TIMEOUT, 1);
 		final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(config), Executors.directExecutor());
 		final String unroutableIp = "10.255.255.1";
 		try {

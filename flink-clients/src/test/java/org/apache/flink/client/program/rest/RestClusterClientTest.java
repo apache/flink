@@ -155,7 +155,7 @@ public class RestClusterClientTest extends TestLogger {
 		final Configuration config = new Configuration();
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
 		config.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 10);
-		config.setInteger(RestOptions.RETRY_DELAY, 0);
+		config.setLong(RestOptions.RETRY_DELAY, 0);
 
 		restServerEndpointConfiguration = RestServerEndpointConfiguration.fromConfiguration(config);
 		mockGatewayRetriever = () -> CompletableFuture.completedFuture(mockRestfulGateway);

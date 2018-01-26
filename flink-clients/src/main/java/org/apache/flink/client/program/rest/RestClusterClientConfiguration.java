@@ -33,17 +33,17 @@ public final class RestClusterClientConfiguration {
 
 	private final RestClientConfiguration restClientConfiguration;
 
-	private final int awaitLeaderTimeout;
+	private final long awaitLeaderTimeout;
 
 	private final int retryMaxAttempts;
 
-	private final int retryDelay;
+	private final long retryDelay;
 
 	private RestClusterClientConfiguration(
 			final RestClientConfiguration endpointConfiguration,
-			final int awaitLeaderTimeout,
+			final long awaitLeaderTimeout,
 			final int retryMaxAttempts,
-			final int retryDelay) {
+			final long retryDelay) {
 		checkArgument(awaitLeaderTimeout >= 0, "awaitLeaderTimeout must be equal to or greater than 0");
 		checkArgument(retryMaxAttempts >= 0, "retryMaxAttempts must be equal to or greater than 0");
 		checkArgument(retryDelay >= 0, "retryDelay must be equal to or greater than 0");
@@ -61,7 +61,7 @@ public final class RestClusterClientConfiguration {
 	/**
 	 * @see RestOptions#AWAIT_LEADER_TIMEOUT
 	 */
-	public int getAwaitLeaderTimeout() {
+	public long getAwaitLeaderTimeout() {
 		return awaitLeaderTimeout;
 	}
 
@@ -75,16 +75,16 @@ public final class RestClusterClientConfiguration {
 	/**
 	 * @see RestOptions#RETRY_DELAY
 	 */
-	public int getRetryDelay() {
+	public long getRetryDelay() {
 		return retryDelay;
 	}
 
 	public static RestClusterClientConfiguration fromConfiguration(Configuration config) throws ConfigurationException {
 		RestClientConfiguration restClientConfiguration = RestClientConfiguration.fromConfiguration(config);
 
-		final int awaitLeaderTimeout = config.getInteger(RestOptions.AWAIT_LEADER_TIMEOUT);
+		final long awaitLeaderTimeout = config.getLong(RestOptions.AWAIT_LEADER_TIMEOUT);
 		final int retryMaxAttempts = config.getInteger(RestOptions.RETRY_MAX_ATTEMPTS);
-		final int retryDelay = config.getInteger(RestOptions.RETRY_DELAY);
+		final long retryDelay = config.getLong(RestOptions.RETRY_DELAY);
 
 		return new RestClusterClientConfiguration(restClientConfiguration, awaitLeaderTimeout, retryMaxAttempts, retryDelay);
 	}

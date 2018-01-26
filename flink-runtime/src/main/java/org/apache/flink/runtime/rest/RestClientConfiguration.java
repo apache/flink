@@ -37,9 +37,9 @@ public final class RestClientConfiguration {
 	@Nullable
 	private final SSLEngine sslEngine;
 
-	private final int connectionTimeout;
+	private final long connectionTimeout;
 
-	private RestClientConfiguration(@Nullable SSLEngine sslEngine, final int connectionTimeout) {
+	private RestClientConfiguration(@Nullable SSLEngine sslEngine, final long connectionTimeout) {
 		this.sslEngine = sslEngine;
 		this.connectionTimeout = connectionTimeout;
 	}
@@ -57,7 +57,7 @@ public final class RestClientConfiguration {
 	/**
 	 * @see RestOptions#CONNECTION_TIMEOUT
 	 */
-	public int getConnectionTimeout() {
+	public long getConnectionTimeout() {
 		return connectionTimeout;
 	}
 
@@ -87,7 +87,7 @@ public final class RestClientConfiguration {
 			}
 		}
 
-		final int connectionTimeout = config.getInteger(RestOptions.CONNECTION_TIMEOUT);
+		final long connectionTimeout = config.getLong(RestOptions.CONNECTION_TIMEOUT);
 
 		return new RestClientConfiguration(sslEngine, connectionTimeout);
 	}
