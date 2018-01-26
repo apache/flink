@@ -16,29 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.testutils;
-
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.CheckpointedStateScope;
-
-import java.util.function.Supplier;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+package org.apache.flink.runtime.state;
 
 /**
- * A bridge between factory lambdas (like {@link Supplier} and the
- * CheckpointStreamFactory class.
+ * The scope for a chunk of checkpointed state. Defines whether state is owned by one
+ * checkpoint, or whether it is shared by multiple checkpoints.
+ *
+ * <p>Different checkpoint storage implementations may treat checkpointed state of different
+ * scopes differently, for example put it into different folders or tables.
  */
-public class TestCheckpointStreamFactory implements CheckpointStreamFactory {
+public enum CheckpointedStateScope {
 
-	private final Supplier<CheckpointStateOutputStream> supplier;
+	/**
+	 * Exclusive state belongs exclusively to one specific checkpoint / savepoint.
+	 */
+	EXCLUSIVE,
 
-	public TestCheckpointStreamFactory(Supplier<CheckpointStateOutputStream> supplier) {
-		this.supplier = checkNotNull(supplier);
-	}
-
-	@Override
-	public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) {
-		return supplier.get();
-	}
+	/**
+	 * Shared state may belong to more than one checkpoint.
+	 *
+	 * <p>Shared state is typically used for incremental or differential checkpointing
+	 * methods, where only deltas are written, and state from prior checkpoints is
+	 * referenced in newer checkpoints as well.
+	 */
+	SHARED
 }

@@ -71,6 +71,12 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 	}
 
 	// ------------------------------------------------------------------------
+
+	public Path getCheckpointsDirectory() {
+		return checkpointsDirectory;
+	}
+
+	// ------------------------------------------------------------------------
 	//  CheckpointStorage implementation
 	// ------------------------------------------------------------------------
 
