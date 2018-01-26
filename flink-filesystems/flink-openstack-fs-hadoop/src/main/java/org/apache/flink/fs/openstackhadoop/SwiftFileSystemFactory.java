@@ -19,6 +19,7 @@
 package org.apache.flink.fs.openstackhadoop;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
@@ -28,6 +29,7 @@ import org.apache.hadoop.fs.swift.snative.SwiftNativeFileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 
@@ -73,16 +75,17 @@ public class SwiftFileSystemFactory implements FileSystemFactory {
 
 					// hadoop.tmp.dir needs to be defined because it is used as buffer directory
 					if (hadoopConfig.get("hadoop.tmp.dir") == null) {
-						String tmpDir = System.getProperty("java.io.tmpdir") + "/" + "hadoop-" + System.getProperty("user.name");
-						hadoopConfig.set("hadoop.tmp.dir", tmpDir);
+						String[] tmpDirPaths = ConfigurationUtils.parseTempDirectories(flinkConfig);
+						File tmpDir = new File(tmpDirPaths[0], "hadoop-" + System.getProperty("user.name"));
+						hadoopConfig.set("hadoop.tmp.dir", tmpDir.getPath());
 					}
 
-					// add additional config entries from the Flink config to the Presto Hadoop config
+					// add additional config entries from the Flink config to the Hadoop config
 					for (String key : flinkConfig.keySet()) {
 						if (key.startsWith(CONFIG_PREFIX)) {
 							String value = flinkConfig.getString(key, null);
 							String newKey = "fs.swift." + key.substring(CONFIG_PREFIX.length());
-							hadoopConfig.set(newKey, flinkConfig.getString(key, null));
+							hadoopConfig.set(newKey, value);
 
 							LOG.debug("Adding Flink config entry for {} as {}={} to Hadoop config for " +
 									"Swift native File System", key, newKey, value);

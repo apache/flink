@@ -159,7 +159,7 @@ public class HadoopSwiftFileSystemITCase extends TestLogger {
 			// create directory
 			assertTrue(fs.mkdirs(directory));
 
-			// seems the presto file system does not assume existence of empty directories in S3
+			// seems the file system does not assume existence of empty directories
 			assertTrue(fs.exists(directory));
 
 			// directory empty
