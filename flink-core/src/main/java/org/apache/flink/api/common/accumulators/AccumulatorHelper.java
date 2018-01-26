@@ -28,13 +28,16 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Helper functions for the interaction with {@link Accumulator}.
+ */
 @Internal
 public class AccumulatorHelper {
 
 	/**
 	 * Merge two collections of accumulators. The second will be merged into the
 	 * first.
-	 * 
+	 *
 	 * @param target
 	 *            The collection of accumulators that will be updated
 	 * @param toMerge
@@ -59,7 +62,7 @@ public class AccumulatorHelper {
 	}
 
 	/**
-	 * Workaround method for type safety
+	 * Workaround method for type safety.
 	 */
 	private static <V, R extends Serializable> void mergeSingle(Accumulator<?, ?> target,
 															Accumulator<?, ?> toMerge) {
@@ -74,14 +77,13 @@ public class AccumulatorHelper {
 
 	/**
 	 * Compare both classes and throw {@link UnsupportedOperationException} if
-	 * they differ
+	 * they differ.
 	 */
 	@SuppressWarnings("rawtypes")
-	public static void compareAccumulatorTypes(Object name,
-												Class<? extends Accumulator> first,
-												Class<? extends Accumulator> second)
-			throws UnsupportedOperationException
-	{
+	public static void compareAccumulatorTypes(
+			Object name,
+			Class<? extends Accumulator> first,
+			Class<? extends Accumulator> second) throws UnsupportedOperationException {
 		if (first == null || second == null) {
 			throw new NullPointerException();
 		}
@@ -102,7 +104,7 @@ public class AccumulatorHelper {
 
 	/**
 	 * Transform the Map with accumulators into a Map containing only the
-	 * results
+	 * results.
 	 */
 	public static Map<String, Object> toResultMap(Map<String, Accumulator<?, ?>> accumulators) {
 		Map<String, Object> resultMap = new HashMap<String, Object>();
@@ -134,7 +136,7 @@ public class AccumulatorHelper {
 	public static Map<String, Accumulator<?, ?>> copy(Map<String, Accumulator<?, ?>> accumulators) {
 		Map<String, Accumulator<?, ?>> result = new HashMap<String, Accumulator<?, ?>>();
 
-		for(Map.Entry<String, Accumulator<?, ?>> entry: accumulators.entrySet()){
+		for (Map.Entry<String, Accumulator<?, ?>> entry: accumulators.entrySet()){
 			result.put(entry.getKey(), entry.getValue().clone());
 		}
 
@@ -172,5 +174,4 @@ public class AccumulatorHelper {
 
 		return accumulators;
 	}
-
 }

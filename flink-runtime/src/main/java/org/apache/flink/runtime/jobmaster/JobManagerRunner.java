@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
@@ -251,30 +252,14 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	 * Job completion notification triggered by JobManager.
 	 */
 	@Override
-	public void jobFinished(JobResult result) {
+	public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
 		try {
 			unregisterJobFromHighAvailability();
 			shutdownInternally();
 		}
 		finally {
 			if (toNotifyOnComplete != null) {
-				toNotifyOnComplete.jobFinished(result);
-			}
-		}
-	}
-
-	/**
-	 * Job completion notification triggered by JobManager.
-	 */
-	@Override
-	public void jobFailed(JobResult result) {
-		try {
-			unregisterJobFromHighAvailability();
-			shutdownInternally();
-		}
-		finally {
-			if (toNotifyOnComplete != null) {
-				toNotifyOnComplete.jobFailed(result);
+				toNotifyOnComplete.jobReachedGloballyTerminalState(executionGraph);
 			}
 		}
 	}

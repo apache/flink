@@ -34,7 +34,6 @@ public class ErrorInfo implements Serializable {
 	private final SerializedThrowable exception;
 
 	private final long timestamp;
-
 	public ErrorInfo(Throwable exception, long timestamp) {
 		Preconditions.checkNotNull(exception);
 		Preconditions.checkArgument(timestamp > 0);
@@ -48,7 +47,7 @@ public class ErrorInfo implements Serializable {
 	 * Returns the serialized form of the original exception.
 	 */
 	public SerializedThrowable getException() {
-		return this.exception;
+		return exception;
 	}
 
 	/**

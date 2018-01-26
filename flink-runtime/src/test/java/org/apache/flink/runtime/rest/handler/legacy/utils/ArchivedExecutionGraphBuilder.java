@@ -117,9 +117,13 @@ public class ArchivedExecutionGraphBuilder {
 	}
 
 	public ArchivedExecutionGraph build() {
-		Preconditions.checkNotNull(tasks, "Tasks must not be null.");
 		JobID jobID = this.jobID != null ? this.jobID : new JobID();
 		String jobName = this.jobName != null ? this.jobName : "job_" + RANDOM.nextInt();
+
+		if (tasks == null) {
+			tasks = Collections.emptyMap();
+		}
+
 		return new ArchivedExecutionGraph(
 			jobID,
 			jobName,

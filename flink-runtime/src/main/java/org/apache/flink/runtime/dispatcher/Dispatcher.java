@@ -27,7 +27,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
@@ -46,6 +46,7 @@ import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.JobExecutionResultGoneException;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -101,6 +102,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	private final JobExecutionResultCache jobExecutionResultCache = new JobExecutionResultCache();
 
+	private final ArchivedExecutionGraphStore archivedExecutionGraphStore;
+
 	@Nullable
 	protected final String restAddress;
 
@@ -113,6 +116,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
+			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			FatalErrorHandler fatalErrorHandler,
 			@Nullable String restAddress) throws Exception {
 		super(rpcService, endpointId);
@@ -135,6 +139,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		leaderElectionService = highAvailabilityServices.getDispatcherLeaderElectionService();
 
 		this.restAddress = restAddress;
+
+		this.archivedExecutionGraphStore = Preconditions.checkNotNull(archivedExecutionGraphStore);
 	}
 
 	//------------------------------------------------------
@@ -306,10 +312,15 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 		CompletableFuture<Collection<JobStatus>> allJobsFuture = FutureUtils.combineAll(jobStatus);
 
+		final JobsOverview completedJobsOverview = archivedExecutionGraphStore.getStoredJobsOverview();
+
 		return allJobsFuture.thenCombine(
 			taskManagerOverviewFuture,
-			(Collection<JobStatus> allJobsStatus, ResourceOverview resourceOverview) ->
-				ClusterOverview.create(resourceOverview, allJobsStatus));
+			(Collection<JobStatus> runningJobsStatus, ResourceOverview resourceOverview) -> {
+				final JobsOverview allJobsOverview = JobsOverview.create(runningJobsStatus).combine(completedJobsOverview);
+				return new ClusterOverview(resourceOverview, allJobsOverview);
+			});
+
 	}
 
 	@Override
@@ -324,19 +335,33 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 		CompletableFuture<Collection<JobDetails>> combinedJobDetails = FutureUtils.combineAll(individualJobDetails);
 
+		final Collection<JobDetails> completedJobDetails = archivedExecutionGraphStore.getAvailableJobDetails();
+
 		return combinedJobDetails.thenApply(
-			(Collection<JobDetails> jobDetails) ->
-				new MultipleJobsDetails(jobDetails));
+			(Collection<JobDetails> runningJobDetails) -> {
+				final Collection<JobDetails> allJobDetails = new ArrayList<>(completedJobDetails.size() + runningJobDetails.size());
+				allJobDetails.addAll(runningJobDetails);
+				allJobDetails.addAll(completedJobDetails);
+				return new MultipleJobsDetails(allJobDetails);
+			});
+
 	}
 
 	@Override
-	public CompletableFuture<AccessExecutionGraph> requestJob(JobID jobId, Time timeout) {
+	public CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, Time timeout) {
 		final JobManagerRunner jobManagerRunner = jobManagerRunners.get(jobId);
 
 		if (jobManagerRunner == null) {
-			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
+			final ArchivedExecutionGraph serializableExecutionGraph = archivedExecutionGraphStore.get(jobId);
+
+			// check whether it is a completed job
+			if (serializableExecutionGraph == null) {
+				return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
+			} else {
+				return CompletableFuture.completedFuture(serializableExecutionGraph);
+			}
 		} else {
-			return jobManagerRunner.getJobManagerGateway().requestArchivedExecutionGraph(timeout);
+			return jobManagerRunner.getJobManagerGateway().requestJob(jobId, timeout);
 		}
 	}
 
@@ -485,6 +510,33 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		fatalErrorHandler.onFatalError(throwable);
 	}
 
+	private void jobReachedGloballyTerminalState(ArchivedExecutionGraph archivedExecutionGraph) {
+		Preconditions.checkArgument(
+			archivedExecutionGraph.getState().isGloballyTerminalState(),
+			"Job " + archivedExecutionGraph.getJobID() + " is in state " +
+				archivedExecutionGraph.getState() + " which is not globally terminal.");
+		final JobResult jobResult = JobResult.createFrom(archivedExecutionGraph);
+
+		jobExecutionResultCache.put(jobResult);
+		final JobID jobId = archivedExecutionGraph.getJobID();
+
+		try {
+			archivedExecutionGraphStore.put(archivedExecutionGraph);
+		} catch (IOException e) {
+			log.info(
+				"Could not store completed job {}({}).",
+				archivedExecutionGraph.getJobName(),
+				archivedExecutionGraph.getJobID(),
+				e);
+		}
+
+		try {
+			removeJob(jobId, true);
+		} catch (Exception e) {
+			log.warn("Could not properly remove job {} from the dispatcher.", jobId, e);
+		}
+	}
+
 	protected abstract JobManagerRunner createJobManagerRunner(
 		ResourceID resourceId,
 		JobGraph jobGraph,
@@ -607,31 +659,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		}
 
 		@Override
-		public void jobFinished(JobResult result) {
-			log.info("Job {} finished.", jobId);
+		public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
+			log.info("Job {} reached globally terminal state {}.", jobId, executionGraph.getState());
 
-			runAsync(() -> {
-				jobExecutionResultCache.put(result);
-				try {
-					removeJob(jobId, true);
-				} catch (Exception e) {
-					log.warn("Could not properly remove job {} from the dispatcher.", jobId, e);
-				}
-			});
-		}
-
-		@Override
-		public void jobFailed(JobResult result) {
-			log.info("Job {} failed.", jobId);
-
-			runAsync(() -> {
-				jobExecutionResultCache.put(result);
-				try {
-					removeJob(jobId, true);
-				} catch (Exception e) {
-					log.warn("Could not properly remove job {} from the dispatcher.", jobId, e);
-				}
-			});
+			runAsync(() -> Dispatcher.this.jobReachedGloballyTerminalState(executionGraph));
 		}
 
 		@Override
