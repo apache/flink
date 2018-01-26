@@ -88,7 +88,7 @@ under the License.
 		<dependency>
 			<groupId>com.netflix.fenzo</groupId>
 			<artifactId>fenzo-core</artifactId>
-			<version>0.9.3</version>
+			<version>0.10.1</version>
 			<exclusions>
 				<!-- exclude mesos here to override -->
 				<exclusion>
