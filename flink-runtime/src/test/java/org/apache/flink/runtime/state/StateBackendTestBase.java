@@ -114,9 +114,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-
 /**
- * Generic tests for the partitioned state part of {@link AbstractStateBackend}.
+ * Tests for the {@link KeyedStateBackend} and {@link OperatorStateBackend} as produced
+ * by various {@link StateBackend}s.
  */
 @SuppressWarnings("serial")
 public abstract class StateBackendTestBase<B extends AbstractStateBackend> extends TestLogger {

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
@@ -37,6 +36,7 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nullable;
 
 import java.io.EOFException;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Random;
@@ -48,12 +48,24 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link AbstractFileStateBackend}.
+ * Test base for file-system-based checkoint storage, such as the
+ * {@link org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage} and the
+ * {@link FsCheckpointStorage}.
  */
-public class AbstractFileStateBackendTest {
+public abstract class AbstractFileCheckpointStorageTestBase {
 
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
+
+	// ------------------------------------------------------------------------
+	//  factories for the actual state storage to be tested
+	// ------------------------------------------------------------------------
+
+	protected abstract CheckpointStorage createCheckpointStorage(Path checkpointDir) throws Exception;
+
+	protected abstract CheckpointStorage createCheckpointStorageWithSavepointDir(
+			Path checkpointDir,
+			Path savepointDir) throws Exception;
 
 	// ------------------------------------------------------------------------
 	//  pointers
@@ -62,15 +74,14 @@ public class AbstractFileStateBackendTest {
 	@Test
 	public void testPointerPathResolution() throws Exception {
 		final FileSystem fs = FileSystem.getLocalFileSystem();
-
-		final Path checkpointDir = new Path(tmp.newFolder().toURI());
-		final Path metadataFile = new Path(checkpointDir, AbstractFsCheckpointStorage.METADATA_FILE_NAME);
+		final Path metadataFile = new Path(tmp.newFolder().getAbsolutePath(), AbstractFsCheckpointStorage.METADATA_FILE_NAME);
 
 		final String pointer1 = metadataFile.toString();
 		final String pointer2 = metadataFile.getParent().toString();
 		final String pointer3 = metadataFile.getParent().toString() + '/';
 
-		final FsStateBackend backend = new FsStateBackend(checkpointDir);
+		// create the storage for some random checkpoint directory
+		final CheckpointStorage storage = createCheckpointStorage(randomTempPath());
 
 		final byte[] data = new byte[23686];
 		new Random().nextBytes(data);
@@ -78,9 +89,9 @@ public class AbstractFileStateBackendTest {
 			out.write(data);
 		}
 
-		StreamStateHandle handle1 = backend.resolveCheckpoint(pointer1);
-		StreamStateHandle handle2 = backend.resolveCheckpoint(pointer2);
-		StreamStateHandle handle3 = backend.resolveCheckpoint(pointer3);
+		StreamStateHandle handle1 = storage.resolveCheckpoint(pointer1);
+		StreamStateHandle handle2 = storage.resolveCheckpoint(pointer2);
+		StreamStateHandle handle3 = storage.resolveCheckpoint(pointer3);
 
 		assertNotNull(handle1);
 		assertNotNull(handle2);
@@ -93,30 +104,30 @@ public class AbstractFileStateBackendTest {
 
 	@Test
 	public void testFailingPointerPathResolution() throws Exception {
-		final Path checkpointDir = new Path(tmp.newFolder().toURI());
-		final FsStateBackend backend = new FsStateBackend(checkpointDir);
+		// create the storage for some random checkpoint directory
+		final CheckpointStorage storage = createCheckpointStorage(randomTempPath());
 
 		// null value
 		try {
-			backend.resolveCheckpoint(null);
+			storage.resolveCheckpoint(null);
 			fail("expected exception");
 		} catch (NullPointerException ignored) {}
 
 		// empty string
 		try {
-			backend.resolveCheckpoint("");
+			storage.resolveCheckpoint("");
 			fail("expected exception");
 		} catch (IllegalArgumentException ignored) {}
 
 		// not a file path at all
 		try {
-			backend.resolveCheckpoint("this-is_not/a#filepath.at.all");
+			storage.resolveCheckpoint("this-is_not/a#filepath.at.all");
 			fail("expected exception");
 		} catch (IOException ignored) {}
 
 		// non-existing file
 		try {
-			backend.resolveCheckpoint(tmp.newFile().toURI().toString() + "_not_existing");
+			storage.resolveCheckpoint(tmp.newFile().toURI().toString() + "_not_existing");
 			fail("expected exception");
 		} catch (IOException ignored) {}
 	}
@@ -134,15 +145,10 @@ public class AbstractFileStateBackendTest {
 		final FileSystem fs = FileSystem.getLocalFileSystem();
 		final Path checkpointDir = new Path(tmp.newFolder().toURI());
 
-		final FsStateBackend backend = new FsStateBackend(checkpointDir);
-
-		final JobID jobId1 = new JobID();
-		final JobID jobId2 = new JobID();
-
 		final long checkpointId = 177;
 
-		final CheckpointStorage storage1 = backend.createCheckpointStorage(jobId1);
-		final CheckpointStorage storage2 = backend.createCheckpointStorage(jobId2);
+		final CheckpointStorage storage1 = createCheckpointStorage(checkpointDir);
+		final CheckpointStorage storage2 = createCheckpointStorage(checkpointDir);
 
 		final CheckpointStorageLocation loc1 = storage1.initializeLocationForCheckpoint(checkpointId);
 		final CheckpointStorageLocation loc2 = storage2.initializeLocationForCheckpoint(checkpointId);
@@ -164,33 +170,32 @@ public class AbstractFileStateBackendTest {
 
 		// check that this went to a file, but in a nested directory structure
 
-		// one directory per job
+		// one directory per storage
 		FileStatus[] files = fs.listStatus(checkpointDir);
 		assertEquals(2, files.length);
 
-		// in each per-job directory, one for the checkpoint
+		// in each per-storage directory, one for the checkpoint
 		FileStatus[] job1Files = fs.listStatus(files[0].getPath());
 		FileStatus[] job2Files = fs.listStatus(files[1].getPath());
-		assertEquals(3, job1Files.length);
-		assertEquals(3, job2Files.length);
+		assertTrue(job1Files.length >= 1);
+		assertTrue(job2Files.length >= 1);
 
 		assertTrue(fs.exists(new Path(result1, AbstractFsCheckpointStorage.METADATA_FILE_NAME)));
 		assertTrue(fs.exists(new Path(result2, AbstractFsCheckpointStorage.METADATA_FILE_NAME)));
 
-		validateContents(backend.resolveCheckpoint(result1), data1);
-		validateContents(backend.resolveCheckpoint(result2), data2);
+		// check that both storages can resolve each others contents
+		validateContents(storage1.resolveCheckpoint(result1), data1);
+		validateContents(storage1.resolveCheckpoint(result2), data2);
+		validateContents(storage2.resolveCheckpoint(result1), data1);
+		validateContents(storage2.resolveCheckpoint(result2), data2);
 	}
 
 	@Test
 	public void writeToAlreadyExistingCheckpointFails() throws Exception {
-		final Path checkpointDir = new Path(tmp.newFolder().toURI());
-		final FsStateBackend backend = new FsStateBackend(checkpointDir);
-
-		final JobID jobId = new JobID();
 		final byte[] data = {8, 8, 4, 5, 2, 6, 3};
 		final long checkpointId = 177;
 
-		final CheckpointStorage storage = backend.createCheckpointStorage(jobId);
+		final CheckpointStorage storage = createCheckpointStorage(randomTempPath());
 		final CheckpointStorageLocation loc = storage.initializeLocationForCheckpoint(checkpointId);
 
 		// write to the metadata file for the checkpoint
@@ -214,14 +219,14 @@ public class AbstractFileStateBackendTest {
 
 	@Test
 	public void testSavepointPathConfiguredAndTarget() throws Exception {
-		final Path savepointDir = Path.fromLocalFile(tmp.newFolder());
-		final Path customDir = Path.fromLocalFile(tmp.newFolder());
+		final Path savepointDir = randomTempPath();
+		final Path customDir = randomTempPath();
 		testSavepoint(savepointDir, customDir, customDir);
 	}
 
 	@Test
 	public void testSavepointPathConfiguredNoTarget() throws Exception {
-		final Path savepointDir = Path.fromLocalFile(tmp.newFolder());
+		final Path savepointDir = randomTempPath();
 		testSavepoint(savepointDir, null, savepointDir);
 	}
 
@@ -233,9 +238,7 @@ public class AbstractFileStateBackendTest {
 
 	@Test
 	public void testNoSavepointPathConfiguredNoTarget() throws Exception {
-		final Path checkpointDir = Path.fromLocalFile(tmp.newFolder());
-		final CheckpointStorage storage = new FsStateBackend(checkpointDir.toUri(), null)
-				.createCheckpointStorage(new JobID());
+		final CheckpointStorage storage = createCheckpointStorage(randomTempPath());
 
 		try {
 			storage.initializeLocationForSavepoint(1337, null);
@@ -249,21 +252,14 @@ public class AbstractFileStateBackendTest {
 			@Nullable Path customDir,
 			Path expectedParent) throws Exception {
 
-		final JobID jobId = new JobID();
-
-		final FsCheckpointStorage storage = (FsCheckpointStorage)
-				new FsStateBackend(tmp.newFolder().toURI(), savepointDir == null ? null : savepointDir.toUri())
-				.createCheckpointStorage(jobId);
+		final CheckpointStorage storage = savepointDir == null ?
+				createCheckpointStorage(randomTempPath()) :
+				createCheckpointStorageWithSavepointDir(randomTempPath(), savepointDir);
 
 		final String customLocation = customDir == null ? null : customDir.toString();
 
-		final FsCheckpointStorageLocation savepointLocation = (FsCheckpointStorageLocation)
+		final CheckpointStorageLocation savepointLocation =
 				storage.initializeLocationForSavepoint(52452L, customLocation);
-
-		// all state types should be in the expected location
-		assertParent(expectedParent, savepointLocation.getCheckpointDirectory());
-		assertParent(expectedParent, savepointLocation.getSharedStateDirectory());
-		assertParent(expectedParent, savepointLocation.getTaskOwnedStateDirectory());
 
 		final byte[] data = {77, 66, 55, 99, 88};
 
@@ -273,11 +269,24 @@ public class AbstractFileStateBackendTest {
 			handle = out.closeAndGetHandle();
 		}
 		validateContents(handle, data);
+
+		// validate that the correct directory was used
+		FileStateHandle fileStateHandle = (FileStateHandle) handle;
+
+		// we need to recreate that path in the same way as the "expected path" (via File and URI) to make
+		// sure the either both use '/' suffixes, or neither uses them (a bit of an annoying ambiguity)
+		Path usedSavepointDir = new Path(new File(fileStateHandle.getFilePath().getParent().getParent().getPath()).toURI());
+
+		assertEquals(expectedParent, usedSavepointDir);
 	}
 
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------
+
+	public Path randomTempPath() throws IOException {
+		return Path.fromLocalFile(tmp.newFolder());
+	}
 
 	private static void validateContents(StreamStateHandle handle, byte[] expected) throws IOException {
 		try (FSDataInputStream in = handle.openInputStream()) {
@@ -300,10 +309,5 @@ public class AbstractFileStateBackendTest {
 		}
 
 		assertArrayEquals(expected, buffer);
-	}
-
-	private void assertParent(Path parent, Path child) {
-		Path path = new Path(parent, child.getName());
-		assertEquals(path, child);
 	}
 }

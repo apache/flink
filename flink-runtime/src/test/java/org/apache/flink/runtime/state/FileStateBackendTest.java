@@ -27,6 +27,10 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 
+/**
+ * Tests for the keyed state backend and operator state backend, as created by the
+ * {@link FsStateBackend}.
+ */
 public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
 	@Rule

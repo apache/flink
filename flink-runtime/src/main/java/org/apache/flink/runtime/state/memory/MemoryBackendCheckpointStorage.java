@@ -89,6 +89,17 @@ public class MemoryBackendCheckpointStorage extends AbstractFsCheckpointStorage 
 	}
 
 	// ------------------------------------------------------------------------
+	//  Properties
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Gets the size (in bytes) that a individual chunk of state may have at most.
+	 */
+	public int getMaxStateSize() {
+		return maxStateSize;
+	}
+
+	// ------------------------------------------------------------------------
 	//  Checkpoint Storage
 	// ------------------------------------------------------------------------
 
