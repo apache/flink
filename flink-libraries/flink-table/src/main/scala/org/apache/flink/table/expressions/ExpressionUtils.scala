@@ -22,15 +22,11 @@ import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float =
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 
-import org.apache.calcite.avatica.util.TimeUnit
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rex.{RexBuilder, RexNode}
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.streaming.api.windowing.time.{Time => FlinkTime}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
-import org.apache.flink.streaming.api.windowing.time.{Time => FlinkTime}
 
 object ExpressionUtils {
 
@@ -137,57 +133,4 @@ object ExpressionUtils {
         }
     }
   }
-
-  // ----------------------------------------------------------------------------------------------
-  // RexNode conversion functions (see org.apache.calcite.sql2rel.StandardConvertletTable)
-  // ----------------------------------------------------------------------------------------------
-
-  /**
-    * Copy of [[org.apache.calcite.sql2rel.StandardConvertletTable#getFactor()]].
-    */
-  private[flink] def getFactor(unit: TimeUnit): JBigDecimal = unit match {
-    case TimeUnit.DAY => java.math.BigDecimal.ONE
-    case TimeUnit.HOUR => TimeUnit.DAY.multiplier
-    case TimeUnit.MINUTE => TimeUnit.HOUR.multiplier
-    case TimeUnit.SECOND => TimeUnit.MINUTE.multiplier
-    case TimeUnit.YEAR => java.math.BigDecimal.ONE
-    case TimeUnit.MONTH => TimeUnit.YEAR.multiplier
-    case _ => throw new IllegalArgumentException("Invalid start unit.")
-  }
-
-  /**
-    * Copy of [[org.apache.calcite.sql2rel.StandardConvertletTable#mod()]].
-    */
-  private[flink] def mod(
-      rexBuilder: RexBuilder,
-      resType: RelDataType,
-      res: RexNode,
-      value: JBigDecimal)
-    : RexNode = {
-    if (value == JBigDecimal.ONE) return res
-    rexBuilder.makeCall(SqlStdOperatorTable.MOD, res, rexBuilder.makeExactLiteral(value, resType))
-  }
-
-  /**
-    * Copy of [[org.apache.calcite.sql2rel.StandardConvertletTable#divide()]].
-    */
-  private[flink] def divide(rexBuilder: RexBuilder, res: RexNode, value: JBigDecimal): RexNode = {
-    if (value == JBigDecimal.ONE) return res
-    if (value.compareTo(JBigDecimal.ONE) < 0 && value.signum == 1) {
-      try {
-        val reciprocal = JBigDecimal.ONE.divide(value, JBigDecimal.ROUND_UNNECESSARY)
-        return rexBuilder.makeCall(
-          SqlStdOperatorTable.MULTIPLY,
-          res,
-          rexBuilder.makeExactLiteral(reciprocal))
-      } catch {
-        case e: ArithmeticException => // ignore
-      }
-    }
-    rexBuilder.makeCall(
-      SqlStdOperatorTable.DIVIDE_INTEGER,
-      res,
-      rexBuilder.makeExactLiteral(value))
-  }
-
 }

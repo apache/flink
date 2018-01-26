@@ -235,8 +235,6 @@ class CalcTest extends TableTestBase {
     util.verifyTable(resultTable, expected)
   }
 
-  // As stated in https://issues.apache.org/jira/browse/CALCITE-1584, Calcite planner doesn't
-  // promise to retain field names.
   @Test
   def testSelectFromGroupedTableWithNonTrivialKey(): Unit = {
     val util = batchTestUtil()
@@ -251,6 +249,8 @@ class CalcTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(0),
+            // As stated in https://issues.apache.org/jira/browse/CALCITE-1584
+            // Calcite planner doesn't promise to retain field names.
             term("select", "a", "c", "UPPER(c) AS $f2")
           ),
           term("groupBy", "$f2"),
@@ -262,8 +262,6 @@ class CalcTest extends TableTestBase {
     util.verifyTable(resultTable, expected)
   }
 
-  // As stated in https://issues.apache.org/jira/browse/CALCITE-1584, Calcite planner doesn't
-  // promise to retain field names.
   @Test
   def testSelectFromGroupedTableWithFunctionKey(): Unit = {
     val util = batchTestUtil()
@@ -278,6 +276,8 @@ class CalcTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(0),
+            // As stated in https://issues.apache.org/jira/browse/CALCITE-1584
+            // Calcite planner doesn't promise to retain field names.
             term("select", "a", "c", "MyHashCode$(c) AS $f2")
           ),
           term("groupBy", "$f2"),

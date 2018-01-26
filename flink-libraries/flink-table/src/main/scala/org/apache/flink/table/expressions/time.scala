@@ -18,16 +18,13 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.avatica.util.{TimeUnit, TimeUnitRange}
+import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlFunctionCategory
-import org.apache.calcite.sql.`type`.{SqlOperandTypeChecker, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.calcite.FlinkRelBuilder
-import org.apache.flink.table.expressions.ExpressionUtils.{divide, getFactor, mod}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
@@ -75,33 +72,11 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
   override def toString: String = s"($temporal).extract($timeIntervalUnit)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    // get wrapped Calcite unit
-    val timeUnitRange = timeIntervalUnit
-      .asInstanceOf[SymbolExpression]
-      .symbol
-      .enum
-      .asInstanceOf[TimeUnitRange]
-
-    relBuilder.getRexBuilder
-    // convert RexNodes
-    convertFunction(
-      timeIntervalUnit.toRexNode,
-      temporal.toRexNode,
-      relBuilder.asInstanceOf[FlinkRelBuilder])
-  }
-
-  // Source: [[org.apache.calcite.sql2rel.StandardConvertletTable#convertFunction()]]
-  private def convertFunction(timeUnitRangeRexNode: RexNode,
-                              temporal: RexNode,
-                              relBuilder: FlinkRelBuilder): RexNode = {
-    val rexBuilder = relBuilder.getRexBuilder
-    val resultType = relBuilder
-      .getTypeFactory()
-      .createTypeFromTypeInfo(LONG_TYPE_INFO, isNullable = true)
-    rexBuilder.makeCall(
-      resultType,
-      SqlStdOperatorTable.EXTRACT,
-      Seq(timeUnitRangeRexNode, temporal))
+    relBuilder
+      .getRexBuilder
+      .makeCall(
+        SqlStdOperatorTable.EXTRACT,
+        Seq(timeIntervalUnit.toRexNode, temporal.toRexNode))
   }
 }
 

@@ -21,32 +21,29 @@ package org.apache.flink.table.codegen.calls
 import java.lang.reflect.Method
 
 import org.apache.calcite.avatica.util.{TimeUnit, TimeUnitRange}
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.codegen.CodeGenUtils._
-import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
+import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
 
 class ExtractCallGen(returnType: TypeInformation[_], method: Method)
   extends MethodCallGen(returnType, method) {
 
   override def generate(codeGenerator: CodeGenerator, operands: Seq[GeneratedExpression])
   : GeneratedExpression = {
-    val unit = getEnum(operands(0)).asInstanceOf[TimeUnitRange].startUnit
-    val sqlTypeName = FlinkTypeFactory.typeInfoToSqlTypeName(operands(1).resultType)
+    val unit = getEnum(operands.head).asInstanceOf[TimeUnitRange].startUnit
+    val tpe = operands(1).resultType
     unit match {
       case TimeUnit.YEAR |
            TimeUnit.MONTH |
            TimeUnit.DAY |
            TimeUnit.QUARTER |
-           TimeUnit.DOW |
            TimeUnit.DOY |
            TimeUnit.WEEK |
            TimeUnit.CENTURY |
-           TimeUnit.MILLENNIUM=>
-        sqlTypeName match {
-          case SqlTypeName.TIMESTAMP =>
+           TimeUnit.MILLENNIUM =>
+        tpe match {
+          case SqlTimeTypeInfo.TIMESTAMP =>
             return generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {
               (terms) =>
                 s"""
@@ -55,7 +52,7 @@ class ExtractCallGen(returnType: TypeInformation[_], method: Method)
                    |""".stripMargin
             }
 
-          case SqlTypeName.DATE =>
+          case SqlTimeTypeInfo.DATE =>
             return super.generate(codeGenerator, operands)
 
           case _ => // do nothing
@@ -69,7 +66,7 @@ class ExtractCallGen(returnType: TypeInformation[_], method: Method)
         unit match {
           case TimeUnit.QUARTER =>
             s"""
-               |((${terms(1)} % ${factor}) - 1) / ${unit.multiplier.intValue()} + 1
+               |((${terms(1)} % $factor) - 1) / ${unit.multiplier.intValue()} + 1
                |""".stripMargin
           case _ =>
             if (factor == 1) {
@@ -78,7 +75,7 @@ class ExtractCallGen(returnType: TypeInformation[_], method: Method)
                  |""".stripMargin
             } else {
               s"""
-                 |(${terms(1)} % ${factor}) / ${unit.multiplier.intValue()}
+                 |(${terms(1)} % $factor) / ${unit.multiplier.intValue()}
                  |""".stripMargin
             }
         }
@@ -101,10 +98,10 @@ class ExtractCallGen(returnType: TypeInformation[_], method: Method)
       case TimeUnit.QUARTER =>
         TimeUnit.YEAR.multiplier.longValue()
       case TimeUnit.YEAR |
-           TimeUnit.DECADE |
            TimeUnit.CENTURY |
            TimeUnit.MILLENNIUM => 1L
-      case _ => throw new CodeGenException("unit %s is NOT supported.".format(unit))
+      case _ =>
+        throw new CodeGenException(s"Unit '$unit' is not supported.")
     }
   }
 }
