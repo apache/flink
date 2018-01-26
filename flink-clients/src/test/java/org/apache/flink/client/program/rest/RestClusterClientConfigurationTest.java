@@ -20,6 +20,7 @@ package org.apache.flink.client.program.rest;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -29,7 +30,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link RestClusterClientConfiguration}.
  */
-public class RestClusterClientConfigurationTest {
+public class RestClusterClientConfigurationTest extends TestLogger {
 
 	private RestClusterClientConfiguration restClusterClientConfiguration;
 

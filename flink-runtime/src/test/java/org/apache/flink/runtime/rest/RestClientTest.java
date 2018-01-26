@@ -26,6 +26,7 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -42,7 +43,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link RestClient}.
  */
-public class RestClientTest {
+public class RestClientTest extends TestLogger {
 
 	@Test
 	public void testConnectionTimeout() throws Exception {
