@@ -25,7 +25,6 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
-import org.apache.flink.util.FileUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -268,12 +267,6 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 					} finally {
 						try {
 							fs.delete(statePath, false);
-
-							try {
-								FileUtils.deletePathIfEmpty(fs, basePath);
-							} catch (Exception ignored) {
-								LOG.debug("Could not delete the parent directory {}.", basePath, ignored);
-							}
 						} catch (Exception e) {
 							LOG.warn("Cannot delete closed and discarded state stream for {}.", statePath, e);
 						}
@@ -315,13 +308,10 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 							return new FileStateHandle(statePath, size);
 						} catch (Exception exception) {
 							try {
-								fs.delete(statePath, false);
-
-								try {
-									FileUtils.deletePathIfEmpty(fs, basePath);
-								} catch (Exception parentDirDeletionFailure) {
-									LOG.debug("Could not delete the parent directory {}.", basePath, parentDirDeletionFailure);
+								if (statePath != null) {
+									fs.delete(statePath, false);
 								}
+
 							} catch (Exception deleteException) {
 								LOG.warn("Could not delete the checkpoint stream file {}.",
 									statePath, deleteException);
@@ -349,18 +339,20 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			Exception latestException = null;
 			for (int attempt = 0; attempt < 10; attempt++) {
 				try {
-					statePath = createStatePath();
-					outStream = fs.create(statePath, FileSystem.WriteMode.NO_OVERWRITE);
-					break;
+					Path statePath = createStatePath();
+					FSDataOutputStream outStream = fs.create(statePath, FileSystem.WriteMode.NO_OVERWRITE);
+
+					// success, managed to open the stream
+					this.statePath = statePath;
+					this.outStream = outStream;
+					return;
 				}
 				catch (Exception e) {
 					latestException = e;
 				}
 			}
 
-			if (outStream == null) {
-				throw new IOException("Could not open output stream for state backend", latestException);
-			}
+			throw new IOException("Could not open output stream for state backend", latestException);
 		}
 	}
 }
