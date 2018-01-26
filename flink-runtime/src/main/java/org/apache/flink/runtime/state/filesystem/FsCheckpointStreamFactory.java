@@ -22,6 +22,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.FileUtils;
@@ -70,8 +71,11 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	/** State below this size will be stored as part of the metadata, rather than in files */
 	private final int fileStateThreshold;
 
-	/** The directory (job specific) into this initialized instance of the backend stores its data */
+	/** The directory for checkpoint exclusive state data. */
 	private final Path checkpointDirectory;
+
+	/** The directory for shared checkpoint data. */
+	private final Path sharedStateDirectory;
 
 	/** Cached handle to the file system for file operations. */
 	private final FileSystem filesystem;
@@ -84,14 +88,15 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	 * JavaDocs for an explanation why this factory must not try and create the checkpoints.
 	 *
 	 * @param fileSystem The filesystem to write to.
-	 * @param checkpointDirectory The URI describing the filesystem (scheme and optionally authority),
-	 *                            and the path to the checkpoint data directory.
+	 * @param checkpointDirectory The directory for checkpoint exclusive state data.
+	 * @param sharedStateDirectory The directory for shared checkpoint data.
 	 * @param fileStateSizeThreshold State up to this size will be stored as part of the metadata,
 	 *                             rather than in files
 	 */
 	public FsCheckpointStreamFactory(
 			FileSystem fileSystem,
 			Path checkpointDirectory,
+			Path sharedStateDirectory,
 			int fileStateSizeThreshold) {
 
 		if (fileStateSizeThreshold < 0) {
@@ -104,15 +109,18 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		this.filesystem = checkNotNull(fileSystem);
 		this.checkpointDirectory = checkNotNull(checkpointDirectory);
+		this.sharedStateDirectory = checkNotNull(sharedStateDirectory);
 		this.fileStateThreshold = fileStateSizeThreshold;
 	}
 
 	// ------------------------------------------------------------------------
 
 	@Override
-	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws Exception {
+	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws Exception {
+		Path target = scope == CheckpointedStateScope.EXCLUSIVE ? checkpointDirectory : sharedStateDirectory;
 		int bufferSize = Math.max(DEFAULT_WRITE_BUFFER_SIZE, fileStateThreshold);
-		return new FsCheckpointStateOutputStream(checkpointDirectory, filesystem, bufferSize, fileStateThreshold);
+
+		return new FsCheckpointStateOutputStream(target, filesystem, bufferSize, fileStateThreshold);
 	}
 
 	// ------------------------------------------------------------------------

@@ -55,7 +55,7 @@ public class FsCheckpointStorageLocation extends FsCheckpointStreamFactory imple
 			CheckpointStorageLocationReference reference,
 			int fileStateSizeThreshold) {
 
-		super(fileSystem, checkpointDir, fileStateSizeThreshold);
+		super(fileSystem, checkpointDir, sharedStateDir, fileStateSizeThreshold);
 
 		checkArgument(fileStateSizeThreshold >= 0);
 

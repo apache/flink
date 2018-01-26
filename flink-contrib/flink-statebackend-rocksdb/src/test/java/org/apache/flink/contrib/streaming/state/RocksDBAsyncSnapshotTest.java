@@ -40,6 +40,7 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
@@ -255,17 +256,14 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 			int count = 1;
 
 			@Override
-			public MemCheckpointStreamFactory.MemoryCheckpointOutputStream createCheckpointStateOutputStream(
-				long checkpointID,
-				long timestamp) throws Exception {
-
+			public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws Exception {
 				// we skip the first created stream, because it is used to checkpoint the timer service, which is
 				// currently not asynchronous.
 				if (count > 0) {
 					--count;
 					return new MemCheckpointStreamFactory.MemoryCheckpointOutputStream(maxSize);
 				} else {
-					return super.createCheckpointStateOutputStream(checkpointID, timestamp);
+					return super.createCheckpointStateOutputStream(scope);
 				}
 			}
 		};
@@ -462,7 +460,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
 		@Override
 		public CheckpointStateOutputStream get() throws Exception {
-			return factory.createCheckpointStateOutputStream(1L, 1L);
+			return factory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
 		}
 	}
 

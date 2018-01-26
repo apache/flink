@@ -19,20 +19,27 @@
 package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 
 import org.junit.Test;
 
+import java.io.File;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -127,6 +134,74 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 		try (ObjectInputStream in = new ObjectInputStream(stateHandle.openInputStream())) {
 			assertEquals(state, in.readObject());
 		}
+	}
+
+	@Test
+	public void testDirectoriesForExclusiveAndSharedState() throws Exception {
+		final FileSystem fs = LocalFileSystem.getSharedInstance();
+		final Path checkpointDir = randomTempPath();
+		final Path sharedStateDir = randomTempPath();
+
+		FsCheckpointStorageLocation storageLocation = new FsCheckpointStorageLocation(
+				fs,
+				checkpointDir,
+				sharedStateDir,
+				randomTempPath(),
+				CheckpointStorageLocationReference.getDefault(),
+				FILE_SIZE_THRESHOLD);
+
+		assertNotEquals(storageLocation.getCheckpointDirectory(), storageLocation.getSharedStateDirectory());
+
+		assertEquals(0, fs.listStatus(storageLocation.getCheckpointDirectory()).length);
+		assertEquals(0, fs.listStatus(storageLocation.getSharedStateDirectory()).length);
+
+		// create exclusive state
+
+		CheckpointStateOutputStream exclusiveStream =
+				storageLocation.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
+
+		exclusiveStream.write(42);
+		exclusiveStream.flush();
+		StreamStateHandle exclusiveHandle = exclusiveStream.closeAndGetHandle();
+
+		assertEquals(1, fs.listStatus(storageLocation.getCheckpointDirectory()).length);
+		assertEquals(0, fs.listStatus(storageLocation.getSharedStateDirectory()).length);
+
+		// create shared state
+
+		CheckpointStateOutputStream sharedStream =
+				storageLocation.createCheckpointStateOutputStream(CheckpointedStateScope.SHARED);
+
+		sharedStream.write(42);
+		sharedStream.flush();
+		StreamStateHandle sharedHandle = sharedStream.closeAndGetHandle();
+
+		assertEquals(1, fs.listStatus(storageLocation.getCheckpointDirectory()).length);
+		assertEquals(1, fs.listStatus(storageLocation.getSharedStateDirectory()).length);
+
+		// drop state
+
+		exclusiveHandle.discardState();
+		sharedHandle.discardState();
+	}
+
+	/**
+	 * This test checks that no mkdirs is called by the checkpoint storage location when resolved.
+	 */
+	@Test
+	public void testStorageLocationDoesNotMkdirs() throws Exception {
+		FsCheckpointStorage storage = new FsCheckpointStorage(
+				randomTempPath(), null, new JobID(), FILE_SIZE_THRESHOLD);
+
+		File baseDir =  new File(storage.getCheckpointsDirectory().getPath());
+		assertTrue(baseDir.exists());
+
+		FsCheckpointStorageLocation location = (FsCheckpointStorageLocation)
+				storage.resolveCheckpointStorageLocation(177, CheckpointStorageLocationReference.getDefault());
+
+		Path checkpointPath = location.getCheckpointDirectory();
+		File checkpointDir = new File(checkpointPath.getPath());
+		assertFalse(checkpointDir.exists());
 	}
 
 	// ------------------------------------------------------------------------
