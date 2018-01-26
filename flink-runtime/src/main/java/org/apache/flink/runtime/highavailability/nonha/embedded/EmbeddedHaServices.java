@@ -26,6 +26,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.concurrent.GuardedBy;
+
 import java.util.HashMap;
 import java.util.concurrent.Executor;
 
@@ -49,11 +50,14 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
 
 	private final HashMap<JobID, EmbeddedLeaderService> jobManagerLeaderServices;
 
+	private final EmbeddedLeaderService webMonitorLeaderService;
+
 	public EmbeddedHaServices(Executor executor) {
 		this.executor = Preconditions.checkNotNull(executor);
 		this.resourceManagerLeaderService = new EmbeddedLeaderService(executor);
 		this.dispatcherLeaderService = new EmbeddedLeaderService(executor);
 		this.jobManagerLeaderServices = new HashMap<>();
+		this.webMonitorLeaderService = new EmbeddedLeaderService(executor);
 	}
 
 	// ------------------------------------------------------------------------
@@ -97,6 +101,11 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
 	}
 
 	@Override
+	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
+		return webMonitorLeaderService.createLeaderRetrievalService();
+	}
+
+	@Override
 	public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
 		checkNotNull(jobID);
 
@@ -105,6 +114,11 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
 			EmbeddedLeaderService service = getOrCreateJobManagerService(jobID);
 			return service.createLeaderElectionService();
 		}
+	}
+
+	@Override
+	public LeaderElectionService getWebMonitorLeaderElectionService() {
+		return webMonitorLeaderService.createLeaderElectionService();
 	}
 
 	// ------------------------------------------------------------------------
@@ -136,6 +150,8 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
 				jobManagerLeaderServices.clear();
 
 				resourceManagerLeaderService.shutdown();
+
+				webMonitorLeaderService.shutdown();
 			}
 
 			super.close();

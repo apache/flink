@@ -522,6 +522,7 @@ public class TaskExecutorTest extends TestLogger {
 		final ResourceID resourceManagerResourceId = new ResourceID(resourceManagerAddress);
 		final String dispatcherAddress = "localhost";
 		final String jobManagerAddress = "localhost";
+		final String webMonitorAddress = "localhost";
 
 		// register a mock resource manager gateway
 		ResourceManagerGateway rmGateway = mock(ResourceManagerGateway.class);
@@ -540,8 +541,9 @@ public class TaskExecutorTest extends TestLogger {
 
 		StandaloneHaServices haServices = new StandaloneHaServices(
 			resourceManagerAddress,
-				dispatcherAddress,
-			jobManagerAddress);
+			dispatcherAddress,
+			jobManagerAddress,
+			webMonitorAddress);
 
 		final TaskSlotTable taskSlotTable = mock(TaskSlotTable.class);
 		final SlotReport slotReport = new SlotReport();

@@ -21,6 +21,8 @@ package org.apache.flink.runtime.highavailability;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
@@ -95,10 +97,16 @@ public class HighAvailabilityServicesUtils {
 					addressResolution,
 					configuration);
 
+				final String address = configuration.getString(RestOptions.REST_ADDRESS);
+				final int port = configuration.getInteger(RestOptions.REST_PORT);
+				final boolean enableSSL = configuration.getBoolean(SecurityOptions.SSL_ENABLED);
+				final String protocol = enableSSL ? "https://" : "http://";
+
 				return new StandaloneHaServices(
 					resourceManagerRpcUrl,
 					dispatcherRpcUrl,
-					jobManagerRpcUrl);
+					jobManagerRpcUrl,
+					String.format("%s%s:%s", protocol, address, port));
 			case ZOOKEEPER:
 				BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(configuration);
 

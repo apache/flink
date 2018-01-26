@@ -168,7 +168,7 @@ public abstract class RestServerEndpoint {
 			String address = bindAddress.getAddress().getHostAddress();
 			int port = bindAddress.getPort();
 
-			log.info("Rest endpoint listening at {}" + ':' + "{}", address, port);
+			log.info("Rest endpoint listening at {}:{}", address, port);
 
 			final String protocol;
 
@@ -207,9 +207,7 @@ public abstract class RestServerEndpoint {
 	}
 
 	/**
-	 * Returns the address of the REST server endpoint. Since the address is only known
-	 * after the endpoint is started, it is returned as a future which is completed
-	 * with the REST address at start up.
+	 * Returns the address of the REST server endpoint.
 	 *
 	 * @return REST address of this endpoint
 	 */

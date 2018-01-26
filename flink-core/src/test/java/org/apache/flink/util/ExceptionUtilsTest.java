@@ -61,4 +61,12 @@ public class ExceptionUtilsTest extends TestLogger {
 		// non-fatal error is not rethrown
 		ExceptionUtils.rethrowIfFatalError(new NoClassDefFoundError());
 	}
+
+	@Test
+	public void testFindThrowableByType() {
+		assertTrue(ExceptionUtils.findThrowable(
+			new RuntimeException(new IllegalStateException()),
+			IllegalStateException.class).isPresent());
+	}
+
 }
