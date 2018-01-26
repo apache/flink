@@ -71,6 +71,10 @@ class DataStreamSortRule
   def checkTimeOrder(sort: FlinkLogicalSort): Boolean = {
     
     val sortCollation = sort.collation
+    if (sortCollation.getFieldCollations.size() == 0) {
+      // no sort fields defined
+      return false
+    }
     // get type of first sort field
     val firstSortType = SortUtil.getFirstSortField(sortCollation, sort.getRowType).getType
     // get direction of first sort field
