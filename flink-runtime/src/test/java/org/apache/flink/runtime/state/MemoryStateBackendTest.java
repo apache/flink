@@ -42,16 +42,11 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.concurrent.RunnableFuture;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -86,99 +81,12 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 	@Override
 	@Test
 	public void testReducingStateRestoreWithWrongSerializers() {}
-	
+
 	@Override
 	@Test
 	public void testMapStateRestoreWithWrongSerializers() {}
 
-	@Test
-	public void testOversizedState() {
-		try {
-			CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(10);
 
-			HashMap<String, Integer> state = new HashMap<>();
-			state.put("hey there", 2);
-			state.put("the crazy brown fox stumbles over a sentence that does not contain every letter", 77);
-
-			try {
-				CheckpointStreamFactory.CheckpointStateOutputStream outStream =
-						streamFactory.createCheckpointStateOutputStream(12, 459);
-
-				ObjectOutputStream oos = new ObjectOutputStream(outStream);
-				oos.writeObject(state);
-
-				oos.flush();
-
-				outStream.closeAndGetHandle();
-
-				fail("this should cause an exception");
-			}
-			catch (IOException e) {
-				// now darling, isn't that exactly what we wanted?
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testStateStream() {
-		try {
-//			MemoryStateBackend backend = new MemoryStateBackend();
-			CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(MemoryStateBackend.DEFAULT_MAX_STATE_SIZE);
-
-			HashMap<String, Integer> state = new HashMap<>();
-			state.put("hey there", 2);
-			state.put("the crazy brown fox stumbles over a sentence that does not contain every letter", 77);
-
-			CheckpointStreamFactory.CheckpointStateOutputStream os = streamFactory.createCheckpointStateOutputStream(1, 2);
-			ObjectOutputStream oos = new ObjectOutputStream(os);
-			oos.writeObject(state);
-			oos.flush();
-			StreamStateHandle handle = os.closeAndGetHandle();
-
-			assertNotNull(handle);
-
-			try (ObjectInputStream ois = new ObjectInputStream(handle.openInputStream())) {
-				assertEquals(state, ois.readObject());
-				assertTrue(ois.available() <= 0);
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testOversizedStateStream() {
-		try {
-			CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(10);
-
-			HashMap<String, Integer> state = new HashMap<>();
-			state.put("hey there", 2);
-			state.put("the crazy brown fox stumbles over a sentence that does not contain every letter", 77);
-
-			CheckpointStreamFactory.CheckpointStateOutputStream os = streamFactory.createCheckpointStateOutputStream(1, 2);
-			ObjectOutputStream oos = new ObjectOutputStream(os);
-
-			try {
-				oos.writeObject(state);
-				oos.flush();
-				os.closeAndGetHandle();
-				fail("this should cause an exception");
-			}
-			catch (IOException e) {
-				// oh boy! what an exception!
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
 
 	/**
 	 * Verifies that the operator state backend fails with appropriate error and message if
