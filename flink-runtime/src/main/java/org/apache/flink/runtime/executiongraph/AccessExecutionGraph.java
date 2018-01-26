@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
@@ -28,7 +29,6 @@ import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -103,7 +103,7 @@ public interface AccessExecutionGraph {
 	Iterable<? extends AccessExecutionVertex> getAllExecutionVertices();
 
 	/**
-	 * Returns the timestamp for the given {@link JobStatus}
+	 * Returns the timestamp for the given {@link JobStatus}.
 	 *
 	 * @param status status for which the timestamp should be returned
 	 * @return timestamp for the given job status
@@ -154,9 +154,8 @@ public interface AccessExecutionGraph {
 	 * Returns a map containing the serialized values of user-defined accumulators.
 	 *
 	 * @return map containing serialized values of user-defined accumulators
-	 * @throws IOException indicates that the serialization has failed
 	 */
-	Map<String, SerializedValue<Object>> getAccumulatorsSerialized() throws IOException;
+	Map<String, SerializedValue<Object>> getAccumulatorsSerialized();
 
 	/**
 	 * Returns whether this execution graph was archived.
