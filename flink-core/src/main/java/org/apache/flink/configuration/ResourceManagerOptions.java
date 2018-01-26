@@ -24,6 +24,9 @@ import org.apache.flink.annotation.PublicEvolving;
  * The set of configuration options relating to the ResourceManager.
  */
 @PublicEvolving
+@ConfigGroups(groups = {
+	@ConfigGroup(name = "SlotManager", keyPrefix = "slotmanager")
+})
 public class ResourceManagerOptions {
 
 	/**

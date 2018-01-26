@@ -53,6 +53,11 @@ under the License.
 			<artifactId>flink-yarn_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-mesos_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -188,8 +193,14 @@ under the License.
 									<!--packages with configuration classes-->
 									<arg value="flink-core" />
 									<arg value="org.apache.flink.configuration" />
+									<arg value="flink-runtime" />
+									<arg value="org.apache.flink.runtime.io.network.netty" />
 									<arg value="flink-yarn" />
 									<arg value="org.apache.flink.yarn.configuration" />
+									<arg value="flink-mesos" />
+									<arg value="org.apache.flink.mesos.configuration" />
+									<arg value="flink-mesos" />
+									<arg value="org.apache.flink.mesos.runtime.clusterframework" />
 								</java>
 							</target>
 						</configuration>

@@ -70,8 +70,8 @@ public class ConfigOptionsDocGenerator {
 	private static void createTable(String rootDir, String module, String packageName, String outputDirectory) throws IOException, ClassNotFoundException {
 		Path configDir = Paths.get(rootDir, module, "src/main/java", packageName.replaceAll("\\.", "/"));
 
-		Pattern p = Pattern.compile("(([a-zA-Z]*)(Options))\\.java");
-		try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir, "*Options.java")) {
+		Pattern p = Pattern.compile("(([a-zA-Z]*)(Options|Config|Parameters))\\.java");
+		try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir)) {
 			for (Path entry : stream) {
 				String fileName = entry.getFileName().toString();
 				Matcher matcher = p.matcher(fileName);
@@ -147,7 +147,7 @@ public class ConfigOptionsDocGenerator {
 		htmlTable.append("    <thead>\n");
 		htmlTable.append("        <tr>\n");
 		htmlTable.append("            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n");
-		htmlTable.append("            <th class=\"text-left\" style=\"width: 15%\">Default Value</th>\n");
+		htmlTable.append("            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n");
 		htmlTable.append("            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n");
 		htmlTable.append("        </tr>\n");
 		htmlTable.append("    </thead>\n");

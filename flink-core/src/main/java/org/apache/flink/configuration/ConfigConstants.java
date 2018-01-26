@@ -188,7 +188,10 @@ public final class ConfigConstants {
 
 	/**
 	 * The config parameter defining the task manager's hostname.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#HOST} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_HOSTNAME_KEY = "taskmanager.hostname";
 
 	/**
@@ -204,7 +207,10 @@ public final class ConfigConstants {
 
 	/**
 	 * Config parameter to override SSL support for taskmanager's data transport.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#DATA_SSL_ENABLED} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_DATA_SSL_ENABLED = "taskmanager.data.ssl.enabled";
 
 	/**
@@ -281,7 +287,10 @@ public final class ConfigConstants {
 
 	/**
 	 * The config parameter defining the number of task slots of a task manager.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#NUM_TASK_SLOTS} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_NUM_TASK_SLOTS = "taskmanager.numberOfTaskSlots";
 
 	/**
@@ -297,13 +306,19 @@ public final class ConfigConstants {
 	/**
 	 * Defines the maximum time it can take for the TaskManager registration. If the duration is
 	 * exceeded without a successful registration, then the TaskManager terminates.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#MAX_REGISTRATION_DURATION} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
 
 	/**
 	 * The initial registration pause between two consecutive registration attempts. The pause
 	 * is doubled for each new registration attempt until it reaches the maximum registration pause.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#INITIAL_REGISTRATION_PAUSE} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_INITIAL_REGISTRATION_PAUSE = "taskmanager.initial-registration-pause";
 
 	/**
@@ -313,7 +328,10 @@ public final class ConfigConstants {
 
 	/**
 	 * The pause after a registration has been refused by the job manager before retrying to connect.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#REFUSED_REGISTRATION_PAUSE} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "taskmanager.refused-registration-pause";
 
 	/**
@@ -640,12 +658,18 @@ public final class ConfigConstants {
 
 	/**
 	 * Key to specify whether the file systems should simply overwrite existing files.
+	 *
+	 * @deprecated Use {@link CoreOptions#FILESYTEM_DEFAULT_OVERRIDE} instead.
 	 */
+	@Deprecated
 	public static final String FILESYSTEM_DEFAULT_OVERWRITE_KEY = "fs.overwrite-files";
 
 	/**
 	 * Key to specify whether the file systems should always create a directory for the output, even with a parallelism of one.
+	 *
+	 * @deprecated Use {@link CoreOptions#FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY} instead.
 	 */
+	@Deprecated
 	public static final String FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY = "fs.output.always-create-directory";
 
 	// ---------------------------- Compiler -------------------------------
@@ -653,18 +677,27 @@ public final class ConfigConstants {
 	/**
 	 * The maximum number of line samples to be taken by the delimited input format, if no
 	 * other value is specified for the data source.
+	 *
+	 * @deprecated use {@link OptimizerOptions#DELIMITED_FORMAT_MAX_LINE_SAMPLES} instead
 	 */
+	@Deprecated
 	public static final String DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY = "compiler.delimited-informat.max-line-samples";
 
 	/**
 	 * The minimum number of line samples to be taken by the delimited input format, if no
 	 * other value is specified for the data source.
+	 *
+	 * @deprecated use {@link OptimizerOptions#DELIMITED_FORMAT_MIN_LINE_SAMPLES} instead
 	 */
+	@Deprecated
 	public static final String DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY = "compiler.delimited-informat.min-line-samples";
 
 	/**
 	 * The maximum length of a single sampled record before the sampling is aborted.
+	 *
+	 * @deprecated use {@link OptimizerOptions#DELIMITED_FORMAT_MAX_SAMPLE_LEN} instead
 	 */
+	@Deprecated
 	public static final String DELIMITED_FORMAT_MAX_SAMPLE_LENGTH_KEY = "compiler.delimited-informat.max-sample-len";
 
 
@@ -1336,12 +1369,18 @@ public final class ConfigConstants {
 	/**
 	 * The default network port the task manager expects to receive transfer envelopes on. The {@code 0} means that
 	 * the TaskManager searches for a free port.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#DATA_PORT} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_TASK_MANAGER_DATA_PORT = 0;
 
 	/**
 	 * The default value to override ssl support for task manager's data transport.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#DATA_SSL_ENABLED} instead
 	 */
+	@Deprecated
 	public static final boolean DEFAULT_TASK_MANAGER_DATA_SSL_ENABLED = true;
 
 	/**
@@ -1394,12 +1433,18 @@ public final class ConfigConstants {
 
 	/**
 	 * The default task manager's maximum registration duration.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#MAX_REGISTRATION_DURATION} instead
 	 */
+	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION = "Inf";
 
 	/**
 	 * The default task manager's initial registration pause.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#INITIAL_REGISTRATION_PAUSE} instead
 	 */
+	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_INITIAL_REGISTRATION_PAUSE = "500 ms";
 
 	/**
@@ -1409,7 +1454,10 @@ public final class ConfigConstants {
 
 	/**
 	 * The default task manager's refused registration pause.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#REFUSED_REGISTRATION_PAUSE} instead
 	 */
+	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "10 s";
 
 	/**
@@ -1538,7 +1586,10 @@ public final class ConfigConstants {
 
 	/**
 	 * The default behavior for output directory creating (create only directory when parallelism &gt; 1).
+	 *
+	 * @deprecated Use {@link CoreOptions#FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY} instead.
 	 */
+	@Deprecated
 	public static final boolean DEFAULT_FILESYSTEM_ALWAYS_CREATE_DIRECTORY = false;
 
 
@@ -1546,17 +1597,26 @@ public final class ConfigConstants {
 
 	/**
 	 * The default maximum number of line samples taken by the delimited input format.
+	 *
+	 * @deprecated use {@link OptimizerOptions#DELIMITED_FORMAT_MAX_LINE_SAMPLES} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES = 10;
 
 	/**
 	 * The default minimum number of line samples taken by the delimited input format.
+	 *
+	 * @deprecated use {@link OptimizerOptions#DELIMITED_FORMAT_MIN_LINE_SAMPLES} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES = 2;
 
 	/**
 	 * The default maximum sample length before sampling is aborted (2 MiBytes).
+	 *
+	 * @deprecated use {@link OptimizerOptions#DELIMITED_FORMAT_MAX_SAMPLE_LEN} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN = 2 * 1024 * 1024;
 
 

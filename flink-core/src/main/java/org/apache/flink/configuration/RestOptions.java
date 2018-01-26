@@ -33,12 +33,14 @@ public class RestOptions {
 	 */
 	public static final ConfigOption<String> REST_ADDRESS =
 		key("rest.address")
-			.defaultValue("localhost");
+			.defaultValue("localhost")
+			.withDescription("The address that the server binds itself to / the client connects to.");
 
 	/**
 	 * The port that the server listens on / the client connects to.
 	 */
 	public static final ConfigOption<Integer> REST_PORT =
 		key("rest.port")
-			.defaultValue(9067);
+			.defaultValue(9067)
+			.withDescription("The port that the server listens on / the client connects to.");
 }

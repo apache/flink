@@ -55,7 +55,7 @@ public class ConfigOptionsDocGeneratorTest {
 			"    <thead>\n" +
 			"        <tr>\n" +
 			"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
-			"            <th class=\"text-left\" style=\"width: 15%\">Default Value</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
 			"            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n" +
 			"        </tr>\n" +
 			"    </thead>\n" +
@@ -118,7 +118,7 @@ public class ConfigOptionsDocGeneratorTest {
 			"    <thead>\n" +
 			"        <tr>\n" +
 			"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
-			"            <th class=\"text-left\" style=\"width: 15%\">Default Value</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
 			"            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n" +
 			"        </tr>\n" +
 			"    </thead>\n" +
@@ -135,7 +135,7 @@ public class ConfigOptionsDocGeneratorTest {
 			"    <thead>\n" +
 			"        <tr>\n" +
 			"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
-			"            <th class=\"text-left\" style=\"width: 15%\">Default Value</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
 			"            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n" +
 			"        </tr>\n" +
 			"    </thead>\n" +
@@ -152,7 +152,7 @@ public class ConfigOptionsDocGeneratorTest {
 			"    <thead>\n" +
 			"        <tr>\n" +
 			"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
-			"            <th class=\"text-left\" style=\"width: 15%\">Default Value</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
 			"            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n" +
 			"        </tr>\n" +
 			"    </thead>\n" +
