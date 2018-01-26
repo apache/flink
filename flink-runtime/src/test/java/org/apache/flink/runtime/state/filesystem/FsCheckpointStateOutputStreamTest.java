@@ -36,6 +36,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.io.DataInputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -53,6 +54,8 @@ import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -333,6 +336,43 @@ public class FsCheckpointStateOutputStreamTest {
 	}
 
 	// ------------------------------------------------------------------------
+	//  Not deleting parent directories
+	// ------------------------------------------------------------------------
+
+	/**
+	 * This test checks that the stream does not check and clean the parent directory
+	 * when encountering a write error.
+	 */
+	@Test
+	public void testStreamDoesNotTryToCleanUpParentOnError() throws Exception {
+		final File directory = tempDir.newFolder();
+
+		// prevent creation of files in that directory
+		assertTrue(directory.setWritable(false, true));
+		checkDirectoryNotWritable(directory);
+
+		FileSystem fs = spy(FileSystem.getLocalFileSystem());
+
+		FsCheckpointStateOutputStream stream1 = new FsCheckpointStateOutputStream(
+				Path.fromLocalFile(directory), fs, 1024, 1);
+
+		FsCheckpointStateOutputStream stream2 = new FsCheckpointStateOutputStream(
+				Path.fromLocalFile(directory), fs, 1024, 1);
+
+		stream1.write(new byte[61]);
+		stream2.write(new byte[61]);
+
+		try {
+			stream1.closeAndGetHandle();
+			fail("this should fail with an exception");
+		} catch (IOException ignored) {}
+
+		stream2.close();
+
+		verify(fs, times(0)).delete(any(Path.class), anyBoolean());
+	}
+
+	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
 
@@ -370,6 +410,19 @@ public class FsCheckpointStateOutputStreamTest {
 			assertArrayEquals("wrong data", data, holder);
 		} finally {
 			is.close();
+		}
+	}
+
+	private static void checkDirectoryNotWritable(File directory) {
+		try {
+			try (FileOutputStream fos = new FileOutputStream(new File(directory, "temp"))) {
+				fos.write(42);
+				fos.flush();
+			}
+
+			fail("this should fail when writing is properly prevented");
+		} catch (IOException ignored) {
+			// expected, works
 		}
 	}
 }
