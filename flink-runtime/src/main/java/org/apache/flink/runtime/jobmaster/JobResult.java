@@ -21,6 +21,9 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 
@@ -136,6 +139,40 @@ public class JobResult implements Serializable {
 				netRuntime,
 				serializedThrowable);
 		}
+	}
+
+	/**
+	 * Creates the {@link JobResult} from the given {@link AccessExecutionGraph} which
+	 * must be in a globally terminal state.
+	 *
+	 * @param accessExecutionGraph to create the JobResult from
+	 * @return JobResult of the given AccessExecutionGraph
+	 */
+	public static JobResult createFrom(AccessExecutionGraph accessExecutionGraph) {
+		final JobID jobId = accessExecutionGraph.getJobID();
+		final JobStatus jobStatus = accessExecutionGraph.getState();
+
+		checkArgument(
+			jobStatus.isGloballyTerminalState(),
+			"The job " + accessExecutionGraph.getJobName() + '(' + jobId + ") is not in a globally " +
+				"terminal state. It is in state " + jobStatus + '.');
+
+		final JobResult.Builder builder = new JobResult.Builder();
+		builder.jobId(jobId);
+
+		final long netRuntime = accessExecutionGraph.getStatusTimestamp(jobStatus) - accessExecutionGraph.getStatusTimestamp(JobStatus.CREATED);
+		builder.netRuntime(netRuntime);
+		builder.accumulatorResults(accessExecutionGraph.getAccumulatorsSerialized());
+
+		if (jobStatus != JobStatus.FINISHED) {
+			final ErrorInfo errorInfo = accessExecutionGraph.getFailureInfo();
+
+			if (errorInfo != null) {
+				builder.serializedThrowable(errorInfo.getException());
+			}
+		}
+
+		return builder.build();
 	}
 
 }

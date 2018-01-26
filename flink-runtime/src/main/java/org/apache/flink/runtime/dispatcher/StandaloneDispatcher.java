@@ -50,6 +50,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
+			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			FatalErrorHandler fatalErrorHandler,
 			@Nullable String restAddress) throws Exception {
 		super(
@@ -61,6 +62,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			blobServer,
 			heartbeatServices,
 			metricRegistry,
+			archivedExecutionGraphStore,
 			fatalErrorHandler,
 			restAddress);
 	}

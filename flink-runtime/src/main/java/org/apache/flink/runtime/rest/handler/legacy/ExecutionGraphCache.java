@@ -122,7 +122,7 @@ public class ExecutionGraphCache implements Closeable {
 			}
 
 			if (successfulUpdate) {
-				final CompletableFuture<AccessExecutionGraph> executionGraphFuture = restfulGateway.requestJob(jobId, timeout);
+				final CompletableFuture<? extends AccessExecutionGraph> executionGraphFuture = restfulGateway.requestJob(jobId, timeout);
 
 				executionGraphFuture.whenComplete(
 					(AccessExecutionGraph executionGraph, Throwable throwable) -> {
