@@ -768,6 +768,9 @@ trait ImplicitExpressionOperations {
     * @return string of 64 hexadecimal digits or null
     */
   def sha512() = Sha512(expr)
+
+  def sha2(hashLength: Expression) = Sha2(expr, hashLength)
+
 }
 
 /**

@@ -1783,11 +1783,6 @@ abstract class CodeGenerator(
   def addReusableMessageDigest(algorithm: String): String = {
     val fieldTerm = newName("messageDigest")
 
-    val field =
-      s"""
-         |final java.security.MessageDigest $fieldTerm;
-         |""".stripMargin
-    reusableMemberStatements.add(field)
 
     val fieldInit =
       s"""
@@ -1801,4 +1796,44 @@ abstract class CodeGenerator(
     reusableInitStatements.add(fieldInit)
     fieldTerm
   }
+
+  /**
+    *
+    * @param hashLength
+    * @return
+    */
+  def addReusableMessageDigest(hashLength: GeneratedExpression): String = {
+    val fieldTerm = newName("messageDigest")
+    val algName = newName("algName")
+
+    val field =
+      s"""
+         |final java.security.MessageDigest $fieldTerm;
+         |""".stripMargin
+    reusableMemberStatements.add(field)
+
+    val fieldInit =
+      s"""
+         |${hashLength.code}
+         |String $algName = ${hashLength.resultTerm};
+         |try {
+         |  $fieldTerm = java.security.MessageDigest.getInstance($algName);
+         |} catch (java.security.NoSuchAlgorithmException e) {
+         |  throw new RuntimeException("Algorithm for " + $algName + " is not available.", e);
+         |}
+         |""".stripMargin
+
+    reusableInitStatements.add(fieldInit)
+    fieldTerm
+  }
+
+  /**
+    *
+    * @param hashLength
+    * @return
+    */
+  def addReusableMessageDigest(hashLength: Int): String = {
+    addReusableMessageDigest("SHA-" + hashLength)
+  }
+
 }

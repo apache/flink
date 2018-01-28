@@ -553,6 +553,12 @@ object FunctionGenerator {
     new HashCalcCallGen("SHA-512")
   )
 
+  addSqlFunction(
+    ScalarSqlFunctions.SHA2,
+    Seq(STRING_TYPE_INFO, INT_TYPE_INFO),
+    new HashCalcCallGen("SHA-2")
+  )
+
   // ----------------------------------------------------------------------------------------------
 
   /**

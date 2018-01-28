@@ -101,3 +101,24 @@ case class Sha512(child: Expression) extends UnaryExpression with InputTypeSpec 
     relBuilder.call(ScalarSqlFunctions.SHA512, child.toRexNode)
   }
 }
+
+case class Sha2(child: Expression, hashLength: Expression)
+    extends BinaryExpression with InputTypeSpec {
+
+  override private[flink] def left = child
+  override private[flink] def right = hashLength
+
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    STRING_TYPE_INFO :: INT_TYPE_INFO :: Nil
+
+  override def toString: String = s"($child).sha2($hashLength)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.SHA2, left.toRexNode, right.toRexNode)
+  }
+
+}
+
+

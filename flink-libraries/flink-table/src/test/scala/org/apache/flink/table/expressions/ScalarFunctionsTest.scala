@@ -1757,28 +1757,60 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "SHA1('test')",
       expectedSha1)
 
+    // sha224
     testAllApis(
       "test".sha224(),
       "sha224('test')",
       "SHA224('test')",
       expectedSha224)
 
+    // sha-2 224
+    testAllApis(
+      "test".sha2(224),
+      "sha2('test', 224)",
+      "SHA2('test', 224)",
+      expectedSha224)
+
+    // sha256
     testAllApis(
       "test".sha256(),
       "sha256('test')",
       "SHA256('test')",
       expectedSha256)
 
+    // sha-2 256
+    testAllApis(
+      "test".sha2(256),
+      "sha2('test', 256)",
+      "SHA2('test', 256)",
+      expectedSha256)
+
+    // sha384
     testAllApis(
       "test".sha384(),
       "sha384('test')",
       "SHA384('test')",
       expectedSha384)
 
+    // sha-2 384
+    testAllApis(
+      "test".sha2(384),
+      "sha2('test', 384)",
+      "SHA2('test', 384)",
+      expectedSha384)
+
+    // sha512
     testAllApis(
       "test".sha512(),
       "sha512('test')",
       "SHA512('test')",
+      expectedSha512)
+
+    // sha-2 512
+    testAllApis(
+      "test".sha2(512),
+      "sha2('test', 512)",
+      "SHA2('test', 512)",
       expectedSha512)
 
     testAllApis(
@@ -1796,25 +1828,31 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testAllApis(
       'f33.sha224(),
       "sha224(f33)",
-      "SHA224(f33)",
+      "SHA2(f33, 224)",
+      "null")
+
+    testAllApis(
+      'f33.sha2(224),
+      "sha2(f33, 224)",
+      "SHA2(f33, 224)",
       "null")
 
     testAllApis(
       'f33.sha256(),
       "sha256(f33)",
-      "SHA256(f33)",
+      "SHA2(f33, 256)",
       "null")
 
     testAllApis(
       'f33.sha384(),
       "sha384(f33)",
-      "SHA384(f33)",
+      "SHA2(f33, 384)",
       "null")
 
     testAllApis(
       'f33.sha512(),
       "sha512(f33)",
-      "SHA512(f33)",
+      "SHA2(f33, 512)",
       "null")
   }
 

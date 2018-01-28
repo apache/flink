@@ -20,7 +20,9 @@ package org.apache.flink.table.codegen.calls
 
 import org.apache.commons.codec.Charsets
 import org.apache.commons.codec.binary.Hex
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import org.apache.flink.table.codegen.CodeGenUtils.newName
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallWithStmtIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
 
@@ -31,7 +33,37 @@ class HashCalcCallGen(algName: String) extends CallGenerator {
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
 
-    val md = codeGenerator.addReusableMessageDigest(algName)
+    val algorithm = newName("algorithm")
+    val nullTerm = newName("isNull")
+
+    val md = operands.size match {
+      case 1 => {
+        val code =
+          s"""
+             |String $algorithm = "$algName";
+             """.stripMargin
+        val expression = GeneratedExpression(algorithm, nullTerm, code,
+          BasicTypeInfo.STRING_TYPE_INFO)
+        codeGenerator.addReusableMessageDigest(expression)
+      }
+      case 2 => {
+        val code =
+          s"""
+             |${operands(1).code}
+             |boolean $nullTerm = ${operands(1).nullTerm};
+             |String $algorithm;
+             |if ($nullTerm) {
+             |  $algorithm = "";
+             |}
+             |else {
+             |  $algorithm = "SHA-" + ${operands(1).resultTerm};
+             |}
+      """.stripMargin
+        val expression = GeneratedExpression(algorithm, nullTerm, code,
+          BasicTypeInfo.STRING_TYPE_INFO)
+        codeGenerator.addReusableMessageDigest(expression)
+      }
+    }
 
     generateCallWithStmtIfArgsNotNull(codeGenerator.nullCheck, STRING_TYPE_INFO, operands) {
       (terms) =>
@@ -42,3 +74,5 @@ class HashCalcCallGen(algName: String) extends CallGenerator {
     }
   }
 }
+
+

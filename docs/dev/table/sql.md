@@ -2396,7 +2396,7 @@ MD5(string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the MD5 hash of the string argument as a string of 32 hexadecimal digits; null if <i>string</i> is null.</p>
+        <p>Returns the MD5 hash of the <i>string</i> argument as a string of 32 hexadecimal digits; null if <i>string</i> is null.</p>
       </td>
     </tr>
 
@@ -2407,7 +2407,7 @@ SHA1(string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the SHA-1 hash of the string argument as a string of 40 hexadecimal digits; null if <i>string</i> is null.</p>
+        <p>Returns the SHA-1 hash of the <i>string</i> argument as a string of 40 hexadecimal digits; null if <i>string</i> is null.</p>
       </td>
     </tr>
     
@@ -2418,7 +2418,7 @@ SHA224(string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the SHA-224 hash of the string argument as a string of 56 hexadecimal digits; null if <i>string</i> is null.</p>
+        <p>Returns the SHA-224 hash of the <i>string</i> argument as a string of 56 hexadecimal digits; null if <i>string</i> is null.</p>
       </td>
     </tr>    
     
@@ -2429,7 +2429,7 @@ SHA256(string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the SHA-256 hash of the string argument as a string of 64 hexadecimal digits; null if <i>string</i> is null.</p>
+        <p>Returns the SHA-256 hash of the <i>string</i> argument as a string of 64 hexadecimal digits; null if <i>string</i> is null.</p>
       </td>
     </tr>
     
@@ -2440,7 +2440,7 @@ SHA384(string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the SHA-384 hash of the string argument as a string of 96 hexadecimal digits; null if <i>string</i> is null.</p>
+        <p>Returns the SHA-384 hash of the <i>string</i> argument as a string of 96 hexadecimal digits; null if <i>string</i> is null.</p>
       </td>
     </tr>  
 
@@ -2451,9 +2451,25 @@ SHA512(string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the SHA-512 hash of the string argument as a string of 128 hexadecimal digits; null if <i>string</i> is null.</p>
+        <p>Returns the SHA-512 hash of the <i>string</i> argument as a string of 128 hexadecimal digits; null if <i>string</i> is null.</p>
       </td>
-    </tr>          
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SHA2(string, hashLength)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-2 hash of the <i>string</i> argument as a string of 128 hexadecimal digits; null if <i>string</i> is null.</p>
+
+        <p>Returns the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, and SHA-512).
+           <i>string</i> is the string to be hashed. <i>hashLength</i> is the bit length of the result (One of 224, 256, 384, 512).
+           Returns <i>null</i> if <i>string</i> or <i>hashLength</i> is <i>null</i>
+        </p>
+      </td>
+    </tr>
   </tbody>
 </table>
 
