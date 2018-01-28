@@ -111,7 +111,11 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 	 * @return The time policy.
 	 */
 	public static TumblingEventTimeWindows of(Time size, Time offset) {
-		return new TumblingEventTimeWindows(size.toMilliseconds(), offset.toMilliseconds());
+		long sizeMilliSeconds = size.toMilliseconds();
+		long offsetMilliseconds = offset.toMilliseconds();
+
+		return new TumblingEventTimeWindows(sizeMilliSeconds,
+			offsetMilliseconds < 0 ? sizeMilliSeconds + offsetMilliseconds : offsetMilliseconds);
 	}
 
 	@Override

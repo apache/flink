@@ -107,7 +107,11 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 	 * @return The time policy.
 	 */
 	public static TumblingProcessingTimeWindows of(Time size, Time offset) {
-		return new TumblingProcessingTimeWindows(size.toMilliseconds(), offset.toMilliseconds());
+		long sizeMilliSeconds = size.toMilliseconds();
+		long offsetMilliseconds = offset.toMilliseconds();
+
+		return new TumblingProcessingTimeWindows(sizeMilliSeconds,
+			offsetMilliseconds < 0 ? sizeMilliSeconds + offsetMilliseconds : offsetMilliseconds);
 	}
 
 	@Override

@@ -69,6 +69,18 @@ public class TumblingEventTimeWindowsTest extends TestLogger {
 	}
 
 	@Test
+	public void testWindowAssignmentWithNegativeOffset() {
+		WindowAssigner.WindowAssignerContext mockContext =
+			mock(WindowAssigner.WindowAssignerContext.class);
+
+		TumblingEventTimeWindows assigner = TumblingEventTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(-100));
+
+		assertThat(assigner.assignWindows("String", 100L, mockContext), contains(timeWindow(-100, 4900)));
+		assertThat(assigner.assignWindows("String", 4899L, mockContext), contains(timeWindow(-100, 4900)));
+		assertThat(assigner.assignWindows("String", 4900L, mockContext), contains(timeWindow(4900, 9900)));
+	}
+
+	@Test
 	public void testTimeUnits() {
 		// sanity check with one other time unit
 
@@ -93,13 +105,6 @@ public class TumblingEventTimeWindowsTest extends TestLogger {
 
 		try {
 			TumblingEventTimeWindows.of(Time.seconds(10), Time.seconds(20));
-			fail("should fail");
-		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < size"));
-		}
-
-		try {
-			TumblingEventTimeWindows.of(Time.seconds(10), Time.seconds(-1));
 			fail("should fail");
 		} catch (IllegalArgumentException e) {
 			assertThat(e.toString(), containsString("0 <= offset < size"));
