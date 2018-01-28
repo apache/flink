@@ -139,6 +139,16 @@ object ScalarSqlFunctions {
     SqlFunctionCategory.STRING
   )
 
+  val SHA2 = new SqlFunction(
+    "SHA2",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.ARG0_NULLABLE,
+    InferTypes.RETURN_TYPE,
+    OperandTypes.sequence("'(DATA, HASH_LENGTH)'",
+      OperandTypes.STRING,  OperandTypes.NUMERIC_INTEGER),
+    SqlFunctionCategory.STRING
+  )
+
   val DATE_FORMAT = new SqlFunction(
     "DATE_FORMAT",
     SqlKind.OTHER_FUNCTION,

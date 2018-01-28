@@ -1845,8 +1845,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     val expectedSha1 = "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3"
     val expectedSha224 = "90a3ed9e32b2aaf4c61c410eb925426119e1a9dc53d4286ade99a809"
     val expectedSha256 = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
-    val expectedSha384 = "768412320f7b0aa5812fce428dc4706b3cae50e02a64caa16a782249bfe8efc4b7ef1ccb126255d196047dfedf17a0a9" // scalastyle:ignore
-    val expectedSha512 = "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff" // scalastyle:ignore
+    val expectedSha384 = "768412320f7b0aa5812fce428dc4706b3cae50e02a64caa16a7" +
+      "82249bfe8efc4b7ef1ccb126255d196047dfedf17a0a9"
+    val expectedSha512 = "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a" +
+      "5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff"
 
     testAllApis(
       "test".md5(),
@@ -1860,30 +1862,63 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "SHA1('test')",
       expectedSha1)
 
+    // sha224
     testAllApis(
       "test".sha224(),
       "sha224('test')",
       "SHA224('test')",
       expectedSha224)
 
+    // sha-2 224
+    testAllApis(
+      "test".sha2(224),
+      "sha2('test', 224)",
+      "SHA2('test', 224)",
+      expectedSha224)
+
+    // sha256
     testAllApis(
       "test".sha256(),
       "sha256('test')",
       "SHA256('test')",
       expectedSha256)
 
+    // sha-2 256
+    testAllApis(
+      "test".sha2(256),
+      "sha2('test', 256)",
+      "SHA2('test', 256)",
+      expectedSha256)
+
+    // sha384
     testAllApis(
       "test".sha384(),
       "sha384('test')",
       "SHA384('test')",
       expectedSha384)
 
+    // sha-2 384
+    testAllApis(
+      "test".sha2(384),
+      "sha2('test', 384)",
+      "SHA2('test', 384)",
+      expectedSha384)
+
+    // sha512
     testAllApis(
       "test".sha512(),
       "sha512('test')",
       "SHA512('test')",
       expectedSha512)
 
+    // sha-2 512
+    testAllApis(
+      "test".sha2(512),
+      "sha2('test', 512)",
+      "SHA2('test', 512)",
+      expectedSha512)
+
+    // null tests
     testAllApis(
       'f33.md5(),
       "md5(f33)",
@@ -1899,26 +1934,45 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testAllApis(
       'f33.sha224(),
       "sha224(f33)",
-      "SHA224(f33)",
+      "SHA2(f33, 224)",
+      "null")
+
+    testAllApis(
+      'f33.sha2(224),
+      "sha2(f33, 224)",
+      "SHA2(f33, 224)",
       "null")
 
     testAllApis(
       'f33.sha256(),
       "sha256(f33)",
-      "SHA256(f33)",
+      "SHA2(f33, 256)",
       "null")
 
     testAllApis(
       'f33.sha384(),
       "sha384(f33)",
-      "SHA384(f33)",
+      "SHA2(f33, 384)",
       "null")
 
     testAllApis(
       'f33.sha512(),
       "sha512(f33)",
-      "SHA512(f33)",
+      "SHA2(f33, 512)",
       "null")
+
+    testAllApis(
+      "test".sha2(Null(Types.INT)),
+      "sha2('test', Null(INT))",
+      "SHA2('test', CAST(NULL AS INT))",
+      "null")
+
+    // non-constant bit length
+    testAllApis(
+      "test".sha2('f34),
+      "sha2('test', f34)",
+      "SHA2('test', f34)",
+      expectedSha256)
   }
 
   // ----------------------------------------------------------------------------------------------

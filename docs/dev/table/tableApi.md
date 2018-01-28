@@ -3127,6 +3127,18 @@ STRING.sha512()
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.sha2(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hash using the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, or SHA-512). The first argument <i>string</i> is the string to be hashed. <i>hashLength</i> is the bit length of the result (either 224, 256, 384, or 512). Returns <i>null</i> if <i>string</i> or <i>hashLength</i> is <i>null</i>.
+        </p>
+      </td>
+    </tr>
+
     </tbody>
 </table>
 
@@ -4604,7 +4616,19 @@ STRING.sha512()
       <td>
         <p>Returns the SHA-512 hash of the string argument as a string of 128 hexadecimal digits; null if <i>string</i> is null.</p>
       </td>
-    </tr>  
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.sha2(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hash using the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, or SHA-512). The first argument <i>string</i> is the string to be hashed. <i>hashLength</i> is the bit length of the result (either 224, 256, 384, or 512). Returns <i>null</i> if <i>string</i> or <i>hashLength</i> is <i>null</i>.
+        </p>
+      </td>
+    </tr>
     </tbody>
 </table>
 

@@ -775,7 +775,7 @@ trait ImplicitExpressionOperations {
   /**
     * Returns the SHA-224 hash of the string argument; null if string is null.
     *
-    * @return string of 64 hexadecimal digits or null
+    * @return string of 56 hexadecimal digits or null
     */
   def sha224() = Sha224(expr)
 
@@ -789,16 +789,26 @@ trait ImplicitExpressionOperations {
   /**
     * Returns the SHA-384 hash of the string argument; null if string is null.
     *
-    * @return string of 64 hexadecimal digits or null
+    * @return string of 96 hexadecimal digits or null
     */
   def sha384() = Sha384(expr)
 
   /**
     * Returns the SHA-512 hash of the string argument; null if string is null.
     *
-    * @return string of 64 hexadecimal digits or null
+    * @return string of 128 hexadecimal digits or null
     */
   def sha512() = Sha512(expr)
+
+  /**
+    * Returns the hash for the given string expression using the SHA-2 family of hash
+    * functions (SHA-224, SHA-256, SHA-384, or SHA-512).
+    *
+    * @param hashLength bit length of the result (either 224, 256, 384, or 512)
+    * @return string or null if one of the arguments is null.
+    */
+  def sha2(hashLength: Expression) = Sha2(expr, hashLength)
+
 }
 
 /**
