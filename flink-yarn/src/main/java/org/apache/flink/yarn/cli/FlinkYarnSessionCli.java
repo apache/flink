@@ -26,6 +26,7 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -541,7 +542,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		if (propParallelism != null) { // maybe the property is not set
 			try {
 				int parallelism = Integer.parseInt(propParallelism);
-				effectiveConfiguration.setInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, parallelism);
+				effectiveConfiguration.setInteger(CoreOptions.DEFAULT_PARALLELISM, parallelism);
 
 				logAndSysout("YARN properties set default parallelism to " + parallelism);
 			}
