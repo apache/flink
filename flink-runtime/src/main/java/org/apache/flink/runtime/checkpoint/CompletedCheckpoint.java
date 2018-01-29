@@ -128,7 +128,7 @@ public class CompletedCheckpoint implements Serializable {
 		// data structure with the "outside world"
 		this.operatorStates = new HashMap<>(checkNotNull(operatorStates));
 		this.masterHookStates = masterHookStates == null || masterHookStates.isEmpty() ?
-				Collections.<MasterState>emptyList() :
+				Collections.emptyList() :
 				new ArrayList<>(masterHookStates);
 
 		this.props = checkNotNull(props);
@@ -136,6 +136,8 @@ public class CompletedCheckpoint implements Serializable {
 		this.externalPointer = checkNotNull(externalPointer);
 	}
 
+	// ------------------------------------------------------------------------
+	//  Properties
 	// ------------------------------------------------------------------------
 
 	public JobID getJobId() {
@@ -158,12 +160,55 @@ public class CompletedCheckpoint implements Serializable {
 		return props;
 	}
 
+	public Map<OperatorID, OperatorState> getOperatorStates() {
+		return operatorStates;
+	}
+
+	public Collection<MasterState> getMasterHookStates() {
+		return Collections.unmodifiableCollection(masterHookStates);
+	}
+
+	public StreamStateHandle getMetadataHandle() {
+		return metadataHandle;
+	}
+
+	public String getExternalPointer() {
+		return externalPointer;
+	}
+
+	public long getStateSize() {
+		long result = 0L;
+
+		for (OperatorState operatorState : operatorStates.values()) {
+			result += operatorState.getStateSize();
+		}
+
+		return result;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Shared State
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Register all shared states in the given registry. This is method is called
+	 * before the checkpoint is added into the store.
+	 *
+	 * @param sharedStateRegistry The registry where shared states are registered
+	 */
+	public void registerSharedStatesAfterRestored(SharedStateRegistry sharedStateRegistry) {
+		sharedStateRegistry.registerAll(operatorStates.values());
+	}
+
+	// ------------------------------------------------------------------------
+	//  Discard and Dispose
+	// ------------------------------------------------------------------------
+
 	public void discardOnFailedStoring() throws Exception {
 		doDiscard();
 	}
 
 	public boolean discardOnSubsume() throws Exception {
-
 		if (props.discardOnSubsumed()) {
 			doDiscard();
 			return true;
@@ -182,24 +227,19 @@ public class CompletedCheckpoint implements Serializable {
 			doDiscard();
 			return true;
 		} else {
-			if (externalPointer != null) {
-				LOG.info("Persistent checkpoint with ID {} at '{}' not discarded.",
-						checkpointID, externalPointer);
-			}
-
+			LOG.info("Checkpoint with ID {} at '{}' not discarded.", checkpointID, externalPointer);
 			return false;
 		}
 	}
 
 	private void doDiscard() throws Exception {
-
 		LOG.trace("Executing discard procedure for {}.", this);
 
 		try {
 			// collect exceptions and continue cleanup
 			Exception exception = null;
 
-			// drop the metadata, if we have some
+			// drop the metadata
 			try {
 				metadataHandle.discardState();
 			} catch (Exception e) {
@@ -227,31 +267,9 @@ public class CompletedCheckpoint implements Serializable {
 		}
 	}
 
-	public long getStateSize() {
-		long result = 0L;
-
-		for (OperatorState operatorState : operatorStates.values()) {
-			result += operatorState.getStateSize();
-		}
-
-		return result;
-	}
-
-	public Map<OperatorID, OperatorState> getOperatorStates() {
-		return operatorStates;
-	}
-
-	public Collection<MasterState> getMasterHookStates() {
-		return Collections.unmodifiableCollection(masterHookStates);
-	}
-
-	public StreamStateHandle getMetadataHandle() {
-		return metadataHandle;
-	}
-
-	public String getExternalPointer() {
-		return externalPointer;
-	}
+	// ------------------------------------------------------------------------
+	//  Miscellaneous
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Sets the callback for tracking when this checkpoint is discarded.
@@ -261,18 +279,6 @@ public class CompletedCheckpoint implements Serializable {
 	void setDiscardCallback(@Nullable CompletedCheckpointStats.DiscardCallback discardCallback) {
 		this.discardCallback = discardCallback;
 	}
-
-	/**
-	 * Register all shared states in the given registry. This is method is called
-	 * before the checkpoint is added into the store.
-	 *
-	 * @param sharedStateRegistry The registry where shared states are registered
-	 */
-	public void registerSharedStatesAfterRestored(SharedStateRegistry sharedStateRegistry) {
-		sharedStateRegistry.registerAll(operatorStates.values());
-	}
-
-	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
