@@ -22,12 +22,15 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.SimpleTimerService;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
-import org.apache.flink.streaming.api.functions.co.BaseBroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -56,7 +59,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
-		extends AbstractUdfStreamOperator<OUT, KeyedBroadcastProcessFunction<IN1, IN2, OUT>>
+		extends AbstractUdfStreamOperator<OUT, KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>>
 		implements TwoInputStreamOperator<IN1, IN2, OUT>, Triggerable<KS, VoidNamespace> {
 
 	private static final long serialVersionUID = 5926499536290284870L;
@@ -74,7 +77,7 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 	private transient OnTimerContextImpl onTimerContext;
 
 	public CoBroadcastWithKeyedOperator(
-			final KeyedBroadcastProcessFunction<IN1, IN2, OUT> function,
+			final KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> function,
 			final List<MapStateDescriptor<?, ?>> broadcastStateDescriptors) {
 		super(function);
 		this.broadcastStateDescriptors = Preconditions.checkNotNull(broadcastStateDescriptors);
@@ -96,7 +99,7 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 			broadcastStates.put(descriptor, getOperatorStateBackend().getBroadcastState(descriptor));
 		}
 
-		rwContext = new ReadWriteContextImpl(userFunction, broadcastStates, timerService);
+		rwContext = new ReadWriteContextImpl(getKeyedStateBackend(), userFunction, broadcastStates, timerService);
 		rContext = new ReadOnlyContextImpl(userFunction, broadcastStates, timerService);
 		onTimerContext = new OnTimerContextImpl(userFunction, broadcastStates, timerService);
 	}
@@ -137,7 +140,9 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		onTimerContext.timer = null;
 	}
 
-	private class ReadWriteContextImpl extends BaseBroadcastProcessFunction.Context {
+	private class ReadWriteContextImpl extends KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>.KeyedContext {
+
+		private final KeyedStateBackend<KS> keyedStateBackend;
 
 		private final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> states;
 
@@ -146,11 +151,13 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		private StreamRecord<IN2> element;
 
 		ReadWriteContextImpl (
-				final KeyedBroadcastProcessFunction<IN1, IN2, OUT> function,
+				final KeyedStateBackend<KS> keyedStateBackend,
+				final KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> function,
 				final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> broadcastStates,
 				final TimerService timerService) {
 
 			function.super();
+			this.keyedStateBackend = Preconditions.checkNotNull(keyedStateBackend);
 			this.states = Preconditions.checkNotNull(broadcastStates);
 			this.timerService = Preconditions.checkNotNull(timerService);
 		}
@@ -192,9 +199,21 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		public long currentWatermark() {
 			return timerService.currentWatermark();
 		}
+
+		@Override
+		public <VS, S extends State> void applyToKeyedState(
+				final StateDescriptor<S, VS> stateDescriptor,
+				final KeyedStateFunction<KS, S> function) throws Exception {
+
+			keyedStateBackend.applyToAllKeys(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					Preconditions.checkNotNull(stateDescriptor),
+					Preconditions.checkNotNull(function));
+		}
 	}
 
-	private class ReadOnlyContextImpl extends KeyedBroadcastProcessFunction<IN1, IN2, OUT>.KeyedReadOnlyContext {
+	private class ReadOnlyContextImpl extends KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>.KeyedReadOnlyContext {
 
 		private final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> states;
 
@@ -203,7 +222,7 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		private StreamRecord<IN1> element;
 
 		ReadOnlyContextImpl(
-				final KeyedBroadcastProcessFunction<IN1, IN2, OUT> function,
+				final KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> function,
 				final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> broadcastStates,
 				final TimerService timerService) {
 
@@ -256,7 +275,7 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		}
 	}
 
-	private class OnTimerContextImpl extends KeyedBroadcastProcessFunction<IN1, IN2, OUT>.OnTimerContext {
+	private class OnTimerContextImpl extends KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>.OnTimerContext {
 
 		private final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> states;
 
@@ -267,7 +286,7 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		private InternalTimer<KS, VoidNamespace> timer;
 
 		OnTimerContextImpl(
-				final KeyedBroadcastProcessFunction<IN1, IN2, OUT> function,
+				final KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> function,
 				final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> broadcastStates,
 				final TimerService timerService) {
 

@@ -119,18 +119,19 @@ public class BroadcastConnectedStream<IN1, IN2, K, V> {
 	 * {@link KeyedBroadcastProcessFunction} on them, thereby creating a transformed output stream.
 	 *
 	 * @param function The {@link KeyedBroadcastProcessFunction} that is called for each element in the stream.
+	 * @param <KS> The type of the keys in the keyed stream.
 	 * @param <OUT> The type of the output elements.
 	 * @return The transformed {@link DataStream}.
 	 */
 	@PublicEvolving
-	public <OUT> SingleOutputStreamOperator<OUT> process(final KeyedBroadcastProcessFunction<IN1, IN2, OUT> function) {
+	public <KS, OUT> SingleOutputStreamOperator<OUT> process(final KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> function) {
 
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(
 				function,
 				KeyedBroadcastProcessFunction.class,
-				0,
 				1,
 				2,
+				3,
 				TypeExtractor.NO_INDEX,
 				TypeExtractor.NO_INDEX,
 				TypeExtractor.NO_INDEX,
@@ -148,12 +149,13 @@ public class BroadcastConnectedStream<IN1, IN2, K, V> {
 	 *
 	 * @param function The {@link KeyedBroadcastProcessFunction} that is called for each element in the stream.
 	 * @param outTypeInfo The type of the output elements.
+	 * @param <KS> The type of the keys in the keyed stream.
 	 * @param <OUT> The type of the output elements.
 	 * @return The transformed {@link DataStream}.
 	 */
 	@PublicEvolving
-	public <OUT> SingleOutputStreamOperator<OUT> process(
-			final KeyedBroadcastProcessFunction<IN1, IN2, OUT> function,
+	public <KS, OUT> SingleOutputStreamOperator<OUT> process(
+			final KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> function,
 			final TypeInformation<OUT> outTypeInfo) {
 
 		Preconditions.checkNotNull(function);

@@ -18,11 +18,14 @@
 
 package org.apache.flink.streaming.api.operators.co;
 
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -63,6 +66,99 @@ public class CoBroadcastWithKeyedOperatorTest {
 					BasicTypeInfo.INT_TYPE_INFO
 			);
 
+	/** Test the iteration over the keyed state on the broadcast side. */
+	@Test
+	public void testAccessToKeyedStateIt() throws Exception {
+		final List<String> test1content = new ArrayList<>();
+		test1content.add("test1");
+		test1content.add("test1");
+
+		final List<String> test2content = new ArrayList<>();
+		test2content.add("test2");
+		test2content.add("test2");
+		test2content.add("test2");
+		test2content.add("test2");
+
+		final List<String> test3content = new ArrayList<>();
+		test3content.add("test3");
+		test3content.add("test3");
+		test3content.add("test3");
+
+		final Map<String, List<String>> expectedState = new HashMap<>();
+		expectedState.put("test1", test1content);
+		expectedState.put("test2", test2content);
+		expectedState.put("test3", test3content);
+
+		try (
+				TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness = getInitializedTestHarness(
+						BasicTypeInfo.STRING_TYPE_INFO,
+						new IdentityKeySelector<>(),
+						new StatefulFunctionWithKeyedStateAccessedOnBroadcast(expectedState))
+		) {
+
+			// send elements to the keyed state
+			testHarness.processElement1(new StreamRecord<>("test1", 12L));
+			testHarness.processElement1(new StreamRecord<>("test1", 12L));
+
+			testHarness.processElement1(new StreamRecord<>("test2", 13L));
+			testHarness.processElement1(new StreamRecord<>("test2", 13L));
+			testHarness.processElement1(new StreamRecord<>("test2", 13L));
+
+			testHarness.processElement1(new StreamRecord<>("test3", 14L));
+			testHarness.processElement1(new StreamRecord<>("test3", 14L));
+			testHarness.processElement1(new StreamRecord<>("test3", 14L));
+
+			testHarness.processElement1(new StreamRecord<>("test2", 13L));
+
+			// this is the element on the broadcast side that will trigger the verification
+			// check the StatefulFunctionWithKeyedStateAccessedOnBroadcast#processBroadcastElement()
+			testHarness.processElement2(new StreamRecord<>(1, 13L));
+		}
+	}
+
+	/**
+	 * Simple {@link KeyedBroadcastProcessFunction} that adds all incoming elements in the non-broadcast
+	 * side to a listState and at the broadcast side it verifies if the stored data is the expected ones.
+	 */
+	private static class StatefulFunctionWithKeyedStateAccessedOnBroadcast
+			extends KeyedBroadcastProcessFunction<String, String, Integer, String> {
+
+		private static final long serialVersionUID = 7496674620398203933L;
+
+		private final ListStateDescriptor<String> listStateDesc =
+				new ListStateDescriptor<>("listStateTest", BasicTypeInfo.STRING_TYPE_INFO);
+
+		private final Map<String, List<String>> expectedKeyedStates;
+
+		StatefulFunctionWithKeyedStateAccessedOnBroadcast(Map<String, List<String>> expectedKeyedState) {
+			this.expectedKeyedStates = Preconditions.checkNotNull(expectedKeyedState);
+		}
+
+		@Override
+		public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
+			// put an element in the broadcast state
+			ctx.applyToKeyedState(
+					listStateDesc,
+					new KeyedStateFunction<String, ListState<String>>() {
+						@Override
+						public void process(String key, ListState<String> state) throws Exception {
+							final Iterator<String> it = state.get().iterator();
+
+							final List<String> list = new ArrayList<>();
+							while (it.hasNext()) {
+								list.add(it.next());
+							}
+							Assert.assertEquals(expectedKeyedStates.get(key), list);
+						}
+					});
+		}
+
+		@Override
+		public void processElement(String value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+			getRuntimeContext().getListState(listStateDesc).add(value);
+		}
+	}
+
 	@Test
 	public void testFunctionWithTimer() throws Exception {
 
@@ -102,7 +198,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 	 * {@link KeyedBroadcastProcessFunction} that registers a timer and emits
 	 * for every element the watermark and the timestamp of the element.
 	 */
-	private static class FunctionWithTimerOnKeyed extends KeyedBroadcastProcessFunction<String, Integer, String> {
+	private static class FunctionWithTimerOnKeyed extends KeyedBroadcastProcessFunction<String, String, Integer, String> {
 
 		private static final long serialVersionUID = 7496674620398203933L;
 
@@ -113,7 +209,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 
 		@Override
-		public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
 			out.collect("BR:" + value + " WM:" + ctx.currentWatermark() + " TS:" + ctx.timestamp());
 		}
 
@@ -172,7 +268,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 	/**
 	 * {@link KeyedBroadcastProcessFunction} that emits elements on side outputs.
 	 */
-	private static class FunctionWithSideOutput extends KeyedBroadcastProcessFunction<String, Integer, String> {
+	private static class FunctionWithSideOutput extends KeyedBroadcastProcessFunction<String, String, Integer, String> {
 
 		private static final long serialVersionUID = 7496674620398203933L;
 
@@ -185,7 +281,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		};
 
 		@Override
-		public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
 			ctx.output(BROADCAST_TAG, "BR:" + value + " WM:" + ctx.currentWatermark() + " TS:" + ctx.timestamp());
 		}
 
@@ -254,7 +350,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 	}
 
-	private static class FunctionWithBroadcastState extends KeyedBroadcastProcessFunction<String, Integer, String> {
+	private static class FunctionWithBroadcastState extends KeyedBroadcastProcessFunction<String, String, Integer, String> {
 
 		private static final long serialVersionUID = 7496674620398203933L;
 
@@ -273,7 +369,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 
 		@Override
-		public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
 			// put an element in the broadcast state
 			final String key = value + "." + keyPostfix;
 			ctx.getBroadcastState(STATE_DESCRIPTOR).put(key, value);
@@ -501,7 +597,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 	}
 
-	private static class TestFunctionWithOutput extends KeyedBroadcastProcessFunction<String, Integer, String> {
+	private static class TestFunctionWithOutput extends KeyedBroadcastProcessFunction<String, String, Integer, String> {
 
 		private static final long serialVersionUID = 7496674620398203933L;
 
@@ -512,7 +608,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 
 		@Override
-		public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
 			// put an element in the broadcast state
 			for (String k : keysToRegister) {
 				ctx.getBroadcastState(STATE_DESCRIPTOR).put(k, value);
@@ -536,14 +632,14 @@ public class CoBroadcastWithKeyedOperatorTest {
 				TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness = getInitializedTestHarness(
 						BasicTypeInfo.STRING_TYPE_INFO,
 						new IdentityKeySelector<>(),
-						new KeyedBroadcastProcessFunction<String, Integer, String>() {
+						new KeyedBroadcastProcessFunction<String, String, Integer, String>() {
 
 							private static final long serialVersionUID = -1725365436500098384L;
 
 							private final ValueStateDescriptor<String> valueState = new ValueStateDescriptor<>("any", BasicTypeInfo.STRING_TYPE_INFO);
 
 							@Override
-							public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
+							public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
 								getRuntimeContext().getState(valueState).value(); // this should fail
 							}
 
@@ -575,10 +671,10 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 	}
 
-	private static <KEY, IN1, IN2, K, V, OUT> TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> getInitializedTestHarness(
+	private static <KEY, IN1, IN2, OUT> TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> getInitializedTestHarness(
 			final TypeInformation<KEY> keyTypeInfo,
 			final KeySelector<IN1, KEY> keyKeySelector,
-			final KeyedBroadcastProcessFunction<IN1, IN2, OUT> function) throws Exception {
+			final KeyedBroadcastProcessFunction<KEY, IN1, IN2, OUT> function) throws Exception {
 
 		return getInitializedTestHarness(
 				keyTypeInfo,
@@ -589,10 +685,10 @@ public class CoBroadcastWithKeyedOperatorTest {
 				0);
 	}
 
-	private static <KEY, IN1, IN2, K, V, OUT> TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> getInitializedTestHarness(
+	private static <KEY, IN1, IN2, OUT> TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> getInitializedTestHarness(
 			final TypeInformation<KEY> keyTypeInfo,
 			final KeySelector<IN1, KEY> keyKeySelector,
-			final KeyedBroadcastProcessFunction<IN1, IN2, OUT> function,
+			final KeyedBroadcastProcessFunction<KEY, IN1, IN2, OUT> function,
 			final int maxParallelism,
 			final int numTasks,
 			final int taskIdx) throws Exception {
@@ -607,10 +703,10 @@ public class CoBroadcastWithKeyedOperatorTest {
 				null);
 	}
 
-	private static <KEY, IN1, IN2, K, V, OUT> TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> getInitializedTestHarness(
+	private static <KEY, IN1, IN2, OUT> TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> getInitializedTestHarness(
 			final TypeInformation<KEY> keyTypeInfo,
 			final KeySelector<IN1, KEY> keyKeySelector,
-			final KeyedBroadcastProcessFunction<IN1, IN2, OUT> function,
+			final KeyedBroadcastProcessFunction<KEY, IN1, IN2, OUT> function,
 			final int maxParallelism,
 			final int numTasks,
 			final int taskIdx,
