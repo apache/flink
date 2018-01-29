@@ -159,7 +159,7 @@ public abstract class ElasticsearchSinkTestBase extends StreamingMultipleProgram
 		userConfig.put("cluster.name", "my-transport-client-cluster");
 
 		source.addSink(createElasticsearchSinkForEmbeddedNode(
-			userConfig, new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test")));
+			Collections.unmodifiableMap(userConfig), new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test")));
 
 		try {
 			env.execute("Elasticsearch Transport Client Test");

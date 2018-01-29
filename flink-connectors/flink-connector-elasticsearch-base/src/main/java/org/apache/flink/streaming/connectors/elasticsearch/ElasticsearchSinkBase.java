@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -213,6 +214,9 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 		// so that the resulting user config only contains configuration related to the Elasticsearch client.
 
 		checkNotNull(userConfig);
+
+		// copy config so we can remove entries without side-effects
+		userConfig = new HashMap<>(userConfig);
 
 		ParameterTool params = ParameterTool.fromMap(userConfig);
 
