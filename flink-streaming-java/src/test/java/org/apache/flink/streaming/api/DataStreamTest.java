@@ -813,7 +813,7 @@ public class DataStreamTest extends TestLogger {
 		}
 	}
 
-	private static class TestBroadcastProcessFunction extends KeyedBroadcastProcessFunction<Long, String, String> {
+	private static class TestBroadcastProcessFunction extends KeyedBroadcastProcessFunction<Long, Long, String, String> {
 
 		private final Map<Long, String> expectedState;
 
@@ -837,7 +837,7 @@ public class DataStreamTest extends TestLogger {
 		}
 
 		@Override
-		public void processBroadcastElement(String value, Context ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(String value, KeyedContext ctx, Collector<String> out) throws Exception {
 			long key = Long.parseLong(value.split(":")[1]);
 			ctx.getBroadcastState(DESCRIPTOR).put(key, value);
 		}
@@ -925,10 +925,10 @@ public class DataStreamTest extends TestLogger {
 
 		BroadcastStream<String, Long, String> broadcast = srcTwo.broadcast(descriptor);
 		srcOne.connect(broadcast)
-				.process(new KeyedBroadcastProcessFunction<Long, String, String>() {
+				.process(new KeyedBroadcastProcessFunction<String, Long, String, String>() {
 
 					@Override
-					public void processBroadcastElement(String value, Context ctx, Collector<String> out) throws Exception {
+					public void processBroadcastElement(String value, KeyedContext ctx, Collector<String> out) throws Exception {
 						// do nothing
 					}
 

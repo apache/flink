@@ -283,6 +283,39 @@ public abstract class AbstractKeyedStateBackend<K>
 	 * @see KeyedStateBackend
 	 */
 	@Override
+	public <N, S extends State, T> void applyToAllKeys(
+			final N namespace,
+			final TypeSerializer<N> namespaceSerializer,
+			final StateDescriptor<S, T> stateDescriptor,
+			final KeyedStateFunction<K, S> function) throws Exception {
+
+		try {
+			getKeys(stateDescriptor.getName(), namespace)
+					.forEach((K key) -> {
+						setCurrentKey(key);
+						try {
+							function.process(
+									key,
+									getPartitionedState(
+											namespace,
+											namespaceSerializer,
+											stateDescriptor)
+							);
+						} catch (Throwable e) {
+							// we wrap the checked exception in an unchecked
+							// one and catch it (and re-throw it) later.
+							throw new RuntimeException(e);
+						}
+					});
+		} catch (RuntimeException e) {
+			throw e;
+		}
+	}
+
+	/**
+	 * @see KeyedStateBackend
+	 */
+	@Override
 	public <N, S extends State, V> S getOrCreateKeyedState(
 			final TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, V> stateDescriptor) throws Exception {

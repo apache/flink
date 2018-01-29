@@ -20,6 +20,9 @@ package org.apache.flink.streaming.api.functions.co;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.util.Collector;
@@ -36,7 +39,7 @@ import org.apache.flink.util.Collector;
  *
  * <p>The user has to implement two methods:
  * <ol>
- *     <li>the {@link #processBroadcastElement(Object, Context, Collector)} which will be applied to
+ *     <li>the {@link #processBroadcastElement(Object, KeyedContext, Collector)} which will be applied to
  *     each element in the broadcast side
  *     <li> and the {@link #processElement(Object, KeyedReadOnlyContext, Collector)} which will be applied to the
  *     non-broadcasted/keyed side.
@@ -47,12 +50,13 @@ import org.apache.flink.util.Collector;
  * {@code processElement()} has read-only access to the broadcast state, but can read/write to the keyed state and
  * register timers.
  *
+ * @param <KS> The key type of the input keyed stream.
  * @param <IN1> The input type of the keyed (non-broadcast) side.
  * @param <IN2> The input type of the broadcast side.
  * @param <OUT> The output type of the operator.
  */
 @PublicEvolving
-public abstract class KeyedBroadcastProcessFunction<IN1, IN2, OUT> extends BaseBroadcastProcessFunction {
+public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> extends BaseBroadcastProcessFunction {
 
 	private static final long serialVersionUID = -2584726797564976453L;
 
@@ -83,19 +87,22 @@ public abstract class KeyedBroadcastProcessFunction<IN1, IN2, OUT> extends BaseB
 	 *
 	 * <p>It can output zero or more elements using the {@link Collector} parameter,
 	 * query the current processing/event time, and also query and update the internal
-	 * {@link org.apache.flink.api.common.state.BroadcastState broadcast state}. These can
-	 * be done through the provided {@link Context}.
+	 * {@link org.apache.flink.api.common.state.BroadcastState broadcast state}. In addition, it
+	 * can register a {@link KeyedStateFunction function} to be applied to all keyed states on
+	 * the local partition. These can be done through the provided {@link Context}.
 	 * The context is only valid during the invocation of this method, do not store it.
 	 *
 	 * @param value The stream element.
 	 * @param ctx A {@link Context} that allows querying the timestamp of the element,
 	 *            querying the current processing/event time and updating the broadcast state.
+	 *            In addition, it allows the registration of a {@link KeyedStateFunction function}
+	 *            to be applied to all keyed state with a given {@link StateDescriptor} on the local partition.
 	 *            The context is only valid during the invocation of this method, do not store it.
 	 * @param out The collector to emit resulting elements to
 	 * @throws Exception The function may throw exceptions which cause the streaming program
 	 *                   to fail and go into recovery.
 	 */
-	public abstract void processBroadcastElement(final IN2 value, final Context ctx, final Collector<OUT> out) throws Exception;
+	public abstract void processBroadcastElement(final IN2 value, final KeyedContext ctx, final Collector<OUT> out) throws Exception;
 
 	/**
 	 * Called when a timer set using {@link TimerService} fires.
@@ -113,6 +120,28 @@ public abstract class KeyedBroadcastProcessFunction<IN1, IN2, OUT> extends BaseB
 	 */
 	public void onTimer(final long timestamp, final OnTimerContext ctx, final Collector<OUT> out) throws Exception {
 		// the default implementation does nothing.
+	}
+
+	/**
+	 * A {@link BaseBroadcastProcessFunction.Context context} available to the broadcast side of
+	 * a {@link org.apache.flink.streaming.api.datastream.BroadcastConnectedStream}.
+	 *
+	 * <p>Apart from the basic functionality of a {@link BaseBroadcastProcessFunction.Context context},
+	 * this also allows to apply a {@link KeyedStateFunction} to the (local) states of all active keys
+	 * in the your backend.
+	 */
+	public abstract class KeyedContext extends Context {
+
+		/**
+		 * Applies the provided {@code function} to the state
+		 * associated with the provided {@code state descriptor}.
+		 *
+		 * @param stateDescriptor the descriptor of the state to be processed.
+		 * @param function the function to be applied.
+		 */
+		public abstract <VS, S extends State> void applyToKeyedState(
+				final StateDescriptor<S, VS> stateDescriptor,
+				final KeyedStateFunction<KS, S> function) throws Exception;
 	}
 
 	/**
