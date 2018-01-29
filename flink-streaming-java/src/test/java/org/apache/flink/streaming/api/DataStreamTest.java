@@ -794,7 +794,7 @@ public class DataStreamTest extends TestLogger {
 					}
 				});
 
-		final BroadcastStream<String, Long, String> broadcast = srcTwo.broadcast(TestBroadcastProcessFunction.DESCRIPTOR);
+		final BroadcastStream<String> broadcast = srcTwo.broadcast(TestBroadcastProcessFunction.DESCRIPTOR);
 
 		// the timestamp should be high enough to trigger the timer after all the elements arrive.
 		final DataStream<String> output = srcOne.connect(broadcast).process(
@@ -880,7 +880,7 @@ public class DataStreamTest extends TestLogger {
 					}
 				});
 
-		BroadcastStream<String, Long, String> broadcast = srcTwo.broadcast(descriptor);
+		BroadcastStream<String> broadcast = srcTwo.broadcast(descriptor);
 		srcOne.connect(broadcast)
 				.process(new BroadcastProcessFunction<Long, String, String>() {
 					@Override
@@ -923,7 +923,7 @@ public class DataStreamTest extends TestLogger {
 					}
 				});
 
-		BroadcastStream<String, Long, String> broadcast = srcTwo.broadcast(descriptor);
+		BroadcastStream<String> broadcast = srcTwo.broadcast(descriptor);
 		srcOne.connect(broadcast)
 				.process(new KeyedBroadcastProcessFunction<String, Long, String, String>() {
 

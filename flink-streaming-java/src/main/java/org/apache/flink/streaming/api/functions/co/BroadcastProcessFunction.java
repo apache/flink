@@ -29,7 +29,7 @@ import org.apache.flink.util.Collector;
  * with broadcast state, with a <b>non-keyed</b> {@link org.apache.flink.streaming.api.datastream.DataStream DataStream}.
  *
  * <p>The stream with the broadcast state can be created using the
- * {@link org.apache.flink.streaming.api.datastream.DataStream#broadcast(MapStateDescriptor)
+ * {@link org.apache.flink.streaming.api.datastream.DataStream#broadcast(MapStateDescriptor[])}
  * stream.broadcast(MapStateDescriptor)} method.
  *
  * <p>The user has to implement two methods:

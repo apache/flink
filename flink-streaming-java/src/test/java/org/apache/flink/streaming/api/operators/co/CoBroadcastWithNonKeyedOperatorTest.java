@@ -35,7 +35,7 @@ import org.apache.flink.util.Preconditions;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Queue;
@@ -54,6 +54,59 @@ public class CoBroadcastWithNonKeyedOperatorTest {
 					BasicTypeInfo.INT_TYPE_INFO
 			);
 
+	private static final MapStateDescriptor<Integer, String> STATE_DESCRIPTOR_A =
+			new MapStateDescriptor<>(
+					"broadcast-state-A",
+					BasicTypeInfo.INT_TYPE_INFO,
+					BasicTypeInfo.STRING_TYPE_INFO
+			);
+
+	@Test
+	public void testMultiStateSupport() throws Exception {
+		try (
+				TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness =
+						getInitializedTestHarness(new FunctionWithMultipleStates(), STATE_DESCRIPTOR, STATE_DESCRIPTOR_A)
+		) {
+			testHarness.processElement2(new StreamRecord<>(5, 12L));
+			testHarness.processElement2(new StreamRecord<>(6, 13L));
+
+			testHarness.processElement1(new StreamRecord<>("9", 15L));
+
+			Queue<Object> expectedBr = new ConcurrentLinkedQueue<>();
+			expectedBr.add(new StreamRecord<>("9:key.6->6", 15L));
+			expectedBr.add(new StreamRecord<>("9:key.5->5", 15L));
+			expectedBr.add(new StreamRecord<>("9:5->value.5", 15L));
+			expectedBr.add(new StreamRecord<>("9:6->value.6", 15L));
+
+			TestHarnessUtil.assertOutputEquals("Wrong Side Output", expectedBr, testHarness.getOutput());
+		}
+	}
+
+	/**
+	 * {@link BroadcastProcessFunction} that puts elements on multiple broadcast states.
+	 */
+	private static class FunctionWithMultipleStates extends BroadcastProcessFunction<String, Integer, String> {
+
+		private static final long serialVersionUID = 7496674620398203933L;
+
+		@Override
+		public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
+			ctx.getBroadcastState(STATE_DESCRIPTOR).put("key." + value, value);
+			ctx.getBroadcastState(STATE_DESCRIPTOR_A).put(value, "value." + value);
+		}
+
+		@Override
+		public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
+			for (Map.Entry<String, Integer> entry: ctx.getBroadcastState(STATE_DESCRIPTOR).immutableEntries()) {
+				out.collect(value + ":" + entry.getKey() + "->" + entry.getValue());
+			}
+
+			for (Map.Entry<Integer, String> entry: ctx.getBroadcastState(STATE_DESCRIPTOR_A).immutableEntries()) {
+				out.collect(value + ":" + entry.getKey() + "->" + entry.getValue());
+			}
+		}
+	}
+
 	@Test
 	public void testBroadcastState() throws Exception {
 
@@ -64,7 +117,7 @@ public class CoBroadcastWithNonKeyedOperatorTest {
 
 		try (
 				TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness = getInitializedTestHarness(
-						new TestFunction(keysToRegister))
+						new TestFunction(keysToRegister), STATE_DESCRIPTOR)
 		) {
 			testHarness.processWatermark1(new Watermark(10L));
 			testHarness.processWatermark2(new Watermark(10L));
@@ -127,7 +180,7 @@ public class CoBroadcastWithNonKeyedOperatorTest {
 	public void testSideOutput() throws Exception {
 		try (
 				TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness = getInitializedTestHarness(
-						new FunctionWithSideOutput())
+						new FunctionWithSideOutput(), STATE_DESCRIPTOR)
 		) {
 
 			testHarness.processWatermark1(new Watermark(10L));
@@ -197,13 +250,15 @@ public class CoBroadcastWithNonKeyedOperatorTest {
 						new TestFunctionWithOutput(keysToRegister),
 						10,
 						2,
-						0);
+						0,
+						STATE_DESCRIPTOR);
 
 				TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness2 = getInitializedTestHarness(
 						new TestFunctionWithOutput(keysToRegister),
 						10,
 						2,
-						1)
+						1,
+						STATE_DESCRIPTOR)
 		) {
 			// make sure all operators have the same state
 			testHarness1.processElement2(new StreamRecord<>(3));
@@ -226,21 +281,24 @@ public class CoBroadcastWithNonKeyedOperatorTest {
 						10,
 						3,
 						0,
-						mergedSnapshot);
+						mergedSnapshot,
+						STATE_DESCRIPTOR);
 
 				TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness2 = getInitializedTestHarness(
 						new TestFunctionWithOutput(keysToRegister),
 						10,
 						3,
 						1,
-						mergedSnapshot);
+						mergedSnapshot,
+						STATE_DESCRIPTOR);
 
 				TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness3 = getInitializedTestHarness(
 						new TestFunctionWithOutput(keysToRegister),
 						10,
 						3,
 						2,
-						mergedSnapshot)
+						mergedSnapshot,
+						STATE_DESCRIPTOR)
 		) {
 			testHarness1.processElement1(new StreamRecord<>("trigger"));
 			testHarness2.processElement1(new StreamRecord<>("trigger"));
@@ -284,19 +342,22 @@ public class CoBroadcastWithNonKeyedOperatorTest {
 						new TestFunctionWithOutput(keysToRegister),
 						10,
 						3,
-						0);
+						0,
+						STATE_DESCRIPTOR);
 
 				TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness2 = getInitializedTestHarness(
 						new TestFunctionWithOutput(keysToRegister),
 						10,
 						3,
-						1);
+						1,
+						STATE_DESCRIPTOR);
 
 				TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness3 = getInitializedTestHarness(
 						new TestFunctionWithOutput(keysToRegister),
 						10,
 						3,
-						2)
+						2,
+						STATE_DESCRIPTOR)
 		) {
 
 			// make sure all operators have the same state
@@ -322,14 +383,16 @@ public class CoBroadcastWithNonKeyedOperatorTest {
 						10,
 						2,
 						0,
-						mergedSnapshot);
+						mergedSnapshot,
+						STATE_DESCRIPTOR);
 
 				TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness2 = getInitializedTestHarness(
 						new TestFunctionWithOutput(keysToRegister),
 						10,
 						2,
 						1,
-						mergedSnapshot)
+						mergedSnapshot,
+						STATE_DESCRIPTOR)
 		) {
 			testHarness1.processElement1(new StreamRecord<>("trigger"));
 			testHarness2.processElement1(new StreamRecord<>("trigger"));
@@ -452,27 +515,15 @@ public class CoBroadcastWithNonKeyedOperatorTest {
 	}
 
 	private static <IN1, IN2, OUT> TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> getInitializedTestHarness(
-			final BroadcastProcessFunction<IN1, IN2, OUT> function) throws Exception {
-
-		return getInitializedTestHarness(
-				function,
-				1,
-				1,
-				0);
-	}
-
-	private static <IN1, IN2, OUT> TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> getInitializedTestHarness(
 			final BroadcastProcessFunction<IN1, IN2, OUT> function,
-			final int maxParallelism,
-			final int numTasks,
-			final int taskIdx) throws Exception {
+			final MapStateDescriptor<?, ?>... descriptors) throws Exception {
 
 		return getInitializedTestHarness(
 				function,
-				maxParallelism,
-				numTasks,
-				taskIdx,
-				null);
+				1,
+				1,
+				0,
+				descriptors);
 	}
 
 	private static <IN1, IN2, OUT> TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> getInitializedTestHarness(
@@ -480,12 +531,39 @@ public class CoBroadcastWithNonKeyedOperatorTest {
 			final int maxParallelism,
 			final int numTasks,
 			final int taskIdx,
-			final OperatorStateHandles initState) throws Exception {
+			final MapStateDescriptor<?, ?>... descriptors) throws Exception {
+
+		return getInitializedTestHarness(
+				function,
+				maxParallelism,
+				numTasks,
+				taskIdx,
+				null,
+				descriptors);
+	}
+
+//	private static <IN1, IN2, OUT> TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> getInitializedTestHarness(
+//			final BroadcastProcessFunction<IN1, IN2, OUT> function,
+//			final int maxParallelism,
+//			final int numTasks,
+//			final int taskIdx,
+//			final OperatorStateHandles initState) throws Exception {
+//
+//		return getInitializedTestHarness(function, maxParallelism, numTasks, taskIdx, initState, STATE_DESCRIPTOR);
+//	}
+
+	private static <IN1, IN2, OUT> TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> getInitializedTestHarness(
+			final BroadcastProcessFunction<IN1, IN2, OUT> function,
+			final int maxParallelism,
+			final int numTasks,
+			final int taskIdx,
+			final OperatorStateHandles initState,
+			final MapStateDescriptor<?, ?>... descriptors) throws Exception {
 
 		TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> testHarness = new TwoInputStreamOperatorTestHarness<>(
 				new CoBroadcastWithNonKeyedOperator<>(
 						Preconditions.checkNotNull(function),
-						Collections.singletonList(STATE_DESCRIPTOR)),
+						Arrays.asList(descriptors)),
 				maxParallelism, numTasks, taskIdx
 		);
 		testHarness.setup();

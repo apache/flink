@@ -257,7 +257,7 @@ public class DataStream<T> {
 	 * Creates a new {@link BroadcastConnectedStream} by connecting the current
 	 * {@link DataStream} or {@link KeyedStream} with a {@link BroadcastStream}.
 	 *
-	 * <p>The latter can be created using the {@link #broadcast(MapStateDescriptor)} method.
+	 * <p>The latter can be created using the {@link #broadcast(MapStateDescriptor[])} method.
 	 *
 	 * <p>The resulting stream can be further processed using the {@code BroadcastConnectedStream.process(MyFunction)}
 	 * method, where {@code MyFunction} can be either a
@@ -269,7 +269,7 @@ public class DataStream<T> {
 	 * @return The {@link BroadcastConnectedStream}.
 	 */
 	@PublicEvolving
-	public <R, K, V> BroadcastConnectedStream<T, R, K, V> connect(BroadcastStream<R, K, V> broadcastStream) {
+	public <R> BroadcastConnectedStream<T, R> connect(BroadcastStream<R> broadcastStream) {
 		return new BroadcastConnectedStream<>(
 				environment,
 				this,
@@ -402,14 +402,15 @@ public class DataStream<T> {
 	 * it implicitly creates a {@link org.apache.flink.api.common.state.BroadcastState broadcast state}
 	 * which can be used to store the element of the stream.
 	 *
+	 * @param broadcastStateDescriptors the descriptors of the broadcast states to create.
 	 * @return A {@link BroadcastStream} which can be used in the {@link #connect(BroadcastStream)} to
 	 * create a {@link BroadcastConnectedStream} for further processing of the elements.
 	 */
 	@PublicEvolving
-	public <K, V> BroadcastStream<T, K, V> broadcast(final MapStateDescriptor<K, V> broadcastStateDescriptor) {
-		Preconditions.checkNotNull(broadcastStateDescriptor);
+	public BroadcastStream<T> broadcast(final MapStateDescriptor<?, ?>... broadcastStateDescriptors) {
+		Preconditions.checkNotNull(broadcastStateDescriptors);
 		final DataStream<T> broadcastStream = setConnectionType(new BroadcastPartitioner<>());
-		return new BroadcastStream<>(environment, broadcastStream, broadcastStateDescriptor);
+		return new BroadcastStream<>(environment, broadcastStream, broadcastStateDescriptors);
 	}
 
 	/**

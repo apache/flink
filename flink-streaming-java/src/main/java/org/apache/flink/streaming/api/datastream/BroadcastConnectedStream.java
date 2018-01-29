@@ -33,14 +33,14 @@ import org.apache.flink.streaming.api.operators.co.CoBroadcastWithNonKeyedOperat
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Collections;
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
 /**
  * A BroadcastConnectedStream represents the result of connecting a keyed or non-keyed stream,
  * with a {@link BroadcastStream} with {@link org.apache.flink.api.common.state.BroadcastState
- * BroadcastState}. As in the case of {@link ConnectedStreams} these streams are useful for cases
+ * broadcast state(s)}. As in the case of {@link ConnectedStreams} these streams are useful for cases
  * where operations on one stream directly affect the operations on the other stream, usually via
  * shared state between the streams.
  *
@@ -52,26 +52,24 @@ import static java.util.Objects.requireNonNull;
  *
  * @param <IN1> The input type of the non-broadcast side.
  * @param <IN2> The input type of the broadcast side.
- * @param <K> The key type of the elements in the {@link org.apache.flink.api.common.state.BroadcastState BroadcastState}.
- * @param <V> The value type of the elements in the {@link org.apache.flink.api.common.state.BroadcastState BroadcastState}.
  */
 @PublicEvolving
-public class BroadcastConnectedStream<IN1, IN2, K, V> {
+public class BroadcastConnectedStream<IN1, IN2> {
 
 	private final StreamExecutionEnvironment environment;
 	private final DataStream<IN1> inputStream1;
-	private final BroadcastStream<IN2, K, V> inputStream2;
-	private final MapStateDescriptor<K, V> broadcastStateDescriptor;
+	private final BroadcastStream<IN2> inputStream2;
+	private final List<MapStateDescriptor<?, ?>> broadcastStateDescriptors;
 
 	protected BroadcastConnectedStream(
 			final StreamExecutionEnvironment env,
 			final DataStream<IN1> input1,
-			final BroadcastStream<IN2, K, V> input2,
-			final MapStateDescriptor<K, V> broadcastStateDescriptor) {
+			final BroadcastStream<IN2> input2,
+			final List<MapStateDescriptor<?, ?>> broadcastStateDescriptors) {
 		this.environment = requireNonNull(env);
 		this.inputStream1 = requireNonNull(input1);
 		this.inputStream2 = requireNonNull(input2);
-		this.broadcastStateDescriptor = requireNonNull(broadcastStateDescriptor);
+		this.broadcastStateDescriptors = requireNonNull(broadcastStateDescriptors);
 	}
 
 	public StreamExecutionEnvironment getExecutionEnvironment() {
@@ -92,7 +90,7 @@ public class BroadcastConnectedStream<IN1, IN2, K, V> {
 	 *
 	 * @return The stream which, by convention, is the broadcast one.
 	 */
-	public BroadcastStream<IN2, K, V> getSecondInput() {
+	public BroadcastStream<IN2> getSecondInput() {
 		return inputStream2;
 	}
 
@@ -163,7 +161,7 @@ public class BroadcastConnectedStream<IN1, IN2, K, V> {
 				"A KeyedBroadcastProcessFunction can only be used with a keyed stream as the second input.");
 
 		TwoInputStreamOperator<IN1, IN2, OUT> operator =
-				new CoBroadcastWithKeyedOperator<>(function, Collections.singletonList(broadcastStateDescriptor));
+				new CoBroadcastWithKeyedOperator<>(function, broadcastStateDescriptors);
 		return transform("Co-Process-Broadcast-Keyed", outTypeInfo, operator);
 	}
 
@@ -214,7 +212,7 @@ public class BroadcastConnectedStream<IN1, IN2, K, V> {
 				"A BroadcastProcessFunction can only be used with a non-keyed stream as the second input.");
 
 		TwoInputStreamOperator<IN1, IN2, OUT> operator =
-				new CoBroadcastWithNonKeyedOperator<>(function, Collections.singletonList(broadcastStateDescriptor));
+				new CoBroadcastWithNonKeyedOperator<>(function, broadcastStateDescriptors);
 		return transform("Co-Process-Broadcast", outTypeInfo, operator);
 	}
 
