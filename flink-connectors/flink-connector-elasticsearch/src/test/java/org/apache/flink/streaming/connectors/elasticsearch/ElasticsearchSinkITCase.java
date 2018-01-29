@@ -34,6 +34,7 @@ import org.junit.Test;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -113,13 +114,14 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 
 		// Elasticsearch 1.x requires this setting when using
 		// LocalTransportAddress to connect to a local embedded node
+		userConfig = new HashMap<>(userConfig);
 		userConfig.put("node.local", "true");
 
 		List<TransportAddress> transports = new ArrayList<>();
 		transports.add(new LocalTransportAddress("1"));
 
 		return new ElasticsearchSink<>(
-			userConfig,
+			Collections.unmodifiableMap(userConfig),
 			transports,
 			elasticsearchSinkFunction);
 	}
