@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.leaderretrieval;
 
+import org.apache.flink.util.FlinkException;
+
 /**
  * This exception is thrown by the {@link org.apache.flink.runtime.util.LeaderRetrievalUtils} when
  * the method retrieveLeaderGateway fails to retrieve the current leader's gateway.
  */
-public class LeaderRetrievalException extends Exception {
+public class LeaderRetrievalException extends FlinkException {
 
 	private static final long serialVersionUID = 42;
 

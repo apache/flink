@@ -34,6 +34,7 @@ import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusRespon
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -596,17 +597,32 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 					//------------------ ClusterClient deployed, handle connection details
 					yarnApplicationId = clusterClient.getClusterId();
 
-					String jobManagerAddress =
-						clusterClient.getJobManagerAddress().getAddress().getHostName() +
-							':' + clusterClient.getJobManagerAddress().getPort();
+					try {
+						final LeaderConnectionInfo connectionInfo = clusterClient.getClusterConnectionInfo();
 
-					System.out.println("Flink JobManager is now running on " + jobManagerAddress);
-					System.out.println("JobManager Web Interface: " + clusterClient.getWebInterfaceURL());
+						System.out.println("Flink JobManager is now running on " + connectionInfo.getHostname() +
+							':' + connectionInfo.getPort() + " with leader id " + connectionInfo.getLeaderSessionID() + '.');
+						System.out.println("JobManager Web Interface: " + clusterClient.getWebInterfaceURL());
 
-					writeYarnPropertiesFile(
-						yarnApplicationId,
-						clusterSpecification.getNumberTaskManagers() * clusterSpecification.getSlotsPerTaskManager(),
-						yarnClusterDescriptor.getDynamicPropertiesEncoded());
+						writeYarnPropertiesFile(
+							yarnApplicationId,
+							clusterSpecification.getNumberTaskManagers() * clusterSpecification.getSlotsPerTaskManager(),
+							yarnClusterDescriptor.getDynamicPropertiesEncoded());
+					} catch (Exception e) {
+						try {
+							clusterClient.shutdown();
+						} catch (Exception ex) {
+							LOG.info("Could not properly shutdown cluster client.", ex);
+						}
+
+						try {
+							yarnClusterDescriptor.terminateCluster(yarnApplicationId);
+						} catch (FlinkException fe) {
+							LOG.info("Could not properly terminate the Flink cluster.", fe);
+						}
+
+						throw new FlinkException("Could not write the Yarn connection information.", e);
+					}
 				}
 
 				if (detachedMode) {

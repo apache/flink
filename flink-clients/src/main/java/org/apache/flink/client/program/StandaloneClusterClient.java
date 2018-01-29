@@ -22,12 +22,14 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
@@ -54,7 +56,15 @@ public class StandaloneClusterClient extends ClusterClient<StandaloneClusterId> 
 
 	@Override
 	public String getWebInterfaceURL() {
-		String host = getJobManagerAddress().getHostString();
+		final InetSocketAddress inetSocketAddressFromAkkaURL;
+
+		try {
+			inetSocketAddressFromAkkaURL = AkkaUtils.getInetSocketAddressFromAkkaURL(getClusterConnectionInfo().getAddress());
+		} catch (Exception e) {
+			throw new RuntimeException("Could not retrieve leader retrieval information.", e);
+		}
+
+		String host = inetSocketAddressFromAkkaURL.getHostName();
 		int port = getFlinkConfiguration().getInteger(WebOptions.PORT);
 		return "http://" +  host + ":" + port;
 	}
