@@ -24,12 +24,15 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 
+import java.util.Arrays;
+import java.util.List;
+
 import static java.util.Objects.requireNonNull;
 
 /**
- * A {@code BroadcastStream} is a stream with {@link org.apache.flink.api.common.state.BroadcastState BroadcastState}.
- * This can be created by any stream using the {@link DataStream#broadcast(MapStateDescriptor)} method and
- * implicitly creates a state where the user can store elements of the created {@code BroadcastStream}.
+ * A {@code BroadcastStream} is a stream with {@link org.apache.flink.api.common.state.BroadcastState broadcast state(s)}.
+ * This can be created by any stream using the {@link DataStream#broadcast(MapStateDescriptor[])} method and
+ * implicitly creates states where the user can store elements of the created {@code BroadcastStream}.
  * (see {@link BroadcastConnectedStream}).
  *
  * <p>Note that no further operation can be applied to these streams. The only available option is to connect them
@@ -38,31 +41,29 @@ import static java.util.Objects.requireNonNull;
  * {@link BroadcastConnectedStream} for further processing.
  *
  * @param <T> The type of input/output elements.
- * @param <K> The key type of the elements in the {@link org.apache.flink.api.common.state.BroadcastState BroadcastState}.
- * @param <V> The value type of the elements in the {@link org.apache.flink.api.common.state.BroadcastState BroadcastState}.
  */
 @PublicEvolving
-public class BroadcastStream<T, K, V> {
+public class BroadcastStream<T> {
 
 	private final StreamExecutionEnvironment environment;
 
 	private final DataStream<T> inputStream;
 
 	/**
-	 * The {@link org.apache.flink.api.common.state.StateDescriptor state descriptor} of the
-	 * {@link org.apache.flink.api.common.state.BroadcastState broadcast state}. This state
-	 * has a {@code key-value} format.
+	 * The {@link org.apache.flink.api.common.state.StateDescriptor state descriptors} of the
+	 * registered {@link org.apache.flink.api.common.state.BroadcastState broadcast states}. These
+	 * states have {@code key-value} format.
 	 */
-	private final MapStateDescriptor<K, V> broadcastStateDescriptor;
+	private final List<MapStateDescriptor<?, ?>> broadcastStateDescriptors;
 
 	protected BroadcastStream(
 			final StreamExecutionEnvironment env,
 			final DataStream<T> input,
-			final MapStateDescriptor<K, V> broadcastStateDescriptor) {
+			final MapStateDescriptor<?, ?>... broadcastStateDescriptors) {
 
 		this.environment = requireNonNull(env);
 		this.inputStream = requireNonNull(input);
-		this.broadcastStateDescriptor = requireNonNull(broadcastStateDescriptor);
+		this.broadcastStateDescriptors = Arrays.asList(requireNonNull(broadcastStateDescriptors));
 	}
 
 	public TypeInformation<T> getType() {
@@ -77,8 +78,8 @@ public class BroadcastStream<T, K, V> {
 		return inputStream.getTransformation();
 	}
 
-	public MapStateDescriptor<K, V> getBroadcastStateDescriptor() {
-		return broadcastStateDescriptor;
+	public List<MapStateDescriptor<?, ?>> getBroadcastStateDescriptor() {
+		return broadcastStateDescriptors;
 	}
 
 	public StreamExecutionEnvironment getEnvironment() {
