@@ -20,10 +20,11 @@ package org.apache.flink.api.scala
 
 import java.io._
 
-import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser, RunOptions}
-import org.apache.flink.client.deployment.{ClusterDescriptor, StandaloneClusterId}
+import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
+import org.apache.flink.client.deployment.ClusterDescriptor
 import org.apache.flink.client.program.ClusterClient
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration, JobManagerOptions}
+import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
 
 import scala.collection.mutable.ArrayBuffer
@@ -270,8 +271,11 @@ object FlinkShell {
 
     val cluster = clusterDescriptor.deploySessionCluster(clusterSpecification)
 
-    val address = cluster.getJobManagerAddress.getAddress.getHostAddress
-    val port = cluster.getJobManagerAddress.getPort
+    val inetSocketAddress = AkkaUtils.getInetSocketAddressFromAkkaURL(
+      cluster.getClusterConnectionInfo.getAddress)
+
+    val address = inetSocketAddress.getAddress.getHostAddress
+    val port = inetSocketAddress.getPort
 
     (address, port, Some(Right(cluster)))
   }
@@ -307,7 +311,8 @@ object FlinkShell {
       throw new RuntimeException("Yarn Cluster could not be retrieved.")
     }
 
-    val jobManager = cluster.getJobManagerAddress
+    val jobManager = AkkaUtils.getInetSocketAddressFromAkkaURL(
+      cluster.getClusterConnectionInfo.getAddress)
 
     (jobManager.getHostString, jobManager.getPort, None)
   }

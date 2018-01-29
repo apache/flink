@@ -22,15 +22,16 @@ import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.cli.CommandLine;
-import org.junit.Assert;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.net.InetSocketAddress;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the {@link DefaultCLI}.
@@ -60,13 +61,14 @@ public class DefaultCLITest extends TestLogger {
 
 		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
 
-		final InetSocketAddress expectedAddress = new InetSocketAddress(localhost, port);
-
 		final StandaloneClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
 
 		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
 
-		Assert.assertEquals(expectedAddress, clusterClient.getJobManagerAddress());
+		final LeaderConnectionInfo clusterConnectionInfo = clusterClient.getClusterConnectionInfo();
+
+		assertThat(clusterConnectionInfo.getHostname(), Matchers.equalTo(localhost));
+		assertThat(clusterConnectionInfo.getPort(), Matchers.equalTo(port));
 	}
 
 	/**
@@ -93,9 +95,10 @@ public class DefaultCLITest extends TestLogger {
 
 		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
 
-		final InetSocketAddress expectedAddress = new InetSocketAddress(manualHostname, manualPort);
+		final LeaderConnectionInfo clusterConnectionInfo = clusterClient.getClusterConnectionInfo();
 
-		Assert.assertEquals(expectedAddress, clusterClient.getJobManagerAddress());
+		assertThat(clusterConnectionInfo.getHostname(), Matchers.equalTo(manualHostname));
+		assertThat(clusterConnectionInfo.getPort(), Matchers.equalTo(manualPort));
 	}
 
 }

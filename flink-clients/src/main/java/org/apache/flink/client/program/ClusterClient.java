@@ -74,7 +74,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -294,20 +293,15 @@ public abstract class ClusterClient<T> {
 	}
 
 	/**
-	 * Gets the current JobManager address (may change in case of a HA setup).
-	 * @return The address (host and port) of the leading JobManager
+	 * Gets the current cluster connection info (may change in case of a HA setup).
+	 *
+	 * @return The the connection info to the leader component of the cluster
+	 * @throws LeaderRetrievalException if the leader could not be retrieved
 	 */
-	public InetSocketAddress getJobManagerAddress() {
-		try {
-			LeaderConnectionInfo leaderConnectionInfo =
-				LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
-					highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
-					timeout);
-
-			return AkkaUtils.getInetSocketAddressFromAkkaURL(leaderConnectionInfo.getAddress());
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to retrieve JobManager address", e);
-		}
+	public LeaderConnectionInfo getClusterConnectionInfo() throws LeaderRetrievalException {
+		return LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
+			highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+			timeout);
 	}
 
 	// ------------------------------------------------------------------------
