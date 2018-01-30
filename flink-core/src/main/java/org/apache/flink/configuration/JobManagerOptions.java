@@ -140,7 +140,7 @@ public class JobManagerOptions {
 
 	public static final ConfigOption<Long> SLOT_IDLE_TIMEOUT =
 		key("slot.idle.timeout")
-			.defaultValue(20L * 1000L)
+			.defaultValue(10L * 1000L)
 			.withDescription("The timeout in milliseconds for a idle slot in Slot Pool.");
 
 	// ---------------------------------------------------------------------------------------------

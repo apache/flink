@@ -230,15 +230,15 @@ public class CoreOptions {
 	// ------------------------------------------------------------------------
 
 	/**
+	 * Constant value for the Flip-6 execution mode.
+	 */
+	public static final String FLIP6_MODE = "flip6";
+
+	/**
 	 * Switch to select the execution mode. Possible values are 'flip6' and 'old'.
 	 */
 	public static final ConfigOption<String> MODE = ConfigOptions
 		.key("mode")
-		.defaultValue("old")
+		.defaultValue(FLIP6_MODE)
 		.withDescription("Switch to select the execution mode. Possible values are 'flip6' and 'old'.");
-
-	/**
-	 * Constant value for the Flip-6 execution mode.
-	 */
-	public static final String FLIP6_MODE = "flip6";
 }

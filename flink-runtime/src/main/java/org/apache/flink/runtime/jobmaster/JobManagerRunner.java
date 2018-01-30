@@ -410,7 +410,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			log.info("JobManager for job {} ({}) was revoked leadership at {}.",
 				jobGraph.getName(), jobGraph.getJobID(), getAddress());
 
-			CompletableFuture<Acknowledge>  suspendFuture = jobManager.suspend(new Exception("JobManager is no longer the leader."), rpcTimeout);
+			CompletableFuture<Acknowledge>  suspendFuture = jobManager.suspend(new FlinkException("JobManager is no longer the leader."), rpcTimeout);
 
 			suspendFuture.whenCompleteAsync(
 				(Acknowledge ack, Throwable throwable) -> {
