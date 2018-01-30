@@ -20,8 +20,8 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OptimizerOptions;
 import org.apache.flink.testutils.TestConfigUtils;
 import org.apache.flink.testutils.TestFileSystem;
 import org.apache.flink.testutils.TestFileUtils;
@@ -78,8 +78,8 @@ public class DelimitedInputFormatSamplingTest {
 		try {
 			// make sure we do 4 samples
 			CONFIG = TestConfigUtils.loadGlobalConf(
-				new String[] { ConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
-								ConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY },
+				new String[] { OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES.key(),
+								OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES.key() },
 				new String[] { "4", "4" });
 
 
@@ -230,7 +230,7 @@ public class DelimitedInputFormatSamplingTest {
 	@Test
 	public void testSamplingOverlyLongRecord() {
 		try {
-			final String tempFile = TestFileUtils.createTempFile(2 * ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
+			final String tempFile = TestFileUtils.createTempFile(2 * OptimizerOptions.DELIMITED_FORMAT_MAX_SAMPLE_LEN.defaultValue());
 			final Configuration conf = new Configuration();
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat(CONFIG);

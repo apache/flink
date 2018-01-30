@@ -656,18 +656,27 @@ public final class ConfigConstants {
 	/**
 	 * The maximum number of line samples to be taken by the delimited input format, if no
 	 * other value is specified for the data source.
+	 *
+	 * @deprecated use {@link OptimizerOptions#DELIMITED_FORMAT_MAX_LINE_SAMPLES} instead
 	 */
+	@Deprecated
 	public static final String DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY = "compiler.delimited-informat.max-line-samples";
 
 	/**
 	 * The minimum number of line samples to be taken by the delimited input format, if no
 	 * other value is specified for the data source.
+	 *
+	 * @deprecated use {@link OptimizerOptions#DELIMITED_FORMAT_MIN_LINE_SAMPLES} instead
 	 */
+	@Deprecated
 	public static final String DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY = "compiler.delimited-informat.min-line-samples";
 
 	/**
 	 * The maximum length of a single sampled record before the sampling is aborted.
+	 *
+	 * @deprecated use {@link OptimizerOptions#DELIMITED_FORMAT_MAX_SAMPLE_LEN} instead
 	 */
+	@Deprecated
 	public static final String DELIMITED_FORMAT_MAX_SAMPLE_LENGTH_KEY = "compiler.delimited-informat.max-sample-len";
 
 
@@ -1554,17 +1563,26 @@ public final class ConfigConstants {
 
 	/**
 	 * The default maximum number of line samples taken by the delimited input format.
+	 *
+	 * @deprecated use {@link OptimizerOptions#DELIMITED_FORMAT_MAX_LINE_SAMPLES} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES = 10;
 
 	/**
 	 * The default minimum number of line samples taken by the delimited input format.
+	 *
+	 * @deprecated use {@link OptimizerOptions#DELIMITED_FORMAT_MIN_LINE_SAMPLES} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES = 2;
 
 	/**
 	 * The default maximum sample length before sampling is aborted (2 MiBytes).
+	 *
+	 * @deprecated use {@link OptimizerOptions#DELIMITED_FORMAT_MAX_SAMPLE_LEN} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN = 2 * 1024 * 1024;
 
 
