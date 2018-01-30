@@ -79,4 +79,17 @@ public interface InputGate {
 	void registerListener(InputGateListener listener);
 
 	int getPageSize();
+
+	/**
+	 * Blocks the input channel from which the barrier is already read.
+	 *
+	 * @param channelIndex
+	 * 		The logical channel index means the internal channel index in input gate plus gate's offset.
+	 */
+	void blockInputChannel(int channelIndex);
+
+	/**
+	 * Releases all the blocked input channels when barrier alignment or cancelled.
+	 */
+	void releaseBlockedInputChannels();
 }

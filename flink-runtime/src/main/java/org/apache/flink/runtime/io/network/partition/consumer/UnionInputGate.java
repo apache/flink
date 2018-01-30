@@ -82,6 +82,9 @@ public class UnionInputGate implements InputGate, InputGateListener {
 	 */
 	private final Map<InputGate, Integer> inputGateToIndexOffsetMap;
 
+	/** A mapping from logical channel index (internal channel index in input gate plus gate's offset) to input gate. */
+	private final Map<Integer, InputGate> indexToInputGateMap;
+
 	/** Flag indicating whether partitions have been requested. */
 	private boolean requestedPartitionsFlag;
 
@@ -89,23 +92,30 @@ public class UnionInputGate implements InputGate, InputGateListener {
 		this.inputGates = checkNotNull(inputGates);
 		checkArgument(inputGates.length > 1, "Union input gate should union at least two input gates.");
 
+		int currentNumberOfInputChannels = 0;
+		for (InputGate inputGate : inputGates) {
+			currentNumberOfInputChannels += inputGate.getNumberOfInputChannels();
+		}
+		this.totalNumberOfInputChannels = currentNumberOfInputChannels;
+
+		this.indexToInputGateMap = Maps.newHashMapWithExpectedSize(totalNumberOfInputChannels);
 		this.inputGateToIndexOffsetMap = Maps.newHashMapWithExpectedSize(inputGates.length);
 		this.inputGatesWithRemainingData = Sets.newHashSetWithExpectedSize(inputGates.length);
 
-		int currentNumberOfInputChannels = 0;
-
+		currentNumberOfInputChannels = 0;
 		for (InputGate inputGate : inputGates) {
 			// The offset to use for buffer or event instances received from this input gate.
 			inputGateToIndexOffsetMap.put(checkNotNull(inputGate), currentNumberOfInputChannels);
 			inputGatesWithRemainingData.add(inputGate);
+			for (int index = currentNumberOfInputChannels; index < currentNumberOfInputChannels + inputGate.getNumberOfInputChannels(); index++) {
+				indexToInputGateMap.put(index, inputGate);
+			}
 
 			currentNumberOfInputChannels += inputGate.getNumberOfInputChannels();
 
 			// Register the union gate as a listener for all input gates
 			inputGate.registerListener(this);
 		}
-
-		this.totalNumberOfInputChannels = currentNumberOfInputChannels;
 	}
 
 	/**
@@ -135,6 +145,24 @@ public class UnionInputGate implements InputGate, InputGateListener {
 			}
 
 			requestedPartitionsFlag = true;
+		}
+	}
+
+	@Override
+	public void blockInputChannel(int channelIndex) {
+		InputGate inputGate = indexToInputGateMap.get(channelIndex);
+		if (inputGate == null) {
+			throw new IllegalStateException("Could not find input gate from the channel index " + channelIndex);
+		}
+
+		int indexOffset = inputGateToIndexOffsetMap.get(inputGate);
+		inputGate.blockInputChannel(channelIndex - indexOffset);
+	}
+
+	@Override
+	public void releaseBlockedInputChannels() {
+		for (InputGate inputGate : inputGates) {
+			inputGate.releaseBlockedInputChannels();
 		}
 	}
 

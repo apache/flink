@@ -96,4 +96,12 @@ public class MockInputGate implements InputGate {
 	public void registerListener(InputGateListener listener) {
 	}
 
+	@Override
+	public void blockInputChannel(int channelIndex) {
+	}
+
+	@Override
+	public void releaseBlockedInputChannels() {
+	}
+
 }
