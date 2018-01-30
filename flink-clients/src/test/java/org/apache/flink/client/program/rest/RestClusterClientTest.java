@@ -578,7 +578,7 @@ public class RestClusterClientTest extends TestLogger {
 
 		private final AbstractRestHandler<?, ?, ?, ?>[] abstractRestHandlers;
 
-		TestRestServerEndpoint(final AbstractRestHandler<?, ?, ?, ?>... abstractRestHandlers) {
+		TestRestServerEndpoint(final AbstractRestHandler<?, ?, ?, ?>... abstractRestHandlers) throws IOException {
 			super(restServerEndpointConfiguration);
 			this.abstractRestHandlers = abstractRestHandlers;
 		}

@@ -98,10 +98,12 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		runner.join();
 		checkForLogString("The Flink YARN client has been started in detached mode");
 
-		LOG.info("Waiting until two containers are running");
-		// wait until two containers are running
-		while (getRunningContainers() < 2) {
-			sleep(500);
+		if (!flip6) {
+			LOG.info("Waiting until two containers are running");
+			// wait until two containers are running
+			while (getRunningContainers() < 2) {
+				sleep(500);
+			}
 		}
 
 		//additional sleep for the JM/TM to start and establish connection

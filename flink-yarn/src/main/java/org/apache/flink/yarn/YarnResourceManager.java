@@ -432,7 +432,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		final ContaineredTaskManagerParameters taskManagerParameters =
 				ContaineredTaskManagerParameters.create(flinkConfig, resource.getMemory(), 1);
 
-		log.info("TaskExecutor{} will be started with container size {} MB, JVM heap size {} MB, " +
+		log.info("TaskExecutor {} will be started with container size {} MB, JVM heap size {} MB, " +
 				"JVM direct memory limit {} MB",
 				containerId,
 				taskManagerParameters.taskManagerTotalMemoryMB(),

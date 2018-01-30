@@ -38,6 +38,7 @@ import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -61,7 +62,7 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			Executor executor,
 			MetricQueryServiceRetriever metricQueryServiceRetriever,
 			LeaderElectionService leaderElectionService,
-			FatalErrorHandler fatalErrorHandler) {
+			FatalErrorHandler fatalErrorHandler) throws IOException {
 
 		super(
 			endpointConfiguration,
