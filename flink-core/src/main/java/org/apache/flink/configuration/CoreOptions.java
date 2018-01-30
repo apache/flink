@@ -27,6 +27,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  */
 @PublicEvolving
 @ConfigGroups(groups = {
+	@ConfigGroup(name = "Environment", keyPrefix = "env"),
 	@ConfigGroup(name = "FileSystem", keyPrefix = "fs")
 })
 public class CoreOptions {
@@ -99,6 +100,24 @@ public class CoreOptions {
 	public static final ConfigOption<String> FLINK_TM_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.taskmanager")
 		.defaultValue("");
+
+	public static final ConfigOption<String> FLINK_LOG_DIR = ConfigOptions
+		.key("env.log.dir")
+		.noDefaultValue()
+		.withDescription("Defines the directory where the Flink logs are saved. It has to be an absolute path." +
+			" (Defaults to the log directory under Flink’s home)");
+
+	public static final ConfigOption<Integer> FLINK_LOG_MAX = ConfigOptions
+		.key("env.log.max")
+		.defaultValue(5)
+		.withDescription("The maximum number of old log files to keep.");
+
+	public static final ConfigOption<String> FLINK_SSH_OPTIONS = ConfigOptions
+		.key("env.ssh.opts")
+		.noDefaultValue()
+		.withDescription("Additional command line options passed to SSH clients when starting or stopping JobManager," +
+			" TaskManager, and Zookeeper services (start-cluster.sh, stop-cluster.sh, start-zookeeper-quorum.sh," +
+			" stop-zookeeper-quorum.sh).");
 
 	// ------------------------------------------------------------------------
 	//  generic io
