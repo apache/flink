@@ -373,8 +373,7 @@ definition. This scheme is used **ONLY** if no other scheme is specified (explic
 
 The configuration keys in this section are independent of the used resource management framework (YARN, Mesos, Standalone, ...)
 
-- `resourcemanager.rpc.port`: The config parameter defining the network port to connect to for communication with the resource manager. By default, the port
-of the JobManager, because the same ActorSystem is used. Its not possible to use this configuration key to define port ranges.
+{% include generated/resource_manager_configuration.html %}
 
 ### YARN
 
