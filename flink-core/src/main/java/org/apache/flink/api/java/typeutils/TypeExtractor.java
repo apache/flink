@@ -653,7 +653,7 @@ public class TypeExtractor {
 	 * @param outputTypeArgumentIndex Index of output type in the class specification
 	 * @param lambdaInput1TypeArgumentIndices Table of indices of the type argument specifying the first input type. See example.
 	 * @param lambdaInput2TypeArgumentIndices Table of indices of the type argument specifying the second input type. See example.
-	 * @param lambdaOutputTypeArgumentIndices Table of indices of the type argument specifying the input type. See example.
+	 * @param lambdaOutputTypeArgumentIndices Table of indices of the type argument specifying the output type. See example.
 	 * @param in1Type Type of the left side input elements (In case of an iterable, it is the element type)
 	 * @param in2Type Type of the right side input elements (In case of an iterable, it is the element type)
 	 * @param functionName Function name
