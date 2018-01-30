@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigGroup;
 import org.apache.flink.configuration.ConfigGroups;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.WebOptions;
 
 import java.io.IOException;
@@ -174,7 +175,7 @@ public class ConfigOptionsDocGenerator {
 		// This is a temporary hack that should be removed once FLINK-6490 is resolved.
 		// These options use System.getProperty("java.io.tmpdir") as the default.
 		// As a result the generated table contains an actual path as the default, which is simply wrong.
-		if (option == WebOptions.TMP_DIR || option.key().equals("python.dc.tmp.dir")) {
+		if (option == WebOptions.TMP_DIR || option.key().equals("python.dc.tmp.dir") || option == CoreOptions.TMP_DIRS) {
 			defaultValue = null;
 		}
 		return "" +
