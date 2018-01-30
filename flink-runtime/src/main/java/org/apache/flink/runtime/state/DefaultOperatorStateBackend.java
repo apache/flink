@@ -280,8 +280,6 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 					backendSerializationProxy.write(dov);
 
-					dov.writeInt(registeredStatesDeepCopies.size());
-
 					for (Map.Entry<String, PartitionableListState<?>> entry :
 						registeredStatesDeepCopies.entrySet()) {
 
