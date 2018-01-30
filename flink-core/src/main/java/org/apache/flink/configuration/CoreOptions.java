@@ -49,7 +49,11 @@ public class CoreOptions {
 	 */
 	public static final ConfigOption<String> CLASSLOADER_RESOLVE_ORDER = ConfigOptions
 		.key("classloader.resolve-order")
-		.defaultValue("child-first");
+		.defaultValue("child-first")
+		.withDescription("Defines the class resolution strategy when loading classes from user code, meaning whether to" +
+			" first check the user code jar (\"child-first\") or the application classpath (\"parent-first\")." +
+			" The default settings indicate to load classes first from the user code jar, which means that user code" +
+			" jars can include and load different dependencies than Flink uses (transitively).");
 
 	/**
 	 * The namespace patterns for classes that are loaded with a preference from the
@@ -83,7 +87,10 @@ public class CoreOptions {
 	 */
 	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER = ConfigOptions
 		.key("classloader.parent-first-patterns")
-		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback");
+		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback")
+		.withDescription("A (semicolon-separated) list of patterns that specifies which classes should always be" +
+			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
+			" the fully qualified class name.");
 
 	// ------------------------------------------------------------------------
 	//  process parameters

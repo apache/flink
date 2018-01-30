@@ -262,6 +262,10 @@ These parameters configure the default HDFS used by Flink. Setups that do not sp
 
 - `fs.hdfs.hdfssite`: The absolute path of Hadoop's own configuration file "hdfs-site.xml" (DEFAULT: null).
 
+### Core
+
+{% include generated/core_configuration.html %}
+
 ### JobManager
 
 {% include generated/job_manager_configuration.html %}
