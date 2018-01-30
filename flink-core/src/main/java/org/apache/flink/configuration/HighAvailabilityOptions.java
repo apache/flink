@@ -40,7 +40,9 @@ public class HighAvailabilityOptions {
 	public static final ConfigOption<String> HA_MODE =
 			key("high-availability")
 			.defaultValue("NONE")
-			.withDeprecatedKeys("recovery.mode");
+			.withDeprecatedKeys("recovery.mode")
+			.withDescription("Defines high-availability mode used for the cluster execution." +
+				" To enable high-availability, set this mode to \"ZOOKEEPER\".");
 
 	/**
 	 * The ID of the Flink cluster, used to separate multiple Flink clusters
@@ -49,7 +51,9 @@ public class HighAvailabilityOptions {
 	public static final ConfigOption<String> HA_CLUSTER_ID =
 			key("high-availability.cluster-id")
 			.defaultValue("/default")
-			.withDeprecatedKeys("high-availability.zookeeper.path.namespace", "recovery.zookeeper.path.namespace");
+			.withDeprecatedKeys("high-availability.zookeeper.path.namespace", "recovery.zookeeper.path.namespace")
+			.withDescription("The ID of the Flink cluster, used to separate multiple Flink clusters from each other." +
+				" Needs to be set for standalone clusters but is automatically inferred in YARN and Mesos.");
 
 	/**
 	 * File system path (URI) where Flink persists metadata in high-availability setups.
@@ -57,7 +61,8 @@ public class HighAvailabilityOptions {
 	public static final ConfigOption<String> HA_STORAGE_PATH =
 			key("high-availability.storageDir")
 			.noDefaultValue()
-			.withDeprecatedKeys("high-availability.zookeeper.storageDir", "recovery.zookeeper.storageDir");
+			.withDeprecatedKeys("high-availability.zookeeper.storageDir", "recovery.zookeeper.storageDir")
+			.withDescription("File system path (URI) where Flink persists metadata in high-availability setups.");
 
 
 	// ------------------------------------------------------------------------
@@ -70,7 +75,8 @@ public class HighAvailabilityOptions {
 	public static final ConfigOption<String> HA_JOB_MANAGER_PORT_RANGE =
 			key("high-availability.jobmanager.port")
 			.defaultValue("0")
-			.withDeprecatedKeys("recovery.jobmanager.port");
+			.withDeprecatedKeys("recovery.jobmanager.port")
+			.withDescription("Optional port (range) used by the job manager in high-availability mode.");
 
 	/**
 	 * The time before a JobManager after a fail over recovers the current jobs.
@@ -78,7 +84,8 @@ public class HighAvailabilityOptions {
 	public static final ConfigOption<String> HA_JOB_DELAY =
 			key("high-availability.job.delay")
 			.noDefaultValue()
-			.withDeprecatedKeys("recovery.job.delay");
+			.withDeprecatedKeys("recovery.job.delay")
+			.withDescription("The time before a JobManager after a fail over recovers the current jobs.");
 
 	// ------------------------------------------------------------------------
 	//  ZooKeeper Options
