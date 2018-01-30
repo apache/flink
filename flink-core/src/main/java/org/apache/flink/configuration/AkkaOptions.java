@@ -166,19 +166,22 @@ public class AkkaOptions {
 	 */
 	public static final ConfigOption<String> CLIENT_TIMEOUT = ConfigOptions
 		.key("akka.client.timeout")
-		.defaultValue("60 s");
+		.defaultValue("60 s")
+		.withDescription("Timeout for all blocking calls on the client side.");
 
 	/**
 	 * Exit JVM on fatal Akka errors.
 	 */
 	public static final ConfigOption<Boolean> JVM_EXIT_ON_FATAL_ERROR = ConfigOptions
 		.key("akka.jvm-exit-on-fatal-error")
-		.defaultValue(true);
+		.defaultValue(true)
+		.withDescription("Exit JVM on fatal Akka errors.");
 
 	/**
 	 * Milliseconds a gate should be closed for after a remote connection was disconnected.
 	 */
 	public static final ConfigOption<Long> RETRY_GATE_CLOSED_FOR = ConfigOptions
 		.key("akka.retry-gate-closed-for")
-		.defaultValue(50L);
+		.defaultValue(50L)
+		.withDescription("Milliseconds a gate should be closed for after a remote connection was disconnected.");
 }
