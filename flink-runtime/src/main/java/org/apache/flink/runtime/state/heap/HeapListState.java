@@ -66,11 +66,12 @@ public class HeapListState<K, N, V>
 
 	@Override
 	public void add(V value) {
+		final N namespace = currentNamespace;
+
 		if (value == null) {
+			clear();
 			return;
 		}
-
-		final N namespace = currentNamespace;
 
 		final StateTable<K, N, ArrayList<V>> map = stateTable;
 		ArrayList<V> list = map.get(namespace);
