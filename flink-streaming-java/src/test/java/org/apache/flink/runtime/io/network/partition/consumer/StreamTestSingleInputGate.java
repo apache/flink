@@ -96,11 +96,17 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			final Answer<BufferAndAvailability> answer = new Answer<BufferAndAvailability>() {
 				@Override
 				public BufferAndAvailability answer(InvocationOnMock invocationOnMock) throws Throwable {
-					InputValue<Object> input = inputQueues[channelIndex].poll();
+					ConcurrentLinkedQueue<InputValue<Object>> inputQueue = inputQueues[channelIndex];
+					InputValue<Object> input;
+					boolean moreAvailable;
+					synchronized (inputQueue) {
+						input = inputQueue.poll();
+						moreAvailable = !inputQueue.isEmpty();
+					}
 					if (input != null && input.isStreamEnd()) {
 						when(inputChannels[channelIndex].getInputChannel().isReleased()).thenReturn(
 							true);
-						return new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), false, 0);
+						return new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), moreAvailable, 0);
 					} else if (input != null && input.isStreamRecord()) {
 						Object inputElement = input.getStreamRecord();
 
@@ -111,13 +117,13 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 						bufferBuilder.finish();
 
 						// Call getCurrentBuffer to ensure size is set
-						return new BufferAndAvailability(buildSingleBuffer(bufferBuilder), false, 0);
+						return new BufferAndAvailability(buildSingleBuffer(bufferBuilder), moreAvailable, 0);
 					} else if (input != null && input.isEvent()) {
 						AbstractEvent event = input.getEvent();
-						return new BufferAndAvailability(EventSerializer.toBuffer(event), false, 0);
+						return new BufferAndAvailability(EventSerializer.toBuffer(event), moreAvailable, 0);
 					} else {
-						synchronized (inputQueues[channelIndex]) {
-							inputQueues[channelIndex].wait();
+						synchronized (inputQueue) {
+							inputQueue.wait();
 							return answer(invocationOnMock);
 						}
 					}
