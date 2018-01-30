@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.rest;
 
-import org.apache.flink.annotation.VisibleForTesting;
-
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPipeline;
@@ -39,8 +37,6 @@ import org.apache.flink.shaded.netty4.io.netty.util.AttributeKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
@@ -66,10 +62,8 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 	private HttpRequest currentHttpRequest;
 
-	public FileUploadHandler(final Path uploadDir) throws IOException {
+	public FileUploadHandler(final Path uploadDir) {
 		super(false);
-		createUploadDir(uploadDir);
-
 		DiskFileUpload.baseDirectory = uploadDir.normalize().toAbsolutePath().toString();
 		this.uploadDir = requireNonNull(uploadDir);
 	}
@@ -89,7 +83,8 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 				ctx.fireChannelRead(msg);
 			}
 		} else if (msg instanceof HttpContent && currentHttpPostRequestDecoder != null) {
-			createUploadDir(uploadDir);
+			// make sure that we still have a upload dir in case that it got deleted in the meanwhile
+			RestServerEndpoint.createUploadDir(uploadDir, LOG);
 
 			final HttpContent httpContent = (HttpContent) msg;
 			currentHttpPostRequestDecoder.offer(httpContent);
@@ -122,38 +117,5 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 		currentHttpPostRequestDecoder.destroy();
 		currentHttpPostRequestDecoder = null;
 		currentHttpRequest = null;
-	}
-
-	/**
-	 * Creates the upload dir if needed.
-	 */
-	@VisibleForTesting
-	static void createUploadDir(final Path uploadDir) throws IOException {
-		if (!Files.exists(uploadDir)) {
-			LOG.warn("Upload directory {} does not exist, or has been deleted externally. " +
-				"Previously uploaded files are no longer available.", uploadDir);
-			checkAndCreateUploadDir(uploadDir);
-		}
-	}
-
-	/**
-	 * Checks whether the given directory exists and is writable. If it doesn't exist, this method
-	 * will attempt to create it.
-	 *
-	 * @param uploadDir directory to check
-	 * @throws IOException if the directory does not exist and cannot be created, or if the
-	 *                     directory isn't writable
-	 */
-	private static synchronized void checkAndCreateUploadDir(final Path uploadDir) throws IOException {
-		if (Files.exists(uploadDir) && Files.isWritable(uploadDir)) {
-			LOG.info("Using directory {} for file uploads.", uploadDir);
-		} else if (Files.isWritable(Files.createDirectories(uploadDir))) {
-			LOG.info("Created directory {} for file uploads.", uploadDir);
-		} else {
-			LOG.warn("Upload directory {} cannot be created or is not writable.", uploadDir);
-			throw new IOException(
-				String.format("Upload directory %s cannot be created or is not writable.",
-					uploadDir));
-		}
 	}
 }
