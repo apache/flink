@@ -40,6 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @see TestConsumerCallback
  */
+@Deprecated
 public class TestSubpartitionConsumer implements Callable<Boolean>, BufferAvailabilityListener {
 
 	private static final int MAX_SLEEP_TIME_MS = 20;
