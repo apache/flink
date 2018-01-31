@@ -36,17 +36,7 @@ public interface CheckpointStorageLocation extends CheckpointStreamFactory {
 	 * @return The output stream to persist the checkpoint metadata to.
 	 * @throws IOException Thrown, if the stream cannot be opened due to an I/O error.
 	 */
-	CheckpointStateOutputStream createMetadataOutputStream() throws IOException;
-
-	/**
-	 * Finalizes the checkpoint, marking the location as a finished checkpoint.
-	 * This method returns the external checkpoint pointer that can be used to resolve
-	 * the checkpoint upon recovery.
-	 *
-	 * @return The external pointer to the checkpoint at this location.
-	 * @throws IOException Thrown, if finalizing / marking as finished fails due to an I/O error.
-	 */
-	String markCheckpointAsFinished() throws IOException;
+	CheckpointMetadataOutputStream createMetadataOutputStream() throws IOException;
 
 	/**
 	 * Disposes the checkpoint location in case the checkpoint has failed.

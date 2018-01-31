@@ -29,12 +29,12 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.util.AbstractID;
 
@@ -374,7 +374,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	// ------------------------------------------------------------------------
 
 	@Override
-	public StreamStateHandle resolveCheckpoint(String pointer) throws IOException {
+	public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
 		return checkpointStreamBackend.resolveCheckpoint(pointer);
 	}
 

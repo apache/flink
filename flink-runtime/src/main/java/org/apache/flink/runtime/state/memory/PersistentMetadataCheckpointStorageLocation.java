@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage;
@@ -65,13 +66,8 @@ public class PersistentMetadataCheckpointStorageLocation
 	// ------------------------------------------------------------------------
 
 	@Override
-	public CheckpointStateOutputStream createMetadataOutputStream() throws IOException {
-		return new FixFileFsStateOutputStream(fileSystem, metadataFilePath);
-	}
-
-	@Override
-	public String markCheckpointAsFinished() throws IOException {
-		return checkpointDirectory.toString();
+	public CheckpointMetadataOutputStream createMetadataOutputStream() throws IOException {
+		return new FixFileFsStateOutputStream(fileSystem, metadataFilePath, checkpointDirectory);
 	}
 
 	@Override
