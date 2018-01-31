@@ -61,6 +61,9 @@ import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
+/**
+ * Tests for {@link JobMaster}.
+ */
 @Category(Flip6.class)
 public class JobMasterTest extends TestLogger {
 
@@ -139,8 +142,6 @@ public class JobMasterTest extends TestLogger {
 
 			// wait for the completion of the registration
 			registrationResponse.get();
-
-			System.out.println("foobar");
 
 			final ResourceID heartbeatResourceId = heartbeatResourceIdFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
