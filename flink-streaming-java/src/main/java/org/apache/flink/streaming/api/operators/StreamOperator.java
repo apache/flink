@@ -22,6 +22,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -101,7 +102,8 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Ser
 	OperatorSnapshotResult snapshotState(
 		long checkpointId,
 		long timestamp,
-		CheckpointOptions checkpointOptions) throws Exception;
+		CheckpointOptions checkpointOptions,
+		CheckpointStreamFactory storageLocation) throws Exception;
 
 	/**
 	 * Provides a context to initialize all state in the operator.

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
 
@@ -86,7 +87,7 @@ public class PendingCheckpointTest {
 	@Test
 	public void testCanBeSubsumed() throws Exception {
 		// Forced checkpoints cannot be subsumed
-		CheckpointProperties forced = new CheckpointProperties(true, true, false, false, false, false, false);
+		CheckpointProperties forced = new CheckpointProperties(true, CheckpointType.SAVEPOINT, false, false, false, false, false);
 		PendingCheckpoint pending = createPendingCheckpoint(forced);
 		assertFalse(pending.canBeSubsumed());
 
@@ -98,7 +99,7 @@ public class PendingCheckpointTest {
 		}
 
 		// Non-forced checkpoints can be subsumed
-		CheckpointProperties subsumed = new CheckpointProperties(false, true, false, false, false, false, false);
+		CheckpointProperties subsumed = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
 		pending = createPendingCheckpoint(subsumed);
 		assertTrue(pending.canBeSubsumed());
 	}
@@ -109,7 +110,7 @@ public class PendingCheckpointTest {
 	 */
 	@Test
 	public void testCompletionFuture() throws Exception {
-		CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
+		CheckpointProperties props = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
 
 		// Abort declined
 		PendingCheckpoint pending = createPendingCheckpoint(props);
@@ -164,7 +165,7 @@ public class PendingCheckpointTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testAbortDiscardsState() throws Exception {
-		CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
+		CheckpointProperties props = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
 		QueueExecutor executor = new QueueExecutor();
 
 		OperatorState state = mock(OperatorState.class);
@@ -307,7 +308,7 @@ public class PendingCheckpointTest {
 
 	@Test
 	public void testSetCanceller() throws Exception {
-		final CheckpointProperties props = new CheckpointProperties(false, false, true, true, true, true, true);
+		final CheckpointProperties props = new CheckpointProperties(false, CheckpointType.CHECKPOINT, true, true, true, true, true);
 
 		PendingCheckpoint aborted = createPendingCheckpoint(props);
 		aborted.abortDeclined();
@@ -332,7 +333,10 @@ public class PendingCheckpointTest {
 
 		final Path checkpointDir = new Path(tmpFolder.newFolder().toURI());
 		final FsCheckpointStorageLocation location = new FsCheckpointStorageLocation(
-				LocalFileSystem.getSharedInstance(), checkpointDir, checkpointDir, checkpointDir);
+				LocalFileSystem.getSharedInstance(),
+				checkpointDir, checkpointDir, checkpointDir,
+				CheckpointStorageLocationReference.getDefault(),
+				1024);
 
 		final Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(ACK_TASKS);
 

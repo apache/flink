@@ -91,7 +91,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 			"setup[class org.apache.flink.streaming.runtime.tasks.StreamTask, class " +
 			"org.apache.flink.streaming.api.graph.StreamConfig, interface " +
 			"org.apache.flink.streaming.api.operators.Output], " +
-			"snapshotState[long, long, class org.apache.flink.runtime.checkpoint.CheckpointOptions]]";
+			"snapshotState[long, long, class org.apache.flink.runtime.checkpoint.CheckpointOptions, interface org.apache.flink.runtime.state.CheckpointStreamFactory]]";
 
 	private static final String ALL_METHODS_RICH_FUNCTION = "[close[], getIterationRuntimeContext[], getRuntimeContext[]" +
 			", open[class org.apache.flink.configuration.Configuration], setRuntimeContext[interface " +
@@ -243,7 +243,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 							runStarted.await();
 							if (getContainingTask().isCanceled() || getContainingTask().triggerCheckpoint(
 									new CheckpointMetaData(0, System.currentTimeMillis()),
-									CheckpointOptions.forCheckpoint())) {
+									CheckpointOptions.forCheckpointWithDefaultLocation())) {
 								LifecycleTrackingStreamSource.runFinish.trigger();
 							}
 						} catch (Exception e) {

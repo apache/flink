@@ -21,18 +21,19 @@ package org.apache.flink.runtime.state.filesystem;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.local.LocalDataOutputStream;
+import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.util.function.FunctionWithException;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import org.mockito.ArgumentCaptor;
-
 import java.io.EOFException;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Random;
@@ -43,18 +44,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
- * Tests for the {@link }.
+ * Tests for the {@link FsCheckpointMetadataOutputStream}.
  */
-public class FixFileFsStateOutputStreamTest {
+public class FsCheckpointMetadataOutputStreamTest {
 
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
@@ -69,41 +65,46 @@ public class FixFileFsStateOutputStreamTest {
 	@Test
 	public void testEmptyState() throws Exception {
 		final FileSystem fs = FileSystem.getLocalFileSystem();
-		final Path path = new Path(new Path(tmp.newFolder().toURI()), "myFileName");
 
-		final FileStateHandle handle;
-		try (FixFileFsStateOutputStream stream = new FixFileFsStateOutputStream(fs, path)) {
-			handle = stream.closeAndGetHandle();
+		final Path checkpointDir = Path.fromLocalFile(tmp.newFolder());
+		final Path metadataPath = new Path(checkpointDir, "myFileName");
+
+		final FsCompletedCheckpointStorageLocation location;
+		try (FsCheckpointMetadataOutputStream stream = new FsCheckpointMetadataOutputStream(fs, metadataPath, checkpointDir)) {
+			location = stream.closeAndFinalizeCheckpoint();
 		}
 
 		// must have created a handle
-		assertNotNull(handle);
-		assertEquals(path, handle.getFilePath());
+		assertNotNull(location);
+		assertNotNull(location.getMetadataHandle());
+		assertEquals(metadataPath, location.getMetadataHandle().getFilePath());
 
-		// the pointer path should exist as a directory
-		assertTrue(fs.exists(handle.getFilePath()));
-		assertFalse(fs.getFileStatus(path).isDir());
+		// the pointer path should exist as a file
+		assertTrue(fs.exists(metadataPath));
+		assertFalse(fs.getFileStatus(metadataPath).isDir());
 
 		// the contents should be empty
-		try (FSDataInputStream in = handle.openInputStream()) {
+		try (FSDataInputStream in = location.getMetadataHandle().openInputStream()) {
 			assertEquals(-1, in.read());
 		}
 	}
 
 	/**
-	 * Simple write and read test
+	 * Simple write and read test.
 	 */
 	@Test
 	public void testWriteAndRead() throws Exception {
 		final FileSystem fs = FileSystem.getLocalFileSystem();
-		final Path path = new Path(new Path(tmp.newFolder().toURI()), "fooBarName");
+
+		final Path checkpointDir = Path.fromLocalFile(tmp.newFolder());
+		final Path metadataPath = new Path(checkpointDir, "fooBarName");
 
 		final Random rnd = new Random();
 		final byte[] data = new byte[1694523];
 
 		// write the data (mixed single byte writes and array writes)
-		final FileStateHandle handle;
-		try (FixFileFsStateOutputStream stream = new FixFileFsStateOutputStream(fs, path)) {
+		final FsCompletedCheckpointStorageLocation completed;
+		try (FsCheckpointMetadataOutputStream stream = new FsCheckpointMetadataOutputStream(fs, metadataPath, checkpointDir)) {
 			for (int i = 0; i < data.length;) {
 				if (rnd.nextBoolean()) {
 					stream.write(data[i++]);
@@ -114,18 +115,18 @@ public class FixFileFsStateOutputStreamTest {
 					i += len;
 				}
 			}
-			handle = stream.closeAndGetHandle();
+			completed = stream.closeAndFinalizeCheckpoint();
 		}
 
 		// (1) stream from handle must hold the contents
-		try (FSDataInputStream in = handle.openInputStream()) {
+		try (FSDataInputStream in = completed.getMetadataHandle().openInputStream()) {
 			byte[] buffer = new byte[data.length];
 			readFully(in, buffer);
 			assertArrayEquals(data, buffer);
 		}
 
 		// (2) the pointer must point to a file with that contents
-		try (FSDataInputStream in = fs.open(handle.getFilePath())) {
+		try (FSDataInputStream in = fs.open(completed.getMetadataHandle().getFilePath())) {
 			byte[] buffer = new byte[data.length];
 			readFully(in, buffer);
 			assertArrayEquals(data, buffer);
@@ -138,18 +139,21 @@ public class FixFileFsStateOutputStreamTest {
 	@Test
 	public void testCleanupWhenClosingStream() throws IOException {
 		final FileSystem fs = FileSystem.getLocalFileSystem();
-		final Path path = new Path(new Path(tmp.newFolder().toURI()), "nonCreativeTestFileName");
+
+		final Path checkpointDir = Path.fromLocalFile(tmp.newFolder());
+		final Path metadataPath = new Path(checkpointDir, "nonCreativeTestFileName");
 
 		// write some test data and close the stream
-		try (FixFileFsStateOutputStream stream = new FixFileFsStateOutputStream(fs, path)) {
+		try (FsCheckpointMetadataOutputStream stream = new FsCheckpointMetadataOutputStream(fs, metadataPath, checkpointDir)) {
 			Random rnd = new Random();
 			for (int i = 0; i < rnd.nextInt(1000); i++) {
 				stream.write(rnd.nextInt(100));
 			}
-			assertTrue(fs.exists(path));
+			assertTrue(fs.exists(metadataPath));
 		}
 
-		assertFalse(fs.exists(path));
+		assertFalse(fs.exists(metadataPath));
+		assertTrue(fs.exists(checkpointDir));
 	}
 
 	/**
@@ -157,30 +161,23 @@ public class FixFileFsStateOutputStreamTest {
 	 */
 	@Test
 	public void testCleanupWhenFailingCloseAndGetHandle() throws IOException {
-		final Path path = new Path(new Path(tmp.newFolder().toURI()), "neverCreated");
+		final Path checkpointDir = Path.fromLocalFile(tmp.newFolder());
+		final Path metadataPath = new Path(checkpointDir, "test_name");
 
-		final FileSystem fs = mock(FileSystem.class);
-		final FSDataOutputStream outputStream = mock(FSDataOutputStream.class);
+		final FileSystem fs = spy(new TestFs((path) -> new FailingCloseStream(new File(path.getPath()))));
 
-		final ArgumentCaptor<Path> pathCaptor = ArgumentCaptor.forClass(Path.class);
-
-		when(fs.create(pathCaptor.capture(), any(WriteMode.class))).thenReturn(outputStream);
-		doThrow(new IOException("Test IOException.")).when(outputStream).close();
-
-		FixFileFsStateOutputStream stream = new FixFileFsStateOutputStream(fs, path);
-		verify(fs).create(any(Path.class), any(WriteMode.class));
-
-		stream.write(new byte[] {1,2,3,4,5});
+		FsCheckpointMetadataOutputStream stream = new FsCheckpointMetadataOutputStream(fs, metadataPath, checkpointDir);
+		stream.write(new byte[] {1, 2, 3, 4, 5});
 
 		try {
-			stream.closeAndGetHandle();
+			stream.closeAndFinalizeCheckpoint();
 			fail("Expected IOException");
 		}
 		catch (IOException ignored) {
 			// expected exception
 		}
 
-		verify(fs).delete(eq(pathCaptor.getValue()), anyBoolean());
+		verify(fs).delete(metadataPath, false);
 	}
 
 	/**
@@ -191,15 +188,13 @@ public class FixFileFsStateOutputStreamTest {
 	 */
 	@Test
 	public void testCloseDoesNotLock() throws Exception {
-		// a stream that blocks but is released when closed
-		final FSDataOutputStream stream = new BlockerStream();
+		final Path checkpointDir = Path.fromLocalFile(tmp.newFolder());
+		final Path metadataPath = new Path(checkpointDir, "this-is-ignored-anyways.file");
 
-		final FileSystem fileSystem = mock(FileSystem.class);
-		when(fileSystem.create(any(Path.class), any(WriteMode.class))).thenReturn(stream);
+		final FileSystem fileSystem = spy(new TestFs((path) -> new BlockerStream()));
 
-		final Path path = new Path(new Path(tmp.newFolder().toURI()), "this-is-ignored-anyways.file");
-		final FixFileFsStateOutputStream checkpointStream =
-				new FixFileFsStateOutputStream(fileSystem, path);
+		final FsCheckpointMetadataOutputStream checkpointStream =
+				new FsCheckpointMetadataOutputStream(fileSystem, metadataPath, checkpointDir);
 
 		final OneShotLatch sync = new OneShotLatch();
 
@@ -209,7 +204,7 @@ public class FixFileFsStateOutputStreamTest {
 			public void go() throws Exception {
 				sync.trigger();
 				// that call should now block, because it accesses the position
-				checkpointStream.closeAndGetHandle();
+				checkpointStream.closeAndFinalizeCheckpoint();
 			}
 		};
 		thread.start();
@@ -280,6 +275,34 @@ public class FixFileFsStateOutputStreamTest {
 				throw new IOException("interrupted");
 			}
 			throw new IOException("closed");
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	private static class FailingCloseStream extends LocalDataOutputStream {
+
+		FailingCloseStream(File file) throws IOException {
+			super(file);
+		}
+
+		@Override
+		public void close() throws IOException {
+			throw new IOException();
+		}
+	}
+
+	private static class TestFs extends LocalFileSystem {
+
+		private final FunctionWithException<Path, FSDataOutputStream, IOException> streamFactory;
+
+		TestFs(FunctionWithException<Path, FSDataOutputStream, IOException> streamFactory) {
+			this.streamFactory = streamFactory;
+		}
+
+		@Override
+		public FSDataOutputStream create(Path filePath, WriteMode overwrite) throws IOException {
+			return streamFactory.apply(filePath);
 		}
 	}
 }

@@ -129,7 +129,7 @@ public class TaskAsyncCallTest {
 			awaitLatch.await();
 
 			for (int i = 1; i <= numCalls; i++) {
-				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpoint());
+				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation());
 			}
 
 			triggerLatch.await();
@@ -150,7 +150,7 @@ public class TaskAsyncCallTest {
 			awaitLatch.await();
 
 			for (int i = 1; i <= numCalls; i++) {
-				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpoint());
+				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation());
 				task.notifyCheckpointComplete(i);
 			}
 
@@ -194,7 +194,7 @@ public class TaskAsyncCallTest {
 
 			awaitLatch.await();
 
-			task.triggerCheckpointBarrier(1, 1, CheckpointOptions.forCheckpoint());
+			task.triggerCheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation());
 			task.notifyCheckpointComplete(1);
 			task.stopExecution();
 

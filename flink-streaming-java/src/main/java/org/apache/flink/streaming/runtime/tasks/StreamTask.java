@@ -34,6 +34,7 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -61,7 +62,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -140,6 +140,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	/** Our state backend. We use this to create checkpoint streams and a keyed state backend. */
 	protected StateBackend stateBackend;
+
+	/** The external storage where checkpoint data is persisted. */
+	private CheckpointStorage checkpointStorage;
 
 	/**
 	 * The internal {@link ProcessingTimeService} used to define the current
@@ -246,6 +249,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			asynchronousCheckpointExceptionHandler = new AsyncCheckpointExceptionHandler(this);
 
 			stateBackend = createStateBackend();
+			checkpointStorage = stateBackend.createCheckpointStorage(getEnvironment().getJobID());
 
 			accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 
@@ -527,6 +531,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return lock;
 	}
 
+	public CheckpointStorage getCheckpointStorage() {
+		return checkpointStorage;
+	}
+
 	public StreamConfig getConfiguration() {
 		return configuration;
 	}
@@ -686,10 +694,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			CheckpointOptions checkpointOptions,
 			CheckpointMetrics checkpointMetrics) throws Exception {
 
+		CheckpointStreamFactory storage = checkpointStorage.resolveCheckpointStorageLocation(
+				checkpointMetaData.getCheckpointId(),
+				checkpointOptions.getTargetLocation());
+
 		CheckpointingOperation checkpointingOperation = new CheckpointingOperation(
 			this,
 			checkpointMetaData,
 			checkpointOptions,
+			storage,
 			checkpointMetrics);
 
 		checkpointingOperation.executeCheckpointing();
@@ -718,27 +731,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				getEnvironment().getTaskManagerInfo().getConfiguration(),
 				getUserCodeClassLoader(),
 				LOG);
-	}
-
-	/**
-	 * This is only visible because
-	 * {@link org.apache.flink.streaming.runtime.operators.GenericWriteAheadSink} uses the
-	 * checkpoint stream factory to write write-ahead logs. <b>This should not be used for
-	 * anything else.</b>
-	 */
-	public CheckpointStreamFactory createCheckpointStreamFactory(
-		StreamOperator<?> operator) throws IOException {
-		return stateBackend.createStreamFactory(
-			getEnvironment().getJobID(),
-			createOperatorIdentifier(operator));
-	}
-
-	public CheckpointStreamFactory createSavepointStreamFactory(
-		StreamOperator<?> operator, String targetLocation) throws IOException {
-		return stateBackend.createSavepointStreamFactory(
-			getEnvironment().getJobID(),
-			createOperatorIdentifier(operator),
-			targetLocation);
 	}
 
 	protected CheckpointExceptionHandlerFactory createCheckpointExceptionHandlerFactory() {
@@ -883,7 +875,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						checkpointMetaData.getCheckpointId());
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
 				// the state is completed if an exception occurred in the acknowledgeCheckpoint call
 				// in order to clean up, we have to set it to RUNNING again.
 				asyncCheckpointState.compareAndSet(
@@ -960,6 +951,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		private final CheckpointMetaData checkpointMetaData;
 		private final CheckpointOptions checkpointOptions;
 		private final CheckpointMetrics checkpointMetrics;
+		private final CheckpointStreamFactory storageLocation;
 
 		private final StreamOperator<?>[] allOperators;
 
@@ -974,12 +966,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				StreamTask<?, ?> owner,
 				CheckpointMetaData checkpointMetaData,
 				CheckpointOptions checkpointOptions,
+				CheckpointStreamFactory checkpointStorageLocation,
 				CheckpointMetrics checkpointMetrics) {
 
 			this.owner = Preconditions.checkNotNull(owner);
 			this.checkpointMetaData = Preconditions.checkNotNull(checkpointMetaData);
 			this.checkpointOptions = Preconditions.checkNotNull(checkpointOptions);
 			this.checkpointMetrics = Preconditions.checkNotNull(checkpointMetrics);
+			this.storageLocation = Preconditions.checkNotNull(checkpointStorageLocation);
 			this.allOperators = owner.operatorChain.getAllOperators();
 			this.operatorSnapshotsInProgress = new HashMap<>(allOperators.length);
 		}
@@ -1050,7 +1044,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				OperatorSnapshotResult snapshotInProgress = op.snapshotState(
 						checkpointMetaData.getCheckpointId(),
 						checkpointMetaData.getTimestamp(),
-						checkpointOptions);
+						checkpointOptions,
+						storageLocation);
 				operatorSnapshotsInProgress.put(op.getOperatorID(), snapshotInProgress);
 			}
 		}

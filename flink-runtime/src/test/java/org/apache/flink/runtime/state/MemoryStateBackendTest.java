@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -30,9 +29,10 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.FutureUtil;
-import org.apache.flink.util.TernaryBoolean;
+
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -42,16 +42,11 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.concurrent.RunnableFuture;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -86,101 +81,12 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 	@Override
 	@Test
 	public void testReducingStateRestoreWithWrongSerializers() {}
-	
+
 	@Override
 	@Test
 	public void testMapStateRestoreWithWrongSerializers() {}
 
-	@Test
-	public void testOversizedState() {
-		try {
-			MemoryStateBackend backend = new MemoryStateBackend(null, null, 10, TernaryBoolean.TRUE);
-			CheckpointStreamFactory streamFactory = backend.createStreamFactory(new JobID(), "test_op");
 
-			HashMap<String, Integer> state = new HashMap<>();
-			state.put("hey there", 2);
-			state.put("the crazy brown fox stumbles over a sentence that does not contain every letter", 77);
-
-			try {
-				CheckpointStreamFactory.CheckpointStateOutputStream outStream =
-						streamFactory.createCheckpointStateOutputStream(12, 459);
-
-				ObjectOutputStream oos = new ObjectOutputStream(outStream);
-				oos.writeObject(state);
-
-				oos.flush();
-
-				outStream.closeAndGetHandle();
-
-				fail("this should cause an exception");
-			}
-			catch (IOException e) {
-				// now darling, isn't that exactly what we wanted?
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testStateStream() {
-		try {
-			MemoryStateBackend backend = new MemoryStateBackend();
-			CheckpointStreamFactory streamFactory = backend.createStreamFactory(new JobID(), "test_op");
-
-			HashMap<String, Integer> state = new HashMap<>();
-			state.put("hey there", 2);
-			state.put("the crazy brown fox stumbles over a sentence that does not contain every letter", 77);
-
-			CheckpointStreamFactory.CheckpointStateOutputStream os = streamFactory.createCheckpointStateOutputStream(1, 2);
-			ObjectOutputStream oos = new ObjectOutputStream(os);
-			oos.writeObject(state);
-			oos.flush();
-			StreamStateHandle handle = os.closeAndGetHandle();
-
-			assertNotNull(handle);
-
-			try (ObjectInputStream ois = new ObjectInputStream(handle.openInputStream())) {
-				assertEquals(state, ois.readObject());
-				assertTrue(ois.available() <= 0);
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testOversizedStateStream() {
-		try {
-			MemoryStateBackend backend = new MemoryStateBackend(10);
-			CheckpointStreamFactory streamFactory = backend.createStreamFactory(new JobID(), "test_op");
-
-			HashMap<String, Integer> state = new HashMap<>();
-			state.put("hey there", 2);
-			state.put("the crazy brown fox stumbles over a sentence that does not contain every letter", 77);
-
-			CheckpointStreamFactory.CheckpointStateOutputStream os = streamFactory.createCheckpointStateOutputStream(1, 2);
-			ObjectOutputStream oos = new ObjectOutputStream(os);
-
-			try {
-				oos.writeObject(state);
-				oos.flush();
-				os.closeAndGetHandle();
-				fail("this should cause an exception");
-			}
-			catch (IOException e) {
-				// oh boy! what an exception!
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
 
 	/**
 	 * Verifies that the operator state backend fails with appropriate error and message if
@@ -216,9 +122,10 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 		listState3.add(19);
 		listState3.add(20);
 
-		CheckpointStreamFactory streamFactory = abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
+		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(MemoryStateBackend.DEFAULT_MAX_STATE_SIZE);
+
 		RunnableFuture<OperatorStateHandle> runnableFuture =
-			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpoint());
+			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(runnableFuture);
 
 		try {
@@ -273,7 +180,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 			682375462378L,
 			2,
 			streamFactory,
-			CheckpointOptions.forCheckpoint()));
+			CheckpointOptions.forCheckpointWithDefaultLocation()));
 
 		backend.dispose();
 

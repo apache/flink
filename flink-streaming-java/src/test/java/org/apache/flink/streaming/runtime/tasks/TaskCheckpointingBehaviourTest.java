@@ -61,10 +61,12 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.testutils.BackendForTestStream;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
@@ -128,8 +130,10 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 	@Test
 	public void testBlockingNonInterruptibleCheckpoint() throws Exception {
 
+		StateBackend lockingStateBackend = new BackendForTestStream(LockingOutputStream::new);
+
 		Task task =
-			createTask(new TestOperator(), new LockingStreamStateBackend(), mock(CheckpointResponder.class), true);
+			createTask(new TestOperator(), lockingStateBackend, mock(CheckpointResponder.class), true);
 
 		// start the task and wait until it is in "restore"
 		task.startTaskThread();
@@ -182,7 +186,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 
 	private static Task createTask(
 		StreamOperator<?> op,
-		AbstractStateBackend backend,
+		StateBackend backend,
 		CheckpointResponder checkpointResponder,
 		boolean failOnCheckpointErrors) throws IOException {
 
@@ -352,40 +356,8 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 	}
 
 	// ------------------------------------------------------------------------
-	//  state backend with locking output stream.
+	//  locking output stream.
 	// ------------------------------------------------------------------------
-
-	private static class LockingStreamStateBackend extends MemoryStateBackend {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {
-			return new LockingOutputStreamFactory();
-		}
-
-		@Override
-		public OperatorStateBackend createOperatorStateBackend(Environment env, String operatorIdentifier) throws Exception {
-			return new DefaultOperatorStateBackend(
-				getClass().getClassLoader(),
-				new ExecutionConfig(),
-				true);
-		}
-
-		@Override
-		public LockingStreamStateBackend configure(Configuration config) {
-			// retain this instance, no re-configuration!
-			return this;
-		}
-	}
-
-	private static final class LockingOutputStreamFactory implements CheckpointStreamFactory {
-
-		@Override
-		public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) {
-			return new LockingOutputStream();
-		}
-	}
 
 	private static final class LockingOutputStream extends CheckpointStateOutputStream {
 
@@ -491,7 +463,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				new CheckpointMetaData(
 					11L,
 					System.currentTimeMillis()),
-				CheckpointOptions.forCheckpoint(),
+				CheckpointOptions.forCheckpointWithDefaultLocation(),
 				new CheckpointMetrics());
 
 			while (isRunning()) {

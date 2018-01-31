@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.HashMapSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -332,7 +333,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				@Override
 				protected void acquireResources() throws Exception {
-					stream = streamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
+					stream = streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
 					cancelStreamRegistry.registerCloseable(stream);
 				}
 

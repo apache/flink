@@ -22,44 +22,47 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
+import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+
 import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link CheckpointStateOutputStream} that writes into a specified file and
- * returns a {@link FileStateHandle} upon closing.
- *
- * <p>Unlike the {@link org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream},
- * this stream does not have a threshold below which it returns a memory byte stream handle,
- * and does not create random files, but writes to a specified file. 
+ * A {@link CheckpointMetadataOutputStream} that writes a specified file and directory, and
+ * returns a {@link FsCompletedCheckpointStorageLocation} upon closing.
  */
-public final class FixFileFsStateOutputStream extends CheckpointStateOutputStream {
+public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOutputStream {
 
-	private static final Logger LOG = LoggerFactory.getLogger(FixFileFsStateOutputStream.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FsCheckpointMetadataOutputStream.class);
 
 	// ------------------------------------------------------------------------
 
 	private final FSDataOutputStream out;
 
-	private final Path path;
+	private final Path metadataFilePath;
+
+	private final Path exclusiveCheckpointDir;
 
 	private final FileSystem fileSystem;
 
 	private volatile boolean closed;
 
+	public FsCheckpointMetadataOutputStream(
+			FileSystem fileSystem,
+			Path metadataFilePath,
+			Path exclusiveCheckpointDir) throws IOException {
 
-	public FixFileFsStateOutputStream(FileSystem fileSystem, Path path) throws IOException {
 		this.fileSystem = checkNotNull(fileSystem);
-		this.path = checkNotNull(path);
+		this.metadataFilePath = checkNotNull(metadataFilePath);
+		this.exclusiveCheckpointDir = checkNotNull(exclusiveCheckpointDir);
 
-		this.out = fileSystem.create(path, WriteMode.NO_OVERWRITE);
+		this.out = fileSystem.create(metadataFilePath, WriteMode.NO_OVERWRITE);
 	}
 
 	// ------------------------------------------------------------------------
@@ -106,16 +109,16 @@ public final class FixFileFsStateOutputStream extends CheckpointStateOutputStrea
 
 			try {
 				out.close();
-				fileSystem.delete(path, false);
+				fileSystem.delete(metadataFilePath, false);
 			}
 			catch (Throwable t) {
-				LOG.warn("Could not close the state stream for {}.", path, t);
+				LOG.warn("Could not close the state stream for {}.", metadataFilePath, t);
 			}
 		}
 	}
 
 	@Override
-	public FileStateHandle closeAndGetHandle() throws IOException {
+	public FsCompletedCheckpointStorageLocation closeAndFinalizeCheckpoint() throws IOException {
 		synchronized (this) {
 			if (!closed) {
 				try {
@@ -125,21 +128,23 @@ public final class FixFileFsStateOutputStream extends CheckpointStateOutputStrea
 						size = out.getPos();
 					} catch (Exception ignored) {}
 
-					// close and return
 					out.close();
 
-					return new FileStateHandle(path, size);
+					FileStateHandle metaDataHandle = new FileStateHandle(metadataFilePath, size);
+
+					return new FsCompletedCheckpointStorageLocation(
+							fileSystem, exclusiveCheckpointDir, metaDataHandle, exclusiveCheckpointDir.toString());
 				}
 				catch (Exception e) {
 					try {
-						fileSystem.delete(path, false);
+						fileSystem.delete(metadataFilePath, false);
 					}
 					catch (Exception deleteException) {
-						LOG.warn("Could not delete the checkpoint stream file {}.", path, deleteException);
+						LOG.warn("Could not delete the checkpoint stream file {}.", metadataFilePath, deleteException);
 					}
 
 					throw new IOException("Could not flush and close the file system " +
-							"output stream to " + path + " in order to obtain the " +
+							"output stream to " + metadataFilePath + " in order to obtain the " +
 							"stream state handle", e);
 				}
 				finally {

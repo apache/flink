@@ -18,28 +18,28 @@
 
 package org.apache.flink.runtime.io.network.api;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-import java.io.IOException;
-
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.event.RuntimeEvent;
 
+import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Checkpoint barriers are used to align checkpoints throughout the streaming topology. The
  * barriers are emitted by the sources when instructed to do so by the JobManager. When
- * operators receive a CheckpointBarrier on one of its inputs, it knows that this is the point 
+ * operators receive a CheckpointBarrier on one of its inputs, it knows that this is the point
  * between the pre-checkpoint and post-checkpoint data.
- * 
+ *
  * <p>Once an operator has received a checkpoint barrier from all its input channels, it
  * knows that a certain checkpoint is complete. It can trigger the operator specific checkpoint
  * behavior and broadcast the barrier to downstream operators.
- * 
+ *
  * <p>Depending on the semantic guarantees, may hold off post-checkpoint data until the checkpoint
  * is complete (exactly once).
- * 
+ *
  * <p>The checkpoint barrier IDs are strictly monotonous increasing.
  */
 public class CheckpointBarrier extends RuntimeEvent {
@@ -75,7 +75,7 @@ public class CheckpointBarrier extends RuntimeEvent {
 	//  but would require the CheckpointBarrier to be mutable. Since all serialization
 	//  for events goes through the EventSerializer class, which has special serialization
 	//  for the CheckpointBarrier, we don't need these methods
-	// 
+	//
 
 	@Override
 	public void write(DataOutputView out) throws IOException {

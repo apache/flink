@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -32,8 +34,8 @@ public interface CheckpointStorage {
 	/**
 	 * Checks whether this backend supports highly available storage of data.
 	 *
-	 * <p>Some state backends may offer support for that with default settings, which makes them
-	 * suitable for zero-config prototyping, but not for actual production setups.
+	 * <p>Some state backends may not support highly-available durable storage, with default settings,
+	 * which makes them suitable for zero-config prototyping, but not for actual production setups.
 	 */
 	boolean supportsHighlyAvailableStorage();
 
@@ -43,18 +45,19 @@ public interface CheckpointStorage {
 	boolean hasDefaultSavepointLocation();
 
 	/**
-	 * Resolves the given pointer to a checkpoint/savepoint into a state handle from which the
-	 * checkpoint metadata can be read. If the state backend cannot understand the format of
-	 * the pointer (for example because it was created by a different state backend) this method
-	 * should throw an {@code IOException}.
+	 * Resolves the given pointer to a checkpoint/savepoint into a checkpoint location. The location
+	 * supports reading the checkpoint metadata, or disposing the checkpoint storage location.
 	 *
-	 * @param pointer The pointer to resolve.
-	 * @return The state handler from which one can read the checkpoint metadata.
+	 * <p>If the state backend cannot understand the format of the pointer (for example because it
+	 * was created by a different state backend) this method should throw an {@code IOException}.
+	 *
+	 * @param externalPointer The external checkpoint pointer to resolve.
+	 * @return The checkpoint location handle.
 	 *
 	 * @throws IOException Thrown, if the state backend does not understand the pointer, or if
 	 *                     the pointer could not be resolved due to an I/O error.
 	 */
-	StreamStateHandle resolveCheckpoint(String pointer) throws IOException;
+	CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) throws IOException;
 
 	/**
 	 * Initializes a storage location for new checkpoint with the given ID.
@@ -90,4 +93,44 @@ public interface CheckpointStorage {
 	CheckpointStorageLocation initializeLocationForSavepoint(
 			long checkpointId,
 			@Nullable String externalLocationPointer) throws IOException;
+
+	/**
+	 * Resolves a storage location reference into a CheckpointStreamFactory.
+	 *
+	 * <p>The reference may be the {@link CheckpointStorageLocationReference#isDefaultReference() default reference},
+	 * in which case the method should return the default location, taking existing configuration
+	 * and checkpoint ID into account.
+	 *
+	 * @param checkpointId The ID of the checkpoint that the location is initialized for.
+	 * @param reference The checkpoint location reference.
+	 *
+	 * @return A checkpoint storage location reflecting the reference and checkpoint ID.
+	 *
+	 * @throws IOException Thrown, if the storage location cannot be initialized from the reference.
+	 */
+	CheckpointStreamFactory resolveCheckpointStorageLocation(
+			long checkpointId,
+			CheckpointStorageLocationReference reference) throws IOException;
+
+	/**
+	 * Opens a stream to persist checkpoint state data that is owned strictly by tasks and
+	 * not attached to the life cycle of a specific checkpoint.
+	 *
+	 * <p>This method should be used when the persisted data cannot be immediately dropped once
+	 * the checkpoint that created it is dropped. Examples are write-ahead-logs.
+	 * For those, the state can only be dropped once the data has been moved to the target system,
+	 * which may sometimes take longer than one checkpoint (if the target system is temporarily unable
+	 * to keep up).
+	 *
+	 * <p>The fact that the job manager does not own the life cycle of this type of state means also
+	 * that it is strictly the responsibility of the tasks to handle the cleanup of this data.
+	 *
+	 * <p>Developer note: In the future, we may be able to make this a special case of "shared state",
+	 * where the task re-emits the shared state reference as long as it needs to hold onto the
+	 * persisted state data.
+	 *
+	 * @return A checkpoint state stream to the location for state owned by tasks.
+	 * @throws IOException Thrown, if the stream cannot be opened.
+	 */
+	CheckpointStateOutputStream createTaskOwnedStateStream() throws IOException;
 }

@@ -34,7 +34,6 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
@@ -72,7 +71,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
@@ -117,11 +115,6 @@ public abstract class AbstractStreamOperator<OUT>
 
 	/** The runtime context for UDFs. */
 	private transient StreamingRuntimeContext runtimeContext;
-
-	// ----------------- general state -------------------
-
-	/** The factory that give this operator access to checkpoint storage. */
-	private transient CheckpointStreamFactory checkpointStreamFactory;
 
 	// ---------------- key/value state ------------------
 
@@ -242,7 +235,6 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 
 		timeServiceManager = context.internalTimerServiceManager();
-		checkpointStreamFactory = context.checkpointStreamFactory();
 
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = context.rawKeyedStateInputs();
 		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = context.rawOperatorStateInputs();
@@ -351,14 +343,16 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
-	public final OperatorSnapshotResult snapshotState(long checkpointId, long timestamp, CheckpointOptions checkpointOptions) throws Exception {
+	public final OperatorSnapshotResult snapshotState(
+			long checkpointId,
+			long timestamp,
+			CheckpointOptions checkpointOptions,
+			CheckpointStreamFactory factory) throws Exception {
 
 		KeyGroupRange keyGroupRange = null != keyedStateBackend ?
 				keyedStateBackend.getKeyGroupRange() : KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
 
 		OperatorSnapshotResult snapshotInProgress = new OperatorSnapshotResult();
-
-		CheckpointStreamFactory factory = getCheckpointStreamFactory(checkpointOptions);
 
 		try (StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
 				checkpointId,
@@ -446,31 +440,6 @@ public abstract class AbstractStreamOperator<OUT>
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		if (keyedStateBackend != null) {
 			keyedStateBackend.notifyCheckpointComplete(checkpointId);
-		}
-	}
-
-	/**
-	 * Returns a checkpoint stream factory for the provided options.
-	 *
-	 * <p>For {@link CheckpointType#CHECKPOINT} this returns the shared
-	 * factory of this operator.
-	 *
-	 * <p>For {@link CheckpointType#SAVEPOINT} it creates a custom factory per
-	 * savepoint.
-	 *
-	 * @param checkpointOptions Options for the checkpoint
-	 * @return Checkpoint stream factory for the checkpoints
-	 * @throws IOException Failures while creating a new stream factory are forwarded
-	 */
-	@VisibleForTesting
-	CheckpointStreamFactory getCheckpointStreamFactory(CheckpointOptions checkpointOptions) throws IOException {
-		CheckpointType checkpointType = checkpointOptions.getCheckpointType();
-		if (checkpointType == CheckpointType.CHECKPOINT) {
-			return checkpointStreamFactory;
-		} else if (checkpointType == CheckpointType.SAVEPOINT) {
-			return container.createSavepointStreamFactory(this, checkpointOptions.getTargetLocation());
-		} else {
-			throw new IllegalStateException("Unknown checkpoint type " + checkpointType);
 		}
 	}
 

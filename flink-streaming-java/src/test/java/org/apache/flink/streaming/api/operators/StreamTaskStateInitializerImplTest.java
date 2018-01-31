@@ -33,14 +33,13 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImplTest;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -51,8 +50,6 @@ import org.apache.flink.util.CloseableIterable;
 
 import org.junit.Assert;
 import org.junit.Test;
-
-import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -107,14 +104,9 @@ public class StreamTaskStateInitializerImplTest {
 			any(Environment.class),
 			any(String.class));
 
-		verify(stateBackend).createStreamFactory(
-			any(JobID.class),
-			any(String.class));
-
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
 		InternalTimeServiceManager<?, ?> timeServiceManager = stateContext.internalTimerServiceManager();
-		CheckpointStreamFactory streamFactory = stateContext.checkpointStreamFactory();
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = stateContext.rawKeyedStateInputs();
 		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = stateContext.rawOperatorStateInputs();
 
@@ -122,7 +114,6 @@ public class StreamTaskStateInitializerImplTest {
 		Assert.assertNotNull(operatorStateBackend);
 		Assert.assertNotNull(keyedStateBackend);
 		Assert.assertNotNull(timeServiceManager);
-		Assert.assertNotNull(streamFactory);
 		Assert.assertNotNull(keyedStateInputs);
 		Assert.assertNotNull(operatorStateInputs);
 
@@ -148,25 +139,13 @@ public class StreamTaskStateInitializerImplTest {
 
 		StateBackend mockingBackend = spy(new StateBackend() {
 			@Override
-			public StreamStateHandle resolveCheckpoint(String pointer) throws IOException {
-				return null;
+			public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
+				throw new UnsupportedOperationException();
 			}
 
 			@Override
 			public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
-				return null;
-			}
-
-			@Override
-			public CheckpointStreamFactory createStreamFactory(
-				JobID jobId, String operatorIdentifier) throws IOException {
-				return mock(CheckpointStreamFactory.class);
-			}
-
-			@Override
-			public CheckpointStreamFactory createSavepointStreamFactory(
-				JobID jobId, String operatorIdentifier, @Nullable String targetLocation) throws IOException {
-				return mock(CheckpointStreamFactory.class);
+				throw new UnsupportedOperationException();
 			}
 
 			@Override
@@ -243,14 +222,9 @@ public class StreamTaskStateInitializerImplTest {
 			any(Environment.class),
 			any(String.class));
 
-		verify(mockingBackend).createStreamFactory(
-			any(JobID.class),
-			any(String.class));
-
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
 		InternalTimeServiceManager<?, ?> timeServiceManager = stateContext.internalTimerServiceManager();
-		CheckpointStreamFactory streamFactory = stateContext.checkpointStreamFactory();
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = stateContext.rawKeyedStateInputs();
 		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = stateContext.rawOperatorStateInputs();
 
@@ -260,7 +234,6 @@ public class StreamTaskStateInitializerImplTest {
 		Assert.assertNotNull(keyedStateBackend);
 		// this is deactivated on purpose so that it does not attempt to consume the raw keyed state.
 		Assert.assertNull(timeServiceManager);
-		Assert.assertNotNull(streamFactory);
 		Assert.assertNotNull(keyedStateInputs);
 		Assert.assertNotNull(operatorStateInputs);
 

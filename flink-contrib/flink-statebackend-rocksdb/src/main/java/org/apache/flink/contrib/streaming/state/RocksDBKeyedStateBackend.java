@@ -45,11 +45,13 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.io.async.AbstractAsyncCallableWithResources;
 import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -343,7 +345,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		final CheckpointStreamFactory streamFactory,
 		CheckpointOptions checkpointOptions) throws Exception {
 
-		if (checkpointOptions.getCheckpointType() != CheckpointOptions.CheckpointType.SAVEPOINT &&
+		if (checkpointOptions.getCheckpointType() != CheckpointType.SAVEPOINT &&
 			enableIncrementalCheckpointing) {
 			return snapshotIncrementally(checkpointId, timestamp, streamFactory);
 		} else {
@@ -535,7 +537,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 */
 		public void openCheckpointStream() throws Exception {
 			Preconditions.checkArgument(outStream == null, "Output stream for snapshot is already set.");
-			outStream = checkpointStreamFactory.createCheckpointStateOutputStream(checkpointId, checkpointTimeStamp);
+			outStream = checkpointStreamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
 			snapshotCloseableRegistry.registerCloseable(outStream);
 			outputView = new DataOutputViewStreamWrapper(outStream);
 		}
@@ -810,7 +812,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				closeableRegistry.registerCloseable(inputStream);
 
 				outputStream = checkpointStreamFactory
-					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp);
+					.createCheckpointStateOutputStream(CheckpointedStateScope.SHARED);
 				closeableRegistry.registerCloseable(outputStream);
 
 				while (true) {
@@ -846,7 +848,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			try {
 				outputStream = checkpointStreamFactory
-					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp);
+					.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
 				closeableRegistry.registerCloseable(outputStream);
 
 				//no need for compression scheme support because sst-files are already compressed
