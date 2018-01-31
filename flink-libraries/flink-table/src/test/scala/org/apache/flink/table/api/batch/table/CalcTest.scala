@@ -312,6 +312,25 @@ class CalcTest extends TableTestBase {
 
     util.verifyTable(resultTable, expected)
   }
+
+  @Test
+  def testMultiFilter(): Unit = {
+    val util = batchTestUtil()
+    val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
+    val resultTable = sourceTable.select('a, 'b)
+      .filter('a > 0)
+      .filter('b < 2)
+      .filter(('a % 2) === 1)
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchTableNode(0),
+      term("select", "a", "b"),
+      term("where", "AND(AND(>(a, 0), <(b, 2)), =(MOD(a, 2), 1))")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
 }
 
 object CalcTest {
