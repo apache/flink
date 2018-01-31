@@ -30,7 +30,6 @@ import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
-import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgumentFactory;
@@ -55,8 +54,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.apache.flink.orc.OrcUtils.fillRows;
-
 /**
  * InputFormat to read ORC files.
  */
@@ -79,16 +76,7 @@ public class OrcRowInputFormat extends FileInputFormat<Row> implements ResultTyp
 	private transient RowTypeInfo rowType;
 
 	// the ORC reader
-	private transient RecordReader orcRowsReader;
-	// the vectorized row data to be read in a batch
-	private transient VectorizedRowBatch rowBatch;
-	// the vector of rows that is read in a batch
-	private transient Row[] rows;
-
-	// the number of rows in the current batch
-	private transient int rowsInBatch;
-	// the index of the next row to return
-	private transient int nextRow;
+	private transient OrcRowReader orcRowReader;
 
 	private ArrayList<Predicate> conjunctPredicates = new ArrayList<>();
 
@@ -206,16 +194,6 @@ public class OrcRowInputFormat extends FileInputFormat<Row> implements ResultTyp
 	}
 
 	@Override
-	public void openInputFormat() throws IOException {
-		super.openInputFormat();
-		// create and initialize the row batch
-		this.rows = new Row[batchSize];
-		for (int i = 0; i < batchSize; i++) {
-			rows[i] = new Row(selectedFields.length);
-		}
-	}
-
-	@Override
 	public void open(FileInputSplit fileSplit) throws IOException {
 
 		LOG.debug("Opening ORC file {}", fileSplit.getPath());
@@ -250,14 +228,11 @@ public class OrcRowInputFormat extends FileInputFormat<Row> implements ResultTyp
 		options.include(computeProjectionMask());
 
 		// create ORC row reader
-		this.orcRowsReader = orcReader.rows(options);
+		RecordReader recordReader = orcReader.rows(options);
 
 		// assign ids
 		this.schema.getId();
-		// create row batch
-		this.rowBatch = schema.createRowBatch(batchSize);
-		rowsInBatch = 0;
-		nextRow = 0;
+		this.orcRowReader = new OrcRowReader(this.schema, selectedFields, recordReader);
 	}
 
 	@VisibleForTesting
@@ -295,54 +270,26 @@ public class OrcRowInputFormat extends FileInputFormat<Row> implements ResultTyp
 
 	@Override
 	public void close() throws IOException {
-		if (orcRowsReader != null) {
-			this.orcRowsReader.close();
+		if (orcRowReader != null) {
+			orcRowReader.close();
 		}
-		this.orcRowsReader = null;
+		orcRowReader = null;
 	}
 
 	@Override
 	public void closeInputFormat() throws IOException {
-		this.rows = null;
-		this.rows = null;
 		this.schema = null;
-		this.rowBatch = null;
 	}
 
 	@Override
 	public boolean reachedEnd() throws IOException {
-		return !ensureBatch();
-	}
-
-	/**
-	 * Checks if there is at least one row left in the batch to return.
-	 * If no more row are available, it reads another batch of rows.
-	 *
-	 * @return Returns true if there is one more row to return, false otherwise.
-	 * @throws IOException throw if an exception happens while reading a batch.
-	 */
-	private boolean ensureBatch() throws IOException {
-
-		if (nextRow >= rowsInBatch) {
-			// No more rows available in the Rows array.
-			nextRow = 0;
-			// Try to read the next batch if rows from the ORC file.
-			boolean moreRows = orcRowsReader.nextBatch(rowBatch);
-
-			if (moreRows) {
-				// Load the data into the Rows array.
-				rowsInBatch = fillRows(rows, schema, rowBatch, selectedFields);
-			}
-			return moreRows;
-		}
-		// there is at least one Row left in the Rows array.
-		return true;
+		return orcRowReader.reachedEnd();
 	}
 
 	@Override
 	public Row nextRecord(Row reuse) throws IOException {
 		// return the next row
-		return rows[this.nextRow++];
+		return orcRowReader.nextRecord(reuse);
 	}
 
 	@Override
