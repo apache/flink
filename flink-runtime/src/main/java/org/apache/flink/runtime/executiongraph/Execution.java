@@ -24,6 +24,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -32,10 +33,12 @@ import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.execution.DeployTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.execution.RestoreTaskException;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
@@ -1037,7 +1040,17 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			if (transitionState(current, FAILED, t)) {
 				// success (in a manner of speaking)
-				this.failureCause = t;
+				if (current == DEPLOYING) {
+					CheckpointCoordinator checkpointCoordinator = getVertex().getExecutionGraph().getCheckpointCoordinator();
+					if (checkpointCoordinator != null && checkpointCoordinator.getRestoredCheckpointID() != -1L) {
+						// we have restore it from a checkpoint
+						this.failureCause = new RestoreTaskException(t, checkpointCoordinator.getRestoredCheckpointID());
+					} else {
+						this.failureCause = new DeployTaskException(t);
+					}
+				} else {
+					this.failureCause = t;
+				}
 
 				updateAccumulatorsAndMetrics(userAccumulators, metrics);
 

@@ -26,6 +26,7 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -74,6 +75,8 @@ import scala.concurrent.ExecutionContext$;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
@@ -475,5 +478,27 @@ public class ExecutionGraphTestUtils {
 	
 	public static ExecutionJobVertex getExecutionVertex(JobVertexID id) throws Exception {
 		return getExecutionVertex(id, TestingUtils.defaultExecutor());
+	}
+
+	public static ExecutionJobVertex getExecutionVertex(
+		JobVertexID id, ScheduledExecutorService executor, CheckpointCoordinator checkpointCoordinator)throws Exception {
+
+		JobVertex ajv = new JobVertex("TestVertex", id);
+		ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
+
+		ExecutionGraph graph = spy(new ExecutionGraph(
+			executor,
+			executor,
+			new JobID(),
+			"test job",
+			new Configuration(),
+			new SerializedValue<>(new ExecutionConfig()),
+			AkkaUtils.getDefaultTimeout(),
+			new NoRestartStrategy(),
+			new Scheduler(ExecutionContext$.MODULE$.fromExecutor(executor))));
+
+		doReturn(checkpointCoordinator).when(graph).getCheckpointCoordinator();
+
+		return spy(new ExecutionJobVertex(graph, ajv, 1, AkkaUtils.getDefaultTimeout()));
 	}
 }
