@@ -503,6 +503,10 @@ public class KinesisDataFetcher<T> {
 		synchronized (checkpointLock) {
 			if (record != null) {
 				sourceContext.collectWithTimestamp(record, recordTimestamp);
+			} else {
+				LOG.warn("Skipping non-deserializable record at sequence number {} of shard {}.",
+					lastSequenceNumber,
+					subscribedShardsState.get(shardStateIndex).getStreamShardHandle());
 			}
 
 			updateState(shardStateIndex, lastSequenceNumber);
