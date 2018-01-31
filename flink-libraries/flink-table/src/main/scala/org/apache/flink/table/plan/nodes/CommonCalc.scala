@@ -22,11 +22,12 @@ import org.apache.calcite.plan.{RelOptCost, RelOptPlanner}
 import org.apache.calcite.rex._
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.codegen.{CodeGenUtils, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 
 trait CommonCalc {
 
@@ -46,10 +47,22 @@ trait CommonCalc {
       returnSchema.fieldNames,
       calcProjection)
 
+    val (defines, bodies, callings) = generateCalcSplitFunctions(
+      generator,
+      projection.codeBuffer,
+      config.getMaxGeneratedCodeLength)
+
+    val split = config.getMaxGeneratedCodeLength < projection.code.length
+    val projectionCode = if (split && !projection.codeBuffer.isEmpty) {
+      callings.mkString("\n")
+    } else {
+      projection.code
+    }
+
     // only projection
     val body = if (calcCondition.isEmpty) {
       s"""
-        |${projection.code}
+        |${projectionCode}
         |${generator.collectorTerm}.collect(${projection.resultTerm});
         |""".stripMargin
     }
@@ -69,7 +82,7 @@ trait CommonCalc {
         s"""
           |${filterCondition.code}
           |if (${filterCondition.resultTerm}) {
-          |  ${projection.code}
+          |  ${projectionCode}
           |  ${generator.collectorTerm}.collect(${projection.resultTerm});
           |}
           |""".stripMargin
@@ -80,7 +93,9 @@ trait CommonCalc {
       ruleDescription,
       functionClass,
       body,
-      returnSchema.typeInfo)
+      returnSchema.typeInfo,
+      split,
+      (defines, bodies))
   }
 
   private[flink] def conditionToString(
@@ -170,5 +185,48 @@ trait CommonCalc {
     } else {
       rowCnt
     }
+  }
+
+  /**
+    * split origin generated code to split function calls, only used for calc.
+    * @param generator
+    * @param codeBuffer
+    * @param maxLength
+    * @return (method definitions, method bodies, method callings) of split function calls
+    */
+  private def generateCalcSplitFunctions(
+      generator: FunctionCodeGenerator,
+      codeBuffer: Seq[String],
+      maxLength: Int
+  ): (Seq[String], Seq[String], Seq[String]) = {
+
+    val subFunctionName = "calc"
+    val subFunctionModifier = "private final void"
+
+    val tmpBuffer = new ListBuffer[String]()
+    val rest = codeBuffer.foldLeft("")((acc, code) => {
+      if (acc.length + code.length < maxLength) {
+        (acc + "\n" + code)
+      } else {
+        if (acc.length > 0) {
+          tmpBuffer += acc
+        }
+        code
+      }
+    })
+    tmpBuffer += rest
+
+    val param =
+      s"${CodeGenUtils.boxedTypeTermForTypeInfo(generator.input1)} ${generator.input1Term}"
+
+    val callingParam = generator.input1Term
+
+    val defines = (0 until tmpBuffer.size)
+      .map(index => s"$subFunctionModifier ${subFunctionName}_${index}($param) throws Exception")
+
+    val callings = (0 until tmpBuffer.size)
+      .map(index => s"${subFunctionName}_${index}($callingParam);")
+
+    (defines, tmpBuffer, callings)
   }
 }

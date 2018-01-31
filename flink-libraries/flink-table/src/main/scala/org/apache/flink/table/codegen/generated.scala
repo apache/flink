@@ -33,13 +33,16 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
   * @param literal flag to indicate a constant expression do not reference input and can thus
   *                 be used in the member area (e.g. as constructor parameter of a reusable
   *                 instance)
+  * @param codeBuffer original generated code from each expression, it's convenient for code split
+  *
   */
 case class GeneratedExpression(
   resultTerm: String,
   nullTerm: String,
   code: String,
   resultType: TypeInformation[_],
-  literal: Boolean = false)
+  literal: Boolean = false,
+  codeBuffer: Seq[String] = Seq())
 
 object GeneratedExpression {
   val ALWAYS_NULL = "true"
