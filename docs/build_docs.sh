@@ -54,7 +54,6 @@ while getopts "pi" opt; do
 		;;
 		i)
 		[[ `ruby -v` =~ 'ruby 1' ]] && echo "Error: building the docs with the incremental option requires at least ruby 2.0" && exit 1
-		cd ruby2
 		bundle install --path .rubydeps
 		JEKYLL_CMD="liveserve --baseurl= --watch --incremental"
 		;;
