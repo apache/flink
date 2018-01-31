@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -188,6 +189,13 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	//  internal metrics
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Flag indicating whether or not metrics should be exposed.
+	 * If {@code true}, offset metrics (e.g. current offset, committed offset) and
+	 * Kafka-shipped metrics will be registered.
+	 */
+	private final boolean useMetrics;
+
 	/** Counter for successful Kafka offset commits. */
 	private transient Counter successfulCommits;
 
@@ -217,7 +225,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			List<String> topics,
 			Pattern topicPattern,
 			KeyedDeserializationSchema<T> deserializer,
-			long discoveryIntervalMillis) {
+			long discoveryIntervalMillis,
+			boolean useMetrics) {
 		this.topicsDescriptor = new KafkaTopicsDescriptor(topics, topicPattern);
 		this.deserializer = checkNotNull(deserializer, "valueDeserializer");
 
@@ -225,6 +234,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			discoveryIntervalMillis == PARTITION_DISCOVERY_DISABLED || discoveryIntervalMillis >= 0,
 			"Cannot define a negative value for the topic / partition discovery interval.");
 		this.discoveryIntervalMillis = discoveryIntervalMillis;
+
+		this.useMetrics = useMetrics;
 	}
 
 	// ------------------------------------------------------------------------
@@ -556,7 +567,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				periodicWatermarkAssigner,
 				punctuatedWatermarkAssigner,
 				(StreamingRuntimeContext) getRuntimeContext(),
-				offsetCommitMode);
+				offsetCommitMode,
+				getRuntimeContext().getMetricGroup().addGroup("KafkaConsumer"),
+				useMetrics);
 
 		if (!running) {
 			return;
@@ -835,7 +848,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext,
-			OffsetCommitMode offsetCommitMode) throws Exception;
+			OffsetCommitMode offsetCommitMode,
+			MetricGroup kafkaMetricGroup,
+			boolean useMetrics) throws Exception;
 
 	/**
 	 * Creates the partition discoverer that is used to find new partitions for this subtask.
