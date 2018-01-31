@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-
 // --------------------------------------------------------------
 //  THIS IS A GENERATED SOURCE FILE. DO NOT EDIT!
 //  GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 // --------------------------------------------------------------
-
 
 package org.apache.flink.api.java.tuple;
 
@@ -75,7 +73,9 @@ public class Tuple2<T0, T1> extends Tuple {
 	}
 
 	@Override
-	public int getArity() { return 2; }
+	public int getArity() {
+		return 2;
+	}
 
 	@Override
 	@SuppressWarnings("unchecked")
@@ -139,18 +139,26 @@ public class Tuple2<T0, T1> extends Tuple {
 	}
 
 	/**
-	 * Deep equality for tuples by calling equals() on the tuple members
+	 * Deep equality for tuples by calling equals() on the tuple members.
 	 * @param o the object checked for equality
 	 * @return true if this is equal to o.
 	 */
 	@Override
 	public boolean equals(Object o) {
-		if(this == o) { return true; }
-		if (!(o instanceof Tuple2)) { return false; }
+		if (this == o) {
+			return true;
+		}
+		if (!(o instanceof Tuple2)) {
+			return false;
+		}
 		@SuppressWarnings("rawtypes")
 		Tuple2 tuple = (Tuple2) o;
-		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) { return false; }
-		if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) { return false; }
+		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) {
+			return false;
+		}
+		if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) {
+			return false;
+		}
 		return true;
 	}
 
@@ -167,8 +175,8 @@ public class Tuple2<T0, T1> extends Tuple {
 	*/
 	@Override
 	@SuppressWarnings("unchecked")
-	public Tuple2<T0,T1> copy(){ 
-		return new Tuple2<T0,T1>(this.f0,
+	public Tuple2<T0, T1> copy() {
+		return new Tuple2<>(this.f0,
 			this.f1);
 	}
 
@@ -180,7 +188,8 @@ public class Tuple2<T0, T1> extends Tuple {
 	 * instead of
 	 * {@code new Tuple3<Integer, Double, String>(n, x, s)}
 	 */
-	public static <T0,T1> Tuple2<T0,T1> of(T0 value0, T1 value1) {
-		return new Tuple2<T0,T1>(value0, value1);
+	public static <T0, T1> Tuple2<T0, T1> of(T0 value0, T1 value1) {
+		return new Tuple2<>(value0,
+			value1);
 	}
 }
