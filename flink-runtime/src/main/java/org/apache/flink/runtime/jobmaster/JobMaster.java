@@ -687,7 +687,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			executionGraph.getKvStateLocationRegistry().notifyKvStateUnregistered(
 					jobVertexId, keyGroupRange, registrationName);
 		} catch (Exception e) {
-			log.error("Failed to notify KvStateRegistry about registration {}.", registrationName);
+			log.error("Failed to notify KvStateRegistry about registration {}.", registrationName, e);
 		}
 	}
 
