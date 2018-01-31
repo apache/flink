@@ -23,7 +23,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
-import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,16 +34,12 @@ import java.io.IOException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link CheckpointStateOutputStream} that writes into a specified file and
- * returns a {@link FileStateHandle} upon closing.
- *
- * <p>Unlike the {@link org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream},
- * this stream does not have a threshold below which it returns a memory byte stream handle,
- * and does not create random files, but writes to a specified file.
+ * A {@link CheckpointMetadataOutputStream} that writes a specified file and directory, and
+ * returns a {@link FsCompletedCheckpointStorageLocation} upon closing.
  */
-public final class FixFileFsStateOutputStream extends CheckpointMetadataOutputStream {
+public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOutputStream {
 
-	private static final Logger LOG = LoggerFactory.getLogger(FixFileFsStateOutputStream.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FsCheckpointMetadataOutputStream.class);
 
 	// ------------------------------------------------------------------------
 
@@ -58,7 +53,7 @@ public final class FixFileFsStateOutputStream extends CheckpointMetadataOutputSt
 
 	private volatile boolean closed;
 
-	public FixFileFsStateOutputStream(
+	public FsCheckpointMetadataOutputStream(
 			FileSystem fileSystem,
 			Path metadataFilePath,
 			Path exclusiveCheckpointDir) throws IOException {

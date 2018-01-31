@@ -96,7 +96,7 @@ public class FsCheckpointStorageLocation extends FsCheckpointStreamFactory imple
 
 	@Override
 	public CheckpointMetadataOutputStream createMetadataOutputStream() throws IOException {
-		return new FixFileFsStateOutputStream(fileSystem, metadataFilePath, checkpointDirectory);
+		return new FsCheckpointMetadataOutputStream(fileSystem, metadataFilePath, checkpointDirectory);
 	}
 
 	@Override

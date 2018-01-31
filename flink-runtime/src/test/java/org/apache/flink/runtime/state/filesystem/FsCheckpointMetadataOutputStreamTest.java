@@ -48,9 +48,9 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 /**
- * Tests for the {@link FixFileFsStateOutputStream}.
+ * Tests for the {@link FsCheckpointMetadataOutputStream}.
  */
-public class FixFileFsStateOutputStreamTest {
+public class FsCheckpointMetadataOutputStreamTest {
 
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
@@ -70,7 +70,7 @@ public class FixFileFsStateOutputStreamTest {
 		final Path metadataPath = new Path(checkpointDir, "myFileName");
 
 		final FsCompletedCheckpointStorageLocation location;
-		try (FixFileFsStateOutputStream stream = new FixFileFsStateOutputStream(fs, metadataPath, checkpointDir)) {
+		try (FsCheckpointMetadataOutputStream stream = new FsCheckpointMetadataOutputStream(fs, metadataPath, checkpointDir)) {
 			location = stream.closeAndFinalizeCheckpoint();
 		}
 
@@ -104,7 +104,7 @@ public class FixFileFsStateOutputStreamTest {
 
 		// write the data (mixed single byte writes and array writes)
 		final FsCompletedCheckpointStorageLocation completed;
-		try (FixFileFsStateOutputStream stream = new FixFileFsStateOutputStream(fs, metadataPath, checkpointDir)) {
+		try (FsCheckpointMetadataOutputStream stream = new FsCheckpointMetadataOutputStream(fs, metadataPath, checkpointDir)) {
 			for (int i = 0; i < data.length;) {
 				if (rnd.nextBoolean()) {
 					stream.write(data[i++]);
@@ -144,7 +144,7 @@ public class FixFileFsStateOutputStreamTest {
 		final Path metadataPath = new Path(checkpointDir, "nonCreativeTestFileName");
 
 		// write some test data and close the stream
-		try (FixFileFsStateOutputStream stream = new FixFileFsStateOutputStream(fs, metadataPath, checkpointDir)) {
+		try (FsCheckpointMetadataOutputStream stream = new FsCheckpointMetadataOutputStream(fs, metadataPath, checkpointDir)) {
 			Random rnd = new Random();
 			for (int i = 0; i < rnd.nextInt(1000); i++) {
 				stream.write(rnd.nextInt(100));
@@ -166,7 +166,7 @@ public class FixFileFsStateOutputStreamTest {
 
 		final FileSystem fs = spy(new TestFs((path) -> new FailingCloseStream(new File(path.getPath()))));
 
-		FixFileFsStateOutputStream stream = new FixFileFsStateOutputStream(fs, metadataPath, checkpointDir);
+		FsCheckpointMetadataOutputStream stream = new FsCheckpointMetadataOutputStream(fs, metadataPath, checkpointDir);
 		stream.write(new byte[] {1, 2, 3, 4, 5});
 
 		try {
@@ -193,8 +193,8 @@ public class FixFileFsStateOutputStreamTest {
 
 		final FileSystem fileSystem = spy(new TestFs((path) -> new BlockerStream()));
 
-		final FixFileFsStateOutputStream checkpointStream =
-				new FixFileFsStateOutputStream(fileSystem, metadataPath, checkpointDir);
+		final FsCheckpointMetadataOutputStream checkpointStream =
+				new FsCheckpointMetadataOutputStream(fileSystem, metadataPath, checkpointDir);
 
 		final OneShotLatch sync = new OneShotLatch();
 
