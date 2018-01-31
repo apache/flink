@@ -29,6 +29,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
@@ -58,6 +59,14 @@ public interface TaskExecutorGateway extends RpcGateway {
 		AllocationID allocationId,
 		String targetAddress,
 		ResourceManagerId resourceManagerId,
+		@RpcTimeout Time timeout);
+
+	CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
+		ExecutionAttemptID executionAttemptId,
+		int sampleId,
+		int numSamples,
+		Time delayBetweenSamples,
+		int maxStackTraceDepth,
 		@RpcTimeout Time timeout);
 
 	/**

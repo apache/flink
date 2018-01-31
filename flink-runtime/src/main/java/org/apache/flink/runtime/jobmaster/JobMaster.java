@@ -23,6 +23,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.metrics.MetricGroup;
@@ -85,6 +86,9 @@ import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.StackTraceSampleCoordinator;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -194,6 +198,14 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	private final CompletableFuture<String> restAddressFuture;
 
 	private final String metricQueryServicePath;
+
+	// --------- BackPressure --------
+
+	private final StackTraceSampleCoordinator stackTraceSampleCoordinator;
+
+	private final BackPressureStatsTracker backPressureStatsTracker;
+
+	private final int backPressureStatsRefreshInterval;
 
 	// --------- ResourceManager --------
 
@@ -313,6 +325,13 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			.orElse(FutureUtils.completedExceptionally(new JobMasterException("The JobMaster has not been started with a REST endpoint.")));
 
 		this.metricQueryServicePath = metricQueryServicePath;
+		this.stackTraceSampleCoordinator = new StackTraceSampleCoordinator(rpcService.getExecutor(), rpcTimeout.toMilliseconds());
+		this.backPressureStatsTracker = new BackPressureStatsTracker(
+			stackTraceSampleCoordinator,
+			configuration.getInteger(WebOptions.BACKPRESSURE_CLEANUP_INTERVAL),
+			configuration.getInteger(WebOptions.BACKPRESSURE_NUM_SAMPLES),
+			Time.milliseconds(configuration.getInteger(WebOptions.BACKPRESSURE_DELAY)));
+		this.backPressureStatsRefreshInterval = configuration.getInteger(WebOptions.BACKPRESSURE_REFRESH_INTERVAL);
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -403,6 +422,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		if (exception != null) {
 			throw exception;
 		}
+
+		stackTraceSampleCoordinator.shutDown();
+		backPressureStatsTracker.shutDown();
 
 		log.info("Stopped the JobMaster for job " + jobGraph.getName() + '(' + jobGraph.getJobID() + ").");
 	}
@@ -865,6 +887,25 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		} catch (Exception e) {
 			return FutureUtils.completedExceptionally(e);
 		}
+	}
+
+	@Override
+	public CompletableFuture<Optional<OperatorBackPressureStats>> getOperatorBackPressureStats(
+			final JobID jobId, final JobVertexID jobVertexId) {
+		final ExecutionJobVertex jobVertex = executionGraph.getJobVertex(jobVertexId);
+		if (jobVertex == null) {
+			return FutureUtils.completedExceptionally(new FlinkException("JobVertexID not found " +
+				jobVertexId));
+		}
+
+		final Optional<OperatorBackPressureStats> operatorBackPressureStats =
+			backPressureStatsTracker.getOperatorBackPressureStats(jobVertex);
+		if (!operatorBackPressureStats.isPresent() ||
+			backPressureStatsRefreshInterval <= System.currentTimeMillis() - operatorBackPressureStats.get().getEndTimestamp()) {
+			backPressureStatsTracker.triggerStackTraceSample(jobVertex);
+			return CompletableFuture.completedFuture(Optional.empty());
+		}
+		return CompletableFuture.completedFuture(operatorBackPressureStats);
 	}
 
 	//----------------------------------------------------------------------------------------------

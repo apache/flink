@@ -21,7 +21,9 @@ package org.apache.flink.runtime.rest.messages;
 import org.apache.flink.runtime.rest.handler.job.JobVertexBackPressureHandler;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonValue;
 
 import java.util.List;
 import java.util.Objects;
@@ -31,6 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Response type of the {@link JobVertexBackPressureHandler}.
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class JobVertexBackPressureInfo implements ResponseBody {
 
 	public static final String FIELD_NAME_STATUS = "status";
@@ -45,7 +48,7 @@ public class JobVertexBackPressureInfo implements ResponseBody {
 	private final VertexBackPressureLevel backpressureLevel;
 
 	@JsonProperty(FIELD_NAME_END_TIMESTAMP)
-	private final long endTimestamp;
+	private final Long endTimestamp;
 
 	@JsonProperty(FIELD_NAME_SUBTASKS)
 	protected final List<SubtaskBackPressureInfo> subtasks;
@@ -54,12 +57,20 @@ public class JobVertexBackPressureInfo implements ResponseBody {
 	public JobVertexBackPressureInfo(
 		@JsonProperty(FIELD_NAME_STATUS) VertexBackPressureStatus status,
 		@JsonProperty(FIELD_NAME_BACKPRESSURE_LEVEL) VertexBackPressureLevel backpressureLevel,
-		@JsonProperty(FIELD_NAME_END_TIMESTAMP) long endTimestamp,
+		@JsonProperty(FIELD_NAME_END_TIMESTAMP) Long endTimestamp,
 		@JsonProperty(FIELD_NAME_SUBTASKS) List<SubtaskBackPressureInfo> subtasks) {
 		this.status = status;
 		this.backpressureLevel = backpressureLevel;
 		this.endTimestamp = endTimestamp;
-		this.subtasks = checkNotNull(subtasks);
+		this.subtasks = subtasks;
+	}
+
+	public static JobVertexBackPressureInfo deprecated() {
+		return new JobVertexBackPressureInfo(
+			VertexBackPressureStatus.DEPRECATED,
+			null,
+			null,
+			null);
 	}
 
 	@Override
@@ -145,6 +156,7 @@ public class JobVertexBackPressureInfo implements ResponseBody {
 			this.status = status;
 		}
 
+		@JsonValue
 		@Override
 		public String toString() {
 			return status;
@@ -163,6 +175,7 @@ public class JobVertexBackPressureInfo implements ResponseBody {
 			this.level = level;
 		}
 
+		@JsonValue
 		@Override
 		public String toString() {
 			return level;

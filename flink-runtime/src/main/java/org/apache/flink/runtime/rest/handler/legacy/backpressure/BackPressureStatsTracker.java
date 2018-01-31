@@ -74,7 +74,7 @@ public class BackPressureStatsTracker {
 	static final String EXPECTED_CLASS_NAME = "org.apache.flink.runtime.io.network.buffer.LocalBufferPool";
 
 	/** Expected method name for back pressure indicating stack trace element. */
-	static final String EXPECTED_METHOD_NAME = "requestBufferBlocking";
+	static final String EXPECTED_METHOD_NAME = "requestBufferBuilderBlocking";
 
 	/** Lock guarding trigger operations. */
 	private final Object lock = new Object();
