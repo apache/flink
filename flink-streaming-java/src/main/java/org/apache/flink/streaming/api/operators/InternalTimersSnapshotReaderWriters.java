@@ -259,8 +259,8 @@ public class InternalTimersSnapshotReaderWriters {
 
 			DataInputViewStream dis = new DataInputViewStream(in);
 			try {
-				restoredTimersSnapshot.setKeySerializer(InstantiationUtil.deserializeObject(dis, userCodeClassLoader));
-				restoredTimersSnapshot.setNamespaceSerializer(InstantiationUtil.deserializeObject(dis, userCodeClassLoader));
+				restoredTimersSnapshot.setKeySerializer(InstantiationUtil.deserializeObject(dis, userCodeClassLoader, true));
+				restoredTimersSnapshot.setNamespaceSerializer(InstantiationUtil.deserializeObject(dis, userCodeClassLoader, true));
 			} catch (ClassNotFoundException exception) {
 				throw new IOException(exception);
 			}
