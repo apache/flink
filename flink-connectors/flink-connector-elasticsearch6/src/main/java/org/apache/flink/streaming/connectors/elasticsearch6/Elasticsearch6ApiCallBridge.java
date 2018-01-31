@@ -62,9 +62,7 @@ public class Elasticsearch6ApiCallBridge extends ElasticsearchApiCallBridge {
 		RestHighLevelClient rhlClient =
 			new RestHighLevelClient(RestClient.builder(httpHosts.toArray(new HttpHost[httpHosts.size()])));
 
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Created Elasticsearch RestHighLevelClient connected to {}", httpHosts.toString());
-		}
+		LOG.info("Created Elasticsearch RestHighLevelClient connected to {}", httpHosts.toString());
 
 		return rhlClient;
 	}

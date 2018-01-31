@@ -82,9 +82,7 @@ public class Elasticsearch53ApiCallBridge extends ElasticsearchApiCallBridge {
 			throw new RuntimeException("Elasticsearch client is not connected to any Elasticsearch nodes!");
 		}
 
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Created Elasticsearch TransportClient with connected nodes {}", transportClient.connectedNodes());
-		}
+		LOG.info("Created Elasticsearch TransportClient with connected nodes {}", transportClient.connectedNodes());
 
 		return transportClient;
 	}
