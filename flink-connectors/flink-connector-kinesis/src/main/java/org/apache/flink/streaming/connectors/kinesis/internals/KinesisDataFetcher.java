@@ -34,6 +34,7 @@ import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
+import org.apache.flink.streaming.connectors.kinesis.util.KinesisShardAssigner;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.amazonaws.services.kinesis.model.HashKeyRange;
@@ -78,6 +79,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class KinesisDataFetcher<T> {
 
+	public static final KinesisShardAssigner DEFAULT_SHARD_ASSIGNER = (shard, subtasks) -> shard.hashCode();
+
+
 	private static final Logger LOG = LoggerFactory.getLogger(KinesisDataFetcher.class);
 
 	// ------------------------------------------------------------------------
@@ -96,6 +100,11 @@ public class KinesisDataFetcher<T> {
 	 * clone a copy using {@link KinesisDataFetcher#getClonedDeserializationSchema()}.
 	 */
 	private final KinesisDeserializationSchema<T> deserializationSchema;
+
+	/**
+	 * The function that determines which subtask a shard should be assigned to.
+	 */
+	private final KinesisShardAssigner shardAssigner;
 
 	// ------------------------------------------------------------------------
 	//  Consumer metrics
@@ -184,13 +193,15 @@ public class KinesisDataFetcher<T> {
 							SourceFunction.SourceContext<T> sourceContext,
 							RuntimeContext runtimeContext,
 							Properties configProps,
-							KinesisDeserializationSchema<T> deserializationSchema) {
+							KinesisDeserializationSchema<T> deserializationSchema,
+							KinesisShardAssigner kinesisShardToSubTaskIndexFn) {
 		this(streams,
 			sourceContext,
 			sourceContext.getCheckpointLock(),
 			runtimeContext,
 			configProps,
 			deserializationSchema,
+			kinesisShardToSubTaskIndexFn,
 			new AtomicReference<>(),
 			new ArrayList<>(),
 			createInitialSubscribedStreamsToLastDiscoveredShardsState(streams),
@@ -204,6 +215,7 @@ public class KinesisDataFetcher<T> {
 								RuntimeContext runtimeContext,
 								Properties configProps,
 								KinesisDeserializationSchema<T> deserializationSchema,
+								KinesisShardAssigner shardAssigner,
 								AtomicReference<Throwable> error,
 								List<KinesisStreamShardState> subscribedShardsState,
 								HashMap<String, String> subscribedStreamsToLastDiscoveredShardIds,
@@ -216,6 +228,7 @@ public class KinesisDataFetcher<T> {
 		this.totalNumberOfConsumerSubtasks = runtimeContext.getNumberOfParallelSubtasks();
 		this.indexOfThisConsumerSubtask = runtimeContext.getIndexOfThisSubtask();
 		this.deserializationSchema = checkNotNull(deserializationSchema);
+		this.shardAssigner = checkNotNull(shardAssigner);
 		this.kinesis = checkNotNull(kinesis);
 
 		this.consumerMetricGroup = runtimeContext.getMetricGroup()
@@ -453,7 +466,8 @@ public class KinesisDataFetcher<T> {
 			for (String stream : streamsWithNewShards) {
 				List<StreamShardHandle> newShardsOfStream = shardListResult.getRetrievedShardListOfStream(stream);
 				for (StreamShardHandle newShard : newShardsOfStream) {
-					if (isThisSubtaskShouldSubscribeTo(newShard, totalNumberOfConsumerSubtasks, indexOfThisConsumerSubtask)) {
+					int hashCode = shardAssigner.assign(newShard, totalNumberOfConsumerSubtasks);
+					if (isThisSubtaskShouldSubscribeTo(hashCode, totalNumberOfConsumerSubtasks, indexOfThisConsumerSubtask)) {
 						newShardsToSubscribe.add(newShard);
 					}
 				}
@@ -596,14 +610,14 @@ public class KinesisDataFetcher<T> {
 	/**
 	 * Utility function to determine whether a shard should be subscribed by this consumer subtask.
 	 *
-	 * @param shard the shard to determine
+	 * @param shardHash hash code for the shard
 	 * @param totalNumberOfConsumerSubtasks total number of consumer subtasks
 	 * @param indexOfThisConsumerSubtask index of this consumer subtask
 	 */
-	public static boolean isThisSubtaskShouldSubscribeTo(StreamShardHandle shard,
+	public static boolean isThisSubtaskShouldSubscribeTo(int shardHash,
 														int totalNumberOfConsumerSubtasks,
 														int indexOfThisConsumerSubtask) {
-		return (Math.abs(shard.hashCode() % totalNumberOfConsumerSubtasks)) == indexOfThisConsumerSubtask;
+		return (Math.abs(shardHash % totalNumberOfConsumerSubtasks)) == indexOfThisConsumerSubtask;
 	}
 
 	@VisibleForTesting

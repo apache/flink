@@ -43,6 +43,7 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
+import org.apache.flink.streaming.connectors.kinesis.util.KinesisShardAssigner;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.slf4j.Logger;
@@ -92,6 +93,11 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 
 	/** User supplied deserialization schema to convert Kinesis byte messages to Flink objects. */
 	private final KinesisDeserializationSchema<T> deserializer;
+
+	/**
+	 * The function that determines which subtask a shard should be assigned to.
+	 */
+	private KinesisShardAssigner shardAssigner = KinesisDataFetcher.DEFAULT_SHARD_ASSIGNER;
 
 	// ------------------------------------------------------------------------
 	//  Runtime state
@@ -190,6 +196,14 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 			}
 			LOG.info("Flink Kinesis Consumer is going to read the following streams: {}", sb.toString());
 		}
+	}
+
+	public KinesisShardAssigner getShardAssigner() {
+		return shardAssigner;
+	}
+
+	public void setShardAssigner(KinesisShardAssigner kinesisShardToSubTaskIndexFn) {
+		this.shardAssigner = checkNotNull(kinesisShardToSubTaskIndexFn, "function can not be null");
 	}
 
 	// ------------------------------------------------------------------------
@@ -351,9 +365,11 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 					for (Map.Entry<StreamShardMetadata.EquivalenceWrapper, SequenceNumber> entry : sequenceNumsToRestore.entrySet()) {
 						// sequenceNumsToRestore is the restored global union state;
 						// should only snapshot shards that actually belong to us
-
+						int hashCode = shardAssigner.assign(
+							KinesisDataFetcher.convertToStreamShardHandle(entry.getKey().getShardMetadata()),
+							getRuntimeContext().getNumberOfParallelSubtasks());
 						if (KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(
-								KinesisDataFetcher.convertToStreamShardHandle(entry.getKey().getShardMetadata()),
+								hashCode,
 								getRuntimeContext().getNumberOfParallelSubtasks(),
 								getRuntimeContext().getIndexOfThisSubtask())) {
 
@@ -384,7 +400,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 			Properties configProps,
 			KinesisDeserializationSchema<T> deserializationSchema) {
 
-		return new KinesisDataFetcher<>(streams, sourceContext, runtimeContext, configProps, deserializationSchema);
+		return new KinesisDataFetcher<>(streams, sourceContext, runtimeContext, configProps, deserializationSchema, shardAssigner);
 	}
 
 	@VisibleForTesting

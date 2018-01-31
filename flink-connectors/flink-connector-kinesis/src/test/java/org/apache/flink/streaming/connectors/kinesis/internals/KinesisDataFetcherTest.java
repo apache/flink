@@ -33,13 +33,15 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGen
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestSourceContext;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableKinesisDataFetcher;
+import org.apache.flink.streaming.connectors.kinesis.util.KinesisShardAssigner;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.TestLogger;
 
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.TestLogger;
 import org.junit.Test;
+import org.powermock.reflect.Whitebox;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -644,4 +646,57 @@ public class KinesisDataFetcherTest extends TestLogger {
 			return context;
 		}
 	}
+
+
+	// ----------------------------------------------------------------------
+	// Tests shard distribution with custom hash function
+	// ----------------------------------------------------------------------
+
+	@Test
+	public void testShardToSubtaskMappingWithCustomHashFunction() throws Exception {
+
+		int totalCountOfSubtasks = 10;
+		int shardCount = 3;
+
+		for (int i = 0; i < 2; i++) {
+
+			final int hash = i;
+			final KinesisShardAssigner allShardsSingleSubtaskFn = (shard, subtasks) -> hash;
+			Map<String, Integer> streamToShardCount = new HashMap<>();
+			List<String> fakeStreams = new LinkedList<>();
+			fakeStreams.add("fakeStream");
+			streamToShardCount.put("fakeStream", shardCount);
+
+			for (int j = 0; j < totalCountOfSubtasks; j++) {
+
+				int subtaskIndex = j;
+				// subscribe with default hashing
+				final TestableKinesisDataFetcher fetcher =
+					new TestableKinesisDataFetcher(
+						fakeStreams,
+						new TestSourceContext<>(),
+						new Properties(),
+						new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
+						totalCountOfSubtasks,
+						subtaskIndex,
+						new AtomicReference<>(),
+						new LinkedList<>(),
+						KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(fakeStreams),
+						FakeKinesisBehavioursFactory.nonReshardedStreamsBehaviour(streamToShardCount));
+				Whitebox.setInternalState(fetcher, "shardAssigner", allShardsSingleSubtaskFn); // override hashing
+				List<StreamShardHandle> shards = fetcher.discoverNewShardsToSubscribe();
+				fetcher.shutdownFetcher();
+
+				String msg = String.format("for hash=%d, subtask=%d", hash, subtaskIndex);
+				if (j == i) {
+					assertEquals(msg, shardCount, shards.size());
+				} else {
+					assertEquals(msg, 0, shards.size());
+				}
+			}
+
+		}
+
+	}
+
 }
