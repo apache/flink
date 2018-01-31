@@ -45,18 +45,19 @@ public interface CheckpointStorage {
 	boolean hasDefaultSavepointLocation();
 
 	/**
-	 * Resolves the given pointer to a checkpoint/savepoint into a state handle from which the
-	 * checkpoint metadata can be read. If the state backend cannot understand the format of
-	 * the pointer (for example because it was created by a different state backend) this method
-	 * should throw an {@code IOException}.
+	 * Resolves the given pointer to a checkpoint/savepoint into a checkpoint location. The location
+	 * supports reading the checkpoint metadata, or disposing the checkpoint storage location.
 	 *
-	 * @param pointer The pointer to resolve.
-	 * @return The state handler from which one can read the checkpoint metadata.
+	 * <p>If the state backend cannot understand the format of the pointer (for example because it
+	 * was created by a different state backend) this method should throw an {@code IOException}.
+	 *
+	 * @param externalPointer The external checkpoint pointer to resolve.
+	 * @return The checkpoint location handle.
 	 *
 	 * @throws IOException Thrown, if the state backend does not understand the pointer, or if
 	 *                     the pointer could not be resolved due to an I/O error.
 	 */
-	StreamStateHandle resolveCheckpoint(String pointer) throws IOException;
+	CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) throws IOException;
 
 	/**
 	 * Initializes a storage location for new checkpoint with the given ID.

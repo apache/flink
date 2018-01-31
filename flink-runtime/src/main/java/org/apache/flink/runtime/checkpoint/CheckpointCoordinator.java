@@ -36,10 +36,10 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -1080,11 +1080,11 @@ public class CheckpointCoordinator {
 		LOG.info("Starting job from savepoint {} ({})",
 				savepointPointer, (allowNonRestored ? "allowing non restored state" : ""));
 
-		final StreamStateHandle metadataHandle = checkpointStorage.resolveCheckpoint(savepointPointer);
+		final CompletedCheckpointStorageLocation checkpointLocation = checkpointStorage.resolveCheckpoint(savepointPointer);
 
 		// Load the savepoint as a checkpoint into the system
 		CompletedCheckpoint savepoint = Checkpoints.loadAndValidateCheckpoint(
-				job, tasks, savepointPointer, metadataHandle, userClassLoader, allowNonRestored);
+				job, tasks, checkpointLocation, userClassLoader, allowNonRestored);
 
 		completedCheckpointStore.addCheckpoint(savepoint);
 

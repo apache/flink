@@ -25,7 +25,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.util.FileUtils;
 
 import javax.annotation.Nullable;
@@ -105,7 +105,7 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 	}
 
 	@Override
-	public StreamStateHandle resolveCheckpoint(String checkpointPointer) throws IOException {
+	public CompletedCheckpointStorageLocation resolveCheckpoint(String checkpointPointer) throws IOException {
 		return resolveCheckpointPointer(checkpointPointer);
 	}
 
@@ -208,7 +208,7 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 	 * @throws IOException Thrown, if the pointer cannot be resolved, the file system not accessed, or
 	 *                     the pointer points to a location that does not seem to be a checkpoint/savepoint.
 	 */
-	protected static StreamStateHandle resolveCheckpointPointer(String checkpointPointer) throws IOException {
+	protected static CompletedCheckpointStorageLocation resolveCheckpointPointer(String checkpointPointer) throws IOException {
 		checkNotNull(checkpointPointer, "checkpointPointer");
 		checkArgument(!checkpointPointer.isEmpty(), "empty checkpoint pointer");
 
@@ -242,10 +242,12 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 		}
 
 		// if we are here, the file / directory exists
+		final Path checkpointDir;
 		final FileStatus metadataFileStatus;
 
 		// If this is a directory, we need to find the meta data file
 		if (status.isDir()) {
+			checkpointDir = status.getPath();
 			final Path metadataFilePath = new Path(path, METADATA_FILE_NAME);
 			try {
 				metadataFileStatus = fs.getFileStatus(metadataFilePath);
@@ -260,9 +262,19 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 			// this points to a file and we either do no name validation, or
 			// the name is actually correct, so we can return the path
 			metadataFileStatus = status;
+			checkpointDir = status.getPath().getParent();
 		}
 
-		return new FileStateHandle(metadataFileStatus.getPath(), metadataFileStatus.getLen());
+		final FileStateHandle metaDataFileHandle = new FileStateHandle(
+				metadataFileStatus.getPath(), metadataFileStatus.getLen());
+
+		final String pointer = checkpointDir.makeQualified(fs).toString();
+
+		return new FsCompletedCheckpointStorageLocation(
+				fs,
+				checkpointDir,
+				metaDataFileHandle,
+				pointer);
 	}
 
 	// ------------------------------------------------------------------------

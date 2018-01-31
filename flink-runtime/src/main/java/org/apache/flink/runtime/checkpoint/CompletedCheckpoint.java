@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -92,6 +93,9 @@ public class CompletedCheckpoint implements Serializable {
 	/** States that were created by a hook on the master (in the checkpoint coordinator). */
 	private final Collection<MasterState> masterHookStates;
 
+	/** The location where the checkpoint is stored. */
+	private final CompletedCheckpointStorageLocation storageLocation;
+
 	/** The state handle to the externalized meta data. */
 	private final StreamStateHandle metadataHandle;
 
@@ -112,8 +116,7 @@ public class CompletedCheckpoint implements Serializable {
 			Map<OperatorID, OperatorState> operatorStates,
 			@Nullable Collection<MasterState> masterHookStates,
 			CheckpointProperties props,
-			StreamStateHandle metadataHandle,
-			String externalPointer) {
+			CompletedCheckpointStorageLocation storageLocation) {
 
 		checkArgument(checkpointID >= 0);
 		checkArgument(timestamp >= 0);
@@ -132,8 +135,9 @@ public class CompletedCheckpoint implements Serializable {
 				new ArrayList<>(masterHookStates);
 
 		this.props = checkNotNull(props);
-		this.metadataHandle = checkNotNull(metadataHandle);
-		this.externalPointer = checkNotNull(externalPointer);
+		this.storageLocation = checkNotNull(storageLocation);
+		this.metadataHandle = storageLocation.getMetadataHandle();
+		this.externalPointer = storageLocation.getExternalPointer();
 	}
 
 	// ------------------------------------------------------------------------
@@ -250,6 +254,14 @@ public class CompletedCheckpoint implements Serializable {
 			try {
 				StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
 			} catch (Exception e) {
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			}
+
+			// discard location as a whole
+			try {
+				storageLocation.disposeStorageLocation();
+			}
+			catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
