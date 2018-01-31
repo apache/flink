@@ -38,7 +38,7 @@ import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 
 /**
- * Tests for the {@link SpillingAdaptiveSpanningRecordDeserializer} and {@link AdaptiveSpanningRecordDeserializer}.
+ * Tests for the {@link SpillingAdaptiveSpanningRecordDeserializer}.
  */
 public class SpanningRecordSerializationTest {
 
@@ -47,8 +47,7 @@ public class SpanningRecordSerializationTest {
 		final int segmentSize = 1;
 		final int numValues = 10;
 
-		testNonSpillingDeserializer(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
-		testSpillingDeserializer(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
+		testSerializationRoundTrip(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
 	}
 
 	@Test
@@ -56,8 +55,7 @@ public class SpanningRecordSerializationTest {
 		final int segmentSize = 64;
 		final int numValues = 64;
 
-		testNonSpillingDeserializer(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
-		testSpillingDeserializer(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
+		testSerializationRoundTrip(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
 	}
 
 	@Test
@@ -65,8 +63,7 @@ public class SpanningRecordSerializationTest {
 		final int segmentSize = 31;
 		final int numValues = 248;
 
-		testNonSpillingDeserializer(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
-		testSpillingDeserializer(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
+		testSerializationRoundTrip(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
 	}
 
 	@Test
@@ -74,8 +71,7 @@ public class SpanningRecordSerializationTest {
 		final int segmentSize = 127;
 		final int numValues = 10000;
 
-		testNonSpillingDeserializer(Util.randomRecords(numValues), segmentSize);
-		testSpillingDeserializer(Util.randomRecords(numValues), segmentSize);
+		testSerializationRoundTrip(Util.randomRecords(numValues), segmentSize);
 	}
 
 	@Test
@@ -95,20 +91,12 @@ public class SpanningRecordSerializationTest {
 			}
 		}
 
-		testNonSpillingDeserializer(originalRecords, segmentSize);
-		testSpillingDeserializer(originalRecords, segmentSize);
+		testSerializationRoundTrip(originalRecords, segmentSize);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
 
-	private void testNonSpillingDeserializer(Iterable<SerializationTestType> records, int segmentSize) throws Exception {
-		RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<>();
-		RecordDeserializer<SerializationTestType> deserializer = new AdaptiveSpanningRecordDeserializer<>();
-
-		testSerializationRoundTrip(records, segmentSize, serializer, deserializer);
-	}
-
-	private void testSpillingDeserializer(Iterable<SerializationTestType> records, int segmentSize) throws Exception {
+	private static void testSerializationRoundTrip(Iterable<SerializationTestType> records, int segmentSize) throws Exception {
 		RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<>();
 		RecordDeserializer<SerializationTestType> deserializer =
 			new SpillingAdaptiveSpanningRecordDeserializer<>(
@@ -118,7 +106,7 @@ public class SpanningRecordSerializationTest {
 	}
 
 	/**
-	 * Iterates over the provided records and tests whether {@link SpanningRecordSerializer} and {@link AdaptiveSpanningRecordDeserializer}
+	 * Iterates over the provided records and tests whether {@link SpanningRecordSerializer} and {@link RecordDeserializer}
 	 * interact as expected.
 	 *
 	 * <p>Only a single {@link MemorySegment} will be allocated.

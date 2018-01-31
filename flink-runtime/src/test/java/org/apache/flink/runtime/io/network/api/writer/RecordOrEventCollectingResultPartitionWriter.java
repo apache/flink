@@ -20,9 +20,9 @@ package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
-import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
+import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
@@ -39,7 +39,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class RecordOrEventCollectingResultPartitionWriter<T> extends AbstractCollectingResultPartitionWriter {
 	private final Collection<Object> output;
 	private final NonReusingDeserializationDelegate<T> delegate;
-	private final RecordDeserializer<DeserializationDelegate<T>> deserializer = new AdaptiveSpanningRecordDeserializer<>();
+	private final RecordDeserializer<DeserializationDelegate<T>> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<>
+		(new String[]{System.getProperty("java.io.tmpdir")});
 
 	public RecordOrEventCollectingResultPartitionWriter(
 			Collection<Object> output,
