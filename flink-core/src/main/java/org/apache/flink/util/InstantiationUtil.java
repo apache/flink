@@ -365,23 +365,30 @@ public final class InstantiationUtil {
 
 	@SuppressWarnings("unchecked")
 	public static <T> T deserializeObject(byte[] bytes, ClassLoader cl) throws IOException, ClassNotFoundException {
-		final ClassLoader old = Thread.currentThread().getContextClassLoader();
-		try (ObjectInputStream oois = new InstantiationUtil.FailureTolerantObjectInputStream(new ByteArrayInputStream(bytes), cl)) {
-			Thread.currentThread().setContextClassLoader(cl);
-			return (T) oois.readObject();
-		}
-		finally {
-			Thread.currentThread().setContextClassLoader(old);
-		}
+		return deserializeObject(bytes, cl, false);
 	}
 
 	@SuppressWarnings("unchecked")
 	public static <T> T deserializeObject(InputStream in, ClassLoader cl) throws IOException, ClassNotFoundException {
+		return deserializeObject(in, cl, false);
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> T deserializeObject(byte[] bytes, ClassLoader cl, boolean isFailureTolerant)
+			throws IOException, ClassNotFoundException {
+
+		return deserializeObject(new ByteArrayInputStream(bytes), cl, isFailureTolerant);
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> T deserializeObject(InputStream in, ClassLoader cl, boolean isFailureTolerant)
+			throws IOException, ClassNotFoundException {
+
 		final ClassLoader old = Thread.currentThread().getContextClassLoader();
-		ObjectInputStream oois;
 		// not using resource try to avoid AutoClosable's close() on the given stream
-		try {
-			oois = new InstantiationUtil.FailureTolerantObjectInputStream(in, cl);
+		try (ObjectInputStream oois = isFailureTolerant
+				? new InstantiationUtil.FailureTolerantObjectInputStream(in, cl)
+				: new InstantiationUtil.ClassLoaderObjectInputStream(in, cl)) {
 			Thread.currentThread().setContextClassLoader(cl);
 			return (T) oois.readObject();
 		}
