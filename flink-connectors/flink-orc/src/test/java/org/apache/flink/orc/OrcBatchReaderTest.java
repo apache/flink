@@ -31,10 +31,10 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Unit tests for {@link OrcUtils}.
+ * Unit tests for {@link OrcBatchReader}.
  *
  */
-public class OrcUtilsTest {
+public class OrcBatchReaderTest {
 
 	@Test
 	public void testFlatSchemaToTypeInfo1() {
@@ -54,7 +54,7 @@ public class OrcUtilsTest {
 				"timestamp1:timestamp," +
 				"decimal1:decimal(5,2)" +
 			">";
-		TypeInformation typeInfo = OrcUtils.schemaToTypeInfo(TypeDescription.fromString(schema));
+		TypeInformation typeInfo = OrcBatchReader.schemaToTypeInfo(TypeDescription.fromString(schema));
 
 		Assert.assertNotNull(typeInfo);
 		Assert.assertTrue(typeInfo instanceof RowTypeInfo);
@@ -106,7 +106,7 @@ public class OrcUtilsTest {
 					">" +
 				">" +
 			">";
-		TypeInformation typeInfo = OrcUtils.schemaToTypeInfo(TypeDescription.fromString(schema));
+		TypeInformation typeInfo = OrcBatchReader.schemaToTypeInfo(TypeDescription.fromString(schema));
 
 		Assert.assertNotNull(typeInfo);
 		Assert.assertTrue(typeInfo instanceof RowTypeInfo);
