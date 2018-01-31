@@ -339,7 +339,11 @@ public class StreamSourceOperatorTest {
 		@Override
 		public void run(SourceContext<T> ctx) throws Exception {
 			while (running) {
-				Thread.sleep(20);
+				try {
+					Thread.sleep(20);
+				} catch (InterruptedException ignored) {
+					Thread.currentThread().interrupt();
+				}
 			}
 		}
 
