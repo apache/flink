@@ -20,9 +20,11 @@ package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.AbstractFileCheckpointStorageTestBase;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
@@ -119,15 +121,16 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 
 		CheckpointStorageLocation location = storage.initializeLocationForCheckpoint(9);
 
-		CheckpointStateOutputStream stream = location.createMetadataOutputStream();
+		CheckpointMetadataOutputStream stream = location.createMetadataOutputStream();
 		stream.write(99);
-		StreamStateHandle handle = stream.closeAndGetHandle();
+
+		CompletedCheckpointStorageLocation completed = stream.closeAndFinalizeCheckpoint();
+		StreamStateHandle handle = completed.getMetadataHandle();
 		assertTrue(handle instanceof ByteStreamStateHandle);
 
 		// the reference is not valid in that case
-		String reference = location.markCheckpointAsFinished();
 		try {
-			storage.resolveCheckpoint(reference);
+			storage.resolveCheckpoint(completed.getExternalPointer());
 			fail("should fail with an exception");
 		} catch (Exception e) {
 			// expected

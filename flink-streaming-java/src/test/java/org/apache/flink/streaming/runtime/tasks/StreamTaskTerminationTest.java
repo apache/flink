@@ -54,11 +54,11 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
@@ -251,7 +251,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 		private static final long serialVersionUID = -5053068148933314100L;
 
 		@Override
-		public StreamStateHandle resolveCheckpoint(String pointer) throws IOException {
+		public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
 			throw new UnsupportedOperationException();
 		}
 

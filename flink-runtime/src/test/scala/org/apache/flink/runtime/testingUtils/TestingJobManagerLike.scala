@@ -323,9 +323,9 @@ trait TestingJobManagerLike extends FlinkActor {
           flinkConfiguration, classloader, null)
         val backend = if (loadedBackend != null) loadedBackend else new MemoryStateBackend()
 
-        val metadataHandle = backend.resolveCheckpoint(savepointPath)
+        val checkpointLocation = backend.resolveCheckpoint(savepointPath)
 
-        val stream = new DataInputStream(metadataHandle.openInputStream())
+        val stream = new DataInputStream(checkpointLocation.getMetadataHandle.openInputStream())
         val savepoint = try {
           Checkpoints.loadCheckpointMetadata(stream, classloader)
         }
