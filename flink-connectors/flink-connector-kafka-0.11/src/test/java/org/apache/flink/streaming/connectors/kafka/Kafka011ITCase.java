@@ -22,6 +22,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.core.memory.DataInputView;
@@ -34,6 +35,8 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -46,6 +49,8 @@ import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Date;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -163,6 +168,11 @@ public class Kafka011ITCase extends KafkaConsumerTestBase {
 		runStartFromSpecificOffsets();
 	}
 
+	@Test(timeout = 60000)
+	public void testStartFromSpecificDate() throws Exception {
+		runStartFromSpecificDate();
+	}
+
 	// --- offset committing ---
 
 	@Test(timeout = 60000)
@@ -262,6 +272,30 @@ public class Kafka011ITCase extends KafkaConsumerTestBase {
 		env.execute("Consume again");
 
 		deleteTestTopic(topic);
+	}
+
+	@Override
+	protected void setKafkaConsumerOffset(final StartupMode startupMode,
+										final FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer,
+										final Map<KafkaTopicPartition, Long> specificStartupOffsets,
+										final Date specificStartupDate) {
+		switch (startupMode) {
+			case EARLIEST:
+				consumer.setStartFromEarliest();
+				break;
+			case LATEST:
+				consumer.setStartFromLatest();
+				break;
+			case SPECIFIC_OFFSETS:
+				consumer.setStartFromSpecificOffsets(specificStartupOffsets);
+				break;
+			case GROUP_OFFSETS:
+				consumer.setStartFromGroupOffsets();
+				break;
+			case SPECIFIC_TIMESTAMP:
+				((FlinkKafkaConsumer011<Tuple2<Integer, Integer>>) consumer).setStartFromSpecificDate(specificStartupDate);
+				break;
+		}
 	}
 
 	private static class TimestampValidatingOperator extends StreamSink<Long> {
