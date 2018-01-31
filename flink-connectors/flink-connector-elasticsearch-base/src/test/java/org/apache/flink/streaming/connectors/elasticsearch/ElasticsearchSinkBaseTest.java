@@ -58,6 +58,26 @@ import static org.mockito.Mockito.when;
  */
 public class ElasticsearchSinkBaseTest {
 
+	/**
+	 * Verifies that the collection given to the sink is not modified.
+	 */
+	@Test
+	public void testCollectionArgumentNotModified() {
+		Map<String, String> userConfig = new HashMap<>();
+		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_BACKOFF_DELAY, "1");
+		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_BACKOFF_ENABLE, "true");
+		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_BACKOFF_RETRIES, "1");
+		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_BACKOFF_TYPE, "CONSTANT");
+		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_INTERVAL_MS, "1");
+		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
+		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB, "1");
+
+		new DummyElasticsearchSink<>(
+			Collections.unmodifiableMap(userConfig),
+			new SimpleSinkFunction<String>(),
+			new NoOpFailureHandler());
+	}
+
 	/** Tests that any item failure in the listener callbacks is rethrown on an immediately following invoke call. */
 	@Test
 	public void testItemFailureRethrownOnInvoke() throws Throwable {
