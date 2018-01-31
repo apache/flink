@@ -24,9 +24,10 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
-import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import org.junit.Rule;
@@ -74,7 +75,9 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 	@Test
 	public void testPointerPathResolution() throws Exception {
 		final FileSystem fs = FileSystem.getLocalFileSystem();
-		final Path metadataFile = new Path(tmp.newFolder().getAbsolutePath(), AbstractFsCheckpointStorage.METADATA_FILE_NAME);
+		final Path metadataFile = new Path(Path.fromLocalFile(tmp.newFolder()), AbstractFsCheckpointStorage.METADATA_FILE_NAME);
+
+		final String basePointer = metadataFile.getParent().toString();
 
 		final String pointer1 = metadataFile.toString();
 		final String pointer2 = metadataFile.getParent().toString();
@@ -89,9 +92,17 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 			out.write(data);
 		}
 
-		StreamStateHandle handle1 = storage.resolveCheckpoint(pointer1);
-		StreamStateHandle handle2 = storage.resolveCheckpoint(pointer2);
-		StreamStateHandle handle3 = storage.resolveCheckpoint(pointer3);
+		CompletedCheckpointStorageLocation completed1 = storage.resolveCheckpoint(pointer1);
+		CompletedCheckpointStorageLocation completed2 = storage.resolveCheckpoint(pointer2);
+		CompletedCheckpointStorageLocation completed3 = storage.resolveCheckpoint(pointer3);
+
+		assertEquals(basePointer, completed1.getExternalPointer());
+		assertEquals(basePointer, completed2.getExternalPointer());
+		assertEquals(basePointer, completed3.getExternalPointer());
+
+		StreamStateHandle handle1 = completed1.getMetadataHandle();
+		StreamStateHandle handle2 = completed2.getMetadataHandle();
+		StreamStateHandle handle3 = completed3.getMetadataHandle();
 
 		assertNotNull(handle1);
 		assertNotNull(handle2);
@@ -156,17 +167,19 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 		final byte[] data1 = {77, 66, 55, 99, 88};
 		final byte[] data2 = {1, 3, 2, 5, 4};
 
-		try (CheckpointStateOutputStream out = loc1.createMetadataOutputStream()) {
+		final CompletedCheckpointStorageLocation completedLocation1;
+		try (CheckpointMetadataOutputStream out = loc1.createMetadataOutputStream()) {
 			out.write(data1);
-			out.closeAndGetHandle();
+			completedLocation1 = out.closeAndFinalizeCheckpoint();
 		}
-		final String result1 = loc1.markCheckpointAsFinished();
+		final String result1 = completedLocation1.getExternalPointer();
 
-		try (CheckpointStateOutputStream out = loc2.createMetadataOutputStream()) {
+		final CompletedCheckpointStorageLocation completedLocation2;
+		try (CheckpointMetadataOutputStream out = loc2.createMetadataOutputStream()) {
 			out.write(data2);
-			out.closeAndGetHandle();
+			completedLocation2 = out.closeAndFinalizeCheckpoint();
 		}
-		final String result2 = loc2.markCheckpointAsFinished();
+		final String result2 = completedLocation2.getExternalPointer();
 
 		// check that this went to a file, but in a nested directory structure
 
@@ -184,10 +197,10 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 		assertTrue(fs.exists(new Path(result2, AbstractFsCheckpointStorage.METADATA_FILE_NAME)));
 
 		// check that both storages can resolve each others contents
-		validateContents(storage1.resolveCheckpoint(result1), data1);
-		validateContents(storage1.resolveCheckpoint(result2), data2);
-		validateContents(storage2.resolveCheckpoint(result1), data1);
-		validateContents(storage2.resolveCheckpoint(result2), data2);
+		validateContents(storage1.resolveCheckpoint(result1).getMetadataHandle(), data1);
+		validateContents(storage1.resolveCheckpoint(result2).getMetadataHandle(), data2);
+		validateContents(storage2.resolveCheckpoint(result1).getMetadataHandle(), data1);
+		validateContents(storage2.resolveCheckpoint(result2).getMetadataHandle(), data2);
 	}
 
 	@Test
@@ -200,9 +213,9 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 
 		// write to the metadata file for the checkpoint
 
-		try (CheckpointStateOutputStream out = loc.createMetadataOutputStream()) {
+		try (CheckpointMetadataOutputStream out = loc.createMetadataOutputStream()) {
 			out.write(data);
-			out.closeAndGetHandle();
+			out.closeAndFinalizeCheckpoint();
 		}
 
 		// create another writer to the metadata file for the checkpoint
@@ -263,15 +276,21 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 
 		final byte[] data = {77, 66, 55, 99, 88};
 
-		final StreamStateHandle handle;
-		try (CheckpointStateOutputStream out = savepointLocation.createMetadataOutputStream()) {
+		final CompletedCheckpointStorageLocation completed;
+		try (CheckpointMetadataOutputStream out = savepointLocation.createMetadataOutputStream()) {
 			out.write(data);
-			handle = out.closeAndGetHandle();
+			completed = out.closeAndFinalizeCheckpoint();
 		}
-		validateContents(handle, data);
+
+		// we need to do this step to make sure we have a slash (or not) in the same way as the
+		// expected path has it
+		final Path normalizedWithSlash = Path.fromLocalFile(new File(new Path(completed.getExternalPointer()).getParent().getPath()));
+
+		assertEquals(expectedParent, normalizedWithSlash);
+		validateContents(completed.getMetadataHandle(), data);
 
 		// validate that the correct directory was used
-		FileStateHandle fileStateHandle = (FileStateHandle) handle;
+		FileStateHandle fileStateHandle = (FileStateHandle) completed.getMetadataHandle();
 
 		// we need to recreate that path in the same way as the "expected path" (via File and URI) to make
 		// sure the either both use '/' suffixes, or neither uses them (a bit of an annoying ambiguity)

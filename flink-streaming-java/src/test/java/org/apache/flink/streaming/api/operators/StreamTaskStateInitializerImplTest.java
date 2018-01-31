@@ -33,13 +33,13 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImplTest;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -139,13 +139,13 @@ public class StreamTaskStateInitializerImplTest {
 
 		StateBackend mockingBackend = spy(new StateBackend() {
 			@Override
-			public StreamStateHandle resolveCheckpoint(String pointer) throws IOException {
-				return null;
+			public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
+				throw new UnsupportedOperationException();
 			}
 
 			@Override
 			public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
-				return null;
+				throw new UnsupportedOperationException();
 			}
 
 			@Override

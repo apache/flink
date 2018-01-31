@@ -26,7 +26,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -85,7 +85,7 @@ public class BackendForTestStream extends MemoryStateBackend {
 		}
 
 		@Override
-		public StreamStateHandle resolveCheckpoint(String pointer) throws IOException {
+		public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
