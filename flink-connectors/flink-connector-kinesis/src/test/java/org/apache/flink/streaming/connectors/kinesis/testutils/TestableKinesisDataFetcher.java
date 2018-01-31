@@ -67,6 +67,7 @@ public class TestableKinesisDataFetcher<T> extends KinesisDataFetcher<T> {
 			getMockedRuntimeContext(fakeTotalCountOfSubtasks, fakeIndexOfThisSubtask),
 			fakeConfiguration,
 			deserializationSchema,
+			DEFAULT_SHARD_ASSIGNER,
 			thrownErrorUnderTest,
 			subscribedShardsStateUnderTest,
 			subscribedStreamsToLastDiscoveredShardIdsStateUnderTest,
