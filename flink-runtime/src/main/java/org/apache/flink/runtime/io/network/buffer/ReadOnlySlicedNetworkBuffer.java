@@ -38,6 +38,8 @@ import java.nio.ReadOnlyBufferException;
  */
 public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implements Buffer {
 
+	private final int index;
+
 	/**
 	 * Creates a buffer which shares the memory segment of the given buffer and exposed the given
 	 * sub-region only.
@@ -51,6 +53,7 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 	 */
 	ReadOnlySlicedNetworkBuffer(NetworkBuffer buffer, int index, int length) {
 		super(new SlicedByteBuf(buffer, index, length));
+		this.index = index;
 	}
 
 	/**
@@ -66,6 +69,7 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 	 */
 	private ReadOnlySlicedNetworkBuffer(ByteBuf buffer, int index, int length) {
 		super(new SlicedByteBuf(buffer, index, length));
+		this.index = index;
 	}
 
 	@Override
@@ -94,6 +98,11 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 	@Override
 	public MemorySegment getMemorySegment() {
 		return ((Buffer) unwrap()).getMemorySegment();
+	}
+
+	@Override
+	public int getMemorySegmentOffset() {
+		return ((Buffer) unwrap()).getMemorySegmentOffset() + index;
 	}
 
 	@Override
