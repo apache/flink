@@ -21,6 +21,7 @@ package org.apache.flink.test.state.operator.restore.unkeyed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.apache.flink.test.state.operator.restore.AbstractOperatorRestoreTestBase;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 
@@ -42,22 +43,20 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
 @RunWith(Parameterized.class)
 public abstract class AbstractNonKeyedOperatorRestoreTestBase extends AbstractOperatorRestoreTestBase {
 
-	private final String savepointPath;
+	private final MigrationVersion migrationVersion;
 
 	@Parameterized.Parameters(name = "Migrate Savepoint: {0}")
-	public static Collection<String> parameters () {
-		return Arrays.asList(
-			"nonKeyed-flink1.2",
-			"nonKeyed-flink1.3");
+	public static Collection<MigrationVersion> parameters () {
+		return Arrays.asList(MigrationVersion.v1_2, MigrationVersion.v1_3, MigrationVersion.v1_4);
 	}
 
-	protected AbstractNonKeyedOperatorRestoreTestBase(String savepointPath) {
-		this.savepointPath = savepointPath;
+	protected AbstractNonKeyedOperatorRestoreTestBase(MigrationVersion migrationVersion) {
+		this.migrationVersion = migrationVersion;
 	}
 
-	protected AbstractNonKeyedOperatorRestoreTestBase(String savepointPath, boolean allowNonRestoredState) {
+	protected AbstractNonKeyedOperatorRestoreTestBase(MigrationVersion migrationVersion, boolean allowNonRestoredState) {
 		super(allowNonRestoredState);
-		this.savepointPath = savepointPath;
+		this.migrationVersion = migrationVersion;
 	}
 
 	@Override
@@ -80,6 +79,6 @@ public abstract class AbstractNonKeyedOperatorRestoreTestBase extends AbstractOp
 
 	@Override
 	protected String getMigrationSavepointName() {
-		return savepointPath;
+		return "nonKeyed-flink" + migrationVersion;
 	}
 }
