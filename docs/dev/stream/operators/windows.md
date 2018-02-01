@@ -303,7 +303,7 @@ input
 // event-time session windows with dynamic gap
 input
     .keyBy(<key selector>)
-    .window(DynamicEventTimeSessionWindows.withDynamicGap((element, timestamp, context) -> {
+    .window(EventTimeSessionWindows.withDynamicGap((element) -> {
         // determine and return session gap
     }))
     .<windowed transformation>(<window function>);
@@ -317,7 +317,7 @@ input
 // processing-time session windows with dynamic gap
 input
     .keyBy(<key selector>)
-    .window(DynamicProcessingTimeSessionWindows.withDynamicGap((element, timestamp, context) -> {
+    .window(ProcessingTimeSessionWindows.withDynamicGap((element) -> {
         // determine and return session gap
     }))
     .<windowed transformation>(<window function>);
@@ -337,8 +337,8 @@ input
 // event-time session windows with dynamic gap
 input
     .keyBy(<key selector>)
-    .window(DynamicEventTimeSessionWindows.withDynamicGap(new SessionWindowTimeGapExtractor[String] {
-      override def extract(element: String, ts: Long, ctx: WindowAssigner.WindowAssignerContext): Long = {
+    .window(EventTimeSessionWindows.withDynamicGap(new SessionWindowTimeGapExtractor[String] {
+      override def extract(element: String): Long = {
         // determine and return session gap
       }
     }))
@@ -355,7 +355,7 @@ input
 input
     .keyBy(<key selector>)
     .window(DynamicProcessingTimeSessionWindows.withDynamicGap(new SessionWindowTimeGapExtractor[String] {
-      override def extract(element: String, ts: Long, ctx: WindowAssigner.WindowAssignerContext): Long = {
+      override def extract(element: String): Long = {
         // determine and return session gap
       }
     }))
