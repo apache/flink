@@ -72,7 +72,7 @@ parallelism.default: 1
 #
 # high-availability: zookeeper
 
-# The path where metadata for master recovery is persisted. While ZooKeeper stored
+# The path where metadata for master recovery is persisted. While ZooKeeper stores
 # the small ground truth for checkpoint and leader election, this location stores
 # the larger objects, like persisted dataflow graphs.
 # 
@@ -162,7 +162,7 @@ web.port: 8081
 # Specify whether TaskManager's managed memory should be allocated when starting
 # up (true) or when memory is requested.
 #
-# We recomment to set this value to 'true' only in setups for pure batch
+# We recommend to set this value to 'true' only in setups for pure batch
 # processing (DataSet API). Streaming setups currently do not use the TaskManager's
 # managed memory: The 'rocksdb' state backend uses RocksDB's own memory management,
 # while the 'memory' and 'filesystem' backends explicitly keep data as objects
