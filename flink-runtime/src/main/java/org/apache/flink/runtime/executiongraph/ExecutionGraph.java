@@ -1085,10 +1085,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	/**
 	 * Suspends the current ExecutionGraph.
 	 *
-	 * <p>The JobStatus will be directly set to SUSPENDED iff the current state is not a terminal
+	 * <p>The JobStatus will be directly set to SUSPENDING iff the current state is not a terminal
 	 * state. All ExecutionJobVertices will be canceled and the onTerminalState() is executed.
 	 *
-	 * <p>The SUSPENDED state is a local terminal state which stops the execution of the job but does
+	 * <p>The SUSPENDING state is a local terminal state which stops the execution of the job but does
 	 * not remove the job from the HA job store so that it can be recovered by another JobManager.
 	 *
 	 * @param suspensionCause Cause of the suspension
@@ -1097,10 +1097,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		while (true) {
 			JobStatus currentState = state;
 
-			if (currentState.isTerminalState()) {
+			if (currentState.isTerminalState() || currentState == JobStatus.SUSPENDING) {
 				// stay in a terminal state
 				return;
-			} else if (transitionState(currentState, JobStatus.SUSPENDED, suspensionCause)) {
+			} else if (transitionState(currentState, JobStatus.SUSPENDING, suspensionCause)) {
 				initFailureCause(suspensionCause);
 
 				// make sure no concurrent local actions interfere with the cancellation
@@ -1112,16 +1112,25 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				if (ongoingSchedulingFuture != null) {
 					ongoingSchedulingFuture.cancel(false);
 				}
+				final ArrayList<CompletableFuture<Void>> executionJobVertexTerminationFutures = new ArrayList<>(verticesInCreationOrder.size());
 
 				for (ExecutionJobVertex ejv: verticesInCreationOrder) {
-					ejv.cancel();
+					executionJobVertexTerminationFutures.add(ejv.cancelWithFuture());
 				}
 
-				synchronized (progressLock) {
-					onTerminalState(JobStatus.SUSPENDED);
+				final ConjunctFuture<Void> jobVerticesTerminationFuture = FutureUtils.waitForAll(executionJobVertexTerminationFutures);
 
-					LOG.info("Job {} has been suspended.", getJobID());
-				}
+				jobVerticesTerminationFuture.whenComplete(
+					(Void ignored, Throwable throwable) -> {
+						if (throwable != null) {
+							LOG.debug("Flink could not properly clean up resource after suspension.", throwable);
+						}
+
+						// the globalModVersion does not play a role because there is no way
+						// currently to leave the SUSPENDING state
+						allVerticesInTerminalState(-1L);
+						LOG.info("Job {} has been suspended.", getJobID());
+					});
 
 				return;
 			}
@@ -1144,6 +1153,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			JobStatus current = state;
 			// stay in these states
 			if (current == JobStatus.FAILING ||
+				current == JobStatus.SUSPENDING ||
 				current == JobStatus.SUSPENDED ||
 				current.isGloballyTerminalState()) {
 				return;
@@ -1216,7 +1226,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				} else if (current == JobStatus.FAILED) {
 					LOG.info("Failed job during restart. Aborting restart.");
 					return;
-				} else if (current == JobStatus.SUSPENDED) {
+				} else if (current == JobStatus.SUSPENDING || current == JobStatus.SUSPENDED) {
 					LOG.info("Suspended job during restart. Aborting restart.");
 					return;
 				} else if (current != JobStatus.RESTARTING) {
@@ -1301,7 +1311,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		return null;
 	}
 
-	@VisibleForTesting
+	/**
+	 * Returns the termination future of this {@link ExecutionGraph}. The termination future
+	 * is completed with the terminal {@link JobStatus} once the ExecutionGraph reaches this
+	 * terminal state and all {@link Execution} have been terminated.
+	 *
+	 * @return Termination future of this {@link ExecutionGraph}.
+	 */
 	public CompletableFuture<JobStatus> getTerminationFuture() {
 		return terminationFuture;
 	}
@@ -1441,9 +1457,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				}
 				// concurrent job status change, let's check again
 			}
-			else if (current == JobStatus.SUSPENDED) {
-				// we've already cleaned up when entering the SUSPENDED state
-				break;
+			else if (current == JobStatus.SUSPENDING) {
+				if (transitionState(current, JobStatus.SUSPENDED)) {
+					onTerminalState(JobStatus.SUSPENDED);
+					break;
+				}
 			}
 			else if (current.isGloballyTerminalState()) {
 				LOG.warn("Job has entered globally terminal state without waiting for all " +
