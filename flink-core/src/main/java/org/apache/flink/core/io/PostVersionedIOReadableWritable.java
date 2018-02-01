@@ -19,14 +19,13 @@
 package org.apache.flink.core.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.memory.ByteArrayPrependedInputStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.InputStreamViewWrapper;
 
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.PushbackInputStream;
 import java.util.Arrays;
 
 /**
@@ -58,24 +57,22 @@ public abstract class PostVersionedIOReadableWritable extends VersionedIOReadabl
 	 * {@link #VERSIONED_IDENTIFIER} by reading and buffering the first few bytes.
 	 * If identified to be versioned, the usual version resolution read path
 	 * in {@link VersionedIOReadableWritable#read(DataInputView)} is invoked.
-	 * Otherwise, we "reset" the input view by wrapping the initially buffered read bytes
-	 * with the remaining input view in a special {@link ByteArrayPrependedInputStream}.
-	 *
-	 * <p>We do not use Java's {@link java.io.BufferedInputStream}'s mark and reset
-	 * here to avoid wrapping the whole input view and introducing the unnecessary
-	 * buffer for the rest of the remaining reads.
+	 * Otherwise, we "reset" the input view by pushing back the read buffered bytes
+	 * into the stream.
 	 */
 	@Override
 	public final void read(DataInputView in) throws IOException {
+		PushbackInputStream stream = new PushbackInputStream(new InputStreamViewWrapper(in), VERSIONED_IDENTIFIER.length);
+
 		byte[] tmp = new byte[VERSIONED_IDENTIFIER.length];
-		in.read(tmp);
+		stream.read(tmp);
 
 		if (Arrays.equals(tmp, VERSIONED_IDENTIFIER)) {
 			super.read(in);
 			read(in, true);
 		} else {
-			InputStream resetStream = new ByteArrayPrependedInputStream(tmp, new InputStreamViewWrapper(in));
-			read(new DataInputViewStreamWrapper(resetStream), false);
+			stream.unread(tmp);
+			read(new DataInputViewStreamWrapper(stream), false);
 		}
 	}
 }
