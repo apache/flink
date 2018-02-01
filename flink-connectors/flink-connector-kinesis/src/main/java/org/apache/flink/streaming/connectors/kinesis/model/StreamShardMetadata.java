@@ -20,6 +20,8 @@ package org.apache.flink.streaming.connectors.kinesis.model;
 import java.io.Serializable;
 import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A serializable representation of a AWS Kinesis Stream shard. It is basically a wrapper class around the information
  * disintegrated from {@link com.amazonaws.services.kinesis.model.Shard} and its nested classes. The disintegration
@@ -170,4 +172,46 @@ public class StreamShardMetadata implements Serializable {
 		return hash;
 	}
 
+	/** An equivalence wrapper that only checks for the stream name and shard id for equality. */
+	public static class EquivalenceWrapper {
+
+		private final StreamShardMetadata shardMetadata;
+
+		public EquivalenceWrapper(StreamShardMetadata shardMetadata) {
+			this.shardMetadata = checkNotNull(shardMetadata);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (!(obj instanceof EquivalenceWrapper)) {
+				return false;
+			}
+
+			if (obj == this) {
+				return true;
+			}
+
+			EquivalenceWrapper other = (EquivalenceWrapper) obj;
+
+			return shardMetadata.getStreamName().equals(other.shardMetadata.getStreamName())
+				&& shardMetadata.getShardId().equals(other.shardMetadata.getShardId());
+		}
+
+		@Override
+		public int hashCode() {
+			int hash = 17;
+
+			if (shardMetadata.getStreamName() != null) {
+				hash = 37 * hash + shardMetadata.getStreamName().hashCode();
+			}
+			if (shardMetadata.getShardId() != null) {
+				hash = 37 * hash + shardMetadata.getShardId().hashCode();
+			}
+			return hash;
+		}
+
+		public StreamShardMetadata getShardMetadata() {
+			return shardMetadata;
+		}
+	}
 }

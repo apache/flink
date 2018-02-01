@@ -99,7 +99,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	private transient KinesisDataFetcher<T> fetcher;
 
 	/** The sequence numbers to restore to upon restore from failure. */
-	private transient HashMap<StreamShardMetadata, SequenceNumber> sequenceNumsToRestore;
+	private transient HashMap<StreamShardMetadata.EquivalenceWrapper, SequenceNumber> sequenceNumsToRestore;
 
 	private volatile boolean running = true;
 
@@ -206,23 +206,16 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		List<StreamShardHandle> allShards = fetcher.discoverNewShardsToSubscribe();
 
 		for (StreamShardHandle shard : allShards) {
-			StreamShardMetadata kinesisStreamShard = KinesisDataFetcher.convertToStreamShardMetadata(shard);
+			StreamShardMetadata.EquivalenceWrapper kinesisStreamShard =
+				new StreamShardMetadata.EquivalenceWrapper(KinesisDataFetcher.convertToStreamShardMetadata(shard));
+
 			if (sequenceNumsToRestore != null) {
 
-				// We need to do this to make sure that a shard that was closed after this restored state was taken will be properly
-				// detected and have its sequence numbers restored. A shard will be closed when re-sharding, which can happen when
-				// scaling up & down the Kinesis stream, and if the state is not synchronized, then the equality check of the current
-				// Kinesis shard will not match the stored state, which will cause us to re-read the entire shard from the event horizon.
-				if (updateKinesisShardStateWithMissingEndingSequenceNumber(kinesisStreamShard, sequenceNumsToRestore)) {
-					if (LOG.isInfoEnabled()) {
-						LOG.info("Updated local stored state for shard {} with a new ending number: {}", kinesisStreamShard.getShardId(), sequenceNumsToRestore.get(kinesisStreamShard));
-					}
-				}
 				if (sequenceNumsToRestore.containsKey(kinesisStreamShard)) {
 					// if the shard was already seen and is contained in the state,
 					// just use the sequence number stored in the state
 					fetcher.registerNewSubscribedShardState(
-						new KinesisStreamShardState(kinesisStreamShard, shard, sequenceNumsToRestore.get(kinesisStreamShard)));
+						new KinesisStreamShardState(kinesisStreamShard.getShardMetadata(), shard, sequenceNumsToRestore.get(kinesisStreamShard)));
 
 					if (LOG.isInfoEnabled()) {
 						LOG.info("Subtask {} is seeding the fetcher with restored shard {}," +
@@ -232,7 +225,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 				} else {
 					// the shard wasn't discovered in the previous run, therefore should be consumed from the beginning
 					fetcher.registerNewSubscribedShardState(
-						new KinesisStreamShardState(kinesisStreamShard, shard, SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get()));
+						new KinesisStreamShardState(kinesisStreamShard.getShardMetadata(), shard, SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get()));
 
 					if (LOG.isInfoEnabled()) {
 						LOG.info("Subtask {} is seeding the fetcher with new discovered shard {}," +
@@ -248,7 +241,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 						ConsumerConfigConstants.DEFAULT_STREAM_INITIAL_POSITION)).toSentinelSequenceNumber();
 
 				fetcher.registerNewSubscribedShardState(
-					new KinesisStreamShardState(kinesisStreamShard, shard, startingSeqNum.get()));
+					new KinesisStreamShardState(kinesisStreamShard.getShardMetadata(), shard, startingSeqNum.get()));
 
 				if (LOG.isInfoEnabled()) {
 					LOG.info("Subtask {} will be seeded with initial shard {}, starting state set as sequence number {}",
@@ -273,45 +266,6 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		// check that the fetcher has terminated before fully closing
 		fetcher.awaitTermination();
 		sourceContext.close();
-	}
-
-	/**
-	 * Synchronizes the Kinesis shard information from the current Kinesis shard with the restored state, if we find
-	 * a shard that match the shardId and streamName. If we find one, and its ending key is different that what we
-	 * have in our stored state, then we update the stored's shard's metadata's ending number.
-	 *
-	 * @param current				the current Kinesis shard we're trying to synchronize.
-	 * @param sequenceNumsToRestore	the (re)stored shard metadata and their sequence numbers.
-	 * @return {@code true} if the local state was updated with the current Kinesis shard's ending number.
-	 */
-	@VisibleForTesting
-	boolean updateKinesisShardStateWithMissingEndingSequenceNumber(StreamShardMetadata current, HashMap<StreamShardMetadata, SequenceNumber> sequenceNumsToRestore) {
-		checkNotNull(current.getStreamName(), "Stream name not set on the current metadata shard");
-		checkNotNull(current.getShardId(), "Shard id not set on the current metadata shard");
-
-		// short-circuit: if the current shard doesn't have an ending sequence number, then there's no point in trying to update the local state
-		// since that's the only property that can change.
-		if (current.getEndingSequenceNumber() == null) {
-			return false;
-		}
-
-		// try to find the matching shard based on the id & stream name
-		for (Map.Entry<StreamShardMetadata, SequenceNumber> entry : sequenceNumsToRestore.entrySet()) {
-			if (current.getStreamName().equals(entry.getKey().getStreamName())
-				&& current.getShardId().equals(entry.getKey().getShardId())) {
-				// synchronize the local state if the ending sequence number is different
-				if (!current.getEndingSequenceNumber().equals(entry.getKey().getEndingSequenceNumber())) {
-					// ugly, but since the hashcode will change, we'll need to remove it and add it back
-					sequenceNumsToRestore.remove(entry.getKey());
-					entry.getKey().setEndingSequenceNumber(current.getEndingSequenceNumber());
-					sequenceNumsToRestore.put(entry.getKey(), entry.getValue());
-					return true;
-				}
-				// we already found the matching shard
-				break;
-			}
-		}
-		return false;
 	}
 
 	@Override
@@ -362,7 +316,13 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 			if (sequenceNumsToRestore == null) {
 				sequenceNumsToRestore = new HashMap<>();
 				for (Tuple2<StreamShardMetadata, SequenceNumber> kinesisSequenceNumber : sequenceNumsStateForCheckpoint.get()) {
-					sequenceNumsToRestore.put(kinesisSequenceNumber.f0, kinesisSequenceNumber.f1);
+					sequenceNumsToRestore.put(
+						// we wrap the restored metadata inside an equivalence wrapper that checks only stream name and shard id,
+						// so that if a shard had been closed (due to a Kinesis reshard operation, for example) since
+						// the savepoint and has a different metadata than what we last stored,
+						// we will still be able to match it in sequenceNumsToRestore. Please see FLINK-8484 for details.
+						new StreamShardMetadata.EquivalenceWrapper(kinesisSequenceNumber.f0),
+						kinesisSequenceNumber.f1);
 				}
 
 				LOG.info("Setting restore state in the FlinkKinesisConsumer. Using the following offsets: {}",
@@ -386,16 +346,16 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 
 			if (fetcher == null) {
 				if (sequenceNumsToRestore != null) {
-					for (Map.Entry<StreamShardMetadata, SequenceNumber> entry : sequenceNumsToRestore.entrySet()) {
+					for (Map.Entry<StreamShardMetadata.EquivalenceWrapper, SequenceNumber> entry : sequenceNumsToRestore.entrySet()) {
 						// sequenceNumsToRestore is the restored global union state;
 						// should only snapshot shards that actually belong to us
 
 						if (KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(
-								KinesisDataFetcher.convertToStreamShardHandle(entry.getKey()),
+								KinesisDataFetcher.convertToStreamShardHandle(entry.getKey().getShardMetadata()),
 								getRuntimeContext().getNumberOfParallelSubtasks(),
 								getRuntimeContext().getIndexOfThisSubtask())) {
 
-							sequenceNumsStateForCheckpoint.add(Tuple2.of(entry.getKey(), entry.getValue()));
+							sequenceNumsStateForCheckpoint.add(Tuple2.of(entry.getKey().getShardMetadata(), entry.getValue()));
 						}
 					}
 				}
@@ -426,7 +386,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	}
 
 	@VisibleForTesting
-	HashMap<StreamShardMetadata, SequenceNumber> getRestoredState() {
+	HashMap<StreamShardMetadata.EquivalenceWrapper, SequenceNumber> getRestoredState() {
 		return sequenceNumsToRestore;
 	}
 }

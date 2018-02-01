@@ -574,6 +574,11 @@ public class KinesisDataFetcher<T> {
 		});
 	}
 
+	@VisibleForTesting
+	public List<KinesisStreamShardState> getSubscribedShardsState() {
+		return subscribedShardsState;
+	}
+
 	/**
 	 * Utility function to create an initial map of the last discovered shard id of each subscribed stream, set to null;
 	 * This is called in the constructor; correct values will be set later on by calling advanceLastDiscoveredShardOfStream().

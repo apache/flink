@@ -63,14 +63,12 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -595,56 +593,6 @@ public class FlinkKinesisConsumerTest {
 		Mockito.verify(mockedFetcher).registerNewSubscribedShardState(
 			new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(closedStreamShardHandle),
 				closedStreamShardHandle, fakeRestoredState.get(closedStreamShardHandle)));
-	}
-
-	@Test
-	public void testUpdateKinesisShardStateWithMissingEndingSequenceNumber() {
-		final String streamName = "fakeStream1";
-		final String shardId = "shard-000001";
-
-		Properties config = TestUtils.getStandardProperties();
-		FlinkKinesisConsumer<String> consumer = new FlinkKinesisConsumer<>(streamName, new SimpleStringSchema(), config);
-
-		// having the current Kinesis shard we're trying to find the restored state for
-		final StreamShardMetadata current = new StreamShardMetadata();
-		current.setShardId(shardId);
-		current.setStreamName(streamName);
-		current.setEndingSequenceNumber(null);
-
-		final HashMap<StreamShardMetadata, SequenceNumber> sequenceNumsToRestore = new LinkedHashMap<>();
-		assertFalse("Current shard is open, expecting a short-circuit", consumer.updateKinesisShardStateWithMissingEndingSequenceNumber(current, sequenceNumsToRestore));
-
-		// create some non-matching shards
-		final StreamShardMetadata differentStreamName = new StreamShardMetadata();
-		differentStreamName.setStreamName("fakeStream2");
-		differentStreamName.setShardId(shardId);
-
-		final StreamShardMetadata differentShardId = new StreamShardMetadata();
-		differentShardId.setStreamName(streamName);
-		differentShardId.setShardId("shard-000002");
-
-		// create the matching shard
-		final StreamShardMetadata match = new StreamShardMetadata();
-		match.setStreamName(streamName);
-		match.setShardId(shardId);
-		// ensure the sequence number isn't set (shard is considered in open state)
-		match.setEndingSequenceNumber(null);
-
-		sequenceNumsToRestore.put(differentStreamName, new SequenceNumber("123"));
-		sequenceNumsToRestore.put(differentShardId, new SequenceNumber("456"));
-		sequenceNumsToRestore.put(match, new SequenceNumber("789"));
-
-		assertFalse("No ending sequence number was set, so no synchronisation was done.", consumer.updateKinesisShardStateWithMissingEndingSequenceNumber(current, sequenceNumsToRestore));
-
-		// alter the ending sequence number (indicating the shard is now closed)
-		final String endingSequenceNumber = "99999";
-		current.setEndingSequenceNumber(endingSequenceNumber);
-		assertTrue("Shard was closed (ending number set).", consumer.updateKinesisShardStateWithMissingEndingSequenceNumber(current, sequenceNumsToRestore));
-		assertEquals(endingSequenceNumber, match.getEndingSequenceNumber());
-		assertEquals(current, match);
-		assertTrue("Make sure we can still find back our match in the restored sequences ", sequenceNumsToRestore.containsKey(match));
-
-		assertFalse("Ending number was already set, no more need for synchronisation", consumer.updateKinesisShardStateWithMissingEndingSequenceNumber(current, sequenceNumsToRestore));
 	}
 
 	private static final class TestingListState<T> implements ListState<T> {
