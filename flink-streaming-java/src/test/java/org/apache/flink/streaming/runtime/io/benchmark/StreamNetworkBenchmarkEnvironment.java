@@ -89,20 +89,27 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	protected IOManager ioManager;
 
 	protected int channels;
+	protected boolean localMode = false;
 
 	protected ResultPartitionID[] partitionIds;
 
-	public void setUp(int writers, int channels) throws Exception {
+	public void setUp(int writers, int channels, boolean localMode) throws Exception {
+		this.localMode = localMode;
 		this.channels = channels;
 		this.partitionIds = new ResultPartitionID[writers];
 
-		int bufferPoolSize = Math.max(2048, writers * channels * 4);
-		senderEnv = createNettyNetworkEnvironment(bufferPoolSize);
-		receiverEnv = createNettyNetworkEnvironment(bufferPoolSize);
 		ioManager = new IOManagerAsync();
 
+		int bufferPoolSize = Math.max(2048, writers * channels * 4);
+		senderEnv = createNettyNetworkEnvironment(bufferPoolSize);
 		senderEnv.start();
-		receiverEnv.start();
+		if (localMode) {
+			receiverEnv = senderEnv;
+		}
+		else {
+			receiverEnv = createNettyNetworkEnvironment(bufferPoolSize);
+			receiverEnv.start();
+		}
 
 		generatePartitionIds();
 	}
@@ -206,7 +213,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			InputChannelDeploymentDescriptor[] channelDescriptors = Arrays.stream(partitionIds)
 				.map(partitionId -> new InputChannelDeploymentDescriptor(
 					partitionId,
-					ResultPartitionLocation.createRemote(new ConnectionID(senderLocation, finalChannel))))
+					localMode ? ResultPartitionLocation.createLocal() : ResultPartitionLocation.createRemote(new ConnectionID(senderLocation, finalChannel))))
 				.toArray(InputChannelDeploymentDescriptor[]::new);
 
 			final InputGateDeploymentDescriptor gateDescriptor = new InputGateDeploymentDescriptor(

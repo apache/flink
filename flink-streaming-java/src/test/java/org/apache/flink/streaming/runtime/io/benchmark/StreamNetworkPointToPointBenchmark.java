@@ -70,7 +70,7 @@ public class StreamNetworkPointToPointBenchmark {
 	 */
 	public void setUp(long flushTimeout) throws Exception {
 		environment = new StreamNetworkBenchmarkEnvironment<>();
-		environment.setUp(1, 1);
+		environment.setUp(1, 1, false);
 
 		receiver = environment.createReceiver();
 		recordWriter = environment.createRecordWriter(0, flushTimeout);
