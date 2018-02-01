@@ -81,6 +81,17 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
 		return new ProcessingTimeSessionWindows(size.toMilliseconds());
 	}
 
+	/**
+	 * Creates a new {@code SessionWindows} {@link WindowAssigner} that assigns
+	 * elements to sessions based on the element timestamp.
+	 *
+	 * @param sessionWindowTimeGapExtractor The extractor to use to extract the time gap from the input elements
+	 * @return The policy.
+	 */
+	public static <T> DynamicProcessingTimeSessionWindows<T> withDynamicGap(SessionWindowTimeGapExtractor<T> sessionWindowTimeGapExtractor) {
+		return new DynamicProcessingTimeSessionWindows<>(sessionWindowTimeGapExtractor);
+	}
+
 	@Override
 	public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
 		return new TimeWindow.Serializer();
