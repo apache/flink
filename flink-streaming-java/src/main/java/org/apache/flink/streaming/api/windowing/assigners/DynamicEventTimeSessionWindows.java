@@ -60,9 +60,10 @@ public class DynamicEventTimeSessionWindows<T> extends MergingWindowAssigner<T, 
 		return Collections.singletonList(new TimeWindow(timestamp, timestamp + sessionTimeout));
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public Trigger<T, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-		return EventTimeTrigger.create();
+		return (Trigger<T, TimeWindow>) EventTimeTrigger.create();
 	}
 
 	@Override

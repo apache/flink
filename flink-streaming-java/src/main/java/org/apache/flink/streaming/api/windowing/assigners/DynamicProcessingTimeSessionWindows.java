@@ -61,9 +61,10 @@ public class DynamicProcessingTimeSessionWindows<T> extends MergingWindowAssigne
 		return Collections.singletonList(new TimeWindow(currentProcessingTime, currentProcessingTime + sessionTimeout));
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public Trigger<T, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-		return ProcessingTimeTrigger.create();
+		return (Trigger<T, TimeWindow>) ProcessingTimeTrigger.create();
 	}
 
 	@Override

@@ -26,17 +26,15 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
  * to which a pane belongs.
  *
  * @see org.apache.flink.streaming.api.watermark.Watermark
- *
- * @param <T> The type of the input elements
  */
 @PublicEvolving
-public class EventTimeTrigger<T> extends Trigger<T, TimeWindow> {
+public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
 	private EventTimeTrigger() {}
 
 	@Override
-	public TriggerResult onElement(T element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
+	public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
 		if (window.maxTimestamp() <= ctx.getCurrentWatermark()) {
 			// if the watermark is already past the window fire immediately
 			return TriggerResult.FIRE;
@@ -85,7 +83,7 @@ public class EventTimeTrigger<T> extends Trigger<T, TimeWindow> {
 	 * <p>Once the trigger fires all elements are discarded. Elements that arrive late immediately
 	 * trigger window evaluation with just this one element.
 	 */
-	public static <T> EventTimeTrigger<T> create() {
-		return new EventTimeTrigger<>();
+	public static EventTimeTrigger create() {
+		return new EventTimeTrigger();
 	}
 }

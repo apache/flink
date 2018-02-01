@@ -24,17 +24,15 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 /**
  * A {@link Trigger} that fires once the current system time passes the end of the window
  * to which a pane belongs.
- *
- * @param <T> The type of the input elements
  */
 @PublicEvolving
-public class ProcessingTimeTrigger<T> extends Trigger<T, TimeWindow> {
+public class ProcessingTimeTrigger extends Trigger<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
 	private ProcessingTimeTrigger() {}
 
 	@Override
-	public TriggerResult onElement(T element, long timestamp, TimeWindow window, TriggerContext ctx) {
+	public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) {
 		ctx.registerProcessingTimeTimer(window.maxTimestamp());
 		return TriggerResult.CONTINUE;
 	}
@@ -73,8 +71,8 @@ public class ProcessingTimeTrigger<T> extends Trigger<T, TimeWindow> {
 	/**
 	 * Creates a new trigger that fires once system time passes the end of the window.
 	 */
-	public static <T> ProcessingTimeTrigger<T> create() {
-		return new ProcessingTimeTrigger<>();
+	public static ProcessingTimeTrigger create() {
+		return new ProcessingTimeTrigger();
 	}
 
 }
