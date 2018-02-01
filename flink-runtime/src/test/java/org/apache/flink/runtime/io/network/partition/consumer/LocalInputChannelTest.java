@@ -52,6 +52,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Callable;
@@ -517,17 +518,17 @@ public class LocalInputChannelTest {
 			final int[] numberOfBuffersPerChannel = new int[numberOfInputChannels];
 
 			try {
-				BufferOrEvent boe;
-				while ((boe = inputGate.getNextBufferOrEvent()) != null) {
-					if (boe.isBuffer()) {
-						boe.getBuffer().recycleBuffer();
+				Optional<BufferOrEvent> boe;
+				while ((boe = inputGate.getNextBufferOrEvent()).isPresent()) {
+					if (boe.get().isBuffer()) {
+						boe.get().getBuffer().recycleBuffer();
 
 						// Check that we don't receive too many buffers
-						if (++numberOfBuffersPerChannel[boe.getChannelIndex()]
+						if (++numberOfBuffersPerChannel[boe.get().getChannelIndex()]
 								> numberOfExpectedBuffersPerChannel) {
 
 							throw new IllegalStateException("Received more buffers than expected " +
-									"on channel " + boe.getChannelIndex() + ".");
+									"on channel " + boe.get().getChannelIndex() + ".");
 						}
 					}
 				}

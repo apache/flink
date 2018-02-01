@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -46,13 +47,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultPartitionManager;
-import static org.apache.flink.util.Preconditions.checkState;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -116,7 +117,7 @@ public class InputGateFairnessTest {
 			assertTrue(max == min || max == min+1);
 		}
 
-		assertNull(gate.getNextBufferOrEvent());
+		assertFalse(gate.getNextBufferOrEvent().isPresent());
 	}
 
 	@Test
@@ -232,7 +233,7 @@ public class InputGateFairnessTest {
 			assertTrue(max == min || max == min+1);
 		}
 
-		assertNull(gate.getNextBufferOrEvent());
+		assertFalse(gate.getNextBufferOrEvent().isPresent());
 	}
 
 	@Test
@@ -368,7 +369,7 @@ public class InputGateFairnessTest {
 
 
 		@Override
-		public BufferOrEvent getNextBufferOrEvent() throws IOException, InterruptedException {
+		public Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException {
 			synchronized (channelsWithData) {
 				assertTrue("too many input channels", channelsWithData.size() <= getNumberOfInputChannels());
 				ensureUnique(channelsWithData);

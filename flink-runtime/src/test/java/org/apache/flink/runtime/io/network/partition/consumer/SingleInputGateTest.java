@@ -52,12 +52,12 @@ import org.junit.Test;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -115,7 +115,7 @@ public class SingleInputGateTest {
 
 		// Return null when the input gate has received all end-of-partition events
 		assertTrue(inputGate.isFinished());
-		assertNull(inputGate.getNextBufferOrEvent());
+		assertFalse(inputGate.getNextBufferOrEvent().isPresent());
 	}
 
 	@Test
@@ -448,8 +448,9 @@ public class SingleInputGateTest {
 		boolean isBuffer,
 		int channelIndex) throws IOException, InterruptedException {
 
-		final BufferOrEvent boe = inputGate.getNextBufferOrEvent();
-		assertEquals(isBuffer, boe.isBuffer());
-		assertEquals(channelIndex, boe.getChannelIndex());
+		final Optional<BufferOrEvent> bufferOrEvent = inputGate.getNextBufferOrEvent();
+		assertTrue(bufferOrEvent.isPresent());
+		assertEquals(isBuffer, bufferOrEvent.get().isBuffer());
+		assertEquals(channelIndex, bufferOrEvent.get().getChannelIndex());
 	}
 }

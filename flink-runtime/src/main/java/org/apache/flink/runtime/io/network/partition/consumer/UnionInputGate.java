@@ -27,6 +27,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -139,24 +140,17 @@ public class UnionInputGate implements InputGate, InputGateListener {
 	}
 
 	@Override
-	public BufferOrEvent getNextBufferOrEvent() throws IOException, InterruptedException {
+	public Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException {
 		if (inputGatesWithRemainingData.isEmpty()) {
-			return null;
+			return Optional.empty();
 		}
 
 		// Make sure to request the partitions, if they have not been requested before.
 		requestPartitions();
 
-		final InputGate inputGate;
-		synchronized (inputGatesWithData) {
-			while (inputGatesWithData.size() == 0) {
-				inputGatesWithData.wait();
-			}
-
-			inputGate = inputGatesWithData.remove();
-		}
-
-		final BufferOrEvent bufferOrEvent = inputGate.getNextBufferOrEvent();
+		InputGateWithData inputGateWithData = waitAndGetNextInputGate();
+		InputGate inputGate = inputGateWithData.inputGate;
+		BufferOrEvent bufferOrEvent = inputGateWithData.bufferOrEvent;
 
 		if (bufferOrEvent.moreAvailable()) {
 			// this buffer or event was now removed from the non-empty gates queue
@@ -180,7 +174,40 @@ public class UnionInputGate implements InputGate, InputGateListener {
 
 		bufferOrEvent.setChannelIndex(channelIndexOffset + bufferOrEvent.getChannelIndex());
 
-		return bufferOrEvent;
+		return Optional.ofNullable(bufferOrEvent);
+	}
+
+	@Override
+	public Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException {
+		throw new UnsupportedOperationException();
+	}
+
+	private InputGateWithData waitAndGetNextInputGate() throws IOException, InterruptedException {
+		while (true) {
+			InputGate inputGate;
+			synchronized (inputGatesWithData) {
+				while (inputGatesWithData.size() == 0) {
+					inputGatesWithData.wait();
+				}
+				inputGate = inputGatesWithData.remove();
+			}
+
+			// In case of inputGatesWithData being inaccurate do not block on an empty inputGate, but just poll the data.
+			Optional<BufferOrEvent> bufferOrEvent = inputGate.pollNextBufferOrEvent();
+			if (bufferOrEvent.isPresent()) {
+				return new InputGateWithData(inputGate, bufferOrEvent.get());
+			}
+		}
+	}
+
+	private static class InputGateWithData {
+		private final InputGate inputGate;
+		private final BufferOrEvent bufferOrEvent;
+
+		public InputGateWithData(InputGate inputGate, BufferOrEvent bufferOrEvent) {
+			this.inputGate = checkNotNull(inputGate);
+			this.bufferOrEvent = checkNotNull(bufferOrEvent);
+		}
 	}
 
 	@Override

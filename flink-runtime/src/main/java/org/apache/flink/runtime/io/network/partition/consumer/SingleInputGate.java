@@ -52,6 +52,7 @@ import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Timer;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -486,9 +487,18 @@ public class SingleInputGate implements InputGate {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public BufferOrEvent getNextBufferOrEvent() throws IOException, InterruptedException {
+	public Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException {
+		return getNextBufferOrEvent(true);
+	}
+
+	@Override
+	public Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException {
+		return getNextBufferOrEvent(false);
+	}
+
+	private Optional<BufferOrEvent> getNextBufferOrEvent(boolean blocking) throws IOException, InterruptedException {
 		if (hasReceivedAllEndOfPartitionEvents) {
-			return null;
+			return Optional.empty();
 		}
 
 		if (isReleased) {
@@ -505,7 +515,12 @@ public class SingleInputGate implements InputGate {
 					throw new IllegalStateException("Released");
 				}
 
-				inputChannelsWithData.wait();
+				if (blocking) {
+					inputChannelsWithData.wait();
+				}
+				else {
+					return Optional.empty();
+				}
 			}
 
 			currentChannel = inputChannelsWithData.remove();
@@ -528,7 +543,7 @@ public class SingleInputGate implements InputGate {
 
 		final Buffer buffer = result.buffer();
 		if (buffer.isBuffer()) {
-			return new BufferOrEvent(buffer, currentChannel.getChannelIndex(), moreAvailable);
+			return Optional.of(new BufferOrEvent(buffer, currentChannel.getChannelIndex(), moreAvailable));
 		}
 		else {
 			final AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
@@ -545,7 +560,7 @@ public class SingleInputGate implements InputGate {
 				currentChannel.releaseAllResources();
 			}
 
-			return new BufferOrEvent(event, currentChannel.getChannelIndex(), moreAvailable);
+			return Optional.of(new BufferOrEvent(event, currentChannel.getChannelIndex(), moreAvailable));
 		}
 	}
 
