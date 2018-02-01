@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
@@ -156,8 +157,13 @@ public class SchedulerTestBase extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<LogicalSlot> allocateSlot(SlotRequestId slotRequestId, ScheduledUnit task, boolean allowQueued, Collection<TaskManagerLocation> preferredLocations, Time allocationTimeout) {
-			return scheduler.allocateSlot(task, allowQueued, preferredLocations, allocationTimeout);
+		public CompletableFuture<LogicalSlot> allocateSlot(
+			SlotRequestId slotRequestId,
+			ScheduledUnit task,
+			boolean allowQueued,
+			SlotProfile slotProfile,
+			Time allocationTimeout) {
+			return scheduler.allocateSlot(task, allowQueued, slotProfile, allocationTimeout);
 		}
 
 		@Override
@@ -349,8 +355,13 @@ public class SchedulerTestBase extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<LogicalSlot> allocateSlot(SlotRequestId slotRequestId, ScheduledUnit task, boolean allowQueued, Collection<TaskManagerLocation> preferredLocations, Time allocationTimeout) {
-			return slotProvider.allocateSlot(task, allowQueued, preferredLocations, allocationTimeout).thenApply(
+		public CompletableFuture<LogicalSlot> allocateSlot(
+			SlotRequestId slotRequestId,
+			ScheduledUnit task,
+			boolean allowQueued,
+			SlotProfile slotProfile,
+			Time allocationTimeout) {
+			return slotProvider.allocateSlot(task, allowQueued, slotProfile, allocationTimeout).thenApply(
 				(LogicalSlot logicalSlot) -> {
 					switch (logicalSlot.getLocality()) {
 						case LOCAL:
