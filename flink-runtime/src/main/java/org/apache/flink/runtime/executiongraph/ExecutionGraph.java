@@ -128,7 +128,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <h2>Global and local failover</h2>
  *
- * The Execution Graph has two failover modes: <i>global failover</i> and <i>local failover</i>.
+ * <p>The Execution Graph has two failover modes: <i>global failover</i> and <i>local failover</i>.
  *
  * <p>A <b>global failover</b> aborts the task executions for all vertices and restarts whole
  * data flow graph from the last completed checkpoint. Global failover is considered the
@@ -151,7 +151,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class ExecutionGraph implements AccessExecutionGraph {
 
 	/** In place updater for the execution graph's current state. Avoids having to use an
-	 * AtomicReference and thus makes the frequent read access a bit faster */
+	 * AtomicReference and thus makes the frequent read access a bit faster. */
 	private static final AtomicReferenceFieldUpdater<ExecutionGraph, JobStatus> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(ExecutionGraph.class, JobStatus.class, "state");
 
@@ -172,38 +172,38 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	/** Job specific information like the job id, job name, job configuration, etc. */
 	private final JobInformation jobInformation;
 
-	/** Serialized job information or a blob key pointing to the offloaded job information */
+	/** Serialized job information or a blob key pointing to the offloaded job information. */
 	private final Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey;
 
 	/** The executor which is used to execute futures. */
 	private final ScheduledExecutorService futureExecutor;
 
-	/** The executor which is used to execute blocking io operations */
+	/** The executor which is used to execute blocking io operations. */
 	private final Executor ioExecutor;
 
 	/** {@code true} if all source tasks are stoppable. */
 	private boolean isStoppable = true;
 
-	/** All job vertices that are part of this graph */
+	/** All job vertices that are part of this graph. */
 	private final ConcurrentHashMap<JobVertexID, ExecutionJobVertex> tasks;
 
-	/** All vertices, in the order in which they were created **/
+	/** All vertices, in the order in which they were created. **/
 	private final List<ExecutionJobVertex> verticesInCreationOrder;
 
-	/** All intermediate results that are part of this graph */
+	/** All intermediate results that are part of this graph. */
 	private final ConcurrentHashMap<IntermediateDataSetID, IntermediateResult> intermediateResults;
 
-	/** The currently executed tasks, for callbacks */
+	/** The currently executed tasks, for callbacks. */
 	private final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
 
 	/** Listeners that receive messages when the entire job switches it status
-	 * (such as from RUNNING to FINISHED) */
+	 * (such as from RUNNING to FINISHED). */
 	private final List<JobStatusListener> jobStatusListeners;
 
-	/** Listeners that receive messages whenever a single task execution changes its status */
+	/** Listeners that receive messages whenever a single task execution changes its status. */
 	private final List<ExecutionStatusListener> executionListeners;
 
-	/** The implementation that decides how to recover the failures of tasks */
+	/** The implementation that decides how to recover the failures of tasks. */
 	private final FailoverStrategy failoverStrategy;
 
 	/** Timestamps (in milliseconds as returned by {@code System.currentTimeMillis()} when
@@ -212,28 +212,28 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * at {@code stateTimestamps[RUNNING.ordinal()]}. */
 	private final long[] stateTimestamps;
 
-	/** The timeout for all messages that require a response/acknowledgement */
+	/** The timeout for all messages that require a response/acknowledgement. */
 	private final Time rpcTimeout;
 
 	/** The timeout for slot allocations. */
 	private final Time allocationTimeout;
 
-	/** Strategy to use for restarts */
+	/** Strategy to use for restarts. */
 	private final RestartStrategy restartStrategy;
 
-	/** The slot provider to use for allocating slots for tasks as they are needed */
+	/** The slot provider to use for allocating slots for tasks as they are needed. */
 	private final SlotProvider slotProvider;
 
-	/** The classloader for the user code. Needed for calls into user code classes */
+	/** The classloader for the user code. Needed for calls into user code classes. */
 	private final ClassLoader userClassLoader;
 
 	/** Registered KvState instances reported by the TaskManagers. */
 	private final KvStateLocationRegistry kvStateLocationRegistry;
 
-	/** Blob writer used to offload RPC messages */
+	/** Blob writer used to offload RPC messages. */
 	private final BlobWriter blobWriter;
 
-	/** The total number of vertices currently in the execution graph */
+	/** The total number of vertices currently in the execution graph. */
 	private int numVerticesTotal;
 
 	// ------ Configuration of the Execution -------
@@ -251,18 +251,18 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	private final AtomicInteger verticesFinished;
 
-	/** Current status of the job execution */
+	/** Current status of the job execution. */
 	private volatile JobStatus state = JobStatus.CREATED;
 
-	/** A future that completes once the job has reached a terminal state */
+	/** A future that completes once the job has reached a terminal state. */
 	private volatile CompletableFuture<JobStatus> terminationFuture;
 
 	/** On each global recovery, this version is incremented. The version breaks conflicts
-	 * between concurrent restart attempts by local failover strategies */
+	 * between concurrent restart attempts by local failover strategies. */
 	private volatile long globalModVersion;
 
 	/** The exception that caused the job to fail. This is set to the first root exception
-	 * that was not recoverable and triggered job failure */
+	 * that was not recoverable and triggered job failure. */
 	private volatile Throwable failureCause;
 
 	/** The extended failure cause information for the job. This exists in addition to 'failureCause',
@@ -272,7 +272,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	// ------ Fields that are relevant to the execution and need to be cleared before archiving  -------
 
-	/** The coordinator for checkpoints, if snapshot checkpoints are enabled */
+	/** The coordinator for checkpoints, if snapshot checkpoints are enabled. */
 	private CheckpointCoordinator checkpointCoordinator;
 
 	/** Checkpoint stats tracker separate from the coordinator in order to be
@@ -567,7 +567,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Returns a list of BLOB keys referring to the JAR files required to run this job
+	 * Returns a list of BLOB keys referring to the JAR files required to run this job.
+	 *
 	 * @return list of BLOB keys referring to the JAR files required to run this job
 	 */
 	public Collection<PermanentBlobKey> getRequiredJarFiles() {
@@ -575,7 +576,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	/**
-	 * Returns a list of classpaths referring to the directories/JAR files required to run this job
+	 * Returns a list of classpaths referring to the directories/JAR files required to run this job.
+	 *
 	 * @return list of classpaths referring to the directories/JAR files required to run this job
 	 */
 	public Collection<URL> getRequiredClasspaths() {
@@ -1036,10 +1038,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	/**
 	 * Suspends the current ExecutionGraph.
 	 *
-	 * The JobStatus will be directly set to SUSPENDED iff the current state is not a terminal
+	 * <p>The JobStatus will be directly set to SUSPENDED iff the current state is not a terminal
 	 * state. All ExecutionJobVertices will be canceled and the onTerminalState() is executed.
 	 *
-	 * The SUSPENDED state is a local terminal state which stops the execution of the job but does
+	 * <p>The SUSPENDED state is a local terminal state which stops the execution of the job but does
 	 * not remove the job from the HA job store so that it can be recovered by another JobManager.
 	 *
 	 * @param suspensionCause Cause of the suspension
@@ -1472,7 +1474,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	/**
 	 * Updates the state of one of the ExecutionVertex's Execution attempts.
 	 * If the new status if "FINISHED", this also updates the accumulators.
-	 * 
+	 *
 	 * @param state The state update.
 	 * @return True, if the task update was properly applied, false, if the execution attempt was not found.
 	 */
