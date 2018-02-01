@@ -25,24 +25,31 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
+import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
+import org.apache.flink.streaming.connectors.kinesis.testutils.TestSourceContext;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.migration.MigrationTestUtil;
 import org.apache.flink.streaming.util.migration.MigrationVersion;
+import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+
+import com.amazonaws.services.kinesis.model.Shard;
 
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+import org.mockito.Mockito;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
@@ -51,9 +58,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for checking whether {@link FlinkKinesisConsumer} can restore from snapshots that were
@@ -71,10 +75,12 @@ public class FlinkKinesisConsumerMigrationTest {
 	 */
 	private final MigrationVersion flinkGenerateSavepointVersion = null;
 
+	private static final String TEST_STREAM_NAME = "fakeStream1";
+
 	private static final HashMap<StreamShardMetadata, SequenceNumber> TEST_STATE = new HashMap<>();
 	static {
 		StreamShardMetadata shardMetadata = new StreamShardMetadata();
-		shardMetadata.setStreamName("fakeStream1");
+		shardMetadata.setStreamName(TEST_STREAM_NAME);
 		shardMetadata.setShardId(KinesisShardIdGenerator.generateFromShardOrder(0));
 
 		TEST_STATE.put(shardMetadata, new SequenceNumber("987654321"));
@@ -105,7 +111,25 @@ public class FlinkKinesisConsumerMigrationTest {
 
 	@Test
 	public void testRestoreWithEmptyState() throws Exception {
-		final DummyFlinkKinesisConsumer<String> consumerFunction = new DummyFlinkKinesisConsumer<>(mock(KinesisDataFetcher.class));
+		final List<StreamShardHandle> initialDiscoveryShards = new ArrayList<>(TEST_STATE.size());
+		for (StreamShardMetadata shardMetadata : TEST_STATE.keySet()) {
+			Shard shard = new Shard();
+			shard.setShardId(shardMetadata.getShardId());
+
+			initialDiscoveryShards.add(new StreamShardHandle(shardMetadata.getStreamName(), shard));
+		}
+
+		final TestFetcher<String> fetcher = new TestFetcher<>(
+			Collections.singletonList(TEST_STREAM_NAME),
+			new TestSourceContext<>(),
+			getMockRuntimeContext(1, 0),
+			getStandardProperties(),
+			new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
+			null,
+			initialDiscoveryShards);
+
+		final DummyFlinkKinesisConsumer<String> consumerFunction = new DummyFlinkKinesisConsumer<>(
+			fetcher, new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()));
 
 		StreamSource<String, DummyFlinkKinesisConsumer<String>> consumerOperator = new StreamSource<>(consumerFunction);
 
@@ -118,6 +142,8 @@ public class FlinkKinesisConsumerMigrationTest {
 			"src/test/resources/kinesis-consumer-migration-test-flink" + testMigrateVersion + "-empty-snapshot", testMigrateVersion);
 		testHarness.open();
 
+		consumerFunction.run(new TestSourceContext<>());
+
 		// assert that no state was restored
 		assertTrue(consumerFunction.getRestoredState().isEmpty());
 
@@ -127,7 +153,25 @@ public class FlinkKinesisConsumerMigrationTest {
 
 	@Test
 	public void testRestore() throws Exception {
-		final DummyFlinkKinesisConsumer<String> consumerFunction = new DummyFlinkKinesisConsumer<>(mock(KinesisDataFetcher.class));
+		final List<StreamShardHandle> initialDiscoveryShards = new ArrayList<>(TEST_STATE.size());
+		for (StreamShardMetadata shardMetadata : TEST_STATE.keySet()) {
+			Shard shard = new Shard();
+			shard.setShardId(shardMetadata.getShardId());
+
+			initialDiscoveryShards.add(new StreamShardHandle(shardMetadata.getStreamName(), shard));
+		}
+
+		final TestFetcher<String> fetcher = new TestFetcher<>(
+			Collections.singletonList(TEST_STREAM_NAME),
+			new TestSourceContext<>(),
+			getMockRuntimeContext(1, 0),
+			getStandardProperties(),
+			new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
+			null,
+			initialDiscoveryShards);
+
+		final DummyFlinkKinesisConsumer<String> consumerFunction = new DummyFlinkKinesisConsumer<>(
+			fetcher, new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()));
 
 		StreamSource<String, DummyFlinkKinesisConsumer<String>> consumerOperator =
 			new StreamSource<>(consumerFunction);
@@ -140,6 +184,8 @@ public class FlinkKinesisConsumerMigrationTest {
 			testHarness,
 			"src/test/resources/kinesis-consumer-migration-test-flink" + testMigrateVersion + "-snapshot", testMigrateVersion);
 		testHarness.open();
+
+		consumerFunction.run(new TestSourceContext<>());
 
 		// assert that state is correctly restored
 		assertNotEquals(null, consumerFunction.getRestoredState());
@@ -154,19 +200,17 @@ public class FlinkKinesisConsumerMigrationTest {
 
 	@SuppressWarnings("unchecked")
 	private void writeSnapshot(String path, HashMap<StreamShardMetadata, SequenceNumber> state) throws Exception {
-		final OneShotLatch latch = new OneShotLatch();
+		final TestFetcher<String> fetcher = new TestFetcher<>(
+			Collections.singletonList(TEST_STREAM_NAME),
+			new TestSourceContext<>(),
+			getMockRuntimeContext(1, 0),
+			new Properties(),
+			new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
+			state,
+			null);
 
-		final KinesisDataFetcher<String> fetcher = mock(KinesisDataFetcher.class);
-		doAnswer(new Answer() {
-			@Override
-			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				latch.trigger();
-				return null;
-			}
-		}).when(fetcher).runFetcher();
-		when(fetcher.snapshotState()).thenReturn(state);
-
-		final DummyFlinkKinesisConsumer<String> consumer = new DummyFlinkKinesisConsumer<>(fetcher);
+		final DummyFlinkKinesisConsumer<String> consumer = new DummyFlinkKinesisConsumer<>(
+			fetcher, new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()));
 
 		StreamSource<String, DummyFlinkKinesisConsumer<String>> consumerOperator = new StreamSource<>(consumer);
 
@@ -185,7 +229,7 @@ public class FlinkKinesisConsumerMigrationTest {
 			@Override
 			public void run() {
 				try {
-					consumer.run(mock(SourceFunction.SourceContext.class));
+					consumer.run(new TestSourceContext<>());
 				} catch (Throwable t) {
 					t.printStackTrace();
 					error.set(t);
@@ -194,9 +238,7 @@ public class FlinkKinesisConsumerMigrationTest {
 		};
 		runner.start();
 
-		if (!latch.isTriggered()) {
-			latch.await();
-		}
+		fetcher.waitUntilRun();
 
 		final OperatorStateHandles snapshot;
 		synchronized (testHarness.getCheckpointLock()) {
@@ -211,6 +253,8 @@ public class FlinkKinesisConsumerMigrationTest {
 
 	private static class DummyFlinkKinesisConsumer<T> extends FlinkKinesisConsumer<T> {
 
+		private static final long serialVersionUID = -1573896262106029446L;
+
 		private KinesisDataFetcher<T> mockFetcher;
 
 		private static Properties dummyConfig = new Properties();
@@ -220,8 +264,8 @@ public class FlinkKinesisConsumerMigrationTest {
 			dummyConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 		}
 
-		DummyFlinkKinesisConsumer(KinesisDataFetcher<T> mockFetcher) {
-			super("dummy-topic", mock(KinesisDeserializationSchema.class), dummyConfig);
+		DummyFlinkKinesisConsumer(KinesisDataFetcher<T> mockFetcher, KinesisDeserializationSchema<T> schema) {
+			super(TEST_STREAM_NAME, schema, dummyConfig);
 			this.mockFetcher = mockFetcher;
 		}
 
@@ -234,5 +278,70 @@ public class FlinkKinesisConsumerMigrationTest {
 				KinesisDeserializationSchema<T> deserializer) {
 			return mockFetcher;
 		}
+	}
+
+	private static class TestFetcher<T> extends KinesisDataFetcher<T> {
+
+		final OneShotLatch runLatch = new OneShotLatch();
+
+		final HashMap<StreamShardMetadata, SequenceNumber> testStateSnapshot;
+		final List<StreamShardHandle> testInitialDiscoveryShards;
+
+		public TestFetcher(
+				List<String> streams,
+				SourceFunction.SourceContext<T> sourceContext,
+				RuntimeContext runtimeContext,
+				Properties configProps,
+				KinesisDeserializationSchema<T> deserializationSchema,
+				HashMap<StreamShardMetadata, SequenceNumber> testStateSnapshot,
+				List<StreamShardHandle> testInitialDiscoveryShards) {
+
+			super(streams, sourceContext, runtimeContext, configProps, deserializationSchema);
+
+			this.testStateSnapshot = testStateSnapshot;
+			this.testInitialDiscoveryShards = testInitialDiscoveryShards;
+		}
+
+		@Override
+		public void runFetcher() throws Exception {
+			runLatch.trigger();
+		}
+
+		@Override
+		public HashMap<StreamShardMetadata, SequenceNumber> snapshotState() {
+			return testStateSnapshot;
+		}
+
+		public void waitUntilRun() throws InterruptedException {
+			runLatch.await();
+		}
+
+		@Override
+		public List<StreamShardHandle> discoverNewShardsToSubscribe() throws InterruptedException {
+			return testInitialDiscoveryShards;
+		}
+
+		@Override
+		public void awaitTermination() throws InterruptedException {
+			// do nothing
+		}
+	}
+
+	private static Properties getStandardProperties() {
+		Properties config = new Properties();
+		config.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		config.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		config.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+
+		return config;
+	}
+
+	private static RuntimeContext getMockRuntimeContext(int numSubtasks, int thisSubtaskIndex) {
+		RuntimeContext runtimeContext = Mockito.mock(RuntimeContext.class);
+
+		Mockito.when(runtimeContext.getNumberOfParallelSubtasks()).thenReturn(numSubtasks);
+		Mockito.when(runtimeContext.getNumberOfParallelSubtasks()).thenReturn(thisSubtaskIndex);
+
+		return runtimeContext;
 	}
 }
