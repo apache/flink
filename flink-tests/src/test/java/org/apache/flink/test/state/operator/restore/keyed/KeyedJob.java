@@ -100,9 +100,7 @@ public class KeyedJob {
 			.map(new StatefulStringStoringMap(mode, "first"))
 			.setParallelism(4);
 
-		if (mode == ExecutionMode.MIGRATE || mode == ExecutionMode.RESTORE) {
-			map.uid("first");
-		}
+		map.uid("first");
 
 		return map;
 	}
@@ -112,9 +110,7 @@ public class KeyedJob {
 			.map(new StatefulStringStoringMap(mode, "second"))
 			.setParallelism(4);
 
-		if (mode == ExecutionMode.MIGRATE || mode == ExecutionMode.RESTORE) {
-			map.uid("second");
-		}
+		map.uid("second");
 
 		return map;
 	}

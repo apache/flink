@@ -102,10 +102,7 @@ public class NonKeyedJob {
 			.map(new StatefulStringStoringMap(mode, "third"))
 			.setParallelism(4);
 
-		// we cannot set the uid on a chained operator in 1.2
-		if (mode == ExecutionMode.MIGRATE || mode == ExecutionMode.RESTORE) {
-			map.uid("third");
-		}
+		map.uid("third");
 
 		return map;
 	}
