@@ -92,7 +92,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
 	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
 	public static Collection<MigrationVersion> parameters () {
-		return Arrays.asList(MigrationVersion.v1_2, MigrationVersion.v1_3);
+		return Arrays.asList(MigrationVersion.v1_2, MigrationVersion.v1_3, MigrationVersion.v1_4);
 	}
 
 	public FlinkKafkaConsumerBaseMigrationTest(MigrationVersion testMigrateVersion) {
@@ -349,11 +349,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
 			fail("Restore from savepoints from version before Flink 1.3.x should have failed if discovery is enabled.");
 		} catch (Exception e) {
-			if (testMigrateVersion == MigrationVersion.v1_1) {
-				Assert.assertTrue(e.getCause() instanceof IllegalArgumentException);
-			} else {
-				Assert.assertTrue(e instanceof IllegalArgumentException);
-			}
+			Assert.assertTrue(e instanceof IllegalArgumentException);
 		}
 	}
 
