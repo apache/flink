@@ -37,7 +37,7 @@ import java.util.Arrays;
 public abstract class PostVersionedIOReadableWritable extends VersionedIOReadableWritable {
 
 	/** NOTE: CANNOT CHANGE! */
-	private static final byte[] VERSIONED_IDENTIFIER = new byte[] {15, 51, 123, 97};
+	private static final byte[] VERSIONED_IDENTIFIER = new byte[] {-15, -51, -123, -97};
 
 	/**
 	 * Read from the provided {@link DataInputView in}. A flag {@code wasVersioned} can be
