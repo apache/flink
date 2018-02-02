@@ -24,7 +24,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.async.AbstractAsynchronousOperationHandlers;
-import org.apache.flink.runtime.rest.handler.async.OperationKey;
+import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.TriggerId;
@@ -43,13 +43,9 @@ import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.Immutable;
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * HTTP handlers for asynchronous triggering of savepoints.
@@ -96,7 +92,7 @@ import static java.util.Objects.requireNonNull;
  * }
  * </pre>
  */
-public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<SavepointHandlers.SavepointKey, String> {
+public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<AsynchronousJobOperationKey, String> {
 
 	@Nullable
 	private final String defaultSavepointDir;
@@ -136,9 +132,9 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Sav
 		}
 
 		@Override
-		protected SavepointKey createOperationKey(HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters> request) {
+		protected AsynchronousJobOperationKey createOperationKey(HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters> request) {
 			final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-			return SavepointKey.of(new TriggerId(), jobId);
+			return AsynchronousJobOperationKey.of(new TriggerId(), jobId);
 		}
 	}
 
@@ -156,10 +152,10 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Sav
 		}
 
 		@Override
-		protected SavepointKey getOperationKey(HandlerRequest<EmptyRequestBody, SavepointStatusMessageParameters> request) {
+		protected AsynchronousJobOperationKey getOperationKey(HandlerRequest<EmptyRequestBody, SavepointStatusMessageParameters> request) {
 			final TriggerId triggerId = request.getPathParameter(TriggerIdPathParameter.class);
 			final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-			return SavepointKey.of(triggerId, jobId);
+			return AsynchronousJobOperationKey.of(triggerId, jobId);
 		}
 
 		@Override
@@ -170,50 +166,6 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Sav
 		@Override
 		protected SavepointInfo operationResultResponse(String operationResult) {
 			return new SavepointInfo(operationResult, null);
-		}
-	}
-
-	/**
-	 * A pair of {@link JobID} and {@link TriggerId} used as a key to a hash based
-	 * collection.
-	 *
-	 * @see AbstractAsynchronousOperationHandlers.CompletedOperationCache
-	 */
-	@Immutable
-	public static class SavepointKey extends OperationKey {
-
-		private final JobID jobId;
-
-		private SavepointKey(final TriggerId triggerId, final JobID jobId) {
-			super(triggerId);
-			this.jobId = requireNonNull(jobId);
-		}
-
-		private static SavepointKey of(final TriggerId triggerId, final JobID jobId) {
-			return new SavepointKey(triggerId, jobId);
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-
-			if (!super.equals(o)) {
-				return false;
-			}
-
-			SavepointKey that = (SavepointKey) o;
-			return Objects.equals(jobId, that.jobId);
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(super.hashCode(), jobId);
 		}
 	}
 }
