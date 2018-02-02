@@ -38,6 +38,7 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.datastream.BroadcastConnectedStream;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -87,9 +88,7 @@ import org.junit.rules.ExpectedException;
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -102,6 +101,9 @@ import static org.junit.Assert.fail;
  */
 @SuppressWarnings("serial")
 public class DataStreamTest extends TestLogger {
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
 	/**
 	 * Tests union functionality. This ensures that self-unions and unions of streams
@@ -763,99 +765,10 @@ public class DataStreamTest extends TestLogger {
 		assertTrue(getOperatorForDataStream(processed) instanceof ProcessOperator);
 	}
 
-	@Test
-	public void testConnectWithBroadcastTranslation() throws Exception {
-
-		final Map<Long, String> expected = new HashMap<>();
-		expected.put(0L, "test:0");
-		expected.put(1L, "test:1");
-		expected.put(2L, "test:2");
-		expected.put(3L, "test:3");
-		expected.put(4L, "test:4");
-		expected.put(5L, "test:5");
-
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-
-		final DataStream<Long> srcOne = env.generateSequence(0L, 5L)
-				.assignTimestampsAndWatermarks(new CustomWmEmitter<Long>() {
-
-					@Override
-					public long extractTimestamp(Long element, long previousElementTimestamp) {
-						return element;
-					}
-				}).keyBy((KeySelector<Long, Long>) value -> value);
-
-		final DataStream<String> srcTwo = env.fromCollection(expected.values())
-				.assignTimestampsAndWatermarks(new CustomWmEmitter<String>() {
-					@Override
-					public long extractTimestamp(String element, long previousElementTimestamp) {
-						return Long.parseLong(element.split(":")[1]);
-					}
-				});
-
-		final BroadcastStream<String> broadcast = srcTwo.broadcast(TestBroadcastProcessFunction.DESCRIPTOR);
-
-		// the timestamp should be high enough to trigger the timer after all the elements arrive.
-		final DataStream<String> output = srcOne.connect(broadcast).process(
-				new TestBroadcastProcessFunction(100000L, expected));
-
-		output.addSink(new DiscardingSink<>());
-		env.execute();
-	}
-
-	private abstract static class CustomWmEmitter<T> implements AssignerWithPunctuatedWatermarks<T> {
-
-		@Nullable
-		@Override
-		public Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp) {
-			return new Watermark(extractedTimestamp);
-		}
-	}
-
-	private static class TestBroadcastProcessFunction extends KeyedBroadcastProcessFunction<Long, Long, String, String> {
-
-		private final Map<Long, String> expectedState;
-
-		private final long timerTimestamp;
-
-		static final MapStateDescriptor<Long, String> DESCRIPTOR = new MapStateDescriptor<>(
-				"broadcast-state", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
-		);
-
-		TestBroadcastProcessFunction(
-				final long timerTS,
-				final Map<Long, String> expectedBroadcastState
-		) {
-			expectedState = expectedBroadcastState;
-			timerTimestamp = timerTS;
-		}
-
-		@Override
-		public void processElement(Long value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
-			ctx.timerService().registerEventTimeTimer(timerTimestamp);
-		}
-
-		@Override
-		public void processBroadcastElement(String value, KeyedContext ctx, Collector<String> out) throws Exception {
-			long key = Long.parseLong(value.split(":")[1]);
-			ctx.getBroadcastState(DESCRIPTOR).put(key, value);
-		}
-
-		@Override
-		public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
-			Map<Long, String> map = new HashMap<>();
-			for (Map.Entry<Long, String> entry : ctx.getBroadcastState(DESCRIPTOR).immutableEntries()) {
-				map.put(entry.getKey(), entry.getValue());
-			}
-			Assert.assertEquals(expectedState, map);
-		}
-	}
-
 	/**
 	 * Tests that with a {@link KeyedStream} we have to provide a {@link KeyedBroadcastProcessFunction}.
 	 */
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testFailedTranslationOnKeyed() {
 
 		final MapStateDescriptor<Long, String> descriptor = new MapStateDescriptor<>(
@@ -881,8 +794,11 @@ public class DataStreamTest extends TestLogger {
 				});
 
 		BroadcastStream<String> broadcast = srcTwo.broadcast(descriptor);
-		srcOne.connect(broadcast)
-				.process(new BroadcastProcessFunction<Long, String, String>() {
+		BroadcastConnectedStream<Long, String> bcStream = srcOne.connect(broadcast);
+
+		expectedException.expect(IllegalArgumentException.class);
+		bcStream.process(
+				new BroadcastProcessFunction<Long, String, String>() {
 					@Override
 					public void processBroadcastElement(String value, Context ctx, Collector<String> out) throws Exception {
 						// do nothing
@@ -898,7 +814,7 @@ public class DataStreamTest extends TestLogger {
 	/**
 	 * Tests that with a non-keyed stream we have to provide a {@link BroadcastProcessFunction}.
 	 */
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testFailedTranslationOnNonKeyed() {
 
 		final MapStateDescriptor<Long, String> descriptor = new MapStateDescriptor<>(
@@ -924,9 +840,11 @@ public class DataStreamTest extends TestLogger {
 				});
 
 		BroadcastStream<String> broadcast = srcTwo.broadcast(descriptor);
-		srcOne.connect(broadcast)
-				.process(new KeyedBroadcastProcessFunction<String, Long, String, String>() {
+		BroadcastConnectedStream<Long, String> bcStream = srcOne.connect(broadcast);
 
+		expectedException.expect(IllegalArgumentException.class);
+		bcStream.process(
+				new KeyedBroadcastProcessFunction<String, Long, String, String>() {
 					@Override
 					public void processBroadcastElement(String value, KeyedContext ctx, Collector<String> out) throws Exception {
 						// do nothing
@@ -937,6 +855,15 @@ public class DataStreamTest extends TestLogger {
 						// do nothing
 					}
 				});
+	}
+
+	private abstract static class CustomWmEmitter<T> implements AssignerWithPunctuatedWatermarks<T> {
+
+		@Nullable
+		@Override
+		public Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp) {
+			return new Watermark(extractedTimestamp);
+		}
 	}
 
 	@Test
@@ -1130,9 +1057,6 @@ public class DataStreamTest extends TestLogger {
 	/////////////////////////////////////////////////////////////
 	// KeyBy testing
 	/////////////////////////////////////////////////////////////
-
-	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
 
 	@Test
 	public void testPrimitiveArrayKeyRejection() {
