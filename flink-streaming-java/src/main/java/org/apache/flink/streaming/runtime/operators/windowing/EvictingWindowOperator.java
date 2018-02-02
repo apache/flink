@@ -81,6 +81,21 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 	// ------------------------------------------------------------------------
 
 	public EvictingWindowOperator(WindowAssigner<? super IN, W> windowAssigner,
+								  TypeSerializer<W> windowSerializer,
+								  KeySelector<IN, K> keySelector,
+								  TypeSerializer<K> keySerializer,
+								  StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> windowStateDescriptor,
+								  InternalWindowFunction<Iterable<IN>, OUT, K, W> windowFunction,
+								  Trigger<? super IN, ? super W> trigger,
+								  Evictor<? super IN, ? super W> evictor,
+								  long allowedLateness,
+								  OutputTag<IN> lateDataOutputTag) {
+
+		this(windowAssigner, windowSerializer, keySelector,
+			keySerializer, windowStateDescriptor, windowFunction, trigger, evictor, allowedLateness, lateDataOutputTag, 0);
+
+	}
+	public EvictingWindowOperator(WindowAssigner<? super IN, W> windowAssigner,
 			TypeSerializer<W> windowSerializer,
 			KeySelector<IN, K> keySelector,
 			TypeSerializer<K> keySerializer,
@@ -89,10 +104,11 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 			Trigger<? super IN, ? super W> trigger,
 			Evictor<? super IN, ? super W> evictor,
 			long allowedLateness,
-			OutputTag<IN> lateDataOutputTag) {
+			OutputTag<IN> lateDataOutputTag,
+			int toSkipWindowCount) {
 
 		super(windowAssigner, windowSerializer, keySelector,
-			keySerializer, null, windowFunction, trigger, allowedLateness, lateDataOutputTag);
+			keySerializer, null, windowFunction, trigger, allowedLateness, lateDataOutputTag, toSkipWindowCount);
 
 		this.evictor = checkNotNull(evictor);
 		this.evictingWindowStateDescriptor = checkNotNull(windowStateDescriptor);
@@ -208,6 +224,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 				evictorContext.window = window;
 
 				TriggerResult triggerResult = triggerContext.onElement(element);
+				triggerResult = decideTriggerResult(window, triggerResult);
 
 				if (triggerResult.isFire()) {
 					Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
@@ -267,6 +284,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 
 		if (contents != null) {
 			TriggerResult triggerResult = triggerContext.onEventTime(timer.getTimestamp());
+			triggerResult = decideTriggerResult(timer.getNamespace(), triggerResult);
 			if (triggerResult.isFire()) {
 				emitWindowContents(triggerContext.window, contents, evictingWindowState);
 			}

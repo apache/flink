@@ -69,6 +69,8 @@ import org.apache.flink.util.OutputTag;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -135,6 +137,12 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 */
 	protected final OutputTag<IN> lateDataOutputTag;
 
+	/** Num of window need to be skipped, depend on the user choice. */
+	protected int toSkipWindowCount = 0;
+
+	/** Collection to keep the window need to be skipped. */
+	private Set<W> toBeSkippedWindows = new HashSet<>();
+
 	private static final  String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
 
 	protected transient Counter numLateRecordsDropped;
@@ -177,6 +185,23 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
 	 */
 	public WindowOperator(
+		WindowAssigner<? super IN, W> windowAssigner,
+		TypeSerializer<W> windowSerializer,
+		KeySelector<IN, K> keySelector,
+		TypeSerializer<K> keySerializer,
+		StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
+		InternalWindowFunction<ACC, OUT, K, W> windowFunction,
+		Trigger<? super IN, ? super W> trigger,
+		long allowedLateness,
+		OutputTag<IN> lateDataOutputTag) {
+
+		this(windowAssigner, windowSerializer, keySelector, keySerializer, windowStateDescriptor,
+			windowFunction, trigger,allowedLateness, lateDataOutputTag, 0);
+	}
+	/**
+	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
+	 */
+	public WindowOperator(
 			WindowAssigner<? super IN, W> windowAssigner,
 			TypeSerializer<W> windowSerializer,
 			KeySelector<IN, K> keySelector,
@@ -185,7 +210,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			InternalWindowFunction<ACC, OUT, K, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger,
 			long allowedLateness,
-			OutputTag<IN> lateDataOutputTag) {
+			OutputTag<IN> lateDataOutputTag,
+			int toSkipWindowCount) {
 
 		super(windowFunction);
 
@@ -207,6 +233,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		this.trigger = checkNotNull(trigger);
 		this.allowedLateness = allowedLateness;
 		this.lateDataOutputTag = lateDataOutputTag;
+		this.toSkipWindowCount = toSkipWindowCount;
 
 		setChainingStrategy(ChainingStrategy.ALWAYS);
 	}
@@ -391,6 +418,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				triggerContext.window = window;
 
 				TriggerResult triggerResult = triggerContext.onElement(element);
+				triggerResult = decideTriggerResult(window, triggerResult);
 
 				if (triggerResult.isFire()) {
 					ACC contents = windowState.get();
@@ -450,6 +478,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		if (contents != null) {
 			TriggerResult triggerResult = triggerContext.onEventTime(timer.getTimestamp());
+			triggerResult = decideTriggerResult(timer.getNamespace(), triggerResult);
 			if (triggerResult.isFire()) {
 				emitWindowContents(triggerContext.window, contents);
 			}
@@ -554,6 +583,26 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 */
 	protected void sideOutput(StreamRecord<IN> element){
 		output.collect(lateDataOutputTag, element);
+	}
+
+	/**
+	 * According to the triggerResult and skip strategy to change triggerResult.
+ 	 */
+	protected TriggerResult decideTriggerResult(W window, TriggerResult nowResult) {
+		if (toSkipWindowCount > 0) {
+			if (nowResult.isFire()) {
+				if (toBeSkippedWindows.size() == toSkipWindowCount) {
+					if (toBeSkippedWindows.contains(window)) {
+						nowResult = TriggerResult.CONTINUE;
+					}
+				} else {
+					toBeSkippedWindows.add(window);
+					LOG.info("This window is add to skipped list: {}", window);
+					nowResult = TriggerResult.CONTINUE;
+				}
+			}
+		}
+		return nowResult;
 	}
 
 	/**

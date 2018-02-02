@@ -50,9 +50,11 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.BaseAlignedWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.EvictingWindowOperator;
@@ -115,6 +117,10 @@ public class WindowedStream<T, K, W extends Window> {
 	/** The user-specified allowed lateness. */
 	private long allowedLateness = 0L;
 
+	/** The window count to be skipped when start/restart job. 0 represent no need to skip. */
+	private int toSkipWindowCount = 0;
+
+
 	/**
 	 * Side output {@code OutputTag} for late data. If no tag is set late data will simply be
 	 * dropped.
@@ -161,6 +167,27 @@ public class WindowedStream<T, K, W extends Window> {
 		this.allowedLateness = millis;
 		return this;
 	}
+
+	/**
+	 * Sets the count of window need to be skipped when start or restart job.
+	 */
+	@PublicEvolving
+	public WindowedStream<T, K, W> setSkipWindowNum(int toSkipWindowCount){
+		if (!(trigger instanceof EventTimeTrigger)) {
+			throw new UnsupportedOperationException("Skip of the window data can not be used to the trigger other than EventTimeTrigger");
+		}
+
+		if (!(windowAssigner instanceof TumblingEventTimeWindows)) {
+			throw new UnsupportedOperationException("Skip of the window data can not be used to the windowassigner other than TumblingEventTimeWindows");
+		}
+
+		if (toSkipWindowCount < 0){
+			throw new IllegalArgumentException("toSkipWindowCount should not less than 0");
+		}
+		this.toSkipWindowCount = toSkipWindowCount;
+		return this;
+	}
+
 
 	/**
 	 * Send late arriving data to the side output identified by the given {@link OutputTag}. Data
@@ -294,7 +321,8 @@ public class WindowedStream<T, K, W extends Window> {
 					trigger,
 					evictor,
 					allowedLateness,
-					lateDataOutputTag);
+					lateDataOutputTag,
+					toSkipWindowCount);
 
 		} else {
 			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>("window-contents",
@@ -310,7 +338,8 @@ public class WindowedStream<T, K, W extends Window> {
 					new InternalSingleValueWindowFunction<>(function),
 					trigger,
 					allowedLateness,
-					lateDataOutputTag);
+					lateDataOutputTag,
+					toSkipWindowCount);
 		}
 
 		return input.transform(opName, resultType, operator);
@@ -380,7 +409,8 @@ public class WindowedStream<T, K, W extends Window> {
 							trigger,
 							evictor,
 							allowedLateness,
-							lateDataOutputTag);
+							lateDataOutputTag,
+							toSkipWindowCount);
 
 		} else {
 			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>("window-contents",
@@ -396,7 +426,8 @@ public class WindowedStream<T, K, W extends Window> {
 							new InternalSingleValueProcessWindowFunction<>(function),
 							trigger,
 							allowedLateness,
-							lateDataOutputTag);
+							lateDataOutputTag,
+							toSkipWindowCount);
 		}
 
 		return input.transform(opName, resultType, operator);
@@ -536,7 +567,8 @@ public class WindowedStream<T, K, W extends Window> {
 				trigger,
 				evictor,
 				allowedLateness,
-				lateDataOutputTag);
+				lateDataOutputTag,
+				toSkipWindowCount);
 
 		} else {
 			FoldingStateDescriptor<T, ACC> stateDesc = new FoldingStateDescriptor<>("window-contents",
@@ -550,7 +582,8 @@ public class WindowedStream<T, K, W extends Window> {
 				new InternalSingleValueWindowFunction<>(function),
 				trigger,
 				allowedLateness,
-				lateDataOutputTag);
+				lateDataOutputTag,
+				toSkipWindowCount);
 		}
 
 		return input.transform(opName, resultType, operator);
@@ -644,7 +677,8 @@ public class WindowedStream<T, K, W extends Window> {
 							trigger,
 							evictor,
 							allowedLateness,
-							lateDataOutputTag);
+							lateDataOutputTag,
+							toSkipWindowCount);
 
 		} else {
 			FoldingStateDescriptor<T, ACC> stateDesc = new FoldingStateDescriptor<>("window-contents",
@@ -661,7 +695,8 @@ public class WindowedStream<T, K, W extends Window> {
 							new InternalSingleValueProcessWindowFunction<>(windowFunction),
 							trigger,
 							allowedLateness,
-							lateDataOutputTag);
+							lateDataOutputTag,
+							toSkipWindowCount);
 		}
 
 		return input.transform(opName, windowResultType, operator);
@@ -831,7 +866,8 @@ public class WindowedStream<T, K, W extends Window> {
 					trigger,
 					evictor,
 					allowedLateness,
-					lateDataOutputTag);
+					lateDataOutputTag,
+					toSkipWindowCount);
 
 		} else {
 			AggregatingStateDescriptor<T, ACC, V> stateDesc = new AggregatingStateDescriptor<>("window-contents",
@@ -845,7 +881,8 @@ public class WindowedStream<T, K, W extends Window> {
 					new InternalSingleValueWindowFunction<>(windowFunction),
 					trigger,
 					allowedLateness,
-					lateDataOutputTag);
+					lateDataOutputTag,
+					toSkipWindowCount);
 		}
 
 		return input.transform(opName, resultType, operator);
@@ -983,7 +1020,8 @@ public class WindowedStream<T, K, W extends Window> {
 					trigger,
 					evictor,
 					allowedLateness,
-					lateDataOutputTag);
+					lateDataOutputTag,
+					toSkipWindowCount);
 
 		} else {
 			AggregatingStateDescriptor<T, ACC, V> stateDesc = new AggregatingStateDescriptor<>("window-contents",
@@ -997,7 +1035,8 @@ public class WindowedStream<T, K, W extends Window> {
 					new InternalSingleValueProcessWindowFunction<>(windowFunction),
 					trigger,
 					allowedLateness,
-					lateDataOutputTag);
+					lateDataOutputTag,
+					toSkipWindowCount);
 		}
 
 		return input.transform(opName, resultType, operator);
@@ -1102,7 +1141,8 @@ public class WindowedStream<T, K, W extends Window> {
 					trigger,
 					evictor,
 					allowedLateness,
-					lateDataOutputTag);
+					lateDataOutputTag,
+					toSkipWindowCount);
 
 		} else {
 			ListStateDescriptor<T> stateDesc = new ListStateDescriptor<>("window-contents",
@@ -1117,7 +1157,8 @@ public class WindowedStream<T, K, W extends Window> {
 					function,
 					trigger,
 					allowedLateness,
-					lateDataOutputTag);
+					lateDataOutputTag,
+					toSkipWindowCount);
 		}
 
 		return input.transform(opName, resultType, operator);
@@ -1191,7 +1232,8 @@ public class WindowedStream<T, K, W extends Window> {
 					trigger,
 					evictor,
 					allowedLateness,
-					lateDataOutputTag);
+					lateDataOutputTag,
+					toSkipWindowCount);
 
 		} else {
 			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>("window-contents",
@@ -1207,7 +1249,8 @@ public class WindowedStream<T, K, W extends Window> {
 					new InternalSingleValueWindowFunction<>(function),
 					trigger,
 					allowedLateness,
-					lateDataOutputTag);
+					lateDataOutputTag,
+					toSkipWindowCount);
 		}
 
 		return input.transform(opName, resultType, operator);
@@ -1286,7 +1329,8 @@ public class WindowedStream<T, K, W extends Window> {
 				trigger,
 				evictor,
 				allowedLateness,
-				lateDataOutputTag);
+				lateDataOutputTag,
+				toSkipWindowCount);
 
 		} else {
 			FoldingStateDescriptor<T, R> stateDesc = new FoldingStateDescriptor<>("window-contents",
@@ -1300,7 +1344,8 @@ public class WindowedStream<T, K, W extends Window> {
 				new InternalSingleValueWindowFunction<>(function),
 				trigger,
 				allowedLateness,
-				lateDataOutputTag);
+				lateDataOutputTag,
+				toSkipWindowCount);
 		}
 
 		return input.transform(opName, resultType, operator);
