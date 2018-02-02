@@ -39,6 +39,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.rest.RestClient;
+import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
 import org.apache.flink.runtime.rest.messages.BlobServerPortHeaders;
 import org.apache.flink.runtime.rest.messages.BlobServerPortResponseBody;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
@@ -53,6 +54,7 @@ import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
+import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
@@ -61,10 +63,8 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointInfo;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerId;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerResponseBody;
 import org.apache.flink.runtime.rest.messages.queue.AsynchronouslyCreatedResource;
 import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.rest.util.RestClientException;
@@ -339,7 +339,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			savepointTriggerHeaders.getUnresolvedMessageParameters();
 		savepointTriggerMessageParameters.jobID.resolve(jobId);
 
-		final CompletableFuture<SavepointTriggerResponseBody> responseFuture;
+		final CompletableFuture<TriggerResponse> responseFuture;
 
 		responseFuture = sendRequest(
 			savepointTriggerHeaders,
@@ -347,7 +347,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			new SavepointTriggerRequestBody(savepointDirectory));
 
 		return responseFuture.thenCompose(savepointTriggerResponseBody -> {
-			final SavepointTriggerId savepointTriggerId = savepointTriggerResponseBody.getSavepointTriggerId();
+			final TriggerId savepointTriggerId = savepointTriggerResponseBody.getTriggerId();
 			return pollSavepointAsync(jobId, savepointTriggerId);
 		}).thenApply(savepointInfo -> {
 			if (savepointInfo.getFailureCause() != null) {
@@ -359,13 +359,13 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 	private CompletableFuture<SavepointInfo> pollSavepointAsync(
 			final JobID jobId,
-			final SavepointTriggerId savepointTriggerId) {
+			final TriggerId triggerID) {
 		return pollResourceAsync(() -> {
 			final SavepointStatusHeaders savepointStatusHeaders = SavepointStatusHeaders.getInstance();
 			final SavepointStatusMessageParameters savepointStatusMessageParameters =
 				savepointStatusHeaders.getUnresolvedMessageParameters();
 			savepointStatusMessageParameters.jobIdPathParameter.resolve(jobId);
-			savepointStatusMessageParameters.savepointTriggerIdPathParameter.resolve(savepointTriggerId);
+			savepointStatusMessageParameters.triggerIdPathParameter.resolve(triggerID);
 			return sendRetryableRequest(
 				savepointStatusHeaders,
 				savepointStatusMessageParameters,
