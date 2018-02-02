@@ -80,20 +80,20 @@ public final class KeyGroupRangeAssignment {
 	 * @param maxParallelism Maximal parallelism that the job was initially created with.
 	 * @param parallelism    The current parallelism under which the job runs. Must be <= maxParallelism.
 	 * @param operatorIndex  Id of a key-group. 0 <= keyGroupID < maxParallelism.
-	 * @return
+	 * @return the computed key-group range for the operator.
 	 */
 	public static KeyGroupRange computeKeyGroupRangeForOperatorIndex(
-			int maxParallelism,
-			int parallelism,
-			int operatorIndex) {
+		int maxParallelism,
+		int parallelism,
+		int operatorIndex) {
 
 		checkParallelismPreconditions(parallelism);
 		checkParallelismPreconditions(maxParallelism);
 
 		Preconditions.checkArgument(maxParallelism >= parallelism,
-				"Maximum parallelism must not be smaller than parallelism.");
+			"Maximum parallelism must not be smaller than parallelism.");
 
-		int start = operatorIndex == 0 ? 0 : ((operatorIndex * maxParallelism - 1) / parallelism) + 1;
+		int start = ((operatorIndex * maxParallelism + parallelism - 1) / parallelism);
 		int end = ((operatorIndex + 1) * maxParallelism - 1) / parallelism;
 		return new KeyGroupRange(start, end);
 	}
