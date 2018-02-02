@@ -26,6 +26,7 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{ROW, _}
+import org.apache.calcite.util.NlsString
 import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo._
@@ -42,6 +43,7 @@ import org.apache.flink.table.codegen.calls.{CurrentTimePointCallGen, FunctionGe
 import org.apache.flink.table.functions.sql.{ProctimeSqlFunction, ScalarSqlFunctions, StreamRecordTimestampSqlFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+import org.apache.flink.table.plan.schema.CompositeRelDataType
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.joda.time.format.DateTimeFormatter
@@ -578,9 +580,9 @@ abstract class CodeGenerator(
   override def visitTableInputRef(rexTableInputRef: RexTableInputRef): GeneratedExpression =
     visitInputRef(rexTableInputRef)
 
-  override def visitFieldAccess(rexFieldAccess: RexFieldAccess): GeneratedExpression = {
-    val refExpr = rexFieldAccess.getReferenceExpr.accept(this)
-    val index = rexFieldAccess.getField.getIndex
+  private def generateFieldAccessExpr(
+    refExpr: GeneratedExpression,
+    index: Int): GeneratedExpression = {
     val fieldAccessExpr = generateFieldAccess(
       refExpr.resultType,
       refExpr.resultTerm,
@@ -614,6 +616,12 @@ abstract class CodeGenerator(
     }
 
     GeneratedExpression(resultTerm, nullTerm, resultCode, fieldAccessExpr.resultType)
+  }
+
+  override def visitFieldAccess(rexFieldAccess: RexFieldAccess): GeneratedExpression = {
+    val refExpr = rexFieldAccess.getReferenceExpr.accept(this)
+    val index = rexFieldAccess.getField.getIndex
+    generateFieldAccessExpr(refExpr, index)
   }
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
@@ -1005,7 +1013,12 @@ abstract class CodeGenerator(
         // Due to https://issues.apache.org/jira/browse/CALCITE-2162, expression such as
         // "array[1].a.b" won't work now.
         require(operands.size == 2)
-        generateDot(this, call, operands.head, operands(1))
+        val fieldName =
+          call.operands.get(1).asInstanceOf[RexLiteral].getValue.asInstanceOf[NlsString].getValue
+        generateFieldAccessExpr(
+          operands.head,
+          call.operands.get(0).getType.asInstanceOf[CompositeRelDataType]
+            .compositeType.getFieldIndex(fieldName))
 
       case ScalarSqlFunctions.CONCAT =>
         generateConcat(this.nullCheck, operands)

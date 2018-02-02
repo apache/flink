@@ -120,13 +120,20 @@ class CompositeAccessTest extends CompositeTypeTestBase {
       'f8.at(1).get("_1"),
       "f8.at(1).get('_1')",
       "f8[1]._1",
-      "true"
+      "null"
     )
 
     testAllApis(
-      'f9.at(1).get("_1"),
-      "f9.at(1).get('_1')",
-      "f9[1]._1",
+      'f8.at(1).get("_2"),
+      "f8.at(1).get('_2')",
+      "f8[1]._2",
+      "23"
+    )
+
+    testAllApis(
+      'f9.at(2).get("_1"),
+      "f9.at(2).get('_1')",
+      "f9[2]._1",
       "null"
     )
 
@@ -142,6 +149,13 @@ class CompositeAccessTest extends CompositeTypeTestBase {
       "f11.at(1).get('myString')",
       "f11[1].myString",
       "Hello"
+    )
+
+    testAllApis(
+      'f12.at(1).get("arrayField").at(1).get("stringField"),
+      "f12.at(1).get('arrayField').at(1).get('stringField')",
+      "f12[1].arrayField[1].stringField",
+      "Alice"
     )
 
     testTableApi(12.flatten(), "12.flatten()", "12")
