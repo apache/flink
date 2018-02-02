@@ -25,6 +25,7 @@ import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.AggregateFunction;
 
 import java.util.Iterator;
+import java.util.Map;
 
 /**
  * Test aggregator functions.
@@ -223,10 +224,12 @@ public class JavaUserDefinedAggFunctions {
 				acc.count += mergeAcc.count;
 
 				try {
-					Iterator<String> itrMap = mergeAcc.map.keys().iterator();
+					Iterator itrMap = mergeAcc.map.iterator();
 					while (itrMap.hasNext()) {
-						String key = itrMap.next();
-						Integer cnt = mergeAcc.map.get(key);
+						Map.Entry<String, Integer> entry =
+								(Map.Entry<String, Integer>) itrMap.next();
+						String key = entry.getKey();
+						Integer cnt = entry.getValue();
 						if (acc.map.contains(key)) {
 							acc.map.put(key, acc.map.get(key) + cnt);
 						} else {
