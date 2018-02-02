@@ -18,6 +18,8 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.runtime.security.modules.SecurityModule;
@@ -34,12 +36,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.Callable;
 
 /**
- * Tests for {@link YarnTaskManagerRunner}.
+ * Tests for {@link YarnTaskManagerRunnerFactory}.
  */
-public class YarnTaskManagerRunnerTest {
+public class YarnTaskManagerRunnerFactoryTest {
 
 	@Test
 	public void testKerberosKeytabConfiguration() throws IOException {
@@ -49,26 +50,27 @@ public class YarnTaskManagerRunnerTest {
 		envs.put(YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID, "test_container_00001");
 		envs.put(YarnConfigKeys.KEYTAB_PRINCIPAL, "testuser1@domain");
 		envs.put(ApplicationConstants.Environment.PWD.key(), resourceDirPath);
-		YarnTaskManagerRunner.runYarnTaskManager(
-				new String[]{"--configDir", resourceDirPath},
-				YarnTaskManager.class,
-				envs,
-				new Callable<Object>() {
-					@Override
-					public Integer call() {
-						final List<SecurityModule> modules = SecurityUtils.getInstalledModules();
-						Optional<SecurityModule> moduleOpt =
-								modules.stream().filter(s -> s instanceof HadoopModule).findFirst();
-						if (moduleOpt.isPresent()) {
-							HadoopModule hadoopModule = (HadoopModule) moduleOpt.get();
-							assertEquals("testuser1@domain", hadoopModule.getSecurityConfig().getPrincipal());
-							assertEquals(resourceDirPath + "/krb5.keytab",
-									hadoopModule.getSecurityConfig().getKeytab());
-						} else {
-							fail("Can not find HadoopModule!");
-						}
-						return null;
-					}
-				});
+
+		final YarnTaskManagerRunnerFactory.Runner tmRunner = YarnTaskManagerRunnerFactory.create(
+			new String[]{"--configDir", resourceDirPath},
+			YarnTaskManager.class,
+			envs);
+
+		final List<SecurityModule> modules = SecurityUtils.getInstalledModules();
+		Optional<SecurityModule> moduleOpt =
+			modules.stream().filter(s -> s instanceof HadoopModule).findFirst();
+		if (moduleOpt.isPresent()) {
+			HadoopModule hadoopModule = (HadoopModule) moduleOpt.get();
+			assertEquals("testuser1@domain", hadoopModule.getSecurityConfig().getPrincipal());
+			assertEquals(resourceDirPath + "/" + Utils.KEYTAB_FILE_NAME,
+				hadoopModule.getSecurityConfig().getKeytab());
+		} else {
+			fail("Can not find HadoopModule!");
+		}
+
+		final Configuration configuration = tmRunner.getConfiguration();
+		assertEquals(resourceDirPath + "/" + Utils.KEYTAB_FILE_NAME, configuration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB));
+		assertEquals("testuser1@domain", configuration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL));
+		assertEquals("test_container_00001", tmRunner.getResourceId().toString());
 	}
 }

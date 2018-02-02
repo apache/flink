@@ -162,6 +162,9 @@ public class YarnApplicationMasterRunner {
 
 			File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
 			if (remoteKeytabPrincipal != null && f.exists()) {
+				String keytabPath = f.getAbsolutePath();
+				LOG.debug("keytabPath: {}", keytabPath);
+
 				// set keytab principal and replace path with the local path of the shipped keytab file in NodeManager
 				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, f.getAbsolutePath());
 				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
@@ -247,7 +250,10 @@ public class YarnApplicationMasterRunner {
 
 			File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
 			if (remoteKeytabPrincipal != null && f.exists()) {
-				config.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, f.getAbsolutePath());
+				String keytabPath = f.getAbsolutePath();
+				LOG.debug("keytabPath: {}", keytabPath);
+
+				config.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
 				config.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
