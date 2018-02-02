@@ -1300,7 +1300,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		// now do the actual state transition
 		if (STATE_UPDATER.compareAndSet(this, current, newState)) {
-			LOG.info("Job {} ({}) switched from state {} to {}.", getJobName(), getJobID(), current, newState, error);
+			if (error == null) {
+				LOG.info("Job {} ({}) switched from state {} to {}.", getJobName(), getJobID(), current, newState);
+			} else {
+				LOG.error("Job {} ({}) switched from state {} to {}.", getJobName(), getJobID(), current, newState, error);
+			}
 
 			stateTimestamps[newState.ordinal()] = System.currentTimeMillis();
 			notifyJobStatusChange(newState, error);

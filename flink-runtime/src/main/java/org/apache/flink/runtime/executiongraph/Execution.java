@@ -1264,7 +1264,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			if (error == null) {
 				LOG.info("{} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState);
 			} else {
-				LOG.info("{} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState, error);
+				LOG.error("{} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState, error);
 			}
 
 			if (targetState.isTerminal()) {

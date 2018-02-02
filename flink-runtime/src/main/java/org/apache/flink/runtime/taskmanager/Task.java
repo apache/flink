@@ -924,7 +924,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			if (cause == null) {
 				LOG.info("{} ({}) switched from {} to {}.", taskNameWithSubtask, executionId, currentState, newState);
 			} else {
-				LOG.info("{} ({}) switched from {} to {}.", taskNameWithSubtask, executionId, currentState, newState, cause);
+				LOG.error("{} ({}) switched from {} to {}.", taskNameWithSubtask, executionId, currentState, newState, cause);
 			}
 
 			return true;
