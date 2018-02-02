@@ -21,35 +21,27 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for {@link BufferSpiller}.
+ * Tests for the behavior of the {@link BarrierBuffer} with {@link BufferSpiller}.
  */
-public class BufferSpillerTest extends BufferBlockerTestBase {
+public class SpillingBarrierBufferTest extends BarrierBufferTestBase {
 
 	private static IOManager ioManager;
 
-	private BufferSpiller spiller;
-
-	// ------------------------------------------------------------------------
-	//  Setup / Cleanup
-	// ------------------------------------------------------------------------
-
 	@BeforeClass
-	public static void setupIOManager() {
+	public static void setup() {
 		ioManager = new IOManagerAsync();
 	}
 
@@ -58,44 +50,8 @@ public class BufferSpillerTest extends BufferBlockerTestBase {
 		ioManager.shutdown();
 	}
 
-	@Before
-	public void createSpiller() throws IOException {
-		spiller = new BufferSpiller(ioManager, PAGE_SIZE);
-	}
-
 	@After
-	public void cleanupSpiller() throws IOException {
-		if (spiller != null) {
-			spiller.close();
-
-			assertFalse(spiller.getCurrentChannel().isOpen());
-			assertFalse(spiller.getCurrentSpillFile().exists());
-		}
-
-		checkNoTempFilesRemain();
-	}
-
-	@Override
-	public BufferBlocker createBufferBlocker() {
-		return spiller;
-	}
-
-	/**
-	 * Tests that the static HEADER_SIZE field has valid header size.
-	 */
-	@Test
-	public void testHeaderSizeStaticField() throws Exception {
-		int size = 13;
-		BufferOrEvent boe = generateRandomBuffer(size, 0);
-		spiller.add(boe);
-
-		assertEquals(
-			"Changed the header format, but did not adjust the HEADER_SIZE field",
-			BufferSpiller.HEADER_SIZE + size,
-			spiller.getBytesBlocked());
-	}
-
-	private static void checkNoTempFilesRemain() {
+	public void checkNoTempFilesRemain() {
 		// validate that all temp files have been removed
 		for (File dir : ioManager.getSpillingDirectories()) {
 			for (String file : dir.list()) {
@@ -104,5 +60,22 @@ public class BufferSpillerTest extends BufferBlockerTestBase {
 				}
 			}
 		}
+	}
+
+	@Override
+	public BarrierBuffer createBarrierHandler(InputGate gate) throws IOException{
+		return new BarrierBuffer(gate, new BufferSpiller(ioManager, PAGE_SIZE));
+	}
+
+	@Override
+	public void validateAlignmentBuffered(long actualBytesBuffered, BufferOrEvent... sequence) {
+		long expectedBuffered = 0;
+		for (BufferOrEvent boe : sequence) {
+			if (boe.isBuffer()) {
+				expectedBuffered += BufferSpiller.HEADER_SIZE + boe.getBuffer().getSize();
+			}
+		}
+
+		assertEquals("Wrong alignment buffered bytes", actualBytesBuffered, expectedBuffered);
 	}
 }
