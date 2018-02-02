@@ -16,33 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.savepoints;
+package org.apache.flink.runtime.rest.handler.async;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.TriggerId;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import static java.util.Objects.requireNonNull;
-
 /**
- * Response to the triggering of a savepoint.
+ * Response to the triggering of an asynchronous operation.
  */
-public class SavepointTriggerResponseBody implements ResponseBody {
-
+public class TriggerResponse implements ResponseBody {
 	private static final String FIELD_NAME_REQUEST_ID = "request-id";
 
 	@JsonProperty(FIELD_NAME_REQUEST_ID)
-	private final SavepointTriggerId savepointTriggerId;
+	private final TriggerId triggerId;
 
 	@JsonCreator
-	public SavepointTriggerResponseBody(
-		@JsonProperty(FIELD_NAME_REQUEST_ID) final SavepointTriggerId savepointTriggerId) {
-		this.savepointTriggerId = requireNonNull(savepointTriggerId);
+	public TriggerResponse(
+			@JsonProperty(FIELD_NAME_REQUEST_ID) TriggerId triggerId) {
+		this.triggerId = Preconditions.checkNotNull(triggerId);
 	}
 
-	public SavepointTriggerId getSavepointTriggerId() {
-		return savepointTriggerId;
+	public TriggerId getTriggerId() {
+		return triggerId;
 	}
-
 }

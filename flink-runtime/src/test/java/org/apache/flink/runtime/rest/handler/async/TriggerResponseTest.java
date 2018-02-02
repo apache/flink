@@ -16,32 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.savepoints;
+package org.apache.flink.runtime.rest.handler.async;
 
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.runtime.rest.messages.TriggerId;
 
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 
 /**
- * Tests for {@link SavepointTriggerResponseBody}.
+ * Marshalling test for {@link TriggerResponse}.
  */
-public class SavepointTriggerResponseBodyTest
-		extends RestResponseMarshallingTestBase<SavepointTriggerResponseBody> {
+public class TriggerResponseTest extends RestResponseMarshallingTestBase<TriggerResponse> {
 
 	@Override
-	protected Class<SavepointTriggerResponseBody> getTestResponseClass() {
-		return SavepointTriggerResponseBody.class;
+	protected Class<TriggerResponse> getTestResponseClass() {
+		return TriggerResponse.class;
 	}
 
 	@Override
-	protected SavepointTriggerResponseBody getTestResponseInstance() {
-		return new SavepointTriggerResponseBody(new SavepointTriggerId());
+	protected TriggerResponse getTestResponseInstance() throws Exception {
+		return new TriggerResponse(new TriggerId());
 	}
 
 	@Override
-	protected void assertOriginalEqualsToUnmarshalled(
-			final SavepointTriggerResponseBody expected,
-			final SavepointTriggerResponseBody actual) {
-		assertEquals(expected.getSavepointTriggerId(), actual.getSavepointTriggerId());
+	protected void assertOriginalEqualsToUnmarshalled(TriggerResponse expected, TriggerResponse actual) {
+		assertThat(actual.getTriggerId(), is(equalTo(expected.getTriggerId())));
 	}
 }

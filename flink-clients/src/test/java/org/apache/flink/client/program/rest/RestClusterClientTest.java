@@ -45,6 +45,8 @@ import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationResult;
+import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
 import org.apache.flink.runtime.rest.messages.BlobServerPortHeaders;
 import org.apache.flink.runtime.rest.messages.BlobServerPortResponseBody;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
@@ -58,23 +60,20 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-import org.apache.flink.runtime.rest.messages.SavepointTriggerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
+import org.apache.flink.runtime.rest.messages.TriggerId;
+import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultResponseBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointInfo;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointResponseBody;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerId;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerResponseBody;
-import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -399,21 +398,18 @@ public class RestClusterClientTest extends TestLogger {
 		final TestSavepointHandlers testSavepointHandlers = new TestSavepointHandlers();
 		final TestSavepointHandlers.TestSavepointTriggerHandler triggerHandler =
 			testSavepointHandlers.new TestSavepointTriggerHandler(
-				null, targetSavepointDirectory, null);
+				null, targetSavepointDirectory, null, null);
 		final TestSavepointHandlers.TestSavepointHandler savepointHandler =
 			testSavepointHandlers.new TestSavepointHandler(
-				new SavepointResponseBody(QueueStatus.completed(), new SavepointInfo(
-					testSavepointHandlers.testSavepointTriggerId,
+				new SavepointInfo(
 					savepointLocationDefaultDir,
-					null)),
-				new SavepointResponseBody(QueueStatus.completed(), new SavepointInfo(
-					testSavepointHandlers.testSavepointTriggerId,
+					null),
+				new SavepointInfo(
 					savepointLocationRequestedDir,
-					null)),
-				new SavepointResponseBody(QueueStatus.completed(), new SavepointInfo(
-					testSavepointHandlers.testSavepointTriggerId,
+					null),
+				new SavepointInfo(
 					null,
-					new SerializedThrowable(new RuntimeException("expected")))),
+					new SerializedThrowable(new RuntimeException("expected"))),
 				new RestHandlerException("not found", HttpResponseStatus.NOT_FOUND));
 
 		// fail first HTTP polling attempt, which should not be a problem because of the retries
@@ -463,9 +459,9 @@ public class RestClusterClientTest extends TestLogger {
 
 	private class TestSavepointHandlers {
 
-		private final SavepointTriggerId testSavepointTriggerId = new SavepointTriggerId();
+		private final TriggerId testTriggerId = new TriggerId();
 
-		private class TestSavepointTriggerHandler extends TestHandler<SavepointTriggerRequestBody, SavepointTriggerResponseBody, SavepointTriggerMessageParameters> {
+		private class TestSavepointTriggerHandler extends TestHandler<SavepointTriggerRequestBody, TriggerResponse, SavepointTriggerMessageParameters> {
 
 			private final Iterator<String> expectedTargetDirectories;
 
@@ -475,43 +471,43 @@ public class RestClusterClientTest extends TestLogger {
 			}
 
 			@Override
-			protected CompletableFuture<SavepointTriggerResponseBody> handleRequest(
+			protected CompletableFuture<TriggerResponse> handleRequest(
 					@Nonnull HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters> request,
 					@Nonnull DispatcherGateway gateway) throws RestHandlerException {
 				final String targetDirectory = request.getRequestBody().getTargetDirectory();
 				if (Objects.equals(expectedTargetDirectories.next(), targetDirectory)) {
 					return CompletableFuture.completedFuture(
-						new SavepointTriggerResponseBody(testSavepointTriggerId));
+						new TriggerResponse(testTriggerId));
 				} else {
 					// return new random savepoint trigger id so that test can fail
 					return CompletableFuture.completedFuture(
-						new SavepointTriggerResponseBody(new SavepointTriggerId()));
+						new TriggerResponse(new TriggerId()));
 				}
 			}
 		}
 
 		private class TestSavepointHandler
-				extends TestHandler<EmptyRequestBody, SavepointResponseBody, SavepointStatusMessageParameters> {
+				extends TestHandler<EmptyRequestBody, AsynchronousOperationResult<SavepointInfo>, SavepointStatusMessageParameters> {
 
 			private final Iterator<Object> expectedSavepointResponseBodies;
 
 			TestSavepointHandler(final Object... expectedSavepointResponseBodies) {
 				super(SavepointStatusHeaders.getInstance());
 				checkArgument(Arrays.stream(expectedSavepointResponseBodies)
-					.allMatch(response -> response instanceof SavepointResponseBody ||
+					.allMatch(response -> response instanceof SavepointInfo ||
 						response instanceof RestHandlerException));
 				this.expectedSavepointResponseBodies = Arrays.asList(expectedSavepointResponseBodies).iterator();
 			}
 
 			@Override
-			protected CompletableFuture<SavepointResponseBody> handleRequest(
+			protected CompletableFuture<AsynchronousOperationResult<SavepointInfo>> handleRequest(
 					@Nonnull HandlerRequest<EmptyRequestBody, SavepointStatusMessageParameters> request,
 					@Nonnull DispatcherGateway gateway) throws RestHandlerException {
-				final SavepointTriggerId savepointTriggerId = request.getPathParameter(SavepointTriggerIdPathParameter.class);
-				if (testSavepointTriggerId.equals(savepointTriggerId)) {
+				final TriggerId triggerId = request.getPathParameter(TriggerIdPathParameter.class);
+				if (testTriggerId.equals(triggerId)) {
 					final Object response = expectedSavepointResponseBodies.next();
-					if (response instanceof SavepointResponseBody) {
-						return CompletableFuture.completedFuture((SavepointResponseBody) response);
+					if (response instanceof SavepointInfo) {
+						return CompletableFuture.completedFuture(AsynchronousOperationResult.completed(((SavepointInfo) response)));
 					} else if (response instanceof RestHandlerException) {
 						return FutureUtils.completedExceptionally((RestHandlerException) response);
 					} else {
@@ -520,7 +516,7 @@ public class RestClusterClientTest extends TestLogger {
 				} else {
 					return FutureUtils.completedExceptionally(
 						new RestHandlerException(
-							"Unexpected savepoint trigger id: " + savepointTriggerId,
+							"Unexpected savepoint trigger id: " + triggerId,
 							HttpResponseStatus.BAD_REQUEST));
 				}
 			}

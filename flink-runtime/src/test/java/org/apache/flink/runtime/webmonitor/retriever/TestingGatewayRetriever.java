@@ -16,28 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.savepoints;
+package org.apache.flink.runtime.webmonitor.retriever;
 
-import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.runtime.rpc.RpcGateway;
 
-import org.junit.Test;
-
-import static org.junit.Assert.fail;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Tests for {@link SavepointInfo}.
+ * Testing {@link GatewayRetriever} implementation which can be
+ * manually set.
+ *
+ * @param <T> type of the gateway
  */
-public class SavepointInfoTest extends TestLogger {
+public class TestingGatewayRetriever<T extends RpcGateway> implements GatewayRetriever<T> {
+	private CompletableFuture<T> gatewayFuture;
 
-	@Test
-	public void testSetBothLocationAndFailureCause()  {
-		try {
-			new SavepointInfo(
-				"/tmp",
-				new SerializedThrowable(new RuntimeException()));
-			fail("Expected exception not thrown");
-		} catch (IllegalArgumentException e) {
-		}
+	public TestingGatewayRetriever() {
+		gatewayFuture = new CompletableFuture<>();
+	}
+
+	@Override
+	public CompletableFuture<T> getFuture() {
+		return null;
+	}
+
+	public void setGateway(T gateway) {
+		gatewayFuture = CompletableFuture.completedFuture(gateway);
 	}
 }
