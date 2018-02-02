@@ -343,6 +343,15 @@ public class TaskManagerOptions {
 				" leads to a fatal TaskManager error. A value of 0 deactivates" +
 				" the watch dog.");
 	/**
+	 * This configures how long we wait for the timers to finish all pending timer threads
+	 * when the stream task is cancelled .
+	 */
+	public static final ConfigOption<Long> TASK_CANCELLATION_TIMEOUT_TIMERS = ConfigOptions
+			.key("task.cancellation.timers.timeout")
+			.defaultValue(7500L)
+			.withDeprecatedKeys("timerservice.exceptional.shutdown.timeout");
+
+	/**
 	 * The maximum number of bytes that a checkpoint alignment may buffer.
 	 * If the checkpoint alignment buffers more than the configured amount of
 	 * data, the checkpoint is aborted (skipped).

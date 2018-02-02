@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -48,7 +49,6 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
-import org.apache.flink.streaming.configuration.TimerServiceOptions;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
@@ -343,7 +343,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				try {
 
 					final long timeoutMs = getEnvironment().getTaskManagerInfo().getConfiguration().
-						getLong(TimerServiceOptions.TIMER_SERVICE_TERMINATION_AWAIT_MS);
+						getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS);
 
 					// wait for a reasonable time for all pending timer threads to finish
 					boolean timerShutdownComplete =
