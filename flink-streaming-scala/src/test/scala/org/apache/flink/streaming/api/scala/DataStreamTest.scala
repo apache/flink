@@ -25,17 +25,19 @@ import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
 import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, KeyedProcessOperator, ProcessOperator, StreamOperator}
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
+import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.{CountTrigger, PurgingTrigger}
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
 import org.apache.flink.streaming.runtime.partitioner._
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.util.Collector
 import org.junit.Assert._
-import org.junit.{Rule, Test}
 import org.junit.rules.ExpectedException
+import org.junit.{Rule, Test}
 
 class DataStreamTest extends AbstractTestBase {
 
@@ -647,6 +649,18 @@ class DataStreamTest extends AbstractTestBase {
     val sg = env.getStreamGraph
 
     assert(sg.getIterationSourceSinkPairs.size() == 2)
+  }
+
+  @Test
+  def testReinterpretAsKeyedStream(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val source = env.fromElements(1, 2, 3)
+    new DataStreamUtils(source).reinterpretAsKeyedStream((in) => in)
+      .timeWindow(Time.seconds(1))
+      .reduce((a, b) => a + b)
+      .addSink(new DiscardingSink[Int])
+    env.execute()
   }
 
   /////////////////////////////////////////////////////////////
