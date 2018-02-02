@@ -68,6 +68,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -673,9 +674,9 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 	}
 
-	private static final class TestingListState<T> implements ListState<T> {
+	private static final class TestingListState<V> implements ListState<V> {
 
-		private final List<T> list = new ArrayList<>();
+		private final List<V> list = new ArrayList<>();
 		private boolean clearCalled = false;
 
 		@Override
@@ -685,16 +686,26 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 
 		@Override
-		public Iterable<T> get() throws Exception {
+		public Iterable<V> get() {
 			return list;
 		}
 
 		@Override
-		public void add(T value) throws Exception {
+		public Iterator<V> iterator() {
+			Iterable<V> iterable = get();
+			if (iterable == null) {
+				return Collections.emptyIterator();
+			}
+
+			return iterable.iterator();
+		}
+
+		@Override
+		public void add(V value) throws Exception {
 			list.add(value);
 		}
 
-		public List<T> getList() {
+		public List<V> getList() {
 			return list;
 		}
 
@@ -703,14 +714,14 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 
 		@Override
-		public void update(List<T> values) throws Exception {
+		public void update(List<V> values) throws Exception {
 			clear();
 
 			addAll(values);
 		}
 
 		@Override
-		public void addAll(List<T> values) throws Exception {
+		public void addAll(List<V> values) throws Exception {
 			if (values != null) {
 				list.addAll(values);
 			}

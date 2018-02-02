@@ -63,6 +63,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
@@ -213,7 +214,7 @@ public class StreamingRuntimeContextTest {
 	}
 
 	@Test
-	public void testListStateReturnsEmptyListByDefault() throws Exception {
+	public void testListStateReturnsNullByDefault() throws Exception {
 
 		StreamingRuntimeContext context = new StreamingRuntimeContext(
 				createListPlainMockOp(),
@@ -224,8 +225,7 @@ public class StreamingRuntimeContextTest {
 		ListState<String> state = context.getListState(descr);
 
 		Iterable<String> value = state.get();
-		assertNotNull(value);
-		assertFalse(value.iterator().hasNext());
+		assertNull(value);
 	}
 
 	@Test

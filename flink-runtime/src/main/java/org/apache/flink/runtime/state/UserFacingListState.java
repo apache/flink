@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.state.ListState;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -32,8 +33,6 @@ class UserFacingListState<T> implements ListState<T> {
 
 	private final ListState<T> originalState;
 
-	private final Iterable<T> emptyState = Collections.emptyList();
-
 	UserFacingListState(ListState<T> originalState) {
 		this.originalState = originalState;
 	}
@@ -42,8 +41,22 @@ class UserFacingListState<T> implements ListState<T> {
 
 	@Override
 	public Iterable<T> get() throws Exception {
-		Iterable<T> original = originalState.get();
-		return original != null ? original : emptyState;
+		return originalState.get();
+	}
+
+	@Override
+	public Iterator<T> iterator() {
+		try {
+			Iterable<T> iterable = get();
+
+			if (iterable == null) {
+				return Collections.emptyIterator();
+			}
+
+			return iterable.iterator();
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	@Override
@@ -55,7 +68,7 @@ class UserFacingListState<T> implements ListState<T> {
 	public void clear() {
 		originalState.clear();
 	}
-
+	
 	@Override
 	public void update(List<T> values) throws Exception {
 		originalState.update(values);

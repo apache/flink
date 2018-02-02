@@ -93,9 +93,11 @@ retrieved (scoped to key of the input element as mentioned above, so there will 
 for each key that the operation sees). The value can be set using `update(T)` and retrieved using
 `T value()`.
 
-* `ListState<T>`: This keeps a list of elements. You can append elements and retrieve an `Iterable`
-over all currently stored elements. Elements are added using `add(T)` or `addAll(List<T>)`, the Iterable can
-be retrieved using `Iterable<T> get()`. You can also override the existing list with `update(List<T>)`
+* `ListState<T>`: This keeps a list of elements. You can append elements using `add(T)` or `addAll(List<T>)`,
+and override existing list using `update(List<T>)`. You can retrieve currently stored elements using 
+`Iterable<T> get()` or `Iterator<T> iterator()` - the difference being that, when the state is empty, the
+former method will return `null` which requires special handling while the latter one returns an empty
+iterator which doesn't require special handling.
 
 * `ReducingState<T>`: This keeps a single value that represents the aggregation of all values
 added to the state. The interface is similar to `ListState` but elements added using

@@ -33,6 +33,8 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -106,8 +108,19 @@ public class RocksDBListState<K, N, V>
 			}
 			return result;
 		} catch (IOException | RocksDBException e) {
-			throw new RuntimeException("Error while retrieving data from RocksDB", e);
+			throw new RuntimeException("Error while retrieving data from RocksDB via get()", e);
 		}
+	}
+
+	@Override
+	public Iterator<V> iterator() {
+		Iterable<V> iterable = get();
+
+		if (iterable == null) {
+			return Collections.emptyIterator();
+		}
+
+		return iterable.iterator();
 	}
 
 	@Override
