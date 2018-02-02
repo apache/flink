@@ -184,6 +184,18 @@ public class TaskManagerOptions {
 			key("taskmanager.network.detailed-metrics")
 			.defaultValue(false);
 
+	/**
+	 * Config parameter defining whether to spill data for channels with barrier or not in exactly-once
+	 * mode based on credit-based flow control.
+	 *
+	 * @deprecated Will be removed for Flink 1.6 when the old code will be dropped in favour of
+	 * credit-based flow control.
+	 */
+	@Deprecated
+	public static final ConfigOption<Boolean> EXACTLY_ONCE_BLOCKING_DATA_ENABLED =
+			key("taskmanager.exactly-once.blocking.data.enabled")
+			.defaultValue(true);
+
 	// ------------------------------------------------------------------------
 	//  Task Options
 	// ------------------------------------------------------------------------
