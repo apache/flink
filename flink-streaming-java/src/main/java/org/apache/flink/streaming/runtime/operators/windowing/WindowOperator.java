@@ -196,8 +196,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		OutputTag<IN> lateDataOutputTag) {
 
 		this(windowAssigner, windowSerializer, keySelector, keySerializer, windowStateDescriptor,
-			windowFunction, trigger,allowedLateness, lateDataOutputTag, 0);
+			windowFunction, trigger, allowedLateness, lateDataOutputTag, 0);
 	}
+
 	/**
 	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
 	 */

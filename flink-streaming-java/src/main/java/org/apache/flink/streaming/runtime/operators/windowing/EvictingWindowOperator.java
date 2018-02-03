@@ -81,20 +81,21 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 	// ------------------------------------------------------------------------
 
 	public EvictingWindowOperator(WindowAssigner<? super IN, W> windowAssigner,
-								  TypeSerializer<W> windowSerializer,
-								  KeySelector<IN, K> keySelector,
-								  TypeSerializer<K> keySerializer,
-								  StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> windowStateDescriptor,
-								  InternalWindowFunction<Iterable<IN>, OUT, K, W> windowFunction,
-								  Trigger<? super IN, ? super W> trigger,
-								  Evictor<? super IN, ? super W> evictor,
-								  long allowedLateness,
-								  OutputTag<IN> lateDataOutputTag) {
+			TypeSerializer<W> windowSerializer,
+			KeySelector<IN, K> keySelector,
+			TypeSerializer<K> keySerializer,
+			StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> windowStateDescriptor,
+			InternalWindowFunction<Iterable<IN>, OUT, K, W> windowFunction,
+			Trigger<? super IN, ? super W> trigger,
+			Evictor<? super IN, ? super W> evictor,
+			long allowedLateness,
+			OutputTag<IN> lateDataOutputTag) {
 
 		this(windowAssigner, windowSerializer, keySelector,
 			keySerializer, windowStateDescriptor, windowFunction, trigger, evictor, allowedLateness, lateDataOutputTag, 0);
 
 	}
+
 	public EvictingWindowOperator(WindowAssigner<? super IN, W> windowAssigner,
 			TypeSerializer<W> windowSerializer,
 			KeySelector<IN, K> keySelector,

@@ -74,6 +74,15 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
   }
 
   /**
+    * Sets the count of window need to be skipped when start or restart job.
+    */
+  @PublicEvolving
+  def setSkipWindowNum(toSkipWindowCount: Integer): WindowedStream[T, K, W] = {
+    javaStream.setSkipWindowNum(toSkipWindowCount)
+    this
+  }
+
+  /**
    * Send late arriving data to the side output identified by the given [[OutputTag]]. Data
    * is considered late after the watermark has passed the end of the window plus the allowed
    * lateness set using [[allowedLateness(Time)]].
