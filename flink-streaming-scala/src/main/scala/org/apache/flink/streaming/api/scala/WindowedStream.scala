@@ -77,7 +77,7 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     * Sets the count of window need to be skipped when start or restart job.
     */
   @PublicEvolving
-  def setSkipWindowNum(toSkipWindowCount: Integer): WindowedStream[T, K, W] = {
+  def setSkipWindowNum(toSkipWindowCount: Int): WindowedStream[T, K, W] = {
     javaStream.setSkipWindowNum(toSkipWindowCount)
     this
   }
