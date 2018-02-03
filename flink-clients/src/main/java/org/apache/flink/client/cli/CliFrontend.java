@@ -886,7 +886,7 @@ public class CliFrontend {
 	 * Internal interface to encapsulate cluster actions which are executed via
 	 * the {@link ClusterClient}.
 	 *
-	 * @param <T> tyoe pf the cluster id
+	 * @param <T> type of the cluster id
 	 */
 	@FunctionalInterface
 	private interface ClusterAction<T> {

@@ -116,8 +116,8 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		DEFAULT_MAX_NUM_SAMPLES = maxSamples;
 		
 		if (minSamples > maxSamples) {
-			LOG.error("Defaul minimum number of line samples cannot be greater the default maximum number " +
-					"of line samples: min=" + minSamples + ", max=" + maxSamples + ". Defaulting minumum to maximum.");
+			LOG.error("Default minimum number of line samples cannot be greater the default maximum number " +
+					"of line samples: min=" + minSamples + ", max=" + maxSamples + ". Defaulting minimum to maximum.");
 			DEFAULT_MIN_NUM_SAMPLES = maxSamples;
 		} else {
 			DEFAULT_MIN_NUM_SAMPLES = minSamples;
@@ -127,7 +127,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
 		if (maxLen <= 0) {
 			maxLen = ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN;
-			LOG.error("Invalid value for the maximum sample record length. Using defailt value of " + maxLen + '.');
+			LOG.error("Invalid value for the maximum sample record length. Using default value of " + maxLen + '.');
 		} else if (maxLen < DEFAULT_READ_BUFFER_SIZE) {
 			maxLen = DEFAULT_READ_BUFFER_SIZE;
 			LOG.warn("Increasing maximum sample record length to size of the read buffer (" + maxLen + ").");
