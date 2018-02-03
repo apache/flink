@@ -28,7 +28,7 @@ import org.apache.flink.util.Collector;
  * after a key and then "joining" the groups by calling this function with the two sets for each key. 
  * If a key is present in only one of the two inputs, it may be that one of the groups is empty.
  * <p>
- * The basic syntax for using CoGoup on two data sets is as follows:
+ * The basic syntax for using CoGroup on two data sets is as follows:
  * <pre>{@code
  * DataSet<X> set1 = ...;
  * DataSet<Y> set2 = ...;
