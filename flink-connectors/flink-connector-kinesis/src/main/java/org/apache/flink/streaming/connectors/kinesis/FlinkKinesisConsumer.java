@@ -24,6 +24,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -68,6 +69,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * consumer is implemented with the AWS Java SDK, instead of the officially recommended AWS Kinesis Client Library, for
  * low-level control on the management of stream state. The Flink Kinesis Connector also supports setting the initial
  * starting points of Kinesis streams, namely TRIM_HORIZON and LATEST.</p>
+ *
+ * <p>Kinesis and the Flink consumer support dynamic re-sharding and shard IDs, while sequential,
+ * cannot be assumed to be consecutive. There is no perfect generic default assignment function.
+ * Default shard to subtask assignment, which is based on hash code, may result in skew,
+ * with some subtasks having many shards assigned and others none.
+ *
+ * <p>It is recommended to monitor the shard distribution and adjust assignment appropriately.
+ * A custom assigner implementation can be set via {@link #setShardAssigner(KinesisShardAssigner)} to optimize the
+ * hash function or use static overrides to limit skew.
  *
  * @param <T> the type of data emitted
  */
@@ -202,8 +212,13 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		return shardAssigner;
 	}
 
-	public void setShardAssigner(KinesisShardAssigner kinesisShardToSubTaskIndexFn) {
-		this.shardAssigner = checkNotNull(kinesisShardToSubTaskIndexFn, "function can not be null");
+	/**
+	 * Provide a custom assigner to influence how shards are distributed over subtasks.
+	 * @param shardAssigner
+	 */
+	public void setShardAssigner(KinesisShardAssigner shardAssigner) {
+		this.shardAssigner = checkNotNull(shardAssigner, "function can not be null");
+		ClosureCleaner.clean(shardAssigner, true);
 	}
 
 	// ------------------------------------------------------------------------

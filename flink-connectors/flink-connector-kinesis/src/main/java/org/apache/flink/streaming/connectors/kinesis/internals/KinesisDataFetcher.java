@@ -81,7 +81,6 @@ public class KinesisDataFetcher<T> {
 
 	public static final KinesisShardAssigner DEFAULT_SHARD_ASSIGNER = (shard, subtasks) -> shard.hashCode();
 
-
 	private static final Logger LOG = LoggerFactory.getLogger(KinesisDataFetcher.class);
 
 	// ------------------------------------------------------------------------
@@ -194,14 +193,14 @@ public class KinesisDataFetcher<T> {
 							RuntimeContext runtimeContext,
 							Properties configProps,
 							KinesisDeserializationSchema<T> deserializationSchema,
-							KinesisShardAssigner kinesisShardToSubTaskIndexFn) {
+							KinesisShardAssigner shardAssigner) {
 		this(streams,
 			sourceContext,
 			sourceContext.getCheckpointLock(),
 			runtimeContext,
 			configProps,
 			deserializationSchema,
-			kinesisShardToSubTaskIndexFn,
+			shardAssigner,
 			new AtomicReference<>(),
 			new ArrayList<>(),
 			createInitialSubscribedStreamsToLastDiscoveredShardsState(streams),
