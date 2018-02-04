@@ -151,7 +151,9 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 			if (channel == null) {
 				throw new RuntimeException("None of RabbitMQ channels are available");
 			}
-			setupQueue();
+			if (rmqConnectionConfig.hasToCreateQueueOnSetup()) {
+				setupQueue();
+			}
 			consumer = new QueueingConsumer(channel);
 
 			RuntimeContext runtimeContext = getRuntimeContext();

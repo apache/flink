@@ -40,12 +40,14 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSink.class);
 
-	protected final String queueName;
+	protected String queueName;
 	private final RMQConnectionConfig rmqConnectionConfig;
 	protected transient Connection connection;
 	protected transient Channel channel;
 	protected SerializationSchema<IN> schema;
-	private boolean logFailuresOnly = false;
+	protected boolean logFailuresOnly = false;
+
+	protected RMQSinkPublishOptions<IN> messageCompute;
 
 	/**
 	 * @param rmqConnectionConfig The RabbitMQ connection configuration {@link RMQConnectionConfig}.
@@ -53,9 +55,21 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
      */
 	public RMQSink(RMQConnectionConfig rmqConnectionConfig, String queueName, SerializationSchema<IN> schema) {
-		this.rmqConnectionConfig = rmqConnectionConfig;
+		this(rmqConnectionConfig, schema, null);
 		this.queueName = queueName;
+	}
+
+	/**
+	 * @param rmqConnectionConfig The RabbitMQ connection configuration {@link RMQConnectionConfig}.
+	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
+	 * @param messageCompute A {@link RMQSinkPublishOptions} for providing message's routing key and/or properties
+     */
+	public RMQSink(RMQConnectionConfig rmqConnectionConfig, SerializationSchema<IN> schema,
+			RMQSinkPublishOptions<IN> messageCompute) {
+		this.rmqConnectionConfig = rmqConnectionConfig;
+		this.queueName = null;
 		this.schema = schema;
+		this.messageCompute = messageCompute;
 	}
 
 	/**
@@ -88,7 +102,9 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 			if (channel == null) {
 				throw new RuntimeException("None of RabbitMQ channels are available");
 			}
-			setupQueue();
+			if (rmqConnectionConfig.hasToCreateQueueOnSetup()) {
+				setupQueue();
+			}
 		} catch (IOException e) {
 			throw new RuntimeException("Error while creating the channel", e);
 		}
@@ -105,7 +121,16 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 		try {
 			byte[] msg = schema.serialize(value);
 
-			channel.basicPublish("", queueName, null, msg);
+			if (messageCompute == null) {
+				channel.basicPublish("", queueName, null, msg);
+			} else {
+				String rk = messageCompute.computeRoutingKey(value);
+				String exchange = messageCompute.computeExchange(value);
+				channel.basicPublish((exchange != null) ? exchange : "",
+						(rk != null) ? rk : "",
+						messageCompute.computeProperties(value), msg);
+			}
+
 		} catch (IOException e) {
 			if (logFailuresOnly) {
 				LOG.error("Cannot send RMQ message {} at {}", queueName, rmqConnectionConfig.getHost(), e);
