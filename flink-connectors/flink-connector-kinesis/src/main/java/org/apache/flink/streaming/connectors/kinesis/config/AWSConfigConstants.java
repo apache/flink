@@ -70,4 +70,24 @@ public class AWSConfigConstants {
 	/** The AWS endpoint for Kinesis (derived from the AWS region setting if not set). */
 	public static final String AWS_ENDPOINT = "aws.endpoint";
 
+	/** The proxy server fqdn for Kinesis. */
+	public static final String AWS_PROXY_SERVER = "aws.proxy.server";
+
+	/** The proxy server port for Kinesis. */
+	public static final String AWS_PROXY_PORT = "aws.proxy.port";
+
+	/** The proxy authentication user. */
+	public static final String AWS_PROXY_AUTH_USER = "aws.proxy.auth.user";
+
+	/** The proxy authentication password. */
+	public static final String AWS_PROXY_AUTH_PASSWORD = "aws.proxy.auth.password";
+
+	/** The proxy authentication methods. Values : BASIC, DIGEST, SPNEGO, KERBEROS, NTLM */
+	public static final String AWS_PROXY_AUTH_METHODS = "aws.proxy.auth.methods";
+
+	/** The proxy authentication ntml method domain. */
+	public static final String AWS_PROXY_AUTH_NTML_DOMAIN = "aws.proxy.auth.ntml.domain";
+
+	/** The proxy authentication ntml method workstation. */
+	public static final String AWS_PROXY_AUTH_NTML_WORKSTATION = "aws.proxy.auth.ntml.workstation";
 }
