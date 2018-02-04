@@ -339,7 +339,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			final CompletableFuture<StackTraceSampleResponse> resultFuture) {
 
 		if (numSamples > 0) {
-			getRpcService().getScheduledExecutor().schedule(() -> runAsync(() -> {
+			scheduleRunAsync(() -> runAsync(() -> {
 				final Optional<StackTraceElement[]> stackTrace = getStackTrace(executionAttemptId, maxStackTraceDepth);
 				if (stackTrace.isPresent()) {
 					currentTraces.add(stackTrace.get());

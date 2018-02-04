@@ -224,7 +224,11 @@ public class WebRuntimeMonitor implements WebMonitor {
 		Time delayBetweenSamples = Time.milliseconds(delay);
 
 		backPressureStatsTracker = new BackPressureStatsTracker(
-				stackTraceSamples, cleanUpInterval, numSamples, delayBetweenSamples);
+			stackTraceSamples,
+			cleanUpInterval,
+			numSamples,
+			config.getInteger(WebOptions.BACKPRESSURE_REFRESH_INTERVAL),
+			delayBetweenSamples);
 
 		// --------------------------------------------------------------------
 

@@ -183,6 +183,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 								coordinator,
 								100 * 1000,
 								20,
+								Integer.MAX_VALUE,
 								Time.milliseconds(10L));
 
 							int numAttempts = 10;
