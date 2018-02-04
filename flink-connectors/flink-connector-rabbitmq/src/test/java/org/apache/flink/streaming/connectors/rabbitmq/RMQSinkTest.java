@@ -27,6 +27,7 @@ import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -81,6 +82,25 @@ public class RMQSinkTest {
 		when(connectionFactory.newConnection()).thenReturn(connection);
 		when(connection.createChannel()).thenReturn(channel);
 		when(rmqConnectionConfig.hasToCreateQueueOnSetup()).thenReturn(true);
+	}
+
+	@Test
+	public void checkCreateQueueOnSetup() throws Exception {
+		RMQConnectionConfig rmqCClocal = new RMQConnectionConfig.Builder()
+				.setUri("amqp://usr:pwd@server:5672/test")
+				.build();
+
+		assertEquals(rmqCClocal.hasToCreateQueueOnSetup(), true);
+	}
+
+	@Test
+	public void checkCreateQueueOnSetupDisabled() throws Exception {
+		RMQConnectionConfig rmqCClocal = new RMQConnectionConfig.Builder()
+				.setUri("amqp://usr:pwd@server:5672/test")
+				.setCreateQueueOnSetup(false)
+				.build();
+
+		assertEquals(rmqCClocal.hasToCreateQueueOnSetup(), false);
 	}
 
 	@Test
