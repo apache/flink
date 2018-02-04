@@ -100,7 +100,7 @@ public class RMQConnectionConfig implements Serializable {
 		this.requestedChannelMax = requestedChannelMax;
 		this.requestedFrameMax = requestedFrameMax;
 		this.requestedHeartbeat = requestedHeartbeat;
-		this.createQueue = (createQueue != null) ? createQueue : true;
+		this.createQueue = createQueue;
 	}
 
 	/**
@@ -129,7 +129,7 @@ public class RMQConnectionConfig implements Serializable {
 		this.requestedChannelMax = requestedChannelMax;
 		this.requestedFrameMax = requestedFrameMax;
 		this.requestedHeartbeat = requestedHeartbeat;
-		this.createQueue = (createQueue != null) ? createQueue : true;
+		this.createQueue = createQueue;
 	}
 
 	/** @return the host to use for connections */
@@ -235,7 +235,7 @@ public class RMQConnectionConfig implements Serializable {
 	 * @return true if queue should be created, false otherwise
 	 */
 	public Boolean hasToCreateQueueOnSetup() {
-		return createQueue;
+		return (createQueue != null) ? createQueue : true;
 	}
 
 	/**
@@ -319,7 +319,7 @@ public class RMQConnectionConfig implements Serializable {
 		private Boolean createQueue;
 
 		private String uri;
-		
+
 		/**
 		 * Set the target port.
 		 * @param port the default port to use for connections

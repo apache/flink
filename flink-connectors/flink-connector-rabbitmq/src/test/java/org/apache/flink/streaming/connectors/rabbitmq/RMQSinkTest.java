@@ -22,6 +22,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 
+import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -29,6 +31,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.doThrow;
@@ -43,14 +47,27 @@ import static org.mockito.Mockito.when;
 public class RMQSinkTest {
 
 	private static final String QUEUE_NAME = "queue";
+	private static final String EXCHANGE = "exchange";
+	private static final String ROUTING_KEY = "application.component.error";
+	private static final String EXPIRATION = "10000";
 	private static final String MESSAGE_STR = "msg";
 	private static final byte[] MESSAGE = new byte[1];
+	private static Map<String, Object> headers = new HashMap<String, Object>();
+	private static AMQP.BasicProperties props;
+	static {
+		headers.put("Test", new String("My Value"));
+		props = new AMQP.BasicProperties.Builder()
+				.headers(headers)
+				.expiration(EXPIRATION)
+				.build();
+	}
 
 	private RMQConnectionConfig rmqConnectionConfig;
 	private ConnectionFactory connectionFactory;
 	private Connection connection;
 	private Channel channel;
 	private SerializationSchema<String> serializationSchema;
+	private DummyPublishOptions publishOptions;
 
 	@Before
 	public void before() throws Exception {
@@ -63,6 +80,7 @@ public class RMQSinkTest {
 		when(rmqConnectionConfig.getConnectionFactory()).thenReturn(connectionFactory);
 		when(connectionFactory.newConnection()).thenReturn(connection);
 		when(connection.createChannel()).thenReturn(channel);
+		when(rmqConnectionConfig.hasToCreateQueueOnSetup()).thenReturn(true);
 	}
 
 	@Test
@@ -83,7 +101,14 @@ public class RMQSinkTest {
 	}
 
 	private RMQSink<String> createRMQSink() throws Exception {
-		RMQSink rmqSink = new RMQSink<String>(rmqConnectionConfig, QUEUE_NAME, serializationSchema);
+		RMQSink<String> rmqSink = new RMQSink<String>(rmqConnectionConfig, QUEUE_NAME, serializationSchema);
+		rmqSink.open(new Configuration());
+		return rmqSink;
+	}
+
+	private RMQSink<String> createRMQSinkFeatured() throws Exception {
+		publishOptions = new DummyPublishOptions();
+		RMQSink<String> rmqSink = new RMQSink<String>(rmqConnectionConfig, serializationSchema, publishOptions);
 		rmqSink.open(new Configuration());
 		return rmqSink;
 	}
@@ -124,7 +149,55 @@ public class RMQSinkTest {
 		verify(connection).close();
 	}
 
+	@Test
+	public void invokeFeaturedPublishBytesToQueue() throws Exception {
+		RMQSink<String> rmqSink = createRMQSinkFeatured();
+
+		rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
+		verify(serializationSchema).serialize(MESSAGE_STR);
+		verify(channel).basicPublish(EXCHANGE, ROUTING_KEY,
+				publishOptions.computeProperties(""), MESSAGE);
+	}
+
+	@Test(expected = RuntimeException.class)
+	public void exceptionDuringFeaturedPublishingIsNotIgnored() throws Exception {
+		RMQSink<String> rmqSink = createRMQSinkFeatured();
+
+		doThrow(IOException.class).when(channel).basicPublish(EXCHANGE, ROUTING_KEY,
+				publishOptions.computeProperties(""), MESSAGE);
+		rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
+	}
+
+	@Test
+	public void exceptionDuringFeaturedPublishingIsIgnoredIfLogFailuresOnly() throws Exception {
+		RMQSink<String> rmqSink = createRMQSinkFeatured();
+		rmqSink.setLogFailuresOnly(true);
+
+		doThrow(IOException.class).when(channel).basicPublish(EXCHANGE, ROUTING_KEY,
+				publishOptions.computeProperties(""), MESSAGE);
+		rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
+	}
+
+	private class DummyPublishOptions implements RMQSinkPublishOptions<String> {
+		@Override
+		public String computeRoutingKey(String a) {
+			return ROUTING_KEY;
+		}
+
+		@Override
+		public BasicProperties computeProperties(String a) {
+			return props;
+		}
+
+		@Override
+		public String computeExchange(String a) {
+			return EXCHANGE;
+		}
+	}
+
 	private class DummySerializationSchema implements SerializationSchema<String> {
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public byte[] serialize(String element) {
 			return MESSAGE;
