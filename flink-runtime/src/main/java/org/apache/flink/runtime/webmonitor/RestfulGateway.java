@@ -31,12 +31,12 @@ import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 
 import java.util.Collection;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -127,7 +127,15 @@ public interface RestfulGateway extends RpcGateway {
 		throw new UnsupportedOperationException();
 	}
 
-	default CompletableFuture<Optional<OperatorBackPressureStats>> getOperatorBackPressureStats(
+	/**
+	 * Requests the statistics on operator back pressure.
+	 *
+	 * @param jobId       Job for which the stats are requested.
+	 * @param jobVertexId JobVertex for which the stats are requested.
+	 * @return A Future to the {@link OperatorBackPressureStats} or {@code null} if the stats are
+	 * not available (yet).
+	 */
+	default CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
 			JobID jobId,
 			JobVertexID jobVertexId) {
 		throw new UnsupportedOperationException();

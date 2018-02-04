@@ -25,6 +25,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInc
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonValue;
 
+import javax.annotation.Nullable;
+
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -41,6 +44,13 @@ public class JobVertexBackPressureInfo implements ResponseBody {
 	public static final String FIELD_NAME_END_TIMESTAMP = "end-timestamp";
 	public static final String FIELD_NAME_SUBTASKS = "subtasks";
 
+	/** Immutable singleton instance denoting that the back pressure stats are not available. */
+	private static final JobVertexBackPressureInfo DEPRECATED_JOB_VERTEX_BACK_PRESSURE_INFO = new JobVertexBackPressureInfo(
+		VertexBackPressureStatus.DEPRECATED,
+		null,
+		null,
+		null);
+
 	@JsonProperty(FIELD_NAME_STATUS)
 	private final VertexBackPressureStatus status;
 
@@ -51,7 +61,7 @@ public class JobVertexBackPressureInfo implements ResponseBody {
 	private final Long endTimestamp;
 
 	@JsonProperty(FIELD_NAME_SUBTASKS)
-	protected final List<SubtaskBackPressureInfo> subtasks;
+	private final List<SubtaskBackPressureInfo> subtasks;
 
 	@JsonCreator
 	public JobVertexBackPressureInfo(
@@ -66,11 +76,7 @@ public class JobVertexBackPressureInfo implements ResponseBody {
 	}
 
 	public static JobVertexBackPressureInfo deprecated() {
-		return new JobVertexBackPressureInfo(
-			VertexBackPressureStatus.DEPRECATED,
-			null,
-			null,
-			null);
+		return DEPRECATED_JOB_VERTEX_BACK_PRESSURE_INFO;
 	}
 
 	@Override
@@ -91,6 +97,25 @@ public class JobVertexBackPressureInfo implements ResponseBody {
 	@Override
 	public int hashCode() {
 		return Objects.hash(status, backpressureLevel, endTimestamp, subtasks);
+	}
+
+	public VertexBackPressureStatus getStatus() {
+		return status;
+	}
+
+	@Nullable
+	public VertexBackPressureLevel getBackpressureLevel() {
+		return backpressureLevel;
+	}
+
+	@Nullable
+	public Long getEndTimestamp() {
+		return endTimestamp;
+	}
+
+	@Nullable
+	public List<SubtaskBackPressureInfo> getSubtasks() {
+		return subtasks == null ? null : Collections.unmodifiableList(subtasks);
 	}
 
 	//---------------------------------------------------------------------------------
@@ -141,6 +166,18 @@ public class JobVertexBackPressureInfo implements ResponseBody {
 		@Override
 		public int hashCode() {
 			return Objects.hash(subtask, backpressureLevel, ratio);
+		}
+
+		public int getSubtask() {
+			return subtask;
+		}
+
+		public VertexBackPressureLevel getBackpressureLevel() {
+			return backpressureLevel;
+		}
+
+		public double getRatio() {
+			return ratio;
 		}
 	}
 

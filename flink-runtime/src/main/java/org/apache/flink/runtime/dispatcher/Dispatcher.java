@@ -50,7 +50,7 @@ import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -68,7 +68,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -362,14 +361,14 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	@Override
-	public CompletableFuture<Optional<OperatorBackPressureStats>> getOperatorBackPressureStats(
+	public CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
 			final JobID jobId, final JobVertexID jobVertexId) {
 			final JobManagerRunner jobManagerRunner = jobManagerRunners.get(jobId);
 		if (jobManagerRunner == null) {
 			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
 		} else {
 			return jobManagerRunner.getJobManagerGateway()
-				.getOperatorBackPressureStats(jobId, jobVertexId);
+				.requestOperatorBackPressureStats(jobId, jobVertexId);
 		}
 	}
 

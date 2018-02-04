@@ -338,30 +338,29 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			final List<StackTraceElement[]> currentTraces,
 			final CompletableFuture<StackTraceSampleResponse> resultFuture) {
 
-		if (numSamples > 0) {
-			getRpcService().getScheduledExecutor().schedule(() -> runAsync(() -> {
-				final Optional<StackTraceElement[]> stackTrace = getStackTrace(executionAttemptId, maxStackTraceDepth);
-				if (stackTrace.isPresent()) {
-					currentTraces.add(stackTrace.get());
-				} else if (!currentTraces.isEmpty()) {
-					resultFuture.complete(new StackTraceSampleResponse(
-						sampleId,
-						executionAttemptId,
-						currentTraces));
-				} else {
-					throw new IllegalStateException(String.format("Cannot sample task %s. " +
-							"Either the task is not known to the task manager or it is not running.",
-						executionAttemptId));
-				}
-				requestStackTraceSample(
-					executionAttemptId,
-					sampleId,
-					numSamples - 1,
-					delayBetweenSamples,
-					maxStackTraceDepth,
-					currentTraces,
-					resultFuture);
-			}), delayBetweenSamples.getSize(), delayBetweenSamples.getUnit());
+		final Optional<StackTraceElement[]> stackTrace = getStackTrace(executionAttemptId, maxStackTraceDepth);
+		if (stackTrace.isPresent()) {
+			currentTraces.add(stackTrace.get());
+		} else if (!currentTraces.isEmpty()) {
+			resultFuture.complete(new StackTraceSampleResponse(
+				sampleId,
+				executionAttemptId,
+				currentTraces));
+		} else {
+			throw new IllegalStateException(String.format("Cannot sample task %s. " +
+					"Either the task is not known to the task manager or it is not running.",
+				executionAttemptId));
+		}
+
+		if (numSamples > 1) {
+			scheduleRunAsync(() -> runAsync(() -> requestStackTraceSample(
+				executionAttemptId,
+				sampleId,
+				numSamples - 1,
+				delayBetweenSamples,
+				maxStackTraceDepth,
+				currentTraces,
+				resultFuture)), delayBetweenSamples.getSize(), delayBetweenSamples.getUnit());
 			return resultFuture;
 		} else {
 			resultFuture.complete(new StackTraceSampleResponse(

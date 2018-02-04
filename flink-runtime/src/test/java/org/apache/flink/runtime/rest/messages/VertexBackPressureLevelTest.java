@@ -18,22 +18,29 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.handler.job.JobVertexBackPressureHandler;
+import org.apache.flink.runtime.rest.util.RestMapperUtils;
 
-import java.util.ArrayList;
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 /**
- * Empty response of the {@link JobVertexBackPressureHandler}.
+ * Tests for {@link JobVertexBackPressureInfo.VertexBackPressureLevel}.
  */
-public class EmptyJobVertexBackPressureInfo extends JobVertexBackPressureInfo {
+public class VertexBackPressureLevelTest {
 
-	private static final EmptyJobVertexBackPressureInfo INSTANCE = new EmptyJobVertexBackPressureInfo();
-
-	private EmptyJobVertexBackPressureInfo() {
-		super(null, null, System.currentTimeMillis(), new ArrayList<>());
+	/**
+	 * Tests that the enum values are serialized correctly.
+	 * Clients, such as the Web UI, expect values to be lower case.
+	 */
+	@Test
+	public void testJsonValue() throws Exception {
+		assertEquals("\"ok\"", RestMapperUtils.getStrictObjectMapper()
+			.writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureLevel.OK));
+		assertEquals("\"low\"", RestMapperUtils.getStrictObjectMapper()
+			.writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureLevel.LOW));
+		assertEquals("\"high\"", RestMapperUtils.getStrictObjectMapper()
+			.writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureLevel.HIGH));
 	}
 
-	public static EmptyJobVertexBackPressureInfo getInstance() {
-		return INSTANCE;
-	}
 }

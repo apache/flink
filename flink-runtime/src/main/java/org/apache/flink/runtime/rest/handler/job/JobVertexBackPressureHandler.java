@@ -62,11 +62,12 @@ public class JobVertexBackPressureHandler extends AbstractRestHandler<RestfulGat
 		final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
 		final JobVertexID jobVertexId = request.getPathParameter(JobVertexIdPathParameter.class);
 		return gateway
-			.getOperatorBackPressureStats(jobId, jobVertexId)
+			.requestOperatorBackPressureStats(jobId, jobVertexId)
 			.thenApply(
-				operatorBackPressureStatsOptional -> operatorBackPressureStatsOptional
-					.map(JobVertexBackPressureHandler::createJobVertexBackPressureInfo)
-					.orElse(JobVertexBackPressureInfo.deprecated()));
+				operatorBackPressureStats ->
+					operatorBackPressureStats.getOperatorBackPressureStats().map(
+						JobVertexBackPressureHandler::createJobVertexBackPressureInfo).orElse(
+						JobVertexBackPressureInfo.deprecated()));
 	}
 
 	private static JobVertexBackPressureInfo createJobVertexBackPressureInfo(
@@ -93,7 +94,7 @@ public class JobVertexBackPressureHandler extends AbstractRestHandler<RestfulGat
 	 *
 	 * @return Back pressure level ('ok', 'low', or 'high')
 	 */
-	static JobVertexBackPressureInfo.VertexBackPressureLevel getBackPressureLevel(double backPressureRatio) {
+	private static JobVertexBackPressureInfo.VertexBackPressureLevel getBackPressureLevel(double backPressureRatio) {
 		if (backPressureRatio <= 0.10) {
 			return JobVertexBackPressureInfo.VertexBackPressureLevel.OK;
 		} else if (backPressureRatio <= 0.5) {
