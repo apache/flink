@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.Serializable;
 
 /**
@@ -25,6 +27,7 @@ import java.io.Serializable;
  *
  * @param <T> The type of elements that this {@code SessionWindowTimeGapExtractor} can extract session time gaps from.
  */
+@PublicEvolving
 public interface SessionWindowTimeGapExtractor<T> extends Serializable {
 	/**
 	 * Extracts the session time gap.

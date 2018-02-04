@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -88,6 +89,7 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
 	 * @param sessionWindowTimeGapExtractor The extractor to use to extract the time gap from the input elements
 	 * @return The policy.
 	 */
+	@PublicEvolving
 	public static <T> DynamicProcessingTimeSessionWindows<T> withDynamicGap(SessionWindowTimeGapExtractor<T> sessionWindowTimeGapExtractor) {
 		return new DynamicProcessingTimeSessionWindows<>(sessionWindowTimeGapExtractor);
 	}
