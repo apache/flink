@@ -82,7 +82,7 @@ public class AWSConfigConstants {
 	/** The proxy authentication password. */
 	public static final String AWS_PROXY_AUTH_PASSWORD = "aws.proxy.auth.password";
 
-	/** The proxy authentication methods. Values : BASIC, DIGEST, SPNEGO, KERBEROS, NTLM */
+	/** The proxy authentication methods. Values : BASIC, DIGEST, SPNEGO, KERBEROS and/or NTLM */
 	public static final String AWS_PROXY_AUTH_METHODS = "aws.proxy.auth.methods";
 
 	/** The proxy authentication ntml method domain. */
