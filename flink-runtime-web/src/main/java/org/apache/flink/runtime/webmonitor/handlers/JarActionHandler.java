@@ -37,11 +37,13 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractJsonRequestHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
+import org.apache.flink.runtime.webmonitor.WebRuntimeMonitor;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.StringWriter;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -65,6 +67,15 @@ public abstract class JarActionHandler extends AbstractJsonRequestHandler {
 	protected Tuple2<JobGraph, ClassLoader> getJobGraphAndClassLoader(JarActionHandlerConfig config) throws Exception {
 		// generate the graph
 		JobGraph graph = null;
+
+		if (!jarDir.exists()) {
+			WebRuntimeMonitor.logExternalUploadDirDeletion(jarDir);
+			try {
+				WebRuntimeMonitor.checkAndCreateUploadDir(jarDir);
+			} catch (IOException ioe) {
+				// the following code will throw an exception since the jar can't be found
+			}
+		}
 
 		PackagedProgram program = new PackagedProgram(
 				new File(jarDir, config.getJarFile()),

@@ -127,7 +127,7 @@ public class OrcTableSource
 		this.predicates = predicates;
 
 		// determine the type information from the ORC schema
-		RowTypeInfo typeInfoFromSchema = (RowTypeInfo) OrcUtils.schemaToTypeInfo(this.orcSchema);
+		RowTypeInfo typeInfoFromSchema = (RowTypeInfo) OrcBatchReader.schemaToTypeInfo(this.orcSchema);
 
 		// set return type info
 		if (selectedFields == null) {

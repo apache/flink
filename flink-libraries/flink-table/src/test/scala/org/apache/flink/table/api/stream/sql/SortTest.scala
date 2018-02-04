@@ -31,7 +31,7 @@ class SortTest extends TableTestBase {
       'proctime.proctime, 'rowtime.rowtime)
   
   @Test
-  def testSortProcessingTime() = {
+  def testSortProcessingTime(): Unit = {
 
     val sqlQuery = "SELECT a FROM MyTable ORDER BY proctime, c"
 
@@ -47,7 +47,7 @@ class SortTest extends TableTestBase {
   }
 
   @Test
-  def testSortRowTime() = {
+  def testSortRowTime(): Unit = {
 
     val sqlQuery = "SELECT a FROM MyTable ORDER BY rowtime, c"
       

@@ -40,8 +40,8 @@ import org.apache.flink.runtime.io.async.AbstractAsyncCallableWithResources;
 import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.HashMapSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -240,16 +240,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<N> namespaceSerializer,
 			ListStateDescriptor<T> stateDesc) throws Exception {
 
-		// the list state does some manual mapping, because the state is typed to the generic
-		// 'List' interface, but we want to use an implementation typed to ArrayList
-		// using a more specialized implementation opens up runtime optimizations
-
-		StateTable<K, N, ArrayList<T>> stateTable = tryRegisterStateTable(
-				stateDesc.getName(),
-				stateDesc.getType(),
-				namespaceSerializer,
-				new ArrayListSerializer<T>(stateDesc.getElementSerializer()));
-
+		StateTable<K, N, List<T>> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
 		return new HeapListState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 
@@ -342,7 +333,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				@Override
 				protected void acquireResources() throws Exception {
-					stream = streamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
+					stream = streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
 					cancelStreamRegistry.registerCloseable(stream);
 				}
 

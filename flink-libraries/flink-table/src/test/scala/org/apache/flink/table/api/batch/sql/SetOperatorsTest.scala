@@ -113,7 +113,7 @@ class SetOperatorsTest extends TableTestBase {
             term("join", "a", "b", "c", "$f0", "$f1"),
             term("joinType", "NestedLoopInnerJoin")
           ),
-          term("select", "a AS $f0", "b AS $f1", "c AS $f2", "$f0 AS $f3", "$f1 AS $f4", "b AS $f5")
+          term("select", "a AS $f0", "c AS $f2", "$f0 AS $f3", "$f1 AS $f4", "b AS $f5")
         ),
         unaryNode(
           "DataSetAggregate",
@@ -127,11 +127,11 @@ class SetOperatorsTest extends TableTestBase {
           term("select", "$f0", "MIN($f1) AS $f1")
         ),
         term("where", "=($f5, $f00)"),
-        term("join", "$f0", "$f1", "$f2", "$f3", "$f4", "$f5", "$f00", "$f10"),
+        term("join", "$f0", "$f2", "$f3", "$f4", "$f5", "$f00", "$f1"),
         term("joinType", "LeftOuterJoin")
       ),
       term("select", "$f0 AS a", "$f2 AS c"),
-      term("where", "OR(=($f3, 0), AND(IS NULL($f10), >=($f4, $f3), IS NOT NULL($f5)))")
+      term("where", "OR(=($f3, 0), AND(IS NULL($f1), >=($f4, $f3), IS NOT NULL($f5)))")
     )
 
     util.verifySql(

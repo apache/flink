@@ -42,7 +42,10 @@ public final class ConfigConstants {
 
 	/**
 	 * The config parameter defining the default parallelism for jobs.
+	 *
+	 * @deprecated use {@link CoreOptions#DEFAULT_PARALLELISM} instead
 	 */
+	@Deprecated
 	public static final String DEFAULT_PARALLELISM_KEY = "parallelism.default";
 
 	// ---------------------------- Restart strategies ------------------------
@@ -989,16 +992,18 @@ public final class ConfigConstants {
 
 	// --------------------------- High Availability --------------------------
 
-	/** Defines high availability mode used for the cluster execution ("NONE", "ZOOKEEPER"). */
+	/** @deprecated Deprecated in favour of {@link HighAvailabilityOptions#HA_MODE} */
 	@PublicEvolving
+	@Deprecated
 	public static final String HA_MODE = "high-availability";
 
 	/** Ports used by the job manager if not in 'none' recovery mode. */
 	@PublicEvolving
 	public static final String HA_JOB_MANAGER_PORT = "high-availability.jobmanager.port";
 
-	/** The time before the JobManager recovers persisted jobs. */
+	/** @deprecated Deprecated in favour of {@link HighAvailabilityOptions#HA_JOB_DELAY}. */
 	@PublicEvolving
+	@Deprecated
 	public static final String HA_JOB_DELAY = "high-availability.job.delay";
 
 	/** @deprecated Deprecated in favour of {@link #HA_MODE}. */
@@ -1266,7 +1271,10 @@ public final class ConfigConstants {
 
 	/**
 	 * The default parallelism for operations.
+	 *
+	 * @deprecated use {@link CoreOptions#DEFAULT_PARALLELISM} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_PARALLELISM = 1;
 
 	/**
@@ -1776,7 +1784,9 @@ public final class ConfigConstants {
 
 	// --------------------------- High Availability ---------------------------------
 
+	/** @deprecated Deprecated in favour of {@link HighAvailabilityOptions#HA_MODE} */
 	@PublicEvolving
+	@Deprecated
 	public static final String DEFAULT_HA_MODE = "none";
 
 	/** @deprecated Deprecated in favour of {@link #DEFAULT_HA_MODE} */
@@ -1786,8 +1796,11 @@ public final class ConfigConstants {
 	/**
 	 * Default port used by the job manager if not in standalone recovery mode. If <code>0</code>
 	 * the OS picks a random port port.
+	 *
+	 * @deprecated No longer used.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public static final String DEFAULT_HA_JOB_MANAGER_PORT = "0";
 
 	/** @deprecated Deprecated in favour of {@link #DEFAULT_HA_JOB_MANAGER_PORT} */

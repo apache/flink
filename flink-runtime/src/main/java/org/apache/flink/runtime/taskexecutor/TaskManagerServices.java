@@ -41,6 +41,7 @@ import org.apache.flink.runtime.query.KvStateClientProxy;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateServer;
 import org.apache.flink.runtime.query.QueryableStateUtils;
+import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
@@ -74,6 +75,7 @@ public class TaskManagerServices {
 	private final TaskSlotTable taskSlotTable;
 	private final JobManagerTable jobManagerTable;
 	private final JobLeaderService jobLeaderService;
+	private final TaskExecutorLocalStateStoresManager taskStateManager;
 
 	private TaskManagerServices(
 		TaskManagerLocation taskManagerLocation,
@@ -84,7 +86,8 @@ public class TaskManagerServices {
 		FileCache fileCache,
 		TaskSlotTable taskSlotTable,
 		JobManagerTable jobManagerTable,
-		JobLeaderService jobLeaderService) {
+		JobLeaderService jobLeaderService,
+		TaskExecutorLocalStateStoresManager taskStateManager) {
 
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.memoryManager = Preconditions.checkNotNull(memoryManager);
@@ -95,6 +98,7 @@ public class TaskManagerServices {
 		this.taskSlotTable = Preconditions.checkNotNull(taskSlotTable);
 		this.jobManagerTable = Preconditions.checkNotNull(jobManagerTable);
 		this.jobLeaderService = Preconditions.checkNotNull(jobLeaderService);
+		this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -135,6 +139,10 @@ public class TaskManagerServices {
 
 	public JobLeaderService getJobLeaderService() {
 		return jobLeaderService;
+	}
+
+	public TaskExecutorLocalStateStoresManager getTaskStateManager() {
+		return taskStateManager;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -189,7 +197,7 @@ public class TaskManagerServices {
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
-
+		final TaskExecutorLocalStateStoresManager taskStateManager = new TaskExecutorLocalStateStoresManager();
 		return new TaskManagerServices(
 			taskManagerLocation,
 			memoryManager,
@@ -199,7 +207,8 @@ public class TaskManagerServices {
 			fileCache,
 			taskSlotTable,
 			jobManagerTable,
-			jobLeaderService);
+			jobLeaderService,
+			taskStateManager);
 	}
 
 	/**

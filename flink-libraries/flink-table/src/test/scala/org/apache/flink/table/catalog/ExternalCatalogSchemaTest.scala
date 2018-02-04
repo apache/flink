@@ -31,6 +31,7 @@ import org.apache.flink.table.calcite.{CalciteConfig, FlinkTypeFactory, FlinkTyp
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.sources.CsvTableSource
+import org.apache.flink.table.utils.MockTableEnvironment
 import org.junit.Assert._
 import org.junit.{Before, Test}
 
@@ -48,7 +49,8 @@ class ExternalCatalogSchemaTest {
   def setUp(): Unit = {
     val rootSchemaPlus: SchemaPlus = CalciteSchema.createRootSchema(true, false).plus()
     val catalog = CommonTestData.getInMemoryTestCatalog
-    ExternalCatalogSchema.registerCatalog(rootSchemaPlus, schemaName, catalog)
+    ExternalCatalogSchema.registerCatalog(
+      new MockTableEnvironment, rootSchemaPlus, schemaName, catalog)
     externalCatalogSchema = rootSchemaPlus.getSubSchema("schemaName")
     val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
     val prop = new Properties()

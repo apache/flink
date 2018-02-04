@@ -168,7 +168,6 @@ under the License.
 		<dependency>
 			<groupId>org.xerial.snappy</groupId>
 			<artifactId>snappy-java</artifactId>
-			<version>1.1.4</version>
 		</dependency>
 
 		<!--
@@ -181,6 +180,13 @@ under the License.
 			<groupId>com.twitter</groupId>
 			<artifactId>chill_${scala.binary.version}</artifactId>
 			<version>${chill.version}</version>
+			<exclusions>
+				<!-- Remove Kryo dependency to force using Flink's own Kryo dependency -->
+				<exclusion>
+					<groupId>com.esotericsoftware.kryo</groupId>
+					<artifactId>kryo</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- Curator and ZooKeeper - we explicitly add ZooKeeper here as

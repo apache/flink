@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.rest.handler.job.BlobServerPortHandler;
 import org.apache.flink.runtime.rest.handler.job.JobSubmitHandler;
 import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
 import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
@@ -46,13 +48,15 @@ import java.util.concurrent.Executor;
 public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway> {
 
 	public DispatcherRestEndpoint(
-			RestServerEndpointConfiguration endpointConfiguration,
-			GatewayRetriever<DispatcherGateway> leaderRetriever,
-			Configuration clusterConfiguration,
-			RestHandlerConfiguration restConfiguration,
-			GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
-			Executor executor,
-			MetricQueryServiceRetriever metricQueryServiceRetriever) {
+		RestServerEndpointConfiguration endpointConfiguration,
+		GatewayRetriever<DispatcherGateway> leaderRetriever,
+		Configuration clusterConfiguration,
+		RestHandlerConfiguration restConfiguration,
+		GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
+		Executor executor,
+		MetricQueryServiceRetriever metricQueryServiceRetriever,
+		LeaderElectionService leaderElectionService,
+		FatalErrorHandler fatalErrorHandler) {
 		super(
 			endpointConfiguration,
 			leaderRetriever,
@@ -60,7 +64,9 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			restConfiguration,
 			resourceManagerRetriever,
 			executor,
-			metricQueryServiceRetriever);
+			metricQueryServiceRetriever,
+			leaderElectionService,
+			fatalErrorHandler);
 	}
 
 	@Override

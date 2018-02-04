@@ -19,6 +19,7 @@
 package org.apache.flink.mesos.runtime.clusterframework;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.util.TestLogger;
 
 import com.netflix.fenzo.ConstraintEvaluator;
@@ -85,6 +86,42 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 	}
 
 	@Test
+	public void testContainerDockerParameter() throws Exception {
+		Configuration config = new Configuration();
+		config.setString(MesosTaskManagerParameters.MESOS_RM_CONTAINER_DOCKER_PARAMETERS, "testKey=testValue");
+
+		MesosTaskManagerParameters params = MesosTaskManagerParameters.create(config);
+		assertEquals(params.dockerParameters().size(), 1);
+		assertEquals(params.dockerParameters().get(0).getKey(), "testKey");
+		assertEquals(params.dockerParameters().get(0).getValue(), "testValue");
+	}
+
+	@Test
+	public void testContainerDockerParameters() throws Exception {
+		Configuration config = new Configuration();
+		config.setString(MesosTaskManagerParameters.MESOS_RM_CONTAINER_DOCKER_PARAMETERS,
+				"testKey1=testValue1,testKey2=testValue2,testParam3=key3=value3,testParam4=\"key4=value4\"");
+
+		MesosTaskManagerParameters params = MesosTaskManagerParameters.create(config);
+		assertEquals(params.dockerParameters().size(), 4);
+		assertEquals(params.dockerParameters().get(0).getKey(), "testKey1");
+		assertEquals(params.dockerParameters().get(0).getValue(), "testValue1");
+		assertEquals(params.dockerParameters().get(1).getKey(), "testKey2");
+		assertEquals(params.dockerParameters().get(1).getValue(), "testValue2");
+		assertEquals(params.dockerParameters().get(2).getKey(), "testParam3");
+		assertEquals(params.dockerParameters().get(2).getValue(), "key3=value3");
+		assertEquals(params.dockerParameters().get(3).getKey(), "testParam4");
+		assertEquals(params.dockerParameters().get(3).getValue(), "\"key4=value4\"");
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testContainerDockerParametersMalformed() throws Exception {
+		Configuration config = new Configuration();
+		config.setString(MesosTaskManagerParameters.MESOS_RM_CONTAINER_DOCKER_PARAMETERS, "badParam");
+		MesosTaskManagerParameters params = MesosTaskManagerParameters.create(config);
+	}
+
+	@Test
 	public void givenTwoConstraintsInConfigShouldBeParsed() throws Exception {
 
 		MesosTaskManagerParameters mesosTaskManagerParameters = MesosTaskManagerParameters.create(withHardHostAttrConstraintConfiguration("cluster:foo,az:eu-west-1"));
@@ -132,6 +169,17 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 
 		MesosTaskManagerParameters mesosTaskManagerParameters = MesosTaskManagerParameters.create(withHardHostAttrConstraintConfiguration(",:,"));
 		assertThat(mesosTaskManagerParameters.constraints().size(), is(0));
+	}
+
+	@Test(expected = IllegalConfigurationException.class)
+	public void testNegativeNumberOfGPUs() throws Exception {
+		MesosTaskManagerParameters.create(withGPUConfiguration(-1));
+	}
+
+	private static Configuration withGPUConfiguration(int gpus) {
+		Configuration config = new Configuration();
+		config.setInteger(MesosTaskManagerParameters.MESOS_RM_TASKS_GPUS, gpus);
+		return config;
 	}
 
 	private static Configuration withHardHostAttrConstraintConfiguration(final String configuration) {

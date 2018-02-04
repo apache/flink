@@ -30,7 +30,7 @@ import org.apache.flink.configuration.{Configuration, JobManagerOptions}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint
-import org.apache.flink.runtime.checkpoint.{CheckpointOptions, CheckpointRecoveryFactory}
+import org.apache.flink.runtime.checkpoint.{CheckpointOptions, CheckpointRecoveryFactory, CheckpointRetentionPolicy}
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
@@ -383,7 +383,10 @@ class TestingCluster(
   }
 
   @throws(classOf[IOException])
-  def requestCheckpoint(jobId: JobID, options : CheckpointOptions): String = {
+  def requestCheckpoint(
+      jobId: JobID,
+      checkpointRetentionPolicy: CheckpointRetentionPolicy): String = {
+
     val jobManagerGateway = getLeaderGateway(timeout)
 
     // wait until the cluster is ready to take a checkpoint.
@@ -394,7 +397,7 @@ class TestingCluster(
 
     // trigger checkpoint
     val result = Await.result(
-      jobManagerGateway.ask(CheckpointRequest(jobId, options), timeout), timeout)
+      jobManagerGateway.ask(CheckpointRequest(jobId, checkpointRetentionPolicy), timeout), timeout)
 
     result match {
       case success: CheckpointRequestSuccess => success.path

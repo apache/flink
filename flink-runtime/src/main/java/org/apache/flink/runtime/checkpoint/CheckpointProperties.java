@@ -18,27 +18,31 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 
 import java.io.Serializable;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * The configuration of a checkpoint, such as whether
+ * The configuration of a checkpoint. This describes whether
  * <ul>
- *     <li>The checkpoint should be persisted</li>
- *     <li>The checkpoint must be full, or may be incremental (not yet implemented)</li>
- *     <li>The checkpoint format must be the common (cross backend) format,
- *     or may be state-backend specific (not yet implemented)</li>
- *     <li>when the checkpoint should be garbage collected</li>
+ *     <li>The checkpoint is s regular checkpoint or a savepoint.</li>
+ *     <li>When the checkpoint should be garbage collected.</li>
  * </ul>
  */
 public class CheckpointProperties implements Serializable {
 
-	private static final long serialVersionUID = -8835900655844879470L;
+	private static final long serialVersionUID = 2L;
 
+	/** Type - checkpoint / savepoint. */
+	private final CheckpointType checkpointType;
+
+	/** This has a misleading name and actually means whether the snapshot must be triggered,
+	 * or whether it may be rejected by the checkpoint coordinator if too many checkpoints are
+	 * currently in progress. */
 	private final boolean forced;
-
-	private final boolean savepoint;
 
 	private final boolean discardSubsumed;
 	private final boolean discardFinished;
@@ -46,9 +50,10 @@ public class CheckpointProperties implements Serializable {
 	private final boolean discardFailed;
 	private final boolean discardSuspended;
 
+	@VisibleForTesting
 	CheckpointProperties(
 			boolean forced,
-			boolean savepoint,
+			CheckpointType checkpointType,
 			boolean discardSubsumed,
 			boolean discardFinished,
 			boolean discardCancelled,
@@ -56,7 +61,7 @@ public class CheckpointProperties implements Serializable {
 			boolean discardSuspended) {
 
 		this.forced = forced;
-		this.savepoint = savepoint;
+		this.checkpointType = checkNotNull(checkpointType);
 		this.discardSubsumed = discardSubsumed;
 		this.discardFinished = discardFinished;
 		this.discardCancelled = discardCancelled;
@@ -159,12 +164,19 @@ public class CheckpointProperties implements Serializable {
 	}
 
 	/**
+	 * Gets the type of the checkpoint (checkpoint / savepoint).
+	 */
+	public CheckpointType getCheckpointType() {
+		return checkpointType;
+	}
+
+	/**
 	 * Returns whether the checkpoint properties describe a standard savepoint.
 	 *
 	 * @return <code>true</code> if the properties describe a savepoint, <code>false</code> otherwise.
 	 */
 	public boolean isSavepoint() {
-		return savepoint;
+		return checkpointType == CheckpointType.SAVEPOINT;
 	}
 
 	// ------------------------------------------------------------------------
@@ -181,7 +193,7 @@ public class CheckpointProperties implements Serializable {
 
 		CheckpointProperties that = (CheckpointProperties) o;
 		return forced == that.forced &&
-				savepoint == that.savepoint &&
+				checkpointType == that.checkpointType &&
 				discardSubsumed == that.discardSubsumed &&
 				discardFinished == that.discardFinished &&
 				discardCancelled == that.discardCancelled &&
@@ -192,7 +204,7 @@ public class CheckpointProperties implements Serializable {
 	@Override
 	public int hashCode() {
 		int result = (forced ? 1 : 0);
-		result = 31 * result + (savepoint ? 1 : 0);
+		result = 31 * result + checkpointType.hashCode();
 		result = 31 * result + (discardSubsumed ? 1 : 0);
 		result = 31 * result + (discardFinished ? 1 : 0);
 		result = 31 * result + (discardCancelled ? 1 : 0);
@@ -205,7 +217,7 @@ public class CheckpointProperties implements Serializable {
 	public String toString() {
 		return "CheckpointProperties{" +
 				"forced=" + forced +
-				", savepoint=" + savepoint +
+				", checkpointType=" + checkpointType +
 				", discardSubsumed=" + discardSubsumed +
 				", discardFinished=" + discardFinished +
 				", discardCancelled=" + discardCancelled +
@@ -215,10 +227,12 @@ public class CheckpointProperties implements Serializable {
 	}
 
 	// ------------------------------------------------------------------------
+	//  Factories and pre-configured properties
+	// ------------------------------------------------------------------------
 
 	private static final CheckpointProperties SAVEPOINT = new CheckpointProperties(
 			true,
-			true,
+			CheckpointType.SAVEPOINT,
 			false,
 			false,
 			false,
@@ -227,7 +241,7 @@ public class CheckpointProperties implements Serializable {
 
 	private static final CheckpointProperties CHECKPOINT_NEVER_RETAINED = new CheckpointProperties(
 			false,
-			false,
+			CheckpointType.CHECKPOINT,
 			true,
 			true,  // Delete on success
 			true,  // Delete on cancellation
@@ -236,7 +250,7 @@ public class CheckpointProperties implements Serializable {
 
 	private static final CheckpointProperties CHECKPOINT_RETAINED_ON_FAILURE = new CheckpointProperties(
 			false,
-			false,
+			CheckpointType.CHECKPOINT,
 			true,
 			true,  // Delete on success
 			true,  // Delete on cancellation
@@ -245,7 +259,7 @@ public class CheckpointProperties implements Serializable {
 
 	private static final CheckpointProperties CHECKPOINT_RETAINED_ON_CANCELLATION = new CheckpointProperties(
 			false,
-			false,
+			CheckpointType.CHECKPOINT,
 			true,
 			true,   // Delete on success
 			false,  // Retain on cancellation

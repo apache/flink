@@ -89,8 +89,7 @@ object ScalarFunctions {
   def log(x: Double): Double = {
     if (x <= 0.0) {
       throw new IllegalArgumentException(s"x of 'log(x)' must be > 0, but x = $x")
-    }
-    else {
+    } else {
       Math.log(x)
     }
   }
@@ -104,9 +103,83 @@ object ScalarFunctions {
     }
     if (base <= 1.0) {
       throw new IllegalArgumentException(s"base of 'log(base, x)' must be > 1, but base = $base")
-    }
-    else {
+    } else {
       Math.log(x) / Math.log(base)
     }
+  }
+
+  /**
+    * Returns the string str left-padded with the string pad to a length of len characters.
+    * If str is longer than len, the return value is shortened to len characters.
+    */
+  def lpad(base: String, len: Integer, pad: String): String = {
+    if (len < 0) {
+      return null
+    } else if (len == 0) {
+      return ""
+    }
+
+    val data = new Array[Char](len)
+    val baseChars = base.toCharArray
+    val padChars = pad.toCharArray
+
+    // The length of the padding needed
+    val pos = Math.max(len - base.length, 0)
+
+    // Copy the padding
+    var i = 0
+    while (i < pos) {
+      var j = 0
+      while (j < pad.length && j < pos - i) {
+        data(i + j) = padChars(j)
+        j += 1
+      }
+      i += pad.length
+    }
+
+    // Copy the base
+    i = 0
+    while (pos + i < len && i < base.length) {
+      data(pos + i) = baseChars(i)
+      i += 1
+    }
+
+    new String(data)
+  }
+
+  /**
+    * Returns the string str right-padded with the string pad to a length of len characters.
+    * If str is longer than len, the return value is shortened to len characters.
+    */
+  def rpad(base: String, len: Integer, pad: String): String = {
+    if (len < 0) {
+      return null
+    } else if (len == 0) {
+      return ""
+    }
+
+    val data = new Array[Char](len)
+    val baseChars = base.toCharArray
+    val padChars = pad.toCharArray
+
+    var pos = 0
+
+    // Copy the base
+    while (pos < base.length && pos < len) {
+      data(pos) = baseChars(pos)
+      pos += 1
+    }
+
+    // Copy the padding
+    while (pos < len) {
+      var i = 0
+      while (i < pad.length && i < len - pos) {
+        data(pos + i) = padChars(i)
+        i += 1
+      }
+      pos += pad.length
+    }
+
+    new String(data)
   }
 }

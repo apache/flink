@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -80,11 +81,12 @@ public class RestEndpointITCase extends TestLogger {
 	private static final Time timeout = Time.seconds(10L);
 
 	private RestServerEndpoint serverEndpoint;
-	private RestClient clientEndpoint;
+	private RestClient restClient;
 
 	@Before
 	public void setup() throws Exception {
 		Configuration config = new Configuration();
+		config.setInteger(RestOptions.REST_PORT, 0);
 
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 		RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
@@ -101,16 +103,16 @@ public class RestEndpointITCase extends TestLogger {
 			RpcUtils.INF_TIMEOUT);
 
 		serverEndpoint = new TestRestServerEndpoint(serverConfig, testHandler);
-		clientEndpoint = new TestRestClient(clientConfig);
+		restClient = new TestRestClient(clientConfig);
 
 		serverEndpoint.start();
 	}
 
 	@After
 	public void teardown() {
-		if (clientEndpoint != null) {
-			clientEndpoint.shutdown(timeout);
-			clientEndpoint = null;
+		if (restClient != null) {
+			restClient.shutdown(timeout);
+			restClient = null;
 		}
 
 		if (serverEndpoint != null) {
@@ -135,7 +137,7 @@ public class RestEndpointITCase extends TestLogger {
 		final InetSocketAddress serverAddress = serverEndpoint.getServerAddress();
 
 		synchronized (TestHandler.LOCK) {
-			response1 = clientEndpoint.sendRequest(
+			response1 = restClient.sendRequest(
 				serverAddress.getHostName(),
 				serverAddress.getPort(),
 				new TestHeaders(),
@@ -145,7 +147,7 @@ public class RestEndpointITCase extends TestLogger {
 		}
 
 		// send second request and verify response
-		CompletableFuture<TestResponse> response2 = clientEndpoint.sendRequest(
+		CompletableFuture<TestResponse> response2 = restClient.sendRequest(
 			serverAddress.getHostName(),
 			serverAddress.getPort(),
 			new TestHeaders(),
@@ -176,7 +178,7 @@ public class RestEndpointITCase extends TestLogger {
 		parameters.faultyJobIDPathParameter.resolve(PATH_JOB_ID);
 		((TestParameters) parameters).jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
 
-		CompletableFuture<TestResponse> response = clientEndpoint.sendRequest(
+		CompletableFuture<TestResponse> response = restClient.sendRequest(
 			serverAddress.getHostName(),
 			serverAddress.getPort(),
 			new TestHeaders(),

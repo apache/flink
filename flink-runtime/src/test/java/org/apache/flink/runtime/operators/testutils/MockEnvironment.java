@@ -44,6 +44,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.types.Record;
@@ -72,6 +73,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final IOManager ioManager;
 
+	private final TestTaskStateManager taskStateManager;
+
 	private final InputSplitProvider inputSplitProvider;
 
 	private final Configuration jobConfiguration;
@@ -96,11 +99,31 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
-	public MockEnvironment(String taskName, long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
-		this(taskName, memorySize, inputSplitProvider, bufferSize, new Configuration(), new ExecutionConfig());
+	private Throwable failExternallyCause;
+
+	public MockEnvironment(
+		String taskName,
+		long memorySize,
+		MockInputSplitProvider inputSplitProvider,
+		int bufferSize,
+		TestTaskStateManager taskStateManager) {
+		this(
+			taskName,
+			memorySize,
+			inputSplitProvider,
+			bufferSize,
+			new Configuration(),
+			new ExecutionConfig(),
+			taskStateManager);
 	}
 
-	public MockEnvironment(String taskName, long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize, Configuration taskConfiguration, ExecutionConfig executionConfig) {
+	public MockEnvironment(
+		String taskName,
+		long memorySize,
+		MockInputSplitProvider inputSplitProvider,
+		int bufferSize, Configuration taskConfiguration,
+		ExecutionConfig executionConfig,
+		TestTaskStateManager taskStateManager) {
 		this(
 			taskName,
 			memorySize,
@@ -108,6 +131,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 			bufferSize,
 			taskConfiguration,
 			executionConfig,
+			taskStateManager,
 			1,
 			1,
 			0);
@@ -120,6 +144,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 			int bufferSize,
 			Configuration taskConfiguration,
 			ExecutionConfig executionConfig,
+			TestTaskStateManager taskStateManager,
 			int maxParallelism,
 			int parallelism,
 			int subtaskIndex) {
@@ -133,7 +158,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 			maxParallelism,
 			parallelism,
 			subtaskIndex,
-			Thread.currentThread().getContextClassLoader());
+			Thread.currentThread().getContextClassLoader(),
+			taskStateManager);
 
 	}
 
@@ -147,7 +173,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 			int maxParallelism,
 			int parallelism,
 			int subtaskIndex,
-			ClassLoader userCodeClassLoader) {
+			ClassLoader userCodeClassLoader,
+			TestTaskStateManager taskStateManager) {
 		this.taskInfo = new TaskInfo(taskName, maxParallelism, subtaskIndex, parallelism, 0);
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = taskConfiguration;
@@ -156,6 +183,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 		this.memManager = new MemoryManager(memorySize, 1);
 		this.ioManager = new IOManagerAsync();
+
 		this.executionConfig = executionConfig;
 		this.inputSplitProvider = inputSplitProvider;
 		this.bufferSize = bufferSize;
@@ -166,6 +194,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		this.kvStateRegistry = registry.createTaskRegistry(jobID, getJobVertexId());
 
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
+		this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
 	}
 
 
@@ -295,6 +324,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
 	}
 
 	@Override
+	public TestTaskStateManager getTaskStateManager() {
+		return taskStateManager;
+	}
+
+	@Override
 	public AccumulatorRegistry getAccumulatorRegistry() {
 		return this.accumulatorRegistry;
 	}
@@ -321,7 +355,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	@Override
 	public void failExternally(Throwable cause) {
-		throw new UnsupportedOperationException("MockEnvironment does not support external task failure.");
+		this.failExternallyCause = Preconditions.checkNotNull(cause, "Must give a cause fail fail.");
 	}
 
 	@Override
@@ -335,5 +369,9 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		ioManager.shutdown();
 
 		checkState(ioManager.isProperlyShutDown(), "IO Manager has not properly shut down.");
+	}
+
+	public Throwable getFailExternallyCause() {
+		return failExternallyCause;
 	}
 }

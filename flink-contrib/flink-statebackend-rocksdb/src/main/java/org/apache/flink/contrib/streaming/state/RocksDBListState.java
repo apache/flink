@@ -21,7 +21,6 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.contrib.streaming.state.util.MergeUtils;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -59,6 +58,11 @@ public class RocksDBListState<K, N, V>
 	 * because JNI segfaults for some reason if they are.
 	 */
 	private final WriteOptions writeOptions;
+
+	/**
+	 * Separator of StringAppendTestOperator in RocksDB.
+	 */
+	private static final byte DELIMITER = ',';
 
 	/**
 	 * Creates a new {@code RocksDBListState}.
@@ -108,6 +112,10 @@ public class RocksDBListState<K, N, V>
 
 	@Override
 	public void add(V value) throws IOException {
+		if (value == null) {
+			return;
+		}
+
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
 			byte[] key = keySerializationStream.toByteArray();
@@ -202,13 +210,17 @@ public class RocksDBListState<K, N, V>
 	private byte[] getPreMergedValue(List<V> values) throws IOException {
 		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
 
-		List<byte[]> bytes = new ArrayList<>(values.size());
+		keySerializationStream.reset();
+		boolean first = true;
 		for (V value : values) {
-			keySerializationStream.reset();
+			if (first) {
+				first = false;
+			} else {
+				keySerializationStream.write(DELIMITER);
+			}
 			valueSerializer.serialize(value, out);
-			bytes.add(keySerializationStream.toByteArray());
 		}
 
-		return MergeUtils.merge(bytes);
+		return keySerializationStream.toByteArray();
 	}
 }

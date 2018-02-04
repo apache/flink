@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
-import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.util.Preconditions;
+
+import java.util.Objects;
 
 /**
  * A simple container for a handler's JSON response and the REST URLs for which the response would've been returned.
@@ -53,6 +54,11 @@ public class ArchivedJson {
 		} else {
 			return false;
 		}
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(path, json);
 	}
 
 	@Override

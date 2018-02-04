@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -34,8 +33,6 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 
 import org.junit.Test;
-
-import javax.annotation.Nullable;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -69,7 +66,7 @@ public class StreamTaskCancellationBarrierTest {
 
 		// tell the task to commence a checkpoint
 		boolean result = task.triggerCheckpoint(new CheckpointMetaData(41L, System.currentTimeMillis()),
-			CheckpointOptions.forCheckpoint());
+			CheckpointOptions.forCheckpointWithDefaultLocation());
 		assertFalse("task triggered checkpoint though not ready", result);
 
 		// a cancellation barrier should be downstream
@@ -177,8 +174,8 @@ public class StreamTaskCancellationBarrierTest {
 		private final Object lock = new Object();
 		private volatile boolean running = true;
 
-		protected InitBlockingTask(Environment env, @Nullable TaskStateSnapshot initialState) {
-			super(env, initialState);
+		protected InitBlockingTask(Environment env) {
+			super(env);
 		}
 
 		@Override

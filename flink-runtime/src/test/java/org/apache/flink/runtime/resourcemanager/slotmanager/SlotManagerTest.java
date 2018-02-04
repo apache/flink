@@ -36,6 +36,7 @@ import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnect
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.testutils.category.Flip6;
@@ -53,10 +54,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -1067,6 +1071,66 @@ public class SlotManagerTest extends TestLogger {
 			slotManager.unregisterTaskManager(taskExecutorConnection.getInstanceID());
 
 			assertEquals(0, slotManager.getNumberRegisteredSlots());
+		}
+	}
+
+	/**
+	 * Tests that free slots which are reported as allocated won't be considered for fulfilling
+	 * other pending slot requests.
+	 *
+	 * <p>See: FLINK-8505
+	 */
+	@Test
+	public void testReportAllocatedSlot() throws Exception {
+		final ResourceActions resourceActions = mock(ResourceActions.class);
+		final TestingTaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGateway();
+		final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(taskExecutorGateway);
+		final ResourceID taskManagerId = ResourceID.generate();
+
+		try (final SlotManager slotManager = new SlotManager(
+			TestingUtils.defaultScheduledExecutor(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime())) {
+
+			slotManager.start(ResourceManagerId.generate(), Executors.directExecutor(), resourceActions);
+
+			// initially report a single slot as free
+			final SlotID slotId = new SlotID(taskManagerId, 0);
+			final SlotStatus initialSlotStatus = new SlotStatus(
+				slotId,
+				ResourceProfile.UNKNOWN);
+			final SlotReport initialSlotReport = new SlotReport(initialSlotStatus);
+
+			slotManager.registerTaskManager(taskExecutorConnection, initialSlotReport);
+
+			assertThat(slotManager.getNumberRegisteredSlots(), is(equalTo(1)));
+
+			// Now report this slot as allocated
+			final SlotStatus slotStatus = new SlotStatus(
+				slotId,
+				ResourceProfile.UNKNOWN,
+				new JobID(),
+				new AllocationID());
+			final SlotReport slotReport = new SlotReport(
+				slotStatus);
+
+			slotManager.reportSlotStatus(
+				taskExecutorConnection.getInstanceID(),
+				slotReport);
+
+			// this slot request should not be fulfilled
+			final AllocationID allocationId = new AllocationID();
+			final SlotRequest slotRequest = new SlotRequest(
+				new JobID(),
+				allocationId,
+				ResourceProfile.UNKNOWN,
+				"foobar");
+
+			// This triggered an IllegalStateException before
+			slotManager.registerSlotRequest(slotRequest);
+
+			assertThat(slotManager.getSlotRequest(allocationId).isAssigned(), is(false));
 		}
 	}
 

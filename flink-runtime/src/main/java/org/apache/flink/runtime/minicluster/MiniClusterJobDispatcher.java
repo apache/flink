@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -361,12 +362,7 @@ public class MiniClusterJobDispatcher {
 		}
 
 		@Override
-		public void jobFinished(JobResult result) {
-			decrementCheckAndCleanup();
-		}
-
-		@Override
-		public void jobFailed(JobResult result) {
+		public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
 			decrementCheckAndCleanup();
 		}
 
@@ -414,16 +410,8 @@ public class MiniClusterJobDispatcher {
 		}
 
 		@Override
-		public void jobFinished(JobResult result) {
-			this.result = result;
-			jobMastersToWaitFor.countDown();
-		}
-
-		@Override
-		public void jobFailed(JobResult result) {
-			checkArgument(result.getSerializedThrowable().isPresent());
-
-			this.result = result;
+		public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
+			this.result = JobResult.createFrom(executionGraph);
 			jobMastersToWaitFor.countDown();
 		}
 

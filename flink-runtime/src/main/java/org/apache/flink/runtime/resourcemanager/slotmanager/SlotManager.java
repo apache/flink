@@ -63,54 +63,54 @@ import java.util.concurrent.TimeoutException;
  * are not enough slots available the slot manager will notify the resource manager about it via
  * {@link ResourceActions#allocateResource(ResourceProfile)}.
  *
- * In order to free resources and avoid resource leaks, idling task managers (task managers whose
+ * <p>In order to free resources and avoid resource leaks, idling task managers (task managers whose
  * slots are currently not used) and pending slot requests time out triggering their release and
  * failure, respectively.
  */
 public class SlotManager implements AutoCloseable {
 	private static final Logger LOG = LoggerFactory.getLogger(SlotManager.class);
 
-	/** Scheduled executor for timeouts */
+	/** Scheduled executor for timeouts. */
 	private final ScheduledExecutor scheduledExecutor;
 
-	/** Timeout for slot requests to the task manager */
+	/** Timeout for slot requests to the task manager. */
 	private final Time taskManagerRequestTimeout;
 
-	/** Timeout after which an allocation is discarded */
+	/** Timeout after which an allocation is discarded. */
 	private final Time slotRequestTimeout;
 
-	/** Timeout after which an unused TaskManager is released */
+	/** Timeout after which an unused TaskManager is released. */
 	private final Time taskManagerTimeout;
 
-	/** Map for all registered slots */
+	/** Map for all registered slots. */
 	private final HashMap<SlotID, TaskManagerSlot> slots;
 
-	/** Index of all currently free slots */
+	/** Index of all currently free slots. */
 	private final LinkedHashMap<SlotID, TaskManagerSlot> freeSlots;
 
-	/** All currently registered task managers */
+	/** All currently registered task managers. */
 	private final HashMap<InstanceID, TaskManagerRegistration> taskManagerRegistrations;
 
-	/** Map of fulfilled and active allocations for request deduplication purposes */
+	/** Map of fulfilled and active allocations for request deduplication purposes. */
 	private final HashMap<AllocationID, SlotID> fulfilledSlotRequests;
 
-	/** Map of pending/unfulfilled slot allocation requests */
+	/** Map of pending/unfulfilled slot allocation requests. */
 	private final HashMap<AllocationID, PendingSlotRequest> pendingSlotRequests;
 
-	/** ResourceManager's id */
+	/** ResourceManager's id. */
 	private ResourceManagerId resourceManagerId;
 
-	/** Executor for future callbacks which have to be "synchronized" */
+	/** Executor for future callbacks which have to be "synchronized". */
 	private Executor mainThreadExecutor;
 
-	/** Callbacks for resource (de-)allocations */
+	/** Callbacks for resource (de-)allocations. */
 	private ResourceActions resourceActions;
 
 	private ScheduledFuture<?> taskManagerTimeoutCheck;
 
 	private ScheduledFuture<?> slotRequestTimeoutCheck;
 
-	/** True iff the component has been started */
+	/** True iff the component has been started. */
 	private boolean started;
 
 	public SlotManager(
@@ -186,29 +186,19 @@ public class SlotManager implements AutoCloseable {
 
 		started = true;
 
-		taskManagerTimeoutCheck = scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
-			@Override
-			public void run() {
-				mainThreadExecutor.execute(new Runnable() {
-					@Override
-					public void run() {
-						checkTaskManagerTimeouts();
-					}
-				});
-			}
-		}, 0L, taskManagerTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+		taskManagerTimeoutCheck = scheduledExecutor.scheduleWithFixedDelay(
+			() -> mainThreadExecutor.execute(
+				() -> checkTaskManagerTimeouts()),
+			0L,
+			taskManagerTimeout.toMilliseconds(),
+			TimeUnit.MILLISECONDS);
 
-		slotRequestTimeoutCheck = scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
-			@Override
-			public void run() {
-				mainThreadExecutor.execute(new Runnable() {
-					@Override
-					public void run() {
-						checkSlotRequestTimeouts();
-					}
-				});
-			}
-		}, 0L, slotRequestTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+		slotRequestTimeoutCheck = scheduledExecutor.scheduleWithFixedDelay(
+			() -> mainThreadExecutor.execute(
+				() -> checkSlotRequestTimeouts()),
+			0L,
+			slotRequestTimeout.toMilliseconds(),
+			TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -388,6 +378,8 @@ public class SlotManager implements AutoCloseable {
 	public boolean reportSlotStatus(InstanceID instanceId, SlotReport slotReport) {
 		checkInit();
 
+		LOG.info("Received slot report from instance {}.", instanceId);
+
 		TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(instanceId);
 
 		if (null != taskManagerRegistration) {
@@ -448,7 +440,7 @@ public class SlotManager implements AutoCloseable {
 	 * Finds a matching slot request for a given resource profile. If there is no such request,
 	 * the method returns null.
 	 *
-	 * Note: If you want to change the behaviour of the slot manager wrt slot allocation and
+	 * <p>Note: If you want to change the behaviour of the slot manager wrt slot allocation and
 	 * request fulfillment, then you should override this method.
 	 *
 	 * @param slotResourceProfile defining the resources of an available slot
@@ -471,7 +463,7 @@ public class SlotManager implements AutoCloseable {
 	 * resources available as the given resource profile. If there is no such slot available, then
 	 * the method returns null.
 	 *
-	 * Note: If you want to change the behaviour of the slot manager wrt slot allocation and
+	 * <p>Note: If you want to change the behaviour of the slot manager wrt slot allocation and
 	 * request fulfillment, then you should override this method.
 	 *
 	 * @param requestResourceProfile specifying the resource requirements for the a slot request
@@ -485,7 +477,10 @@ public class SlotManager implements AutoCloseable {
 			TaskManagerSlot taskManagerSlot = iterator.next().getValue();
 
 			// sanity check
-			Preconditions.checkState(taskManagerSlot.getState() == TaskManagerSlot.State.FREE);
+			Preconditions.checkState(
+				taskManagerSlot.getState() == TaskManagerSlot.State.FREE,
+				"TaskManagerSlot %s is not in state FREE but %s.",
+				taskManagerSlot.getSlotId(), taskManagerSlot.getState());
 
 			if (taskManagerSlot.getResourceProfile().isMatching(requestResourceProfile)) {
 				iterator.remove();
@@ -595,6 +590,8 @@ public class SlotManager implements AutoCloseable {
 					}
 					break;
 				case FREE:
+					// the slot is currently free --> it is stored in freeSlots
+					freeSlots.remove(slot.getSlotId());
 					slot.updateAllocation(allocationId);
 					taskManagerRegistration.occupySlot();
 					break;

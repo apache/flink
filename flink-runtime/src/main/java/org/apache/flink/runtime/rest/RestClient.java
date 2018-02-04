@@ -21,8 +21,6 @@ package org.apache.flink.runtime.rest;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
-import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
@@ -31,7 +29,6 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rest.util.RestConstants;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
@@ -42,9 +39,11 @@ import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufInputStream;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOption;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
@@ -110,6 +109,7 @@ public class RestClient {
 
 		bootstrap = new Bootstrap();
 		bootstrap
+			.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Math.toIntExact(configuration.getConnectionTimeout()))
 			.group(group)
 			.channel(NioSocketChannel.class)
 			.handler(initializer);
@@ -141,18 +141,6 @@ public class RestClient {
 		}
 	}
 
-	public <M extends MessageHeaders<EmptyRequestBody, P, U>, U extends MessageParameters, P extends ResponseBody> CompletableFuture<P> sendRequest(String targetAddress, int targetPort, M messageHeaders, U messageParameters) throws IOException {
-		return sendRequest(targetAddress, targetPort, messageHeaders, messageParameters, EmptyRequestBody.getInstance());
-	}
-
-	public <M extends MessageHeaders<R, P, EmptyMessageParameters>, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(String targetAddress, int targetPort, M messageHeaders, R request) throws IOException {
-		return sendRequest(targetAddress, targetPort, messageHeaders, EmptyMessageParameters.getInstance(), request);
-	}
-
-	public <M extends MessageHeaders<EmptyRequestBody, P, EmptyMessageParameters>, P extends ResponseBody> CompletableFuture<P> sendRequest(String targetAddress, int targetPort, M messageHeaders) throws IOException {
-		return sendRequest(targetAddress, targetPort, messageHeaders, EmptyMessageParameters.getInstance(), EmptyRequestBody.getInstance());
-	}
-
 	public <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(String targetAddress, int targetPort, M messageHeaders, U messageParameters, R request) throws IOException {
 		Preconditions.checkNotNull(targetAddress);
 		Preconditions.checkArgument(0 <= targetPort && targetPort < 65536, "The target port " + targetPort + " is not in the range (0, 65536].");
@@ -181,24 +169,31 @@ public class RestClient {
 	}
 
 	private <P extends ResponseBody> CompletableFuture<P> submitRequest(String targetAddress, int targetPort, FullHttpRequest httpRequest, Class<P> responseClass) {
-		return CompletableFuture.supplyAsync(() -> bootstrap.connect(targetAddress, targetPort), executor)
-			.thenApply((channel) -> {
-				try {
-					return channel.sync();
-				} catch (InterruptedException e) {
-					throw new FlinkRuntimeException(e);
+		final ChannelFuture connectFuture = bootstrap.connect(targetAddress, targetPort);
+
+		final CompletableFuture<Channel> channelFuture = new CompletableFuture<>();
+
+		connectFuture.addListener(
+			(ChannelFuture future) -> {
+				if (future.isSuccess()) {
+					channelFuture.complete(future.channel());
+				} else {
+					channelFuture.completeExceptionally(future.cause());
 				}
-			})
-			.thenApply((ChannelFuture::channel))
-			.thenCompose(channel -> {
-				ClientHandler handler = channel.pipeline().get(ClientHandler.class);
-				CompletableFuture<JsonResponse> future = handler.getJsonFuture();
-				channel.writeAndFlush(httpRequest);
-				return future;
-			}).thenComposeAsync(
+			});
+
+		return channelFuture
+			.thenComposeAsync(
+				channel -> {
+					ClientHandler handler = channel.pipeline().get(ClientHandler.class);
+					CompletableFuture<JsonResponse> future = handler.getJsonFuture();
+					channel.writeAndFlush(httpRequest);
+					return future;
+				},
+				executor)
+			.thenComposeAsync(
 				(JsonResponse rawResponse) -> parseResponse(rawResponse, responseClass),
-				executor
-			);
+				executor);
 	}
 
 	private static <P extends ResponseBody> CompletableFuture<P> parseResponse(JsonResponse rawResponse, Class<P> responseClass) {
@@ -254,6 +249,12 @@ public class RestClient {
 				}
 
 			}
+			ctx.close();
+		}
+
+		@Override
+		public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) throws Exception {
+			jsonFuture.completeExceptionally(cause);
 			ctx.close();
 		}
 

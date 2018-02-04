@@ -34,9 +34,15 @@ import org.apache.flink.streaming.runtime.partitioner._
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.util.Collector
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Rule, Test}
+import org.junit.rules.ExpectedException
 
 class DataStreamTest extends AbstractTestBase {
+
+  private val expectedException = ExpectedException.none()
+
+  @Rule
+  def thrownException = expectedException
 
   @Test
   def testNaming(): Unit = {
@@ -297,6 +303,26 @@ class DataStreamTest extends AbstractTestBase {
 
     sink.setParallelism(4)
     assert(4 == env.getStreamGraph.getStreamNode(sink.getTransformation.getId).getParallelism)
+  }
+
+
+  /**
+    * Tests setting the parallelism after a partitioning operation (e.g., broadcast, rescale)
+    * should fail.
+    */
+  @Test
+  def testParallelismFailAfterPartitioning(): Unit = {
+    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+
+    val src = env.fromElements(new Tuple2[Long, Long](0L, 0L))
+    val map = src.map(_ => (0L, 0L))
+
+    // This could be replaced with other partitioning operations (e.g., rescale, shuffle, forward),
+    // which trigger the setConnectionType() method.
+    val broadcastStream = map.broadcast
+    thrownException.expect(classOf[UnsupportedOperationException])
+    thrownException.expectMessage("cannot set the parallelism")
+    broadcastStream.setParallelism(1)
   }
 
   /**

@@ -1755,6 +1755,27 @@ CONCAT_WS(separator, string1, string2,...)
       </td>
       <td>
         <p>Returns the string that results from concatenating the arguments using a separator. The separator is added between the strings to be concatenated. Returns NULL If the separator is NULL. CONCAT_WS() does not skip empty strings. However, it does skip any NULL argument. E.g. <code>CONCAT_WS("~", "AA", "BB", "", "CC")</code> returns <code>AA~BB~~CC</code></p>
+  </td>
+    </tr>
+
+        <tr>
+      <td>
+        {% highlight text %}
+LPAD(text string, len integer, pad string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the string text left-padded with the string pad to a length of len characters. If text is longer than len, the return value is shortened to len characters. E.g. <code>LPAD('hi',4,'??')</code> returns <code>??hi</code>, <code>LPAD('hi',1,'??')</code> returns <code>h</code>.</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        {% highlight text %}
+RPAD(text string, len integer, pad string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the string text right-padded with the string pad to a length of len characters. If text is longer than len, the return value is shortened to len characters. E.g. <code>RPAD('hi',4,'??')</code> returns <code>hi??</code>, <code>RPAD('hi',1,'??')</code> returns <code>h</code>.</p>
       </td>
     </tr>
 

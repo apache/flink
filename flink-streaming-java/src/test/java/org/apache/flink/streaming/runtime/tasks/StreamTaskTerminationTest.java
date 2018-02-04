@@ -28,7 +28,6 @@ import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -55,11 +54,13 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
@@ -74,8 +75,6 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -156,11 +155,11 @@ public class StreamTaskTerminationTest extends TestLogger {
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 			Collections.<InputGateDeploymentDescriptor>emptyList(),
 			0,
-			null,
 			new MemoryManager(32L * 1024L, 1),
 			new IOManagerAsync(),
 			networkEnv,
 			mock(BroadcastVariableManager.class),
+			new TestTaskStateManager(),
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
@@ -184,7 +183,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 		RUN_LATCH.await();
 
 		// trigger a checkpoint
-		task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, CheckpointOptions.forCheckpoint());
+		task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		// wait until the task has completed execution
 		taskRun.get();
@@ -204,8 +203,8 @@ public class StreamTaskTerminationTest extends TestLogger {
 	 */
 	public static class BlockingStreamTask<T, OP extends StreamOperator<T>> extends StreamTask<T, OP> {
 
-		public BlockingStreamTask(Environment env, @Nullable TaskStateSnapshot initialState) {
-			super(env, initialState);
+		public BlockingStreamTask(Environment env) {
+			super(env);
 		}
 
 		@Override
@@ -252,23 +251,13 @@ public class StreamTaskTerminationTest extends TestLogger {
 		private static final long serialVersionUID = -5053068148933314100L;
 
 		@Override
-		public StreamStateHandle resolveCheckpoint(String pointer) throws IOException {
+		public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {
-			return mock(CheckpointStreamFactory.class);
-		}
-
-		@Override
-		public CheckpointStreamFactory createSavepointStreamFactory(JobID jobId, String operatorIdentifier, @Nullable String targetLocation) throws IOException {
-			return null;
+			return new MemoryBackendCheckpointStorage(jobId, null, null, Integer.MAX_VALUE);
 		}
 
 		@Override

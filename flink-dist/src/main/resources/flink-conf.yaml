@@ -51,17 +51,74 @@ taskmanager.heap.mb: 1024
 
 taskmanager.numberOfTaskSlots: 1
 
-# Specify whether TaskManager memory should be allocated when starting up (true) or when
-# memory is required in the memory manager (false)
-# Important Note: For pure streaming setups, we highly recommend to set this value to `false`
-# as the default state backends currently do not use the managed memory.
-
-taskmanager.memory.preallocate: false
-
 # The parallelism used for programs that did not specify and other parallelism.
 
 parallelism.default: 1
 
+# The default file system scheme and authority.
+# 
+# By default file paths without scheme are interpreted relative to the local
+# root file system 'file:///'. Use this to override the default and interpret
+# relative paths relative to a different file system,
+# for example 'hdfs://mynamenode:12345'
+#
+# fs.default-scheme
+
+#==============================================================================
+# High Availability
+#==============================================================================
+
+# The high-availability mode. Possible options are 'NONE' or 'zookeeper'.
+#
+# high-availability: zookeeper
+
+# The path where metadata for master recovery is persisted. While ZooKeeper stores
+# the small ground truth for checkpoint and leader election, this location stores
+# the larger objects, like persisted dataflow graphs.
+# 
+# Must be a durable file system that is accessible from all nodes
+# (like HDFS, S3, Ceph, nfs, ...) 
+#
+# high-availability.storageDir: hdfs:///flink/ha/
+
+# The list of ZooKeeper quorum peers that coordinate the high-availability
+# setup. This must be a list of the form:
+# "host1:clientPort,host2:clientPort,..." (default clientPort: 2181)
+#
+# high-availability.zookeeper.quorum: localhost:2181
+
+
+# ACL options are based on https://zookeeper.apache.org/doc/r3.1.2/zookeeperProgrammers.html#sc_BuiltinACLSchemes
+# It can be either "creator" (ZOO_CREATE_ALL_ACL) or "open" (ZOO_OPEN_ACL_UNSAFE)
+# The default value is "open" and it can be changed to "creator" if ZK security is enabled
+#
+# high-availability.zookeeper.client.acl: open
+
+#==============================================================================
+# Fault tolerance and checkpointing
+#==============================================================================
+
+# The backend that will be used to store operator state checkpoints if
+# checkpointing is enabled.
+#
+# Supported backends are 'jobmanager', 'filesystem', 'rocksdb', or the
+# <class-name-of-factory>.
+#
+# state.backend: filesystem
+
+# Directory for checkpoints filesystem, when using any of the default bundled
+# state backends.
+#
+# state.checkpoints.dir: hdfs://namenode-host:port/flink-checkpoints
+
+# Default target directory for savepoints, optional.
+#
+# state.savepoints.dir: hdfs://namenode-host:port/flink-checkpoints
+
+# Flag to enable/disable incremental checkpoints for backends that
+# support incremental checkpoints (like the RocksDB state backend). 
+#
+# state.backend.incremental: false
 
 #==============================================================================
 # Web Frontend
@@ -80,6 +137,89 @@ web.port: 8081
 # runtime monitor. Uncomment to disable.
 
 #jobmanager.web.submit.enable: false
+
+#==============================================================================
+# Advanced
+#==============================================================================
+
+# Override the directories for temporary files. If not specified, the
+# system-specific Java temporary directory (java.io.tmpdir property) is taken.
+#
+# For framework setups on Yarn or Mesos, Flink will automatically pick up the
+# containers' temp directories without any need for configuration.
+#
+# Add a delimited list for multiple directories, using the system directory
+# delimiter (colon ':' on unix) or a comma, e.g.:
+#     /data1/tmp:/data2/tmp:/data3/tmp
+#
+# Note: Each directory entry is read from and written to by a different I/O
+# thread. You can include the same directory multiple times in order to create
+# multiple I/O threads against that directory. This is for example relevant for
+# high-throughput RAIDs.
+#
+# io.tmp.dirs: /tmp
+
+# Specify whether TaskManager's managed memory should be allocated when starting
+# up (true) or when memory is requested.
+#
+# We recommend to set this value to 'true' only in setups for pure batch
+# processing (DataSet API). Streaming setups currently do not use the TaskManager's
+# managed memory: The 'rocksdb' state backend uses RocksDB's own memory management,
+# while the 'memory' and 'filesystem' backends explicitly keep data as objects
+# to save on serialization cost.
+#
+# taskmanager.memory.preallocate: false
+
+# The classloading resolve order. Possible values are 'child-first' (Flink's default)
+# and 'parent-first' (Java's default).
+#
+# Child first classloading allows users to use different dependency/library
+# versions in their application than those in the classpath. Switching back
+# to 'parent-first' may help with debugging dependency issues.
+#
+# classloader.resolve-order: child-first
+
+# The amount of memory going to the network stack. These numbers usually need 
+# no tuning. Adjusting them may be necessary in case of an "Insufficient number
+# of network buffers" error. The default min is 64MB, teh default max is 1GB.
+# 
+# taskmanager.network.memory.fraction: 0.1
+# taskmanager.network.memory.min: 67108864
+# taskmanager.network.memory.max: 1073741824
+
+#==============================================================================
+# Flink Cluster Security Configuration
+#==============================================================================
+
+# Kerberos authentication for various components - Hadoop, ZooKeeper, and connectors -
+# may be enabled in four steps:
+# 1. configure the local krb5.conf file
+# 2. provide Kerberos credentials (either a keytab or a ticket cache w/ kinit)
+# 3. make the credentials available to various JAAS login contexts
+# 4. configure the connector to use JAAS/SASL
+
+# The below configure how Kerberos credentials are provided. A keytab will be used instead of
+# a ticket cache if the keytab path and principal are set.
+
+# security.kerberos.login.use-ticket-cache: true
+# security.kerberos.login.keytab: /path/to/kerberos/keytab
+# security.kerberos.login.principal: flink-user
+
+# The configuration below defines which JAAS login contexts
+
+# security.kerberos.login.contexts: Client,KafkaClient
+
+#==============================================================================
+# ZK Security Configuration
+#==============================================================================
+
+# Below configurations are applicable if ZK ensemble is configured for security
+
+# Override below configuration to provide custom ZK service name if configured
+# zookeeper.sasl.service-name: zookeeper
+
+# The configuration below must match one of the values set in "security.kerberos.login.contexts"
+# zookeeper.sasl.login-context-name: Client
 
 #==============================================================================
 # HistoryServer
@@ -103,127 +243,3 @@ web.port: 8081
 # Interval in milliseconds for refreshing the monitored directories.
 #historyserver.archive.fs.refresh-interval: 10000
 
-#==============================================================================
-# Streaming state checkpointing
-#==============================================================================
-
-# The backend that will be used to store operator state checkpoints if
-# checkpointing is enabled.
-#
-# Supported backends: jobmanager, filesystem, rocksdb, <class-name-of-factory>
-#
-# state.backend: filesystem
-
-
-# Directory for storing checkpoints in a Flink-supported filesystem
-# Note: State backend must be accessible from the JobManager and all TaskManagers.
-# Use "hdfs://" for HDFS setups, "file://" for UNIX/POSIX-compliant file systems,
-# (or any local file system under Windows), or "s3://" with lower case 's' for S3 file system.
-#
-# state.backend.fs.checkpointdir: hdfs://namenode-host:port/flink-checkpoints
-
-
-#==============================================================================
-# Advanced
-#==============================================================================
-
-# The number of buffers for the network stack.
-#
-# taskmanager.network.numberOfBuffers: 2048
-
-
-# Directories for temporary files.
-#
-# Add a delimited list for multiple directories, using the system directory
-# delimiter (colon ':' on unix) or a comma, e.g.:
-#     /data1/tmp:/data2/tmp:/data3/tmp
-#
-# Note: Each directory entry is read from and written to by a different I/O
-# thread. You can include the same directory multiple times in order to create
-# multiple I/O threads against that directory. This is for example relevant for
-# high-throughput RAIDs.
-#
-# If not specified, the system-specific Java temporary directory (java.io.tmpdir
-# property) is taken.
-#
-# taskmanager.tmp.dirs: /tmp
-
-
-# Path to the Hadoop configuration directory.
-#
-# Note: these keys are deprecated and it is recommended to configure the Hadoop
-# path with the environment variable 'HADOOP_CONF_DIR' instead.
-#
-# This configuration is used when writing into HDFS. Unless specified otherwise,
-# HDFS file creation will use HDFS default settings with respect to block-size,
-# replication factor, etc.
-#
-# You can also directly specify the paths to hdfs-default.xml and hdfs-site.xml
-# via keys 'fs.hdfs.hdfsdefault' and 'fs.hdfs.hdfssite'.
-#
-# fs.hdfs.hadoopconf: /path/to/hadoop/conf/
-
-
-#==============================================================================
-# High Availability
-#==============================================================================
-
-# The high-availability mode. Possible options are 'NONE' or 'zookeeper'.
-#
-# high-availability: zookeeper
-
-# The path where metadata for master recovery is persisted. While ZooKeeper stored
-# the small ground truth for checkpoint and leader election, this location stores
-# the larger objects, like persisted dataflow graphs.
-# 
-# Must be a durable file system that is accessible from all nodes
-# (like HDFS, S3, Ceph, nfs, ...) 
-#
-# high-availability.storageDir: hdfs:///flink/ha/
-
-# The list of ZooKeeper quorum peers that coordinate the high-availability
-# setup. This must be a list of the form:
-# "host1:clientPort,host2:clientPort,..." (default clientPort: 2181)
-#
-# high-availability.zookeeper.quorum: localhost:2181
-
-
-# ACL options are based on https://zookeeper.apache.org/doc/r3.1.2/zookeeperProgrammers.html#sc_BuiltinACLSchemes
-# It can be either "creator" (ZOO_CREATE_ALL_ACL) or "open" (ZOO_OPEN_ACL_UNSAFE)
-# The default value is "open" and it can be changed to "creator" if ZK security is enabled
-#
-# high-availability.zookeeper.client.acl: open
-
-#==============================================================================
-# Flink Cluster Security Configuration (optional configuration)
-#==============================================================================
-
-# Kerberos authentication for various components - Hadoop, ZooKeeper, and connectors -
-# may be enabled in four steps:
-# 1. configure the local krb5.conf file
-# 2. provide Kerberos credentials (either a keytab or a ticket cache w/ kinit)
-# 3. make the credentials available to various JAAS login contexts
-# 4. configure the connector to use JAAS/SASL
-
-# The below configure how Kerberos credentials are provided. A keytab will be used instead of
-# a ticket cache if the keytab path and principal are set.
-
-# security.kerberos.login.use-ticket-cache: true
-# security.kerberos.login.keytab: /path/to/kerberos/keytab
-# security.kerberos.login.principal: flink-user
-
-# The configuration below defines which JAAS login contexts
-
-# security.kerberos.login.contexts: Client,KafkaClient
-
-#==============================================================================
-# ZK Security Configuration (optional configuration)
-#==============================================================================
-
-# Below configurations are applicable if ZK ensemble is configured for security
-
-# Override below configuration to provide custom ZK service name if configured
-# zookeeper.sasl.service-name: zookeeper
-
-# The configuration below must match one of the values set in "security.kerberos.login.contexts"
-# zookeeper.sasl.login-context-name: Client

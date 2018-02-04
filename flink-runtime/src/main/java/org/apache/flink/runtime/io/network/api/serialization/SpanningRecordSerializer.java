@@ -35,23 +35,23 @@ import java.nio.ByteOrder;
  * data serialization buffer and copies this buffer to target buffers
  * one-by-one using {@link #setNextBufferBuilder(BufferBuilder)}.
  *
- * @param <T>
+ * @param <T> The type of the records that are serialized.
  */
 public class SpanningRecordSerializer<T extends IOReadableWritable> implements RecordSerializer<T> {
 
-	/** Flag to enable/disable checks, if buffer not set/full or pending serialization */
+	/** Flag to enable/disable checks, if buffer not set/full or pending serialization. */
 	private static final boolean CHECKED = false;
 
-	/** Intermediate data serialization */
+	/** Intermediate data serialization. */
 	private final DataOutputSerializer serializationBuffer;
 
-	/** Intermediate buffer for data serialization (wrapped from {@link #serializationBuffer}) */
+	/** Intermediate buffer for data serialization (wrapped from {@link #serializationBuffer}). */
 	private ByteBuffer dataBuffer;
 
-	/** Intermediate buffer for length serialization */
+	/** Intermediate buffer for length serialization. */
 	private final ByteBuffer lengthBuffer;
 
-	/** Current target {@link Buffer} of the serializer */
+	/** Current target {@link Buffer} of the serializer. */
 	@Nullable
 	private BufferBuilder targetBuffer;
 
@@ -73,7 +73,6 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	 * @param record the record to serialize
 	 * @return how much information was written to the target buffer and
 	 *         whether this buffer is full
-	 * @throws IOException
 	 */
 	@Override
 	public SerializationResult addRecord(T record) throws IOException {
@@ -114,14 +113,14 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		}
 
 		SerializationResult result = getSerializationResult();
-		
+
 		// make sure we don't hold onto the large buffers for too long
 		if (result.isFullRecord()) {
 			serializationBuffer.clear();
 			serializationBuffer.pruneBuffer();
 			dataBuffer = serializationBuffer.wrapAsByteBuffer();
 		}
-		
+
 		return result;
 	}
 

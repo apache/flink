@@ -20,10 +20,8 @@ package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.util.FileUtils;
 
 import java.io.IOException;
 
@@ -79,14 +77,7 @@ public class FileStateHandle implements StreamStateHandle {
 	@Override
 	public void discardState() throws Exception {
 		FileSystem fs = getFileSystem();
-
 		fs.delete(filePath, false);
-
-		if (fs.getKind() == FileSystemKind.FILE_SYSTEM) {
-			try {
-				FileUtils.deletePathIfEmpty(fs, filePath.getParent());
-			} catch (Exception ignored) {}
-		}
 	}
 
 	/**

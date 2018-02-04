@@ -23,7 +23,10 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -33,7 +36,7 @@ import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRestEndpoint;
-import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -59,8 +62,6 @@ import akka.actor.ActorSystem;
 import javax.annotation.Nullable;
 
 import java.util.concurrent.Executor;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Base class for per-job cluster entry points.
@@ -119,7 +120,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			jobMasterGatewayRetriever,
 			resourceManagerGatewayRetriever,
 			rpcService.getExecutor(),
-			new AkkaQueryServiceRetriever(actorSystem, timeout));
+			new AkkaQueryServiceRetriever(actorSystem, timeout),
+			highAvailabilityServices.getWebMonitorLeaderElectionService());
 
 		LOG.debug("Starting JobMaster REST endpoint.");
 		jobMasterRestEndpoint.start();
@@ -163,7 +165,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			GatewayRetriever<JobMasterGateway> jobMasterGatewayRetriever,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			Executor executor,
-			MetricQueryServiceRetriever metricQueryServiceRetriever) throws ConfigurationException {
+			MetricQueryServiceRetriever metricQueryServiceRetriever,
+			LeaderElectionService leaderElectionService) throws ConfigurationException {
 
 		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(configuration);
 
@@ -174,7 +177,9 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			restHandlerConfiguration,
 			resourceManagerGatewayRetriever,
 			executor,
-			metricQueryServiceRetriever);
+			metricQueryServiceRetriever,
+			leaderElectionService,
+			this);
 
 	}
 
@@ -258,8 +263,15 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		}
 	}
 
-	private void shutDownAndTerminate(boolean cleanupHaData) {
+	private void shutDownAndTerminate(
+			boolean cleanupHaData,
+			ApplicationStatus status,
+			@Nullable String optionalDiagnostics) {
 		try {
+			if (resourceManager != null) {
+				resourceManager.shutDownCluster(status, optionalDiagnostics);
+			}
+
 			shutDown(cleanupHaData);
 		} catch (Throwable t) {
 			LOG.error("Could not properly shut down cluster entrypoint.", t);
@@ -289,26 +301,23 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		}
 
 		@Override
-		public void jobFinished(JobResult result) {
+		public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
 			LOG.info("Job({}) finished.", jobId);
 
-			shutDownAndTerminate(true);
-		}
+			final ErrorInfo errorInfo = executionGraph.getFailureInfo();
 
-		@Override
-		public void jobFailed(JobResult result) {
-			checkArgument(result.getSerializedThrowable().isPresent());
-
-			LOG.info("Job({}) failed.", jobId, result.getSerializedThrowable().get().getMessage());
-
-			shutDownAndTerminate(false);
+			if (errorInfo == null) {
+				shutDownAndTerminate(true, ApplicationStatus.SUCCEEDED, null);
+			} else {
+				shutDownAndTerminate(true, ApplicationStatus.FAILED, errorInfo.getExceptionAsString());
+			}
 		}
 
 		@Override
 		public void jobFinishedByOther() {
 			LOG.info("Job({}) was finished by another JobManager.", jobId);
 
-			shutDownAndTerminate(false);
+			shutDownAndTerminate(false, ApplicationStatus.UNKNOWN, "Job was finished by another master");
 		}
 	}
 }

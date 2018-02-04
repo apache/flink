@@ -35,6 +35,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -63,6 +64,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.doReturn;
@@ -500,10 +502,14 @@ public class AbstractStreamOperatorTest {
 		when(containingTask.getCancelables()).thenReturn(closeableRegistry);
 
 		AbstractStreamOperator<Void> operator = mock(AbstractStreamOperator.class);
-		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenCallRealMethod();
+		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class), any(CheckpointStreamFactory.class))).thenCallRealMethod();
 		doReturn(containingTask).when(operator).getContainingTask();
 
-		operator.snapshotState(checkpointId, timestamp, CheckpointOptions.forCheckpoint());
+		operator.snapshotState(
+				checkpointId,
+				timestamp,
+				CheckpointOptions.forCheckpointWithDefaultLocation(),
+				new MemCheckpointStreamFactory(Integer.MAX_VALUE));
 
 		verify(context).close();
 	}
@@ -529,14 +535,18 @@ public class AbstractStreamOperatorTest {
 		when(containingTask.getCancelables()).thenReturn(closeableRegistry);
 
 		AbstractStreamOperator<Void> operator = mock(AbstractStreamOperator.class);
-		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenCallRealMethod();
+		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class), any(CheckpointStreamFactory.class))).thenCallRealMethod();
 		doReturn(containingTask).when(operator).getContainingTask();
 
 		// lets fail when calling the actual snapshotState method
 		doThrow(failingException).when(operator).snapshotState(eq(context));
 
 		try {
-			operator.snapshotState(checkpointId, timestamp, CheckpointOptions.forCheckpoint());
+			operator.snapshotState(
+					checkpointId,
+					timestamp,
+					CheckpointOptions.forCheckpointWithDefaultLocation(),
+					new MemCheckpointStreamFactory(Integer.MAX_VALUE));
 			fail("Exception expected.");
 		} catch (Exception e) {
 			assertEquals(failingException, e.getCause());
@@ -576,29 +586,41 @@ public class AbstractStreamOperatorTest {
 		when(containingTask.getCancelables()).thenReturn(closeableRegistry);
 
 		AbstractStreamOperator<Void> operator = mock(AbstractStreamOperator.class);
-		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenCallRealMethod();
+		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class), any(CheckpointStreamFactory.class))).thenCallRealMethod();
 
-		// The amount of mocking in this test makes it necessary to make the
-		// getCheckpointStreamFactory method visible for the test and to
-		// overwrite its behaviour.
-		when(operator.getCheckpointStreamFactory(any(CheckpointOptions.class))).thenReturn(streamFactory);
+		doCallRealMethod().when(operator).close();
+		doCallRealMethod().when(operator).dispose();
 
 		doReturn(containingTask).when(operator).getContainingTask();
 
 		RunnableFuture<OperatorStateHandle> futureManagedOperatorStateHandle = mock(RunnableFuture.class);
 
 		OperatorStateBackend operatorStateBackend = mock(OperatorStateBackend.class);
-		when(operatorStateBackend.snapshot(eq(checkpointId), eq(timestamp), eq(streamFactory), any(CheckpointOptions.class))).thenReturn(futureManagedOperatorStateHandle);
+		when(operatorStateBackend.snapshot(
+			eq(checkpointId),
+			eq(timestamp),
+			eq(streamFactory),
+			any(CheckpointOptions.class))).thenReturn(futureManagedOperatorStateHandle);
 
 		AbstractKeyedStateBackend<?> keyedStateBackend = mock(AbstractKeyedStateBackend.class);
-		when(keyedStateBackend.snapshot(eq(checkpointId), eq(timestamp), eq(streamFactory), eq(CheckpointOptions.forCheckpoint()))).thenThrow(failingException);
+		when(keyedStateBackend.snapshot(
+			eq(checkpointId),
+			eq(timestamp),
+			any(CheckpointStreamFactory.class),
+			eq(CheckpointOptions.forCheckpointWithDefaultLocation()))).thenThrow(failingException);
+
+		closeableRegistry.registerCloseable(operatorStateBackend);
+		closeableRegistry.registerCloseable(keyedStateBackend);
 
 		Whitebox.setInternalState(operator, "operatorStateBackend", operatorStateBackend);
 		Whitebox.setInternalState(operator, "keyedStateBackend", keyedStateBackend);
-		Whitebox.setInternalState(operator, "checkpointStreamFactory", streamFactory);
 
 		try {
-			operator.snapshotState(checkpointId, timestamp, CheckpointOptions.forCheckpoint());
+			operator.snapshotState(
+					checkpointId,
+					timestamp,
+					CheckpointOptions.forCheckpointWithDefaultLocation(),
+					new MemCheckpointStreamFactory(Integer.MAX_VALUE));
 			fail("Exception expected.");
 		} catch (Exception e) {
 			assertEquals(failingException, e.getCause());
@@ -612,6 +634,15 @@ public class AbstractStreamOperatorTest {
 		verify(futureKeyedStateHandle).cancel(anyBoolean());
 		verify(futureOperatorStateHandle).cancel(anyBoolean());
 		verify(futureKeyedStateHandle).cancel(anyBoolean());
+
+		operator.close();
+
+		operator.dispose();
+
+		verify(operatorStateBackend).close();
+		verify(keyedStateBackend).close();
+		verify(operatorStateBackend).dispose();
+		verify(keyedStateBackend).dispose();
 	}
 
 	/**

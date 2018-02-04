@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -42,6 +41,7 @@ import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -120,8 +120,8 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 
 	// ---------------- Metrics ------------------
 
-	private long lastEmittedWatermark1;
-	private long lastEmittedWatermark2;
+	private final WatermarkGauge input1WatermarkGauge;
+	private final WatermarkGauge input2WatermarkGauge;
 
 	private Counter numRecordsIn;
 
@@ -139,7 +139,10 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			IOManager ioManager,
 			Configuration taskManagerConfig,
 			StreamStatusMaintainer streamStatusMaintainer,
-			TwoInputStreamOperator<IN1, IN2, ?> streamOperator) throws IOException {
+			TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
+			TaskIOMetricGroup metrics,
+			WatermarkGauge input1WatermarkGauge,
+			WatermarkGauge input2WatermarkGauge) throws IOException {
 
 		final InputGate inputGate = InputGateUtil.createInputGate(inputGates1, inputGates2);
 
@@ -188,9 +191,6 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		this.numInputChannels1 = numInputChannels1;
 		this.numInputChannels2 = inputGate.getNumberOfInputChannels() - numInputChannels1;
 
-		this.lastEmittedWatermark1 = Long.MIN_VALUE;
-		this.lastEmittedWatermark2 = Long.MIN_VALUE;
-
 		this.firstStatus = StreamStatus.ACTIVE;
 		this.secondStatus = StreamStatus.ACTIVE;
 
@@ -200,6 +200,9 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		this.statusWatermarkValve1 = new StatusWatermarkValve(numInputChannels1, new ForwardingValveOutputHandler1(streamOperator, lock));
 		this.statusWatermarkValve2 = new StatusWatermarkValve(numInputChannels2, new ForwardingValveOutputHandler2(streamOperator, lock));
 
+		this.input1WatermarkGauge = input1WatermarkGauge;
+		this.input2WatermarkGauge = input2WatermarkGauge;
+		metrics.gauge("checkpointAlignmentTime", barrierHandler::getAlignmentDurationNanos);
 	}
 
 	public boolean processInput() throws Exception {
@@ -312,27 +315,6 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		}
 	}
 
-	/**
-	 * Sets the metric group for this StreamTwoInputProcessor.
-	 *
-	 * @param metrics metric group
-	 */
-	public void setMetricGroup(TaskIOMetricGroup metrics) {
-		metrics.gauge("currentLowWatermark", new Gauge<Long>() {
-			@Override
-			public Long getValue() {
-				return Math.min(lastEmittedWatermark1, lastEmittedWatermark2);
-			}
-		});
-
-		metrics.gauge("checkpointAlignmentTime", new Gauge<Long>() {
-			@Override
-			public Long getValue() {
-				return barrierHandler.getAlignmentDurationNanos();
-			}
-		});
-	}
-
 	public void cleanup() throws IOException {
 		// clear the buffers first. this part should not ever fail
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
@@ -360,7 +342,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		public void handleWatermark(Watermark watermark) {
 			try {
 				synchronized (lock) {
-					lastEmittedWatermark1 = watermark.getTimestamp();
+					input1WatermarkGauge.setCurrentWatermark(watermark.getTimestamp());
 					operator.processWatermark1(watermark);
 				}
 			} catch (Exception e) {
@@ -404,7 +386,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		public void handleWatermark(Watermark watermark) {
 			try {
 				synchronized (lock) {
-					lastEmittedWatermark2 = watermark.getTimestamp();
+					input2WatermarkGauge.setCurrentWatermark(watermark.getTimestamp());
 					operator.processWatermark2(watermark);
 				}
 			} catch (Exception e) {

@@ -75,6 +75,8 @@ import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -371,7 +373,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	@Override
 	protected void shutDownApplication(
 			ApplicationStatus finalStatus,
-			String optionalDiagnostics) throws ResourceManagerException {
+			@Nullable String optionalDiagnostics) throws ResourceManagerException {
 		LOG.info("Shutting down and unregistering as a Mesos framework.");
 
 		Exception exception = null;
@@ -661,6 +663,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		// create the specific TM parameters from the resource profile and some defaults
 		MesosTaskManagerParameters params = new MesosTaskManagerParameters(
 			resourceProfile.getCpuCores() < 1.0 ? taskManagerParameters.cpus() : resourceProfile.getCpuCores(),
+			taskManagerParameters.gpus(),
 			taskManagerParameters.containerType(),
 			taskManagerParameters.containerImageName(),
 			new ContaineredTaskManagerParameters(
@@ -670,6 +673,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 				1,
 				new HashMap<>(taskManagerParameters.containeredParameters().taskManagerEnv())),
 			taskManagerParameters.containerVolumes(),
+			taskManagerParameters.dockerParameters(),
 			taskManagerParameters.constraints(),
 			taskManagerParameters.command(),
 			taskManagerParameters.bootstrapCommand(),

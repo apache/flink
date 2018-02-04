@@ -21,14 +21,11 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.FlinkException;
-
-import javax.annotation.Nullable;
 
 /**
  * {@link StreamTask} for executing a {@link StreamSource}.
@@ -50,8 +47,8 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	private volatile boolean externallyInducedCheckpoints;
 
-	public SourceStreamTask(Environment env, @Nullable TaskStateSnapshot initialState) {
-		super(env, initialState);
+	public SourceStreamTask(Environment env) {
+		super(env);
 	}
 
 	@Override
@@ -71,7 +68,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 					// TODO - we need to see how to derive those. We should probably not encode this in the
 					// TODO -   source's trigger message, but do a handshake in this task between the trigger
 					// TODO -   message from the master, and the source's trigger notification
-					final CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpoint();
+					final CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
 					final long timestamp = System.currentTimeMillis();
 
 					final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);

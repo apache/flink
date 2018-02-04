@@ -35,8 +35,6 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
 
   override def sql(query: String): Table = ???
 
-  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = ???
-
   override protected def getBuiltInNormRuleSet: RuleSet = ???
 
   override protected def getBuiltInPhysicalOptRuleSet: RuleSet = ???
@@ -46,4 +44,9 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
       fieldNames: Array[String],
       fieldTypes: Array[TypeInformation[_]],
       tableSink: TableSink[_]): Unit = ???
+
+  override protected def createUniqueTableName(): String = ???
+
+  override protected def registerTableSourceInternal(name: String, tableSource: TableSource[_])
+    : Unit = ???
 }

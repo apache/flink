@@ -41,7 +41,7 @@ public final class LambdaUtil {
 	 */
 	public static <T> void applyToAllWhileSuppressingExceptions(
 		Iterable<T> inputs,
-		ThrowingConsumer<T> throwingConsumer) throws Exception {
+		ThrowingConsumer<T, ? extends Exception> throwingConsumer) throws Exception {
 
 		if (inputs != null && throwingConsumer != null) {
 			Exception exception = null;

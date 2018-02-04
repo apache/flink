@@ -250,7 +250,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
 		try {
 			RunnableFuture<KeyedStateHandle> snapshot =
-				keyedStateBackend.snapshot(0L, 0L, testStreamFactory, CheckpointOptions.forCheckpoint());
+				keyedStateBackend.snapshot(0L, 0L, testStreamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 			RocksDB spyDB = keyedStateBackend.db;
 
@@ -287,7 +287,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		setupRocksKeyedStateBackend();
 		try {
 			RunnableFuture<KeyedStateHandle> snapshot =
-				keyedStateBackend.snapshot(0L, 0L, testStreamFactory, CheckpointOptions.forCheckpoint());
+				keyedStateBackend.snapshot(0L, 0L, testStreamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 			snapshot.cancel(true);
 			verifyRocksObjectsReleased();
 		} finally {
@@ -301,7 +301,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		setupRocksKeyedStateBackend();
 		try {
 			RunnableFuture<KeyedStateHandle> snapshot =
-				keyedStateBackend.snapshot(0L, 0L, testStreamFactory, CheckpointOptions.forCheckpoint());
+				keyedStateBackend.snapshot(0L, 0L, testStreamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 			snapshot.cancel(true);
 			Thread asyncSnapshotThread = new Thread(snapshot);
 			asyncSnapshotThread.start();
@@ -324,7 +324,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		setupRocksKeyedStateBackend();
 		try {
 			RunnableFuture<KeyedStateHandle> snapshot =
-				keyedStateBackend.snapshot(0L, 0L, testStreamFactory, CheckpointOptions.forCheckpoint());
+				keyedStateBackend.snapshot(0L, 0L, testStreamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 			Thread asyncSnapshotThread = new Thread(snapshot);
 			asyncSnapshotThread.start();
 			waiter.await(); // wait for snapshot to run
@@ -349,7 +349,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	public void testCancelRunningSnapshot() throws Exception {
 		setupRocksKeyedStateBackend();
 		try {
-			RunnableFuture<KeyedStateHandle> snapshot = keyedStateBackend.snapshot(0L, 0L, testStreamFactory, CheckpointOptions.forCheckpoint());
+			RunnableFuture<KeyedStateHandle> snapshot = keyedStateBackend.snapshot(0L, 0L, testStreamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 			Thread asyncSnapshotThread = new Thread(snapshot);
 			asyncSnapshotThread.start();
 			waiter.await(); // wait for snapshot to run
@@ -429,7 +429,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 						checkpointId,
 						checkpointId,
 						createStreamFactory(),
-						CheckpointOptions.forCheckpoint());
+						CheckpointOptions.forCheckpointWithDefaultLocation());
 
 					snapshot.run();
 

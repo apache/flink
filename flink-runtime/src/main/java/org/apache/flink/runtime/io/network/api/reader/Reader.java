@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.io.network.api.reader;
 
-import java.io.IOException;
-
 import org.apache.flink.core.io.IOReadableWritable;
+
+import java.io.IOException;
 
 /**
  * A record-oriented reader for immutable record types.

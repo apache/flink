@@ -201,7 +201,7 @@ class GroupWindowTest extends TableTestBase {
         term("select", "EXPR$0", "w$start AS EXPR$1"),
         term("where",
           "AND(>($f1, 0), " +
-            "=(EXTRACT_DATE(FLAG(QUARTER), /INT(Reinterpret(w$start), 86400000)), 1))")
+            "=(EXTRACT(FLAG(QUARTER), w$start), 1))")
       )
 
     streamUtil.verifySql(sql, expected)

@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
@@ -34,13 +36,15 @@ import java.util.concurrent.Executor;
 public class JobMasterRestEndpoint extends WebMonitorEndpoint<JobMasterGateway> {
 
 	public JobMasterRestEndpoint(
-			RestServerEndpointConfiguration endpointConfiguration,
-			GatewayRetriever<JobMasterGateway> leaderRetriever,
-			Configuration clusterConfiguration,
-			RestHandlerConfiguration restConfiguration,
-			GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
-			Executor executor,
-			MetricQueryServiceRetriever metricQueryServiceRetriever) {
-		super(endpointConfiguration, leaderRetriever, clusterConfiguration, restConfiguration, resourceManagerRetriever, executor, metricQueryServiceRetriever);
+		RestServerEndpointConfiguration endpointConfiguration,
+		GatewayRetriever<JobMasterGateway> leaderRetriever,
+		Configuration clusterConfiguration,
+		RestHandlerConfiguration restConfiguration,
+		GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
+		Executor executor,
+		MetricQueryServiceRetriever metricQueryServiceRetriever,
+		LeaderElectionService leaderElectionService,
+		FatalErrorHandler fatalErrorHandler) {
+		super(endpointConfiguration, leaderRetriever, clusterConfiguration, restConfiguration, resourceManagerRetriever, executor, metricQueryServiceRetriever, leaderElectionService, fatalErrorHandler);
 	}
 }

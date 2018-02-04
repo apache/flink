@@ -125,6 +125,10 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			return params.cpus();
 		}
 
+		public double getGPUs() {
+			return params.gpus();
+		}
+
 		@Override
 		public double getMemory() {
 			return params.containeredParameters().taskManagerTotalMemoryMB();
@@ -143,6 +147,11 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		@Override
 		public int getPorts() {
 			return TM_PORT_KEYS.length;
+		}
+
+		@Override
+		public Map<String, Double> getScalarRequests() {
+			return Collections.singletonMap("gpus", (double) params.gpus());
 		}
 
 		@Override
@@ -174,8 +183,9 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		public String toString() {
 			return "Request{" +
 				"cpus=" + getCPUs() +
-				"memory=" + getMemory() +
-				'}';
+				", memory=" + getMemory() +
+				", gpus=" + getGPUs() +
+				"}";
 		}
 	}
 
@@ -204,6 +214,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		// take needed resources from the overall allocation, under the assumption of adequate resources
 		Set<String> roles = mesosConfiguration.roles();
 		taskInfo.addAllResources(allocation.takeScalar("cpus", taskRequest.getCPUs(), roles));
+		taskInfo.addAllResources(allocation.takeScalar("gpus", taskRequest.getGPUs(), roles));
 		taskInfo.addAllResources(allocation.takeScalar("mem", taskRequest.getMemory(), roles));
 
 		final Protos.CommandInfo.Builder cmd = taskInfo.getCommandBuilder();
@@ -298,6 +309,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 				containerInfo
 					.setType(Protos.ContainerInfo.Type.DOCKER)
 					.setDocker(Protos.ContainerInfo.DockerInfo.newBuilder()
+						.addAllParameters(params.dockerParameters())
 						.setNetwork(Protos.ContainerInfo.DockerInfo.Network.HOST)
 						.setImage(params.containerImageName().get()));
 				break;

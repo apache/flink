@@ -25,7 +25,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
@@ -150,8 +150,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private volatile Throwable failureCause;          // once assigned, never changes
 
-	/** The handle to the state that the task gets on restore */
-	private volatile TaskStateSnapshot taskState;
+	/** Information to restore the task on recovery, such as checkpoint id and task state snapshot */
+	@Nullable
+	private volatile JobManagerTaskRestore taskRestore;
 
 	// ------------------------ Accumulators & Metrics ------------------------
 
@@ -316,19 +317,20 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return state.isTerminal();
 	}
 
-	public TaskStateSnapshot getTaskStateSnapshot() {
-		return taskState;
+	@Nullable
+	public JobManagerTaskRestore getTaskRestore() {
+		return taskRestore;
 	}
 
 	/**
 	 * Sets the initial state for the execution. The serialized state is then shipped via the
 	 * {@link TaskDeploymentDescriptor} to the TaskManagers.
 	 *
-	 * @param checkpointStateHandles all checkpointed operator state
+	 * @param taskRestore information to restore the state
 	 */
-	public void setInitialState(TaskStateSnapshot checkpointStateHandles) {
+	public void setInitialState(@Nullable JobManagerTaskRestore taskRestore) {
 		checkState(state == CREATED, "Can only assign operator state when execution attempt is in CREATED");
-		this.taskState = checkpointStateHandles;
+		this.taskRestore = taskRestore;
 	}
 
 	/**
@@ -530,7 +532,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(
 				attemptId,
 				slot,
-				taskState,
+				taskRestore,
 				attemptNumber);
 
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();

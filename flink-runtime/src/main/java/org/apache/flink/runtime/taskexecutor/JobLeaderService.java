@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -37,11 +38,11 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 
 /**
@@ -80,7 +81,9 @@ public class JobLeaderService {
 	public JobLeaderService(TaskManagerLocation location) {
 		this.ownLocation = Preconditions.checkNotNull(location);
 
-		jobLeaderServices = new HashMap<>(4);
+		// Has to be a concurrent hash map because tests might access this service
+		// concurrently via containsJob
+		jobLeaderServices = new ConcurrentHashMap<>(4);
 
 		state = JobLeaderService.State.CREATED;
 
@@ -147,18 +150,6 @@ public class JobLeaderService {
 	}
 
 	/**
-	 * Check whether the service monitors the given job.
-	 *
-	 * @param jobId identifying the job
-	 * @return True if the given job is monitored; otherwise false
-	 */
-	public boolean containsJob(JobID jobId) {
-		Preconditions.checkState(JobLeaderService.State.STARTED == state, "The service is currently not running.");
-
-		return jobLeaderServices.containsKey(jobId);
-	}
-
-	/**
 	 * Remove the given job from being monitored by the job leader service.
 	 *
 	 * @param jobId identifying the job to remove from monitoring
@@ -199,9 +190,9 @@ public class JobLeaderService {
 
 		JobLeaderService.JobManagerLeaderListener jobManagerLeaderListener = new JobManagerLeaderListener(jobId);
 
-		leaderRetrievalService.start(jobManagerLeaderListener);
-
 		jobLeaderServices.put(jobId, Tuple2.of(leaderRetrievalService, jobManagerLeaderListener));
+
+		leaderRetrievalService.start(jobManagerLeaderListener);
 	}
 
 	/**
@@ -434,5 +425,22 @@ public class JobLeaderService {
 	 */
 	private enum State {
 		CREATED, STARTED, STOPPED
+	}
+
+	// -----------------------------------------------------------
+	// Testing methods
+	// -----------------------------------------------------------
+
+	/**
+	 * Check whether the service monitors the given job.
+	 *
+	 * @param jobId identifying the job
+	 * @return True if the given job is monitored; otherwise false
+	 */
+	@VisibleForTesting
+	public boolean containsJob(JobID jobId) {
+		Preconditions.checkState(JobLeaderService.State.STARTED == state, "The service is currently not running.");
+
+		return jobLeaderServices.containsKey(jobId);
 	}
 }

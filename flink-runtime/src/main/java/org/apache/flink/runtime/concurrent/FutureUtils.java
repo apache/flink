@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import scala.concurrent.Future;
@@ -127,6 +128,7 @@ public class FutureUtils {
 	 * @param operation to retry
 	 * @param retries number of retries
 	 * @param retryDelay delay between retries
+	 * @param retryPredicate Predicate to test whether an exception is retryable
 	 * @param scheduledExecutor executor to be used for the retry operation
 	 * @param <T> type of the result
 	 * @return Future which retries the given operation a given amount of times and delays the retry in case of failures
@@ -135,6 +137,7 @@ public class FutureUtils {
 			final Supplier<CompletableFuture<T>> operation,
 			final int retries,
 			final Time retryDelay,
+			final Predicate<Throwable> retryPredicate,
 			final ScheduledExecutor scheduledExecutor) {
 
 		final CompletableFuture<T> resultFuture = new CompletableFuture<>();
@@ -144,9 +147,33 @@ public class FutureUtils {
 			operation,
 			retries,
 			retryDelay,
+			retryPredicate,
 			scheduledExecutor);
 
 		return resultFuture;
+	}
+
+	/**
+	 * Retry the given operation with the given delay in between failures.
+	 *
+	 * @param operation to retry
+	 * @param retries number of retries
+	 * @param retryDelay delay between retries
+	 * @param scheduledExecutor executor to be used for the retry operation
+	 * @param <T> type of the result
+	 * @return Future which retries the given operation a given amount of times and delays the retry in case of failures
+	 */
+	public static <T> CompletableFuture<T> retryWithDelay(
+			final Supplier<CompletableFuture<T>> operation,
+			final int retries,
+			final Time retryDelay,
+			final ScheduledExecutor scheduledExecutor) {
+		return retryWithDelay(
+			operation,
+			retries,
+			retryDelay,
+			(throwable) -> true,
+			scheduledExecutor);
 	}
 
 	private static <T> void retryOperationWithDelay(
@@ -154,6 +181,7 @@ public class FutureUtils {
 			final Supplier<CompletableFuture<T>> operation,
 			final int retries,
 			final Time retryDelay,
+			final Predicate<Throwable> retryPredicate,
 			final ScheduledExecutor scheduledExecutor) {
 
 		if (!resultFuture.isDone()) {
@@ -165,17 +193,21 @@ public class FutureUtils {
 						if (throwable instanceof CancellationException) {
 							resultFuture.completeExceptionally(new RetryException("Operation future was cancelled.", throwable));
 						} else {
-							if (retries > 0) {
+							if (retries > 0 && retryPredicate.test(throwable)) {
 								final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
-									() -> retryOperationWithDelay(resultFuture, operation, retries - 1, retryDelay, scheduledExecutor),
+									() -> retryOperationWithDelay(resultFuture, operation, retries - 1, retryDelay, retryPredicate, scheduledExecutor),
 									retryDelay.toMilliseconds(),
 									TimeUnit.MILLISECONDS);
 
 								resultFuture.whenComplete(
 									(innerT, innerThrowable) -> scheduledFuture.cancel(false));
 							} else {
-								resultFuture.completeExceptionally(new RetryException("Could not complete the operation. Number of retries " +
-									"has been exhausted.", throwable));
+								final String errorMsg = retries == 0 ?
+									"Number of retries has been exhausted." :
+									"Exception is not retryable.";
+								resultFuture.completeExceptionally(new RetryException(
+									"Could not complete the operation. " + errorMsg,
+									throwable));
 							}
 						}
 					} else {
@@ -459,13 +491,15 @@ public class FutureUtils {
 	 * @return The timeout enriched future
 	 */
 	public static <T> CompletableFuture<T> orTimeout(CompletableFuture<T> future, long timeout, TimeUnit timeUnit) {
-		final ScheduledFuture<?> timeoutFuture = Delayer.delay(new Timeout(future), timeout, timeUnit);
+		if (!future.isDone()) {
+			final ScheduledFuture<?> timeoutFuture = Delayer.delay(new Timeout(future), timeout, timeUnit);
 
-		future.whenComplete((T value, Throwable throwable) -> {
-			if (!timeoutFuture.isDone()) {
-				timeoutFuture.cancel(false);
-			}
-		});
+			future.whenComplete((T value, Throwable throwable) -> {
+				if (!timeoutFuture.isDone()) {
+					timeoutFuture.cancel(false);
+				}
+			});
+		}
 
 		return future;
 	}

@@ -272,7 +272,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			}
 
 			// use the cluster
-			Assert.assertNotNull(yarnCluster.getJobManagerAddress());
+			Assert.assertNotNull(yarnCluster.getClusterConnectionInfo());
 			Assert.assertNotNull(yarnCluster.getWebInterfaceURL());
 
 			LOG.info("Shutting down cluster. All tests passed");

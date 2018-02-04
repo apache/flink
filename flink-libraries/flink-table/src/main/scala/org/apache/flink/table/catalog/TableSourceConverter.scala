@@ -29,7 +29,11 @@ import org.apache.flink.table.sources.TableSource
   * table is supported.
   *
   * @tparam T The [[TableSource]] to be created by this converter.
+  *
+  * @deprecated Use the more generic [[org.apache.flink.table.sources.TableSourceFactory]] instead.
   */
+@Deprecated
+@deprecated("Use the more generic table source factories instead.")
 trait TableSourceConverter[T <: TableSource[_]] {
 
   /**

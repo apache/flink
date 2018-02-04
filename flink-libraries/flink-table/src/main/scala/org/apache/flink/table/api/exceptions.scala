@@ -39,6 +39,9 @@ case class SqlParserException(
 
 /**
   * General Exception for all errors during table handling.
+  *
+  * This exception indicates that an internal error occurred or that a feature is not supported
+  * yet. Usually, this exception does not indicate a fault of the user.
   */
 case class TableException(
     msg: String,
@@ -55,6 +58,8 @@ object TableException {
 
 /**
   * Exception for all errors occurring during validation phase.
+  *
+  * This exception indicates that the user did something wrong.
   */
 case class ValidationException(
     msg: String,
@@ -137,11 +142,51 @@ case class CatalogAlreadyExistException(
 }
 
 /**
+  * Exception for not finding a [[org.apache.flink.table.sources.TableSourceFactory]] for the
+  * given properties.
+  *
+  * @param properties properties that describe the table source
+  * @param cause the cause
+  */
+case class NoMatchingTableSourceException(
+    properties: Map[String, String],
+    cause: Throwable)
+    extends RuntimeException(
+      s"Could not find a table source factory in the classpath satisfying the " +
+        s"following properties: \n${properties.map(e => e._1 + "=" +  e._2 ).mkString("\n")}",
+      cause) {
+
+  def this(properties: Map[String, String]) = this(properties, null)
+}
+
+/**
+  * Exception for finding more than one [[org.apache.flink.table.sources.TableSourceFactory]] for
+  * the given properties.
+  *
+  * @param properties properties that describe the table source
+  * @param cause the cause
+  */
+case class AmbiguousTableSourceException(
+    properties: Map[String, String],
+    cause: Throwable)
+    extends RuntimeException(
+      s"More than one table source factory in the classpath satisfying the " +
+        s"following properties: \n${properties.map(e => e._1 + "=" +  e._2 ).mkString("\n")}",
+      cause) {
+
+  def this(properties: Map[String, String]) = this(properties, null)
+}
+
+/**
   * Exception for not finding a [[TableSourceConverter]] for a given table type.
   *
   * @param tableType table type
   * @param cause the cause
+  * @deprecated Use table source factories instead
+  *            (see [[org.apache.flink.table.sources.TableSourceFactory]]).
   */
+@Deprecated
+@deprecated("Use table factories (see TableSourceFactory) instead.")
 case class NoMatchedTableSourceConverterException(
     tableType: String,
     cause: Throwable)
@@ -156,7 +201,11 @@ case class NoMatchedTableSourceConverterException(
   *
   * @param tableType table type
   * @param cause the cause
+  * @deprecated Use table source factories instead
+  *            (see [[org.apache.flink.table.sources.TableSourceFactory]]).
   */
+@Deprecated
+@deprecated("Use table factories (see TableSourceFactory) instead.")
 case class AmbiguousTableSourceConverterException(
     tableType: String,
     cause: Throwable)

@@ -24,8 +24,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 
 /**
@@ -88,18 +86,19 @@ public interface StateBackend extends java.io.Serializable {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Resolves the given pointer to a checkpoint/savepoint into a state handle from which the
-	 * checkpoint metadata can be read. If the state backend cannot understand the format of
-	 * the pointer (for example because it was created by a different state backend) this method
-	 * should throw an {@code IOException}.
+	 * Resolves the given pointer to a checkpoint/savepoint into a checkpoint location. The location
+	 * supports reading the checkpoint metadata, or disposing the checkpoint storage location.
 	 *
-	 * @param pointer The pointer to resolve.
-	 * @return The state handler from which one can read the checkpoint metadata.
+	 * <p>If the state backend cannot understand the format of the pointer (for example because it
+	 * was created by a different state backend) this method should throw an {@code IOException}.
+	 *
+	 * @param externalPointer The external checkpoint pointer to resolve.
+	 * @return The checkpoint location handle.
 	 *
 	 * @throws IOException Thrown, if the state backend does not understand the pointer, or if
 	 *                     the pointer could not be resolved due to an I/O error.
 	 */
-	StreamStateHandle resolveCheckpoint(String pointer) throws IOException;
+	CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) throws IOException;
 
 	/**
 	 * Creates a storage for checkpoints for the given job. The checkpoint storage is
@@ -111,44 +110,6 @@ public interface StateBackend extends java.io.Serializable {
 	 * @throws IOException Thrown if the checkpoint storage cannot be initialized.
 	 */
 	CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException;
-
-	// ------------------------------------------------------------------------
-	//  Persistent bytes storage for checkpoint data
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Creates a {@link CheckpointStreamFactory} that can be used to create streams
-	 * that should end up in a checkpoint.
-	 *
-	 * <p>NOTE: This method will probably go into the {@link CheckpointStorage} in the future.
-	 *
-	 * @param jobId              The {@link JobID} of the job for which we are creating checkpoint streams.
-	 * @param operatorIdentifier An identifier of the operator for which we create streams.
-	 */
-	CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException;
-
-	/**
-	 * Creates a {@link CheckpointStreamFactory} that can be used to create streams
-	 * that should end up in a savepoint.
-	 *
-	 * <p>This is only called if the triggered checkpoint is a savepoint. Commonly
-	 * this will return the same factory as for regular checkpoints, but maybe
-	 * slightly adjusted.
-	 *
-	 * <p>NOTE: This method will probably go into the {@link CheckpointStorage} in the future.
-	 *
-	 * @param jobId The {@link JobID} of the job for which we are creating checkpoint streams.
-	 * @param operatorIdentifier An identifier of the operator for which we create streams.
-	 * @param targetLocation An optional custom location for the savepoint stream.
-	 * 
-	 * @return The stream factory for savepoints.
-	 * 
-	 * @throws IOException Failures during stream creation are forwarded.
-	 */
-	CheckpointStreamFactory createSavepointStreamFactory(
-			JobID jobId,
-			String operatorIdentifier,
-			@Nullable String targetLocation) throws IOException;
 
 	// ------------------------------------------------------------------------
 	//  Structure Backends 

@@ -98,6 +98,8 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	 */
 	LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID, String defaultJobManagerAddress);
 
+	LeaderRetrievalService getWebMonitorLeaderRetriever();
+
 	/**
 	 * Gets the leader election service for the cluster's resource manager.
 	 *
@@ -119,6 +121,8 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	 * @return Leader election service for the job manager leader election
 	 */
 	LeaderElectionService getJobManagerLeaderElectionService(JobID jobID);
+
+	LeaderElectionService getWebMonitorLeaderElectionService();
 
 	/**
 	 * Gets the checkpoint recovery factory for the job manager

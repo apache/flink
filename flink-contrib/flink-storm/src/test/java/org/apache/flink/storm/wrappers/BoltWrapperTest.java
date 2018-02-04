@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -375,11 +376,13 @@ public class BoltWrapperTest extends AbstractTest {
 		when(env.getMetricGroup()).thenReturn(UnregisteredMetricGroups.createUnregisteredTaskMetricGroup());
 		when(env.getTaskManagerInfo()).thenReturn(new TestingTaskManagerRuntimeInfo());
 
+		final CloseableRegistry closeableRegistry = new CloseableRegistry();
 		StreamTask<?, ?> mockTask = mock(StreamTask.class);
 		when(mockTask.getCheckpointLock()).thenReturn(new Object());
 		when(mockTask.getConfiguration()).thenReturn(new StreamConfig(new Configuration()));
 		when(mockTask.getEnvironment()).thenReturn(env);
 		when(mockTask.getExecutionConfig()).thenReturn(execConfig);
+		when(mockTask.getCancelables()).thenReturn(closeableRegistry);
 
 		return mockTask;
 	}

@@ -20,8 +20,6 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializer;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializers;
@@ -29,23 +27,23 @@ import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.filesystem.AbstractFileStateBackend;
-import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
@@ -125,20 +123,21 @@ public class Checkpoints {
 	public static CompletedCheckpoint loadAndValidateCheckpoint(
 			JobID jobId,
 			Map<JobVertexID, ExecutionJobVertex> tasks,
-			String checkpointPointer,
-			StreamStateHandle metadataHandle,
+			CompletedCheckpointStorageLocation location,
 			ClassLoader classLoader,
 			boolean allowNonRestoredState) throws IOException {
 
 		checkNotNull(jobId, "jobId");
 		checkNotNull(tasks, "tasks");
-		checkNotNull(checkpointPointer, "checkpointPointer");
-		checkNotNull(metadataHandle, "metadataHandle");
+		checkNotNull(location, "location");
 		checkNotNull(classLoader, "classLoader");
+
+		final StreamStateHandle metadataHandle = location.getMetadataHandle();
+		final String checkpointPointer = location.getExternalPointer();
 
 		// (1) load the savepoint
 		final Savepoint rawCheckpointMetadata;
-		try (FSDataInputStream in = metadataHandle.openInputStream()) {
+		try (InputStream in = metadataHandle.openInputStream()) {
 			DataInputStream dis = new DataInputStream(in);
 			rawCheckpointMetadata = loadCheckpointMetadata(dis, classLoader);
 		}
@@ -221,8 +220,7 @@ public class Checkpoints {
 				operatorStates,
 				checkpointMetadata.getMasterStates(),
 				props,
-				metadataHandle,
-				checkpointPointer);
+				location);
 	}
 
 	// ------------------------------------------------------------------------
@@ -238,12 +236,14 @@ public class Checkpoints {
 		checkNotNull(stateBackend, "stateBackend");
 		checkNotNull(classLoader, "classLoader");
 
-		final StreamStateHandle metadataHandle = stateBackend.resolveCheckpoint(pointer);
+		final CompletedCheckpointStorageLocation checkpointLocation = stateBackend.resolveCheckpoint(pointer);
+
+		final StreamStateHandle metadataHandle = checkpointLocation.getMetadataHandle();
 
 		// load the savepoint object (the metadata) to have all the state handles that we need
 		// to dispose of all state
 		final Savepoint savepoint;
-		try (FSDataInputStream in = metadataHandle.openInputStream();
+		try (InputStream in = metadataHandle.openInputStream();
 			DataInputStream dis = new DataInputStream(in)) {
 
 				savepoint = loadCheckpointMetadata(dis, classLoader);
@@ -268,13 +268,15 @@ public class Checkpoints {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
-		// until we have the proper hooks to delete full directories via the checkpoint storage,
-		// we need to have a special case here to remove the empty directory
-		if (stateBackend instanceof AbstractFileStateBackend && metadataHandle instanceof FileStateHandle) {
-			Path dir = ((FileStateHandle) metadataHandle).getFilePath().getParent();
-			FileUtils.deletePathIfEmpty(dir.getFileSystem(), dir);
+		// now dispose the location (directory, table, whatever)
+		try {
+			checkpointLocation.disposeStorageLocation();
+		}
+		catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
+		// forward exceptions caught in the process
 		if (exception != null) {
 			ExceptionUtils.rethrowIOException(exception);
 		}

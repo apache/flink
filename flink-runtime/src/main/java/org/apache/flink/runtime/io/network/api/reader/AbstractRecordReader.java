@@ -30,8 +30,8 @@ import java.io.IOException;
 
 /**
  * A record-oriented reader.
- * <p>
- * This abstract base class is used by both the mutable and immutable record readers.
+ *
+ * <p>This abstract base class is used by both the mutable and immutable record readers.
  *
  * @param <T> The type of the record that can be read with this record reader.
  */

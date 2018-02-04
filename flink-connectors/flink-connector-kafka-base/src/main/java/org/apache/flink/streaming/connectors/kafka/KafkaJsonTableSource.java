@@ -161,7 +161,8 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource implements D
 		/**
 		 * Sets flag whether to fail if a field is missing or not.
 		 *
-		 * @param failOnMissingField If set to true, the TableSource fails if a missing fields.
+		 * @param failOnMissingField If set to true, the TableSource fails if there is a missing
+		 *                           field.
 		 *                           If set to false, a missing field is set to null.
 		 * @return The builder.
 		 */

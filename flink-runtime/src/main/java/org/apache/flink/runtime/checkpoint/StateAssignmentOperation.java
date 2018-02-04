@@ -55,13 +55,17 @@ public class StateAssignmentOperation {
 
 	private final Map<JobVertexID, ExecutionJobVertex> tasks;
 	private final Map<OperatorID, OperatorState> operatorStates;
+
+	private final long restoreCheckpointId;
 	private final boolean allowNonRestoredState;
 
 	public StateAssignmentOperation(
-			Map<JobVertexID, ExecutionJobVertex> tasks,
-			Map<OperatorID, OperatorState> operatorStates,
-			boolean allowNonRestoredState) {
+		long restoreCheckpointId,
+		Map<JobVertexID, ExecutionJobVertex> tasks,
+		Map<OperatorID, OperatorState> operatorStates,
+		boolean allowNonRestoredState) {
 
+		this.restoreCheckpointId = restoreCheckpointId;
 		this.tasks = Preconditions.checkNotNull(tasks);
 		this.operatorStates = Preconditions.checkNotNull(operatorStates);
 		this.allowNonRestoredState = allowNonRestoredState;
@@ -214,7 +218,8 @@ public class StateAssignmentOperation {
 			}
 
 			if (!statelessTask) {
-				currentExecutionAttempt.setInitialState(taskState);
+				JobManagerTaskRestore taskRestore = new JobManagerTaskRestore(restoreCheckpointId, taskState);
+				currentExecutionAttempt.setInitialState(taskRestore);
 			}
 		}
 	}
@@ -230,7 +235,7 @@ public class StateAssignmentOperation {
 			!subRawOperatorState.containsKey(instanceID) &&
 			!subManagedKeyedState.containsKey(instanceID) &&
 			!subRawKeyedState.containsKey(instanceID)) {
-			
+
 			return new OperatorSubtaskState();
 		}
 		if (!subManagedKeyedState.containsKey(instanceID)) {

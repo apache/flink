@@ -495,12 +495,7 @@ public class StreamingJobGraphGenerator {
 
 		StreamPartitioner<?> partitioner = edge.getPartitioner();
 		JobEdge jobEdge;
-		if (partitioner instanceof ForwardPartitioner) {
-			jobEdge = downStreamVertex.connectNewDataSetAsInput(
-				headVertex,
-				DistributionPattern.POINTWISE,
-				ResultPartitionType.PIPELINED_BOUNDED);
-		} else if (partitioner instanceof RescalePartitioner){
+		if (partitioner instanceof ForwardPartitioner || partitioner instanceof RescalePartitioner) {
 			jobEdge = downStreamVertex.connectNewDataSetAsInput(
 				headVertex,
 				DistributionPattern.POINTWISE,

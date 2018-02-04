@@ -26,11 +26,14 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
@@ -45,6 +48,7 @@ import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -54,7 +58,6 @@ import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -68,6 +71,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.mockito.Mockito;
 
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -75,10 +79,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -170,6 +176,7 @@ public class DispatcherTest extends TestLogger {
 			new BlobServer(blobServerConfig, new VoidBlobStore()),
 			heartbeatServices,
 			NoOpMetricRegistry.INSTANCE,
+			new MemoryArchivedExecutionGraphStore(),
 			fatalErrorHandler,
 			TEST_JOB_ID);
 
@@ -270,37 +277,21 @@ public class DispatcherTest extends TestLogger {
 		final JobID failedJobId = new JobID();
 		onCompletionActions = dispatcher.new DispatcherOnCompleteActions(failedJobId);
 
-		onCompletionActions.jobFailed(new JobResult.Builder()
-			.jobId(failedJobId)
-			.serializedThrowable(new SerializedThrowable(new RuntimeException("expected")))
-			.netRuntime(Long.MAX_VALUE)
-			.build());
+		final JobStatus expectedState = JobStatus.FAILED;
+		final ArchivedExecutionGraph failedExecutionGraph = new ArchivedExecutionGraphBuilder()
+			.setJobID(failedJobId)
+			.setState(expectedState)
+			.setFailureCause(new ErrorInfo(new RuntimeException("expected"), 1L))
+			.build();
+
+		onCompletionActions.jobReachedGloballyTerminalState(failedExecutionGraph);
 
 		assertThat(
-			dispatcherGateway.isJobExecutionResultPresent(failedJobId, TIMEOUT).get(),
-			equalTo(true));
+			dispatcherGateway.requestJobStatus(failedJobId, TIMEOUT).get(),
+			equalTo(expectedState));
 		assertThat(
-			dispatcherGateway.getJobExecutionResult(failedJobId, TIMEOUT)
-				.get()
-				.isSuccess(),
-			equalTo(false));
-
-		final JobID successJobId = new JobID();
-		onCompletionActions = dispatcher.new DispatcherOnCompleteActions(successJobId);
-
-		onCompletionActions.jobFinished(new JobResult.Builder()
-			.jobId(successJobId)
-			.netRuntime(Long.MAX_VALUE)
-			.build());
-
-		assertThat(
-			dispatcherGateway.isJobExecutionResultPresent(successJobId, TIMEOUT).get(),
-			equalTo(true));
-		assertThat(
-			dispatcherGateway.getJobExecutionResult(successJobId, TIMEOUT)
-				.get()
-				.isSuccess(),
-			equalTo(true));
+			dispatcherGateway.requestJob(failedJobId, TIMEOUT).get(),
+			equalTo(failedExecutionGraph));
 	}
 
 	@Test
@@ -309,11 +300,47 @@ public class DispatcherTest extends TestLogger {
 
 		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 		try {
-			dispatcherGateway.getJobExecutionResult(new JobID(), TIMEOUT).get();
+			dispatcherGateway.requestJob(new JobID(), TIMEOUT).get();
 		} catch (ExecutionException e) {
 			final Throwable throwable = ExceptionUtils.stripExecutionException(e);
 			assertThat(throwable, instanceOf(FlinkJobNotFoundException.class));
 		}
+	}
+
+	/**
+	 * Tests that a reelected Dispatcher can recover jobs.
+	 */
+	@Test
+	public void testJobRecovery() throws Exception {
+		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+		// elect the initial dispatcher as the leader
+		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		// submit the job to the current leader
+		dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+		// check that the job has been persisted
+		assertThat(submittedJobGraphStore.getJobIds(), contains(jobGraph.getJobID()));
+
+		jobMasterLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		assertThat(runningJobsRegistry.getJobSchedulingStatus(jobGraph.getJobID()), is(RunningJobsRegistry.JobSchedulingStatus.RUNNING));
+
+		// revoke the leadership which will stop all currently running jobs
+		dispatcherLeaderElectionService.notLeader();
+
+		// re-grant the leadership, this should trigger the job recovery
+		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		// wait until we have recovered the job
+		dispatcher.submitJobLatch.await();
+
+		// check whether the job has been recovered
+		final Collection<JobID> jobIds = dispatcherGateway.listJobs(TIMEOUT).get();
+
+		assertThat(jobIds, hasSize(1));
+		assertThat(jobIds, contains(jobGraph.getJobID()));
 	}
 
 	private static class TestingDispatcher extends Dispatcher {
@@ -337,6 +364,7 @@ public class DispatcherTest extends TestLogger {
 				BlobServer blobServer,
 				HeartbeatServices heartbeatServices,
 				MetricRegistry metricRegistry,
+				ArchivedExecutionGraphStore archivedExecutionGraphStore,
 				FatalErrorHandler fatalErrorHandler,
 				JobID expectedJobId) throws Exception {
 			super(
@@ -348,6 +376,7 @@ public class DispatcherTest extends TestLogger {
 				blobServer,
 				heartbeatServices,
 				metricRegistry,
+				archivedExecutionGraphStore,
 				fatalErrorHandler,
 				null);
 
@@ -377,15 +406,8 @@ public class DispatcherTest extends TestLogger {
 		public CompletableFuture<Acknowledge> submitJob(final JobGraph jobGraph, final Time timeout) {
 			final CompletableFuture<Acknowledge> submitJobFuture = super.submitJob(jobGraph, timeout);
 
-			try {
-				submitJobFuture.get();
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+			submitJobFuture.thenAccept(ignored -> submitJobLatch.countDown());
 
-			submitJobLatch.countDown();
 			return submitJobFuture;
 		}
 

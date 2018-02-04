@@ -33,19 +33,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class TaskManagerSlot {
 
-	/** The unique identification of this slot */
+	/** The unique identification of this slot. */
 	private final SlotID slotId;
 
-	/** The resource profile of this slot */
+	/** The resource profile of this slot. */
 	private final ResourceProfile resourceProfile;
 
-	/** Gateway to the TaskExecutor which owns the slot */
+	/** Gateway to the TaskExecutor which owns the slot. */
 	private final TaskExecutorConnection taskManagerConnection;
 
-	/** Allocation id for which this slot has been allocated */
+	/** Allocation id for which this slot has been allocated. */
 	private AllocationID allocationId;
 
-	/** Assigned slot request if there is currently an ongoing request */
+	/** Assigned slot request if there is currently an ongoing request. */
 	private PendingSlotRequest assignedSlotRequest;
 
 	private State state;
@@ -139,6 +139,9 @@ public class TaskManagerSlot {
 		return resourceProfile.isMatching(required);
 	}
 
+	/**
+	 * State of the {@link TaskManagerSlot}.
+	 */
 	public enum State {
 		FREE,
 		PENDING,

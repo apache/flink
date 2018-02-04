@@ -21,13 +21,13 @@ package org.apache.flink.table.sources.wmstrategies
 import org.apache.flink.streaming.api.watermark.Watermark
 
 /**
-  * A watermark assigner for rowtime attributes which are out-of-order by a bounded time interval.
+  * A watermark strategy for rowtime attributes which are out-of-order by a bounded time interval.
   *
   * Emits watermarks which are the maximum observed timestamp minus the specified delay.
   *
   * @param delay The delay by which watermarks are behind the maximum observed timestamp.
   */
-class BoundedOutOfOrderTimestamps(val delay: Long) extends PeriodicWatermarkAssigner {
+final class BoundedOutOfOrderTimestamps(val delay: Long) extends PeriodicWatermarkAssigner {
 
   var maxTimestamp: Long = Long.MinValue + delay
 

@@ -2390,6 +2390,31 @@ STRING.initCap()
         <p>Converts the initial letter of each word in a string to uppercase. Assumes a string containing only [A-Za-z0-9], everything else is treated as whitespace.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.lpad(len INT, pad STRING)
+{% endhighlight %}
+      </td>
+
+      <td>
+        <p>Returns a string left-padded with the given pad string to a length of len characters. If the string is longer than len, the return value is shortened to len characters. E.g. "hi".lpad(4, '??') returns "??hi",  "hi".lpad(1, '??') returns "h".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.rpad(len INT, pad STRING)
+{% endhighlight %}
+      </td>
+
+      <td>
+        <p>Returns a string right-padded with the given pad string to a length of len characters. If the string is longer than len, the return value is shortened to len characters. E.g. "hi".rpad(4, '??') returns "hi??",  "hi".rpad(1, '??') returns "h".</p>
+      </td>
+    </tr>
+
     <tr>
       <td>
         {% highlight text %}

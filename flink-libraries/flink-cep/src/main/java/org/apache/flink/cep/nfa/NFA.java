@@ -29,7 +29,6 @@ import org.apache.flink.api.common.typeutils.base.EnumSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.cep.NonDuplicatingTypeSerializer;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.nfa.compiler.NFAStateNameHandler;
 import org.apache.flink.cep.operator.AbstractKeyedCEPPatternOperator;
@@ -61,6 +60,8 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.Stack;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Non-deterministic finite automaton implementation.
  *
@@ -87,29 +88,6 @@ import java.util.Stack;
 public class NFA<T> implements Serializable {
 
 	private static final long serialVersionUID = 2957674889294717265L;
-
-	/////////////////////			Backwards Compatibility Fields			/////////////////////
-
-	/**
-	 * @deprecated Used only for backwards compatibility.
-	 * Look at the {@link #eventSharedBuffer} for its replacement.
-	 */
-	@Deprecated
-	private final SharedBuffer<State<T>, T> sharedBuffer = null;
-
-	/**
-	 * @deprecated Used only for backward compatibility.
-	 */
-	@Deprecated
-	private int startEventCounter;
-
-	/**
-	 * @deprecated Used only for backwards compatibility.
-	 */
-	@Deprecated
-	private final NonDuplicatingTypeSerializer<T> nonDuplicatingTypeSerializer;
-
-	//////////////////			End of Backwards Compatibility Fields			//////////////////
 
 	/**
 	 * A set of all the valid NFA states, as returned by the
@@ -150,16 +128,13 @@ public class NFA<T> implements Serializable {
 	 */
 	private boolean nfaChanged;
 
-	public NFA(
-			final TypeSerializer<T> eventSerializer,
+	public NFA(final TypeSerializer<T> eventSerializer,
 			final long windowTime,
 			final boolean handleTimeout) {
-
-		this.eventSerializer = eventSerializer;
-		this.nonDuplicatingTypeSerializer = new NonDuplicatingTypeSerializer<>(eventSerializer);
+		this.eventSerializer = checkNotNull(eventSerializer);
 		this.windowTime = windowTime;
 		this.handleTimeout = handleTimeout;
-		this.eventSharedBuffer = new SharedBuffer<>(nonDuplicatingTypeSerializer);
+		this.eventSharedBuffer = new SharedBuffer<>();
 		this.computationStates = new LinkedList<>();
 		this.states = new HashSet<>();
 		this.nfaChanged = false;
@@ -421,8 +396,7 @@ public class NFA<T> implements Serializable {
 			@SuppressWarnings("unchecked")
 			NFA<T> other = (NFA<T>) obj;
 
-			return nonDuplicatingTypeSerializer.equals(other.nonDuplicatingTypeSerializer) &&
-				eventSharedBuffer.equals(other.eventSharedBuffer) &&
+			return eventSharedBuffer.equals(other.eventSharedBuffer) &&
 				states.equals(other.states) &&
 				windowTime == other.windowTime;
 		} else {
@@ -432,7 +406,7 @@ public class NFA<T> implements Serializable {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(nonDuplicatingTypeSerializer, eventSharedBuffer, states, windowTime);
+		return Objects.hash(eventSharedBuffer, states, windowTime);
 	}
 
 	private static <T> boolean isEquivalentState(final State<T> s1, final State<T> s2) {
@@ -751,11 +725,6 @@ public class NFA<T> implements Serializable {
 			return new HashMap<>();
 		}
 
-		// the following is used when migrating from previous versions.
-		if (eventSerializer == null) {
-			eventSerializer = nonDuplicatingTypeSerializer.getTypeSerializer();
-		}
-
 		List<Map<String, List<T>>> paths = eventSharedBuffer.extractPatterns(
 				NFAStateNameHandler.getOriginalNameFromInternal(
 						computationState.getPreviousState().getName()),
@@ -789,7 +758,7 @@ public class NFA<T> implements Serializable {
 		return result;
 	}
 
-	//////////////////////			New Serialization			//////////////////////
+	//////////////////////			Serialization			//////////////////////
 
 	/**
 	 * The {@link TypeSerializerConfigSnapshot} serializer configuration to be stored with the managed state.

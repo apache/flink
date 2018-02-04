@@ -21,7 +21,7 @@ package org.apache.flink.runtime.deployment;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
@@ -142,21 +142,22 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/** Slot number to run the sub task in on the target machine. */
 	private final int targetSlotNumber;
 
-	/** State handles for the sub task. */
-	private final TaskStateSnapshot taskStateHandles;
+	/** Information to restore the task. This can be null if there is no state to restore. */
+	@Nullable
+	private final JobManagerTaskRestore taskRestore;
 
 	public TaskDeploymentDescriptor(
-			JobID jobId,
-			MaybeOffloaded<JobInformation> serializedJobInformation,
-			MaybeOffloaded<TaskInformation> serializedTaskInformation,
-			ExecutionAttemptID executionAttemptId,
-			AllocationID allocationId,
-			int subtaskIndex,
-			int attemptNumber,
-			int targetSlotNumber,
-			TaskStateSnapshot taskStateHandles,
-			Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
-			Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
+		JobID jobId,
+		MaybeOffloaded<JobInformation> serializedJobInformation,
+		MaybeOffloaded<TaskInformation> serializedTaskInformation,
+		ExecutionAttemptID executionAttemptId,
+		AllocationID allocationId,
+		int subtaskIndex,
+		int attemptNumber,
+		int targetSlotNumber,
+		@Nullable JobManagerTaskRestore taskRestore,
+		Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
+		Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
 
 		this.jobId = Preconditions.checkNotNull(jobId);
 
@@ -175,7 +176,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		Preconditions.checkArgument(0 <= targetSlotNumber, "The target slot number must be positive.");
 		this.targetSlotNumber = targetSlotNumber;
 
-		this.taskStateHandles = taskStateHandles;
+		this.taskRestore = taskRestore;
 
 		this.producedPartitions = Preconditions.checkNotNull(resultPartitionDeploymentDescriptors);
 		this.inputGates = Preconditions.checkNotNull(inputGateDeploymentDescriptors);
@@ -263,8 +264,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		return inputGates;
 	}
 
-	public TaskStateSnapshot getTaskStateHandles() {
-		return taskStateHandles;
+	@Nullable
+	public JobManagerTaskRestore getTaskRestore() {
+		return taskRestore;
 	}
 
 	public AllocationID getAllocationId() {

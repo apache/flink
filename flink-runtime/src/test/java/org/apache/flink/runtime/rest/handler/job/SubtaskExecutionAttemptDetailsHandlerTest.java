@@ -39,6 +39,7 @@ import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
 import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptPathParameter;
+import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -129,7 +130,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			() -> null,
 			Time.milliseconds(100L),
 			restHandlerConfiguration.getResponseHeaders(),
-			null,
+			SubtaskExecutionAttemptDetailsHeaders.getInstance(),
 			new ExecutionGraphCache(
 				restHandlerConfiguration.getTimeout(),
 				Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),

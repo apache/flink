@@ -380,6 +380,44 @@ class TableSourceTest extends TableTestBase {
     Assert.assertEquals(source1, source2)
   }
 
+// TODO enable this test once we expose the feature through the table environment
+//  @Test
+//  def testCsvTableSourceDescriptor(): Unit = {
+//    val util = streamTestUtil()
+//    val source1 = util.tableEnv
+//      .from(
+//        FileSystem()
+//          .path("/path/to/csv"))
+//      .withFormat(
+//        Csv()
+//          .field("myfield", Types.STRING)
+//          .field("myfield2", Types.INT)
+//          .quoteCharacter(';')
+//          .fieldDelimiter("#")
+//          .lineDelimiter("\r\n")
+//          .commentPrefix("%%")
+//          .ignoreFirstLine()
+//          .ignoreParseErrors())
+//        .withSchema(
+//          Schema()
+//          .field("myfield", Types.STRING)
+//          .field("myfield2", Types.INT))
+//      .toTableSource
+//
+//    val source2 = new CsvTableSource(
+//      "/path/to/csv",
+//      Array("myfield", "myfield2"),
+//      Array(Types.STRING, Types.INT),
+//      "#",
+//      "\r\n",
+//      ';',
+//      true,
+//      "%%",
+//      true)
+//
+//    Assert.assertEquals(source1, source2)
+//  }
+
   @Test
   def testTimeLiteralExpressionPushdown(): Unit = {
     val (tableSource, tableName) = filterableTableSourceTimeTypes

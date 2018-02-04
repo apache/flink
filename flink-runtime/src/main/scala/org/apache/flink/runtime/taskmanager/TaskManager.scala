@@ -67,6 +67,7 @@ import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl, MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.{SecurityConfiguration, SecurityUtils}
+import org.apache.flink.runtime.state.{TaskExecutorLocalStateStoresManager, TaskStateManagerImpl}
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
@@ -1176,6 +1177,21 @@ class TaskManager(
           config.getTimeout().getSize(),
           config.getTimeout().getUnit()))
 
+      // TODO: wire this so that the manager survives the end of the task
+      val taskExecutorLocalStateStoresManager = new TaskExecutorLocalStateStoresManager
+
+      val localStateStore = taskExecutorLocalStateStoresManager.localStateStoreForTask(
+        jobInformation.getJobId,
+        taskInformation.getJobVertexId,
+        tdd.getSubtaskIndex)
+
+      val slotStateManager = new TaskStateManagerImpl(
+        jobInformation.getJobId,
+        tdd.getExecutionAttemptId,
+        localStateStore,
+        tdd.getTaskRestore,
+        checkpointResponder)
+
       val task = new Task(
         jobInformation,
         taskInformation,
@@ -1186,11 +1202,11 @@ class TaskManager(
         tdd.getProducedPartitions,
         tdd.getInputGates,
         tdd.getTargetSlotNumber,
-        tdd.getTaskStateHandles,
         memoryManager,
         ioManager,
         network,
         bcVarManager,
+        slotStateManager,
         taskManagerConnection,
         inputSplitProvider,
         checkpointResponder,

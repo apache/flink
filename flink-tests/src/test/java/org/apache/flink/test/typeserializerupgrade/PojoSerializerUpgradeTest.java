@@ -41,6 +41,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
@@ -48,6 +49,7 @@ import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.DynamicCodeLoadingException;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
 
@@ -350,49 +352,49 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			Iterable<Long> input) throws Exception {
 
 		try (final MockEnvironment environment = new MockEnvironment(
-				"test task",
-				32 * 1024,
-				new MockInputSplitProvider(),
-				256,
-				taskConfiguration,
-				executionConfig,
-				16,
-				1,
-				0,
-				classLoader)) {
+			"test task",
+			32 * 1024,
+			new MockInputSplitProvider(),
+			256,
+			taskConfiguration,
+			executionConfig,
+			16,
+			1,
+			0,
+			classLoader,
+			new TestTaskStateManager())) {
 
-			OneInputStreamOperatorTestHarness<Long, Long> harness;
+			OneInputStreamOperatorTestHarness<Long, Long> harness = null;
+			try {
+				if (isKeyedState) {
+					harness = new KeyedOneInputStreamOperatorTestHarness<>(
+						operator,
+						keySelector,
+						BasicTypeInfo.LONG_TYPE_INFO,
+						environment);
+				} else {
+					harness = new OneInputStreamOperatorTestHarness<>(operator, LongSerializer.INSTANCE, environment);
+				}
 
-			if (isKeyedState) {
-				harness = new KeyedOneInputStreamOperatorTestHarness<>(
-					operator,
-					keySelector,
-					BasicTypeInfo.LONG_TYPE_INFO,
-					environment);
-			} else {
-				harness = new OneInputStreamOperatorTestHarness<>(operator, LongSerializer.INSTANCE, environment);
+				harness.setStateBackend(stateBackend);
+
+				harness.setup();
+				harness.initializeState(operatorStateHandles);
+				harness.open();
+
+				long timestamp = 0L;
+
+				for (Long value : input) {
+					harness.processElement(value, timestamp++);
+				}
+
+				long checkpointId = 1L;
+				long checkpointTimestamp = timestamp + 1L;
+
+				return harness.snapshot(checkpointId, checkpointTimestamp);
+			} finally {
+				IOUtils.closeQuietly(harness);
 			}
-
-			harness.setStateBackend(stateBackend);
-
-			harness.setup();
-			harness.initializeState(operatorStateHandles);
-			harness.open();
-
-			long timestamp = 0L;
-
-			for (Long value : input) {
-				harness.processElement(value, timestamp++);
-			}
-
-			long checkpointId = 1L;
-			long checkpointTimestamp = timestamp + 1L;
-
-			OperatorStateHandles stateHandles = harness.snapshot(checkpointId, checkpointTimestamp);
-
-			harness.close();
-
-			return stateHandles;
 		}
 	}
 

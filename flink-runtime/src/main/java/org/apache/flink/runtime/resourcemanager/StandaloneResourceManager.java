@@ -29,11 +29,13 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import javax.annotation.Nullable;
+
 /**
  * A standalone implementation of the resource manager. Used when the system is started in
  * standalone mode (via scripts), rather than via a resource framework like YARN or Mesos.
  *
- * This ResourceManager doesn't acquire new resources.
+ * <p>This ResourceManager doesn't acquire new resources.
  */
 public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
@@ -67,7 +69,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 	}
 
 	@Override
-	protected void shutDownApplication(ApplicationStatus finalStatus, String optionalDiagnostics) {
+	protected void shutDownApplication(ApplicationStatus finalStatus, @Nullable String optionalDiagnostics) {
 	}
 
 	@Override

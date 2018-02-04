@@ -323,3 +323,37 @@ case class ConcatWs(separator: Expression, strings: Seq[Expression])
     relBuilder.call(ScalarSqlFunctions.CONCAT_WS, children.map(_.toRexNode))
   }
 }
+
+case class Lpad(text: Expression, len: Expression, pad: Expression)
+  extends Expression with InputTypeSpec {
+
+  override private[flink] def children: Seq[Expression] = Seq(text, len, pad)
+
+  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    Seq(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO)
+
+  override def toString: String = s"($text).lpad($len, $pad)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.LPAD, children.map(_.toRexNode))
+  }
+}
+
+case class Rpad(text: Expression, len: Expression, pad: Expression)
+  extends Expression with InputTypeSpec {
+
+  override private[flink] def children: Seq[Expression] = Seq(text, len, pad)
+
+  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    Seq(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO)
+
+  override def toString: String = s"($text).rpad($len, $pad)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.RPAD, children.map(_.toRexNode))
+  }
+}

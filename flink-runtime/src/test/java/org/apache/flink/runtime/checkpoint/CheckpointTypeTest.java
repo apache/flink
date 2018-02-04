@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
-
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
