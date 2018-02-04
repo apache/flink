@@ -27,7 +27,6 @@ import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -36,6 +35,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -90,7 +91,7 @@ public class RMQSinkTest {
 				.setUri("amqp://usr:pwd@server:5672/test")
 				.build();
 
-		assertEquals(rmqCClocal.hasToCreateQueueOnSetup(), true);
+		assertTrue(rmqCClocal.hasToCreateQueueOnSetup());
 	}
 
 	@Test
@@ -100,7 +101,7 @@ public class RMQSinkTest {
 				.setCreateQueueOnSetup(false)
 				.build();
 
-		assertEquals(rmqCClocal.hasToCreateQueueOnSetup(), false);
+		assertFalse(rmqCClocal.hasToCreateQueueOnSetup());
 	}
 
 	@Test
