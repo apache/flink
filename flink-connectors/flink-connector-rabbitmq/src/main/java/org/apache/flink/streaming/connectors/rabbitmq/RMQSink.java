@@ -102,7 +102,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 			if (channel == null) {
 				throw new RuntimeException("None of RabbitMQ channels are available");
 			}
-			if (rmqConnectionConfig.hasToCreateQueueOnSetup()) {
+			if (queueName != null && rmqConnectionConfig.hasToCreateQueueOnSetup()) {
 				setupQueue();
 			}
 		} catch (IOException e) {
