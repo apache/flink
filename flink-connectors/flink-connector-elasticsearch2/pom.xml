@@ -140,15 +140,6 @@ under the License.
 									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.com.twitter</shadedPattern>
 								</relocation>
 
-								<!-- relocate everything from the flink-connector-elasticsearch base project -->
-								<relocation>
-									<pattern>org.apache.flink.streaming.connectors.elasticsearch</pattern>
-									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.org.apache.flink.streaming.connectors.elasticsearch</shadedPattern>
-									<excludes>
-										<!-- keep this project's classes as they are -->
-										<exclude>org.apache.flink.streaming.connectors.elasticsearch2.**</exclude>
-									</excludes>
-								</relocation>
 								<relocation>
 									<pattern>org.apache</pattern>
 									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.org.apache</shadedPattern>
@@ -159,10 +150,6 @@ under the License.
 									</excludes>
 								</relocation>
 
-								<relocation>
-									<pattern>org.elasticsearch</pattern>
-									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.org.elasticsearch</shadedPattern>
-								</relocation>
 								<relocation>
 									<pattern>org.jboss</pattern>
 									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.org.jboss</shadedPattern>
@@ -199,7 +186,6 @@ under the License.
 										<exclude>META-INF/maven/org.an*/**</exclude>
 										<exclude>META-INF/maven/org.apache.h*/**</exclude>
 										<exclude>META-INF/maven/org.apache.commons/**</exclude>
-										<exclude>META-INF/maven/org.apache.flink/flink-connector-elasticsearch-base*/**</exclude>
 										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
 										<exclude>META-INF/maven/org.apache.logging*/**</exclude>
 										<exclude>META-INF/maven/org.e*/**</exclude>
