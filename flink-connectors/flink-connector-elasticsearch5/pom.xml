@@ -124,7 +124,6 @@ under the License.
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-api</artifactId>
 			<version>2.7</version>
-			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -208,15 +207,6 @@ under the License.
 									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.joptsimple</shadedPattern>
 								</relocation>
 
-								<!-- relocate everything from the flink-connector-elasticsearch base project -->
-								<relocation>
-									<pattern>org.apache.flink.streaming.connectors.elasticsearch</pattern>
-									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.org.apache.flink.streaming.connectors.elasticsearch</shadedPattern>
-									<excludes>
-										<!-- keep this project's classes as they are -->
-										<exclude>org.apache.flink.streaming.connectors.elasticsearch5.**</exclude>
-									</excludes>
-								</relocation>
 								<relocation>
 									<pattern>org.apache</pattern>
 									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.org.apache</shadedPattern>
@@ -227,10 +217,6 @@ under the License.
 									</excludes>
 								</relocation>
 
-								<relocation>
-									<pattern>org.elasticsearch</pattern>
-									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.org.elasticsearch</shadedPattern>
-								</relocation>
 								<relocation>
 									<pattern>org.HdrHistogram</pattern>
 									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.org.HdrHistogram</shadedPattern>
@@ -267,13 +253,23 @@ under the License.
 										<exclude>META-INF/maven/org.an*/**</exclude>
 										<exclude>META-INF/maven/org.apache.h*/**</exclude>
 										<exclude>META-INF/maven/org.apache.commons/**</exclude>
-										<exclude>META-INF/maven/org.apache.flink/flink-connector-elasticsearch-base*/**</exclude>
 										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
 										<exclude>META-INF/maven/org.apache.logging*/**</exclude>
 										<exclude>META-INF/maven/org.e*/**</exclude>
 										<exclude>META-INF/maven/org.h*/**</exclude>
 										<exclude>META-INF/maven/org.j*/**</exclude>
 										<exclude>META-INF/maven/org.y*/**</exclude>
+									</excludes>
+								</filter>
+								<!--
+								  Since we relocate the dependency, the paths specified in the providers file
+								  will be incorrect. We exclude it here, and re-package a new providers file
+								  with the correct re-located paths.
+								-->
+								<filter>
+									<artifact>org.apache.logging.log4j:log4j-to-slf4j</artifact>
+									<excludes>
+										<exclude>META-INF/log4j-provider.properties</exclude>
 									</excludes>
 								</filter>
 							</filters>

@@ -121,18 +121,6 @@ under the License.
 									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch.shaded.com.spatial4j</shadedPattern>
 								</relocation>
 
-								<!-- relocate everything from the flink-connector-elasticsearch base project -->
-								<relocation>
-									<pattern>org.apache.flink.streaming.connectors.elasticsearch.</pattern>
-									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch.shaded.org.apache.flink.streaming.connectors.elasticsearch.</shadedPattern>
-									<excludes>
-										<!-- keep this project's classes as they are -->
-										<exclude>org.apache.flink.streaming.connectors.elasticsearch.Elasticsearch1ApiCallBridge</exclude>
-										<exclude>org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSink</exclude>
-										<exclude>org.apache.flink.streaming.connectors.elasticsearch.IndexRequestBuilder</exclude>
-										<exclude>org.apache.flink.streaming.connectors.elasticsearch.IndexRequestBuilderWrapperFunction</exclude>
-									</excludes>
-								</relocation>
 								<relocation>
 									<pattern>org.apache</pattern>
 									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch.shaded.org.apache</shadedPattern>
@@ -146,10 +134,6 @@ under the License.
 								<relocation>
 									<pattern>org.antlr</pattern>
 									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch.shaded.org.antlr</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.elasticsearch</pattern>
-									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch.shaded.org.elasticsearch</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.joda</pattern>
@@ -179,7 +163,6 @@ under the License.
 										<exclude>META-INF/maven/org.an*/**</exclude>
 										<exclude>META-INF/maven/org.apache.h*/**</exclude>
 										<exclude>META-INF/maven/org.apache.commons/**</exclude>
-										<exclude>META-INF/maven/org.apache.flink/flink-connector-elasticsearch-base*/**</exclude>
 										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
 										<exclude>META-INF/maven/org.apache.logging*/**</exclude>
 										<exclude>META-INF/maven/org.e*/**</exclude>
