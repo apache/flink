@@ -111,13 +111,13 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 
 	@Override
 	public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException {
-		List<FileStatus> files = this.getFiles();
-
-		final FileSystem fs = getFilePath().getFileSystem();
-		final long blockSize = this.blockSize == NATIVE_BLOCK_SIZE ? fs.getDefaultBlockSize() : this.blockSize;
+		final List<FileStatus> files = this.getFiles();
 
 		final List<FileInputSplit> inputSplits = new ArrayList<FileInputSplit>(minNumSplits);
 		for (FileStatus file : files) {
+			final FileSystem fs = file.getPath().getFileSystem();
+			final long blockSize = this.blockSize == NATIVE_BLOCK_SIZE ? fs.getDefaultBlockSize() : this.blockSize;
+
 			for (long pos = 0, length = file.getLen(); pos < length; pos += blockSize) {
 				long remainingLength = Math.min(pos + blockSize, length) - pos;
 
@@ -132,10 +132,10 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 
 		if (inputSplits.size() < minNumSplits) {
 			LOG.warn(String.format(
-				"With the given block size %d, the file %s cannot be split into %d blocks. Filling up with empty splits...",
-				blockSize, getFilePath(), minNumSplits));
+				"With the given block size %d, the files %s cannot be split into %d blocks. Filling up with empty splits...",
+				blockSize, Arrays.toString(getFilePaths()), minNumSplits));
 			FileStatus last = files.get(files.size() - 1);
-			final BlockLocation[] blocks = fs.getFileBlockLocations(last, 0, last.getLen());
+			final BlockLocation[] blocks = last.getPath().getFileSystem().getFileBlockLocations(last, 0, last.getLen());
 			for (int index = files.size(); index < minNumSplits; index++) {
 				inputSplits.add(new FileInputSplit(index, last.getPath(), last.getLen(), 0, blocks[0].getHosts()));
 			}
@@ -146,9 +146,9 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 
 	protected List<FileStatus> getFiles() throws IOException {
 		// get all the files that are involved in the splits
-		List<FileStatus> files = new ArrayList<FileStatus>();
+		List<FileStatus> files = new ArrayList<>();
 
-		for (Path filePath: this.filePathList) {
+		for (Path filePath: getFilePaths()) {
 			final FileSystem fs = filePath.getFileSystem();
 			final FileStatus pathFile = fs.getFileStatus(filePath);
 
@@ -172,10 +172,10 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 
 		final FileBaseStatistics cachedFileStats = cachedStats instanceof FileBaseStatistics ?
 			(FileBaseStatistics) cachedStats : null;
-			
+
 		try {
 			final ArrayList<FileStatus> allFiles = new ArrayList<FileStatus>(1);
-			final FileBaseStatistics stats = getFileStats(cachedFileStats, this.filePathList, allFiles);
+			final FileBaseStatistics stats = getFileStats(cachedFileStats, getFilePaths(), allFiles);
 			if (stats == null) {
 				return null;
 			}
@@ -187,19 +187,18 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 		} catch (IOException ioex) {
 			if (LOG.isWarnEnabled()) {
 				LOG.warn(
-					String.format("Could not determine complete statistics for files in '%s' due to an I/O error",
-					this.filePathList),
+					String.format("Could not determine complete statistics for files '%s' due to an I/O error",
+						Arrays.toString(getFilePaths())),
 					ioex);
 			}
 		} catch (Throwable t) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error(
-					String.format("Unexpected problem while getting the file statistics for file in'%s'",
-					this.filePathList),
+					String.format("Unexpected problem while getting the file statistics for files '%s'",
+						Arrays.toString(getFilePaths())),
 					t);
 			}
 		}
-		
 		// no stats available
 		return null;
 	}
