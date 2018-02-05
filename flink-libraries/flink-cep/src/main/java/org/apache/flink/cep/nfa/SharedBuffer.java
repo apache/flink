@@ -189,7 +189,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 * @return {@code true} if pruning happened
 	 */
 	public boolean prune(long pruningTimestamp) {
-		final List<SharedBufferEntry<K, V>> prunedEntries = new ArrayList<>();
+		final Set<SharedBufferEntry<K, V>> prunedEntries = new HashSet<>();
 
 		final Iterator<Map.Entry<K, SharedBufferPage<K, V>>> it = pages.entrySet().iterator();
 		while (it.hasNext()) {
@@ -445,7 +445,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		 * @param pruningTimestamp Timestamp for the pruning
 		 * @param prunedEntries a {@link Set} to put the removed {@link SharedBufferEntry SharedBufferEntries}.
 		 */
-		private void prune(final long pruningTimestamp, final List<SharedBufferEntry<K, V>> prunedEntries) {
+		private void prune(final long pruningTimestamp, final Set<SharedBufferEntry<K, V>> prunedEntries) {
 			Iterator<Map.Entry<ValueTimeWrapper<V>, SharedBufferEntry<K, V>>> it = entries.entrySet().iterator();
 			while (it.hasNext()) {
 				SharedBufferEntry<K, V> entry = it.next().getValue();
@@ -459,7 +459,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		/**
 		 * Remove edges with the specified targets for the entries.
 		 */
-		private void removeEdges(final List<SharedBufferEntry<K, V>> prunedEntries) {
+		private void removeEdges(final Set<SharedBufferEntry<K, V>> prunedEntries) {
 			for (SharedBufferEntry<K, V> entry : entries.values()) {
 				entry.removeEdges(prunedEntries);
 			}
@@ -557,15 +557,12 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		/**
 		 * Remove edges with the specified targets.
 		 */
-		private void removeEdges(final List<SharedBufferEntry<K, V>> prunedEntries) {
-			Iterator<SharedBufferEdge<K, V>> itor = edges.iterator();
-			while (itor.hasNext()) {
-				SharedBufferEdge<K, V> edge = itor.next();
-				for (SharedBufferEntry<K, V> prunedEntry : prunedEntries) {
-					if (prunedEntry == edge.getTarget()) {
-						itor.remove();
-						break;
-					}
+		private void removeEdges(final Set<SharedBufferEntry<K, V>> prunedEntries) {
+			Iterator<SharedBufferEdge<K, V>> it = edges.iterator();
+			while (it.hasNext()) {
+				SharedBufferEdge<K, V> edge = it.next();
+				if (prunedEntries.contains(edge.getTarget())) {
+					it.remove();
 				}
 			}
 		}
