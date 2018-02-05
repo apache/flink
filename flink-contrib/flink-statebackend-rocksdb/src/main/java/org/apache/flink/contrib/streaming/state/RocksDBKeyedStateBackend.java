@@ -374,7 +374,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				checkpointId,
 				checkpointTimestamp);
 
-		snapshotOperation.takeSnapshot();
+		try {
+			snapshotOperation.takeSnapshot();
+		} catch (Exception e) {
+			snapshotOperation.stop();
+			snapshotOperation.releaseResources(true);
+			throw e;
+		}
 
 		return new FutureTask<KeyedStateHandle>(
 			new Callable<KeyedStateHandle>() {
