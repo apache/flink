@@ -92,6 +92,8 @@ public class OrcTableSource
 	private final Configuration orcConfig;
 	// the number of rows to read in a batch
 	private final int batchSize;
+	// flag whether a path is recursively enumerated
+	private final boolean recursiveEnumeration;
 
 	// type information of the data returned by the InputFormat
 	private final RowTypeInfo typeInfo;
@@ -107,13 +109,15 @@ public class OrcTableSource
 	 * @param orcSchema The schema of the ORC files as TypeDescription.
 	 * @param orcConfig The configuration to read the ORC files.
 	 * @param batchSize The number of Rows to read in a batch, default is 1000.
+	 * @param recursiveEnumeration Flag whether the path should be recursively enumerated or not.
 	 */
-	private OrcTableSource(String path, TypeDescription orcSchema, Configuration orcConfig, int batchSize) {
-		this(path, orcSchema, orcConfig, batchSize, null, null);
+	private OrcTableSource(String path, TypeDescription orcSchema, Configuration orcConfig, int batchSize, boolean recursiveEnumeration) {
+		this(path, orcSchema, orcConfig, batchSize, recursiveEnumeration, null, null);
 	}
 
 	private OrcTableSource(String path, TypeDescription orcSchema, Configuration orcConfig,
-							int batchSize, int[] selectedFields, Predicate[] predicates) {
+							int batchSize, boolean recursiveEnumeration,
+							int[] selectedFields, Predicate[] predicates) {
 
 		Preconditions.checkNotNull(path, "Path must not be null.");
 		Preconditions.checkNotNull(orcSchema, "OrcSchema must not be null.");
@@ -123,6 +127,7 @@ public class OrcTableSource
 		this.orcSchema = orcSchema;
 		this.orcConfig = orcConfig;
 		this.batchSize = batchSize;
+		this.recursiveEnumeration = recursiveEnumeration;
 		this.selectedFields = selectedFields;
 		this.predicates = predicates;
 
@@ -146,6 +151,7 @@ public class OrcTableSource
 	@Override
 	public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
 		OrcRowInputFormat orcIF = buildOrcInputFormat();
+		orcIF.setNestedFileEnumeration(recursiveEnumeration);
 		if (selectedFields != null) {
 			orcIF.selectFields(selectedFields);
 		}
@@ -175,7 +181,7 @@ public class OrcTableSource
 	@Override
 	public TableSource<Row> projectFields(int[] selectedFields) {
 		// create a copy of the OrcTableSouce with new selected fields
-		return new OrcTableSource(path, orcSchema, orcConfig, batchSize, selectedFields, predicates);
+		return new OrcTableSource(path, orcSchema, orcConfig, batchSize, recursiveEnumeration, selectedFields, predicates);
 	}
 
 	@Override
@@ -190,7 +196,7 @@ public class OrcTableSource
 			}
 		}
 
-		return new OrcTableSource(path, orcSchema, orcConfig, batchSize, selectedFields, orcPredicates.toArray(new Predicate[]{}));
+		return new OrcTableSource(path, orcSchema, orcConfig, batchSize, recursiveEnumeration, selectedFields, orcPredicates.toArray(new Predicate[]{}));
 	}
 
 	@Override
@@ -405,8 +411,11 @@ public class OrcTableSource
 
 		private int batchSize = 0;
 
+		private boolean recursive = true;
+
 		/**
 		 * Sets the path of the ORC file(s).
+		 * If the path specifies a directory, it will be recursively enumerated.
 		 *
 		 * @param path The path of the ORC file(s).
 		 * @return The builder.
@@ -415,6 +424,21 @@ public class OrcTableSource
 			Preconditions.checkNotNull(path, "Path must not be null.");
 			Preconditions.checkArgument(!path.isEmpty(), "Path must not be empty.");
 			this.path = path;
+			return this;
+		}
+
+		/**
+		 * Sets the path of the ORC file(s).
+		 *
+		 * @param path The path of the ORC file(s).
+		 * @param recursive Flag whether the to enumerate
+		 * @return The builder.
+		 */
+		public Builder path(String path, boolean recursive) {
+			Preconditions.checkNotNull(path, "Path must not be null.");
+			Preconditions.checkArgument(!path.isEmpty(), "Path must not be empty.");
+			this.path = path;
+			this.recursive = recursive;
 			return this;
 		}
 
@@ -483,7 +507,7 @@ public class OrcTableSource
 				// set default batch size
 				this.batchSize = DEFAULT_BATCH_SIZE;
 			}
-			return new OrcTableSource(this.path, this.schema, this.config, this.batchSize);
+			return new OrcTableSource(this.path, this.schema, this.config, this.batchSize, this.recursive);
 		}
 
 	}
