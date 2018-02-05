@@ -52,6 +52,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
 import org.apache.orc.TypeDescription;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -79,6 +81,8 @@ import java.util.List;
  */
 public class OrcTableSource
 	implements BatchTableSource<Row>, ProjectableTableSource<Row>, FilterableTableSource<Row> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(OrcTableSource.class);
 
 	private static final int DEFAULT_BATCH_SIZE = 1000;
 
@@ -186,7 +190,10 @@ public class OrcTableSource
 		for (Expression pred : predicates) {
 			Predicate orcPred = toOrcPredicate(pred);
 			if (orcPred != null) {
+				LOG.info("Predicate [{}] converted into OrcPredicate [{}] and pushed into OrcTableSource for path {}.", pred, orcPred, path);
 				orcPredicates.add(orcPred);
+			} else {
+				LOG.info("Predicate [{}] could not be pushed into OrcTableSource for path {}.", pred, path);
 			}
 		}
 
@@ -235,17 +242,32 @@ public class OrcTableSource
 
 			if (!isValid(binComp)) {
 				// not a valid predicate
+				LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcTableSource.", pred);
 				return null;
 			}
 			PredicateLeaf.Type litType = getLiteralType(binComp);
 			if (litType == null) {
 				// unsupported literal type
+				LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcTableSource.", pred);
 				return null;
 			}
 
 			boolean literalOnRight = literalOnRight(binComp);
 			String colName = getColumnName(binComp);
-			Serializable literal = (Serializable) getLiteral(binComp);
+
+			// fetch literal and ensure it is serializable
+			Object literalObj = getLiteral(binComp);
+			Serializable literal;
+			// validate that literal is serializable
+			if (literalObj instanceof Serializable) {
+				literal = (Serializable) literalObj;
+			} else {
+				LOG.warn("Encountered a non-serializable literal of type {}. " +
+						"Cannot push predicate [{}] into OrcTableSource. " +
+						"This is a bug and should be reported.",
+						literalObj.getClass().getCanonicalName(), pred);
+				return null;
+			}
 
 			if (pred instanceof EqualTo) {
 				return new OrcRowInputFormat.Equals(colName, litType, literal);
@@ -282,6 +304,7 @@ public class OrcTableSource
 				}
 			} else {
 				// unsupported predicate
+				LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcTableSource.", pred);
 				return null;
 			}
 		} else if (pred instanceof UnaryExpression) {
@@ -289,11 +312,13 @@ public class OrcTableSource
 			UnaryExpression unary = (UnaryExpression) pred;
 			if (!isValid(unary)) {
 				// not a valid predicate
+				LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcTableSource.", pred);
 				return null;
 			}
 			PredicateLeaf.Type colType = toOrcType(((UnaryExpression) pred).child().resultType());
 			if (colType == null) {
 				// unsupported type
+				LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcTableSource.", pred);
 				return null;
 			}
 
@@ -306,10 +331,12 @@ public class OrcTableSource
 					new OrcRowInputFormat.IsNull(colName, colType));
 			} else {
 				// unsupported predicate
+				LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcTableSource.", pred);
 				return null;
 			}
 		} else {
 			// unsupported predicate
+			LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcTableSource.", pred);
 			return null;
 		}
 	}
