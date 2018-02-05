@@ -274,7 +274,7 @@ public class ContinuousFileProcessingRescalingTest {
 		public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException {
 			FileInputSplit[] splits = new FileInputSplit[minNumSplits];
 			for (int i = 0; i < minNumSplits; i++) {
-				splits[i] = new FileInputSplit(i, getFilePath(), i * linesPerSplit + 1, linesPerSplit, null);
+				splits[i] = new FileInputSplit(i, getFilePaths()[0], i * linesPerSplit + 1, linesPerSplit, null);
 			}
 			return splits;
 		}

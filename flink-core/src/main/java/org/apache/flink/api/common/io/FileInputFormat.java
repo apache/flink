@@ -194,8 +194,17 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	
 	/**
 	 * The path to the file that contains the input.
+	 *
+	 * @deprecated Please override {@link FileInputFormat#supportsMultiPaths()} and
+	 *             use {@link FileInputFormat#getFilePaths()} and {@link FileInputFormat#setFilePaths(Path...)}.
 	 */
-	protected List<Path> filePathList;
+	@Deprecated
+	protected Path filePath;
+
+	/**
+	 * The list of paths to files and directories that contain the input.
+	 */
+	private Path[] filePaths;
 	
 	/**
 	 * The minimal split size, set by the configure() method.
@@ -245,22 +254,41 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	//  Getters/setters for the configurable parameters
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 *
+	 * @return The path of the file to read.
+	 *
+	 * @deprecated Please use getFilePaths() instead.
+	 */
+	@Deprecated
 	public Path getFilePath() {
-		if (filePathList == null || filePathList.size() < 1) {
-			return null;
+
+		if (supportsMultiPaths()) {
+			throw new UnsupportedOperationException(
+				"FileInputFormat supports multiple paths. Use getFilePaths() instead.");
+		} else {
+			return filePath;
 		}
-		return filePathList.get(0);
 	}
 	
 	/**
+	 * Returns the paths of all files to be read by the FileInputFormat.
 	 * 
-	 * @return the list of all file paths
+	 * @return The list of all paths to read.
 	 */
 	public Path[] getFilePaths() {
-		if (this.filePathList == null) {
-			return new Path[0];
+
+		if (supportsMultiPaths()) {
+			if (this.filePaths == null) {
+				return new Path[0];
+			}
+			return this.filePaths;
+		} else {
+			if (this.filePath == null) {
+				return new Path[0];
+			}
+			return new Path[] {filePath};
 		}
-		return this.filePathList.toArray(new Path[this.filePathList.size()]);
 	}
 	
 	public void setFilePath(String filePath) {
@@ -279,39 +307,57 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		}
 
 		try {
-			setFilePath(new Path(filePath));
+			this.setFilePath(new Path(filePath));
 		} catch (RuntimeException rex) {
 			throw new RuntimeException("Could not create a valid URI from the given file path name: " + rex.getMessage());
 		}
 	}
 	
+	/**
+	 * Sets a single path of a file to be read.
+	 *
+	 * @param filePath The path of the file to read.
+	 */
 	public void setFilePath(Path filePath) {
 		if (filePath == null) {
 			throw new IllegalArgumentException("File path must not be null.");
 		}
 
-		this.filePathList = new ArrayList<Path>();
-		this.filePathList.add(filePath);
+		if (supportsMultiPaths()) {
+			this.filePaths = new Path[] {filePath};
+		} else {
+			this.filePath = filePath;
+		}
 	}
 	
 	/**
+	 * Sets multiple paths of files to be read.
 	 * 
-	 * @param filePaths the paths to set
+	 * @param filePaths The paths of the files to read.
 	 */
 	public void setFilePaths(String... filePaths) {
+		Path[] paths = new Path[filePaths.length];
+		for (int i = 0; i < paths.length; i++) {
+			paths[i] = new Path(filePaths[i]);
+		}
+		setFilePaths(paths);
+	}
+
+	/**
+	 * Sets multiple paths of files to be read.
+	 *
+	 * @param filePaths The paths of the files to read.
+	 */
+	public void setFilePaths(Path... filePaths) {
+		if (!supportsMultiPaths()) {
+			throw new UnsupportedOperationException(
+				"Multiple paths are not supported by this FileInputFormat.");
+		}
 		if (filePaths.length < 1) {
-			throw new IllegalArgumentException("At least one file path must be given.");
+			throw new IllegalArgumentException("At least one file path must be specified.");
 		}
-		this.filePathList = new ArrayList<Path>();
-		for (String filePath : filePaths) {
-			if (filePath == null) {
-				throw new IllegalArgumentException("The file path must not be null.");
-			}
-			// can only add non-empty paths
-			if (!filePath.isEmpty()) {
-				this.filePathList.add(new Path(filePath));
-			}
-		}
+
+		this.filePaths = filePaths;
 	}
 	
 	public long getMinSplitSize() {
@@ -395,12 +441,14 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	@Override
 	public void configure(Configuration parameters) {
 
-		// the if() clauses are to prevent the configure() method from
-		// overwriting the values set by the setters
-
-		if (filePathList == null || filePathList.isEmpty()) {
+		if (getFilePaths().length == 0) {
+			// file path was not specified yet. Try to set it from the parameters.
 			String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
-			setFilePath(filePath);
+			if (filePath == null) {
+				throw new IllegalArgumentException("File path was not specified in input format or configuration.");
+			} else {
+				setFilePath(filePath);
+			}
 		}
 
 		if (!this.enumerateNestedFiles) {
@@ -415,21 +463,62 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 */
 	@Override
 	public FileBaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
-
-		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics)
-				? (FileBaseStatistics) cachedStats : null;
-		final FileBaseStatistics statistics = getFileStats(cachedFileStats, this.filePathList, new ArrayList<FileStatus>(1));
-
-		// final sanity check - for backward compatibility
-		return (statistics.fileSize == BaseStatistics.SIZE_UNKNOWN) ? null : statistics;
+		
+		final FileBaseStatistics cachedFileStats = cachedStats instanceof FileBaseStatistics ?
+			(FileBaseStatistics) cachedStats : null;
+				
+		try {
+			return getFileStats(cachedFileStats, getFilePaths(), new ArrayList<>(getFilePaths().length));
+		} catch (IOException ioex) {
+			if (LOG.isWarnEnabled()) {
+				LOG.warn("Could not determine statistics for paths '" + Arrays.toString(getFilePaths()) + "' due to an io error: "
+						+ ioex.getMessage());
+			}
+		}
+		catch (Throwable t) {
+			if (LOG.isErrorEnabled()) {
+				LOG.error("Unexpected problem while getting the file statistics for paths '" + Arrays.toString(getFilePaths()) + "': "
+						+ t.getMessage(), t);
+			}
+		}
+		
+		// no statistics available
+		return null;
 	}
 	
-	/**
-	 * @deprecated Should no longer be used because of filePathList and multiple paths
-	 */
-	@Deprecated
-	protected FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, Path filePath, FileSystem fs,
-			ArrayList<FileStatus> files) throws IOException {
+	protected FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, Path[] filePaths, ArrayList<FileStatus> files) throws IOException {
+
+		// shortcut for a single path that preserves cached stats
+		if (filePaths.length == 1) {
+			final FileSystem fs = FileSystem.get(filePaths[0].toUri());
+			return getFileStats(cachedStats, filePaths[0], fs, files);
+		}
+
+		long totalLength = 0;
+		long latestModTime = 0;
+
+		for (Path path : filePaths) {
+			final FileSystem fs = FileSystem.get(path.toUri());
+			final FileBaseStatistics stats = getFileStats(cachedStats, path, fs, files);
+
+			if (stats.getTotalInputSize() == BaseStatistics.SIZE_UNKNOWN) {
+				totalLength = BaseStatistics.SIZE_UNKNOWN;
+			} else if (totalLength != BaseStatistics.SIZE_UNKNOWN) {
+				totalLength += stats.getTotalInputSize();
+			}
+			latestModTime = Math.max(latestModTime, stats.getLastModificationTime());
+		}
+
+		// check whether the cached statistics are still valid, if we have any
+		if (cachedStats != null && latestModTime <= cachedStats.getLastModificationTime()) {
+			return cachedStats;
+		}
+
+		return new FileBaseStatistics(latestModTime, totalLength, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+	}
+	
+	protected FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, Path filePath, FileSystem fs, ArrayList<FileStatus> files) throws IOException {
+
 		// get the file info and check whether the cached statistics are still valid.
 		final FileStatus file = fs.getFileStatus(filePath);
 		long totalLength = 0;
@@ -460,56 +549,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		}
 		return new FileBaseStatistics(latestModTime, totalLength, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 	}
-	
-	protected FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, final List<Path> filePaths,
-			ArrayList<FileStatus> files) {
-
-		long totalLength = 0;
-		long latestModTime = 0;
-		for (Path filePath : filePaths) {
-			try {
-				final FileSystem fs = FileSystem.get(filePath.toUri());
-				// get the file info and check whether the cached statistics are
-				// still valid.
-				final FileStatus file = fs.getFileStatus(filePath);
-
-				// enumerate all files
-				if (file.isDir()) {
-					totalLength += addFilesInDir(file.getPath(), files, false);
-				} else {
-					files.add(file);
-					testForUnsplittable(file);
-					totalLength += file.getLen();
-				}
-
-				// check the modification time stamp
-				for (FileStatus f : files) {
-					latestModTime = Math.max(f.getModificationTime(), latestModTime);
-				}
-
-				// check whether the cached statistics are still valid, if we
-				// have any
-				if (cachedStats != null && latestModTime <= cachedStats.getLastModificationTime()) {
-					return cachedStats;
-				}
-			} catch (IOException ioex) {
-				if (LOG.isWarnEnabled()) {
-					LOG.warn("Could not determine statistics for file '" + filePath + "' due to an io error: "
-							+ ioex.getMessage());
-				}
-			} catch (Throwable t) {
-				if (LOG.isErrorEnabled()) {
-					LOG.error("Unexpected problem while getting the file statistics for file '" + filePath + "': "
-							+ t.getMessage(), t);
-				}
-			}
-		}
-		// sanity check
-		if (totalLength <= 0) {
-			totalLength = BaseStatistics.SIZE_UNKNOWN;
-		}
-		return new FileBaseStatistics(latestModTime, totalLength, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
-	}
 
 	@Override
 	public LocatableInputSplitAssigner getInputSplitAssigner(FileInputSplit[] splits) {
@@ -528,22 +567,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 */
 	@Override
 	public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException {
-		final List<FileInputSplit> inputSplits = new ArrayList<FileInputSplit>(minNumSplits);
-		for (Path file : filePathList) {
-			inputSplits.addAll(createInputSplits(file, minNumSplits));
-		}
-		return inputSplits.toArray(new FileInputSplit[inputSplits.size()]);
-	}
-	
-	/**
-	 * Utility method to create split inputs given a filePath.
-	 * 
-	 * @param filePath the path to traverse
-	 * @param minNumSplits The minimum desired number of file splits
-	 * @return a list of {@link FileInputSplit}
-	 * @throws IOException thrown, if there is an exception
-	 */
-	private List<FileInputSplit> createInputSplits(final Path filePath, int minNumSplits) throws IOException {
 		if (minNumSplits < 1) {
 			throw new IllegalArgumentException("Number of input splits has to be at least 1.");
 		}
@@ -554,24 +577,28 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		final List<FileInputSplit> inputSplits = new ArrayList<FileInputSplit>(minNumSplits);
 
 		// get all the files that are involved in the splits
-		List<FileStatus> files = new ArrayList<FileStatus>();
+		List<FileStatus> files = new ArrayList<>();
 		long totalLength = 0;
 
-		final FileSystem fs = filePath.getFileSystem();
-		final FileStatus pathFile = fs.getFileStatus(filePath);
+		for (Path path : getFilePaths()) {
+			final FileSystem fs = path.getFileSystem();
+			final FileStatus pathFile = fs.getFileStatus(path);
 
-		if (pathFile.isDir()) {
-			totalLength += addFilesInDir(filePath, files, true);
-		} else {
-			testForUnsplittable(pathFile);
+			if (pathFile.isDir()) {
+				totalLength += addFilesInDir(path, files, true);
+			} else {
+				testForUnsplittable(pathFile);
 
-			files.add(pathFile);
-			totalLength += pathFile.getLen();
+				files.add(pathFile);
+				totalLength += pathFile.getLen();
+			}
 		}
+
 		// returns if unsplittable
 		if (unsplittable) {
 			int splitNum = 0;
 			for (final FileStatus file : files) {
+				final FileSystem fs = file.getPath().getFileSystem();
 				final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, file.getLen());
 				Set<String> hosts = new HashSet<String>();
 				for(BlockLocation block : blocks) {
@@ -585,7 +612,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 						hosts.toArray(new String[hosts.size()]));
 				inputSplits.add(fis);
 			}
-			return inputSplits;
+			return inputSplits.toArray(new FileInputSplit[inputSplits.size()]);
 		}
 		
 
@@ -595,6 +622,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		int splitNum = 0;
 		for (final FileStatus file : files) {
 
+			final FileSystem fs = file.getPath().getFileSystem();
 			final long len = file.getLen();
 			final long blockSize = file.getBlockSize();
 			
@@ -660,7 +688,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 			}
 		}
 
-		return inputSplits;
+		return inputSplits.toArray(new FileInputSplit[inputSplits.size()]);
 	}
 
 	/**
@@ -832,11 +860,23 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		}
 	}
 	
+	/**
+	 * Override this method to supports multiple paths.
+	 * When this method will be removed, all FileInputFormats have to support multiple paths.
+	 *
+	 * @return True if the FileInputFormat supports multiple paths, false otherwise.
+	 *
+	 * @deprecated Will be removed for Flink 2.0.
+	 */
+	@Deprecated
+	public boolean supportsMultiPaths() {
+		return false;
+	}
 
 	public String toString() {
-		return this.filePathList == null ? 
+		return getFilePaths() == null || getFilePaths().length == 0 ?
 			"File Input (unknown file)" :
-			"File Input (" +  this.filePathList + ')';
+			"File Input (" +  Arrays.toString(this.getFilePaths()) + ')';
 	}
 
 	// ============================================================================================
@@ -1034,7 +1074,4 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 * The config parameter which defines whether input directories are recursively traversed.
 	 */
 	public static final String ENUMERATE_NESTED_FILES_FLAG = "recursive.file.enumeration";
-	
-	public static final String FILE_PARAMETER_DELIMITER_KEY = "input.file.path.delimiter";
-	public static final String FILE_PARAMETER_DELIMITER = ",";
 }
