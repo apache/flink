@@ -594,12 +594,20 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			if (nowResult.isFire()) {
 				if (toBeSkippedWindows.size() == toSkipWindowCount) {
 					if (toBeSkippedWindows.contains(window)) {
-						nowResult = TriggerResult.CONTINUE;
+						if (nowResult.isPurge()){
+							nowResult = TriggerResult.PURGE;
+						}else {
+							nowResult = TriggerResult.CONTINUE;
+						}
 					}
 				} else {
 					toBeSkippedWindows.add(window);
 					LOG.info("This window is add to skipped list: {}", window);
-					nowResult = TriggerResult.CONTINUE;
+					if (nowResult.isPurge()){
+						nowResult = TriggerResult.PURGE;
+					}else {
+						nowResult = TriggerResult.CONTINUE;
+					}
 				}
 			}
 		}
