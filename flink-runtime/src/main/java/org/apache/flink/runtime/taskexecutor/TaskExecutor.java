@@ -353,14 +353,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 
 		if (numSamples > 1) {
-			scheduleRunAsync(() -> runAsync(() -> requestStackTraceSample(
+			scheduleRunAsync(() -> requestStackTraceSample(
 				executionAttemptId,
 				sampleId,
 				numSamples - 1,
 				delayBetweenSamples,
 				maxStackTraceDepth,
 				currentTraces,
-				resultFuture)), delayBetweenSamples.getSize(), delayBetweenSamples.getUnit());
+				resultFuture), delayBetweenSamples.getSize(), delayBetweenSamples.getUnit());
 			return resultFuture;
 		} else {
 			resultFuture.complete(new StackTraceSampleResponse(

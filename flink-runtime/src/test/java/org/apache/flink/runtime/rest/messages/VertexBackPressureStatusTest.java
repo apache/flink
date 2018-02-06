@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -27,7 +28,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link JobVertexBackPressureInfo.VertexBackPressureStatus}.
  */
-public class VertexBackPressureStatusTest {
+public class VertexBackPressureStatusTest extends TestLogger {
 
 	/**
 	 * Tests that the enum values are serialized correctly.

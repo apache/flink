@@ -60,7 +60,7 @@ public class JobManagerServices {
 	private final StackTraceSampleCoordinator stackTraceSampleCoordinator;
 	public final BackPressureStatsTracker backPressureStatsTracker;
 
-	private JobManagerServices(
+	public JobManagerServices(
 			ScheduledExecutorService executorService,
 			BlobServer blobServer,
 			BlobLibraryCacheManager libraryCacheManager,
@@ -76,6 +76,12 @@ public class JobManagerServices {
 		this.rpcAskTimeout = checkNotNull(rpcAskTimeout);
 		this.stackTraceSampleCoordinator = checkNotNull(stackTraceSampleCoordinator);
 		this.backPressureStatsTracker = checkNotNull(backPressureStatsTracker);
+
+		executorService.scheduleWithFixedDelay(
+			backPressureStatsTracker::cleanUpOperatorStatsCache,
+			backPressureStatsTracker.getCleanUpInterval(),
+			backPressureStatsTracker.getCleanUpInterval(),
+			TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -159,12 +165,6 @@ public class JobManagerServices {
 			config.getInteger(WebOptions.BACKPRESSURE_NUM_SAMPLES),
 			config.getInteger(WebOptions.BACKPRESSURE_REFRESH_INTERVAL),
 			Time.milliseconds(config.getInteger(WebOptions.BACKPRESSURE_DELAY)));
-
-		futureExecutor.scheduleWithFixedDelay(
-			backPressureStatsTracker::cleanUpOperatorStatsCache,
-			backPressureStatsTracker.getCleanUpInterval(),
-			backPressureStatsTracker.getCleanUpInterval(),
-			TimeUnit.MILLISECONDS);
 
 		return new JobManagerServices(
 			futureExecutor,
