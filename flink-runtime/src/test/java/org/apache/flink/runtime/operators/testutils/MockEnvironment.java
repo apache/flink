@@ -89,7 +89,9 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final List<ResultPartitionWriter> outputs;
 
-	private final JobID jobID = new JobID();
+	private final JobID jobID;
+
+	private final JobVertexID jobVertexID;
 
 	private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
 
@@ -170,11 +172,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
 			bufferSize,
 			taskConfiguration,
 			executionConfig,
+			taskStateManager,
 			maxParallelism,
 			parallelism,
 			subtaskIndex,
-			Thread.currentThread().getContextClassLoader(),
-			taskStateManager);
+			Thread.currentThread().getContextClassLoader());
 
 	}
 
@@ -185,11 +187,45 @@ public class MockEnvironment implements Environment, AutoCloseable {
 			int bufferSize,
 			Configuration taskConfiguration,
 			ExecutionConfig executionConfig,
+			TaskStateManager taskStateManager,
 			int maxParallelism,
 			int parallelism,
 			int subtaskIndex,
-			ClassLoader userCodeClassLoader,
-			TaskStateManager taskStateManager) {
+			ClassLoader userCodeClassLoader) {
+		this(
+			new JobID(),
+			new JobVertexID(),
+			taskName,
+			memorySize,
+			inputSplitProvider,
+			bufferSize,
+			taskConfiguration,
+			executionConfig,
+			taskStateManager,
+			maxParallelism,
+			parallelism,
+			subtaskIndex,
+			userCodeClassLoader);
+	}
+
+	public MockEnvironment(
+		JobID jobID,
+		JobVertexID jobVertexID,
+		String taskName,
+		long memorySize,
+		MockInputSplitProvider inputSplitProvider,
+		int bufferSize,
+		Configuration taskConfiguration,
+		ExecutionConfig executionConfig,
+		TaskStateManager taskStateManager,
+		int maxParallelism,
+		int parallelism,
+		int subtaskIndex,
+		ClassLoader userCodeClassLoader) {
+
+		this.jobID = jobID;
+		this.jobVertexID = jobVertexID;
+
 		this.taskInfo = new TaskInfo(taskName, maxParallelism, subtaskIndex, parallelism, 0);
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = taskConfiguration;
@@ -325,7 +361,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	@Override
 	public JobVertexID getJobVertexId() {
-		return new JobVertexID(new byte[16]);
+		return jobVertexID;
 	}
 
 	@Override

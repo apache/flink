@@ -104,7 +104,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 	public TestName name = new TestName();
 
 	private StateBackendEnum stateBackendEnum;
-	private AbstractStateBackend stateBackend;
+	protected AbstractStateBackend stateBackend;
 
 	AbstractEventTimeWindowCheckpointingITCase(StateBackendEnum stateBackendEnum) {
 		this.stateBackendEnum = stateBackendEnum;
@@ -128,23 +128,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 			zkServer.start();
 		}
 
-		TemporaryFolder temporaryFolder = new TemporaryFolder();
-		temporaryFolder.create();
-		final File haDir = temporaryFolder.newFolder();
-
-		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM / 2);
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 48L);
-		// the default network buffers size (10% of heap max =~ 150MB) seems to much for this test case
-		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 80L << 20); // 80 MB
-		config.setString(AkkaOptions.FRAMESIZE, String.valueOf(MAX_MEM_STATE_SIZE) + "b");
-
-		if (zkServer != null) {
-			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-			config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
-			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
-		}
+		Configuration config = createClusterConfig();
 
 		// purposefully delay in the executor to tease out races
 		final ScheduledExecutorService executor = Executors.newScheduledThreadPool(10);
@@ -206,6 +190,27 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 			default:
 				throw new IllegalStateException("No backend selected.");
 		}
+	}
+
+	protected Configuration createClusterConfig() throws IOException {
+		TemporaryFolder temporaryFolder = new TemporaryFolder();
+		temporaryFolder.create();
+		final File haDir = temporaryFolder.newFolder();
+
+		Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM / 2);
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 48L);
+		// the default network buffers size (10% of heap max =~ 150MB) seems to much for this test case
+		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 80L << 20); // 80 MB
+		config.setString(AkkaOptions.FRAMESIZE, String.valueOf(MAX_MEM_STATE_SIZE) + "b");
+
+		if (zkServer != null) {
+			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+			config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
+			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
+		}
+		return config;
 	}
 
 	@After

@@ -405,7 +405,6 @@ public class WindowOperatorTest extends TestLogger {
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0L);
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
-
 		testHarness.close();
 
 		testHarness = createTestHarness(operator);
@@ -483,7 +482,6 @@ public class WindowOperatorTest extends TestLogger {
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0L);
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
-
 		testHarness.close();
 
 		testHarness = createTestHarness(operator);
@@ -794,7 +792,6 @@ public class WindowOperatorTest extends TestLogger {
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0L);
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
-
 		testHarness.close();
 
 		expectedOutput.clear();

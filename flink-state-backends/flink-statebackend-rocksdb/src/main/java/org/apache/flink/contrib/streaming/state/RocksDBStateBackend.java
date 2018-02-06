@@ -33,10 +33,12 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.TernaryBoolean;
 
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
@@ -103,10 +105,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	@Nullable
 	private OptionsFactory optionsFactory;
 
-	/** True if incremental checkpointing is enabled.
-	 * Null if not yet set, in which case the configuration values will be used. */
-	@Nullable
-	private Boolean enableIncrementalCheckpointing;
+	/** This determines if incremental checkpointing is enabled. */
+	private final TernaryBoolean enableIncrementalCheckpointing;
 
 	// -- runtime values, set on TaskManager when initializing / using the backend
 
@@ -201,7 +201,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * @param checkpointStreamBackend The backend write the checkpoint streams to.
 	 */
 	public RocksDBStateBackend(StateBackend checkpointStreamBackend) {
-		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
+		this(checkpointStreamBackend, TernaryBoolean.UNDEFINED);
 	}
 
 	/**
@@ -215,7 +215,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * @param checkpointStreamBackend The backend write the checkpoint streams to.
 	 * @param enableIncrementalCheckpointing True if incremental checkpointing is enabled.
 	 */
-	public RocksDBStateBackend(StateBackend checkpointStreamBackend, boolean enableIncrementalCheckpointing) {
+	public RocksDBStateBackend(StateBackend checkpointStreamBackend, TernaryBoolean enableIncrementalCheckpointing) {
 		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
 	}
@@ -225,16 +225,15 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	@Deprecated
 	public RocksDBStateBackend(AbstractStateBackend checkpointStreamBackend) {
-		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
+		this(checkpointStreamBackend, TernaryBoolean.UNDEFINED);
 	}
 
 	/**
-	 * @deprecated Use {@link #RocksDBStateBackend(StateBackend, boolean)} instead.
+	 * @deprecated Use {@link #RocksDBStateBackend(StateBackend, TernaryBoolean)} instead.
 	 */
 	@Deprecated
 	public RocksDBStateBackend(AbstractStateBackend checkpointStreamBackend, boolean enableIncrementalCheckpointing) {
-		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
-		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
+		this(checkpointStreamBackend, TernaryBoolean.fromBoolean(enableIncrementalCheckpointing));
 	}
 
 	/**
@@ -251,13 +250,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				originalStreamBackend;
 
 		// configure incremental checkpoints
-		if (original.enableIncrementalCheckpointing != null) {
-			this.enableIncrementalCheckpointing = original.enableIncrementalCheckpointing;
-		}
-		else {
-			this.enableIncrementalCheckpointing =
-					config.getBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS);
-		}
+		this.enableIncrementalCheckpointing = original.enableIncrementalCheckpointing.resolveUndefined(
+			config.getBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS));
 
 		// configure local directories
 		if (original.localRocksDbDirectories != null) {
@@ -407,6 +401,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		File instanceBasePath =
 				new File(getNextStoragePath(), "job-" + jobId + "_op-" + operatorIdentifier + "_uuid-" + UUID.randomUUID());
 
+		LocalRecoveryConfig localRecoveryConfig =
+			env.getTaskStateManager().createLocalRecoveryConfig();
+
 		return new RocksDBKeyedStateBackend<>(
 				operatorIdentifier,
 				env.getUserClassLoader(),
@@ -418,7 +415,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				numberOfKeyGroups,
 				keyGroupRange,
 				env.getExecutionConfig(),
-				isIncrementalCheckpointsEnabled());
+				isIncrementalCheckpointsEnabled(),
+				localRecoveryConfig);
 	}
 
 	@Override
@@ -511,12 +509,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * Gets whether incremental checkpoints are enabled for this state backend.
 	 */
 	public boolean isIncrementalCheckpointsEnabled() {
-		if (enableIncrementalCheckpointing != null) {
-			return enableIncrementalCheckpointing;
-		}
-		else {
-			return CheckpointingOptions.INCREMENTAL_CHECKPOINTS.defaultValue();
-		}
+		return enableIncrementalCheckpointing.getOrDefault(CheckpointingOptions.INCREMENTAL_CHECKPOINTS.defaultValue());
 	}
 
 	// ------------------------------------------------------------------------

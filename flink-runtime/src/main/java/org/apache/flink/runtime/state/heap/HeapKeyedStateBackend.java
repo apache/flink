@@ -49,8 +49,10 @@ import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
+import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
@@ -117,13 +119,14 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private final boolean asynchronousSnapshots;
 
 	public HeapKeyedStateBackend(
-			TaskKvStateRegistry kvStateRegistry,
-			TypeSerializer<K> keySerializer,
-			ClassLoader userCodeClassLoader,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			boolean asynchronousSnapshots,
-			ExecutionConfig executionConfig) {
+		TaskKvStateRegistry kvStateRegistry,
+		TypeSerializer<K> keySerializer,
+		ClassLoader userCodeClassLoader,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		boolean asynchronousSnapshots,
+		ExecutionConfig executionConfig,
+		LocalRecoveryConfig localRecoveryConfig) {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
 		this.asynchronousSnapshots = asynchronousSnapshots;
@@ -286,14 +289,14 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public  RunnableFuture<KeyedStateHandle> snapshot(
+	public  RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
 			final long checkpointId,
 			final long timestamp,
 			final CheckpointStreamFactory streamFactory,
 			CheckpointOptions checkpointOptions) throws Exception {
 
 		if (!hasRegisteredState()) {
-			return DoneFuture.nullValue();
+			return DoneFuture.of(SnapshotResult.empty());
 		}
 
 		long syncStartTime = System.currentTimeMillis();
@@ -326,8 +329,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		//--------------------------------------------------- this becomes the end of sync part
 
 		// implementation of the async IO operation, based on FutureTask
-		final AbstractAsyncCallableWithResources<KeyedStateHandle> ioCallable =
-			new AbstractAsyncCallableWithResources<KeyedStateHandle>() {
+		final AbstractAsyncCallableWithResources<SnapshotResult<KeyedStateHandle>> ioCallable =
+			new AbstractAsyncCallableWithResources<SnapshotResult<KeyedStateHandle>>() {
 
 				CheckpointStreamFactory.CheckpointStateOutputStream stream = null;
 
@@ -359,7 +362,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				}
 
 				@Override
-				public KeyGroupsStateHandle performOperation() throws Exception {
+				public SnapshotResult<KeyedStateHandle> performOperation() throws Exception {
 					long asyncStartTime = System.currentTimeMillis();
 
 					CheckpointStreamFactory.CheckpointStateOutputStream localStream = this.stream;
@@ -401,15 +404,15 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							final KeyGroupsStateHandle keyGroupsStateHandle =
 								new KeyGroupsStateHandle(offsets, streamStateHandle);
 
-							return keyGroupsStateHandle;
+							return SnapshotResult.of(keyGroupsStateHandle);
 						}
 					}
 
-					return null;
+					return SnapshotResult.empty();
 				}
 			};
 
-		AsyncStoppableTaskWithCallback<KeyedStateHandle> task = AsyncStoppableTaskWithCallback.from(ioCallable);
+		AsyncStoppableTaskWithCallback<SnapshotResult<KeyedStateHandle>> task = AsyncStoppableTaskWithCallback.from(ioCallable);
 
 		if (!asynchronousSnapshots) {
 			task.run();

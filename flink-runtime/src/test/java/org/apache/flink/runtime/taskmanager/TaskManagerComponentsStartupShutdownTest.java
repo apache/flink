@@ -27,6 +27,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
@@ -45,6 +46,8 @@ import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
@@ -158,6 +161,11 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 
 			network.start();
 
+			TaskExecutorLocalStateStoresManager storesManager = new TaskExecutorLocalStateStoresManager(
+				LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+				ioManager.getSpillingDirectories(),
+				Executors.directExecutor());
+
 			MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
 
 			// create the task manager
@@ -169,6 +177,7 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				memManager,
 				ioManager,
 				network,
+				storesManager,
 				numberOfSlots,
 				highAvailabilityServices,
 				new TaskManagerMetricGroup(NoOpMetricRegistry.INSTANCE, connectionInfo.getHostname(), connectionInfo.getResourceID().getResourceIdString()));

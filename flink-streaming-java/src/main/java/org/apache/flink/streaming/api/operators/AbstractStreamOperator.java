@@ -347,10 +347,7 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
-	public final OperatorSnapshotFutures snapshotState(
-			long checkpointId,
-			long timestamp,
-			CheckpointOptions checkpointOptions,
+	public final OperatorSnapshotFutures snapshotState(long checkpointId, long timestamp, CheckpointOptions checkpointOptions,
 			CheckpointStreamFactory factory) throws Exception {
 
 		KeyGroupRange keyGroupRange = null != keyedStateBackend ?

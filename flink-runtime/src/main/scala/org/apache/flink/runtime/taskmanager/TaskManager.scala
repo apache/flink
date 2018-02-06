@@ -35,11 +35,11 @@ import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, DefaultQuarantineHandler, QuarantineMonitor}
-import org.apache.flink.runtime.blob.{BlobCacheService, BlobClient, BlobService}
+import org.apache.flink.runtime.blob.BlobCacheService
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
 import org.apache.flink.runtime.clusterframework.BootstrapTools
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
-import org.apache.flink.runtime.clusterframework.types.ResourceID
+import org.apache.flink.runtime.clusterframework.types.{AllocationID, ResourceID}
 import org.apache.flink.runtime.concurrent.{Executors, FutureUtils}
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
 import org.apache.flink.runtime.execution.ExecutionState
@@ -126,6 +126,7 @@ class TaskManager(
     protected val memoryManager: MemoryManager,
     protected val ioManager: IOManager,
     protected val network: NetworkEnvironment,
+    protected val taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
     protected val numberOfSlots: Int,
     protected val highAvailabilityServices: HighAvailabilityServices,
     protected val taskManagerMetricGroup: TaskManagerMetricGroup)
@@ -250,6 +251,12 @@ class TaskManager(
       network.shutdown()
     } catch {
       case t: Exception => log.error("Network environment did not shutdown properly.", t)
+    }
+
+    try {
+      taskManagerLocalStateStoresManager.shutdown()
+    } catch {
+      case t: Exception => log.error("Task state manager did not shutdown properly.", t)
     }
 
     try {
@@ -474,7 +481,7 @@ class TaskManager(
             log.debug(s"Cannot find task to stop for execution ${executionID})")
             sender ! decorateMessage(Acknowledge.get())
           }
- 
+
         // cancels a task
         case CancelTask(executionID) =>
           val task = runningTasks.get(executionID)
@@ -984,7 +991,7 @@ class TaskManager(
         log.error(message, e)
         throw new RuntimeException(message, e)
     }
-    
+
     // watch job manager to detect when it dies
     context.watch(jobManager)
 
@@ -1070,7 +1077,7 @@ class TaskManager(
       // clear the key-value location oracle
       proxy.updateKvStateLocationOracle(HighAvailabilityServices.DEFAULT_JOB_ID, null)
     }
-    
+
     // failsafe shutdown of the metrics registry
     try {
       taskManagerMetricGroup.close()
@@ -1195,18 +1202,21 @@ class TaskManager(
           config.getTimeout().getSize(),
           config.getTimeout().getUnit()))
 
-      // TODO: wire this so that the manager survives the end of the task
-      val taskExecutorLocalStateStoresManager = new TaskExecutorLocalStateStoresManager
+      val jobID = jobInformation.getJobId
 
-      val localStateStore = taskExecutorLocalStateStoresManager.localStateStoreForTask(
-        jobInformation.getJobId,
+      // Allocation ids do not work properly without flip-6, so we just fake one, based on the jid.
+      val fakeAllocationID = new AllocationID(jobID.getLowerPart, jobID.getUpperPart)
+
+      val taskLocalStateStore = taskManagerLocalStateStoresManager.localStateStoreForSubtask(
+        jobID,
+        fakeAllocationID,
         taskInformation.getJobVertexId,
         tdd.getSubtaskIndex)
 
-      val slotStateManager = new TaskStateManagerImpl(
-        jobInformation.getJobId,
+      val taskStateManager = new TaskStateManagerImpl(
+        jobID,
         tdd.getExecutionAttemptId,
-        localStateStore,
+        taskLocalStateStore,
         tdd.getTaskRestore,
         checkpointResponder)
 
@@ -1224,7 +1234,7 @@ class TaskManager(
         ioManager,
         network,
         bcVarManager,
-        slotStateManager,
+        taskStateManager,
         taskManagerConnection,
         inputSplitProvider,
         checkpointResponder,
@@ -2013,6 +2023,7 @@ object TaskManager {
     val taskManagerServices = TaskManagerServices.fromConfiguration(
       taskManagerServicesConfiguration,
       resourceID,
+      actorSystem.dispatcher,
       EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag,
       EnvironmentInformation.getMaxJvmHeapMemory)
 
@@ -2030,6 +2041,7 @@ object TaskManager {
       taskManagerServices.getMemoryManager(),
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment(),
+      taskManagerServices.getTaskManagerStateStore(),
       highAvailabilityServices,
       taskManagerMetricGroup)
 
@@ -2047,6 +2059,7 @@ object TaskManager {
     memoryManager: MemoryManager,
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
+    taskStateManager: TaskExecutorLocalStateStoresManager,
     highAvailabilityServices: HighAvailabilityServices,
     taskManagerMetricGroup: TaskManagerMetricGroup
   ): Props = {
@@ -2058,6 +2071,7 @@ object TaskManager {
       memoryManager,
       ioManager,
       networkEnvironment,
+      taskStateManager,
       taskManagerConfig.getNumberSlots(),
       highAvailabilityServices,
       taskManagerMetricGroup)

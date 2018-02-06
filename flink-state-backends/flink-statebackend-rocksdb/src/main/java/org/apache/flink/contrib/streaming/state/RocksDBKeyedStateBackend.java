@@ -60,9 +60,11 @@ import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
+import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
@@ -212,6 +214,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** Unique ID of this backend. */
 	private UUID backendUID;
 
+	/** The configuration of local recovery. */
+	private final LocalRecoveryConfig localRecoveryConfig;
+
 	public RocksDBKeyedStateBackend(
 		String operatorIdentifier,
 		ClassLoader userCodeClassLoader,
@@ -223,7 +228,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		int numberOfKeyGroups,
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
-		boolean enableIncrementalCheckpointing
+		boolean enableIncrementalCheckpointing,
+		LocalRecoveryConfig localRecoveryConfig
 	) throws IOException {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
@@ -253,6 +259,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					String.format("Could not create RocksDB data directory at %s.", instanceBasePath.getAbsolutePath()));
 		}
 
+		this.localRecoveryConfig = Preconditions.checkNotNull(localRecoveryConfig);
 		this.keyGroupPrefixBytes = getNumberOfKeyGroups() > (Byte.MAX_VALUE + 1) ? 2 : 1;
 		this.kvStateInformation = new HashMap<>();
 		this.restoredKvStateMetaInfos = new HashMap<>();
@@ -365,10 +372,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * @param streamFactory The factory that we can use for writing our state to streams.
 	 * @param checkpointOptions Options for how to perform this checkpoint.
 	 * @return Future to the state handle of the snapshot data.
-	 * @throws Exception
+	 * @throws Exception indicating a problem in the synchronous part of the checkpoint.
 	 */
 	@Override
-	public RunnableFuture<KeyedStateHandle> snapshot(
+	public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
 		final long checkpointId,
 		final long timestamp,
 		final CheckpointStreamFactory streamFactory,
@@ -382,7 +389,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 	}
 
-	private RunnableFuture<KeyedStateHandle> snapshotIncrementally(
+	private RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotIncrementally(
 		final long checkpointId,
 		final long checkpointTimestamp,
 		final CheckpointStreamFactory checkpointStreamFactory) throws Exception {
@@ -396,7 +403,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				LOG.debug("Asynchronous RocksDB snapshot performed on empty keyed state at {}. Returning null.",
 						checkpointTimestamp);
 			}
-			return DoneFuture.nullValue();
+			return DoneFuture.of(SnapshotResult.empty());
 		}
 
 		final RocksDBIncrementalSnapshotOperation<K> snapshotOperation =
@@ -414,11 +421,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			throw e;
 		}
 
-		return new FutureTask<KeyedStateHandle>(
-			new Callable<KeyedStateHandle>() {
+		return new FutureTask<SnapshotResult<KeyedStateHandle>>(
+			new Callable<SnapshotResult<KeyedStateHandle>>() {
 				@Override
-				public KeyedStateHandle call() throws Exception {
-					return snapshotOperation.materializeSnapshot();
+				public SnapshotResult<KeyedStateHandle> call() throws Exception {
+					KeyedStateHandle keyedStateHandle = snapshotOperation.materializeSnapshot();
+					return SnapshotResult.of(keyedStateHandle);
 				}
 			}
 		) {
@@ -435,7 +443,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		};
 	}
 
-	private RunnableFuture<KeyedStateHandle> snapshotFully(
+	private RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotFully(
 		final long checkpointId,
 		final long timestamp,
 		final CheckpointStreamFactory streamFactory) throws Exception {
@@ -450,15 +458,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				LOG.debug("Asynchronous RocksDB snapshot performed on empty keyed state at {}. Returning null.", timestamp);
 			}
 
-			return DoneFuture.nullValue();
+			return DoneFuture.of(SnapshotResult.empty());
 		}
 
 		snapshotOperation = new RocksDBFullSnapshotOperation<>(this, streamFactory, snapshotCloseableRegistry);
 		snapshotOperation.takeDBSnapShot(checkpointId, timestamp);
 
 		// implementation of the async IO operation, based on FutureTask
-		AbstractAsyncCallableWithResources<KeyedStateHandle> ioCallable =
-			new AbstractAsyncCallableWithResources<KeyedStateHandle>() {
+		AbstractAsyncCallableWithResources<SnapshotResult<KeyedStateHandle>> ioCallable =
+			new AbstractAsyncCallableWithResources<SnapshotResult<KeyedStateHandle>>() {
 
 				@Override
 				protected void acquireResources() throws Exception {
@@ -493,7 +501,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				}
 
 				@Override
-				public KeyGroupsStateHandle performOperation() throws Exception {
+				public SnapshotResult<KeyedStateHandle> performOperation() throws Exception {
 					long startTime = System.currentTimeMillis();
 
 					if (isStopped()) {
@@ -505,7 +513,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					LOG.info("Asynchronous RocksDB snapshot ({}, asynchronous part) in thread {} took {} ms.",
 						streamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
 
-					return snapshotOperation.getSnapshotResultStateHandle();
+					KeyGroupsStateHandle snapshotResultStateHandle = snapshotOperation.getSnapshotResultStateHandle();
+					return SnapshotResult.of(snapshotResultStateHandle);
 				}
 			};
 

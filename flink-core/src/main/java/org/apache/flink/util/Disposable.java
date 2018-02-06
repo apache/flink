@@ -16,25 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.util;
 
-import org.junit.Assert;
-import org.junit.Test;
+/**
+ * Interface for classes that can be disposed, i.e. that have a dedicated lifecycle step to "destroy" the object. On
+ * reason for this is for example to release native resources. From this point, the interface fulfills a similar purpose
+ * as the {@link java.io.Closeable} interface, but sometimes both should be represented as isolated, independent
+ * lifecycle steps.
+ */
+public interface Disposable {
 
-public class OperatorStateHandleTest {
-
-	@Test
-	public void testFixedEnumOrder() {
-
-		// Ensure the order / ordinal of all values of enum 'mode' are fixed, as this is used for serialization
-		Assert.assertEquals(0, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE.ordinal());
-		Assert.assertEquals(1, OperatorStateHandle.Mode.UNION.ordinal());
-		Assert.assertEquals(2, OperatorStateHandle.Mode.BROADCAST.ordinal());
-
-		// Ensure all enum values are registered and fixed forever by this test
-		Assert.assertEquals(3, OperatorStateHandle.Mode.values().length);
-
-		// Byte is used to encode enum value on serialization
-		Assert.assertTrue(OperatorStateHandle.Mode.values().length <= Byte.MAX_VALUE);
-	}
+	/**
+	 * Disposes the object and releases all resources. After calling this method, calling any methods on the
+	 * object may result in undefined behavior.
+	 *
+	 * @throws Exception if something goes wrong during disposal.
+	 */
+	void dispose() throws Exception;
 }

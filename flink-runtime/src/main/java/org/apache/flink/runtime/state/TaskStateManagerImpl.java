@@ -23,6 +23,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -30,6 +31,8 @@ import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import java.util.Collections;
 
 /**
  * This class is the default implementation of {@link TaskStateManager} and collaborates with the job manager
@@ -75,35 +78,67 @@ public class TaskStateManagerImpl implements TaskStateManager {
 	}
 
 	@Override
-	public void reportStateHandles(
+	public void reportTaskStateSnapshots(
 		@Nonnull CheckpointMetaData checkpointMetaData,
 		@Nonnull CheckpointMetrics checkpointMetrics,
-		@Nullable TaskStateSnapshot acknowledgedState) {
+		@Nullable TaskStateSnapshot acknowledgedState,
+		@Nullable TaskStateSnapshot localState) {
+
+		long checkpointId = checkpointMetaData.getCheckpointId();
+
+		localStateStore.storeLocalState(checkpointId, localState);
 
 		checkpointResponder.acknowledgeCheckpoint(
 			jobId,
 			executionAttemptID,
-			checkpointMetaData.getCheckpointId(),
+			checkpointId,
 			checkpointMetrics,
 			acknowledgedState);
 	}
 
+	@Nonnull
 	@Override
-	public OperatorSubtaskState operatorStates(OperatorID operatorID) {
+	public PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID) {
 
 		if (jobManagerTaskRestore == null) {
-			return null;
+			return PrioritizedOperatorSubtaskState.emptyNotRestored();
 		}
 
-		TaskStateSnapshot taskStateSnapshot = jobManagerTaskRestore.getTaskStateSnapshot();
-		return taskStateSnapshot.getSubtaskStateByOperatorID(operatorID);
+		TaskStateSnapshot jobManagerStateSnapshot =
+			jobManagerTaskRestore.getTaskStateSnapshot();
 
-		/*
-		TODO!!!!!!!
-		1) lookup local states for a matching operatorID / checkpointID.
-		2) if nothing available: look into job manager provided state.
-		3) massage it into a snapshots and return stuff.
-		 */
+		OperatorSubtaskState jobManagerSubtaskState =
+			jobManagerStateSnapshot.getSubtaskStateByOperatorID(operatorID);
+
+		if (jobManagerSubtaskState == null) {
+			return PrioritizedOperatorSubtaskState.emptyNotRestored();
+		}
+
+		TaskStateSnapshot localStateSnapshot =
+			localStateStore.retrieveLocalState(jobManagerTaskRestore.getRestoreCheckpointId());
+
+		if (localStateSnapshot != null) {
+			OperatorSubtaskState localSubtaskState = localStateSnapshot.getSubtaskStateByOperatorID(operatorID);
+
+			if (localSubtaskState != null) {
+				PrioritizedOperatorSubtaskState.Builder builder = new PrioritizedOperatorSubtaskState.Builder(
+					jobManagerSubtaskState,
+					Collections.singletonList(localSubtaskState));
+				return builder.build();
+			}
+		}
+
+		PrioritizedOperatorSubtaskState.Builder builder = new PrioritizedOperatorSubtaskState.Builder(
+			jobManagerSubtaskState,
+			Collections.emptyList(),
+			true);
+		return builder.build();
+	}
+
+	@Nonnull
+	@Override
+	public LocalRecoveryConfig createLocalRecoveryConfig() {
+		return localStateStore.getLocalRecoveryConfig();
 	}
 
 	/**
@@ -111,6 +146,6 @@ public class TaskStateManagerImpl implements TaskStateManager {
 	 */
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		//TODO activate and prune local state later
+		localStateStore.confirmCheckpoint(checkpointId);
 	}
 }

@@ -538,7 +538,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		testHarness.waitForTaskCompletion();
 
 		// set the operator state from previous attempt into the restored one
-		TaskStateSnapshot subtaskStates = taskStateManagerMock.getLastTaskStateSnapshot();
+		TaskStateSnapshot subtaskStates = taskStateManagerMock.getLastJobManagerTaskStateSnapshot();
 
 		final OneInputStreamTaskTestHarness<Integer, Integer> restoredTaskHarness =
 				new OneInputStreamTaskTestHarness<>(

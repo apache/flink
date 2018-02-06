@@ -50,6 +50,8 @@ import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
@@ -64,6 +66,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.mockito.Mockito;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
@@ -131,6 +134,14 @@ public class TaskExecutorITCase extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime());
 
+		final File[] taskExecutorLocalStateRootDirs =
+			new File[]{new File(System.getProperty("java.io.tmpdir"), "localRecovery")};
+
+		final TaskExecutorLocalStateStoresManager taskStateManager = new TaskExecutorLocalStateStoresManager(
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			taskExecutorLocalStateRootDirs,
+			rpcService.getExecutor());
+
 		ResourceManager<ResourceID> resourceManager = new StandaloneResourceManager(
 			rpcService,
 			FlinkResourceManager.RESOURCE_MANAGER_NAME,
@@ -147,6 +158,7 @@ public class TaskExecutorITCase extends TestLogger {
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setTaskManagerLocation(taskManagerLocation)
 			.setTaskSlotTable(taskSlotTable)
+			.setTaskStateManager(taskStateManager)
 			.build();
 
 		TaskExecutor taskExecutor = new TaskExecutor(
