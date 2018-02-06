@@ -119,7 +119,7 @@ object TableSqlFunction {
     tableFunction: TableFunction[_])
   : SqlOperandTypeChecker = {
 
-    val signatures = getMethodSignatures(tableFunction, "eval")
+    val methods = checkAndExtractMethods(tableFunction, "eval")
 
     /**
       * Operand type checker based on [[TableFunction]] given information.
@@ -130,17 +130,23 @@ object TableSqlFunction {
       }
 
       override def getOperandCountRange: SqlOperandCountRange = {
-        var min = 255
+        var min = 254
         var max = -1
-        signatures.foreach( sig => {
-          var len = sig.length
-          if (len > 0 && sig(sig.length - 1).isArray) {
-            max = 254  // according to JVM spec 4.3.3
-            len = sig.length - 1
+        var isVarargs = false
+        methods.foreach( m => {
+          var len = m.getParameterTypes.length
+          if (len > 0 && m.isVarArgs && m.getParameterTypes()(len - 1).isArray) {
+            isVarargs = true
+            len = len - 1
           }
           max = Math.max(len, max)
           min = Math.min(len, min)
         })
+        if (isVarargs) {
+          // if eval method is varargs, set max to -1 to skip length check in Calcite
+          max = -1
+        }
+
         SqlOperandCountRanges.between(min, max)
       }
 

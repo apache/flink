@@ -28,10 +28,9 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.SplitUDF
 import org.apache.flink.table.expressions.utils.Func15
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
-import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
+import org.apache.flink.table.runtime.utils.{JavaUserDefinedTableFunctions, StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 import org.apache.flink.table.utils.MemoryTableSinkUtil
-
 import org.junit.Assert._
 import org.junit._
 
@@ -541,6 +540,32 @@ class SqlITCase extends StreamingWithStateTestBase {
       "Hi255",
       "Hello255",
       "Hello world255")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testUDTFWithLongVarargs(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    tEnv.registerFunction("udtf", new JavaUserDefinedTableFunctions.JavaTableFunc1)
+
+    val parameters = (0 until 300).map(_ => "c").mkString(",")
+    val sqlQuery = s"SELECT T1.a, T2.x FROM T1 " +
+      s"JOIN LATERAL TABLE(udtf($parameters)) as T2(x) ON TRUE"
+
+    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("T1", t1)
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      "1,600",
+      "2,1500",
+      "3,3300")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }
