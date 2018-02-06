@@ -30,10 +30,12 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.Callable;
 
@@ -95,6 +97,17 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 	public static void teardownSecureCluster() throws Exception {
 		LOG.info("tearing down secure cluster environment");
 		SecureTestEnvironment.cleanup();
+	}
+
+	@Override
+	public void testDetachedMode() throws InterruptedException, IOException {
+		super.testDetachedMode();
+		if (!verifyStringsInNamedLogFiles(
+				new String[]{"Login successful for user", "using keytab file"}, "jobmanager.log") ||
+				!verifyStringsInNamedLogFiles(
+						new String[]{"Login successful for user", "using keytab file"}, "taskmanager.log")) {
+			Assert.fail("Can not find expected strings in log files.");
+		}
 	}
 
 	/* For secure cluster testing, it is enough to run only one test and override below test methods
