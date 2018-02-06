@@ -84,7 +84,13 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 			int maxStackTraceDepth,
 			Time timeout) {
 
-		throw new UnsupportedOperationException("Operation is not yet supported.");
+		return taskExecutorGateway.requestStackTraceSample(
+			executionAttemptID,
+			sampleId,
+			numSamples,
+			delayBetweenSamples,
+			maxStackTraceDepth,
+			timeout);
 	}
 
 	@Override

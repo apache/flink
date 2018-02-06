@@ -18,22 +18,28 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.handler.job.JobVertexBackPressureHandler;
+import org.apache.flink.runtime.rest.util.RestMapperUtils;
+import org.apache.flink.util.TestLogger;
 
-import java.util.ArrayList;
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 /**
- * Empty response of the {@link JobVertexBackPressureHandler}.
+ * Tests for {@link JobVertexBackPressureInfo.VertexBackPressureStatus}.
  */
-public class EmptyJobVertexBackPressureInfo extends JobVertexBackPressureInfo {
+public class VertexBackPressureStatusTest extends TestLogger {
 
-	private static final EmptyJobVertexBackPressureInfo INSTANCE = new EmptyJobVertexBackPressureInfo();
-
-	private EmptyJobVertexBackPressureInfo() {
-		super(null, null, System.currentTimeMillis(), new ArrayList<>());
+	/**
+	 * Tests that the enum values are serialized correctly.
+	 * Clients, such as the Web UI, expect values to be lower case.
+	 */
+	@Test
+	public void testJsonValue() throws Exception {
+		assertEquals("\"ok\"", RestMapperUtils.getStrictObjectMapper()
+			.writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureStatus.OK));
+		assertEquals("\"deprecated\"", RestMapperUtils.getStrictObjectMapper()
+			.writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureStatus.DEPRECATED));
 	}
 
-	public static EmptyJobVertexBackPressureInfo getInstance() {
-		return INSTANCE;
-	}
 }

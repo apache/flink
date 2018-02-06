@@ -21,8 +21,13 @@ package org.apache.flink.runtime.rest.messages;
 import org.apache.flink.runtime.rest.handler.job.JobVertexBackPressureHandler;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonValue;
 
+import javax.annotation.Nullable;
+
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -31,12 +36,20 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Response type of the {@link JobVertexBackPressureHandler}.
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class JobVertexBackPressureInfo implements ResponseBody {
 
 	public static final String FIELD_NAME_STATUS = "status";
 	public static final String FIELD_NAME_BACKPRESSURE_LEVEL = "backpressure-level";
 	public static final String FIELD_NAME_END_TIMESTAMP = "end-timestamp";
 	public static final String FIELD_NAME_SUBTASKS = "subtasks";
+
+	/** Immutable singleton instance denoting that the back pressure stats are not available. */
+	private static final JobVertexBackPressureInfo DEPRECATED_JOB_VERTEX_BACK_PRESSURE_INFO = new JobVertexBackPressureInfo(
+		VertexBackPressureStatus.DEPRECATED,
+		null,
+		null,
+		null);
 
 	@JsonProperty(FIELD_NAME_STATUS)
 	private final VertexBackPressureStatus status;
@@ -45,21 +58,25 @@ public class JobVertexBackPressureInfo implements ResponseBody {
 	private final VertexBackPressureLevel backpressureLevel;
 
 	@JsonProperty(FIELD_NAME_END_TIMESTAMP)
-	private final long endTimestamp;
+	private final Long endTimestamp;
 
 	@JsonProperty(FIELD_NAME_SUBTASKS)
-	protected final List<SubtaskBackPressureInfo> subtasks;
+	private final List<SubtaskBackPressureInfo> subtasks;
 
 	@JsonCreator
 	public JobVertexBackPressureInfo(
 		@JsonProperty(FIELD_NAME_STATUS) VertexBackPressureStatus status,
 		@JsonProperty(FIELD_NAME_BACKPRESSURE_LEVEL) VertexBackPressureLevel backpressureLevel,
-		@JsonProperty(FIELD_NAME_END_TIMESTAMP) long endTimestamp,
+		@JsonProperty(FIELD_NAME_END_TIMESTAMP) Long endTimestamp,
 		@JsonProperty(FIELD_NAME_SUBTASKS) List<SubtaskBackPressureInfo> subtasks) {
 		this.status = status;
 		this.backpressureLevel = backpressureLevel;
 		this.endTimestamp = endTimestamp;
-		this.subtasks = checkNotNull(subtasks);
+		this.subtasks = subtasks;
+	}
+
+	public static JobVertexBackPressureInfo deprecated() {
+		return DEPRECATED_JOB_VERTEX_BACK_PRESSURE_INFO;
 	}
 
 	@Override
@@ -80,6 +97,25 @@ public class JobVertexBackPressureInfo implements ResponseBody {
 	@Override
 	public int hashCode() {
 		return Objects.hash(status, backpressureLevel, endTimestamp, subtasks);
+	}
+
+	public VertexBackPressureStatus getStatus() {
+		return status;
+	}
+
+	@Nullable
+	public VertexBackPressureLevel getBackpressureLevel() {
+		return backpressureLevel;
+	}
+
+	@Nullable
+	public Long getEndTimestamp() {
+		return endTimestamp;
+	}
+
+	@Nullable
+	public List<SubtaskBackPressureInfo> getSubtasks() {
+		return subtasks == null ? null : Collections.unmodifiableList(subtasks);
 	}
 
 	//---------------------------------------------------------------------------------
@@ -131,6 +167,18 @@ public class JobVertexBackPressureInfo implements ResponseBody {
 		public int hashCode() {
 			return Objects.hash(subtask, backpressureLevel, ratio);
 		}
+
+		public int getSubtask() {
+			return subtask;
+		}
+
+		public VertexBackPressureLevel getBackpressureLevel() {
+			return backpressureLevel;
+		}
+
+		public double getRatio() {
+			return ratio;
+		}
 	}
 
 	/**
@@ -145,6 +193,7 @@ public class JobVertexBackPressureInfo implements ResponseBody {
 			this.status = status;
 		}
 
+		@JsonValue
 		@Override
 		public String toString() {
 			return status;
@@ -163,6 +212,7 @@ public class JobVertexBackPressureInfo implements ResponseBody {
 			this.level = level;
 		}
 
+		@JsonValue
 		@Override
 		public String toString() {
 			return level;

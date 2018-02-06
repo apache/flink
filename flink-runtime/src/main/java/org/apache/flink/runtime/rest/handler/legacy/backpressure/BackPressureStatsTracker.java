@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.backpressure;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -74,7 +75,7 @@ public class BackPressureStatsTracker {
 	static final String EXPECTED_CLASS_NAME = "org.apache.flink.runtime.io.network.buffer.LocalBufferPool";
 
 	/** Expected method name for back pressure indicating stack trace element. */
-	static final String EXPECTED_METHOD_NAME = "requestBufferBlocking";
+	static final String EXPECTED_METHOD_NAME = "requestBufferBuilderBlocking";
 
 	/** Lock guarding trigger operations. */
 	private final Object lock = new Object();
@@ -99,6 +100,8 @@ public class BackPressureStatsTracker {
 
 	private final int numSamples;
 
+	private final int backPressureStatsRefreshInterval;
+
 	private final Time delayBetweenSamples;
 
 	/** Flag indicating whether the stats tracker has been shut down. */
@@ -115,6 +118,7 @@ public class BackPressureStatsTracker {
 			StackTraceSampleCoordinator coordinator,
 			int cleanUpInterval,
 			int numSamples,
+			int backPressureStatsRefreshInterval,
 			Time delayBetweenSamples) {
 
 		this.coordinator = checkNotNull(coordinator, "Stack trace sample coordinator");
@@ -124,6 +128,11 @@ public class BackPressureStatsTracker {
 
 		checkArgument(numSamples >= 1, "Number of samples");
 		this.numSamples = numSamples;
+
+		checkArgument(
+			backPressureStatsRefreshInterval >= 0,
+			"backPressureStatsRefreshInterval must be greater than or equal to 0");
+		this.backPressureStatsRefreshInterval = backPressureStatsRefreshInterval;
 
 		this.delayBetweenSamples = checkNotNull(delayBetweenSamples, "Delay between samples");
 
@@ -139,14 +148,18 @@ public class BackPressureStatsTracker {
 	}
 
 	/**
-	 * Returns back pressure statistics for a operator.
+	 * Returns back pressure statistics for a operator. Automatically triggers stack trace sampling
+	 * if statistics are not available or outdated.
 	 *
 	 * @param vertex Operator to get the stats for.
-	 *
 	 * @return Back pressure statistics for an operator
 	 */
 	public Optional<OperatorBackPressureStats> getOperatorBackPressureStats(ExecutionJobVertex vertex) {
-		return Optional.ofNullable(operatorStatsCache.getIfPresent(vertex));
+		final OperatorBackPressureStats stats = operatorStatsCache.getIfPresent(vertex);
+		if (stats == null || backPressureStatsRefreshInterval <= System.currentTimeMillis() - stats.getEndTimestamp()) {
+			triggerStackTraceSampleInternal(vertex);
+		}
+		return Optional.ofNullable(stats);
 	}
 
 	/**
@@ -157,15 +170,15 @@ public class BackPressureStatsTracker {
 	 * @param vertex Operator to get the stats for.
 	 * @return Flag indicating whether a sample with triggered.
 	 */
-	@SuppressWarnings("unchecked")
-	public boolean triggerStackTraceSample(ExecutionJobVertex vertex) {
+	@VisibleForTesting
+	boolean triggerStackTraceSampleInternal(final ExecutionJobVertex vertex) {
 		synchronized (lock) {
 			if (shutDown) {
 				return false;
 			}
 
 			if (!pendingStats.contains(vertex) &&
-					!vertex.getGraph().getState().isGloballyTerminalState()) {
+				!vertex.getGraph().getState().isGloballyTerminalState()) {
 
 				Executor executor = vertex.getGraph().getFutureExecutor();
 
@@ -178,10 +191,10 @@ public class BackPressureStatsTracker {
 					}
 
 					CompletableFuture<StackTraceSample> sample = coordinator.triggerStackTraceSample(
-							vertex.getTaskVertices(),
-							numSamples,
-							delayBetweenSamples,
-							MAX_STACK_TRACE_DEPTH);
+						vertex.getTaskVertices(),
+						numSamples,
+						delayBetweenSamples,
+						MAX_STACK_TRACE_DEPTH);
 
 					sample.handleAsync(new StackTraceSampleCompletionCallback(vertex), executor);
 
@@ -191,6 +204,21 @@ public class BackPressureStatsTracker {
 
 			return false;
 		}
+	}
+
+	/**
+	 * Triggers a stack trace sample for a operator to gather the back pressure
+	 * statistics. If there is a sample in progress for the operator, the call
+	 * is ignored.
+	 *
+	 * @param vertex Operator to get the stats for.
+	 * @return Flag indicating whether a sample with triggered.
+	 * @deprecated {@link #getOperatorBackPressureStats(ExecutionJobVertex)} will trigger
+	 * stack trace sampling automatically.
+	 */
+	@Deprecated
+	public boolean triggerStackTraceSample(ExecutionJobVertex vertex) {
+		return triggerStackTraceSampleInternal(vertex);
 	}
 
 	/**
