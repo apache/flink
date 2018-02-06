@@ -48,7 +48,7 @@ public class CheckpointOptionsTest {
 	@Test
 	public void testSavepoint() throws Exception {
 		final Random rnd = new Random();
-		final byte[] locationBytes = new byte[rnd.nextInt(42)];
+		final byte[] locationBytes = new byte[rnd.nextInt(41) + 1];
 		rnd.nextBytes(locationBytes);
 
 		final CheckpointOptions options = new CheckpointOptions(
