@@ -210,7 +210,7 @@ public abstract class AbstractBlobCache implements Closeable {
 		final InetSocketAddress currentServerAddress = serverAddress;
 
 		if (currentServerAddress != null) {
-			return serverAddress.getPort();
+			return currentServerAddress.getPort();
 		} else {
 			return -1;
 		}

@@ -224,7 +224,7 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 		final InetSocketAddress currentServerAddress = serverAddress;
 
 		if (currentServerAddress != null) {
-			return new BlobClient(serverAddress, blobClientConfig);
+			return new BlobClient(currentServerAddress, blobClientConfig);
 		} else {
 			throw new IOException("Could not create BlobClient because the BlobServer address is unknown.");
 		}

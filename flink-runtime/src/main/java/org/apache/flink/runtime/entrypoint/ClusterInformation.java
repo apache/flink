@@ -48,4 +48,12 @@ public class ClusterInformation implements Serializable {
 	public int getBlobServerPort() {
 		return blobServerPort;
 	}
+
+	@Override
+	public String toString() {
+		return "ClusterInformation{" +
+			"blobServerHostname='" + blobServerHostname + '\'' +
+			", blobServerPort=" + blobServerPort +
+			'}';
+	}
 }
