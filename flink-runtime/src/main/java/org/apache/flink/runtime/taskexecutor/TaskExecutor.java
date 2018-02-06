@@ -31,6 +31,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -57,6 +58,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.registration.RegistrationConnectionListener;
@@ -96,12 +98,16 @@ import org.apache.flink.util.FlinkException;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
@@ -303,6 +309,84 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	// ======================================================================
 	//  RPC methods
 	// ======================================================================
+
+	@Override
+	public CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
+			final ExecutionAttemptID executionAttemptId,
+			final int sampleId,
+			final int numSamples,
+			final Time delayBetweenSamples,
+			final int maxStackTraceDepth,
+			final Time timeout) {
+		return requestStackTraceSample(
+			executionAttemptId,
+			sampleId,
+			numSamples,
+			delayBetweenSamples,
+			maxStackTraceDepth,
+			new ArrayList<>(numSamples),
+			new CompletableFuture<>());
+	}
+
+	private CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
+			final ExecutionAttemptID executionAttemptId,
+			final int sampleId,
+			final int numSamples,
+			final Time delayBetweenSamples,
+			final int maxStackTraceDepth,
+			final List<StackTraceElement[]> currentTraces,
+			final CompletableFuture<StackTraceSampleResponse> resultFuture) {
+
+		if (numSamples > 0) {
+			scheduleRunAsync(() -> runAsync(() -> {
+				final Optional<StackTraceElement[]> stackTrace = getStackTrace(executionAttemptId, maxStackTraceDepth);
+				if (stackTrace.isPresent()) {
+					currentTraces.add(stackTrace.get());
+				} else if (!currentTraces.isEmpty()) {
+					resultFuture.complete(new StackTraceSampleResponse(
+						sampleId,
+						executionAttemptId,
+						currentTraces));
+				} else {
+					throw new IllegalStateException(String.format("Cannot sample task %s. " +
+							"Either the task is not known to the task manager or it is not running.",
+						executionAttemptId));
+				}
+				requestStackTraceSample(
+					executionAttemptId,
+					sampleId,
+					numSamples - 1,
+					delayBetweenSamples,
+					maxStackTraceDepth,
+					currentTraces,
+					resultFuture);
+			}), delayBetweenSamples.getSize(), delayBetweenSamples.getUnit());
+			return resultFuture;
+		} else {
+			resultFuture.complete(new StackTraceSampleResponse(
+				sampleId,
+				executionAttemptId,
+				currentTraces));
+			return resultFuture;
+		}
+	}
+
+	private Optional<StackTraceElement[]> getStackTrace(
+			final ExecutionAttemptID executionAttemptId, final int maxStackTraceDepth) {
+		final Task task = taskSlotTable.getTask(executionAttemptId);
+
+		if (task != null && task.getExecutionState() == ExecutionState.RUNNING) {
+			final StackTraceElement[] stackTrace = task.getExecutingThread().getStackTrace();
+
+			if (maxStackTraceDepth > 0) {
+				return Optional.of(Arrays.copyOfRange(stackTrace, 0, Math.min(maxStackTraceDepth, stackTrace.length)));
+			} else {
+				return Optional.of(stackTrace);
+			}
+		} else {
+			return Optional.empty();
+		}
+	}
 
 	// ----------------------------------------------------------------------
 	// Task lifecycle RPCs

@@ -85,6 +85,9 @@ import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -195,6 +198,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final String metricQueryServicePath;
 
+	// --------- BackPressure --------
+
+	private final BackPressureStatsTracker backPressureStatsTracker;
+
 	// --------- ResourceManager --------
 
 	/** Leader retriever service used to locate ResourceManager's address. */
@@ -226,7 +233,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			FatalErrorHandler errorHandler,
 			ClassLoader userCodeLoader,
 			@Nullable String restAddress,
-			@Nullable String metricQueryServicePath) throws Exception {
+			@Nullable String metricQueryServicePath,
+			BackPressureStatsTracker backPressureStatsTracker) throws Exception {
 
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(JOB_MANAGER_NAME));
 
@@ -313,6 +321,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			.orElse(FutureUtils.completedExceptionally(new JobMasterException("The JobMaster has not been started with a REST endpoint.")));
 
 		this.metricQueryServicePath = metricQueryServicePath;
+		this.backPressureStatsTracker = checkNotNull(backPressureStatsTracker);
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -665,7 +674,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			executionGraph.getKvStateLocationRegistry().notifyKvStateUnregistered(
 					jobVertexId, keyGroupRange, registrationName);
 		} catch (Exception e) {
-			log.error("Failed to notify KvStateRegistry about registration {}.", registrationName);
+			log.error("Failed to notify KvStateRegistry about registration {}.", registrationName, e);
 		}
 	}
 
@@ -865,6 +874,21 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		} catch (Exception e) {
 			return FutureUtils.completedExceptionally(e);
 		}
+	}
+
+	@Override
+	public CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
+			final JobID jobId, final JobVertexID jobVertexId) {
+		final ExecutionJobVertex jobVertex = executionGraph.getJobVertex(jobVertexId);
+		if (jobVertex == null) {
+			return FutureUtils.completedExceptionally(new FlinkException("JobVertexID not found " +
+				jobVertexId));
+		}
+
+		final Optional<OperatorBackPressureStats> operatorBackPressureStats =
+			backPressureStatsTracker.getOperatorBackPressureStats(jobVertex);
+		return CompletableFuture.completedFuture(OperatorBackPressureStatsResponse.of(
+			operatorBackPressureStats.orElse(null)));
 	}
 
 	//----------------------------------------------------------------------------------------------

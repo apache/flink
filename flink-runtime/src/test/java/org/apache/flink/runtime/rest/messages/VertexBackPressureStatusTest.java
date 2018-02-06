@@ -18,24 +18,27 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
+import org.apache.flink.runtime.rest.util.RestMapperUtils;
+
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 /**
- * Message parameters for job vertex REST handlers.
+ * Tests for {@link JobVertexBackPressureInfo.VertexBackPressureStatus}.
  */
-public class JobVertexMessageParameters extends JobMessageParameters {
+public class VertexBackPressureStatusTest {
 
-	public final JobVertexIdPathParameter jobVertexIdPathParameter = new JobVertexIdPathParameter();
-
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Arrays.asList(jobPathParameter, jobVertexIdPathParameter);
+	/**
+	 * Tests that the enum values are serialized correctly.
+	 * Clients, such as the Web UI, expect values to be lower case.
+	 */
+	@Test
+	public void testJsonValue() throws Exception {
+		assertEquals("\"ok\"", RestMapperUtils.getStrictObjectMapper()
+			.writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureStatus.OK));
+		assertEquals("\"deprecated\"", RestMapperUtils.getStrictObjectMapper()
+			.writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureStatus.DEPRECATED));
 	}
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptySet();
-	}
 }

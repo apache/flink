@@ -170,7 +170,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 				this,
 				userCodeLoader,
 				restAddress,
-				metricRegistry.getMetricQueryServicePath());
+				metricRegistry.getMetricQueryServicePath(),
+				jobManagerServices.backPressureStatsTracker);
 
 			this.timeout = jobManagerServices.rpcAskTimeout;
 		}
