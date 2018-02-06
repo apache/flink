@@ -575,8 +575,6 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 	@Override
 	public void shutdown(Time timeout) {
-		super.shutdown(timeout);
-
 		executionGraphCache.close();
 
 		final File tmpDir = restConfiguration.getTmpDir();
@@ -593,6 +591,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		} catch (Exception e) {
 			log.warn("Error while stopping leaderElectionService", e);
 		}
+
+		super.shutdown(timeout);
 	}
 
 	//-------------------------------------------------------------------------
