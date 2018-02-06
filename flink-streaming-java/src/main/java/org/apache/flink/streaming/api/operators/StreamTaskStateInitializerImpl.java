@@ -220,7 +220,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 				"Key Group " + keyGroupIdx + " does not belong to the local range.");
 
 			timeServiceManager.restoreStateForKeyGroup(
-				new DataInputViewStreamWrapper(streamProvider.getStream()),
+				streamProvider.getStream(),
 				keyGroupIdx, environment.getUserClassLoader());
 		}
 

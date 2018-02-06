@@ -30,6 +30,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -119,7 +120,7 @@ public class InternalTimeServiceManager<K, N> {
 	}
 
 	public void restoreStateForKeyGroup(
-			DataInputView stream,
+			InputStream stream,
 			int keyGroupIdx,
 			ClassLoader userCodeClassLoader) throws IOException {
 

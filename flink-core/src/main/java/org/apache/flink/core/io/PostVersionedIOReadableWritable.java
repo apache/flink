@@ -22,9 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.InputStreamViewWrapper;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PushbackInputStream;
 import java.util.Arrays;
 
@@ -57,22 +57,32 @@ public abstract class PostVersionedIOReadableWritable extends VersionedIOReadabl
 	 * {@link #VERSIONED_IDENTIFIER} by reading and buffering the first few bytes.
 	 * If identified to be versioned, the usual version resolution read path
 	 * in {@link VersionedIOReadableWritable#read(DataInputView)} is invoked.
-	 * Otherwise, we "reset" the input view by pushing back the read buffered bytes
+	 * Otherwise, we "reset" the input stream by pushing back the read buffered bytes
 	 * into the stream.
+	 */
+	public final void read(InputStream inputStream) throws IOException {
+		byte[] tmp = new byte[VERSIONED_IDENTIFIER.length];
+		inputStream.read(tmp);
+
+		if (Arrays.equals(tmp, VERSIONED_IDENTIFIER)) {
+			DataInputView inputView = new DataInputViewStreamWrapper(inputStream);
+
+			super.read(inputView);
+			read(inputView, true);
+		} else {
+			PushbackInputStream resetStream = new PushbackInputStream(inputStream, VERSIONED_IDENTIFIER.length);
+			resetStream.unread(tmp);
+
+			read(new DataInputViewStreamWrapper(resetStream), false);
+		}
+	}
+
+	/**
+	 * We do not support reading from a {@link DataInputView}, because it does not
+	 * support pushing back already read bytes.
 	 */
 	@Override
 	public final void read(DataInputView in) throws IOException {
-		PushbackInputStream stream = new PushbackInputStream(new InputStreamViewWrapper(in), VERSIONED_IDENTIFIER.length);
-
-		byte[] tmp = new byte[VERSIONED_IDENTIFIER.length];
-		stream.read(tmp);
-
-		if (Arrays.equals(tmp, VERSIONED_IDENTIFIER)) {
-			super.read(in);
-			read(in, true);
-		} else {
-			stream.unread(tmp);
-			read(new DataInputViewStreamWrapper(stream), false);
-		}
+		throw new UnsupportedOperationException("PostVersionedIOReadableWritable cannot read from a DataInputView.");
 	}
 }

@@ -48,7 +48,7 @@ public class PostVersionedIOReadableWritableTest {
 
 		TestPostVersionedReadableWritable restoredVersionedReadableWritable = new TestPostVersionedReadableWritable();
 		try(ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
-			restoredVersionedReadableWritable.read(new DataInputViewStreamWrapper(in));
+			restoredVersionedReadableWritable.read(in);
 		}
 
 		Assert.assertEquals(payload, restoredVersionedReadableWritable.getData());
@@ -68,7 +68,7 @@ public class PostVersionedIOReadableWritableTest {
 
 		TestPostVersionedReadableWritable restoredVersionedReadableWritable = new TestPostVersionedReadableWritable();
 		try(ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
-			restoredVersionedReadableWritable.read(new DataInputViewStreamWrapper(in));
+			restoredVersionedReadableWritable.read(in);
 		}
 
 		Assert.assertEquals(String.valueOf(preVersionedPayload), restoredVersionedReadableWritable.getData());
