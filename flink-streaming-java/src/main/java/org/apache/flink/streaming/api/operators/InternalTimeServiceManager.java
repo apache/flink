@@ -21,7 +21,6 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -53,7 +52,7 @@ public class InternalTimeServiceManager<K, N> {
 
 	private final ProcessingTimeService processingTimeService;
 
-	public final Map<String, HeapInternalTimerService<K, N>> timerServices;
+	private final Map<String, HeapInternalTimerService<K, N>> timerServices;
 
 	InternalTimeServiceManager(
 			int totalKeyGroups,
