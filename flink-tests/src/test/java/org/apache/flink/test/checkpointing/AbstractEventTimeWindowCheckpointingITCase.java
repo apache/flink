@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -87,7 +88,7 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("serial")
 public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLogger {
 
-	private static final int MAX_MEM_STATE_SIZE = 10 * 1024 * 1024;
+	private static final int MAX_MEM_STATE_SIZE = 20 * 1024 * 1024;
 	private static final int PARALLELISM = 4;
 
 	private static LocalFlinkMiniCluster cluster;
@@ -137,6 +138,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 48L);
 		// the default network buffers size (10% of heap max =~ 150MB) seems to much for this test case
 		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 80L << 20); // 80 MB
+		config.setString(AkkaOptions.FRAMESIZE, String.valueOf(MAX_MEM_STATE_SIZE) + "b");
 
 		if (zkServer != null) {
 			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");

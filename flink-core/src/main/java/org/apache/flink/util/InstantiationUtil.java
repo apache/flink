@@ -20,10 +20,15 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -37,12 +42,16 @@ import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Utility class to create instances from class objects and checking failure reasons.
  */
 @Internal
 public final class InstantiationUtil {
+
+	private static final Logger LOG = LoggerFactory.getLogger(InstantiationUtil.class);
 
 	/**
 	 * A custom ObjectInputStream that can load classes using a specific ClassLoader.
@@ -95,6 +104,78 @@ public final class InstantiationUtil {
 		}
 	}
 
+	/**
+	 * This is maintained as a temporary workaround for FLINK-6869.
+	 *
+	 * <p>Before 1.3, the Scala serializers did not specify the serialVersionUID.
+	 * Although since 1.3 they are properly specified, we still have to ignore them for now
+	 * as their previous serialVersionUIDs will vary depending on the Scala version.
+	 *
+	 * <p>This can be removed once 1.2 is no longer supported.
+	 */
+	private static Set<String> scalaSerializerClassnames = new HashSet<>();
+	static {
+		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.TraversableSerializer");
+		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.CaseClassSerializer");
+		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.EitherSerializer");
+		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.EnumValueSerializer");
+		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.OptionSerializer");
+		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.TrySerializer");
+		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.EitherSerializer");
+		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.UnitSerializer");
+	}
+
+	/**
+	 * An {@link ObjectInputStream} that ignores serialVersionUID mismatches when deserializing objects of
+	 * anonymous classes or our Scala serializer classes and also replaces occurences of GenericData.Array
+	 * (from Avro) by a dummy class so that the KryoSerializer can still be deserialized without
+	 * Avro being on the classpath.
+	 *
+	 * <p>The {@link TypeSerializerSerializationUtil.TypeSerializerSerializationProxy} uses this specific object input stream to read serializers,
+	 * so that mismatching serialVersionUIDs of anonymous classes / Scala serializers are ignored.
+	 * This is a required workaround to maintain backwards compatibility for our pre-1.3 Scala serializers.
+	 * See FLINK-6869 for details.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-6869">FLINK-6869</a>
+	 */
+	public static class FailureTolerantObjectInputStream extends InstantiationUtil.ClassLoaderObjectInputStream {
+
+		public FailureTolerantObjectInputStream(InputStream in, ClassLoader cl) throws IOException {
+			super(in, cl);
+		}
+
+		@Override
+		protected ObjectStreamClass readClassDescriptor() throws IOException, ClassNotFoundException {
+			ObjectStreamClass streamClassDescriptor = super.readClassDescriptor();
+
+			try {
+				Class.forName(streamClassDescriptor.getName(), false, classLoader);
+			} catch (ClassNotFoundException e) {
+				if (streamClassDescriptor.getName().equals("org.apache.avro.generic.GenericData$Array")) {
+					ObjectStreamClass result = ObjectStreamClass.lookup(
+						KryoRegistrationSerializerConfigSnapshot.DummyRegisteredClass.class);
+					return result;
+				}
+			}
+
+			Class localClass = resolveClass(streamClassDescriptor);
+			if (scalaSerializerClassnames.contains(localClass.getName()) || localClass.isAnonymousClass()
+				// isAnonymousClass does not work for anonymous Scala classes; additionally check by classname
+				|| localClass.getName().contains("$anon$") || localClass.getName().contains("$anonfun")) {
+
+				ObjectStreamClass localClassDescriptor = ObjectStreamClass.lookup(localClass);
+				if (localClassDescriptor != null
+					&& localClassDescriptor.getSerialVersionUID() != streamClassDescriptor.getSerialVersionUID()) {
+					LOG.warn("Ignoring serialVersionUID mismatch for anonymous class {}; was {}, now {}.",
+						streamClassDescriptor.getName(), streamClassDescriptor.getSerialVersionUID(), localClassDescriptor.getSerialVersionUID());
+
+					streamClassDescriptor = localClassDescriptor;
+				}
+			}
+
+			return streamClassDescriptor;
+		}
+	}
 
 	/**
 	 * Creates a new instance of the given class.
@@ -284,23 +365,30 @@ public final class InstantiationUtil {
 
 	@SuppressWarnings("unchecked")
 	public static <T> T deserializeObject(byte[] bytes, ClassLoader cl) throws IOException, ClassNotFoundException {
-		final ClassLoader old = Thread.currentThread().getContextClassLoader();
-		try (ObjectInputStream oois = new ClassLoaderObjectInputStream(new ByteArrayInputStream(bytes), cl)) {
-			Thread.currentThread().setContextClassLoader(cl);
-			return (T) oois.readObject();
-		}
-		finally {
-			Thread.currentThread().setContextClassLoader(old);
-		}
+		return deserializeObject(bytes, cl, false);
 	}
 
 	@SuppressWarnings("unchecked")
 	public static <T> T deserializeObject(InputStream in, ClassLoader cl) throws IOException, ClassNotFoundException {
+		return deserializeObject(in, cl, false);
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> T deserializeObject(byte[] bytes, ClassLoader cl, boolean isFailureTolerant)
+			throws IOException, ClassNotFoundException {
+
+		return deserializeObject(new ByteArrayInputStream(bytes), cl, isFailureTolerant);
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> T deserializeObject(InputStream in, ClassLoader cl, boolean isFailureTolerant)
+			throws IOException, ClassNotFoundException {
+
 		final ClassLoader old = Thread.currentThread().getContextClassLoader();
-		ObjectInputStream oois;
 		// not using resource try to avoid AutoClosable's close() on the given stream
-		try {
-			oois = new ClassLoaderObjectInputStream(in, cl);
+		try (ObjectInputStream oois = isFailureTolerant
+				? new InstantiationUtil.FailureTolerantObjectInputStream(in, cl)
+				: new InstantiationUtil.ClassLoaderObjectInputStream(in, cl)) {
 			Thread.currentThread().setContextClassLoader(cl);
 			return (T) oois.readObject();
 		}
