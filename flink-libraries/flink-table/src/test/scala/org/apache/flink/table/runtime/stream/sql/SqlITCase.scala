@@ -596,7 +596,7 @@ class SqlITCase extends StreamingWithStateTestBase {
 
     tEnv.registerFunction("func15", Func15)
 
-    val parameters = "c," + (0 until 255).map(_ => "a").mkString(",")
+    val parameters = "c," + (0 until 300).map(_ => "a").mkString(",")
     val sqlQuery = s"SELECT func15($parameters) FROM T1"
 
     val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
@@ -607,9 +607,9 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "Hi255",
-      "Hello255",
-      "Hello world255")
+      "Hi300",
+      "Hello300",
+      "Hello world300")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

@@ -26,8 +26,10 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.commons.codec.binary.Base64
 import com.google.common.primitives.Primitives
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.{SqlCallBinding, SqlFunction}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
+import org.apache.calcite.sql.`type`._
+import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange, SqlOperator, SqlOperatorBinding}
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -81,19 +83,20 @@ object UserDefinedFunctionUtils {
   // ----------------------------------------------------------------------------------------------
 
   /**
-    * Returns signatures of eval methods matching the given signature of [[TypeInformation]].
+    * Returns the signature of the eval method matching the given signature of [[TypeInformation]].
     * Elements of the signature can be null (act as a wildcard).
     */
   def getEvalMethodSignature(
-    function: UserDefinedFunction,
-    signature: Seq[TypeInformation[_]])
+      function: UserDefinedFunction,
+      signature: Seq[TypeInformation[_]])
     : Option[Array[Class[_]]] = {
+
     getUserDefinedMethod(function, "eval", typeInfoToClass(signature)).map(_.getParameterTypes)
   }
 
   /**
-    * Returns signatures of accumulate methods matching the given signature of [[TypeInformation]].
-    * Elements of the signature can be null (act as a wildcard).
+    * Returns the signature of the accumulate method matching the given signature
+    * of [[TypeInformation]]. Elements of the signature can be null (act as a wildcard).
     */
   def getAccumulateMethodSignature(
       function: AggregateFunction[_, _],
@@ -191,7 +194,7 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Check if a given method exists in the given function
+    * Checks if a given method exists in the given function
     */
   def ifMethodExistInFunction(method: String, function: UserDefinedFunction): Boolean = {
     val methods = function
@@ -242,7 +245,7 @@ object UserDefinedFunctionUtils {
   // ----------------------------------------------------------------------------------------------
 
   /**
-    * Create [[SqlFunction]] for a [[ScalarFunction]]
+    * Creates [[SqlFunction]] for a [[ScalarFunction]]
     *
     * @param name function name
     * @param function scalar function
@@ -259,7 +262,7 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Create [[SqlFunction]] for a [[TableFunction]]
+    * Creates [[SqlFunction]] for a [[TableFunction]]
     *
     * @param name function name
     * @param tableFunction table function
@@ -280,7 +283,7 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Create [[SqlFunction]] for an [[AggregateFunction]]
+    * Creates [[SqlFunction]] for an [[AggregateFunction]]
     *
     * @param name function name
     * @param aggFunction aggregate function
@@ -306,6 +309,120 @@ object UserDefinedFunctionUtils {
       accTypeInfo,
       typeFactory,
       aggFunction.requiresOver)
+  }
+
+  /**
+    * Creates a [[SqlOperandTypeChecker]] for SQL validation of
+    * eval functions (scalar and table functions).
+    */
+  def createEvalOperandTypeChecker(
+      name: String,
+      function: UserDefinedFunction)
+    : SqlOperandTypeChecker = {
+
+    val methods = checkAndExtractMethods(function, "eval")
+
+    new SqlOperandTypeChecker {
+      override def getAllowedSignatures(op: SqlOperator, opName: String): String = {
+        s"$opName[${signaturesToString(function, "eval")}]"
+      }
+
+      override def getOperandCountRange: SqlOperandCountRange = {
+        var min = 254
+        var max = -1
+        var isVarargs = false
+        methods.foreach( m => {
+          var len = m.getParameterTypes.length
+          if (len > 0 && m.isVarArgs && m.getParameterTypes()(len - 1).isArray) {
+            isVarargs = true
+            len = len - 1
+          }
+          max = Math.max(len, max)
+          min = Math.min(len, min)
+        })
+        if (isVarargs) {
+          // if eval method is varargs, set max to -1 to skip length check in Calcite
+          max = -1
+        }
+
+        SqlOperandCountRanges.between(min, max)
+      }
+
+      override def checkOperandTypes(
+          callBinding: SqlCallBinding,
+          throwOnFailure: Boolean)
+        : Boolean = {
+        val operandTypeInfo = getOperandTypeInfo(callBinding)
+
+        val foundSignature = getEvalMethodSignature(function, operandTypeInfo)
+
+        if (foundSignature.isEmpty) {
+          if (throwOnFailure) {
+            throw new ValidationException(
+              s"Given parameters of function '$name' do not match any signature. \n" +
+                s"Actual: ${signatureToString(operandTypeInfo)} \n" +
+                s"Expected: ${signaturesToString(function, "eval")}")
+          } else {
+            false
+          }
+        } else {
+          true
+        }
+      }
+
+      override def isOptional(i: Int): Boolean = false
+
+      override def getConsistency: Consistency = Consistency.NONE
+
+    }
+  }
+
+  /**
+    * Creates a [[SqlOperandTypeInference]] for the SQL validation of eval functions
+    * (scalar and table functions).
+    */
+  def createEvalOperandTypeInference(
+    name: String,
+    function: UserDefinedFunction,
+    typeFactory: FlinkTypeFactory)
+  : SqlOperandTypeInference = {
+
+    new SqlOperandTypeInference {
+      override def inferOperandTypes(
+          callBinding: SqlCallBinding,
+          returnType: RelDataType,
+          operandTypes: Array[RelDataType]): Unit = {
+
+        val operandTypeInfo = getOperandTypeInfo(callBinding)
+
+        val foundSignature = getEvalMethodSignature(function, operandTypeInfo)
+          .getOrElse(throw new ValidationException(
+            s"Given parameters of function '$name' do not match any signature. \n" +
+              s"Actual: ${signatureToString(operandTypeInfo)} \n" +
+              s"Expected: ${signaturesToString(function, "eval")}"))
+
+        val inferredTypes = function match {
+          case sf: ScalarFunction =>
+            sf.getParameterTypes(foundSignature)
+              .map(typeFactory.createTypeFromTypeInfo(_, isNullable = true))
+          case tf: TableFunction[_] =>
+            tf.getParameterTypes(foundSignature)
+              .map(typeFactory.createTypeFromTypeInfo(_, isNullable = true))
+          case _ => throw new TableException("Unsupported function.")
+        }
+
+        for (i <- operandTypes.indices) {
+          if (i < inferredTypes.length - 1) {
+            operandTypes(i) = inferredTypes(i)
+          } else if (null != inferredTypes.last.getComponentType) {
+            // last argument is a collection, the array type
+            operandTypes(i) = inferredTypes.last.getComponentType
+          } else {
+            operandTypes(i) = inferredTypes.last
+          }
+        }
+      }
+    }
   }
 
   // ----------------------------------------------------------------------------------------------
