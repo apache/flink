@@ -23,6 +23,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.TransientBlobCache;
+import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
@@ -99,6 +101,8 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collection;
@@ -707,6 +711,47 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
+	@Override
+	public CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, Time timeout) {
+		log.debug("Request file {} upload.", fileType);
+
+		final String filePath;
+
+		switch (fileType) {
+			case LOG:
+				filePath = taskManagerConfiguration.getTaskManagerLogPath();
+				break;
+			case STDOUT:
+				filePath = taskManagerConfiguration.getTaskManagerStdoutPath();
+				break;
+			default:
+				filePath = null;
+		}
+
+		if (filePath != null && !filePath.isEmpty()) {
+			final File file = new File(filePath);
+
+			if (file.exists()) {
+				final TransientBlobCache transientBlobService = blobCacheService.getTransientBlobService();
+				final TransientBlobKey transientBlobKey;
+				try (FileInputStream fileInputStream = new FileInputStream(file)) {
+					transientBlobKey = transientBlobService.putTransient(fileInputStream);
+				} catch (IOException e) {
+					log.debug("Could not upload file {}.", fileType, e);
+					return FutureUtils.completedExceptionally(new FlinkException("Could not upload file " + fileType + '.', e));
+				}
+
+				return CompletableFuture.completedFuture(transientBlobKey);
+			} else {
+				log.debug("The file {} does not exist on the TaskExecutor {}.", fileType, getResourceID());
+				return FutureUtils.completedExceptionally(new FlinkException("The file " + fileType + " does not exist on the TaskExecutor."));
+			}
+		} else {
+			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileType, getResourceID());
+			return FutureUtils.completedExceptionally(new FlinkException("The file " + fileType + " is not available on the TaskExecutor."));
+		}
+	}
+
 	// ----------------------------------------------------------------------
 	// Disconnection RPCs
 	// ----------------------------------------------------------------------
@@ -939,7 +984,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	}
 
 	private void closeJobManagerConnection(JobID jobId, Exception cause) {
-		log.info("Close JobManager connection for job {}.", jobId);
+		if (log.isDebugEnabled()) {
+			log.debug("Close JobManager connection for job {}.", jobId, cause);
+		} else {
+			log.info("Close JobManager connection for job {}.", jobId);
+		}
 
 		// 1. fail tasks running under this JobID
 		Iterator<Task> tasks = taskSlotTable.getTasks(jobId);
@@ -1293,9 +1342,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		@Override
 		public void onRegistrationSuccess(TaskExecutorRegistrationSuccess success) {
 			final ResourceID resourceManagerId = success.getResourceManagerId();
+			final ClusterInformation clusterInformation = success.getClusterInformation();
 
 			runAsync(
-				() -> establishResourceManagerConnection(resourceManagerId, success.getClusterInformation())
+				() -> establishResourceManagerConnection(resourceManagerId, clusterInformation)
 			);
 		}
 

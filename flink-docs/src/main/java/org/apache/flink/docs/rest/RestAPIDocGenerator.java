@@ -20,6 +20,7 @@ package org.apache.flink.docs.rest;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
@@ -271,6 +272,7 @@ public class RestAPIDocGenerator {
 		private static final Executor executor;
 		private static final GatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever;
 		private static final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
+		private static final TransientBlobService transientBlobService;
 		private static final MetricQueryServiceRetriever metricQueryServiceRetriever;
 
 		static {
@@ -285,11 +287,22 @@ public class RestAPIDocGenerator {
 
 			dispatcherGatewayRetriever = () -> null;
 			resourceManagerGatewayRetriever = () -> null;
+			transientBlobService = NoOpTransientBlobService.INSTANCE;
 			metricQueryServiceRetriever = path -> null;
 		}
 
 		private DocumentingDispatcherRestEndpoint() {
-			super(restConfig, dispatcherGatewayRetriever, config, handlerConfig, resourceManagerGatewayRetriever, executor, metricQueryServiceRetriever, NoOpElectionService.INSTANCE, NoOpFatalErrorHandler.INSTANCE);
+			super(
+				restConfig,
+				dispatcherGatewayRetriever,
+				config,
+				handlerConfig,
+				resourceManagerGatewayRetriever,
+				transientBlobService,
+				executor,
+				metricQueryServiceRetriever,
+				NoOpElectionService.INSTANCE,
+				NoOpFatalErrorHandler.INSTANCE);
 		}
 
 		@Override

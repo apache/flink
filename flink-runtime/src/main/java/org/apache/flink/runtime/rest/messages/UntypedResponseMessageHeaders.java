@@ -18,30 +18,26 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 
 /**
- * This class links {@link RequestBody}s to {@link ResponseBody}s types and contains meta-data required for their http headers.
+ * Message headers for a web handler request.
  *
- * <p>Implementations must be state-less.
- *
- * @param <R> request message type
- * @param <P> response message type
- * @param <M> message parameters type
+ * @param <R> type of the request
+ * @param <M> type of the message message parameters
  */
-public interface MessageHeaders<R extends RequestBody, P extends ResponseBody, M extends MessageParameters> extends UntypedResponseMessageHeaders<R, M> {
+public interface UntypedResponseMessageHeaders<R extends RequestBody, M extends MessageParameters> extends RestHandlerSpecification {
+	/**
+	 * Returns the class of the request message.
+	 *
+	 * @return class of the request message
+	 */
+	Class<R> getRequestClass();
 
 	/**
-	 * Returns the class of the response message.
+	 * Returns a new {@link MessageParameters} object.
 	 *
-	 * @return class of the response message
+	 * @return new message parameters object
 	 */
-	Class<P> getResponseClass();
-
-	/**
-	 * Returns the http status code for the response.
-	 *
-	 * @return http status code of the response
-	 */
-	HttpResponseStatus getResponseStatusCode();
+	M getUnresolvedMessageParameters();
 }
