@@ -413,6 +413,13 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
+	public Map<Integer, StreamConfig> getTransitiveChainedTaskConfigsWithSelf(ClassLoader cl) {
+		//TODO: could this logic be moved to the user of #setTransitiveChainedTaskConfigs() ?
+		Map<Integer, StreamConfig> chainedTaskConfigs = getTransitiveChainedTaskConfigs(cl);
+		chainedTaskConfigs.put(getVertexID(), this);
+		return chainedTaskConfigs;
+	}
+
 	public void setOperatorID(OperatorID operatorID) {
 		this.config.setBytes(OPERATOR_ID, operatorID.getBytes());
 	}

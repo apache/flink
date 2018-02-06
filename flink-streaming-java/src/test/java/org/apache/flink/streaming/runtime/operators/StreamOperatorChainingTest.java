@@ -150,8 +150,7 @@ public class StreamOperatorChainingTest {
 
 		try (MockEnvironment environment = createMockEnvironment(chainedVertex.getName())) {
 			StreamTask<Integer, StreamMap<Integer, Integer>> mockTask = createMockTask(streamConfig, environment);
-
-			OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(mockTask);
+			OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = createOperatorChain(streamConfig, environment, mockTask);
 
 			headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
 
@@ -300,8 +299,7 @@ public class StreamOperatorChainingTest {
 
 		try (MockEnvironment environment = createMockEnvironment(chainedVertex.getName())) {
 			StreamTask<Integer, StreamMap<Integer, Integer>> mockTask = createMockTask(streamConfig, environment);
-
-			OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(mockTask);
+			OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = createOperatorChain(streamConfig, environment, mockTask);
 
 			headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
 
@@ -319,6 +317,13 @@ public class StreamOperatorChainingTest {
 			assertThat(sink2Results, contains("First 2: 1"));
 			assertThat(sink3Results, contains("Second: 2", "Second: 3"));
 		}
+	}
+
+	private <IN, OT extends StreamOperator<IN>> OperatorChain<IN, OT> createOperatorChain(
+			StreamConfig streamConfig,
+			Environment environment,
+			StreamTask<IN, OT> task) {
+		return new OperatorChain<>(task, StreamTask.createStreamRecordWriters(streamConfig, environment));
 	}
 
 	private <IN, OT extends StreamOperator<IN>> StreamTask<IN, OT> createMockTask(

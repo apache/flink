@@ -47,29 +47,4 @@ public interface ResultPartitionWriter {
 	 * resources.
 	 */
 	void writeBuffer(Buffer buffer, int subpartitionIndex) throws IOException;
-
-	/**
-	 * Writes the given buffer to all available target subpartitions.
-	 *
-	 * <p>The buffer is taken over and used for each of the channels.
-	 * It will be recycled afterwards.
-	 *
-	 * <p>This method takes the ownership of the passed {@code buffer} and thus is responsible for releasing it's
-	 * resources.
-	 *
-	 * @param buffer the buffer to write
-	 */
-	default void writeBufferToAllSubpartitions(final Buffer buffer) throws IOException {
-		try {
-			for (int subpartition = 0; subpartition < getNumberOfSubpartitions(); subpartition++) {
-				// retain the buffer so that it can be recycled by each channel of targetPartition
-				buffer.retainBuffer();
-				writeBuffer(buffer, subpartition);
-			}
-		} finally {
-			// we do not need to further retain the eventBuffer
-			// (it will be recycled after the last channel stops using it)
-			buffer.recycleBuffer();
-		}
-	}
 }
