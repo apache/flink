@@ -128,7 +128,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	private final Option slots;
 	private final Option detached;
 	private final Option zookeeperNamespace;
-	private final Option flip6;
 	private final Option help;
 
 	/**
@@ -158,6 +157,8 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 	private final String yarnPropertiesFileLocation;
 
+	private final boolean flip6;
+
 	//------------------------------------ Internal fields -------------------------
 	private boolean detachedMode = false;
 
@@ -178,6 +179,8 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		super(configuration);
 		this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
 		this.acceptInteractiveInput = acceptInteractiveInput;
+
+		this.flip6 = configuration.getString(CoreOptions.MODE).equalsIgnoreCase(CoreOptions.FLIP6_MODE);
 
 		// Create the command line options
 
@@ -200,7 +203,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		streaming = new Option(shortPrefix + "st", longPrefix + "streaming", false, "Start Flink in streaming mode");
 		name = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
 		zookeeperNamespace = new Option(shortPrefix + "z", longPrefix + "zookeeperNamespace", true, "Namespace to create the Zookeeper sub-paths for high availability mode");
-		flip6 = new Option(shortPrefix + "f6", longPrefix + "flip6", false, "Specify this option to start a Flip-6 Yarn session cluster.");
 		help = new Option(shortPrefix + "h", longPrefix + "help", false, "Help for the Yarn session CLI.");
 
 		allOptions = new Options();
@@ -218,7 +220,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		allOptions.addOption(name);
 		allOptions.addOption(applicationId);
 		allOptions.addOption(zookeeperNamespace);
-		allOptions.addOption(flip6);
 		allOptions.addOption(help);
 
 		// try loading a potential yarn properties file
@@ -266,8 +267,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 		AbstractYarnClusterDescriptor yarnClusterDescriptor = getClusterDescriptor(
 			configuration,
-			configurationDirectory,
-			cmd.hasOption(flip6.getOpt()));
+			configurationDirectory);
 
 		// Jar Path
 		final Path localJarPath;
@@ -524,7 +524,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 		for (Option option : commandLine.getOptions()) {
 			if (allOptions.hasOption(option.getOpt())) {
-				if (!option.getOpt().equals(detached.getOpt()) && !option.getOpt().equals(flip6.getOpt())) {
+				if (!option.getOpt().equals(detached.getOpt())) {
 					// don't resume from properties file if yarn options have been specified
 					canApplyYarnProperties = false;
 					break;
@@ -968,7 +968,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		return new File(propertiesFileLocation, YARN_PROPERTIES_FILE + currentUser);
 	}
 
-	private static AbstractYarnClusterDescriptor getClusterDescriptor(Configuration configuration, String configurationDirectory, boolean flip6) {
+	private AbstractYarnClusterDescriptor getClusterDescriptor(Configuration configuration, String configurationDirectory) {
 		final YarnClient yarnClient = YarnClient.createYarnClient();
 		if (flip6) {
 			return new Flip6YarnClusterDescriptor(configuration, configurationDirectory, yarnClient);

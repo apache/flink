@@ -16,26 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster;
+package org.apache.flink.queryablestate.exceptions;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.registration.RegistrationResponse;
-import org.apache.flink.runtime.taskexecutor.TaskExecutor;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.FlinkException;
 
 /**
- * Message indicating a successful {@link JobMaster} and {@link TaskExecutor} registration.
+ * Exception to fail Future if the Task Manager on which the
+ * {@code Client Proxy} is running on, does not know the location
+ * of a requested state.
  */
-public class JMTMRegistrationSuccess extends RegistrationResponse.Success {
-	private static final long serialVersionUID = -3528383155961318929L;
+@Internal
+public class UnknownLocationException extends FlinkException {
 
-	private final ResourceID resourceID;
+	private static final long serialVersionUID = 9092442511708951209L;
 
-	public JMTMRegistrationSuccess(ResourceID resourceID) {
-		this.resourceID = Preconditions.checkNotNull(resourceID);
-	}
-
-	public ResourceID getResourceID() {
-		return resourceID;
+	public UnknownLocationException(String msg) {
+		super(msg);
 	}
 }

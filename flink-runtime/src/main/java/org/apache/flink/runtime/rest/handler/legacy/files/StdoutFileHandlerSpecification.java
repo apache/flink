@@ -16,26 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster;
+package org.apache.flink.runtime.rest.handler.legacy.files;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.registration.RegistrationResponse;
-import org.apache.flink.runtime.taskexecutor.TaskExecutor;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 
 /**
- * Message indicating a successful {@link JobMaster} and {@link TaskExecutor} registration.
+ * Rest handler specification for the stdout file of the main cluster component.
  */
-public class JMTMRegistrationSuccess extends RegistrationResponse.Success {
-	private static final long serialVersionUID = -3528383155961318929L;
+public class StdoutFileHandlerSpecification implements RestHandlerSpecification {
 
-	private final ResourceID resourceID;
+	private static final StdoutFileHandlerSpecification INSTANCE = new StdoutFileHandlerSpecification();
 
-	public JMTMRegistrationSuccess(ResourceID resourceID) {
-		this.resourceID = Preconditions.checkNotNull(resourceID);
+	private static final String URL = "/jobmanager/stdout";
+
+	private StdoutFileHandlerSpecification() {}
+
+	@Override
+	public HttpMethodWrapper getHttpMethod() {
+		return HttpMethodWrapper.GET;
 	}
 
-	public ResourceID getResourceID() {
-		return resourceID;
+	@Override
+	public String getTargetRestEndpointURL() {
+		return URL;
+	}
+
+	public static StdoutFileHandlerSpecification getInstance() {
+		return INSTANCE;
 	}
 }

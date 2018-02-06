@@ -134,6 +134,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			heartbeatServices,
 			metricRegistry,
 			this,
+			new ClusterInformation(rpcService.getAddress(), blobServer.getPort()),
 			jobMasterRestEndpoint.getRestAddress());
 
 		jobManagerRunner = createJobManagerRunner(
@@ -143,6 +144,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			highAvailabilityServices,
 			jobManagerServices,
 			heartbeatServices,
+			blobServer,
 			metricRegistry,
 			this,
 			jobMasterRestEndpoint.getRestAddress());
@@ -190,6 +192,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			HighAvailabilityServices highAvailabilityServices,
 			JobManagerServices jobManagerServices,
 			HeartbeatServices heartbeatServices,
+			BlobServer blobServer,
 			MetricRegistry metricRegistry,
 			FatalErrorHandler fatalErrorHandler,
 			@Nullable String restAddress) throws Exception {
@@ -203,6 +206,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			rpcService,
 			highAvailabilityServices,
 			heartbeatServices,
+			blobServer,
 			jobManagerServices,
 			metricRegistry,
 			new TerminatingOnCompleteActions(jobGraph.getJobID()),
@@ -288,6 +292,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		HeartbeatServices heartbeatServices,
 		MetricRegistry metricRegistry,
 		FatalErrorHandler fatalErrorHandler,
+		ClusterInformation clusterInformation,
 		@Nullable String webInterfaceUrl) throws Exception;
 
 	protected abstract JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException;

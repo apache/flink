@@ -20,6 +20,8 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
@@ -39,23 +41,22 @@ public class BlobCacheService implements BlobService {
 	/**
 	 * Instantiates a new BLOB cache.
 	 *
-	 * @param serverAddress
-	 * 		address of the {@link BlobServer} to use for fetching files from
 	 * @param blobClientConfig
 	 * 		global configuration
 	 * @param blobView
 	 * 		(distributed) blob store file system to retrieve files from first
-	 *
+	 * @param serverAddress
+	 * 		address of the {@link BlobServer} to use for fetching files from or {@code null} if none yet
 	 * @throws IOException
 	 * 		thrown if the (local or distributed) file storage cannot be created or is not usable
 	 */
 	public BlobCacheService(
-			final InetSocketAddress serverAddress,
 			final Configuration blobClientConfig,
-			final BlobView blobView) throws IOException {
+			final BlobView blobView,
+			@Nullable final InetSocketAddress serverAddress) throws IOException {
 
-		this(new PermanentBlobCache(serverAddress, blobClientConfig, blobView),
-			new TransientBlobCache(serverAddress, blobClientConfig));
+		this(new PermanentBlobCache(blobClientConfig, blobView, serverAddress),
+			new TransientBlobCache(blobClientConfig, serverAddress));
 	}
 
 	/**
@@ -80,6 +81,16 @@ public class BlobCacheService implements BlobService {
 	@Override
 	public TransientBlobCache getTransientBlobService() {
 		return transientBlobCache;
+	}
+
+	/**
+	 * Sets the address of the {@link BlobServer}.
+	 *
+	 * @param blobServerAddress address of the {@link BlobServer}.
+	 */
+	public void setBlobServerAddress(InetSocketAddress blobServerAddress) {
+		permanentBlobCache.setBlobServerAddress(blobServerAddress);
+		transientBlobCache.setBlobServerAddress(blobServerAddress);
 	}
 
 	@Override

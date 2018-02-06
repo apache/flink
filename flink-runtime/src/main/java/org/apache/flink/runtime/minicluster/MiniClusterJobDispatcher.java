@@ -60,46 +60,49 @@ public class MiniClusterJobDispatcher {
 
 	// ------------------------------------------------------------------------
 
-	/** lock to ensure that this dispatcher executes only one job at a time */
+	/** lock to ensure that this dispatcher executes only one job at a time. */
 	private final Object lock = new Object();
 
-	/** the configuration with which the mini cluster was started */
+	/** the configuration with which the mini cluster was started. */
 	private final Configuration configuration;
 
-	/** the RPC services to use by the job managers */
+	/** the RPC services to use by the job managers. */
 	private final RpcService[] rpcServices;
 
-	/** services for discovery, leader election, and recovery */
+	/** services for discovery, leader election, and recovery. */
 	private final HighAvailabilityServices haServices;
 
-	/** services for heartbeating */
+	/** services for heartbeating. */
 	private final HeartbeatServices heartbeatServices;
 
-	/** all the services that the JobManager needs, such as BLOB service, factories, etc */
+	/** BlobServer for storing blobs. */
+	private final BlobServer blobServer;
+
+	/** all the services that the JobManager needs, such as BLOB service, factories, etc. */
 	private final JobManagerServices jobManagerServices;
 
-	/** Registry for all metrics in the mini cluster */
+	/** Registry for all metrics in the mini cluster. */
 	private final MetricRegistry metricRegistry;
 
-	/** The number of JobManagers to launch (more than one simulates a high-availability setup) */
+	/** The number of JobManagers to launch (more than one simulates a high-availability setup). */
 	private final int numJobManagers;
 
-	/** The runner for the job and master. non-null if a job is currently running */
+	/** The runner for the job and master. non-null if a job is currently running. */
 	private volatile JobManagerRunner[] runners;
 
-	/** flag marking the dispatcher as hut down */
+	/** flag marking the dispatcher as hut down. */
 	private volatile boolean shutdown;
 
 
 	/**
 	 * Starts a mini cluster job dispatcher.
-	 * 
+	 *
 	 * <p>The dispatcher kicks off one JobManager per job, a behavior similar to a
 	 * non-highly-available setup.
-	 * 
+	 *
 	 * @param config The configuration of the mini cluster
 	 * @param haServices Access to the discovery, leader election, and recovery services
-	 * 
+	 *
 	 * @throws Exception Thrown, if the services for the JobMaster could not be started.
 	 */
 	public MiniClusterJobDispatcher(
@@ -124,11 +127,11 @@ public class MiniClusterJobDispatcher {
 	 *
 	 * <p>The dispatcher may kick off more than one JobManager per job, thus simulating
 	 * a highly-available setup.
-	 * 
+	 *
 	 * @param config The configuration of the mini cluster
 	 * @param haServices Access to the discovery, leader election, and recovery services
 	 * @param numJobManagers The number of JobMasters to start for each job.
-	 * 
+	 *
 	 * @throws Exception Thrown, if the services for the JobMaster could not be started.
 	 */
 	public MiniClusterJobDispatcher(
@@ -147,6 +150,7 @@ public class MiniClusterJobDispatcher {
 		this.rpcServices = rpcServices;
 		this.haServices = checkNotNull(haServices);
 		this.heartbeatServices = checkNotNull(heartbeatServices);
+		this.blobServer = checkNotNull(blobServer);
 		this.metricRegistry = checkNotNull(metricRegistry);
 		this.numJobManagers = numJobManagers;
 
@@ -280,6 +284,7 @@ public class MiniClusterJobDispatcher {
 					rpcServices[i],
 					haServices,
 					heartbeatServices,
+					blobServer,
 					jobManagerServices,
 					metricRegistry,
 					onCompletion,
