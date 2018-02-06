@@ -134,6 +134,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			heartbeatServices,
 			metricRegistry,
 			this,
+			new ClusterInformation(rpcService.getAddress(), blobServer.getPort()),
 			jobMasterRestEndpoint.getRestAddress());
 
 		jobManagerRunner = createJobManagerRunner(
@@ -288,6 +289,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		HeartbeatServices heartbeatServices,
 		MetricRegistry metricRegistry,
 		FatalErrorHandler fatalErrorHandler,
+		ClusterInformation clusterInformation,
 		@Nullable String webInterfaceUrl) throws Exception;
 
 	protected abstract JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException;

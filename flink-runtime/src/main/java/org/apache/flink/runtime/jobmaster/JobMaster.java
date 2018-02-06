@@ -753,8 +753,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		final ResourceID taskManagerId = taskManagerLocation.getResourceID();
 
 		if (registeredTaskManagers.containsKey(taskManagerId)) {
-			final RegistrationResponse response = new JMTMRegistrationSuccess(
-				resourceId, blobServer.getPort());
+			final RegistrationResponse response = new JMTMRegistrationSuccess(resourceId);
 			return CompletableFuture.completedFuture(response);
 		} else {
 			return getRpcService()
@@ -781,7 +780,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 							}
 						});
 
-						return new JMTMRegistrationSuccess(resourceId, blobServer.getPort());
+						return new JMTMRegistrationSuccess(resourceId);
 					},
 					getMainThreadExecutor());
 		}

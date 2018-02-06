@@ -30,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -130,6 +131,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	/** The slot manager maintains the available slots. */
 	private final SlotManager slotManager;
 
+	private final ClusterInformation clusterInformation;
+
 	/** The service to elect a ResourceManager leader. */
 	private LeaderElectionService leaderElectionService;
 
@@ -146,6 +149,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			SlotManager slotManager,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
+			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler) {
 
 		super(rpcService, resourceManagerEndpointId);
@@ -156,6 +160,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		this.slotManager = checkNotNull(slotManager);
 		this.metricRegistry = checkNotNull(metricRegistry);
 		this.jobLeaderIdService = checkNotNull(jobLeaderIdService);
+		this.clusterInformation = checkNotNull(clusterInformation);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
 		this.taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
@@ -699,7 +704,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			return new TaskExecutorRegistrationSuccess(
 				registration.getInstanceID(),
 				resourceId,
-				resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds());
+				resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds(),
+				clusterInformation);
 		}
 	}
 

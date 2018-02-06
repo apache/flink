@@ -136,6 +136,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			heartbeatServices,
 			metricRegistry,
 			this,
+			new ClusterInformation(rpcService.getAddress(), blobServer.getPort()),
 			dispatcherRestEndpoint.getRestAddress());
 
 		dispatcher = createDispatcher(
@@ -285,5 +286,6 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 		HeartbeatServices heartbeatServices,
 		MetricRegistry metricRegistry,
 		FatalErrorHandler fatalErrorHandler,
+		ClusterInformation clusterInformation,
 		@Nullable String webInterfaceUrl) throws Exception;
 }

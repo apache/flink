@@ -28,6 +28,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -178,7 +179,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 				new TaskExecutorRegistrationSuccess(
 					new InstanceID(),
 					ownResourceId,
-					heartbeatInterval));
+					heartbeatInterval,
+					new ClusterInformation("localhost", 1234)));
 		}
 	}
 
