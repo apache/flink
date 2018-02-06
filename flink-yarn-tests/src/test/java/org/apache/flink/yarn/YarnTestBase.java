@@ -21,7 +21,9 @@ package org.apache.flink.yarn;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -57,7 +59,6 @@ import org.slf4j.MarkerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -68,16 +69,19 @@ import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintStream;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
+
+import static org.apache.flink.configuration.CoreOptions.OLD_MODE;
 
 /**
  * This base class allows to use the MiniYARNCluster.
@@ -145,7 +149,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 	private YarnClient yarnClient = null;
 
-	protected org.apache.flink.configuration.Configuration flinkConfiguration;
+	protected static org.apache.flink.configuration.Configuration flinkConfiguration;
 
 	protected boolean flip6;
 
@@ -212,8 +216,6 @@ public abstract class YarnTestBase extends TestLogger {
 						"App " + app.getApplicationId() + " is in state " + app.getYarnApplicationState());
 			}
 		}
-
-		flinkConfiguration = new org.apache.flink.configuration.Configuration();
 
 		flip6 = CoreOptions.FLIP6_MODE.equalsIgnoreCase(flinkConfiguration.getString(CoreOptions.MODE));
 	}
@@ -397,6 +399,51 @@ public abstract class YarnTestBase extends TestLogger {
 		}
 	}
 
+	public static boolean verifyStringsInNamedLogFiles(
+			final String[] mustHave, final String fileName) {
+		List<String> mustHaveList = Arrays.asList(mustHave);
+		File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
+		if (!cwd.exists() || !cwd.isDirectory()) {
+			return false;
+		}
+
+		File foundFile = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
+			@Override
+			public boolean accept(File dir, String name) {
+				if (fileName != null && !name.equals(fileName)) {
+					return false;
+				}
+				File f = new File(dir.getAbsolutePath() + "/" + name);
+				LOG.info("Searching in {}", f.getAbsolutePath());
+				try {
+					Set<String> foundSet = new HashSet<>(mustHave.length);
+					Scanner scanner = new Scanner(f);
+					while (scanner.hasNextLine()) {
+						final String lineFromFile = scanner.nextLine();
+						for (String str : mustHave) {
+							if (lineFromFile.contains(str)) {
+								foundSet.add(str);
+							}
+						}
+						if (foundSet.containsAll(mustHaveList)) {
+							return true;
+						}
+					}
+				} catch (FileNotFoundException e) {
+					LOG.warn("Unable to locate file: " + e.getMessage() + " file: " + f.getAbsolutePath());
+				}
+				return false;
+			}
+		});
+
+		if (foundFile != null) {
+			LOG.info("Found string {} in {}.", Arrays.toString(mustHave), foundFile.getAbsolutePath());
+			return true;
+		} else {
+			return false;
+		}
+	}
+
 	public static void sleep(int time) {
 		try {
 			Thread.sleep(time);
@@ -465,27 +512,23 @@ public abstract class YarnTestBase extends TestLogger {
 
 			File flinkConfDirPath = findFile(flinkDistRootDir, new ContainsName(new String[]{"flink-conf.yaml"}));
 			Assert.assertNotNull(flinkConfDirPath);
+			flinkConfiguration =
+					GlobalConfiguration.loadConfiguration();
 
 			if (!StringUtils.isBlank(principal) && !StringUtils.isBlank(keytab)) {
+
 				//copy conf dir to test temporary workspace location
 				tempConfPathForSecureRun = tmp.newFolder("conf");
 
 				String confDirPath = flinkConfDirPath.getParentFile().getAbsolutePath();
 				FileUtils.copyDirectory(new File(confDirPath), tempConfPathForSecureRun);
 
-				try (FileWriter fw = new FileWriter(new File(tempConfPathForSecureRun, "flink-conf.yaml"), true);
-					BufferedWriter bw = new BufferedWriter(fw);
-					PrintWriter out = new PrintWriter(bw)) {
+				flinkConfiguration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB.key(), keytab);
+				flinkConfiguration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(), principal);
+				flinkConfiguration.setString(CoreOptions.MODE.key(), OLD_MODE);
 
-					LOG.info("writing keytab: " + keytab + " and principal: " + principal + " to config file");
-					out.println("");
-					out.println("#Security Configurations Auto Populated ");
-					out.println(SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + ": " + keytab);
-					out.println(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key() + ": " + principal);
-					out.println("");
-				} catch (IOException e) {
-					throw new RuntimeException("Exception occured while trying to append the security configurations.", e);
-				}
+				BootstrapTools.writeConfiguration(flinkConfiguration,
+						new File(tempConfPathForSecureRun, "flink-conf.yaml"));
 
 				String configDir = tempConfPathForSecureRun.getAbsolutePath();
 
