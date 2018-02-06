@@ -206,7 +206,7 @@ public class JobClient {
 			final PermanentBlobCache permanentBlobCache;
 			try {
 				// TODO: Fix lifecycle of PermanentBlobCache to properly close it upon usage
-				permanentBlobCache = new PermanentBlobCache(serverAddress, config, highAvailabilityServices.createBlobStore());
+				permanentBlobCache = new PermanentBlobCache(config, highAvailabilityServices.createBlobStore(), serverAddress);
 			} catch (IOException e) {
 				throw new JobRetrievalException(
 					jobID,

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -48,6 +50,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
+import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
 import org.apache.flink.runtime.resourcemanager.registration.JobManagerRegistration;
 import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceActions;
@@ -57,6 +60,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
@@ -130,6 +134,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	/** The slot manager maintains the available slots. */
 	private final SlotManager slotManager;
 
+	private final ClusterInformation clusterInformation;
+
 	/** The service to elect a ResourceManager leader. */
 	private LeaderElectionService leaderElectionService;
 
@@ -146,6 +152,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			SlotManager slotManager,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
+			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler) {
 
 		super(rpcService, resourceManagerEndpointId);
@@ -156,6 +163,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		this.slotManager = checkNotNull(slotManager);
 		this.metricRegistry = checkNotNull(metricRegistry);
 		this.jobLeaderIdService = checkNotNull(jobLeaderIdService);
+		this.clusterInformation = checkNotNull(clusterInformation);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
 		this.taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
@@ -527,10 +535,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	@Override
 	public CompletableFuture<TaskManagerInfo> requestTaskManagerInfo(ResourceID resourceId, Time timeout) {
 
-		WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(resourceId);
+		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(resourceId);
 
 		if (taskExecutor == null) {
-			return FutureUtils.completedExceptionally(new FlinkException("Requested TaskManager " + resourceId + " is not registered."));
+			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(resourceId));
 		} else {
 			final InstanceID instanceId = taskExecutor.getInstanceID();
 			final TaskManagerInfo taskManagerInfo = new TaskManagerInfo(
@@ -573,6 +581,20 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 
 		return CompletableFuture.completedFuture(metricQueryServicePaths);
+	}
+
+	@Override
+	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(ResourceID taskManagerId, FileType fileType, Time timeout) {
+		log.debug("Request file {} upload from TaskExecutor {}.", fileType, taskManagerId);
+
+		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
+
+		if (taskExecutor == null) {
+			log.debug("Requested file {} upload from unregistered TaskExecutor {}.", fileType, taskManagerId);
+			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
+		} else {
+			return taskExecutor.getTaskExecutorGateway().requestFileUpload(fileType, timeout);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -699,7 +721,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			return new TaskExecutorRegistrationSuccess(
 				registration.getInstanceID(),
 				resourceId,
-				resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds());
+				resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds(),
+				clusterInformation);
 		}
 	}
 

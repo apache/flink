@@ -16,26 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster;
+package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.registration.RegistrationResponse;
-import org.apache.flink.runtime.taskexecutor.TaskExecutor;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 
 /**
- * Message indicating a successful {@link JobMaster} and {@link TaskExecutor} registration.
+ * Message headers for a web handler request.
+ *
+ * @param <R> type of the request
+ * @param <M> type of the message message parameters
  */
-public class JMTMRegistrationSuccess extends RegistrationResponse.Success {
-	private static final long serialVersionUID = -3528383155961318929L;
+public interface UntypedResponseMessageHeaders<R extends RequestBody, M extends MessageParameters> extends RestHandlerSpecification {
+	/**
+	 * Returns the class of the request message.
+	 *
+	 * @return class of the request message
+	 */
+	Class<R> getRequestClass();
 
-	private final ResourceID resourceID;
-
-	public JMTMRegistrationSuccess(ResourceID resourceID) {
-		this.resourceID = Preconditions.checkNotNull(resourceID);
-	}
-
-	public ResourceID getResourceID() {
-		return resourceID;
-	}
+	/**
+	 * Returns a new {@link MessageParameters} object.
+	 *
+	 * @return new message parameters object
+	 */
+	M getUnresolvedMessageParameters();
 }

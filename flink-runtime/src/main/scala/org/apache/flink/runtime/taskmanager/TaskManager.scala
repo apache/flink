@@ -968,9 +968,9 @@ class TaskManager(
 
     try {
       val blobcache = new BlobCacheService(
-        address,
         config.getConfiguration(),
-        highAvailabilityServices.createBlobStore())
+        highAvailabilityServices.createBlobStore(),
+        address)
       blobCache = Option(blobcache)
       libraryCacheManager = Some(
         new BlobLibraryCacheManager(

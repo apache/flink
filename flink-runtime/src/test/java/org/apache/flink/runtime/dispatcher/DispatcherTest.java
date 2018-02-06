@@ -391,15 +391,26 @@ public class DispatcherTest extends TestLogger {
 				RpcService rpcService,
 				HighAvailabilityServices highAvailabilityServices,
 				HeartbeatServices heartbeatServices,
+				BlobServer blobServer,
 				JobManagerServices jobManagerServices,
 				MetricRegistry metricRegistry,
 				OnCompletionActions onCompleteActions,
 				FatalErrorHandler fatalErrorHandler) throws Exception {
 			assertEquals(expectedJobId, jobGraph.getJobID());
 
-			return new JobManagerRunner(resourceId, jobGraph, configuration, rpcService,
-				highAvailabilityServices, heartbeatServices, jobManagerServices, metricRegistry,
-				onCompleteActions, fatalErrorHandler, null);
+			return new JobManagerRunner(
+				resourceId,
+				jobGraph,
+				configuration,
+				rpcService,
+				highAvailabilityServices,
+				heartbeatServices,
+				blobServer,
+				jobManagerServices,
+				metricRegistry,
+				onCompleteActions,
+				fatalErrorHandler,
+				null);
 		}
 
 		@Override

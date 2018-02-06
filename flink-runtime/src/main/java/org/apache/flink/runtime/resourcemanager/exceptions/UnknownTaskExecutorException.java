@@ -16,26 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster;
+package org.apache.flink.runtime.resourcemanager.exceptions;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
-import org.apache.flink.util.Preconditions;
 
 /**
- * Message indicating a successful {@link JobMaster} and {@link TaskExecutor} registration.
+ * Exception denoting that a requested {@link TaskExecutor} could not be found.
  */
-public class JMTMRegistrationSuccess extends RegistrationResponse.Success {
-	private static final long serialVersionUID = -3528383155961318929L;
+public class UnknownTaskExecutorException extends ResourceManagerException {
+	private static final long serialVersionUID = -950571714195353733L;
 
-	private final ResourceID resourceID;
-
-	public JMTMRegistrationSuccess(ResourceID resourceID) {
-		this.resourceID = Preconditions.checkNotNull(resourceID);
-	}
-
-	public ResourceID getResourceID() {
-		return resourceID;
+	public UnknownTaskExecutorException(ResourceID taskExecutorId) {
+		super("No TaskExecutor registered under " + taskExecutorId + '.');
 	}
 }

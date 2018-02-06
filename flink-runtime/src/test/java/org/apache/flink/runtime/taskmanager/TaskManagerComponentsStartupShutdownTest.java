@@ -121,11 +121,12 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				Time.milliseconds(500),
 				Time.seconds(30),
 				Time.seconds(10),
-				1000000, // cleanup interval
 				config,
 				false, // exit-jvm-on-fatal-error
 				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
-				new String[0]);
+				new String[0],
+				null,
+				null);
 
 			final int networkBufNum = 32;
 			// note: the network buffer memory configured here is not actually used below but set

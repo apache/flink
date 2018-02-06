@@ -38,7 +38,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -149,9 +148,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	/** Logical representation of the job. */
 	private final JobGraph jobGraph;
 
-	/** Configuration of the JobManager. */
-	private final Configuration configuration;
-
 	private final Time rpcTimeout;
 
 	/** Service to contend for and retrieve the leadership of JM and RM. */
@@ -159,12 +155,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	/** Blob server used across jobs. */
 	private final BlobServer blobServer;
-
-	/** Blob library cache manager used across jobs. */
-	private final BlobLibraryCacheManager libraryCacheManager;
-
-	/** The metrics for the JobManager itself. */
-	private final MetricGroup jobManagerMetricGroup;
 
 	/** The metrics for the job. */
 	private final MetricGroup jobMetricGroup;
@@ -218,7 +208,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			HeartbeatServices heartbeatServices,
 			ScheduledExecutorService executor,
 			BlobServer blobServer,
-			BlobLibraryCacheManager libraryCacheManager,
 			RestartStrategyFactory restartStrategyFactory,
 			Time rpcAskTimeout,
 			@Nullable JobManagerMetricGroup jobManagerMetricGroup,
@@ -234,11 +223,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		this.resourceId = checkNotNull(resourceId);
 		this.jobGraph = checkNotNull(jobGraph);
-		this.configuration = checkNotNull(configuration);
 		this.rpcTimeout = rpcAskTimeout;
 		this.highAvailabilityServices = checkNotNull(highAvailabilityService);
 		this.blobServer = checkNotNull(blobServer);
-		this.libraryCacheManager = checkNotNull(libraryCacheManager);
 		this.executor = checkNotNull(executor);
 		this.jobCompletionActions = checkNotNull(jobCompletionActions);
 		this.errorHandler = checkNotNull(errorHandler);
@@ -260,10 +247,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		final JobID jid = jobGraph.getJobID();
 
 		if (jobManagerMetricGroup != null) {
-			this.jobManagerMetricGroup = jobManagerMetricGroup;
 			this.jobMetricGroup = jobManagerMetricGroup.addJob(jobGraph);
 		} else {
-			this.jobManagerMetricGroup = UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup();
 			this.jobMetricGroup = UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
 		}
 
@@ -753,8 +738,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		final ResourceID taskManagerId = taskManagerLocation.getResourceID();
 
 		if (registeredTaskManagers.containsKey(taskManagerId)) {
-			final RegistrationResponse response = new JMTMRegistrationSuccess(
-				resourceId, blobServer.getPort());
+			final RegistrationResponse response = new JMTMRegistrationSuccess(resourceId);
 			return CompletableFuture.completedFuture(response);
 		} else {
 			return getRpcService()
@@ -781,7 +765,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 							}
 						});
 
-						return new JMTMRegistrationSuccess(resourceId, blobServer.getPort());
+						return new JMTMRegistrationSuccess(resourceId);
 					},
 					getMainThreadExecutor());
 		}

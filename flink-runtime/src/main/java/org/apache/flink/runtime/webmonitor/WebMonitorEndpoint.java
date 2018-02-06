@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -65,6 +66,8 @@ import org.apache.flink.runtime.rest.handler.legacy.files.StdoutFileHandlerSpeci
 import org.apache.flink.runtime.rest.handler.legacy.files.WebContentHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerDetailsHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogFileHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerStdoutFileHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagersHandler;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
 import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
@@ -95,6 +98,8 @@ import org.apache.flink.runtime.rest.messages.job.metrics.TaskManagerMetricsHead
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogFileHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerStdoutFileHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -127,6 +132,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	private final Configuration clusterConfiguration;
 	protected final RestHandlerConfiguration restConfiguration;
 	private final GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever;
+	private final TransientBlobService transientBlobService;
 	private final Executor executor;
 
 	private final ExecutionGraphCache executionGraphCache;
@@ -144,6 +150,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			Configuration clusterConfiguration,
 			RestHandlerConfiguration restConfiguration,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
+			TransientBlobService transientBlobService,
 			Executor executor,
 			MetricQueryServiceRetriever metricQueryServiceRetriever,
 			LeaderElectionService leaderElectionService,
@@ -153,6 +160,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		this.clusterConfiguration = Preconditions.checkNotNull(clusterConfiguration);
 		this.restConfiguration = Preconditions.checkNotNull(restConfiguration);
 		this.resourceManagerRetriever = Preconditions.checkNotNull(resourceManagerRetriever);
+		this.transientBlobService = Preconditions.checkNotNull(transientBlobService);
 		this.executor = Preconditions.checkNotNull(executor);
 
 		this.executionGraphCache = new ExecutionGraphCache(
@@ -496,6 +504,33 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 		handlers.add(Tuple2.of(LogFileHandlerSpecification.getInstance(), logFileHandler));
 		handlers.add(Tuple2.of(StdoutFileHandlerSpecification.getInstance(), stdoutFileHandler));
+
+		// TaskManager log and stdout file handler
+
+		final Time cacheEntryDuration = Time.milliseconds(restConfiguration.getRefreshInterval());
+
+		final TaskManagerLogFileHandler taskManagerLogFileHandler = new TaskManagerLogFileHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			TaskManagerLogFileHeaders.getInstance(),
+			resourceManagerRetriever,
+			transientBlobService,
+			cacheEntryDuration);
+
+		final TaskManagerStdoutFileHandler taskManagerStdoutFileHandler = new TaskManagerStdoutFileHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			TaskManagerStdoutFileHeaders.getInstance(),
+			resourceManagerRetriever,
+			transientBlobService,
+			cacheEntryDuration);
+
+		handlers.add(Tuple2.of(TaskManagerLogFileHeaders.getInstance(), taskManagerLogFileHandler));
+		handlers.add(Tuple2.of(TaskManagerStdoutFileHeaders.getInstance(), taskManagerStdoutFileHandler));
 
 		return handlers;
 	}

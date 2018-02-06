@@ -22,11 +22,13 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -52,6 +54,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -59,17 +63,20 @@ import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
+/**
+ * Flip-6 based MiniCluster.
+ */
 public class MiniCluster implements JobExecutorService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MiniCluster.class);
 
-	/** The lock to guard startup / shutdown / manipulation methods */
+	/** The lock to guard startup / shutdown / manipulation methods. */
 	private final Object lock = new Object();
 
-	/** The configuration for this mini cluster */
+	/** The configuration for this mini cluster. */
 	private final MiniClusterConfiguration miniClusterConfiguration;
 
-	@GuardedBy("lock") 
+	@GuardedBy("lock")
 	private MetricRegistryImpl metricRegistry;
 
 	@GuardedBy("lock")
@@ -94,6 +101,9 @@ public class MiniCluster implements JobExecutorService {
 	private HeartbeatServices heartbeatServices;
 
 	@GuardedBy("lock")
+	private BlobCacheService blobCacheService;
+
+	@GuardedBy("lock")
 	private ResourceManagerRunner[] resourceManagerRunners;
 
 	private volatile TaskExecutor[] taskManagers;
@@ -101,14 +111,14 @@ public class MiniCluster implements JobExecutorService {
 	@GuardedBy("lock")
 	private MiniClusterJobDispatcher jobDispatcher;
 
-	/** Flag marking the mini cluster as started/running */
+	/** Flag marking the mini cluster as started/running. */
 	private volatile boolean running;
 
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates a new Flink mini cluster based on the given configuration.
-	 * 
+	 *
 	 * @param miniClusterConfiguration The configuration for the mini cluster
 	 */
 	public MiniCluster(MiniClusterConfiguration miniClusterConfiguration) {
@@ -130,7 +140,7 @@ public class MiniCluster implements JobExecutorService {
 
 	/**
 	 * Starts the mini cluster, based on the configured properties.
-	 * 
+	 *
 	 * @throws Exception This method passes on any exception that occurs during the startup of
 	 *                   the mini cluster.
 	 */
@@ -227,12 +237,23 @@ public class MiniCluster implements JobExecutorService {
 					heartbeatServices,
 					metricRegistry,
 					numResourceManagers,
-					resourceManagerRpcServices);
+					resourceManagerRpcServices,
+					new ClusterInformation("localhost", blobServer.getPort()));
+
+				blobCacheService = new BlobCacheService(
+					configuration, haServices.createBlobStore(), new InetSocketAddress(InetAddress.getLocalHost(), blobServer.getPort())
+				);
 
 				// bring up the TaskManager(s) for the mini cluster
 				LOG.info("Starting {} TaskManger(s)", numTaskManagers);
 				taskManagers = startTaskManagers(
-						configuration, haServices, metricRegistry, numTaskManagers, taskManagerRpcServices);
+					configuration,
+					haServices,
+					heartbeatServices,
+					metricRegistry,
+					blobCacheService,
+					numTaskManagers,
+					taskManagerRpcServices);
 
 				// bring up the dispatcher that launches JobManagers when jobs submitted
 				LOG.info("Starting job dispatcher(s) for {} JobManger(s)", numJobManagers);
@@ -265,10 +286,10 @@ public class MiniCluster implements JobExecutorService {
 	/**
 	 * Shuts down the mini cluster, failing all currently executing jobs.
 	 * The mini cluster can be started again by calling the {@link #start()} method again.
-	 * 
+	 *
 	 * <p>This method shuts down all started services and components,
-	 * even if an exception occurs in the process of shutting down some component. 
-	 * 
+	 * even if an exception occurs in the process of shutting down some component.
+	 *
 	 * @throws Exception Thrown, if the shutdown did not complete cleanly.
 	 */
 	public void shutdown() throws Exception {
@@ -331,7 +352,6 @@ public class MiniCluster implements JobExecutorService {
 			}
 			taskManagers = null;
 		}
-
 		// metrics shutdown
 		if (metricRegistry != null) {
 			metricRegistry.shutdown();
@@ -347,6 +367,16 @@ public class MiniCluster implements JobExecutorService {
 		jobManagerRpcServices = null;
 		taskManagerRpcServices = null;
 		resourceManagerRpcServices = null;
+
+		if (blobCacheService != null) {
+			try {
+				blobCacheService.close();
+			} catch (Exception e) {
+				exception = firstOrSuppressed(e, exception);
+			}
+			blobCacheService = null;
+		}
+
 
 		// shut down the blob server
 		if (blobServer != null) {
@@ -385,20 +415,23 @@ public class MiniCluster implements JobExecutorService {
 				OneTimeLeaderListenerFuture listenerFuture = new OneTimeLeaderListenerFuture();
 				rmMasterListener = haServices.getResourceManagerLeaderRetriever();
 				rmMasterListener.start(listenerFuture);
-				addressAndIdFuture = listenerFuture.future(); 
+				addressAndIdFuture = listenerFuture.future();
 			}
 
 			final LeaderAddressAndId addressAndId = addressAndIdFuture.get();
 
-			final ResourceManagerGateway resourceManager = 
-					commonRpcService.connect(addressAndId.leaderAddress(), new ResourceManagerId(addressAndId.leaderId()), ResourceManagerGateway.class).get();
+			final ResourceManagerGateway resourceManager = commonRpcService
+				.connect(
+					addressAndId.leaderAddress(),
+					new ResourceManagerId(addressAndId.leaderId()),
+					ResourceManagerGateway.class)
+				.get();
 
 			final int numTaskManagersToWaitFor = taskManagers.length;
 
 			// poll and wait until enough TaskManagers are available
 			while (true) {
-				int numTaskManagersAvailable = 
-						resourceManager.getNumberOfRegisteredTaskManagers().get();
+				int numTaskManagersAvailable = resourceManager.getNumberOfRegisteredTaskManagers().get();
 
 				if (numTaskManagersAvailable >= numTaskManagersToWaitFor) {
 					break;
@@ -443,7 +476,7 @@ public class MiniCluster implements JobExecutorService {
 	 * This method runs a job in blocking mode. The method returns only after the job
 	 * completed successfully, or after it failed terminally.
 	 *
-	 * @param job  The Flink job to execute 
+	 * @param job  The Flink job to execute
 	 * @return The result of the job execution
 	 *
 	 * @throws JobExecutionException Thrown if anything went amiss during initial job launch,
@@ -471,8 +504,8 @@ public class MiniCluster implements JobExecutorService {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Factory method to create the metric registry for the mini cluster
-	 * 
+	 * Factory method to create the metric registry for the mini cluster.
+	 *
 	 * @param config The configuration of the mini cluster
 	 */
 	protected MetricRegistryImpl createMetricRegistry(Configuration config) {
@@ -481,7 +514,7 @@ public class MiniCluster implements JobExecutorService {
 
 	/**
 	 * Factory method to instantiate the RPC service.
-	 * 
+	 *
 	 * @param configuration
 	 *            The configuration of the mini cluster
 	 * @param askTimeout
@@ -490,7 +523,7 @@ public class MiniCluster implements JobExecutorService {
 	 *            True, if the RPC service should be reachable from other (remote) RPC services.
 	 * @param bindAddress
 	 *            The address to bind the RPC service to. Only relevant when "remoteEnabled" is true.
-	 * 
+	 *
 	 * @return The instantiated RPC service
 	 */
 	protected RpcService createRpcService(
@@ -515,7 +548,8 @@ public class MiniCluster implements JobExecutorService {
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
 			int numResourceManagers,
-			RpcService[] resourceManagerRpcServices) throws Exception {
+			RpcService[] resourceManagerRpcServices,
+			ClusterInformation clusterInformation) throws Exception {
 
 		final ResourceManagerRunner[] resourceManagerRunners = new ResourceManagerRunner[numResourceManagers];
 
@@ -528,7 +562,8 @@ public class MiniCluster implements JobExecutorService {
 				resourceManagerRpcServices[i],
 				haServices,
 				heartbeatServices,
-				metricRegistry);
+				metricRegistry,
+				clusterInformation);
 
 			resourceManagerRunners[i].start();
 		}
@@ -539,7 +574,9 @@ public class MiniCluster implements JobExecutorService {
 	protected TaskExecutor[] startTaskManagers(
 			Configuration configuration,
 			HighAvailabilityServices haServices,
+			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
+			BlobCacheService blobCacheService,
 			int numTaskManagers,
 			RpcService[] taskManagerRpcServices) throws Exception {
 
@@ -554,6 +591,7 @@ public class MiniCluster implements JobExecutorService {
 				haServices,
 				heartbeatServices,
 				metricRegistry,
+				blobCacheService,
 				localCommunication,
 				new TerminatingFatalErrorHandler(i));
 

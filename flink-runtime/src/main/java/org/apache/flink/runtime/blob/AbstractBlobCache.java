@@ -54,8 +54,6 @@ public abstract class AbstractBlobCache implements Closeable {
 	 */
 	protected final AtomicLong tempFileCounter = new AtomicLong(0);
 
-	protected final InetSocketAddress serverAddress;
-
 	/**
 	 * Root directory for local file storage.
 	 */
@@ -89,15 +87,16 @@ public abstract class AbstractBlobCache implements Closeable {
 	 */
 	protected final ReadWriteLock readWriteLock;
 
+	@Nullable
+	protected volatile InetSocketAddress serverAddress;
+
 	public AbstractBlobCache(
-			final InetSocketAddress serverAddress,
 			final Configuration blobClientConfig,
 			final BlobView blobView,
-			final Logger logger) throws IOException {
+			final Logger logger,
+			@Nullable final InetSocketAddress serverAddress) throws IOException {
 
 		this.log = checkNotNull(logger);
-
-		this.serverAddress = checkNotNull(serverAddress);
 		this.blobClientConfig = checkNotNull(blobClientConfig);
 		this.blobView = checkNotNull(blobView);
 		this.readWriteLock = new ReentrantReadWriteLock();
@@ -118,6 +117,8 @@ public abstract class AbstractBlobCache implements Closeable {
 
 		// Add shutdown hook to delete storage directory
 		shutdownHook = BlobUtils.addShutdownHook(this, log);
+
+		this.serverAddress = serverAddress;
 	}
 
 	/**
@@ -172,16 +173,22 @@ public abstract class AbstractBlobCache implements Closeable {
 				log.info("Failed to copy from blob store. Downloading from BLOB server instead.", e);
 			}
 
-			// fallback: download from the BlobServer
-			BlobClient.downloadFromBlobServer(
-				jobId, blobKey, incomingFile, serverAddress, blobClientConfig, numFetchRetries);
+			final InetSocketAddress currentServerAddress = serverAddress;
 
-			readWriteLock.writeLock().lock();
-			try {
-				BlobUtils.moveTempFileToStore(
-					incomingFile, jobId, blobKey, localFile, log, null);
-			} finally {
-				readWriteLock.writeLock().unlock();
+			if (currentServerAddress != null) {
+				// fallback: download from the BlobServer
+				BlobClient.downloadFromBlobServer(
+					jobId, blobKey, incomingFile, currentServerAddress, blobClientConfig, numFetchRetries);
+
+				readWriteLock.writeLock().lock();
+				try {
+					BlobUtils.moveTempFileToStore(
+						incomingFile, jobId, blobKey, localFile, log, null);
+				} finally {
+					readWriteLock.writeLock().unlock();
+				}
+			} else {
+				throw new IOException("Cannot download from BlobServer, because the server address is unknown.");
 			}
 
 			return localFile;
@@ -197,10 +204,25 @@ public abstract class AbstractBlobCache implements Closeable {
 	/**
 	 * Returns the port the BLOB server is listening on.
 	 *
-	 * @return BLOB server port
+	 * @return BLOB server port or {@code -1} if no server address
 	 */
 	public int getPort() {
-		return serverAddress.getPort();
+		final InetSocketAddress currentServerAddress = serverAddress;
+
+		if (currentServerAddress != null) {
+			return currentServerAddress.getPort();
+		} else {
+			return -1;
+		}
+	}
+
+	/**
+	 * Sets the address of the {@link BlobServer}.
+	 *
+	 * @param blobServerAddress address of the {@link BlobServer}.
+	 */
+	public void setBlobServerAddress(InetSocketAddress blobServerAddress) {
+		serverAddress = checkNotNull(blobServerAddress);
 	}
 
 	/**

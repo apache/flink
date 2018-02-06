@@ -43,6 +43,7 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -172,10 +173,23 @@ public class MesosResourceManagerTest extends TestLogger {
 			MesosConfiguration mesosConfig,
 			MesosTaskManagerParameters taskManagerParameters,
 			ContainerSpecification taskManagerContainerSpec) {
-			super(rpcService, resourceManagerEndpointId, resourceId, resourceManagerConfiguration,
-				highAvailabilityServices, heartbeatServices, slotManager, metricRegistry,
-				jobLeaderIdService, fatalErrorHandler, flinkConfig, mesosServices, mesosConfig,
-				taskManagerParameters, taskManagerContainerSpec);
+			super(
+				rpcService,
+				resourceManagerEndpointId,
+				resourceId,
+				resourceManagerConfiguration,
+				highAvailabilityServices,
+				heartbeatServices,
+				slotManager,
+				metricRegistry,
+				jobLeaderIdService,
+				new ClusterInformation("localhost", 1234),
+				fatalErrorHandler,
+				flinkConfig,
+				mesosServices,
+				mesosConfig,
+				taskManagerParameters,
+				taskManagerContainerSpec);
 		}
 
 		@Override
