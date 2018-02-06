@@ -29,6 +29,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -132,6 +133,7 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
 			FatalErrorHandler fatalErrorHandler,
+			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl) throws Exception {
 		final ResourceManagerConfiguration rmConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
 		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
@@ -150,6 +152,7 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 			rmRuntimeServices.getSlotManager(),
 			metricRegistry,
 			rmRuntimeServices.getJobLeaderIdService(),
+			clusterInformation,
 			fatalErrorHandler,
 			configuration,
 			mesosServices,
