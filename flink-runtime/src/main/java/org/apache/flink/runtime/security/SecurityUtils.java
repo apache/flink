@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.security;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.security.modules.SecurityModule;
 import org.apache.flink.runtime.security.modules.SecurityModuleFactory;
 
@@ -47,8 +46,7 @@ public class SecurityUtils {
 		return installedContext;
 	}
 
-	@VisibleForTesting
-	static List<SecurityModule> getInstalledModules() {
+	public static List<SecurityModule> getInstalledModules() {
 		return installedModules;
 	}
 

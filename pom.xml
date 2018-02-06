@@ -1015,6 +1015,7 @@ under the License.
 						<exclude>flink-formats/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
 						<exclude>flink-libraries/flink-table/src/test/scala/resources/*.out</exclude>
+						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
 						<exclude>test-infra/end-to-end-test/test-data/*</exclude>
 
 						<!-- snapshots -->
