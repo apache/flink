@@ -153,6 +153,11 @@ public abstract class AbstractStreamOperator<OUT>
 
 	protected transient InternalTimeServiceManager<?> timeServiceManager;
 
+	// ---------------- bloom filter handler ------------------
+
+	/** Backend for bloomfilter. */
+	private PartitionedBloomFilterManager bloomFilterManager;
+
 	// ---------------- two-input operator watermarks ------------------
 
 	// We keep track of watermarks from both inputs, the combined input is the minimum
@@ -239,6 +244,8 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 
 		timeServiceManager = context.internalTimerServiceManager();
+
+		bloomFilterManager = context.bloomFilterStateManager();
 
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = context.rawKeyedStateInputs();
 		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = context.rawOperatorStateInputs();
@@ -341,6 +348,10 @@ public abstract class AbstractStreamOperator<OUT>
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
+		if (bloomFilterManager != null) {
+			bloomFilterManager.dispose();
+		}
+
 		if (exception != null) {
 			throw exception;
 		}
@@ -418,6 +429,9 @@ public abstract class AbstractStreamOperator<OUT>
 					out.startNewKeyGroup(keyGroupIdx);
 
 					timeServiceManager.snapshotStateForKeyGroup(
+						new DataOutputViewStreamWrapper(out), keyGroupIdx);
+
+					bloomFilterManager.snapshotStateForKeyGroup(
 						new DataOutputViewStreamWrapper(out), keyGroupIdx);
 				}
 			} catch (Exception exception) {
@@ -612,6 +626,10 @@ public abstract class AbstractStreamOperator<OUT>
 
 	public KeyedStateStore getKeyedStateStore() {
 		return keyedStateStore;
+	}
+
+	protected PartitionedBloomFilterManager getBloomFilterStateManager() {
+		return bloomFilterManager;
 	}
 
 	// ------------------------------------------------------------------------

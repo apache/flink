@@ -101,6 +101,7 @@ import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.PartitionedBloomFilterManager;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -1111,6 +1112,11 @@ public class StreamTaskTest extends TestLogger {
 					public InternalTimeServiceManager<?> internalTimerServiceManager() {
 						InternalTimeServiceManager<?> timeServiceManager = context.internalTimerServiceManager();
 						return timeServiceManager != null ? spy(timeServiceManager) : null;
+					}
+
+					@Override
+					public PartitionedBloomFilterManager<?> bloomFilterStateManager() {
+						return context.bloomFilterStateManager();
 					}
 
 					@Override

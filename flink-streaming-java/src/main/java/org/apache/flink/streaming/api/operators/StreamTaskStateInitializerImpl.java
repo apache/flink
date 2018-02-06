@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
@@ -125,6 +126,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs = null;
 		CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs = null;
 		InternalTimeServiceManager<?> timeServiceManager;
+		PartitionedBloomFilterManager<?> bloomfilterStateManager;
 
 		try {
 
@@ -153,6 +155,9 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			// -------------- Internal Timer Service Manager --------------
 			timeServiceManager = internalTimeServiceManager(keyedStatedBackend, keyContext, rawKeyedStateInputs);
 
+			// -------------- BloomFilter Manager --------------
+			bloomfilterStateManager = bloomfilterStateManager(keyedStatedBackend, keyContext, rawKeyedStateInputs);
+
 			// -------------- Preparing return value --------------
 
 			return new StreamOperatorStateContextImpl(
@@ -160,6 +165,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 				operatorStateBackend,
 				keyedStatedBackend,
 				timeServiceManager,
+				bloomfilterStateManager,
 				rawOperatorStateInputs,
 				rawKeyedStateInputs);
 		} catch (Exception ex) {
@@ -222,6 +228,38 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		}
 
 		return timeServiceManager;
+	}
+
+	protected  <K> PartitionedBloomFilterManager<K> bloomfilterStateManager(
+		AbstractKeyedStateBackend<K> keyedStatedBackend,
+		KeyContext keyContext, //the operator
+		Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
+
+		if (keyedStatedBackend == null) {
+			return null;
+		}
+
+		final KeyGroupRange keyGroupRange = keyedStatedBackend.getKeyGroupRange();
+
+		PartitionedBloomFilterManager<K> bloomFilterManager = new PartitionedBloomFilterManager(
+			keyContext,
+			keyedStatedBackend.getKeySerializer(),
+			keyedStatedBackend.getNumberOfKeyGroups(),
+			keyedStatedBackend.getKeyGroupRange());
+
+		// and then initialize the timer services
+		for (KeyGroupStatePartitionStreamProvider streamProvider : rawKeyedStates) {
+			int keyGroupIdx = streamProvider.getKeyGroupId();
+
+			Preconditions.checkArgument(keyGroupRange.contains(keyGroupIdx),
+				"Key Group " + keyGroupIdx + " does not belong to the local range.");
+
+			bloomFilterManager.restoreStateForKeyGroup(
+				new DataInputViewStreamWrapper(streamProvider.getStream()),
+				keyGroupIdx);
+		}
+
+		return bloomFilterManager;
 	}
 
 	protected OperatorStateBackend operatorStateBackend(
@@ -545,6 +583,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		private final OperatorStateBackend operatorStateBackend;
 		private final AbstractKeyedStateBackend<?> keyedStateBackend;
 		private final InternalTimeServiceManager<?> internalTimeServiceManager;
+		private final PartitionedBloomFilterManager<?> bloomFilterStateManager;
 
 		private final CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs;
 		private final CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs;
@@ -554,6 +593,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			OperatorStateBackend operatorStateBackend,
 			AbstractKeyedStateBackend<?> keyedStateBackend,
 			InternalTimeServiceManager<?> internalTimeServiceManager,
+			PartitionedBloomFilterManager<?> bloomFilterStateManager,
 			CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs,
 			CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs) {
 
@@ -561,6 +601,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			this.operatorStateBackend = operatorStateBackend;
 			this.keyedStateBackend = keyedStateBackend;
 			this.internalTimeServiceManager = internalTimeServiceManager;
+			this.bloomFilterStateManager = bloomFilterStateManager;
 			this.rawOperatorStateInputs = rawOperatorStateInputs;
 			this.rawKeyedStateInputs = rawKeyedStateInputs;
 		}
@@ -583,6 +624,11 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		@Override
 		public InternalTimeServiceManager<?> internalTimerServiceManager() {
 			return internalTimeServiceManager;
+		}
+
+		@Override
+		public PartitionedBloomFilterManager<?> bloomFilterStateManager() {
+			return bloomFilterStateManager;
 		}
 
 		@Override

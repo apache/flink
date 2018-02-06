@@ -51,6 +51,8 @@ public interface StreamOperatorStateContext {
 	 */
 	InternalTimeServiceManager<?> internalTimerServiceManager();
 
+	PartitionedBloomFilterManager<?> bloomFilterStateManager();
+
 	/**
 	 * Returns an iterable to obtain input streams for previously stored operator state partitions that are assigned to
 	 * this stream operator.

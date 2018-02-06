@@ -83,6 +83,12 @@ under the License.
 			<artifactId>curator-test</artifactId>
 			<version>${curator.version}</version>
 			<scope>compile</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
