@@ -107,7 +107,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		}
 
 		//additional sleep for the JM/TM to start and establish connection
-		sleep(2000);
+		sleep(3000);
 		LOG.info("Two containers are running. Killing the application");
 
 		// kill application "externally".

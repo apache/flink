@@ -34,6 +34,7 @@ import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.Callable;
 
@@ -95,6 +96,15 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 	public static void teardownSecureCluster() throws Exception {
 		LOG.info("tearing down secure cluster environment");
 		SecureTestEnvironment.cleanup();
+	}
+
+	@Override
+	public void testDetachedMode() throws InterruptedException, IOException {
+		super.testDetachedMode();
+		ensureStringInNamedLogFiles(new String[]{"Login successful for user", "using keytab file"},
+				"jobmanager.log");
+		ensureStringInNamedLogFiles(new String[]{"Login successful for user", "using keytab file"},
+				"taskmanager.log");
 	}
 
 	/* For secure cluster testing, it is enough to run only one test and override below test methods

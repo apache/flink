@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Preconditions;
@@ -72,9 +73,11 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
@@ -213,7 +216,7 @@ public abstract class YarnTestBase extends TestLogger {
 			}
 		}
 
-		flinkConfiguration = new org.apache.flink.configuration.Configuration();
+		flinkConfiguration = GlobalConfiguration.loadConfiguration();
 
 		flip6 = CoreOptions.FLIP6_MODE.equalsIgnoreCase(flinkConfiguration.getString(CoreOptions.MODE));
 	}
@@ -394,6 +397,50 @@ public abstract class YarnTestBase extends TestLogger {
 			Assert.fail(
 				"Found a file " + foundFile + " with a prohibited string (one of " + Arrays.toString(prohibited) + "). " +
 				"Excerpts:" + System.lineSeparator() + prohibitedExcerpts);
+		}
+	}
+
+	public static void ensureStringInNamedLogFiles(final String[] mustHave, final String fileName) {
+		File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
+		Assert.assertTrue("Expecting directory " + cwd.getAbsolutePath() + " to exist", cwd.exists());
+		Assert.assertTrue(
+				"Expecting directory " + cwd.getAbsolutePath() + " to be a directory", cwd.isDirectory());
+
+		File foundFile = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
+			@Override
+			public boolean accept(File dir, String name) {
+				if (fileName != null && !name.equals(fileName)) {
+					return false;
+				}
+				File f = new File(dir.getAbsolutePath() + "/" + name);
+				LOG.info("Searching in {}", f.getAbsolutePath());
+				try {
+					Set<String> foundSet = new HashSet<String>(mustHave.length);
+					Scanner scanner = new Scanner(f);
+					while (scanner.hasNextLine()) {
+						final String lineFromFile = scanner.nextLine();
+						for (String str : mustHave) {
+							if (lineFromFile.contains(str)) {
+								foundSet.add(str);
+							}
+						}
+						if (foundSet.containsAll(Arrays.asList(mustHave))) {
+							return true;
+						}
+					}
+				} catch (FileNotFoundException e) {
+					LOG.warn("Unable to locate file: " + e.getMessage() + " file: " + f.getAbsolutePath());
+				}
+				return false;
+			}
+		});
+
+		if (foundFile != null) {
+			LOG.info("Found string {} in {}.", Arrays.toString(mustHave), foundFile.getAbsolutePath());
+		} else {
+			Assert.fail(
+					"CAN NOT find a " + fileName + " file with the following strings " +
+							Arrays.toString(mustHave));
 		}
 	}
 
