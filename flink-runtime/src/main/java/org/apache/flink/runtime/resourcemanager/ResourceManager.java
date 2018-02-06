@@ -50,6 +50,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
+import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
 import org.apache.flink.runtime.resourcemanager.registration.JobManagerRegistration;
 import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceActions;
@@ -537,7 +538,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(resourceId);
 
 		if (taskExecutor == null) {
-			return FutureUtils.completedExceptionally(new FlinkException("Requested TaskManager " + resourceId + " is not registered."));
+			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(resourceId));
 		} else {
 			final InstanceID instanceId = taskExecutor.getInstanceID();
 			final TaskManagerInfo taskManagerInfo = new TaskManagerInfo(
@@ -590,7 +591,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		if (taskExecutor == null) {
 			log.debug("Requested file {} upload from unregistered TaskExecutor {}.", fileType, taskManagerId);
-			return FutureUtils.completedExceptionally(new FlinkException("Requested TaskExecutor " + taskManagerId + " is not registered."));
+			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
 		} else {
 			return taskExecutor.getTaskExecutorGateway().requestFileUpload(fileType, timeout);
 		}

@@ -23,10 +23,13 @@ import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
 import org.apache.flink.runtime.rest.AbstractHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
@@ -71,6 +74,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
@@ -153,6 +157,25 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 				if (throwable != null) {
 					log.debug("Failed to transfer file from TaskExecutor {}.", taskManagerId, throwable);
 					fileBlobKeys.invalidate(taskManagerId);
+
+					final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+					final ErrorResponseBody errorResponseBody;
+					final HttpResponseStatus httpResponseStatus;
+
+					if (strippedThrowable instanceof UnknownTaskExecutorException) {
+						errorResponseBody = new ErrorResponseBody("Unknown TaskExecutor " + taskManagerId + '.');
+						httpResponseStatus = HttpResponseStatus.NOT_FOUND;
+					} else {
+						errorResponseBody = new ErrorResponseBody("Internal server error: " + throwable.getMessage() + '.');
+						httpResponseStatus = INTERNAL_SERVER_ERROR;
+					}
+
+					HandlerUtils.sendErrorResponse(
+						ctx,
+						httpRequest,
+						errorResponseBody,
+						httpResponseStatus,
+						responseHeaders);
 				}
 			});
 	}
