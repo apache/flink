@@ -31,6 +31,7 @@ import org.apache.flink.runtime.clusterframework.messages.ResourceRemoved;
 import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJobManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -528,6 +529,7 @@ public class ResourceManagerTest extends TestLogger {
 				slotManager,
 				metricRegistry,
 				jobLeaderIdService,
+				new ClusterInformation("localhost", 1234),
 				testingFatalErrorHandler);
 
 			resourceManager.start();
@@ -632,6 +634,7 @@ public class ResourceManagerTest extends TestLogger {
 				slotManager,
 				metricRegistry,
 				jobLeaderIdService,
+				new ClusterInformation("localhost", 1234),
 				testingFatalErrorHandler);
 
 			resourceManager.start();

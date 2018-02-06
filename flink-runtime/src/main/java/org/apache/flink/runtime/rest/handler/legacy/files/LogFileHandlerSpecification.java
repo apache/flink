@@ -16,21 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.queryablestate.exceptions;
+package org.apache.flink.runtime.rest.handler.legacy.files;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 
 /**
- * Exception to fail Future if the Task Manager on which the
- * {@code Client Proxy} is running on, does not know the active
- * Job Manager.
+ * Rest handler specification for the log file of the main cluster component.
  */
-@Internal
-public class UnknownJobManagerException extends Exception {
+public class LogFileHandlerSpecification implements RestHandlerSpecification {
 
-	private static final long serialVersionUID = 9092442511708951209L;
+	private static final LogFileHandlerSpecification INSTANCE = new LogFileHandlerSpecification();
 
-	public UnknownJobManagerException() {
-		super("Unknown JobManager. Either the JobManager has not registered yet or has lost leadership.");
+	private static final String URL = "/jobmanager/log";
+
+	private LogFileHandlerSpecification() {}
+
+	@Override
+	public HttpMethodWrapper getHttpMethod() {
+		return HttpMethodWrapper.GET;
+	}
+
+	@Override
+	public String getTargetRestEndpointURL() {
+		return URL;
+	}
+
+	public static LogFileHandlerSpecification getInstance() {
+		return INSTANCE;
 	}
 }

@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -88,6 +89,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 	private final MetricRegistryImpl metricRegistry;
 
+	private final BlobCacheService blobCacheService;
+
 	/** Executor used to run future callbacks. */
 	private final ExecutorService executor;
 
@@ -118,6 +121,10 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();
 		metricRegistry.startQueryService(actorSystem, resourceId);
 
+		blobCacheService = new BlobCacheService(
+			configuration, highAvailabilityServices.createBlobStore(), null
+		);
+
 		taskManager = startTaskManager(
 			this.configuration,
 			this.resourceId,
@@ -125,6 +132,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			highAvailabilityServices,
 			heartbeatServices,
 			metricRegistry,
+			blobCacheService,
 			false,
 			this);
 	}
@@ -144,11 +152,17 @@ public class TaskManagerRunner implements FatalErrorHandler {
 	protected void shutDownInternally() throws Exception {
 		Exception exception = null;
 
-		synchronized(lock) {
+		synchronized (lock) {
 			try {
 				taskManager.shutDown();
 			} catch (Exception e) {
 				exception = e;
+			}
+
+			try {
+				blobCacheService.close();
+			} catch (Exception e) {
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
 			try {
@@ -252,6 +266,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
+			BlobCacheService blobCacheService,
 			boolean localCommunicationOnly,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
 
@@ -292,6 +307,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			taskManagerMetricGroup,
 			taskManagerServices.getBroadcastVariableManager(),
 			taskManagerServices.getFileCache(),
+			blobCacheService,
 			taskManagerServices.getTaskSlotTable(),
 			taskManagerServices.getJobManagerTable(),
 			taskManagerServices.getJobLeaderService(),

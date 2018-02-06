@@ -164,8 +164,8 @@ public class BlobCacheSuccessTest extends TestLogger {
 			blobStoreService = BlobUtils.createBlobStoreFromConfig(cacheConfig);
 			try (
 				BlobServer server = new BlobServer(config, blobStoreService);
-				BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-					cacheConfig, blobStoreService)) {
+				BlobCacheService cache = new BlobCacheService(cacheConfig, blobStoreService, new InetSocketAddress("localhost", server.getPort())
+				)) {
 
 				server.start();
 
