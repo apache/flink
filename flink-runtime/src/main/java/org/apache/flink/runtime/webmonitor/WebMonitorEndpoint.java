@@ -85,6 +85,9 @@ import org.apache.flink.runtime.rest.messages.JobVertexBackPressureHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexTaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.SubtasksTimesHeaders;
+import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
+import org.apache.flink.runtime.rest.messages.YarnCancelJobTerminationHeaders;
+import org.apache.flink.runtime.rest.messages.YarnStopJobTerminationHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointConfigHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatisticDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatisticsHeaders;
@@ -451,12 +454,21 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			responseHeaders,
 			JobVertexBackPressureHeaders.getInstance());
 
-		final JobTerminationHandler jobTerminationHandler = new JobTerminationHandler(
+		final JobTerminationHandler jobCancelTerminationHandler = new JobTerminationHandler(
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
-			JobTerminationHeaders.getInstance());
+			JobTerminationHeaders.getInstance(),
+			TerminationModeQueryParameter.TerminationMode.CANCEL);
+
+		final JobTerminationHandler jobStopTerminationHandler = new JobTerminationHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			JobTerminationHeaders.getInstance(),
+			TerminationModeQueryParameter.TerminationMode.STOP);
 
 		final File tmpDir = restConfiguration.getTmpDir();
 
@@ -504,7 +516,11 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		handlers.add(Tuple2.of(SubtaskCurrentAttemptDetailsHeaders.getInstance(), subtaskCurrentAttemptDetailsHandler));
 		handlers.add(Tuple2.of(JobVertexTaskManagersHeaders.getInstance(), jobVertexTaskManagersHandler));
 		handlers.add(Tuple2.of(JobVertexBackPressureHeaders.getInstance(), jobVertexBackPressureHandler));
-		handlers.add(Tuple2.of(JobTerminationHeaders.getInstance(), jobTerminationHandler));
+		handlers.add(Tuple2.of(JobTerminationHeaders.getInstance(), jobCancelTerminationHandler));
+
+		// TODO: Remove once the Yarn proxy can forward all REST verbs
+		handlers.add(Tuple2.of(YarnCancelJobTerminationHeaders.getInstance(), jobCancelTerminationHandler));
+		handlers.add(Tuple2.of(YarnStopJobTerminationHeaders.getInstance(), jobStopTerminationHandler));
 
 		optWebContent.ifPresent(
 			webContent -> handlers.add(Tuple2.of(WebContentHandlerSpecification.getInstance(), webContent)));
