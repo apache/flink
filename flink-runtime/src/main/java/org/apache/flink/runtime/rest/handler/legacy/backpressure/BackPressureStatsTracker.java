@@ -155,11 +155,13 @@ public class BackPressureStatsTracker {
 	 * @return Back pressure statistics for an operator
 	 */
 	public Optional<OperatorBackPressureStats> getOperatorBackPressureStats(ExecutionJobVertex vertex) {
-		final OperatorBackPressureStats stats = operatorStatsCache.getIfPresent(vertex);
-		if (stats == null || backPressureStatsRefreshInterval <= System.currentTimeMillis() - stats.getEndTimestamp()) {
-			triggerStackTraceSampleInternal(vertex);
+		synchronized (lock) {
+			final OperatorBackPressureStats stats = operatorStatsCache.getIfPresent(vertex);
+			if (stats == null || backPressureStatsRefreshInterval <= System.currentTimeMillis() - stats.getEndTimestamp()) {
+				triggerStackTraceSampleInternal(vertex);
+			}
+			return Optional.ofNullable(stats);
 		}
-		return Optional.ofNullable(stats);
 	}
 
 	/**
