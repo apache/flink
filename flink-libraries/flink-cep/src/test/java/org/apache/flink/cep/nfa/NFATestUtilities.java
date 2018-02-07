@@ -35,16 +35,36 @@ import java.util.Map;
  */
 public class NFATestUtilities {
 
-	public static List<List<Event>> feedNFA(List<StreamRecord<Event>> inputEvents, NFA<Event> nfa) {
-		return feedNFA(inputEvents, nfa, AfterMatchSkipStrategy.noSkip());
+	public static List<List<Event>> feedNFA(
+		List<StreamRecord<Event>> inputEvents,
+		NFA<Event> nfa) {
+		return feedNFA(inputEvents, nfa, nfa.createNFAState(), AfterMatchSkipStrategy.noSkip());
 	}
 
-	public static List<List<Event>> feedNFA(List<StreamRecord<Event>> inputEvents, NFA<Event> nfa,
-											AfterMatchSkipStrategy afterMatchSkipStrategy) {
+	public static List<List<Event>> feedNFA(
+			List<StreamRecord<Event>> inputEvents,
+			NFA<Event> nfa,
+			NFAState<Event> nfaState) {
+		return feedNFA(inputEvents, nfa, nfaState, AfterMatchSkipStrategy.noSkip());
+	}
+
+	public static List<List<Event>> feedNFA(
+		List<StreamRecord<Event>> inputEvents,
+		NFA<Event> nfa,
+		AfterMatchSkipStrategy afterMatchSkipStrategy) {
+		return feedNFA(inputEvents, nfa, nfa.createNFAState(), afterMatchSkipStrategy);
+	}
+
+	public static List<List<Event>> feedNFA(
+			List<StreamRecord<Event>> inputEvents,
+			NFA<Event> nfa,
+			NFAState<Event> nfaState,
+			AfterMatchSkipStrategy afterMatchSkipStrategy) {
 		List<List<Event>> resultingPatterns = new ArrayList<>();
 
 		for (StreamRecord<Event> inputEvent : inputEvents) {
 			Collection<Map<String, List<Event>>> patterns = nfa.process(
+				nfaState,
 				inputEvent.getValue(),
 				inputEvent.getTimestamp(),
 				afterMatchSkipStrategy).f0;
