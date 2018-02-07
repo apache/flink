@@ -52,7 +52,6 @@ import static org.junit.Assert.assertEquals;
 public class NFATest extends TestLogger {
 	@Test
 	public void testSimpleNFA() {
-		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), 0, false);
 		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
 		streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
@@ -86,9 +85,12 @@ public class NFATest extends TestLogger {
 			});
 		endState.addIgnore(BooleanConditions.<Event>trueFunction());
 
-		nfa.addState(startState);
-		nfa.addState(endState);
-		nfa.addState(endingState);
+		List<State<Event>> states = new ArrayList<>();
+		states.add(startState);
+		states.add(endState);
+		states.add(endingState);
+
+		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), 0, false, states);
 
 		Set<Map<String, List<Event>>> expectedPatterns = new HashSet<>();
 
@@ -103,7 +105,7 @@ public class NFATest extends TestLogger {
 		expectedPatterns.add(firstPattern);
 		expectedPatterns.add(secondPattern);
 
-		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, streamEvents);
+		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, nfa.createNFAState(), streamEvents);
 
 		assertEquals(expectedPatterns, actualPatterns);
 	}
@@ -126,7 +128,7 @@ public class NFATest extends TestLogger {
 
 		expectedPatterns.add(secondPattern);
 
-		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, streamEvents);
+		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, nfa.createNFAState(), streamEvents);
 
 		assertEquals(expectedPatterns, actualPatterns);
 	}
@@ -145,7 +147,7 @@ public class NFATest extends TestLogger {
 
 		Set<Map<String, List<Event>>> expectedPatterns = Collections.emptySet();
 
-		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, streamEvents);
+		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, nfa.createNFAState(), streamEvents);
 
 		assertEquals(expectedPatterns, actualPatterns);
 	}
@@ -172,7 +174,7 @@ public class NFATest extends TestLogger {
 
 		expectedPatterns.add(secondPattern);
 
-		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, streamEvents);
+		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, nfa.createNFAState(), streamEvents);
 
 		assertEquals(expectedPatterns, actualPatterns);
 	}
@@ -187,21 +189,25 @@ public class NFATest extends TestLogger {
 		streamEvents.add(new StreamRecord<>(new Event(3, "loop", 3.0), 103L));
 		streamEvents.add(new StreamRecord<>(new Event(4, "loop", 4.0), 104L));
 		streamEvents.add(new StreamRecord<>(new Event(5, "loop", 5.0), 105L));
-		runNFA(nfa, streamEvents);
 
-		NFA.NFASerializer<Event> serializer = new NFA.NFASerializer<>(Event.createTypeSerializer());
+		NFAState<Event> nfaState = nfa.createNFAState();
+		runNFA(nfa, nfaState, streamEvents);
+
+		NFAStateSerializer<Event> serializer = new NFAStateSerializer<>(Event.createTypeSerializer());
 
 		//serialize
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		serializer.serialize(nfa, new DataOutputViewStreamWrapper(baos));
+		serializer.serialize(nfaState, new DataOutputViewStreamWrapper(baos));
 		baos.close();
 	}
 
-	public <T> Collection<Map<String, List<T>>> runNFA(NFA<T> nfa, List<StreamRecord<T>> inputs) {
+	public <T> Collection<Map<String, List<T>>> runNFA(
+		NFA<T> nfa, NFAState<T> nfaState, List<StreamRecord<T>> inputs) {
 		Set<Map<String, List<T>>> actualPatterns = new HashSet<>();
 
 		for (StreamRecord<T> streamEvent : inputs) {
 			Collection<Map<String, List<T>>> matchedPatterns = nfa.process(
+				nfaState,
 				streamEvent.getValue(),
 				streamEvent.getTimestamp()).f0;
 
@@ -311,24 +317,26 @@ public class NFATest extends TestLogger {
 			Event b3 = new Event(41, "b", 5.0);
 			Event d = new Event(43, "d", 4.0);
 
-			nfa.process(a, 1);
-			nfa.process(b, 2);
-			nfa.process(c, 3);
-			nfa.process(b1, 4);
-			nfa.process(b2, 5);
-			nfa.process(b3, 6);
-			nfa.process(d, 7);
-			nfa.process(a, 8);
+			NFAState<Event> nfaState = nfa.createNFAState();
 
-			NFA.NFASerializer<Event> serializer = new NFA.NFASerializer<>(Event.createTypeSerializer());
+			nfa.process(nfaState, a, 1);
+			nfa.process(nfaState, b, 2);
+			nfa.process(nfaState, c, 3);
+			nfa.process(nfaState, b1, 4);
+			nfa.process(nfaState, b2, 5);
+			nfa.process(nfaState, b3, 6);
+			nfa.process(nfaState, d, 7);
+			nfa.process(nfaState, a, 8);
+
+			NFAStateSerializer<Event> serializer = new NFAStateSerializer<>(Event.createTypeSerializer());
 
 			//serialize
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			serializer.serialize(nfa, new DataOutputViewStreamWrapper(baos));
+			serializer.serialize(nfaState, new DataOutputViewStreamWrapper(baos));
 			baos.close();
 
 			// copy
-			NFA.NFASerializer<Event> copySerializer = new NFA.NFASerializer<>(Event.createTypeSerializer());
+			NFAStateSerializer<Event> copySerializer = new NFAStateSerializer<>(Event.createTypeSerializer());
 			ByteArrayInputStream in = new ByteArrayInputStream(baos.toByteArray());
 			ByteArrayOutputStream out = new ByteArrayOutputStream();
 			copySerializer.duplicate().copy(new DataInputViewStreamWrapper(in), new DataOutputViewStreamWrapper(out));
@@ -337,15 +345,14 @@ public class NFATest extends TestLogger {
 
 			// deserialize
 			ByteArrayInputStream bais = new ByteArrayInputStream(out.toByteArray());
-			NFA<Event> copy = serializer.duplicate().deserialize(new DataInputViewStreamWrapper(bais));
+			NFAState<Event> copy = serializer.duplicate().deserialize(new DataInputViewStreamWrapper(bais));
 			bais.close();
 
-			assertEquals(nfa, copy);
+			assertEquals(nfaState, copy);
 		}
 	}
 
 	private NFA<Event> createStartEndNFA(long windowLength) {
-		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), windowLength, false);
 
 		State<Event> startState = new State<>("start", State.StateType.Start);
 		State<Event> endState = new State<>("end", State.StateType.Normal);
@@ -373,11 +380,12 @@ public class NFATest extends TestLogger {
 			});
 		endState.addIgnore(BooleanConditions.<Event>trueFunction());
 
-		nfa.addState(startState);
-		nfa.addState(endState);
-		nfa.addState(endingState);
+		List<State<Event>> states = new ArrayList<>();
+		states.add(startState);
+		states.add(endState);
+		states.add(endingState);
 
-		return nfa;
+		return new NFA<>(Event.createTypeSerializer(), windowLength, false, states);
 	}
 
 	private NFA<Event> createLoopingNFA(long windowLength) {

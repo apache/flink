@@ -1075,14 +1075,16 @@ public class GroupITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+		NFAState<Event> nfaState = nfa.createNFAState();
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, b1, d),
 			Lists.newArrayList(c, a1, b1, a2, b2, d)
 		));
 
-		assertTrue(nfa.isEmpty());
+		assertTrue(nfaState.isEmpty());
 	}
 
 }

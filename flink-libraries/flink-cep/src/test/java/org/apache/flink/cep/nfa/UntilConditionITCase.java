@@ -91,13 +91,15 @@ public class UntilConditionITCase {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+		NFAState<Event> nfaState = nfa.createNFAState();
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, breaking),
 			Lists.newArrayList(startEvent, middleEvent1, breaking)
 		));
-		assertTrue(nfa.isEmpty());
+		assertTrue(nfaState.isEmpty());
 	}
 
 	@Test
@@ -137,7 +139,9 @@ public class UntilConditionITCase {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+		NFAState<Event> nfaState = nfa.createNFAState();
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, breaking),
@@ -145,7 +149,7 @@ public class UntilConditionITCase {
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent3, breaking),
 			Lists.newArrayList(startEvent, middleEvent1, breaking)
 		));
-		assertTrue(nfa.isEmpty());
+		assertTrue(nfaState.isEmpty());
 	}
 
 	@Test
@@ -185,13 +189,15 @@ public class UntilConditionITCase {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+		NFAState<Event> nfaState = nfa.createNFAState();
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, breaking),
 			Lists.newArrayList(startEvent, middleEvent1, breaking)
 		));
-		assertTrue(nfa.isEmpty());
+		assertTrue(nfaState.isEmpty());
 	}
 
 	@Test
@@ -233,12 +239,14 @@ public class UntilConditionITCase {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+		NFAState<Event> nfaState = nfa.createNFAState();
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, breaking)
 		));
-		assertTrue(nfa.isEmpty());
+		assertTrue(nfaState.isEmpty());
 	}
 
 	@Test
@@ -278,14 +286,16 @@ public class UntilConditionITCase {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+		NFAState<Event> nfaState = nfa.createNFAState();
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, breaking),
 			Lists.newArrayList(startEvent, middleEvent1, breaking),
 			Lists.newArrayList(startEvent, breaking)
 		));
-		assertTrue(nfa.isEmpty());
+		assertTrue(nfaState.isEmpty());
 	}
 
 	@Test
@@ -325,7 +335,9 @@ public class UntilConditionITCase {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+		NFAState<Event> nfaState = nfa.createNFAState();
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, breaking),
@@ -334,7 +346,7 @@ public class UntilConditionITCase {
 			Lists.newArrayList(startEvent, middleEvent1, breaking),
 			Lists.newArrayList(startEvent, breaking)
 		));
-		assertTrue(nfa.isEmpty());
+		assertTrue(nfaState.isEmpty());
 	}
 
 	@Test
@@ -374,14 +386,16 @@ public class UntilConditionITCase {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+		NFAState<Event> nfaState = nfa.createNFAState();
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, breaking),
 			Lists.newArrayList(startEvent, middleEvent1, breaking),
 			Lists.newArrayList(startEvent, breaking)
 		));
-		assertTrue(nfa.isEmpty());
+		assertTrue(nfaState.isEmpty());
 	}
 
 	@Test
@@ -502,7 +516,9 @@ public class UntilConditionITCase {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+		NFAState<Event> nfaState = nfa.createNFAState();
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3),
@@ -510,7 +526,7 @@ public class UntilConditionITCase {
 			Lists.newArrayList(startEvent, middleEvent1)
 		));
 
-		assertTrue(nfa.isEmpty());
+		assertTrue(nfaState.isEmpty());
 	}
 
 	@Test
@@ -553,7 +569,9 @@ public class UntilConditionITCase {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+		NFAState<Event> nfaState = nfa.createNFAState();
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3),
@@ -561,7 +579,7 @@ public class UntilConditionITCase {
 			Lists.newArrayList(startEvent, middleEvent1)
 		));
 
-		assertTrue(nfa.isEmpty());
+		assertTrue(nfaState.isEmpty());
 	}
 
 	@Test
@@ -604,7 +622,9 @@ public class UntilConditionITCase {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+		NFAState<Event> nfaState = nfa.createNFAState();
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
 
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3),
@@ -613,6 +633,6 @@ public class UntilConditionITCase {
 			Lists.newArrayList(startEvent)
 		));
 
-		assertTrue(nfa.isEmpty());
+		assertTrue(nfaState.isEmpty());
 	}
 }
