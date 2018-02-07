@@ -35,7 +35,7 @@ import java.net.Socket;
  * for more information.
  */
 @Internal
-class CollectSink<IN> extends RichSinkFunction<IN> {
+public class CollectSink<IN> extends RichSinkFunction<IN> {
 
 	private static final long serialVersionUID = 1L;
 

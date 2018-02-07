@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.experimental.scala
+package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.streaming.experimental.{DataStreamUtils => JavaStreamUtils}
+import org.apache.flink.streaming.api.datastream.{DataStreamUtils => JavaStreamUtils}
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
