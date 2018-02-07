@@ -54,7 +54,7 @@ import static org.mockito.Mockito.verify;
 public abstract class AbstractCheckpointStateOutputStreamTestBase {
 
 	@Rule
-	protected final TemporaryFolder tmp = new TemporaryFolder();
+	public final TemporaryFolder tmp = new TemporaryFolder();
 
 	// ------------------------------------------------------------------------
 	//  Tests
