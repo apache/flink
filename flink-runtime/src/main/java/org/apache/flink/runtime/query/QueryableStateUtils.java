@@ -75,9 +75,9 @@ public final class QueryableStateUtils {
 		} catch (ClassNotFoundException e) {
 			final String msg = "Could not load Queryable State Client Proxy. " +
 				"Probable reason: flink-queryable-state-runtime is not in the classpath. " +
-				"Please put the corresponding jar from the opt to the lib folder.";
+				"To enable Queryable State, please move the flink-queryable-state-runtime jar from the opt to the lib folder.";
 			if (LOG.isDebugEnabled()) {
-				LOG.debug(msg, e);
+				LOG.debug(msg + " Cause: " + e.getMessage());
 			} else {
 				LOG.info(msg);
 			}
