@@ -110,6 +110,7 @@ before_install:
    - "rm apache-maven-3.2.5-bin.zip"
    - "export M2_HOME=$PWD/apache-maven-3.2.5"
    - "export PATH=$M2_HOME/bin:$PATH"
+   - "export MAVEN_OPTS=\"-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS\""
 # just in case: clean up the .m2 home and remove invalid jar files
    - 'test ! -d $HOME/.m2/repository/ || find $HOME/.m2/repository/ -name "*.jar" -exec sh -c ''if ! zip -T {} >/dev/null ; then echo "deleting invalid file: {}"; rm {} ; fi'' \;'
 
