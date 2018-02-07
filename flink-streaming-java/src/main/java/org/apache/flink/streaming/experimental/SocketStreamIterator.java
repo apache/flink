@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.experimental;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -42,7 +43,7 @@ import java.util.NoSuchElementException;
  * @param <T> The type of elements returned from the iterator.
  */
 @PublicEvolving
-class SocketStreamIterator<T> implements Iterator<T> {
+public class SocketStreamIterator<T> implements Iterator<T> {
 
 	/** Server socket to listen at. */
 	private final ServerSocket socket;
@@ -62,7 +63,8 @@ class SocketStreamIterator<T> implements Iterator<T> {
 	/** Async error, for example by the executor of the program that produces the stream. */
 	private volatile Throwable error;
 
-	SocketStreamIterator(TypeSerializer<T> serializer) throws IOException {
+	@Internal
+	public SocketStreamIterator(TypeSerializer<T> serializer) throws IOException {
 		this.serializer = serializer;
 		try {
 			socket = new ServerSocket(0, 1);

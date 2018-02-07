@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.experimental;
+package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.net.ConnectionUtils;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.experimental.CollectSink;
+import org.apache.flink.streaming.experimental.SocketStreamIterator;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -33,7 +33,7 @@ import java.net.UnknownHostException;
 import java.util.Iterator;
 
 /**
- * A collection of utilities for {@link DataStream DataStreams}.
+ * A collection of experimental utilities for {@link DataStream DataStreams}.
  *
  * <p>This experimental class is relocated from flink-streaming-contrib. Please see package-info.java
  * for more information.
