@@ -482,7 +482,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		flinkConfiguration.setString(ClusterEntrypoint.EXECUTION_MODE, executionMode.toString());
 
 		ApplicationReport report = startAppMaster(
-			flinkConfiguration,
+			new Configuration(flinkConfiguration),
 			yarnClusterEntrypoint,
 			jobGraph,
 			yarnClient,
@@ -793,6 +793,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			localResources,
 			homeDir,
 			"");
+
+		configuration.setInteger(
+			ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
+			clusterSpecification.getSlotsPerTaskManager());
 
 		// Upload the flink configuration
 		// write out configuration file
