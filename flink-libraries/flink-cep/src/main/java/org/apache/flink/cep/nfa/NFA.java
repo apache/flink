@@ -1163,7 +1163,7 @@ public class NFA<T> implements Serializable {
 				int length = in.readInt();
 
 				byte[] serCondition = new byte[length];
-				in.read(serCondition);
+				in.readFully(serCondition);
 
 				ByteArrayInputStream bais = new ByteArrayInputStream(serCondition);
 				ObjectInputStream ois = new ObjectInputStream(bais);
