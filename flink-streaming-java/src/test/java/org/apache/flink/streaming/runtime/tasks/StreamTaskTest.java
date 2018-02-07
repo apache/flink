@@ -330,8 +330,7 @@ public class StreamTaskTest extends TestLogger {
 		TaskInfo mockTaskInfo = mock(TaskInfo.class);
 		when(mockTaskInfo.getTaskNameWithSubtasks()).thenReturn("foobar");
 		when(mockTaskInfo.getIndexOfThisSubtask()).thenReturn(0);
-		Environment mockEnvironment = mock(Environment.class);
-		when(mockEnvironment.getTaskInfo()).thenReturn(mockTaskInfo);
+		Environment mockEnvironment = new MockEnvironment();
 
 		StreamTask<?, ?> streamTask = new EmptyStreamTask(mockEnvironment);
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
@@ -401,12 +400,7 @@ public class StreamTaskTest extends TestLogger {
 		final long checkpointId = 42L;
 		final long timestamp = 1L;
 
-		TaskInfo mockTaskInfo = mock(TaskInfo.class);
-		when(mockTaskInfo.getTaskNameWithSubtasks()).thenReturn("foobar");
-		when(mockTaskInfo.getIndexOfThisSubtask()).thenReturn(0);
-		Environment mockEnvironment = mock(Environment.class);
-		when(mockEnvironment.getTaskInfo()).thenReturn(mockTaskInfo);
-
+		MockEnvironment mockEnvironment = new MockEnvironment();
 		StreamTask<?, ?> streamTask = spy(new EmptyStreamTask(mockEnvironment));
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
 
@@ -458,6 +452,7 @@ public class StreamTaskTest extends TestLogger {
 			new StreamTask.AsyncCheckpointExceptionHandler(streamTask);
 		Whitebox.setInternalState(streamTask, "asynchronousCheckpointExceptionHandler", asyncCheckpointExceptionHandler);
 
+		mockEnvironment.setExpectedExternalFailureCause(Throwable.class);
 		streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		verify(streamTask).handleAsyncException(anyString(), any(Throwable.class));
@@ -482,12 +477,6 @@ public class StreamTaskTest extends TestLogger {
 
 		final OneShotLatch acknowledgeCheckpointLatch = new OneShotLatch();
 		final OneShotLatch completeAcknowledge = new OneShotLatch();
-
-		TaskInfo mockTaskInfo = mock(TaskInfo.class);
-		when(mockTaskInfo.getTaskNameWithSubtasks()).thenReturn("foobar");
-		when(mockTaskInfo.getIndexOfThisSubtask()).thenReturn(0);
-		Environment mockEnvironment = mock(Environment.class);
-		when(mockEnvironment.getTaskInfo()).thenReturn(mockTaskInfo);
 
 		CheckpointResponder checkpointResponder = mock(CheckpointResponder.class);
 		doAnswer(new Answer() {
@@ -514,7 +503,12 @@ public class StreamTaskTest extends TestLogger {
 			null,
 			checkpointResponder);
 
-		when(mockEnvironment.getTaskStateManager()).thenReturn(taskStateManager);
+		MockEnvironment mockEnvironment = new MockEnvironment(
+			"mock-task",
+			1024 * MemoryManager.DEFAULT_PAGE_SIZE,
+			null,
+			16,
+			taskStateManager);
 
 		StreamTask<?, ?> streamTask = new EmptyStreamTask(mockEnvironment);
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
@@ -606,11 +600,7 @@ public class StreamTaskTest extends TestLogger {
 		final OneShotLatch createSubtask = new OneShotLatch();
 		final OneShotLatch completeSubtask = new OneShotLatch();
 
-		TaskInfo mockTaskInfo = mock(TaskInfo.class);
-		when(mockTaskInfo.getTaskNameWithSubtasks()).thenReturn("foobar");
-		when(mockTaskInfo.getIndexOfThisSubtask()).thenReturn(0);
-		Environment mockEnvironment = mock(Environment.class);
-		when(mockEnvironment.getTaskInfo()).thenReturn(mockTaskInfo);
+		Environment mockEnvironment = spy(new MockEnvironment());
 
 		whenNew(OperatorSubtaskState.class).
 			withArguments(
@@ -707,12 +697,7 @@ public class StreamTaskTest extends TestLogger {
 		final long checkpointId = 42L;
 		final long timestamp = 1L;
 
-		TaskInfo mockTaskInfo = mock(TaskInfo.class);
-
-		when(mockTaskInfo.getTaskNameWithSubtasks()).thenReturn("foobar");
-		when(mockTaskInfo.getIndexOfThisSubtask()).thenReturn(0);
-
-		Environment mockEnvironment = mock(Environment.class);
+		Environment mockEnvironment = spy(new MockEnvironment());
 
 		// latch blocks until the async checkpoint thread acknowledges
 		final OneShotLatch checkpointCompletedLatch = new OneShotLatch();
@@ -742,7 +727,6 @@ public class StreamTaskTest extends TestLogger {
 			checkpointResponder);
 
 		when(mockEnvironment.getTaskStateManager()).thenReturn(taskStateManager);
-		when(mockEnvironment.getTaskInfo()).thenReturn(mockTaskInfo);
 
 		StreamTask<?, ?> streamTask = new EmptyStreamTask(mockEnvironment);
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
