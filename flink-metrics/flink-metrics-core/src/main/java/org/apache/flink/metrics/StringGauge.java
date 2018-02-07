@@ -19,17 +19,8 @@
 package org.apache.flink.metrics;
 
 /**
- * A Gauge is a {@link Metric} that calculates a specific value at a point in time.
- *
- * @deprecated use {@link NumberGauge} or {@link StringGauge} instead
+ * A StringGauge is a {@link Metric} that calculates a specific {@link String} value at a point in time.
  */
-@Deprecated
-public interface Gauge<T> extends Metric {
-
-	/**
-	 * Calculates and returns the measured value.
-	 *
-	 * @return calculated value
-	 */
-	T getValue();
+public interface StringGauge extends Metric {
+	String getStringValue();
 }

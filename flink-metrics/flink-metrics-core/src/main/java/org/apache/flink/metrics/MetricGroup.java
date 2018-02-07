@@ -77,7 +77,9 @@ public interface MetricGroup {
 	 * @param gauge gauge to register
 	 * @param <T>   return type of the gauge
 	 * @return the given gauge
+	 * @deprecated use {@link #register(String, NumberGauge)} or {@link #register(String, StringGauge)} instead
 	 */
+	@Deprecated
 	<T, G extends Gauge<T>> G gauge(int name, G gauge);
 
 	/**
@@ -87,8 +89,26 @@ public interface MetricGroup {
 	 * @param gauge gauge to register
 	 * @param <T>   return type of the gauge
 	 * @return the given gauge
+	 * @deprecated use {@link #register(String, NumberGauge)} or {@link #register(String, StringGauge)} instead
 	 */
+	@Deprecated
 	<T, G extends Gauge<T>> G gauge(String name, G gauge);
+
+	/**
+	 * Registers a new {@link org.apache.flink.metrics.NumberGauge} with Flink.
+	 *
+	 * @param name  name of the gauge
+	 * @param gauge gauge to register
+	 */
+	void register(String name, NumberGauge gauge);
+
+	/**
+	 * Registers a new {@link org.apache.flink.metrics.StringGauge} with Flink.
+	 *
+	 * @param name  name of the gauge
+	 * @param gauge gauge to register
+	 */
+	void register(String name, StringGauge gauge);
 
 	/**
 	 * Registers a new {@link Histogram} with Flink.

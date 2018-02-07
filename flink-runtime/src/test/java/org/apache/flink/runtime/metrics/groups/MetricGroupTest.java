@@ -20,7 +20,6 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.CharacterFilter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -227,12 +226,7 @@ public class MetricGroupTest extends TestLogger {
 
 		// these will fail is the registration is propagated
 		group.counter("testcounter");
-		group.gauge("testgauge", new Gauge<Object>() {
-			@Override
-			public Object getValue() {
-				return null;
-			}
-		});
+		group.register("testgauge", () -> 0);
 	}
 
 	@Test

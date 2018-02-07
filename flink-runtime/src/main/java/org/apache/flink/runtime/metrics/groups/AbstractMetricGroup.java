@@ -26,7 +26,9 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.StringGauge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
@@ -313,14 +315,26 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	}
 
 	@Override
+	@Deprecated
 	public <T, G extends Gauge<T>> G gauge(int name, G gauge) {
 		return gauge(String.valueOf(name), gauge);
 	}
 
 	@Override
+	@Deprecated
 	public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
-		addMetric(name, gauge);
+		addMetric(name, new LegacyGaugeWrapper<>(gauge));
 		return gauge;
+	}
+
+	@Override
+	public void register(String name, StringGauge gauge) {
+		addMetric(name, new StringGaugeWrapper(gauge));
+	}
+
+	@Override
+	public void register(String name, NumberGauge gauge) {
+		addMetric(name, new NumberGaugeWrapper(gauge));
 	}
 
 	@Override
@@ -459,5 +473,78 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 		KEY,
 		VALUE,
 		GENERIC
+	}
+
+	/**
+	 * This class wraps a legacy {@link Gauge} to ensure that legacy metrics are not ignored by reporters that only work
+	 * against the {@link StringGauge} and {@link NumberGauge} interfaces.
+	 *
+	 * @param <T> type of the gauge
+	 */
+	private static class LegacyGaugeWrapper<T> implements StringGauge, Gauge<T> {
+		private final Gauge<T> legacyGauge;
+
+		private LegacyGaugeWrapper(Gauge<T> legacyGauge) {
+			this.legacyGauge = legacyGauge;
+		}
+
+		@Override
+		public String getStringValue() {
+			T value = legacyGauge.getValue();
+			if (value == null) {
+				return null;
+			} else {
+				return value.toString();
+			}
+		}
+
+		@Override
+		public T getValue() {
+			return legacyGauge.getValue();
+		}
+	}
+
+	/**
+	 * This class wraps a {@link NumberGauge} for backwards compatibility with reporters that are only aware of
+	 * {@link Gauge}s.
+	 */
+	private static class NumberGaugeWrapper implements NumberGauge, Gauge<Number> {
+		private final NumberGauge gauge;
+
+		private NumberGaugeWrapper(NumberGauge gauge) {
+			this.gauge = gauge;
+		}
+
+		@Override
+		public Number getNumberValue() {
+			return gauge.getNumberValue();
+		}
+
+		@Override
+		public Number getValue() {
+			return getNumberValue();
+		}
+	}
+
+	/**
+	 * This class wraps a {@link StringGauge} for backwards compatibility with reporters that are only aware of
+	 * {@link Gauge}s.
+	 */
+	private static class StringGaugeWrapper implements StringGauge, Gauge<String> {
+		private final StringGauge gauge;
+
+		private StringGaugeWrapper(StringGauge gauge) {
+			this.gauge = gauge;
+		}
+
+		@Override
+		public String getStringValue() {
+			return gauge.getStringValue();
+		}
+
+		@Override
+		public String getValue() {
+			return getStringValue();
+		}
 	}
 }

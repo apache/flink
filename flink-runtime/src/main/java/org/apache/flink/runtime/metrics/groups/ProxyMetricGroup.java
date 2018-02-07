@@ -24,6 +24,8 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.NumberGauge;
+import org.apache.flink.metrics.StringGauge;
 
 import java.util.Map;
 
@@ -63,13 +65,25 @@ public class ProxyMetricGroup<P extends MetricGroup> implements MetricGroup {
 	}
 
 	@Override
+	@Deprecated
 	public final <T, G extends Gauge<T>> G gauge(int name, G gauge) {
 		return parentMetricGroup.gauge(name, gauge);
 	}
 
 	@Override
+	@Deprecated
 	public final <T, G extends Gauge<T>> G gauge(String name, G gauge) {
 		return parentMetricGroup.gauge(name, gauge);
+	}
+
+	@Override
+	public void register(String name, NumberGauge gauge) {
+		parentMetricGroup.register(name, gauge);
+	}
+
+	@Override
+	public void register(String name, StringGauge gauge) {
+		parentMetricGroup.register(name, gauge);
 	}
 
 	@Override

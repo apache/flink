@@ -26,6 +26,7 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.util.TestReporter;
@@ -56,14 +57,8 @@ public class MetricGroupRegistrationTest extends TestLogger {
 		assertEquals(counter, TestReporter1.lastPassedMetric);
 		assertEquals("counter", TestReporter1.lastPassedName);
 
-		Gauge<Object> gauge = root.gauge("gauge", new Gauge<Object>() {
-			@Override
-			public Object getValue() {
-				return null;
-			}
-		});
-
-		Assert.assertEquals(gauge, TestReporter1.lastPassedMetric);
+		root.register("gauge", () -> 0);
+		Assert.assertTrue(TestReporter1.lastPassedMetric instanceof NumberGauge);
 		assertEquals("gauge", TestReporter1.lastPassedName);
 
 		Histogram histogram = root.histogram("histogram", new Histogram() {

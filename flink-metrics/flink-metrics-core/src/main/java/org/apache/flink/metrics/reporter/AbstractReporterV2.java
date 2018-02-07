@@ -20,11 +20,12 @@ package org.apache.flink.metrics.reporter;
 
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.NumberGauge;
+import org.apache.flink.metrics.StringGauge;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,14 +35,12 @@ import java.util.Map;
 
 /**
  * Base interface for custom metric reporters.
- *
- * @deprecated use {@link AbstractReporterV2} instead
  */
-@Deprecated
-public abstract class AbstractReporter implements MetricReporter, CharacterFilter {
+public abstract class AbstractReporterV2 implements MetricReporter, CharacterFilter {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
-	protected final Map<Gauge<?>, String> gauges = new HashMap<>();
+	protected final Map<StringGauge, String> stringGauges = new HashMap<>();
+	protected final Map<NumberGauge, String> numberGauges = new HashMap<>();
 	protected final Map<Counter, String> counters = new HashMap<>();
 	protected final Map<Histogram, String> histograms = new HashMap<>();
 	protected final Map<Meter, String> meters = new HashMap<>();
@@ -53,8 +52,10 @@ public abstract class AbstractReporter implements MetricReporter, CharacterFilte
 		synchronized (this) {
 			if (metric instanceof Counter) {
 				counters.put((Counter) metric, name);
-			} else if (metric instanceof Gauge) {
-				gauges.put((Gauge<?>) metric, name);
+			} else if (metric instanceof StringGauge) {
+				stringGauges.put((StringGauge) metric, name);
+			} else if (metric instanceof NumberGauge) {
+				numberGauges.put((NumberGauge) metric, name);
 			} else if (metric instanceof Histogram) {
 				histograms.put((Histogram) metric, name);
 			} else if (metric instanceof Meter) {
@@ -71,8 +72,10 @@ public abstract class AbstractReporter implements MetricReporter, CharacterFilte
 		synchronized (this) {
 			if (metric instanceof Counter) {
 				counters.remove(metric);
-			} else if (metric instanceof Gauge) {
-				gauges.remove(metric);
+			} else if (metric instanceof StringGauge) {
+				stringGauges.remove(metric);
+			} else if (metric instanceof NumberGauge) {
+				numberGauges.remove(metric);
 			} else if (metric instanceof Histogram) {
 				histograms.remove(metric);
 			} else if (metric instanceof Meter) {

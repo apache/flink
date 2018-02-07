@@ -23,6 +23,7 @@ import org.apache.flink.metrics.Gauge
 /**
   * This class allows the concise definition of a gauge from Scala using function references.
   */
+@deprecated("use NumberGauge or StringGauge instead")
 class ScalaGauge[T](func: () => T) extends Gauge[T] {
   override def getValue: T = {
     func()
