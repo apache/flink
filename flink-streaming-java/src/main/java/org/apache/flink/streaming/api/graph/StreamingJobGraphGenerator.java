@@ -530,7 +530,6 @@ public class StreamingJobGraphGenerator {
 				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD ||
 					headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS)
 				&& (edge.getPartitioner() instanceof ForwardPartitioner)
-				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
 				&& streamGraph.isChainingEnabled();
 	}
 
