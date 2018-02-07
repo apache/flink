@@ -33,12 +33,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  */
 public class PythonEnvironmentFactory {
 	private final String localTmpPath;
-	private final Path tmpDistributedDir;
 	private final String scriptName;
 
-	public PythonEnvironmentFactory(String localTmpPath, Path tmpDistributedDir, String scriptName) {
+	public PythonEnvironmentFactory(String localTmpPath, String scriptName) {
 		this.localTmpPath = localTmpPath;
-		this.tmpDistributedDir = tmpDistributedDir;
 		this.scriptName = scriptName;
 	}
 
@@ -50,7 +48,7 @@ public class PythonEnvironmentFactory {
 	 * executed.
 	 */
 	public PythonStreamExecutionEnvironment get_execution_environment() {
-		return new PythonStreamExecutionEnvironment(StreamExecutionEnvironment.getExecutionEnvironment(), new Path(localTmpPath), tmpDistributedDir, scriptName);
+		return new PythonStreamExecutionEnvironment(StreamExecutionEnvironment.getExecutionEnvironment(), new Path(localTmpPath), scriptName);
 	}
 
 	/**
@@ -64,7 +62,7 @@ public class PythonEnvironmentFactory {
 	 * @return A local execution environment with the specified parallelism.
 	 */
 	public PythonStreamExecutionEnvironment create_local_execution_environment(Configuration config) {
-		return new PythonStreamExecutionEnvironment(new LegacyLocalStreamEnvironment(config), new Path(localTmpPath), tmpDistributedDir, scriptName);
+		return new PythonStreamExecutionEnvironment(new LegacyLocalStreamEnvironment(config), new Path(localTmpPath), scriptName);
 	}
 
 	/**
@@ -76,7 +74,7 @@ public class PythonEnvironmentFactory {
 	 */
 	public PythonStreamExecutionEnvironment create_local_execution_environment(int parallelism, Configuration config) {
 		return new PythonStreamExecutionEnvironment(
-			StreamExecutionEnvironment.createLocalEnvironment(parallelism, config), new Path(localTmpPath), tmpDistributedDir, scriptName);
+			StreamExecutionEnvironment.createLocalEnvironment(parallelism, config), new Path(localTmpPath), scriptName);
 	}
 
 	/**
@@ -95,7 +93,7 @@ public class PythonEnvironmentFactory {
 	public PythonStreamExecutionEnvironment create_remote_execution_environment(
 		String host, int port, String... jar_files) {
 		return new PythonStreamExecutionEnvironment(
-			StreamExecutionEnvironment.createRemoteEnvironment(host, port, jar_files), new Path(localTmpPath), tmpDistributedDir, scriptName);
+			StreamExecutionEnvironment.createRemoteEnvironment(host, port, jar_files), new Path(localTmpPath), scriptName);
 	}
 
 	/**
@@ -116,7 +114,7 @@ public class PythonEnvironmentFactory {
 	public PythonStreamExecutionEnvironment create_remote_execution_environment(
 		String host, int port, Configuration config, String... jar_files) {
 		return new PythonStreamExecutionEnvironment(
-			StreamExecutionEnvironment.createRemoteEnvironment(host, port, config, jar_files), new Path(localTmpPath), tmpDistributedDir, scriptName);
+			StreamExecutionEnvironment.createRemoteEnvironment(host, port, config, jar_files), new Path(localTmpPath), scriptName);
 	}
 
 	/**
@@ -137,6 +135,6 @@ public class PythonEnvironmentFactory {
 	public PythonStreamExecutionEnvironment create_remote_execution_environment(
 		String host, int port, int parallelism, String... jar_files) {
 		return new PythonStreamExecutionEnvironment(
-			StreamExecutionEnvironment.createRemoteEnvironment(host, port, parallelism, jar_files), new Path(localTmpPath), tmpDistributedDir, scriptName);
+			StreamExecutionEnvironment.createRemoteEnvironment(host, port, parallelism, jar_files), new Path(localTmpPath), scriptName);
 	}
 }

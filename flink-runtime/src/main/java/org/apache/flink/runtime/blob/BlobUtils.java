@@ -27,6 +27,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
@@ -350,6 +351,28 @@ public class BlobUtils {
 		bytesRead |= (buf[3] & 0xff) << 24;
 
 		return bytesRead;
+	}
+
+	/**
+	 * Reads exception from given {@link InputStream}.
+	 *
+	 * @param in the input stream to read from
+	 * @return exception that was read
+	 * @throws IOException thrown if an I/O error occurs while reading from the input
+	 *                     stream
+	 */
+	static Throwable readExceptionFromStream(InputStream in) throws IOException {
+		int len = readLength(in);
+		byte[] bytes = new byte[len];
+		readFully(in, bytes, 0, len, "Error message");
+
+		try {
+			return (Throwable) InstantiationUtil.deserializeObject(bytes, ClassLoader.getSystemClassLoader());
+		}
+		catch (ClassNotFoundException e) {
+			// should never occur
+			throw new IOException("Could not transfer error message", e);
+		}
 	}
 
 	/**

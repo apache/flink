@@ -162,6 +162,16 @@ public class JobSubmissionClientActor extends JobClientActor {
 							"Could not upload the jar files to the job manager.",
 							e));
 				}
+
+				try {
+					jobGraph.uploadUserArtifacts(blobServerAddress, clientConfig);
+				} catch (IOException e) {
+					throw new CompletionException(
+						new JobSubmissionException(
+							jobGraph.getJobID(),
+							"Could not upload custom user artifacts to the job manager.",
+							e));
+				}
 			},
 			getContext().dispatcher());
 

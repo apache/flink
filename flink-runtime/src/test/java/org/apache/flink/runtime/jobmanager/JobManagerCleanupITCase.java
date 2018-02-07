@@ -190,15 +190,15 @@ public class JobManagerCleanupITCase extends TestLogger {
 						// upload a blob
 						tempBlob = File.createTempFile("Required", ".jar");
 						List<PermanentBlobKey> keys =
-							BlobClient.uploadJarFiles(new InetSocketAddress("localhost", blobPort),
+							BlobClient.uploadFiles(new InetSocketAddress("localhost", blobPort),
 								config, jid,
 								Collections.singletonList(new Path(tempBlob.getAbsolutePath())));
 						assertEquals(1, keys.size());
-						jobGraph.addBlob(keys.get(0));
+						jobGraph.addUserJarBlobKey(keys.get(0));
 
 						if (testCase == TestCase.JOB_SUBMISSION_FAILS) {
 							// add an invalid key so that the submission fails
-							jobGraph.addBlob(new PermanentBlobKey());
+							jobGraph.addUserJarBlobKey(new PermanentBlobKey());
 						}
 
 						// Submit the job and wait for all vertices to be running

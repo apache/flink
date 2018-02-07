@@ -630,14 +630,13 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry :
 						DistributedCache.readFileInfoFromConfig(jobConfiguration)) {
 					LOG.info("Obtaining local cache file for '{}'.", entry.getKey());
-					Future<Path> cp = fileCache.createTmpFile(entry.getKey(), entry.getValue(), jobId);
+					Future<Path> cp = fileCache.createTmpFile(entry.getKey(), entry.getValue(), jobId, executionId);
 					distributedCacheEntries.put(entry.getKey(), cp);
 				}
 			}
 			catch (Exception e) {
 				throw new Exception(
-					String.format("Exception while adding files to distributed cache of task %s (%s).", taskNameWithSubtask, executionId),
-					e);
+					String.format("Exception while adding files to distributed cache of task %s (%s).", taskNameWithSubtask, executionId), e);
 			}
 
 			if (isCanceledOrFailed()) {
@@ -825,10 +824,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 				// remove all of the tasks library resources
 				libraryCache.unregisterTask(jobId, executionId);
+				fileCache.releaseJob(jobId, executionId);
 				blobService.getPermanentBlobService().releaseJob(jobId);
-
-				// remove all files in the distributed cache
-				removeCachedFiles(distributedCacheEntries, fileCache);
 
 				// close and de-activate safety net for task thread
 				LOG.info("Ensuring all FileSystem streams are closed for task {}", this);
@@ -869,26 +866,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			throw new Exception("No user code classloader available.");
 		}
 		return userCodeClassLoader;
-	}
-
-	private void removeCachedFiles(Map<String, Future<Path>> entries, FileCache fileCache) {
-		// cancel and release all distributed cache files
-		try {
-			for (Map.Entry<String, Future<Path>> entry : entries.entrySet()) {
-				String name = entry.getKey();
-				try {
-					fileCache.deleteTmpFile(name, jobId);
-				}
-				catch (Exception e) {
-					// unpleasant, but we continue
-					LOG.error("Distributed Cache could not remove cached file registered under '"
-							+ name + "'.", e);
-				}
-			}
-		}
-		catch (Throwable t) {
-			LOG.error("Error while removing cached local files from distributed cache.");
-		}
 	}
 
 	private void notifyFinalState() {

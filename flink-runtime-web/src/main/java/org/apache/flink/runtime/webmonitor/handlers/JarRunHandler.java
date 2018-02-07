@@ -116,13 +116,13 @@ public class JarRunHandler extends
 			final InetSocketAddress address = new InetSocketAddress(getDispatcherHost(gateway), blobServerPort);
 			final List<PermanentBlobKey> keys;
 			try {
-				keys = BlobClient.uploadJarFiles(address, configuration, jobGraph.getJobID(), jobGraph.getUserJars());
+				keys = BlobClient.uploadFiles(address, configuration, jobGraph.getJobID(), jobGraph.getUserJars());
 			} catch (IOException ioe) {
 				throw new CompletionException(new FlinkException("Could not upload job jar files.", ioe));
 			}
 
 			for (PermanentBlobKey key : keys) {
-				jobGraph.addBlob(key);
+				jobGraph.addUserJarBlobKey(key);
 			}
 
 			return jobGraph;

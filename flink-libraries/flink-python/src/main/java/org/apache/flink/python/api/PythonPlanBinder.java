@@ -45,7 +45,7 @@ import org.apache.flink.python.api.functions.util.StringDeserializerMap;
 import org.apache.flink.python.api.functions.util.StringTupleDeserializerMap;
 import org.apache.flink.python.api.streaming.plan.PythonPlanStreamer;
 import org.apache.flink.python.api.util.SetCache;
-import org.apache.flink.runtime.filecache.FileCache;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 
 import org.slf4j.Logger;
@@ -182,10 +182,7 @@ public class PythonPlanBinder {
 
 				receivePlan(env);
 
-				// upload files to remote FS and register on Distributed Cache
-				deleteIfExists(tmpDistributedDir);
-				FileCache.copy(tmpPlanFilesPath, tmpDistributedDir, true);
-				env.registerCachedFile(tmpDistributedDir.toUri().toString(), FLINK_PYTHON_DC_ID);
+				env.registerCachedFile(tmpPlanFilesPath.toUri().toString(), FLINK_PYTHON_DC_ID, true);
 
 				JobExecutionResult jer = env.execute();
 				long runtime = jer.getNetRuntime();
@@ -197,9 +194,6 @@ public class PythonPlanBinder {
 		} finally {
 			try {
 				// clean up created files
-				FileSystem distributedFS = tmpDistributedDir.getFileSystem();
-				distributedFS.delete(tmpDistributedDir, true);
-
 				FileSystem local = FileSystem.getLocalFileSystem();
 				local.delete(new Path(tmpPlanFilesDir), true);
 			} catch (IOException ioe) {
@@ -252,7 +246,7 @@ public class PythonPlanBinder {
 	private static void copyFile(Path source, Path targetDirectory, String name) throws IOException {
 		Path targetFilePath = new Path(targetDirectory, name);
 		deleteIfExists(targetFilePath);
-		FileCache.copy(source, targetFilePath, true);
+		FileUtils.copy(source, targetFilePath, true);
 	}
 
 	//====Plan==========================================================================================================
