@@ -22,10 +22,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -101,12 +101,9 @@ public class Slf4jReporterTest extends TestLogger {
 	public void testAddGauge() throws Exception {
 		String gaugeName = "gauge";
 
-		taskMetricGroup.gauge(gaugeName, null);
-		assertTrue(reporter.getGauges().isEmpty());
-
-		Gauge<Long> gauge = () -> null;
-		taskMetricGroup.gauge(gaugeName, gauge);
-		assertTrue(reporter.getGauges().containsKey(gauge));
+		NumberGauge gauge = () -> null;
+		taskMetricGroup.register(gaugeName, gauge);
+		assertTrue(reporter.getNumberGauges().containsKey(gauge));
 
 		String expectedGaugeReport = reporter.filterCharacters(HOST_NAME) + delimiter
 			+ reporter.filterCharacters(TASK_MANAGER_ID) + delimiter + reporter.filterCharacters(JOB_NAME) + delimiter

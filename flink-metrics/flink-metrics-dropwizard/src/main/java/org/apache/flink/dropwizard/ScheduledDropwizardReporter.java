@@ -23,17 +23,19 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.dropwizard.metrics.DropwizardHistogramWrapper;
 import org.apache.flink.dropwizard.metrics.DropwizardMeterWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkCounterWrapper;
-import org.apache.flink.dropwizard.metrics.FlinkGaugeWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkHistogramWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkMeterWrapper;
+import org.apache.flink.dropwizard.metrics.FlinkNumberGaugeWrapper;
+import org.apache.flink.dropwizard.metrics.FlinkStringGaugeWrapper;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.NumberGauge;
+import org.apache.flink.metrics.StringGauge;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
@@ -68,7 +70,8 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 
 	protected ScheduledReporter reporter;
 
-	private final Map<Gauge<?>, String> gauges = new HashMap<>();
+	private final Map<StringGauge, String> stringGauges = new HashMap<>();
+	private final Map<NumberGauge, String> numberGauges = new HashMap<>();
 	private final Map<Counter, String> counters = new HashMap<>();
 	private final Map<Histogram, String> histograms = new HashMap<>();
 	private final Map<Meter, String> meters = new HashMap<>();
@@ -94,8 +97,13 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	}
 
 	@VisibleForTesting
-	Map<Gauge<?>, String> getGauges() {
-		return gauges;
+	Map<NumberGauge, String> getNumberGauges() {
+		return numberGauges;
+	}
+
+	@VisibleForTesting
+	Map<StringGauge, String> getStringGauges() {
+		return stringGauges;
 	}
 
 	@VisibleForTesting
@@ -130,9 +138,12 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 				counters.put((Counter) metric, fullName);
 				registry.register(fullName, new FlinkCounterWrapper((Counter) metric));
 			}
-			else if (metric instanceof Gauge) {
-				gauges.put((Gauge<?>) metric, fullName);
-				registry.register(fullName, FlinkGaugeWrapper.fromGauge((Gauge<?>) metric));
+			else if (metric instanceof NumberGauge) {
+				numberGauges.put((NumberGauge) metric, fullName);
+				registry.register(fullName, FlinkNumberGaugeWrapper.fromGauge((NumberGauge) metric));
+			} else if (metric instanceof StringGauge) {
+				stringGauges.put((StringGauge) metric, fullName);
+				registry.register(fullName, FlinkStringGaugeWrapper.fromGauge((StringGauge) metric));
 			} else if (metric instanceof Histogram) {
 				Histogram histogram = (Histogram) metric;
 				histograms.put(histogram, fullName);
@@ -165,9 +176,11 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 
 			if (metric instanceof Counter) {
 				fullName = counters.remove(metric);
-			} else if (metric instanceof Gauge) {
-				fullName = gauges.remove(metric);
-			} else if (metric instanceof Histogram) {
+			} else if (metric instanceof NumberGauge) {
+				fullName = numberGauges.remove(metric);
+			} else if (metric instanceof StringGauge) {
+				fullName = stringGauges.remove(metric);
+			}  else if (metric instanceof Histogram) {
 				fullName = histograms.remove(metric);
 			} else if (metric instanceof Meter) {
 				fullName = meters.remove(metric);

@@ -20,7 +20,7 @@ package org.apache.flink.metrics.jmx;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
@@ -117,18 +117,8 @@ public class JMXReporterTest extends TestLogger {
 		MetricReporter rep1 = reporters.get(0);
 		MetricReporter rep2 = reporters.get(1);
 
-		Gauge<Integer> g1 = new Gauge<Integer>() {
-			@Override
-			public Integer getValue() {
-				return 1;
-			}
-		};
-		Gauge<Integer> g2 = new Gauge<Integer>() {
-			@Override
-			public Integer getValue() {
-				return 2;
-			}
-		};
+		NumberGauge g1 = () -> 1;
+		NumberGauge g2 = () -> 2;
 
 		rep1.notifyOfAddedMetric(g1, "rep1", new FrontMetricGroup<>(0, new TaskManagerMetricGroup(reg, "host", "tm")));
 		rep2.notifyOfAddedMetric(g2, "rep2", new FrontMetricGroup<>(0, new TaskManagerMetricGroup(reg, "host", "tm")));
@@ -175,18 +165,8 @@ public class JMXReporterTest extends TestLogger {
 		MetricReporter rep1 = reporters.get(0);
 		MetricReporter rep2 = reporters.get(1);
 
-		Gauge<Integer> g1 = new Gauge<Integer>() {
-			@Override
-			public Integer getValue() {
-				return 1;
-			}
-		};
-		Gauge<Integer> g2 = new Gauge<Integer>() {
-			@Override
-			public Integer getValue() {
-				return 2;
-			}
-		};
+		NumberGauge g1 = () -> 1;
+		NumberGauge g2 = () -> 2;
 
 		rep1.notifyOfAddedMetric(g1, "rep1", new FrontMetricGroup<>(0, new TaskManagerMetricGroup(reg, "host", "tm")));
 

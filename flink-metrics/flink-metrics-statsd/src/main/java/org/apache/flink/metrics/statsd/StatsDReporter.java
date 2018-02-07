@@ -20,12 +20,13 @@ package org.apache.flink.metrics.statsd;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricConfig;
-import org.apache.flink.metrics.reporter.AbstractReporter;
+import org.apache.flink.metrics.NumberGauge;
+import org.apache.flink.metrics.StringGauge;
+import org.apache.flink.metrics.reporter.AbstractReporterV2;
 import org.apache.flink.metrics.reporter.Scheduled;
 
 import org.slf4j.Logger;
@@ -49,7 +50,7 @@ import java.util.NoSuchElementException;
  * <p>Ported since it was not present in maven central.
  */
 @PublicEvolving
-public class StatsDReporter extends AbstractReporter implements Scheduled {
+public class StatsDReporter extends AbstractReporterV2 implements Scheduled {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StatsDReporter.class);
 
@@ -96,7 +97,13 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 		// we do this to prevent holding the lock for very long and blocking
 		// operator creation and shutdown
 		try {
-			for (Map.Entry<Gauge<?>, String> entry : gauges.entrySet()) {
+			for (Map.Entry<NumberGauge, String> entry : numberGauges.entrySet()) {
+				if (closed) {
+					return;
+				}
+				reportGauge(entry.getValue(), entry.getKey());
+			}
+			for (Map.Entry<StringGauge, String> entry : stringGauges.entrySet()) {
 				if (closed) {
 					return;
 				}
@@ -130,8 +137,15 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 		send(name, String.valueOf(counter.getCount()));
 	}
 
-	private void reportGauge(final String name, final Gauge<?> gauge) {
-		Object value = gauge.getValue();
+	private void reportGauge(final String name, final StringGauge gauge) {
+		String value = gauge.getStringValue();
+		if (value != null) {
+			send(name, value);
+		}
+	}
+
+	private void reportGauge(final String name, final NumberGauge gauge) {
+		Number value = gauge.getNumberValue();
 		if (value != null) {
 			send(name, value.toString());
 		}

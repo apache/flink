@@ -19,7 +19,6 @@
 package org.apache.flink.metrics.datadog;
 
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
@@ -66,12 +65,7 @@ public class DatadogHttpClientTest {
 	@Test
 	public void serializeGauge() throws JsonProcessingException {
 
-		DGauge g = new DGauge(new Gauge<Number>() {
-			@Override
-			public Number getValue() {
-				return 1;
-			}
-		}, "testCounter", "localhost", tags);
+		DGauge g = new DGauge(() -> 1, "testCounter", "localhost", tags);
 
 		assertEquals(
 			"{\"metric\":\"testCounter\",\"type\":\"gauge\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
@@ -81,12 +75,7 @@ public class DatadogHttpClientTest {
 	@Test
 	public void serializeGaugeWithoutHost() throws JsonProcessingException {
 
-		DGauge g = new DGauge(new Gauge<Number>() {
-			@Override
-			public Number getValue() {
-				return 1;
-			}
-		}, "testCounter", null, tags);
+		DGauge g = new DGauge(() -> 1, "testCounter", null, tags);
 
 		assertEquals(
 			"{\"metric\":\"testCounter\",\"type\":\"gauge\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",

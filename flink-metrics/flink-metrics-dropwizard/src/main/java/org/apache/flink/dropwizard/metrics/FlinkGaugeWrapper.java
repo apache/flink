@@ -21,8 +21,11 @@ package org.apache.flink.dropwizard.metrics;
 import org.apache.flink.metrics.Gauge;
 
 /**
- * A wrapper that allows a Flink gauge to be used as a DropWizard gauge.
+ * A wrapper that allows a Flink {@link Gauge} to be used as a DropWizard number.
+ *
+ * @deprecated Use {@link FlinkNumberGaugeWrapper} or {@link FlinkStringGaugeWrapper} instead.
  */
+@Deprecated
 public class FlinkGaugeWrapper<T> implements com.codahale.metrics.Gauge<T> {
 
 	private final Gauge<T> gauge;
@@ -36,6 +39,7 @@ public class FlinkGaugeWrapper<T> implements com.codahale.metrics.Gauge<T> {
 		return this.gauge.getValue();
 	}
 
+	@Deprecated
 	public static <T> FlinkGaugeWrapper<T> fromGauge(Gauge<?> gauge) {
 		@SuppressWarnings("unchecked")
 		Gauge<T> typedGauge = (Gauge<T>) gauge;

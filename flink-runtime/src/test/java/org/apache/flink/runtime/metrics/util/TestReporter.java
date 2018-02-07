@@ -21,12 +21,12 @@ package org.apache.flink.runtime.metrics.util;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.reporter.AbstractReporter;
+import org.apache.flink.metrics.reporter.AbstractReporterV2;
 
 /**
  * No-op reporter implementation.
  */
-public class TestReporter extends AbstractReporter {
+public class TestReporter extends AbstractReporterV2 {
 
 	@Override
 	public void open(MetricConfig config) {}

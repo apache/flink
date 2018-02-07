@@ -16,29 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.metrics.datadog;
+package org.apache.flink.dropwizard.metrics;
 
 import org.apache.flink.metrics.NumberGauge;
 
-import java.util.List;
-
 /**
- * Mapping of number gauge between Flink and Datadog.
+ * A wrapper that allows a Flink {@link NumberGauge} to be used as a DropWizard number.
  */
-public class DGauge extends DMetric {
+public class FlinkNumberGaugeWrapper implements com.codahale.metrics.Gauge<Number> {
+
 	private final NumberGauge gauge;
 
-	public DGauge(NumberGauge g, String metricName, String host, List<String> tags) {
-		super(MetricType.gauge, metricName, host, tags);
-		gauge = g;
+	private FlinkNumberGaugeWrapper(NumberGauge gauge) {
+		this.gauge = gauge;
 	}
 
-	/**
-	 * Visibility of this method must not be changed
-	 * since we deliberately not map it to json object in a Datadog-defined format.
-	 */
 	@Override
-	public Number getMetricValue() {
-		return gauge.getNumberValue();
+	public Number getValue() {
+		return this.gauge.getNumberValue();
+	}
+
+	public static FlinkNumberGaugeWrapper fromGauge(NumberGauge gauge) {
+		return new FlinkNumberGaugeWrapper(gauge);
 	}
 }

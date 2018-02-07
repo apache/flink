@@ -20,13 +20,14 @@ package org.apache.flink.metrics.slf4j;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
-import org.apache.flink.metrics.reporter.AbstractReporter;
+import org.apache.flink.metrics.NumberGauge;
+import org.apache.flink.metrics.StringGauge;
+import org.apache.flink.metrics.reporter.AbstractReporterV2;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
@@ -38,13 +39,18 @@ import java.util.Map;
 /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via SLF4J {@link Logger}.
  */
-public class Slf4jReporter extends AbstractReporter implements Scheduled {
+public class Slf4jReporter extends AbstractReporterV2 implements Scheduled {
 	private static final Logger LOG = LoggerFactory.getLogger(Slf4jReporter.class);
 	private static final String lineSeparator = System.lineSeparator();
 
 	@VisibleForTesting
-	Map<Gauge<?>, String> getGauges() {
-		return gauges;
+	Map<NumberGauge, String> getNumberGauges() {
+		return numberGauges;
+	}
+
+	@VisibleForTesting
+	Map<StringGauge, String> getStringGauges() {
+		return stringGauges;
 	}
 
 	@VisibleForTesting
@@ -92,9 +98,14 @@ public class Slf4jReporter extends AbstractReporter implements Scheduled {
 			.append(lineSeparator)
 			.append("-- Gauges ---------------------------------------------------------------------")
 			.append(lineSeparator);
-		for (Map.Entry<Gauge<?>, String> metric : gauges.entrySet()) {
+		for (Map.Entry<NumberGauge, String> metric : numberGauges.entrySet()) {
 			builder
-				.append(metric.getValue()).append(": ").append(metric.getKey().getValue())
+				.append(metric.getValue()).append(": ").append(metric.getKey().getNumberValue())
+				.append(lineSeparator);
+		}
+		for (Map.Entry<StringGauge, String> metric : stringGauges.entrySet()) {
+			builder
+				.append(metric.getValue()).append(": ").append(metric.getKey().getStringValue())
 				.append(lineSeparator);
 		}
 

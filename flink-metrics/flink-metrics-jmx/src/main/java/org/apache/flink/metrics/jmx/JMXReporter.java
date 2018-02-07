@@ -20,12 +20,13 @@ package org.apache.flink.metrics.jmx;
 
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.NumberGauge;
+import org.apache.flink.metrics.StringGauge;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
@@ -169,8 +170,10 @@ public class JMXReporter implements MetricReporter {
 			return;
 		}
 
-		if (metric instanceof Gauge) {
-			jmxMetric = new JmxGauge((Gauge<?>) metric);
+		if (metric instanceof NumberGauge) {
+			jmxMetric = new JmxNumberGauge((NumberGauge) metric);
+		} else if (metric instanceof StringGauge) {
+			jmxMetric = new JmxStringGauge((StringGauge) metric);
 		} else if (metric instanceof Counter) {
 			jmxMetric = new JmxCounter((Counter) metric);
 		} else if (metric instanceof Histogram) {
@@ -327,23 +330,44 @@ public class JMXReporter implements MetricReporter {
 	}
 
 	/**
-	 * The MBean interface for an exposed gauge.
+	 * The MBean interface for an exposed {@link NumberGauge}.
 	 */
-	public interface JmxGaugeMBean extends MetricMBean {
-		Object getValue();
+	public interface JmxNumberGaugeMBean extends MetricMBean {
+		Number getValue();
 	}
 
-	private static class JmxGauge extends AbstractBean implements JmxGaugeMBean {
+	private static class JmxNumberGauge extends AbstractBean implements JmxNumberGaugeMBean {
 
-		private final Gauge<?> gauge;
+		private final NumberGauge gauge;
 
-		JmxGauge(Gauge<?> gauge) {
+		JmxNumberGauge(NumberGauge gauge) {
 			this.gauge = gauge;
 		}
 
 		@Override
-		public Object getValue() {
-			return gauge.getValue();
+		public Number getValue() {
+			return gauge.getNumberValue();
+		}
+	}
+
+	/**
+	 * The MBean interface for an exposed {@link StringGauge}.
+	 */
+	public interface JmxStringGaugeMBean extends MetricMBean {
+		String getValue();
+	}
+
+	private static class JmxStringGauge extends AbstractBean implements JmxStringGaugeMBean {
+
+		private final StringGauge gauge;
+
+		JmxStringGauge(StringGauge gauge) {
+			this.gauge = gauge;
+		}
+
+		@Override
+		public String getValue() {
+			return gauge.getStringValue();
 		}
 	}
 

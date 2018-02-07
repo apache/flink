@@ -24,13 +24,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.dropwizard.metrics.DropwizardMeterWrapper;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.StringGauge;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -180,12 +181,8 @@ public class ScheduledDropwizardReporterTest {
 				return null;
 			}
 		};
-		Gauge g = new Gauge() {
-			@Override
-			public Object getValue() {
-				return null;
-			}
-		};
+		NumberGauge ng = () -> 0;
+		StringGauge sg = () -> "hello";
 
 		rep.notifyOfAddedMetric(c, "counter", mp);
 		assertEquals(1, rep.getCounters().size());
@@ -199,9 +196,13 @@ public class ScheduledDropwizardReporterTest {
 		assertEquals(1, rep.getHistograms().size());
 		assertEquals(1, rep.registry.getHistograms().size());
 
-		rep.notifyOfAddedMetric(g, "gauge", mp);
-		assertEquals(1, rep.getGauges().size());
+		rep.notifyOfAddedMetric(ng, "numbergauge", mp);
+		assertEquals(1, rep.getNumberGauges().size());
 		assertEquals(1, rep.registry.getGauges().size());
+
+		rep.notifyOfAddedMetric(sg, "stringgauge", mp);
+		assertEquals(1, rep.getStringGauges().size());
+		assertEquals(2, rep.registry.getGauges().size());
 
 		rep.notifyOfRemovedMetric(c, "counter", mp);
 		assertEquals(0, rep.getCounters().size());
@@ -215,8 +216,12 @@ public class ScheduledDropwizardReporterTest {
 		assertEquals(0, rep.getHistograms().size());
 		assertEquals(0, rep.registry.getHistograms().size());
 
-		rep.notifyOfRemovedMetric(g, "gauge", mp);
-		assertEquals(0, rep.getGauges().size());
+		rep.notifyOfRemovedMetric(ng, "numbergauge", mp);
+		assertEquals(0, rep.getNumberGauges().size());
+		assertEquals(1, rep.registry.getGauges().size());
+
+		rep.notifyOfRemovedMetric(sg, "stringgauge", mp);
+		assertEquals(0, rep.getStringGauges().size());
 		assertEquals(0, rep.registry.getGauges().size());
 	}
 

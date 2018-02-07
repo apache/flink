@@ -25,6 +25,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
@@ -48,7 +49,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	private static final String HOST_VARIABLE = "<host>";
 
 	// Both Flink's Gauge and Meter values are taken as gauge in Datadog
-	private final Map<Gauge, DGauge> gauges = new ConcurrentHashMap<>();
+	private final Map<NumberGauge, DGauge> gauges = new ConcurrentHashMap<>();
 	private final Map<Counter, DCounter> counters = new ConcurrentHashMap<>();
 	private final Map<Meter, DMeter> meters = new ConcurrentHashMap<>();
 
@@ -69,8 +70,8 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		if (metric instanceof Counter) {
 			Counter c = (Counter) metric;
 			counters.put(c, new DCounter(c, name, host, tags));
-		} else if (metric instanceof Gauge) {
-			Gauge g = (Gauge) metric;
+		} else if (metric instanceof NumberGauge) {
+			NumberGauge g = (NumberGauge) metric;
 			gauges.put(g, new DGauge(g, name, host, tags));
 		} else if (metric instanceof Meter) {
 			Meter m = (Meter) metric;
@@ -88,7 +89,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
 		if (metric instanceof Counter) {
 			counters.remove(metric);
-		} else if (metric instanceof Gauge) {
+		} else if (metric instanceof NumberGauge) {
 			gauges.remove(metric);
 		} else if (metric instanceof Meter) {
 			meters.remove(metric);
@@ -118,7 +119,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	public void report() {
 		DatadogHttpRequest request = new DatadogHttpRequest();
 
-		for (Map.Entry<Gauge, DGauge> entry : gauges.entrySet()) {
+		for (Map.Entry<NumberGauge, DGauge> entry : gauges.entrySet()) {
 			DGauge g = entry.getValue();
 			try {
 				// Will throw exception if the Gauge is not of Number type

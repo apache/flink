@@ -20,9 +20,9 @@ package org.apache.flink.metrics.prometheus;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
@@ -114,21 +114,8 @@ public class PrometheusReporterTaskScopeTest {
 
 	@Test
 	public void gaugesCanBeAddedSeveralTimesIfTheyDifferInLabels() throws UnirestException {
-		Gauge<Integer> gauge1 = new Gauge<Integer>() {
-			@Override
-			public Integer getValue() {
-				return 3;
-			}
-		};
-		Gauge<Integer> gauge2 = new Gauge<Integer>() {
-			@Override
-			public Integer getValue() {
-				return 4;
-			}
-		};
-
-		taskMetricGroup1.gauge("my_gauge", gauge1);
-		taskMetricGroup2.gauge("my_gauge", gauge2);
+		taskMetricGroup1.register("my_gauge", () -> 3);
+		taskMetricGroup2.register("my_gauge", () -> 4);
 
 		assertThat(CollectorRegistry.defaultRegistry.getSampleValue("flink_taskmanager_job_task_my_gauge", LABEL_NAMES, labelValues1),
 			equalTo(3.));

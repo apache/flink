@@ -21,10 +21,10 @@ package org.apache.flink.metrics.prometheus;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
@@ -101,26 +101,12 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void gaugeIsReportedAsPrometheusGauge() throws UnirestException {
-		Gauge<Integer> testGauge = new Gauge<Integer>() {
-			@Override
-			public Integer getValue() {
-				return 1;
-			}
-		};
-
-		assertThatGaugeIsExported(testGauge, "testGauge", "1.0");
+		assertThatGaugeIsExported((NumberGauge) () -> 1, "testGauge", "1.0");
 	}
 
 	@Test
 	public void nullGaugeDoesNotBreakReporter() throws UnirestException {
-		Gauge<Integer> testGauge = new Gauge<Integer>() {
-			@Override
-			public Integer getValue() {
-				return null;
-			}
-		};
-
-		assertThatGaugeIsExported(testGauge, "testGauge", "0.0");
+		assertThatGaugeIsExported((NumberGauge) () -> null, "testGauge", "0.0");
 	}
 
 	@Test
@@ -183,45 +169,12 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void doubleGaugeIsConvertedCorrectly() {
-		assertThat(PrometheusReporter.gaugeFrom(new Gauge<Double>() {
-			@Override
-			public Double getValue() {
-				return 3.14;
-			}
-		}).get(), equalTo(3.14));
+		assertThat(PrometheusReporter.gaugeFrom(() -> 3.14).get(), equalTo(3.14));
 	}
 
 	@Test
 	public void shortGaugeIsConvertedCorrectly() {
-		assertThat(PrometheusReporter.gaugeFrom(new Gauge<Short>() {
-			@Override
-			public Short getValue() {
-				return 13;
-			}
-		}).get(), equalTo(13.));
-	}
-
-	@Test
-	public void booleanGaugeIsConvertedCorrectly() {
-		assertThat(PrometheusReporter.gaugeFrom(new Gauge<Boolean>() {
-			@Override
-			public Boolean getValue() {
-				return true;
-			}
-		}).get(), equalTo(1.));
-	}
-
-	/**
-	 * Prometheus only supports numbers, so report non-numeric gauges as 0.
-	 */
-	@Test
-	public void stringGaugeCannotBeConverted() {
-		assertThat(PrometheusReporter.gaugeFrom(new Gauge<String>() {
-			@Override
-			public String getValue() {
-				return "I am not a number";
-			}
-		}).get(), equalTo(0.));
+		assertThat(PrometheusReporter.gaugeFrom(() -> 13).get(), equalTo(13.));
 	}
 
 	@Test

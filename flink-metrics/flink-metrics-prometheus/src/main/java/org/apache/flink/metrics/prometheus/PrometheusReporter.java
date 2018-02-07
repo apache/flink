@@ -22,12 +22,12 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
@@ -160,7 +160,7 @@ public class PrometheusReporter implements MetricReporter {
 
 	private static Collector createCollector(Metric metric, List<String> dimensionKeys, List<String> dimensionValues, String scopedMetricName, String helpString) {
 		Collector collector;
-		if (metric instanceof Gauge || metric instanceof Counter || metric instanceof Meter) {
+		if (metric instanceof NumberGauge || metric instanceof Counter || metric instanceof Meter) {
 			collector = io.prometheus.client.Gauge
 				.build()
 				.name(scopedMetricName)
@@ -178,8 +178,8 @@ public class PrometheusReporter implements MetricReporter {
 	}
 
 	private static void addMetric(Metric metric, List<String> dimensionValues, Collector collector) {
-		if (metric instanceof Gauge) {
-			((io.prometheus.client.Gauge) collector).setChild(gaugeFrom((Gauge) metric), toArray(dimensionValues));
+		if (metric instanceof NumberGauge) {
+			((io.prometheus.client.Gauge) collector).setChild(gaugeFrom((NumberGauge) metric), toArray(dimensionValues));
 		} else if (metric instanceof Counter) {
 			((io.prometheus.client.Gauge) collector).setChild(gaugeFrom((Counter) metric), toArray(dimensionValues));
 		} else if (metric instanceof Meter) {
@@ -218,27 +218,16 @@ public class PrometheusReporter implements MetricReporter {
 	}
 
 	@VisibleForTesting
-	static io.prometheus.client.Gauge.Child gaugeFrom(Gauge gauge) {
+	static io.prometheus.client.Gauge.Child gaugeFrom(NumberGauge gauge) {
 		return new io.prometheus.client.Gauge.Child() {
 			@Override
 			public double get() {
-				final Object value = gauge.getValue();
+				final Number value = gauge.getNumberValue();
 				if (value == null) {
 					LOG.debug("Gauge {} is null-valued, defaulting to 0.", gauge);
 					return 0;
 				}
-				if (value instanceof Double) {
-					return (double) value;
-				}
-				if (value instanceof Number) {
-					return ((Number) value).doubleValue();
-				}
-				if (value instanceof Boolean) {
-					return ((Boolean) value) ? 1 : 0;
-				}
-				LOG.debug("Invalid type for Gauge {}: {}, only number types and booleans are supported by this reporter.",
-					gauge, value.getClass().getName());
-				return 0;
+				return value.doubleValue();
 			}
 		};
 	}
