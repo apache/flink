@@ -35,6 +35,7 @@ import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -49,13 +50,18 @@ import java.util.concurrent.TimeoutException;
  */
 public class JobTerminationHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> {
 
+	private final TerminationModeQueryParameter.TerminationMode defaultTerminationMode;
+
 	public JobTerminationHandler(
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
-			MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> messageHeaders) {
+			MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> messageHeaders,
+			TerminationModeQueryParameter.TerminationMode defaultTerminationMode) {
 		super(localRestAddress, leaderRetriever, timeout, headers, messageHeaders);
+
+		this.defaultTerminationMode = Preconditions.checkNotNull(defaultTerminationMode);
 	}
 
 	@Override
@@ -65,7 +71,7 @@ public class JobTerminationHandler extends AbstractRestHandler<RestfulGateway, E
 		final TerminationModeQueryParameter.TerminationMode terminationMode;
 
 		if (terminationModes.isEmpty()) {
-			terminationMode = TerminationModeQueryParameter.TerminationMode.CANCEL;
+			terminationMode = defaultTerminationMode;
 		} else {
 			// picking the first termination mode value
 			terminationMode = terminationModes.get(0);
