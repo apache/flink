@@ -135,7 +135,7 @@ public class JobSubmitTest {
 			JobGraph jg = new JobGraph("test job", jobVertex);
 
 			// add a reference to some non-existing BLOB to the job graph as a dependency
-			jg.addBlob(new PermanentBlobKey());
+			jg.addUserJarBlobKey(new PermanentBlobKey());
 
 			// submit the job
 			Future<Object> submitFuture = jmGateway.ask(

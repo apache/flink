@@ -27,7 +27,6 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -80,7 +79,6 @@ public class TaskManagerServices {
 	private final IOManager ioManager;
 	private final NetworkEnvironment networkEnvironment;
 	private final BroadcastVariableManager broadcastVariableManager;
-	private final FileCache fileCache;
 	private final TaskSlotTable taskSlotTable;
 	private final JobManagerTable jobManagerTable;
 	private final JobLeaderService jobLeaderService;
@@ -92,7 +90,6 @@ public class TaskManagerServices {
 		IOManager ioManager,
 		NetworkEnvironment networkEnvironment,
 		BroadcastVariableManager broadcastVariableManager,
-		FileCache fileCache,
 		TaskSlotTable taskSlotTable,
 		JobManagerTable jobManagerTable,
 		JobLeaderService jobLeaderService,
@@ -103,7 +100,6 @@ public class TaskManagerServices {
 		this.ioManager = Preconditions.checkNotNull(ioManager);
 		this.networkEnvironment = Preconditions.checkNotNull(networkEnvironment);
 		this.broadcastVariableManager = Preconditions.checkNotNull(broadcastVariableManager);
-		this.fileCache = Preconditions.checkNotNull(fileCache);
 		this.taskSlotTable = Preconditions.checkNotNull(taskSlotTable);
 		this.jobManagerTable = Preconditions.checkNotNull(jobManagerTable);
 		this.jobLeaderService = Preconditions.checkNotNull(jobLeaderService);
@@ -132,10 +128,6 @@ public class TaskManagerServices {
 
 	public BroadcastVariableManager getBroadcastVariableManager() {
 		return broadcastVariableManager;
-	}
-
-	public FileCache getFileCache() {
-		return fileCache;
 	}
 
 	public TaskSlotTable getTaskSlotTable() {
@@ -185,12 +177,6 @@ public class TaskManagerServices {
 
 		try {
 			networkEnvironment.shutdown();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
-
-		try {
-			fileCache.shutdown();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
@@ -253,8 +239,6 @@ public class TaskManagerServices {
 
 		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
-		final FileCache fileCache = new FileCache(taskManagerServicesConfiguration.getTmpDirPaths());
-
 		final List<ResourceProfile> resourceProfiles = new ArrayList<>(taskManagerServicesConfiguration.getNumberOfSlots());
 
 		for (int i = 0; i < taskManagerServicesConfiguration.getNumberOfSlots(); i++) {
@@ -290,7 +274,6 @@ public class TaskManagerServices {
 			ioManager,
 			network,
 			broadcastVariableManager,
-			fileCache,
 			taskSlotTable,
 			jobManagerTable,
 			jobLeaderService,

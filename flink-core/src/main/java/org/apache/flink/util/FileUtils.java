@@ -18,6 +18,8 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -312,6 +314,42 @@ public final class FileUtils {
 		}
 		else {
 			return false;
+		}
+	}
+
+	/**
+	 * Copies all files from source to target and sets executable flag. Paths might be on different systems.
+	 * @param sourcePath source path to copy from
+	 * @param targetPath target path to copy to
+	 * @param executable if target file should be executable
+	 * @throws IOException if the copy fails
+	 */
+	public static void copy(Path sourcePath, Path targetPath, boolean executable) throws IOException {
+		// we unwrap the file system to get raw streams without safety net
+		FileSystem sFS = FileSystem.getUnguardedFileSystem(sourcePath.toUri());
+		FileSystem tFS = FileSystem.getUnguardedFileSystem(targetPath.toUri());
+		if (!tFS.exists(targetPath)) {
+			if (sFS.getFileStatus(sourcePath).isDir()) {
+				tFS.mkdirs(targetPath);
+				FileStatus[] contents = sFS.listStatus(sourcePath);
+				for (FileStatus content : contents) {
+					String distPath = content.getPath().toString();
+					if (content.isDir()) {
+						if (distPath.endsWith("/")) {
+							distPath = distPath.substring(0, distPath.length() - 1);
+						}
+					}
+					String localPath = targetPath.toString() + distPath.substring(distPath.lastIndexOf("/"));
+					copy(content.getPath(), new Path(localPath), executable);
+				}
+			} else {
+				try (FSDataOutputStream lfsOutput = tFS.create(targetPath, FileSystem.WriteMode.NO_OVERWRITE); FSDataInputStream fsInput = sFS.open(sourcePath)) {
+					IOUtils.copyBytes(fsInput, lfsOutput);
+					//noinspection ResultOfMethodCallIgnored
+					new File(targetPath.toString()).setExecutable(executable);
+				} catch (IOException ignored) {
+				}
+			}
 		}
 	}
 

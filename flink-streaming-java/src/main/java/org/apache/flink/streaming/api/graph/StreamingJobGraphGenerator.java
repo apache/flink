@@ -158,7 +158,7 @@ public class StreamingJobGraphGenerator {
 
 		// add registered cache file into job configuration
 		for (Tuple2<String, DistributedCache.DistributedCacheEntry> e : streamGraph.getEnvironment().getCachedFiles()) {
-			DistributedCache.writeFileInfoToConfig(e.f0, e.f1, jobGraph.getJobConfiguration());
+			jobGraph.addUserArtifact(e.f0, e.f1);
 		}
 
 		// set the ExecutionConfig last when it has been finalized
