@@ -43,7 +43,7 @@ public class BufferBuilderTestUtils {
 		BufferBuilder bufferBuilder = new BufferBuilder(
 			MemorySegmentFactory.allocateUnpooledSegment(size),
 			FreeingBufferRecycler.INSTANCE);
-		bufferBuilder.append(ByteBuffer.allocate(dataSize));
+		bufferBuilder.appendAndCommit(ByteBuffer.allocate(dataSize));
 		return bufferBuilder;
 	}
 

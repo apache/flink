@@ -449,7 +449,7 @@ public class LocalInputChannelTest {
 			if (channelIndexes.size() > 0) {
 				final int channelIndex = channelIndexes.remove(0);
 				BufferBuilder bufferBuilder = bufferProvider.requestBufferBuilderBlocking();
-				bufferBuilder.append(ByteBuffer.wrap(new byte[4]));
+				bufferBuilder.appendAndCommit(ByteBuffer.wrap(new byte[4]));
 				bufferBuilder.finish();
 				return new BufferConsumerAndChannel(bufferBuilder.createBufferConsumer(), channelIndex);
 			}

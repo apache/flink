@@ -44,7 +44,7 @@ public class BufferBuilderAndConsumerTest {
 		BufferBuilder bufferBuilder = createBufferBuilder();
 		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 
-		assertEquals(3 * Integer.BYTES, bufferBuilder.append(toByteBuffer(1, 2, 3)));
+		assertEquals(3 * Integer.BYTES, bufferBuilder.appendAndCommit(toByteBuffer(1, 2, 3)));
 
 		Buffer buffer = bufferConsumer.build();
 		assertFalse(buffer.isRecycled());
@@ -61,7 +61,7 @@ public class BufferBuilderAndConsumerTest {
 		int[] intsToWrite = new int[] {0, 1, 2, 3, 42};
 		ByteBuffer bytesToWrite = toByteBuffer(intsToWrite);
 
-		assertEquals(bytesToWrite.limit(), bufferBuilder.append(bytesToWrite));
+		assertEquals(bytesToWrite.limit(), bufferBuilder.appendAndCommit(bytesToWrite));
 
 		assertEquals(bytesToWrite.limit(), bytesToWrite.position());
 		assertFalse(bufferBuilder.isFull());
@@ -74,9 +74,25 @@ public class BufferBuilderAndConsumerTest {
 		BufferBuilder bufferBuilder = createBufferBuilder();
 		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 
+		bufferBuilder.appendAndCommit(toByteBuffer(0, 1));
+		bufferBuilder.appendAndCommit(toByteBuffer(2));
+		bufferBuilder.appendAndCommit(toByteBuffer(3, 42));
+
+		assertContent(bufferConsumer, 0, 1, 2, 3, 42);
+	}
+
+	@Test
+	public void multipleNotCommittedAppends() {
+		BufferBuilder bufferBuilder = createBufferBuilder();
+		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
+
 		bufferBuilder.append(toByteBuffer(0, 1));
 		bufferBuilder.append(toByteBuffer(2));
 		bufferBuilder.append(toByteBuffer(3, 42));
+
+		assertContent(bufferConsumer);
+
+		bufferBuilder.commit();
 
 		assertContent(bufferConsumer, 0, 1, 2, 3, 42);
 	}
@@ -87,14 +103,14 @@ public class BufferBuilderAndConsumerTest {
 		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 		ByteBuffer bytesToWrite = toByteBuffer(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 42);
 
-		assertEquals(BUFFER_SIZE, bufferBuilder.append(bytesToWrite));
+		assertEquals(BUFFER_SIZE, bufferBuilder.appendAndCommit(bytesToWrite));
 
 		assertTrue(bufferBuilder.isFull());
 		assertContent(bufferConsumer, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 
 		bufferBuilder = createBufferBuilder();
 		bufferConsumer = bufferBuilder.createBufferConsumer();
-		assertEquals(Integer.BYTES, bufferBuilder.append(bytesToWrite));
+		assertEquals(Integer.BYTES, bufferBuilder.appendAndCommit(bytesToWrite));
 
 		assertFalse(bufferBuilder.isFull());
 		assertContent(bufferConsumer, 42);
@@ -112,18 +128,18 @@ public class BufferBuilderAndConsumerTest {
 		BufferBuilder bufferBuilder = createBufferBuilder();
 		BufferConsumer bufferConsumer1 = bufferBuilder.createBufferConsumer();
 
-		bufferBuilder.append(toByteBuffer(0, 1));
+		bufferBuilder.appendAndCommit(toByteBuffer(0, 1));
 
 		BufferConsumer bufferConsumer2 = bufferConsumer1.copy();
 
-		bufferBuilder.append(toByteBuffer(2));
+		bufferBuilder.appendAndCommit(toByteBuffer(2));
 
 		assertContent(bufferConsumer1, 0, 1, 2);
 		assertContent(bufferConsumer2, 0, 1, 2);
 
 		BufferConsumer bufferConsumer3 = bufferConsumer1.copy();
 
-		bufferBuilder.append(toByteBuffer(3, 42));
+		bufferBuilder.appendAndCommit(toByteBuffer(3, 42));
 
 		BufferConsumer bufferConsumer4 = bufferConsumer1.copy();
 
@@ -144,19 +160,19 @@ public class BufferBuilderAndConsumerTest {
 	public void buildingBufferMultipleTimes() {
 		BufferBuilder bufferBuilder = createBufferBuilder();
 		try (BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer()) {
-			bufferBuilder.append(toByteBuffer(0, 1));
-			bufferBuilder.append(toByteBuffer(2));
+			bufferBuilder.appendAndCommit(toByteBuffer(0, 1));
+			bufferBuilder.appendAndCommit(toByteBuffer(2));
 
 			assertContent(bufferConsumer, 0, 1, 2);
 
-			bufferBuilder.append(toByteBuffer(3, 42));
-			bufferBuilder.append(toByteBuffer(44));
+			bufferBuilder.appendAndCommit(toByteBuffer(3, 42));
+			bufferBuilder.appendAndCommit(toByteBuffer(44));
 
 			assertContent(bufferConsumer, 3, 42, 44);
 
 			ArrayList<Integer> originalValues = new ArrayList<>();
 			while (!bufferBuilder.isFull()) {
-				bufferBuilder.append(toByteBuffer(1337));
+				bufferBuilder.appendAndCommit(toByteBuffer(1337));
 				originalValues.add(1337);
 			}
 
@@ -184,7 +200,7 @@ public class BufferBuilderAndConsumerTest {
 		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 
 		for (int i = 0; i < writes; i++) {
-			assertEquals(Integer.BYTES, bufferBuilder.append(toByteBuffer(42)));
+			assertEquals(Integer.BYTES, bufferBuilder.appendAndCommit(toByteBuffer(42)));
 		}
 
 		assertFalse(bufferBuilder.isFinished());

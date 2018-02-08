@@ -61,6 +61,15 @@ public class BufferBuilder {
 	}
 
 	/**
+	 * Same as {@link #append(ByteBuffer)} but additionally {@link #commit()} the appending.
+	 */
+	public int appendAndCommit(ByteBuffer source) {
+		int writtenBytes = append(source);
+		commit();
+		return writtenBytes;
+	}
+
+	/**
 	 * Append as many data as possible from {@code source}. Not everything might be copied if there is not enough
 	 * space in the underlying {@link MemorySegment}
 	 *
@@ -79,6 +88,14 @@ public class BufferBuilder {
 	}
 
 	/**
+	 * Make the change visible to the readers. This is costly operation (volatile access) thus in case of bulk writes
+	 * it's better to commit them all together instead one by one.
+	 */
+	public void commit() {
+		positionMarker.commit();
+	}
+
+	/**
 	 * Mark this {@link BufferBuilder} and associated {@link BufferConsumer} as finished - no new data writes will be
 	 * allowed.
 	 *
@@ -87,6 +104,7 @@ public class BufferBuilder {
 	public int finish() {
 		checkState(!isFinished());
 		positionMarker.markFinished();
+		commit();
 		return getWrittenBytes();
 	}
 
@@ -138,6 +156,8 @@ public class BufferBuilder {
 	 *
 	 * <p>Writer ({@link BufferBuilder}) and reader ({@link BufferConsumer}) caches must be implemented independently
 	 * of one another - for example the cached values can not accidentally leak from one to another.
+	 *
+	 * <p>Remember to commit the {@link SettablePositionMarker} to make the changes visible.
 	 */
 	private static class SettablePositionMarker implements PositionMarker {
 		private volatile int position = 0;
@@ -174,6 +194,9 @@ public class BufferBuilder {
 
 		public void set(int value) {
 			cachedPosition = value;
+		}
+
+		public void commit() {
 			position = cachedPosition;
 		}
 	}

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 
@@ -94,8 +93,11 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		dataBuffer = serializationBuffer.wrapAsByteBuffer();
 
 		// Copy from intermediate buffers to current target memory segment
-		copyToTargetBufferFrom(lengthBuffer);
-		copyToTargetBufferFrom(dataBuffer);
+		if (targetBuffer != null) {
+			targetBuffer.append(lengthBuffer);
+			targetBuffer.append(dataBuffer);
+			targetBuffer.commit();
+		}
 
 		return getSerializationResult();
 	}
@@ -104,12 +106,19 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	public SerializationResult setNextBufferBuilder(BufferBuilder buffer) throws IOException {
 		targetBuffer = buffer;
 
+		boolean mustCommit = false;
 		if (lengthBuffer.hasRemaining()) {
-			copyToTargetBufferFrom(lengthBuffer);
+			targetBuffer.append(lengthBuffer);
+			mustCommit = true;
 		}
 
 		if (dataBuffer.hasRemaining()) {
-			copyToTargetBufferFrom(dataBuffer);
+			targetBuffer.append(dataBuffer);
+			mustCommit = true;
+		}
+
+		if (mustCommit) {
+			targetBuffer.commit();
 		}
 
 		SerializationResult result = getSerializationResult();
@@ -122,19 +131,6 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		}
 
 		return result;
-	}
-
-	/**
-	 * Copies as many bytes as possible from the given {@link ByteBuffer} to the {@link MemorySegment} of the target
-	 * {@link Buffer} and advances the current position by the number of written bytes.
-	 *
-	 * @param source the {@link ByteBuffer} to copy data from
-	 */
-	private void copyToTargetBufferFrom(ByteBuffer source) {
-		if (targetBuffer == null) {
-			return;
-		}
-		targetBuffer.append(source);
 	}
 
 	private SerializationResult getSerializationResult() {
