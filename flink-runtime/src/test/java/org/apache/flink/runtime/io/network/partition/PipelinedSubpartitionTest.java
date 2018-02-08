@@ -131,7 +131,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 			assertEquals(0, availablityListener.getNumNotifications());
 
 			BufferBuilder bufferBuilder = createBufferBuilder();
-			bufferBuilder.append(ByteBuffer.allocate(1024));
+			bufferBuilder.appendAndCommit(ByteBuffer.allocate(1024));
 			subpartition.add(bufferBuilder.createBufferConsumer());
 
 			assertNextBuffer(readView, 1024, false, 1);
@@ -360,7 +360,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 					next++;
 				}
 
-				checkState(bufferBuilder.append(ByteBuffer.wrap(segment.getArray())) == segmentSize);
+				checkState(bufferBuilder.appendAndCommit(ByteBuffer.wrap(segment.getArray())) == segmentSize);
 				bufferBuilder.finish();
 
 				numberOfBuffers++;
