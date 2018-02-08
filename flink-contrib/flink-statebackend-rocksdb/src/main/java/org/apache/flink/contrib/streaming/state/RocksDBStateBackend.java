@@ -300,7 +300,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	@Override
 	public RocksDBStateBackend configure(Configuration config) {
 		return new RocksDBStateBackend(this, config);
-        }
+	}
 
 	// ------------------------------------------------------------------------
 	//  State backend methods

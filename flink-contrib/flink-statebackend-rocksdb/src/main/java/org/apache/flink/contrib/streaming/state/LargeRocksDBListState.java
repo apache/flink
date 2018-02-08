@@ -40,6 +40,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 
@@ -106,15 +107,17 @@ public class LargeRocksDBListState<K, N, V>
 
 	@Override
 	public void add(V value) throws IOException {
-		Integer index = this.indexState.value();
-		if (index == null) {
-			index = 0;
-		}
-		try {
-			put(index++, value);
-			this.indexState.update(index);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while adding data to RocksDB", e);
+		if (value != null) {
+			Integer index = this.indexState.value();
+			if (index == null) {
+				index = 0;
+			}
+			try {
+				put(index++, value);
+				this.indexState.update(index);
+			} catch (Exception e) {
+				throw new RuntimeException("Error while adding data to RocksDB", e);
+			}
 		}
 	}
 
@@ -174,6 +177,21 @@ public class LargeRocksDBListState<K, N, V>
 	public void clear() {
 		super.clear();
 		this.indexState.clear();
+	}
+
+	@Override
+	public void update(List<V> list) throws Exception {
+		clear();
+		addAll(list);
+	}
+
+	@Override
+	public void addAll(List<V> list) throws Exception {
+		if (list != null) {
+			for (V value : list) {
+				add(value);
+			}
+		}
 	}
 
 }
