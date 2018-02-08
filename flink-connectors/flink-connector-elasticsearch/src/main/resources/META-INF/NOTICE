@@ -19,6 +19,10 @@ the Apache Software License 2.0
   - org.apache.lucene : lucene-spatial version 4.10.4
   - org.apache.lucene : lucene-suggest version 4.10.4
   - com.spatial4j : spatial4j version 0.4.1
+  - com.fasterxml.jackson.core : jackson-core version 2.5.3
+  - com.fasterxml.jackson.dataformat : jackson-dataformat-cbor version 2.5.3
+  - com.fasterxml.jackson.dataformat : jackson-dataformat-cbor version 2.5.3
+  - com.fasterxml.jackson.dataformat : jackson-dataformat-cbor version 2.5.3
   - org.joda : joda-convert (copied classes)
 
 ===================================
