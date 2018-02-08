@@ -28,8 +28,8 @@ the Apache Software License 2.0
   - com.spatial4j : spatial4j version 0.5
   - com.twitter : chill-java version 0.7.4
   - com.fasterxml.jackson.core : jackson-core version 2.6.6
-  - com.fasterxml.jackson.dataformat : jackson-dataformat-cbor version 2.6.6
-  - com.fasterxml.jackson.dataformat : jackson-dataformat-cbor version 2.6.6
+  - com.fasterxml.jackson.dataformat : jackson-dataformat-smile version 2.6.6
+  - com.fasterxml.jackson.dataformat : jackson-dataformat-yaml version 2.6.6
   - com.fasterxml.jackson.dataformat : jackson-dataformat-cbor version 2.6.6
   - com.tdunning : t-digest version 3.0
   - io.netty : netty version 3.10.5.Final

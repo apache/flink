@@ -27,8 +27,8 @@ the Apache Software License 2.0
   - org.apache.httpcomponents : httpcore-nio version 4.4.5
   - com.carrotsearch : hppc version 0.7.1
   - com.fasterxml.jackson.core : jackson-core version 2.8.1
-  - com.fasterxml.jackson.dataformat : jackson-dataformat-cbor version 2.8.1
-  - com.fasterxml.jackson.dataformat : jackson-dataformat-cbor version 2.8.1
+  - com.fasterxml.jackson.dataformat : jackson-dataformat-smile version 2.8.1
+  - com.fasterxml.jackson.dataformat : jackson-dataformat-yaml version 2.8.1
   - com.fasterxml.jackson.dataformat : jackson-dataformat-cbor version 2.8.1
   - com.tdunning : t-digest version 3.0
   - io.netty : netty version 3.10.6.Final
