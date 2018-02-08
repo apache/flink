@@ -91,4 +91,115 @@ under the License.
 
 	</dependencies>
 
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<artifactSet>
+								<includes>
+									<include>*:*</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>com.carrotsearch</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.com.carrotsearch</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.fasterxml</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.com.fasterxml</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.com.google</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.ning</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.com.ning</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.spatial4j</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.com.spatial4j</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.tdunning</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.com.tdunning</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.twitter</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.com.twitter</shadedPattern>
+								</relocation>
+
+								<relocation>
+									<pattern>org.apache</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.org.apache</shadedPattern>
+									<excludes>
+										<!-- keep flink classes as they are (exceptions as above) -->
+										<exclude>org.apache.flink.**</exclude>
+										<exclude>org.apache.log4j.**</exclude> <!-- provided -->
+									</excludes>
+								</relocation>
+
+								<relocation>
+									<pattern>org.jboss</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.org.jboss</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.joda</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.org.joda</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.HdrHistogram</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.org.HdrHistogram</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.tartarus</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.org.tartarus</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.yaml</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch2.shaded.org.yaml</shadedPattern>
+								</relocation>
+
+							</relocations>
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>log4j.properties</exclude>
+										<exclude>config/favicon.ico</exclude>
+										<exclude>mozilla/**</exclude>
+										<exclude>META-INF/maven/com*/**</exclude>
+										<exclude>META-INF/maven/io*/**</exclude>
+										<exclude>META-INF/maven/joda*/**</exclude>
+										<exclude>META-INF/maven/net*/**</exclude>
+										<exclude>META-INF/maven/org.an*/**</exclude>
+										<exclude>META-INF/maven/org.apache.h*/**</exclude>
+										<exclude>META-INF/maven/org.apache.commons/**</exclude>
+										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
+										<exclude>META-INF/maven/org.apache.logging*/**</exclude>
+										<exclude>META-INF/maven/org.e*/**</exclude>
+										<exclude>META-INF/maven/org.h*/**</exclude>
+										<exclude>META-INF/maven/org.j*/**</exclude>
+										<exclude>META-INF/maven/org.y*/**</exclude>
+									</excludes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
 </project>

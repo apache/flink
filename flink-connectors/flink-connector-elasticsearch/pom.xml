@@ -93,6 +93,89 @@ under the License.
 					<rerunFailingTestsCount>3</rerunFailingTestsCount>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<artifactSet>
+								<includes>
+									<include>*:*</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<!-- elasticsearch 1.x already shades this but forgets the service file -->
+								<relocation>
+									<pattern>com.fasterxml.jackson</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch.shaded.org.elasticsearch.common.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.spatial4j</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch.shaded.com.spatial4j</shadedPattern>
+								</relocation>
+
+								<relocation>
+									<pattern>org.apache</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch.shaded.org.apache</shadedPattern>
+									<excludes>
+										<!-- keep flink classes as they are (exceptions as above) -->
+										<exclude>org.apache.flink.**</exclude>
+										<exclude>org.apache.log4j.**</exclude> <!-- provided -->
+									</excludes>
+								</relocation>
+
+								<relocation>
+									<pattern>org.antlr</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch.shaded.org.antlr</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.joda</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch.shaded.org.joda</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.tartarus</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch.shaded.org.tartarus</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.yaml</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch.shaded.org.yaml</shadedPattern>
+								</relocation>
+
+							</relocations>
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>log4j.properties</exclude>
+										<exclude>config/favicon.ico</exclude>
+										<exclude>mozilla/**</exclude>
+										<exclude>META-INF/maven/com*/**</exclude>
+										<exclude>META-INF/maven/io*/**</exclude>
+										<exclude>META-INF/maven/joda*/**</exclude>
+										<exclude>META-INF/maven/net*/**</exclude>
+										<exclude>META-INF/maven/org.an*/**</exclude>
+										<exclude>META-INF/maven/org.apache.h*/**</exclude>
+										<exclude>META-INF/maven/org.apache.commons/**</exclude>
+										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
+										<exclude>META-INF/maven/org.apache.logging*/**</exclude>
+										<exclude>META-INF/maven/org.e*/**</exclude>
+										<exclude>META-INF/maven/org.h*/**</exclude>
+										<exclude>META-INF/maven/org.j*/**</exclude>
+										<exclude>META-INF/maven/org.y*/**</exclude>
+									</excludes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 
