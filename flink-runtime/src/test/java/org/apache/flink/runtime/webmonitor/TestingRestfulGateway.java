@@ -26,6 +26,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
@@ -42,6 +43,8 @@ import java.util.function.Supplier;
  */
 public class TestingRestfulGateway implements RestfulGateway {
 
+	static final Function<JobID, CompletableFuture<Acknowledge>> DEFAULT_CANCEL_JOB_FUNCTION = jobId -> CompletableFuture.completedFuture(Acknowledge.get());
+	static final Function<JobID, CompletableFuture<Acknowledge>> DEFAULT_STOP_JOB_FUNCTION = jobId -> CompletableFuture.completedFuture(Acknowledge.get());
 	static final Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> DEFAULT_REQUEST_JOB_FUNCTION = jobId -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	static final Function<JobID, CompletableFuture<JobStatus>> DEFAULT_REQUEST_JOB_STATUS_FUNCTION = jobId -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	static final Supplier<CompletableFuture<MultipleJobsDetails>> DEFAULT_REQUEST_MULTIPLE_JOB_DETAILS_SUPPLIER = () -> CompletableFuture.completedFuture(new MultipleJobsDetails(Collections.emptyList()));
@@ -56,6 +59,10 @@ public class TestingRestfulGateway implements RestfulGateway {
 	protected String hostname;
 
 	protected String restAddress;
+
+	protected Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction;
+
+	protected Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction;
 
 	protected Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction;
 
@@ -76,6 +83,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 			LOCALHOST,
 			LOCALHOST,
 			LOCALHOST,
+			DEFAULT_CANCEL_JOB_FUNCTION,
+			DEFAULT_STOP_JOB_FUNCTION,
 			DEFAULT_REQUEST_JOB_FUNCTION,
 			DEFAULT_REQUEST_JOB_STATUS_FUNCTION,
 			DEFAULT_REQUEST_MULTIPLE_JOB_DETAILS_SUPPLIER,
@@ -89,6 +98,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 			String address,
 			String hostname,
 			String restAddress,
+			Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction,
+			Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction,
 			Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction,
 			Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction,
 			Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier,
@@ -99,6 +110,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 		this.address = address;
 		this.hostname = hostname;
 		this.restAddress = restAddress;
+		this.cancelJobFunction = cancelJobFunction;
+		this.stopJobFunction = stopJobFunction;
 		this.requestJobFunction = requestJobFunction;
 		this.requestJobStatusFunction = requestJobStatusFunction;
 		this.requestMultipleJobDetailsSupplier = requestMultipleJobDetailsSupplier;
@@ -106,6 +119,16 @@ public class TestingRestfulGateway implements RestfulGateway {
 		this.requestMetricQueryServicePathsSupplier = requestMetricQueryServicePathsSupplier;
 		this.requestTaskManagerMetricQueryServicePathsSupplier = requestTaskManagerMetricQueryServicePathsSupplier;
 		this.requestOperatorBackPressureStatsFunction = requestOperatorBackPressureStatsFunction;
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> cancelJob(JobID jobId, Time timeout) {
+		return cancelJobFunction.apply(jobId);
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> stopJob(JobID jobId, Time timeout) {
+		return stopJobFunction.apply(jobId);
 	}
 
 	@Override
@@ -169,22 +192,26 @@ public class TestingRestfulGateway implements RestfulGateway {
 		private String address = LOCALHOST;
 		private String hostname = LOCALHOST;
 		private String restAddress = LOCALHOST;
+		private Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction;
+		private Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction;
 		private Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction;
 		private Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction;
 		private Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier;
 		private Supplier<CompletableFuture<ClusterOverview>> requestClusterOverviewSupplier;
 		private Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServicePathsSupplier;
 		private Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServicePathsSupplier;
-		private BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOeratorBackPressureStatsFunction;
+		private BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction;
 
 		public Builder() {
+			cancelJobFunction = DEFAULT_CANCEL_JOB_FUNCTION;
+			stopJobFunction = DEFAULT_STOP_JOB_FUNCTION;
 			requestJobFunction = DEFAULT_REQUEST_JOB_FUNCTION;
 			requestJobStatusFunction = DEFAULT_REQUEST_JOB_STATUS_FUNCTION;
 			requestMultipleJobDetailsSupplier = DEFAULT_REQUEST_MULTIPLE_JOB_DETAILS_SUPPLIER;
 			requestClusterOverviewSupplier = DEFAULT_REQUEST_CLUSTER_OVERVIEW_SUPPLIER;
 			requestMetricQueryServicePathsSupplier = DEFAULT_REQUEST_METRIC_QUERY_SERVICE_PATHS_SUPPLIER;
 			requestTaskManagerMetricQueryServicePathsSupplier = DEFAULT_REQUEST_TASK_MANAGER_METRIC_QUERY_SERVICE_PATHS_SUPPLIER;
-			requestOeratorBackPressureStatsFunction = DEFAULT_REQUEST_OPERATOR_BACK_PRESSURE_STATS_SUPPLIER;
+			requestOperatorBackPressureStatsFunction = DEFAULT_REQUEST_OPERATOR_BACK_PRESSURE_STATS_SUPPLIER;
 		}
 
 		public Builder setAddress(String address) {
@@ -232,13 +259,35 @@ public class TestingRestfulGateway implements RestfulGateway {
 			return this;
 		}
 
-		public Builder setRequestOeratorBackPressureStatsFunction(BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOeratorBackPressureStatsFunction) {
-			this.requestOeratorBackPressureStatsFunction = requestOeratorBackPressureStatsFunction;
+		public Builder setRequestOperatorBackPressureStatsFunction(BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOeratorBackPressureStatsFunction) {
+			this.requestOperatorBackPressureStatsFunction = requestOeratorBackPressureStatsFunction;
+			return this;
+		}
+
+		public Builder setCancelJobFunction(Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction) {
+			this.cancelJobFunction = cancelJobFunction;
+			return this;
+		}
+
+		public Builder setStopJobFunction(Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction) {
+			this.stopJobFunction = stopJobFunction;
 			return this;
 		}
 
 		public TestingRestfulGateway build() {
-			return new TestingRestfulGateway(address, hostname, restAddress, requestJobFunction, requestJobStatusFunction, requestMultipleJobDetailsSupplier, requestClusterOverviewSupplier, requestMetricQueryServicePathsSupplier, requestTaskManagerMetricQueryServicePathsSupplier, requestOeratorBackPressureStatsFunction);
+			return new TestingRestfulGateway(
+				address,
+				hostname,
+				restAddress,
+				cancelJobFunction,
+				stopJobFunction,
+				requestJobFunction,
+				requestJobStatusFunction,
+				requestMultipleJobDetailsSupplier,
+				requestClusterOverviewSupplier,
+				requestMetricQueryServicePathsSupplier,
+				requestTaskManagerMetricQueryServicePathsSupplier,
+				requestOperatorBackPressureStatsFunction);
 		}
 	}
 }

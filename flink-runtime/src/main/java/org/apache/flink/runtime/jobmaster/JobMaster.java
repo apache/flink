@@ -816,6 +816,24 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	//----------------------------------------------------------------------------------------------
 
 	@Override
+	public CompletableFuture<Acknowledge> cancelJob(JobID jobId, Time timeout) {
+		if (jobGraph.getJobID().equals(jobId)) {
+			return cancel(timeout);
+		} else {
+			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
+		}
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> stopJob(JobID jobId, Time timeout) {
+		if (jobGraph.getJobID().equals(jobId)) {
+			return stop(timeout);
+		} else {
+			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
+		}
+	}
+
+	@Override
 	public CompletableFuture<String> requestRestAddress(Time timeout) {
 		return restAddressFuture;
 	}
