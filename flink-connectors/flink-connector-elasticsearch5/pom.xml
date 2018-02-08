@@ -225,6 +225,10 @@ under the License.
 									<pattern>org.yaml</pattern>
 									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.org.yaml</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>joptsimple</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.joptsimple</shadedPattern>
+								</relocation>
 							</relocations>
 							<filters>
 								<filter>
