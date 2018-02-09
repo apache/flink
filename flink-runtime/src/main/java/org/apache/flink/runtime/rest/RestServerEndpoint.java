@@ -47,6 +47,7 @@ import javax.net.ssl.SSLEngine;
 
 import java.io.Serializable;
 import java.net.InetSocketAddress;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -66,6 +67,7 @@ public abstract class RestServerEndpoint {
 	private final String configuredAddress;
 	private final int configuredPort;
 	private final SSLEngine sslEngine;
+	private final Path uploadDir;
 
 	private ServerBootstrap bootstrap;
 	private Channel serverChannel;
@@ -78,6 +80,7 @@ public abstract class RestServerEndpoint {
 		this.configuredAddress = configuration.getEndpointBindAddress();
 		this.configuredPort = configuration.getEndpointBindPort();
 		this.sslEngine = configuration.getSslEngine();
+		this.uploadDir = configuration.getUploadDir();
 
 		this.restAddress = null;
 
@@ -141,6 +144,7 @@ public abstract class RestServerEndpoint {
 
 					ch.pipeline()
 						.addLast(new HttpServerCodec())
+						.addLast(new FileUploadHandler(uploadDir))
 						.addLast(new HttpObjectAggregator(MAX_REQUEST_SIZE_BYTES))
 						.addLast(handler.name(), handler)
 						.addLast(new PipelineErrorHandler(log));

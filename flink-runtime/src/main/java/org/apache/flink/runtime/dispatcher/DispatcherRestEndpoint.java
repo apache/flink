@@ -33,11 +33,13 @@ import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
 import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
+import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -47,6 +49,8 @@ import java.util.concurrent.Executor;
  * REST endpoint for the {@link Dispatcher} component.
  */
 public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway> {
+
+	private final Path uploadDir;
 
 	public DispatcherRestEndpoint(
 			RestServerEndpointConfiguration endpointConfiguration,
@@ -59,6 +63,7 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			MetricQueryServiceRetriever metricQueryServiceRetriever,
 			LeaderElectionService leaderElectionService,
 			FatalErrorHandler fatalErrorHandler) {
+
 		super(
 			endpointConfiguration,
 			leaderRetriever,
@@ -70,6 +75,8 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			metricQueryServiceRetriever,
 			leaderElectionService,
 			fatalErrorHandler);
+
+		uploadDir = endpointConfiguration.getUploadDir();
 	}
 
 	@Override
@@ -99,6 +106,16 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			leaderRetriever,
 			timeout,
 			responseHeaders);
+
+		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> optJarHandlers =
+			WebMonitorUtils.tryLoadJarUploadHandler(
+				leaderRetriever,
+				restAddressFuture,
+				timeout,
+				uploadDir,
+				executor);
+
+		handlers.addAll(optJarHandlers);
 
 		handlers.add(Tuple2.of(JobTerminationHeaders.getInstance(), jobTerminationHandler));
 		handlers.add(Tuple2.of(blobServerPortHandler.getMessageHeaders(), blobServerPortHandler));

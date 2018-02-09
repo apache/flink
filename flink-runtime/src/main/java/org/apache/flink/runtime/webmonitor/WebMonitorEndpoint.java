@@ -135,7 +135,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	protected final RestHandlerConfiguration restConfiguration;
 	private final GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever;
 	private final TransientBlobService transientBlobService;
-	private final Executor executor;
+	protected final Executor executor;
 
 	private final ExecutionGraphCache executionGraphCache;
 	private final CheckpointStatsCache checkpointStatsCache;

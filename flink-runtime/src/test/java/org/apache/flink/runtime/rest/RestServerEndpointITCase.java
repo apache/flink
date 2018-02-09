@@ -23,11 +23,15 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.messages.ConversionException;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
+import org.apache.flink.runtime.rest.messages.FileUpload;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
@@ -52,12 +56,23 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
 
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -65,6 +80,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -73,20 +89,25 @@ import static org.mockito.Mockito.when;
  * IT cases for {@link RestClient} and {@link RestServerEndpoint}.
  */
 @Category(Flip6.class)
-public class RestEndpointITCase extends TestLogger {
+public class RestServerEndpointITCase extends TestLogger {
 
 	private static final JobID PATH_JOB_ID = new JobID();
 	private static final JobID QUERY_JOB_ID = new JobID();
 	private static final String JOB_ID_KEY = "jobid";
 	private static final Time timeout = Time.seconds(10L);
 
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	private RestServerEndpoint serverEndpoint;
 	private RestClient restClient;
+	private TestUploadHandler testUploadHandler;
 
 	@Before
 	public void setup() throws Exception {
 		Configuration config = new Configuration();
 		config.setInteger(RestOptions.REST_PORT, 0);
+		config.setString(WebOptions.UPLOAD_DIR, temporaryFolder.newFolder().getCanonicalPath());
 
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 		RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
@@ -102,7 +123,12 @@ public class RestEndpointITCase extends TestLogger {
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT);
 
-		serverEndpoint = new TestRestServerEndpoint(serverConfig, testHandler);
+		testUploadHandler = new TestUploadHandler(
+			CompletableFuture.completedFuture(restAddress),
+			mockGatewayRetriever,
+			RpcUtils.INF_TIMEOUT);
+
+		serverEndpoint = new TestRestServerEndpoint(serverConfig, testHandler, testUploadHandler);
 		restClient = new TestRestClient(clientConfig);
 
 		serverEndpoint.start();
@@ -153,14 +179,14 @@ public class RestEndpointITCase extends TestLogger {
 			new TestHeaders(),
 			parameters,
 			new TestRequest(2));
-		Assert.assertEquals(2, response2.get().id);
+		assertEquals(2, response2.get().id);
 
 		// wake up blocked handler
 		synchronized (TestHandler.LOCK) {
 			TestHandler.LOCK.notifyAll();
 		}
 		// verify response to first request
-		Assert.assertEquals(1, response1.get().id);
+		assertEquals(1, response1.get().id);
 	}
 
 	/**
@@ -196,23 +222,62 @@ public class RestEndpointITCase extends TestLogger {
 
 			RestClientException rce = (RestClientException) t;
 
-			Assert.assertEquals(HttpResponseStatus.BAD_REQUEST, rce.getHttpResponseStatus());
+			assertEquals(HttpResponseStatus.BAD_REQUEST, rce.getHttpResponseStatus());
 		}
+	}
+
+	/**
+	 * Tests that multipart/form-data uploads work correctly.
+	 */
+	@Test
+	public void testFileUpload() throws Exception {
+		final String boundary = Long.toHexString(System.currentTimeMillis());
+		final String crlf = "\r\n";
+		final String uploadedContent = "hello";
+
+		final HttpURLConnection connection =
+			(HttpURLConnection) new URL(serverEndpoint.getRestAddress() + "/upload").openConnection();
+		connection.setDoOutput(true);
+		connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+		try (OutputStream output = connection.getOutputStream(); PrintWriter writer =
+			new PrintWriter(new OutputStreamWriter(output, StandardCharsets.UTF_8), true)) {
+
+			writer.append("--" + boundary).append(crlf);
+			writer.append("Content-Disposition: form-data; name=\"foo\"; filename=\"bar\"").append(crlf);
+			writer.append("Content-Type: plain/text; charset=utf8").append(crlf);
+			writer.append(crlf).flush();
+			output.write(uploadedContent.getBytes(StandardCharsets.UTF_8));
+			output.flush();
+			writer.append(crlf).flush();
+			writer.append("--" + boundary + "--").append(crlf).flush();
+		}
+
+		assertEquals(200, connection.getResponseCode());
+		final Path lastUploadedPath = testUploadHandler.getLastUploadedPath();
+		assertEquals(uploadedContent, new String(Files.readAllBytes(lastUploadedPath), StandardCharsets.UTF_8));
 	}
 
 	private static class TestRestServerEndpoint extends RestServerEndpoint {
 
 		private final TestHandler testHandler;
 
-		TestRestServerEndpoint(RestServerEndpointConfiguration configuration, TestHandler testHandler) {
+		private final TestUploadHandler testUploadHandler;
+
+		TestRestServerEndpoint(
+			RestServerEndpointConfiguration configuration,
+			TestHandler testHandler,
+			TestUploadHandler testUploadHandler) {
 			super(configuration);
 
 			this.testHandler = Preconditions.checkNotNull(testHandler);
+			this.testUploadHandler = Preconditions.checkNotNull(testUploadHandler);
 		}
 
 		@Override
 		protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
-			return Collections.singletonList(Tuple2.of(new TestHeaders(), testHandler));
+			return Arrays.asList(
+				Tuple2.of(new TestHeaders(), testHandler),
+				Tuple2.of(TestUploadHeaders.INSTANCE, testUploadHandler));
 		}
 	}
 
@@ -234,8 +299,8 @@ public class RestEndpointITCase extends TestLogger {
 
 		@Override
 		protected CompletableFuture<TestResponse> handleRequest(@Nonnull HandlerRequest<TestRequest, TestParameters> request, RestfulGateway gateway) throws RestHandlerException {
-			Assert.assertEquals(request.getPathParameter(JobIDPathParameter.class), PATH_JOB_ID);
-			Assert.assertEquals(request.getQueryParameter(JobIDQueryParameter.class).get(0), QUERY_JOB_ID);
+			assertEquals(request.getPathParameter(JobIDPathParameter.class), PATH_JOB_ID);
+			assertEquals(request.getQueryParameter(JobIDQueryParameter.class).get(0), QUERY_JOB_ID);
 
 			if (request.getRequestBody().id == 1) {
 				synchronized (LOCK) {
@@ -378,6 +443,62 @@ public class RestEndpointITCase extends TestLogger {
 		@Override
 		public String convertStringToValue(JobID value) {
 			return value.toString();
+		}
+	}
+
+	private static class TestUploadHandler extends AbstractRestHandler<RestfulGateway, FileUpload, EmptyResponseBody, EmptyMessageParameters> {
+
+		private volatile Path lastUploadedPath;
+
+		private TestUploadHandler(
+			final CompletableFuture<String> localRestAddress,
+			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+			final Time timeout) {
+			super(localRestAddress, leaderRetriever, timeout, Collections.emptyMap(), TestUploadHeaders.INSTANCE);
+		}
+
+		@Override
+		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull final HandlerRequest<FileUpload, EmptyMessageParameters> request, @Nonnull final RestfulGateway gateway) throws RestHandlerException {
+			lastUploadedPath = request.getRequestBody().getPath();
+			return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
+		}
+
+		public Path getLastUploadedPath() {
+			return lastUploadedPath;
+		}
+	}
+
+	private enum TestUploadHeaders implements MessageHeaders<FileUpload, EmptyResponseBody, EmptyMessageParameters> {
+		INSTANCE;
+
+		@Override
+		public Class<EmptyResponseBody> getResponseClass() {
+			return EmptyResponseBody.class;
+		}
+
+		@Override
+		public HttpResponseStatus getResponseStatusCode() {
+			return HttpResponseStatus.OK;
+		}
+
+		@Override
+		public Class<FileUpload> getRequestClass() {
+			return FileUpload.class;
+		}
+
+		@Override
+		public EmptyMessageParameters getUnresolvedMessageParameters() {
+			return EmptyMessageParameters.getInstance();
+		}
+
+		@Override
+		public HttpMethodWrapper getHttpMethod() {
+			return HttpMethodWrapper.POST;
+		}
+
+		@Override
+		public String getTargetRestEndpointURL() {
+			return "/upload";
 		}
 	}
 }
