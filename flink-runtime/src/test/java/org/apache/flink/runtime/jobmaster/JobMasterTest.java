@@ -40,8 +40,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.StackTraceSampleCoordinator;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.VoidBackPressureStatsTracker;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -125,9 +124,7 @@ public class JobMasterTest extends TestLogger {
 				FlinkUserCodeClassLoaders.parentFirst(new URL[0], JobMasterTest.class.getClassLoader()),
 				null,
 				null,
-				new BackPressureStatsTracker(
-					new StackTraceSampleCoordinator(scheduledExecutor, testingTimeout.toMilliseconds()),
-					60000, 100, 60000, Time.milliseconds(50)));
+				VoidBackPressureStatsTracker.INSTANCE);
 
 			CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 
@@ -226,9 +223,7 @@ public class JobMasterTest extends TestLogger {
 				FlinkUserCodeClassLoaders.parentFirst(new URL[0], JobMasterTest.class.getClassLoader()),
 				null,
 				null,
-				new BackPressureStatsTracker(
-					new StackTraceSampleCoordinator(scheduledExecutor, testingTimeout.toMilliseconds()),
-					60000, 100, 60000, Time.milliseconds(50)));
+				VoidBackPressureStatsTracker.INSTANCE);
 
 			CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 

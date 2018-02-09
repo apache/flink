@@ -28,7 +28,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTrackerImpl;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.StackTraceSampleCoordinator;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
@@ -56,7 +56,7 @@ public class JobManagerServices {
 	public final Time rpcAskTimeout;
 
 	private final StackTraceSampleCoordinator stackTraceSampleCoordinator;
-	public final BackPressureStatsTracker backPressureStatsTracker;
+	public final BackPressureStatsTrackerImpl backPressureStatsTrackerImpl;
 
 	public JobManagerServices(
 			ScheduledExecutorService executorService,
@@ -64,19 +64,19 @@ public class JobManagerServices {
 			RestartStrategyFactory restartStrategyFactory,
 			Time rpcAskTimeout,
 			StackTraceSampleCoordinator stackTraceSampleCoordinator,
-			BackPressureStatsTracker backPressureStatsTracker) {
+			BackPressureStatsTrackerImpl backPressureStatsTrackerImpl) {
 
 		this.executorService = checkNotNull(executorService);
 		this.libraryCacheManager = checkNotNull(libraryCacheManager);
 		this.restartStrategyFactory = checkNotNull(restartStrategyFactory);
 		this.rpcAskTimeout = checkNotNull(rpcAskTimeout);
 		this.stackTraceSampleCoordinator = checkNotNull(stackTraceSampleCoordinator);
-		this.backPressureStatsTracker = checkNotNull(backPressureStatsTracker);
+		this.backPressureStatsTrackerImpl = checkNotNull(backPressureStatsTrackerImpl);
 
 		executorService.scheduleWithFixedDelay(
-			backPressureStatsTracker::cleanUpOperatorStatsCache,
-			backPressureStatsTracker.getCleanUpInterval(),
-			backPressureStatsTracker.getCleanUpInterval(),
+			backPressureStatsTrackerImpl::cleanUpOperatorStatsCache,
+			backPressureStatsTrackerImpl.getCleanUpInterval(),
+			backPressureStatsTrackerImpl.getCleanUpInterval(),
 			TimeUnit.MILLISECONDS);
 	}
 
@@ -101,7 +101,7 @@ public class JobManagerServices {
 		libraryCacheManager.shutdown();
 
 		stackTraceSampleCoordinator.shutDown();
-		backPressureStatsTracker.shutDown();
+		backPressureStatsTrackerImpl.shutDown();
 
 		if (firstException != null) {
 			ExceptionUtils.rethrowException(firstException, "Error while shutting down JobManager services");
@@ -145,7 +145,7 @@ public class JobManagerServices {
 
 		final StackTraceSampleCoordinator stackTraceSampleCoordinator =
 			new StackTraceSampleCoordinator(futureExecutor, timeout.toMillis());
-		final BackPressureStatsTracker backPressureStatsTracker = new BackPressureStatsTracker(
+		final BackPressureStatsTrackerImpl backPressureStatsTrackerImpl = new BackPressureStatsTrackerImpl(
 			stackTraceSampleCoordinator,
 			config.getInteger(WebOptions.BACKPRESSURE_CLEANUP_INTERVAL),
 			config.getInteger(WebOptions.BACKPRESSURE_NUM_SAMPLES),
@@ -158,6 +158,6 @@ public class JobManagerServices {
 			RestartStrategyFactory.createRestartStrategyFactory(config),
 			Time.of(timeout.length(), timeout.unit()),
 			stackTraceSampleCoordinator,
-			backPressureStatsTracker);
+			backPressureStatsTrackerImpl);
 	}
 }
