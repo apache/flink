@@ -23,9 +23,12 @@ import org.apache.flink.api.common.state.{MapStateDescriptor, ValueState, ValueS
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.runtime.state.KeyedStateFunction
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
-import org.apache.flink.streaming.api.scala.{KeyedStream, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.util.Collector
 
+/**
+  * Example illustrating the use of [[org.apache.flink.api.common.state.BroadcastState]].
+  */
 object BroadcastExample {
 
   def main(args: Array[String]): Unit = {
@@ -49,7 +52,7 @@ object BroadcastExample {
     val mapStateDescriptor = new MapStateDescriptor[String, Integer](
       "Broadcast", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO)
 
-    val elementStream: KeyedStream[(Int, Int), Int] = env
+    val elementStream = env
       .fromCollection(keyedInput)
       .rebalance
       .map(value => value)
@@ -74,12 +77,12 @@ object BroadcastExample {
           : Unit = {
 
           ctx.getBroadcastState(mapStateDescriptor).put(value + "", value)
-          System.out.println("TASK-" + getRuntimeContext.getIndexOfThisSubtask + " HERE")
+
           ctx.applyToKeyedState(valueState, new KeyedStateFunction[Int, ValueState[String]] {
 
             override def process(key: Int, state: ValueState[String]): Unit =
-              println("TASK-" + getRuntimeContext.getIndexOfThisSubtask +
-                " ENTRY: " + key + ' ' + state.value)
+              out.collect("Broadcast side task#" +
+                getRuntimeContext.getIndexOfThisSubtask + ": " + key + " " + state.value)
           })
         }
 
@@ -91,16 +94,20 @@ object BroadcastExample {
           : Unit = {
 
           val prev = getRuntimeContext.getState(valueState).value
+
           val str = new StringBuilder
+          str.append("Value=").append(value).append(" Broadcast State=[")
+
           import scala.collection.JavaConversions._
           for (entry <- ctx.getBroadcastState(mapStateDescriptor).immutableEntries()) {
-            val next = "TASK- " + getRuntimeContext.getIndexOfThisSubtask +
-              " B:" + entry + " NB: " + value
-            str.append(next).append("\n")
+            str.append(entry.getKey).append("->").append(entry.getValue).append(" ")
           }
-          str.append("\n")
+          str.append("]")
+
           getRuntimeContext.getState(valueState).update(str.toString)
-          System.out.println("PREV: " + prev + "\n\nNEXT: " + str)
+
+          out.collect("BEFORE: " + prev + " " + "AFTER: " + str)
+
         }
       })
 

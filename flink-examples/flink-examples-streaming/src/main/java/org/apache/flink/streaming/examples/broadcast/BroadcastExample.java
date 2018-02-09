@@ -39,7 +39,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Testing example.
+ * Example illustrating the use of {@link org.apache.flink.api.common.state.BroadcastState}.
  */
 public class BroadcastExample {
 
@@ -61,15 +61,14 @@ public class BroadcastExample {
 		keyedInput.add(new Tuple2<>(4, 4));
 		keyedInput.add(new Tuple2<>(4, 8));
 
-		final ValueStateDescriptor<String> valueState = new ValueStateDescriptor<>("any", BasicTypeInfo.STRING_TYPE_INFO);
-
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		final MapStateDescriptor<String, Integer> mapStateDescriptor = new MapStateDescriptor<>(
+		MapStateDescriptor<String, Integer> mapStateDescriptor = new MapStateDescriptor<>(
 				"Broadcast", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO
 		);
 
-		KeyedStream<Tuple2<Integer, Integer>, Integer> elementStream = env.fromCollection(keyedInput).rebalance()
+		KeyedStream<Tuple2<Integer, Integer>, Integer> elementStream = env.fromCollection(keyedInput)
+				.rebalance()																			// needed to increase the parallelism
 				.map(new MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
 					private static final long serialVersionUID = 8710586935083422712L;
 
@@ -77,7 +76,9 @@ public class BroadcastExample {
 					public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) {
 						return value;
 					}
-				}).setParallelism(4).keyBy(new KeySelector<Tuple2<Integer, Integer>, Integer>() {
+				})
+				.setParallelism(4)
+				.keyBy(new KeySelector<Tuple2<Integer, Integer>, Integer>() {
 					private static final long serialVersionUID = -1110876099102344900L;
 
 					@Override
@@ -94,43 +95,64 @@ public class BroadcastExample {
 					public void flatMap(Integer value, Collector<Integer> out) {
 						out.collect(value);
 					}
-				}).setParallelism(4)
+				})
+				.setParallelism(4)
 				.broadcast(mapStateDescriptor);
 
-		DataStream<String> output = elementStream.connect(broadcastStream).process(
-				new KeyedBroadcastProcessFunction<Integer, Tuple2<Integer, Integer>, Integer, String>() {
+		DataStream<String> output = elementStream
+				.connect(broadcastStream)
+				.process(
+						new KeyedBroadcastProcessFunction<Integer, Tuple2<Integer, Integer>, Integer, String>() {
 
-					private static final long serialVersionUID = 8512350700250748742L;
+							private static final long serialVersionUID = 8512350700250748742L;
 
-					@Override
-					public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
-						ctx.getBroadcastState(mapStateDescriptor).put(value + "", value);
+							private final ValueStateDescriptor<String> valueState =
+									new ValueStateDescriptor<>("any", BasicTypeInfo.STRING_TYPE_INFO);
 
-						System.out.println("TASK-" + getRuntimeContext().getIndexOfThisSubtask() + " HERE");
-						ctx.applyToKeyedState(valueState, new KeyedStateFunction<Integer, ValueState<String>>() {
+							private final MapStateDescriptor<String, Integer> localMapStateDescriptor =
+									new MapStateDescriptor<>(
+											"Broadcast", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO
+									);
+
 							@Override
-							public void process(Integer key, ValueState<String> state) throws Exception {
-								System.out.println("TASK-" + getRuntimeContext().getIndexOfThisSubtask() + " ENTRY: " + key + ' ' + state.value());
+							public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
+
+								ctx.getBroadcastState(localMapStateDescriptor).put(String.valueOf(value), value);
+
+								ctx.applyToKeyedState(valueState, new KeyedStateFunction<Integer, ValueState<String>>() {
+									@Override
+									public void process(Integer key, ValueState<String> state) throws Exception {
+										out.collect("Broadcast side task#" + getRuntimeContext().getIndexOfThisSubtask() + ": " + key + " " + state.value());
+									}
+								});
+							}
+
+							@Override
+							public void processElement(Tuple2<Integer, Integer> value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+
+								String prev = getRuntimeContext().getState(valueState).value();
+
+								StringBuilder str = new StringBuilder();
+								str
+										.append("Value=")
+										.append(value)
+										.append(" Broadcast State=[");
+
+								for (Map.Entry<String, Integer> entry : ctx.getBroadcastState(localMapStateDescriptor).immutableEntries()) {
+									str
+											.append(entry.getKey())
+											.append("->")
+											.append(entry.getValue())
+											.append(" ");
+								}
+
+								str.append("]");
+
+								getRuntimeContext().getState(valueState).update(str.toString());
+
+								out.collect("BEFORE: " + prev + " " + "AFTER: " + str);
 							}
 						});
-					}
-
-					@Override
-					public void processElement(Tuple2<Integer, Integer> value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
-
-						String prev = getRuntimeContext().getState(valueState).value();
-
-						StringBuilder str = new StringBuilder();
-						for (Map.Entry<String, Integer> entry : ctx.getBroadcastState(mapStateDescriptor).immutableEntries()) {
-							String next = "TASK- " + getRuntimeContext().getIndexOfThisSubtask() + " B:" + entry + " NB: " + value;
-							str.append(next).append("\n");
-						}
-						str.append("\n");
-						getRuntimeContext().getState(valueState).update(str.toString());
-						System.out.println("PREV: " + prev + "\n\nNEXT: " + str);
-					}
-				});
-
 		output.print();
 		env.execute();
 	}
