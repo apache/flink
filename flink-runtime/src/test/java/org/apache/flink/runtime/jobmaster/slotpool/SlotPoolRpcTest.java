@@ -112,7 +112,8 @@ public class SlotPoolRpcTest extends TestLogger {
 			SystemClock.getInstance(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
-			Time.milliseconds(10L) // this is the timeout for the request tested here
+			Time.milliseconds(10L), // this is the timeout for the request tested here
+			TestingUtils.infiniteTime()
 		);
 
 		try {
@@ -145,6 +146,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			rpcService,
 			jid,
 			SystemClock.getInstance(),
+			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime());
@@ -187,6 +189,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			rpcService,
 			jid,
 			SystemClock.getInstance(),
+			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime());
@@ -234,6 +237,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			rpcService,
 			jid,
 			SystemClock.getInstance(),
+			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime());
@@ -305,6 +309,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			SystemClock.getInstance(),
 			Time.milliseconds(10L),
 			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime());
 
 		final CompletableFuture<SlotRequestId> releaseSlotFuture = new CompletableFuture<>();
@@ -354,14 +359,16 @@ public class SlotPoolRpcTest extends TestLogger {
 				Clock clock,
 				Time slotRequestTimeout,
 				Time resourceManagerAllocationTimeout,
-				Time resourceManagerRequestTimeout) {
+				Time resourceManagerRequestTimeout,
+				Time idleSlotTimeout) {
 			super(
 				rpcService,
 				jobId,
 				clock,
 				slotRequestTimeout,
 				resourceManagerAllocationTimeout,
-				resourceManagerRequestTimeout);
+				resourceManagerRequestTimeout,
+				idleSlotTimeout);
 
 			releaseSlotConsumer = null;
 		}
