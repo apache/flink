@@ -46,7 +46,6 @@ object BroadcastExample {
       new Tuple2[Int, Int](4, 8)
     )
 
-    val valueState = new ValueStateDescriptor[String]("any", BasicTypeInfo.STRING_TYPE_INFO)
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     val mapStateDescriptor = new MapStateDescriptor[String, Integer](
@@ -69,6 +68,11 @@ object BroadcastExample {
       .connect(broadcastStream)
       .process(new KeyedBroadcastProcessFunction[Int, (Int, Int), Int, String]() {
 
+        val valueState = new ValueStateDescriptor[String]("any", BasicTypeInfo.STRING_TYPE_INFO)
+
+        val mapStateDesc = new MapStateDescriptor[String, Integer](
+          "Broadcast", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO)
+
         @throws[Exception]
         override def processBroadcastElement(
             value: Int,
@@ -76,7 +80,7 @@ object BroadcastExample {
             out: Collector[String])
           : Unit = {
 
-          ctx.getBroadcastState(mapStateDescriptor).put(value + "", value)
+          ctx.getBroadcastState(mapStateDesc).put(value + "", value)
 
           ctx.applyToKeyedState(valueState, new KeyedStateFunction[Int, ValueState[String]] {
 
@@ -99,7 +103,7 @@ object BroadcastExample {
           str.append("Value=").append(value).append(" Broadcast State=[")
 
           import scala.collection.JavaConversions._
-          for (entry <- ctx.getBroadcastState(mapStateDescriptor).immutableEntries()) {
+          for (entry <- ctx.getBroadcastState(mapStateDesc).immutableEntries()) {
             str.append(entry.getKey).append("->").append(entry.getValue).append(" ")
           }
           str.append("]")
