@@ -17,13 +17,19 @@
 
 package org.apache.flink.contrib.streaming;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -78,6 +84,61 @@ public final class DataStreamUtils {
 		(new CallExecute(env, iter)).start();
 
 		return iter;
+	}
+
+	/**
+	 * Reinterprets the given {@link DataStream} as a {@link KeyedStream}, which extracts keys with the given
+	 * {@link KeySelector}.
+	 *
+	 * <p>IMPORTANT: For every partition of the base stream, the keys of events in the base stream must be
+	 * partitioned exactly in the same way as if it was created through a {@link DataStream#keyBy(KeySelector)}.
+	 *
+	 * @param stream      The data stream to reinterpret. For every partition, this stream must be partitioned exactly
+	 *                    in the same way as if it was created through a {@link DataStream#keyBy(KeySelector)}.
+	 * @param keySelector Function that defines how keys are extracted from the data stream.
+	 * @param <T>         Type of events in the data stream.
+	 * @param <K>         Type of the extracted keys.
+	 * @return The reinterpretation of the {@link DataStream} as a {@link KeyedStream}.
+	 */
+	public static <T, K> KeyedStream<T, K> reinterpretAsKeyedStream(
+		DataStream<T> stream,
+		KeySelector<T, K> keySelector) {
+
+		return reinterpretAsKeyedStream(
+			stream,
+			keySelector,
+			TypeExtractor.getKeySelectorTypes(keySelector, stream.getType()));
+	}
+
+	/**
+	 * Reinterprets the given {@link DataStream} as a {@link KeyedStream}, which extracts keys with the given
+	 * {@link KeySelector}.
+	 *
+	 * <p>IMPORTANT: For every partition of the base stream, the keys of events in the base stream must be
+	 * partitioned exactly in the same way as if it was created through a {@link DataStream#keyBy(KeySelector)}.
+	 *
+	 * @param stream      The data stream to reinterpret. For every partition, this stream must be partitioned exactly
+	 *                    in the same way as if it was created through a {@link DataStream#keyBy(KeySelector)}.
+	 * @param keySelector Function that defines how keys are extracted from the data stream.
+	 * @param typeInfo    Explicit type information about the key type.
+	 * @param <T>         Type of events in the data stream.
+	 * @param <K>         Type of the extracted keys.
+	 * @return The reinterpretation of the {@link DataStream} as a {@link KeyedStream}.
+	 */
+	public static <T, K> KeyedStream<T, K> reinterpretAsKeyedStream(
+		DataStream<T> stream,
+		KeySelector<T, K> keySelector,
+		TypeInformation<K> typeInfo) {
+
+		PartitionTransformation<T> partitionTransformation = new PartitionTransformation<>(
+			stream.getTransformation(),
+			new ForwardPartitioner<>());
+
+		return new KeyedStream<>(
+			stream,
+			partitionTransformation,
+			keySelector,
+			typeInfo);
 	}
 
 	private static class CallExecute extends Thread {
