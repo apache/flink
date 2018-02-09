@@ -66,7 +66,7 @@ import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.Wa
 /**
  * Simple back pressured task test.
  */
-public class BackPressureStatsTrackerITCase extends TestLogger {
+public class BackPressureStatsTrackerImplITCase extends TestLogger {
 
 	private static NetworkBufferPool networkBufferPool;
 	private static ActorSystem testActorSystem;
@@ -179,7 +179,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 									testActorSystem.dispatcher(), 60000);
 
 							// Verify back pressure (clean up interval can be ignored)
-							BackPressureStatsTracker statsTracker = new BackPressureStatsTracker(
+							BackPressureStatsTrackerImpl statsTracker = new BackPressureStatsTrackerImpl(
 								coordinator,
 								100 * 1000,
 								20,
@@ -290,7 +290,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 	 * Triggers a new stats sample.
 	 */
 	private OperatorBackPressureStats triggerStatsSample(
-			BackPressureStatsTracker statsTracker,
+			BackPressureStatsTrackerImpl statsTracker,
 			ExecutionJobVertex vertex) throws InterruptedException {
 
 		statsTracker.invalidateOperatorStatsCache();
