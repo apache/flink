@@ -55,7 +55,7 @@ package object utils {
       * @return The reinterpretation of the [[DataStream]] as a [[KeyedStream]].
       */
     def reinterpretAsKeyedStream[K: TypeInformation](
-                                                      keySelector: T => K): KeyedStream[T, K] = {
+      keySelector: T => K): KeyedStream[T, K] = {
 
       val keySelectorWithType =
         new KeySelectorWithType[T, K](clean(keySelector), implicitly[TypeInformation[K]])
