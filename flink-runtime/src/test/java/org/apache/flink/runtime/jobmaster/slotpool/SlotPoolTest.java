@@ -40,6 +40,8 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.util.clock.SystemClock;
 import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -591,6 +593,46 @@ public class SlotPoolTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testCheckIdleSlot() throws Exception {
+		final SlotPool slotPool = new SlotPool(
+			rpcService,
+			jobId,
+			SystemClock.getInstance(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime(),
+			timeout);
+
+		try {
+			final List<AllocationID> freedSlots = new ArrayList<>();
+			taskManagerGateway.setFreeSlotConsumer((tuple) -> {
+				freedSlots.add(tuple.f0);
+			});
+
+			final AllocationID expiredSlotID = new AllocationID();
+			final AllocationID freshSlotID = new AllocationID();
+
+			slotPool.getAvailableSlots().add(createSlot(expiredSlotID),
+				SystemClock.getInstance().relativeTimeMillis() - timeout.toMilliseconds() - 1);
+
+			// Add a 10 s floating buffer time.
+			final long floatingTimeBuffer = 10000;
+			slotPool.getAvailableSlots().add(createSlot(freshSlotID),
+				SystemClock.getInstance().relativeTimeMillis() - timeout.toMilliseconds() + floatingTimeBuffer);
+
+			slotPool.checkIdleSlot();
+
+			assertEquals(1, freedSlots.size());
+			assertEquals(expiredSlotID, freedSlots.get(0));
+			assertFalse(slotPool.getAvailableSlots().contains(expiredSlotID));
+			assertTrue(slotPool.getAvailableSlots().contains(freshSlotID));
+
+		} finally {
+			RpcUtils.terminateRpcEndpoint(slotPool, timeout);
+		}
+	}
+
 	private static SlotPoolGateway setupSlotPool(
 			SlotPool slotPool,
 			ResourceManagerGateway resourceManagerGateway) throws Exception {
@@ -601,5 +643,14 @@ public class SlotPoolTest extends TestLogger {
 		slotPool.connectToResourceManager(resourceManagerGateway);
 
 		return slotPool.getSelfGateway(SlotPoolGateway.class);
+	}
+
+	private AllocatedSlot createSlot(final AllocationID allocationId) {
+		return new AllocatedSlot(
+			allocationId,
+			taskManagerLocation,
+			0,
+			ResourceProfile.UNKNOWN,
+			taskManagerGateway);
 	}
 }

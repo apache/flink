@@ -113,6 +113,26 @@ public class JobManagerOptions {
 		.defaultValue(60L * 60L)
 		.withDescription("The time in seconds after which a completed job expires and is purged from the job store.");
 
+	public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
+		key("slot.request.timeout")
+		.defaultValue(10 * 60 * 1000L)
+		.withDescription("The timeout in milliseconds for requesting a slot from Slot Pool.");
+
+	public static final ConfigOption<Long> SLOT_REQUEST_RM_TIMEOUT =
+		key("slot.request.resourcemanager.timeout")
+			.defaultValue(10 * 1000L)
+			.withDescription("The timeout in milliseconds for sending a request to Resource Manager.");
+
+	public static final ConfigOption<Long> SLOT_ALLOCATION_RM_TIMEOUT =
+		key("slot.allocation.resourcemanager.timeout")
+			.defaultValue(5 * 60 * 1000L)
+			.withDescription("The timeout in milliseconds for allocation a slot from Resource Manager.");
+
+	public static final ConfigOption<Long> SLOT_IDLE_TIMEOUT =
+		key("slot.idle.timeout")
+			.defaultValue(5 * 60 * 1000L)
+			.withDescription("The timeout in milliseconds for a idle slot in Slot Pool.");
+
 	// ---------------------------------------------------------------------------------------------
 
 	private JobManagerOptions() {
