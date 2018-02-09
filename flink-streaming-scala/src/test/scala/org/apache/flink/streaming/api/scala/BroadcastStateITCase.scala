@@ -23,12 +23,12 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.util.Collector
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.{Assert, Test}
 
 /**
   * ITCase for the [[org.apache.flink.api.common.state.BroadcastState]].
@@ -57,7 +57,8 @@ class BroadcastStateITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
-    val srcOne = env.generateSequence(0L, 5L)
+    val srcOne = env
+      .generateSequence(0L, 5L)
       .assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks[Long]() {
 
         override def extractTimestamp(element: Long, previousElementTimestamp: Long): Long =
@@ -66,9 +67,11 @@ class BroadcastStateITCase extends AbstractTestBase {
         override def checkAndGetNextWatermark(lastElement: Long, extractedTimestamp: Long) =
           new Watermark(extractedTimestamp)
 
-      }).keyBy((value: Long) => value)
+      })
+      .keyBy((value: Long) => value)
 
-    val srcTwo = env.fromCollection(expected.values.toSeq)
+    val srcTwo = env
+      .fromCollection(expected.values.toSeq)
       .assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks[String]() {
 
         override def extractTimestamp(element: String, previousElementTimestamp: Long): Long =
@@ -80,46 +83,79 @@ class BroadcastStateITCase extends AbstractTestBase {
 
     val broadcast = srcTwo.broadcast(DESCRIPTOR)
     // the timestamp should be high enough to trigger the timer after all the elements arrive.
-    val output = srcOne.connect(broadcast).process(
-      new KeyedBroadcastProcessFunction[Long, Long, String, String]() {
+    val output = srcOne.connect(broadcast)
+      .process(new TestBroadcastProcessFunction(100000L, expected))
 
-        @throws[Exception]
-        override def processElement(
-            value: Long,
-            ctx: KeyedBroadcastProcessFunction[Long, Long, String, String]#KeyedReadOnlyContext,
-            out: Collector[String]): Unit = {
-
-          ctx.timerService.registerEventTimeTimer(timerTimestamp)
-        }
-
-        @throws[Exception]
-        override def processBroadcastElement(
-            value: String,
-            ctx: KeyedBroadcastProcessFunction[Long, Long, String, String]#KeyedContext,
-            out: Collector[String]): Unit = {
-
-          val key = value.split(":")(1).toLong
-          ctx.getBroadcastState(DESCRIPTOR).put(key, value)
-        }
-
-        @throws[Exception]
-        override def onTimer(
-            timestamp: Long,
-            ctx: KeyedBroadcastProcessFunction[Long, Long, String, String]#OnTimerContext,
-            out: Collector[String]): Unit = {
-
-          var counter = 0
-          import scala.collection.JavaConversions._
-          for (entry <- ctx.getBroadcastState(DESCRIPTOR).immutableEntries()) {
-            val v = expected.get(entry.getKey).get
-            assertEquals(v, entry.getValue)
-            counter += 1
-          }
-          assertEquals(expected.size, counter)
-        }
-      })
-
-    output.addSink(new DiscardingSink[String])
+    output
+      .addSink(new TestSink(expected.size))
+      .setParallelism(1)
     env.execute
+  }
+}
+
+class TestBroadcastProcessFunction(
+        expectedTimestamp: Long,
+        expectedBroadcastState: Map[Long, String])
+    extends KeyedBroadcastProcessFunction[Long, Long, String, String] {
+
+  val localDescriptor = new MapStateDescriptor[Long, String](
+    "broadcast-state",
+    BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]],
+    BasicTypeInfo.STRING_TYPE_INFO)
+
+  @throws[Exception]
+  override def processElement(
+      value: Long,
+      ctx: KeyedBroadcastProcessFunction[Long, Long, String, String]#KeyedReadOnlyContext,
+      out: Collector[String]): Unit = {
+
+    ctx.timerService.registerEventTimeTimer(expectedTimestamp)
+  }
+
+  @throws[Exception]
+  override def processBroadcastElement(
+      value: String,
+      ctx: KeyedBroadcastProcessFunction[Long, Long, String, String]#KeyedContext,
+      out: Collector[String]): Unit = {
+
+    val key = value.split(":")(1).toLong
+    ctx.getBroadcastState(localDescriptor).put(key, value)
+  }
+
+  @throws[Exception]
+  override def onTimer(
+      timestamp: Long,
+      ctx: KeyedBroadcastProcessFunction[Long, Long, String, String]#OnTimerContext,
+      out: Collector[String]): Unit = {
+
+    var map = Map[Long, String]()
+
+    import scala.collection.JavaConversions._
+    for (entry <- ctx.getBroadcastState(localDescriptor).immutableEntries()) {
+      val v = expectedBroadcastState.get(entry.getKey).get
+      assertEquals(v, entry.getValue)
+      map += (entry.getKey -> entry.getValue)
+    }
+
+    Assert.assertEquals(expectedBroadcastState, map)
+
+    out.collect(timestamp.toString)
+  }
+}
+
+class TestSink(val expectedOutputCounter: Int) extends RichSinkFunction[String] {
+
+  var outputCounter: Int = 0
+
+  override def invoke(value: String) = {
+    outputCounter = outputCounter + 1
+  }
+
+  @throws[Exception]
+  override def close(): Unit = {
+    super.close()
+
+    // make sure that all the timers fired
+    assertEquals(expectedOutputCounter, outputCounter)
   }
 }
