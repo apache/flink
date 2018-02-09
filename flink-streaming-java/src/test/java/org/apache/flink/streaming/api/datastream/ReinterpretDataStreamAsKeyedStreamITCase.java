@@ -48,16 +48,14 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Tests for {@link DataStreamUtils}.
+ * Integration test for {@link DataStreamUtils#reinterpretAsKeyedStream(DataStream, KeySelector, TypeInformation)}.
  */
-public class DataStreamUtilsTest {
+public class ReinterpretDataStreamAsKeyedStreamITCase {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	/**
-	 * FLINK-8571
-	 *
 	 * This test checks that reinterpreting a data stream to a keyed stream works as expected. This test consists of
 	 * two jobs. The first job materializes a keyBy into files, one files per partition. The second job opens the
 	 * files created by the first jobs as sources (doing the correct assignment of files to partitions) and

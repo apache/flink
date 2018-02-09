@@ -896,11 +896,16 @@ result type ```R``` for the final result. E.g. for a histogram, ```V``` is a num
 
 {% top %}
 
-## EXPERIMENTAL: Reinterpreting a pre-partitioned data stream as keyed stream
+Experimental features
+---------------------
+
+This section describes experimental features in the DataStream API.
+
+###Reinterpreting a pre-partitioned data stream as keyed stream
 
 We can re-interpret a pre-partitioned data stream as a keyed stream to avoid shuffling.
 
-WARNING: The re-interpreted data stream MUST already be pre-partitioned in EXACTLY the same way Flink's keyBy would partition
+**WARNING**: The re-interpreted data stream **MUST** already be pre-partitioned in **EXACTLY** the same way Flink's keyBy would partition
 the data in a shuffle w.r.t. key-group assignment.
 
 One use-case for this could be a materialized shuffle between two jobs: the first job performs a keyBy shuffle and materializes

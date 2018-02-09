@@ -651,18 +651,6 @@ class DataStreamTest extends AbstractTestBase {
     assert(sg.getIterationSourceSinkPairs.size() == 2)
   }
 
-  @Test
-  def testReinterpretAsKeyedStream(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setParallelism(1)
-    val source = env.fromElements(1, 2, 3)
-    new DataStreamUtils(source).reinterpretAsKeyedStream((in) => in)
-      .timeWindow(Time.seconds(1))
-      .reduce((a, b) => a + b)
-      .addSink(new DiscardingSink[Int])
-    env.execute()
-  }
-
   /////////////////////////////////////////////////////////////
   // Utilities
   /////////////////////////////////////////////////////////////
