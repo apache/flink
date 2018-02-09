@@ -56,7 +56,7 @@ import org.apache.flink.runtime.rest.handler.legacy.SubtasksAllAccumulatorsHandl
 import org.apache.flink.runtime.rest.handler.legacy.SubtasksTimesHandler;
 import org.apache.flink.runtime.rest.handler.legacy.TaskManagerLogHandler;
 import org.apache.flink.runtime.rest.handler.legacy.TaskManagersHandler;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTrackerImpl;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.StackTraceSampleCoordinator;
 import org.apache.flink.runtime.rest.handler.legacy.checkpoints.CheckpointConfigHandler;
 import org.apache.flink.runtime.rest.handler.legacy.checkpoints.CheckpointStatsDetailsHandler;
@@ -143,7 +143,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private final StackTraceSampleCoordinator stackTraceSamples;
 
-	private final BackPressureStatsTracker backPressureStatsTracker;
+	private final BackPressureStatsTrackerImpl backPressureStatsTrackerImpl;
 
 	private final WebMonitorConfig cfg;
 
@@ -223,7 +223,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		Time delayBetweenSamples = Time.milliseconds(delay);
 
-		backPressureStatsTracker = new BackPressureStatsTracker(
+		backPressureStatsTrackerImpl = new BackPressureStatsTrackerImpl(
 			stackTraceSamples,
 			cleanUpInterval,
 			numSamples,
@@ -288,7 +288,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		get(router, new SubtasksTimesHandler(executionGraphCache, scheduledExecutor));
 		get(router, new JobVertexTaskManagersHandler(executionGraphCache, scheduledExecutor, metricFetcher));
 		get(router, new JobVertexAccumulatorsHandler(executionGraphCache, scheduledExecutor));
-		get(router, new JobVertexBackPressureHandler(executionGraphCache, scheduledExecutor, backPressureStatsTracker, refreshInterval));
+		get(router, new JobVertexBackPressureHandler(executionGraphCache, scheduledExecutor, backPressureStatsTrackerImpl, refreshInterval));
 		get(router, new SubtasksAllAccumulatorsHandler(executionGraphCache, scheduledExecutor));
 		get(router, new SubtaskCurrentAttemptDetailsHandler(executionGraphCache, scheduledExecutor, metricFetcher));
 		get(router, new SubtaskExecutionAttemptDetailsHandler(executionGraphCache, scheduledExecutor, metricFetcher));
@@ -447,7 +447,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		synchronized (startupShutdownLock) {
 			leaderRetrievalService.start(retriever);
 
-			long delay = backPressureStatsTracker.getCleanUpInterval();
+			long delay = backPressureStatsTrackerImpl.getCleanUpInterval();
 
 			// Scheduled back pressure stats tracker cache cleanup. We schedule
 			// this here repeatedly, because cache clean up only happens on
@@ -457,7 +457,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 				@Override
 				public void run() {
 					try {
-						backPressureStatsTracker.cleanUpOperatorStatsCache();
+						backPressureStatsTrackerImpl.cleanUpOperatorStatsCache();
 					} catch (Throwable t) {
 						LOG.error("Error during back pressure stats cache cleanup.", t);
 					}
@@ -480,7 +480,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 			stackTraceSamples.shutDown();
 
-			backPressureStatsTracker.shutDown();
+			backPressureStatsTrackerImpl.shutDown();
 
 			cleanup();
 		}

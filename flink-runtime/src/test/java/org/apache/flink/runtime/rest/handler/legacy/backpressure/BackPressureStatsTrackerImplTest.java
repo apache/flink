@@ -42,9 +42,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * Tests for the BackPressureStatsTracker.
+ * Tests for the BackPressureStatsTrackerImpl.
  */
-public class BackPressureStatsTrackerTest extends TestLogger {
+public class BackPressureStatsTrackerImplTest extends TestLogger {
 
 	/** Tests simple statistics with fake stack traces. */
 	@Test
@@ -87,7 +87,7 @@ public class BackPressureStatsTrackerTest extends TestLogger {
 		int numSamples = 100;
 		Time delayBetweenSamples = Time.milliseconds(100L);
 
-		BackPressureStatsTracker tracker = new BackPressureStatsTracker(
+		BackPressureStatsTrackerImpl tracker = new BackPressureStatsTrackerImpl(
 				sampleCoordinator, 9999, numSamples, Integer.MAX_VALUE, delayBetweenSamples);
 
 		// getOperatorBackPressureStats triggers stack trace sampling
@@ -97,7 +97,7 @@ public class BackPressureStatsTrackerTest extends TestLogger {
 				Matchers.eq(taskVertices),
 				Matchers.eq(numSamples),
 				Matchers.eq(delayBetweenSamples),
-				Matchers.eq(BackPressureStatsTracker.MAX_STACK_TRACE_DEPTH));
+				Matchers.eq(BackPressureStatsTrackerImpl.MAX_STACK_TRACE_DEPTH));
 
 		// Request back pressure stats again. This should not trigger another sample request
 		Assert.assertTrue(!tracker.getOperatorBackPressureStats(jobVertex).isPresent());
@@ -106,7 +106,7 @@ public class BackPressureStatsTrackerTest extends TestLogger {
 				Matchers.eq(taskVertices),
 				Matchers.eq(numSamples),
 				Matchers.eq(delayBetweenSamples),
-				Matchers.eq(BackPressureStatsTracker.MAX_STACK_TRACE_DEPTH));
+				Matchers.eq(BackPressureStatsTrackerImpl.MAX_STACK_TRACE_DEPTH));
 
 		Assert.assertTrue(!tracker.getOperatorBackPressureStats(jobVertex).isPresent());
 
@@ -154,8 +154,8 @@ public class BackPressureStatsTrackerTest extends TestLogger {
 	private StackTraceElement[] createStackTrace(boolean isBackPressure) {
 		if (isBackPressure) {
 			return new StackTraceElement[] { new StackTraceElement(
-					BackPressureStatsTracker.EXPECTED_CLASS_NAME,
-					BackPressureStatsTracker.EXPECTED_METHOD_NAME,
+					BackPressureStatsTrackerImpl.EXPECTED_CLASS_NAME,
+					BackPressureStatsTrackerImpl.EXPECTED_METHOD_NAME,
 					"LocalBufferPool.java",
 					133) };
 		} else {
