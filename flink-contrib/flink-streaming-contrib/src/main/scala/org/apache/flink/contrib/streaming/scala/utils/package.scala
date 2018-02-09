@@ -43,6 +43,29 @@ package object utils {
       JavaStreamUtils.collect(self.javaStream).asScala
     }
 
-  }
+    /**
+      * Reinterprets the given [[DataStream]] as a [[KeyedStream]], which extracts keys with the
+      * given [[KeySelectorWithType]].
+      *
+      * IMPORTANT: For every partition of the base stream, the keys of events in the base stream
+      * must be partitioned exactly in the same way as if it was created through a
+      * [[DataStream#keyBy(KeySelectorWithType)]].
+      *
+      * @param keySelector Function that defines how keys are extracted from the data stream.
+      * @return The reinterpretation of the [[DataStream]] as a [[KeyedStream]].
+      */
+    def reinterpretAsKeyedStream[K: TypeInformation](
+      keySelector: T => K): KeyedStream[T, K] = {
 
+      val keySelectorWithType =
+        new KeySelectorWithType[T, K](clean(keySelector), implicitly[TypeInformation[K]])
+
+      asScalaStream(
+        JavaStreamUtils.reinterpretAsKeyedStream(self.javaStream, keySelectorWithType))
+    }
+
+    private[flink] def clean[F <: AnyRef](f: F): F = {
+      new StreamExecutionEnvironment(self.javaStream.getExecutionEnvironment).scalaClean(f)
+    }
+  }
 }
