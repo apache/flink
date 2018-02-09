@@ -399,8 +399,8 @@ public class DataStream<T> {
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output elements
 	 * are broadcasted to every parallel instance of the next operation. In addition,
-	 * it implicitly creates a {@link org.apache.flink.api.common.state.BroadcastState broadcast state}
-	 * which can be used to store the element of the stream.
+	 * it implicitly as many {@link org.apache.flink.api.common.state.BroadcastState broadcast states}
+	 * as the specified descriptors which can be used to store the element of the stream.
 	 *
 	 * @param broadcastStateDescriptors the descriptors of the broadcast states to create.
 	 * @return A {@link BroadcastStream} which can be used in the {@link #connect(BroadcastStream)} to
