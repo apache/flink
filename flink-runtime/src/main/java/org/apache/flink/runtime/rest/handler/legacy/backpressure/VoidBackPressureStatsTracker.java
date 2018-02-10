@@ -23,7 +23,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import java.util.Optional;
 
 /**
- * {@link BackPressureStatsTracker} implementation which returns always no back pressure statistics.
+ * {@link BackPressureStatsTracker} implementation which always returns no back pressure statistics.
  */
 public enum VoidBackPressureStatsTracker implements BackPressureStatsTracker {
 
