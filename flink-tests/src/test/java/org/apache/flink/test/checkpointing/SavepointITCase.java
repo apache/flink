@@ -562,7 +562,7 @@ public class SavepointITCase extends TestLogger {
 
 		Configuration config = new Configuration();
 		config.addAll(jobGraph.getJobConfiguration());
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, -1L);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "0");
 		final File checkpointDir = new File(tmpDir, "checkpoints");
 		final File savepointDir = new File(tmpDir, "savepoints");
 

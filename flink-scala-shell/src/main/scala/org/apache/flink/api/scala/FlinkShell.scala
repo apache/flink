@@ -50,11 +50,11 @@ object FlinkShell {
   /** YARN configuration object */
   case class YarnConfig(
     containers: Option[Int] = None,
-    jobManagerMemory: Option[Int] = None,
+    jobManagerMemory: Option[String] = None,
     name: Option[String] = None,
     queue: Option[String] = None,
     slots: Option[Int] = None,
-    taskManagerMemory: Option[Int] = None
+    taskManagerMemory: Option[String] = None
   )
 
   /** Buffered reader to substitute input in test */
@@ -97,10 +97,10 @@ object FlinkShell {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(containers = Some(x))))
         } text "Number of YARN container to allocate (= Number of TaskManagers)",
-        opt[Int]("jobManagerMemory") abbr ("jm") valueName ("arg") action {
+        opt[String]("jobManagerMemory") abbr ("jm") valueName ("arg") action {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(jobManagerMemory = Some(x))))
-        } text "Memory for JobManager container [in MB]",
+        } text "Memory for JobManager container",
         opt[String]("name") abbr ("nm") action {
           (x, c) => c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(name = Some(x))))
         } text "Set a custom name for the application on YARN",
@@ -110,10 +110,10 @@ object FlinkShell {
         opt[Int]("slots") abbr ("s") valueName ("<arg>") action {
           (x, c) => c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(slots = Some(x))))
         } text "Number of slots per TaskManager",
-        opt[Int]("taskManagerMemory") abbr ("tm") valueName ("<arg>") action {
+        opt[String]("taskManagerMemory") abbr ("tm") valueName ("<arg>") action {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(taskManagerMemory = Some(x))))
-        } text "Memory per TaskManager container [in MB]",
+        } text "Memory per TaskManager container",
         opt[(String)] ("addclasspath") abbr("a") valueName("<path/to/jar>") action {
           case (x, c) =>
             val xArray = x.split(":")

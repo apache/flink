@@ -8,14 +8,14 @@
     </thead>
     <tbody>
         <tr>
-            <td><h5>jobmanager.heap.mb</h5></td>
-            <td style="word-wrap: break-word;">1024</td>
-            <td>JVM heap size (in megabytes) for the JobManager.</td>
+            <td><h5>jobmanager.heap.size</h5></td>
+            <td style="word-wrap: break-word;">"1024m"</td>
+            <td>JVM heap size for the JobManager.</td>
         </tr>
         <tr>
-            <td><h5>taskmanager.heap.mb</h5></td>
-            <td style="word-wrap: break-word;">1024</td>
-            <td>JVM heap size (in megabytes) for the TaskManagers, which are the parallel workers of the system. On YARN setups, this value is automatically configured to the size of the TaskManager's YARN container, minus a certain tolerance value.</td>
+            <td><h5>taskmanager.heap.size</h5></td>
+            <td style="word-wrap: break-word;">"1024m"</td>
+            <td>JVM heap size for the TaskManagers, which are the parallel workers of the system. On YARN setups, this value is automatically configured to the size of the TaskManager's YARN container, minus a certain tolerance value.</td>
         </tr>
         <tr>
             <td><h5>parallelism.default</h5></td>

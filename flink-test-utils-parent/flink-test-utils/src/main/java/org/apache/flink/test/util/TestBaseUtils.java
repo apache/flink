@@ -95,7 +95,7 @@ public class TestBaseUtils extends TestLogger {
 
 	protected static final int MINIMUM_HEAP_SIZE_MB = 192;
 
-	protected static final long TASK_MANAGER_MEMORY_SIZE = 80;
+	protected static final String TASK_MANAGER_MEMORY_SIZE = "80m";
 
 	protected static final long DEFAULT_AKKA_ASK_TIMEOUT = 1000;
 
@@ -181,7 +181,7 @@ public class TestBaseUtils extends TestLogger {
 		}
 
 		if (!config.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
-			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, TASK_MANAGER_MEMORY_SIZE);
+			config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, TASK_MANAGER_MEMORY_SIZE);
 		}
 
 		LocalFlinkMiniCluster cluster =  new LocalFlinkMiniCluster(config, singleActorSystem);

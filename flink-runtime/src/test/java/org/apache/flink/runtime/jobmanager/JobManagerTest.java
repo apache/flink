@@ -639,7 +639,7 @@ public class JobManagerTest extends TestLogger {
 				leaderId);
 
 		Configuration tmConfig = new Configuration();
-		tmConfig.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
+		tmConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 		tmConfig.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 8);
 
 		ActorRef taskManager = TaskManager.startTaskManagerComponentsAndActor(

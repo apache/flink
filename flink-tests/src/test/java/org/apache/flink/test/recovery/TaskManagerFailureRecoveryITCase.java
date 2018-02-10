@@ -78,7 +78,7 @@ public class TaskManagerFailureRecoveryITCase extends TestLogger {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, parallelism);
-			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 16L);
+			config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
 
 			config.setString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL, "500 ms");
 			config.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, "20 s");

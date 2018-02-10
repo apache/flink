@@ -76,7 +76,7 @@ public abstract class CancelingTestBase extends TestLogger {
 		Configuration config = new Configuration();
 		config.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
 		config.setString(AkkaOptions.ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
-		config.setInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE, 4096);
+		config.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "4096");
 		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 2048);
 
 		return config;
