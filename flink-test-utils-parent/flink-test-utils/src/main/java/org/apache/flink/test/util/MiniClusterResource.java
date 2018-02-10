@@ -225,7 +225,7 @@ public class MiniClusterResource extends ExternalResource {
 		}
 
 		if (!configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
-			configuration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, TestBaseUtils.TASK_MANAGER_MEMORY_SIZE);
+			configuration.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, TestBaseUtils.TASK_MANAGER_MEMORY_SIZE);
 		}
 
 		// set rest port to 0 to avoid clashes with concurrent MiniClusters

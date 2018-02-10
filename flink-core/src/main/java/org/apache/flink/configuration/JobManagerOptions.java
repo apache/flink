@@ -74,10 +74,20 @@ public class JobManagerOptions {
 			" leader from potentially multiple standby JobManagers.");
 
 	/**
-	 * JVM heap size (in megabytes) for the JobManager.
+	 * JVM heap size for the JobManager with memory size.
 	 */
 	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
-	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY =
+	public static final ConfigOption<String> JOB_MANAGER_HEAP_MEMORY =
+		key("jobmanager.heap.size")
+		.defaultValue("1024m")
+		.withDescription("JVM heap size for the JobManager.");
+
+	/**
+	 * JVM heap size (in megabytes) for the JobManager.
+	 * @deprecated use {@link #JOB_MANAGER_HEAP_MEMORY}
+	 */
+	@Deprecated
+	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY_MB =
 		key("jobmanager.heap.mb")
 		.defaultValue(1024)
 		.withDescription("JVM heap size (in megabytes) for the JobManager.");

@@ -95,7 +95,7 @@ public class HAQueryableStateRocksDBBackendITCase extends AbstractQueryableState
 	private static Configuration getConfig() throws Exception {
 
 		Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, NUM_JMS);
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);

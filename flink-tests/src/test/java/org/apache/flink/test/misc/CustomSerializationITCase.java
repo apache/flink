@@ -59,7 +59,7 @@ public class CustomSerializationITCase extends TestLogger {
 
 	public static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 30L);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "30m");
 		return config;
 	}
 
