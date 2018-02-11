@@ -22,28 +22,24 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
-import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.MockNetworkEnvironment;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
-import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -53,7 +49,6 @@ import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
@@ -122,28 +117,18 @@ public class TaskExecutorITCase extends TestLogger {
 			testingHAServices,
 			rpcService.getScheduledExecutor(),
 			Time.minutes(5L));
-		MetricRegistryImpl metricRegistry = mock(MetricRegistryImpl.class);
-		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class, RETURNS_MOCKS);
+		MetricRegistry metricRegistry = NoOpMetricRegistry.INSTANCE;
+		HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
 
 		final TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
 		final TaskManagerLocation taskManagerLocation = new TaskManagerLocation(taskManagerResourceId, InetAddress.getLocalHost(), 1234);
-		final MemoryManager memoryManager = mock(MemoryManager.class);
-		final IOManager ioManager = mock(IOManager.class);
-		final NetworkEnvironment networkEnvironment = MockNetworkEnvironment.getMock();
-		final TaskManagerMetricGroup taskManagerMetricGroup = mock(TaskManagerMetricGroup.class);
-		final BroadcastVariableManager broadcastVariableManager = mock(BroadcastVariableManager.class);
-		final FileCache fileCache = mock(FileCache.class);
 		final List<ResourceProfile> resourceProfiles = Arrays.asList(resourceProfile);
 		final TaskSlotTable taskSlotTable = new TaskSlotTable(resourceProfiles, new TimerService<AllocationID>(scheduledExecutorService, 100L));
-		final JobManagerTable jobManagerTable = new JobManagerTable();
-		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
 		final SlotManager slotManager = new SlotManager(
 			rpcService.getScheduledExecutor(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime());
-
-		final TaskExecutorLocalStateStoresManager taskStateManager = new TaskExecutorLocalStateStoresManager();
 
 		ResourceManager<ResourceID> resourceManager = new StandaloneResourceManager(
 			rpcService,
@@ -158,26 +143,22 @@ public class TaskExecutorITCase extends TestLogger {
 			new ClusterInformation("localhost", 1234),
 			testingFatalErrorHandler);
 
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setTaskSlotTable(taskSlotTable)
+			.build();
+
 		TaskExecutor taskExecutor = new TaskExecutor(
 			rpcService,
 			taskManagerConfiguration,
-			taskManagerLocation,
-			memoryManager,
-			ioManager,
-			taskStateManager,
-			networkEnvironment,
 			testingHAServices,
+			taskManagerServices,
 			heartbeatServices,
-			taskManagerMetricGroup,
-			broadcastVariableManager,
-			fileCache,
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			new BlobCacheService(
 				configuration,
-				testingHAServices.createBlobStore(),
+				new VoidBlobStore(),
 				null),
-			taskSlotTable,
-			jobManagerTable,
-			jobLeaderService,
 			testingFatalErrorHandler);
 
 		JobMasterGateway jmGateway = mock(JobMasterGateway.class);

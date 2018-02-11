@@ -48,7 +48,6 @@ import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorSystem;
 import org.slf4j.Logger;
@@ -61,6 +60,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This class is the executable entry point for the task manager in yarn or standalone mode.
@@ -97,8 +97,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
 	private final TaskExecutor taskManager;
 
 	public TaskManagerRunner(Configuration configuration, ResourceID resourceId) throws Exception {
-		this.configuration = Preconditions.checkNotNull(configuration);
-		this.resourceId = Preconditions.checkNotNull(resourceId);
+		this.configuration = checkNotNull(configuration);
+		this.resourceId = checkNotNull(resourceId);
 
 		timeout = AkkaUtils.getTimeoutAsTime(configuration);
 
@@ -270,10 +270,10 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			boolean localCommunicationOnly,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
 
-		Preconditions.checkNotNull(configuration);
-		Preconditions.checkNotNull(resourceID);
-		Preconditions.checkNotNull(rpcService);
-		Preconditions.checkNotNull(highAvailabilityServices);
+		checkNotNull(configuration);
+		checkNotNull(resourceID);
+		checkNotNull(rpcService);
+		checkNotNull(highAvailabilityServices);
 
 		InetAddress remoteAddress = InetAddress.getByName(rpcService.getAddress());
 
@@ -297,20 +297,11 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		return new TaskExecutor(
 			rpcService,
 			taskManagerConfiguration,
-			taskManagerServices.getTaskManagerLocation(),
-			taskManagerServices.getMemoryManager(),
-			taskManagerServices.getIOManager(),
-			taskManagerServices.getTaskStateManager(),
-			taskManagerServices.getNetworkEnvironment(),
 			highAvailabilityServices,
+			taskManagerServices,
 			heartbeatServices,
 			taskManagerMetricGroup,
-			taskManagerServices.getBroadcastVariableManager(),
-			taskManagerServices.getFileCache(),
 			blobCacheService,
-			taskManagerServices.getTaskSlotTable(),
-			taskManagerServices.getJobManagerTable(),
-			taskManagerServices.getJobLeaderService(),
 			fatalErrorHandler);
 	}
 
@@ -346,7 +337,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 		final int rpcPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0);
 
-		Preconditions.checkState(rpcPort >= 0 && rpcPort <= 65535, "Invalid value for " +
+		checkState(rpcPort >= 0 && rpcPort <= 65535, "Invalid value for " +
 				"'%s' (port for the TaskManager actor system) : %d - Leave config parameter empty or " +
 				"use 0 to let the system choose port automatically.",
 			ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, rpcPort);
