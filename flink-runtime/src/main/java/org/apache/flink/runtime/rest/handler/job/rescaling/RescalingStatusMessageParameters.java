@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.job;
+package org.apache.flink.runtime.rest.handler.job.rescaling;
 
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
+import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 
@@ -26,7 +27,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 /**
- * Message headers for the {@link RescalingHandlers.RescalingStatusHandler}.
+ * {@link MessageParameters} for polling the status of a rescaling operation.
  */
 public class RescalingStatusMessageParameters extends JobMessageParameters {
 
