@@ -82,6 +82,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	private volatile Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadFunction;
 
+	private volatile Consumer<Tuple2<ResourceID, Throwable>> disconnectTaskExecutorConsumer;
+
 	public TestingResourceManagerGateway() {
 		this(
 			ResourceManagerId.generate(),
@@ -133,6 +135,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	public void setRequestTaskManagerFileUploadFunction(Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadFunction) {
 		this.requestTaskManagerFileUploadFunction = requestTaskManagerFileUploadFunction;
+	}
+
+	public void setDisconnectTaskExecutorConsumer(Consumer<Tuple2<ResourceID, Throwable>> disconnectTaskExecutorConsumer) {
+		this.disconnectTaskExecutorConsumer = disconnectTaskExecutorConsumer;
 	}
 
 	@Override
@@ -229,7 +235,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	@Override
 	public void disconnectTaskManager(ResourceID resourceID, Exception cause) {
+		final Consumer<Tuple2<ResourceID, Throwable>> currentConsumer = disconnectTaskExecutorConsumer;
 
+		if (currentConsumer != null) {
+			currentConsumer.accept(Tuple2.of(resourceID, cause));
+		}
 	}
 
 	@Override
