@@ -351,7 +351,7 @@ object ScalarOperators {
     else {
       s"""
         |${operand.code}
-        |boolean $resultTerm = false;
+        |boolean $resultTerm = ${operand.resultTerm} == null;
         |""".stripMargin
     }
 
@@ -381,7 +381,7 @@ object ScalarOperators {
     else {
       s"""
         |${operand.code}
-        |boolean $resultTerm = true;
+        |boolean $resultTerm = ${operand.resultTerm} != null;
         |""".stripMargin
     }
 
@@ -1169,9 +1169,9 @@ object ScalarOperators {
       s"""
          |${map.code}
          |${key.code}
-         |boolean $nullTerm = (${map.nullTerm} || ${key.nullTerm});
-         |$resultTypeTerm $resultTerm = $nullTerm ?
+         |$resultTypeTerm $resultTerm = (${map.nullTerm} || ${key.nullTerm}) ?
          |  null : ($resultTypeTerm) ${map.resultTerm}.get(${key.resultTerm});
+         |boolean $nullTerm = $resultTerm == null;
          |""".stripMargin
     } else {
       s"""
@@ -1181,7 +1181,14 @@ object ScalarOperators {
          | ${map.resultTerm}.get(${key.resultTerm});
          |""".stripMargin
     }
-    GeneratedExpression(resultTerm, nullTerm, accessCode, resultType)
+    val unboxing = codeGenerator.generateInputFieldUnboxing(resultType, resultTerm)
+
+    unboxing.copy(code =
+      s"""
+         |$accessCode
+         |${unboxing.code}
+         |""".stripMargin
+    )
   }
 
   def generateMapCardinality(

@@ -479,9 +479,14 @@ class CalcITCase(
 
     val table = env.fromElements(rowValue).toTable(tEnv, 'a, 'b, 'c)
 
-    val result = table.select(row('a, 'b, 'c), array(12, 'b), map('a, 'c))
+    val result = table.select(
+      row('a, 'b, 'c),
+      array(12, 'b),
+      map('a, 'c),
+      map('a, 'c).at('a) === 'c
+    )
 
-    val expected = "foo,12,1984-07-12 14:34:24.0,[12, 12],{foo=1984-07-12 14:34:24.0}"
+    val expected = "foo,12,1984-07-12 14:34:24.0,[12, 12],{foo=1984-07-12 14:34:24.0},true"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
 
