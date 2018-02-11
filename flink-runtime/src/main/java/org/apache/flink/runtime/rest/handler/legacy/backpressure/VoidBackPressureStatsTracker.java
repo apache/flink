@@ -32,5 +32,15 @@ public enum VoidBackPressureStatsTracker implements BackPressureStatsTracker {
 		public Optional<OperatorBackPressureStats> getOperatorBackPressureStats(ExecutionJobVertex vertex) {
 			return Optional.empty();
 		}
+
+		@Override
+		public void cleanUpOperatorStatsCache() {
+			// nothing to do
+		}
+
+		@Override
+		public void shutDown() {
+			// nothing to do
+		}
 	}
 }
