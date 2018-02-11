@@ -47,6 +47,8 @@ import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -60,7 +62,8 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 /**
  * Container for {@link TaskExecutor} services such as the {@link MemoryManager}, {@link IOManager},
- * {@link NetworkEnvironment}.
+ * {@link NetworkEnvironment}. All services are exclusive to a single {@link TaskExecutor}.
+ * Consequently, the respective {@link TaskExecutor} is responsible for closing them.
  */
 public class TaskManagerServices {
 	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerServices.class);
@@ -77,7 +80,7 @@ public class TaskManagerServices {
 	private final JobLeaderService jobLeaderService;
 	private final TaskExecutorLocalStateStoresManager taskStateManager;
 
-	private TaskManagerServices(
+	TaskManagerServices(
 		TaskManagerLocation taskManagerLocation,
 		MemoryManager memoryManager,
 		IOManager ioManager,
@@ -143,6 +146,58 @@ public class TaskManagerServices {
 
 	public TaskExecutorLocalStateStoresManager getTaskStateManager() {
 		return taskStateManager;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Shut down method
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Shuts the {@link TaskExecutor} services down.
+	 */
+	public void shutDown() throws FlinkException {
+
+		Exception exception = null;
+
+		try {
+			memoryManager.shutdown();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		try {
+			ioManager.shutdown();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		try {
+			networkEnvironment.shutdown();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		try {
+			fileCache.shutdown();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		try {
+			taskSlotTable.stop();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		try {
+			jobLeaderService.stop();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		if (exception != null) {
+			throw new FlinkException("Could not properly shut down the TaskManager services.", exception);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
