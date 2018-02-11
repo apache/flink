@@ -70,7 +70,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	/**
 	 * We disable writes to the write-ahead-log here.
 	 */
-	private final WriteOptions writeOptions;
+	final WriteOptions writeOptions;
 
 	protected final ByteArrayOutputStreamWithPos keySerializationStream;
 	protected final DataOutputView keySerializationDataOutputView;

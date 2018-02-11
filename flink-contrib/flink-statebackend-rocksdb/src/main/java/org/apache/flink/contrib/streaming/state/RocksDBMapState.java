@@ -32,18 +32,15 @@ import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
-import org.rocksdb.RocksIterator;
 import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * {@link MapState} implementation that stores state in RocksDB.
@@ -164,13 +161,7 @@ public class RocksDBMapState<K, N, UK, UV>
 		return new Iterable<UK>() {
 			@Override
 			public Iterator<UK> iterator() {
-				return new RocksDBMapIterator<UK>(backend.db, prefixBytes) {
-					@Override
-					public UK next() {
-						RocksDBMapEntry entry = nextEntry();
-						return (entry == null ? null : entry.getKey());
-					}
-				};
+				return new RocksDBMapIterator<>(prefixBytes, Map.Entry::getKey);
 			}
 		};
 	}
@@ -182,13 +173,7 @@ public class RocksDBMapState<K, N, UK, UV>
 		return new Iterable<UV>() {
 			@Override
 			public Iterator<UV> iterator() {
-				return new RocksDBMapIterator<UV>(backend.db, prefixBytes) {
-					@Override
-					public UV next() {
-						RocksDBMapEntry entry = nextEntry();
-						return (entry == null ? null : entry.getValue());
-					}
-				};
+				return new RocksDBMapIterator<>(prefixBytes, Map.Entry::getValue);
 			}
 		};
 	}
@@ -197,12 +182,7 @@ public class RocksDBMapState<K, N, UK, UV>
 	public Iterator<Map.Entry<UK, UV>> iterator() throws IOException, RocksDBException {
 		final byte[] prefixBytes = serializeCurrentKeyAndNamespace();
 
-		return new RocksDBMapIterator<Map.Entry<UK, UV>>(backend.db, prefixBytes) {
-			@Override
-			public Map.Entry<UK, UV> next() {
-				return nextEntry();
-			}
-		};
+		return new RocksDBMapIterator<>(prefixBytes, e -> e);
 	}
 
 	@Override
@@ -237,12 +217,7 @@ public class RocksDBMapState<K, N, UK, UV>
 		writeKeyWithGroupAndNamespace(keyGroup, des.f0, des.f1, outputStream, outputView);
 		final byte[] keyPrefixBytes = outputStream.toByteArray();
 
-		final Iterator<Map.Entry<UK, UV>> iterator = new RocksDBMapIterator<Map.Entry<UK, UV>>(backend.db, keyPrefixBytes) {
-			@Override
-			public Map.Entry<UK, UV> next() {
-				return nextEntry();
-			}
-		};
+		final Iterator<Map.Entry<UK, UV>> iterator = new RocksDBMapIterator<>(keyPrefixBytes, e -> e);
 
 		// Return null to make the behavior consistent with other backends
 		if (!iterator.hasNext()) {
@@ -309,237 +284,64 @@ public class RocksDBMapState<K, N, UK, UV>
 	//  Internal Classes
 	// ------------------------------------------------------------------------
 
-	/** A map entry in RocksDBMapState. */
-	private class RocksDBMapEntry implements Map.Entry<UK, UV> {
-		private final RocksDB db;
+	/** An auxiliary utility to scan all entries under the given key. */
+	private final class RocksDBMapIterator<T> implements Iterator<T> {
 
-		/** The raw bytes of the key stored in RocksDB. Each user key is stored in RocksDB
-		 * with the format #KeyGroup#Key#Namespace#UserKey. */
-		private final byte[] rawKeyBytes;
+		private final RocksDBPrefixIterator<UK, UV> rocksIter;
+		private final Function<Map.Entry<UK, UV>, T> map;
 
-		/** The raw bytes of the value stored in RocksDB. */
-		private byte[] rawValueBytes;
+		<K, V> RocksDBMapIterator(
+						byte[] keyPrefixBytes,
+						Function<Map.Entry<UK, UV>, T> map) {
 
-		/** True if the entry has been deleted. */
-		private boolean deleted;
+			rocksIter = new RocksDBPrefixIterator<UK, UV>(RocksDBMapState.this, keyPrefixBytes) {
 
-		/** The user key and value. The deserialization is performed lazily, i.e. the key
-		 * and the value is deserialized only when they are accessed. */
-		private UK userKey = null;
-		private UV userValue = null;
-
-		RocksDBMapEntry(final RocksDB db, final byte[] rawKeyBytes, final byte[] rawValueBytes) {
-			this.db = db;
-
-			this.rawKeyBytes = rawKeyBytes;
-			this.rawValueBytes = rawValueBytes;
-			this.deleted = false;
-		}
-
-		public void remove() {
-			deleted = true;
-			rawValueBytes = null;
-
-			try {
-				db.remove(columnFamily, writeOptions, rawKeyBytes);
-			} catch (RocksDBException e) {
-				throw new RuntimeException("Error while removing data from RocksDB.", e);
-			}
-		}
-
-		@Override
-		public UK getKey() {
-			if (userKey == null) {
-				try {
-					userKey = deserializeUserKey(rawKeyBytes);
-				} catch (IOException e) {
-					throw new RuntimeException("Error while deserializing the user key.");
-				}
-			}
-
-			return userKey;
-		}
-
-		@Override
-		public UV getValue() {
-			if (deleted) {
-				return null;
-			} else {
-				if (userValue == null) {
+				@Override
+				UK deserializeKey(byte[] bytes) {
 					try {
-						userValue = deserializeUserValue(rawValueBytes);
-					} catch (IOException e) {
-						throw new RuntimeException(
-										"Error while deserializing the user value.", e);
+						return deserializeUserKey(bytes);
+					} catch (IOException ex) {
+						throw new RuntimeException(ex);
 					}
 				}
 
-				return userValue;
-			}
-		}
+				@Override
+				UV deserializeValue(byte[] bytes) {
+					try {
+						return deserializeUserValue(bytes);
+					} catch (IOException ex) {
+						throw new RuntimeException(ex);
+					}
+				}
 
-		@Override
-		public UV setValue(UV value) {
-			if (deleted) {
-				throw new IllegalStateException("The value has already been deleted.");
-			}
+				@Override
+				byte[] serializeValue(UV value) {
+					try {
+						return serializeUserValue(value);
+					} catch (IOException ex) {
+						throw new RuntimeException(ex);
+					}
+				}
 
-			UV oldValue = getValue();
+			};
 
-			try {
-				userValue = value;
-				rawValueBytes = serializeUserValue(value);
-
-				db.put(columnFamily, writeOptions, rawKeyBytes, rawValueBytes);
-			} catch (IOException | RocksDBException e) {
-				throw new RuntimeException("Error while putting data into RocksDB.", e);
-			}
-
-			return oldValue;
-		}
-
-		@Override
-		public String toString() {
-			return "RocksDBMapEntry("
-							+ "key=" + Arrays.toString(rawKeyBytes)
-							+ ", value=" + Arrays.toString(rawValueBytes)
-							+ ")";
-		}
-
-	}
-
-	/** An auxiliary utility to scan all entries under the given key. */
-	private abstract class RocksDBMapIterator<T> implements Iterator<T> {
-
-		static final int CACHE_SIZE_BASE = 1;
-		static final int CACHE_SIZE_LIMIT = 128;
-
-		/** The db where data resides. */
-		private final RocksDB db;
-
-		/**
-		 * The prefix bytes of the key being accessed. All entries under the same key
-		 * has the same prefix, hence we can stop the iterating once coming across an
-		 * entry with a different prefix.
-		 */
-		private final byte[] keyPrefixBytes;
-
-		/**
-		 * True if all entries have been accessed or the iterator has come across an
-		 * entry with a different prefix.
-		 */
-		private boolean expired = false;
-
-		/** A in-memory cache for the entries in the rocksdb. */
-		private ArrayList<RocksDBMapEntry> cacheEntries = new ArrayList<>();
-		private int cacheIndex = 0;
-
-		RocksDBMapIterator(final RocksDB db, final byte[] keyPrefixBytes) {
-			this.db = db;
-			this.keyPrefixBytes = keyPrefixBytes;
+			this.map = map;
 		}
 
 		@Override
 		public boolean hasNext() {
-			loadCache();
-
-			return (cacheIndex < cacheEntries.size());
+			return rocksIter.hasNext();
 		}
 
 		@Override
 		public void remove() {
-			if (cacheIndex == 0 || cacheIndex > cacheEntries.size()) {
-				throw new IllegalStateException("The remove operation must be called after an valid next operation.");
-			}
-
-			RocksDBMapEntry lastEntry = cacheEntries.get(cacheIndex - 1);
-			lastEntry.remove();
+			rocksIter.remove();
 		}
 
-		final RocksDBMapEntry nextEntry() {
-			loadCache();
-
-			if (cacheIndex == cacheEntries.size()) {
-				if (!expired) {
-					throw new IllegalStateException();
-				}
-
-				return null;
-			}
-
-			RocksDBMapEntry entry = cacheEntries.get(cacheIndex);
-			cacheIndex++;
-
-			return entry;
+		@Override
+		public T next() {
+			return map.apply(rocksIter.next());
 		}
 
-		private void loadCache() {
-			if (cacheIndex > cacheEntries.size()) {
-				throw new IllegalStateException();
-			}
-
-			// Load cache entries only when the cache is empty and there still exist unread entries
-			if (cacheIndex < cacheEntries.size() || expired) {
-				return;
-			}
-
-			try (RocksIterator iterator = db.newIterator(columnFamily)) {
-
-				/*
-				* The iteration starts from the prefix bytes at the first loading. The cache then is
-				* reloaded when the next entry to return is the last one in the cache. At that time,
-				* we will start the iterating from the last returned entry.
-				*/
-				RocksDBMapEntry lastEntry = cacheEntries.size() == 0 ? null : cacheEntries.get(cacheEntries.size() - 1);
-				byte[] startBytes = (lastEntry == null ? keyPrefixBytes : lastEntry.rawKeyBytes);
-				int numEntries = (lastEntry == null ? CACHE_SIZE_BASE : Math.min(cacheEntries.size() * 2, CACHE_SIZE_LIMIT));
-
-				cacheEntries.clear();
-				cacheIndex = 0;
-
-				iterator.seek(startBytes);
-
-				/*
-				* If the last returned entry is not deleted, it will be the first entry in the
-				* iterating. Skip it to avoid redundant access in such cases.
-				*/
-				if (lastEntry != null && !lastEntry.deleted) {
-					iterator.next();
-				}
-
-				while (true) {
-					if (!iterator.isValid() || !underSameKey(iterator.key())) {
-						expired = true;
-						break;
-					}
-
-					if (cacheEntries.size() >= numEntries) {
-						break;
-					}
-
-					RocksDBMapEntry entry = new RocksDBMapEntry(db, iterator.key(), iterator.value());
-					// skip any entry that doesn't have suffix
-					if (entry.rawKeyBytes.length > this.keyPrefixBytes.length) {
-						cacheEntries.add(entry);
-					}
-
-					iterator.next();
-				}
-			}
-		}
-
-		private boolean underSameKey(byte[] rawKeyBytes) {
-			if (rawKeyBytes.length < keyPrefixBytes.length) {
-				return false;
-			}
-
-			for (int i = 0; i < keyPrefixBytes.length; ++i) {
-				if (rawKeyBytes[i] != keyPrefixBytes[i]) {
-					return false;
-				}
-			}
-
-			return true;
-		}
 	}
 }

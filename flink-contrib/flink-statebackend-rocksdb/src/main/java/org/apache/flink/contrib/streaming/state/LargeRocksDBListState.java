@@ -20,8 +20,6 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -30,18 +28,17 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.internal.InternalListState;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Function;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
-
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 
 /**
@@ -53,11 +50,12 @@ import java.util.Map;
  * @param <V> The type of the values in the list state.
  */
 public class LargeRocksDBListState<K, N, V>
-	extends RocksDBMapState<K, N, Integer, V>
+	extends AbstractRocksDBListState<K, N, V>
 	implements InternalListState<N, V> {
 
-	/** State for current list index. */
-	private final RocksDBValueState<K, N, Integer> indexState;
+	private static final Logger LOG = LoggerFactory.getLogger(LargeRocksDBListState.class);
+
+	private static final TypeSerializer<Integer> INDEX_SERIALIZER = IntSerializer.INSTANCE;
 
 	/**
 	 * Creates a new {@code LargeRocksDBListState}.
@@ -72,34 +70,22 @@ public class LargeRocksDBListState<K, N, V>
 			ListStateDescriptor<V> stateDesc,
 			RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, new MapStateDescriptor<Integer, V>(
-						stateDesc.getName() + "::map", new IntSerializer(), stateDesc.getElementSerializer()),
-						backend);
-		this.indexState = new RocksDBValueState(columnFamily, namespaceSerializer,
-						new ValueStateDescriptor<>(stateDesc.getName() + "::index",
-										userKeySerializer), backend);
+		super(columnFamily, namespaceSerializer, stateDesc, backend);
 	}
 
 	@Override
 	public Iterable<V> get() {
 		try {
-			Iterator<Map.Entry<Integer, V>> i = this.iterator();
-			if (!i.hasNext()) {
+			keySerializationStream.reset();
+			writeCurrentKeyWithGroupAndNamespace();
+			int count = getIndexWithNamespaceWritten(keySerializationStream.toByteArray());
+			if (count == 0) {
 				// required by contract and tests
 				return null;
 			}
-			return new Iterable<V>() {
-				@Override
-				public Iterator<V> iterator() {
-					return Iterators.transform(
-						i, new Function<Map.Entry<Integer, V>, V>() {
-								@Override
-								public V apply(Map.Entry<Integer, V> f) {
-									return f.getValue();
-								}
-							});
-				}
-			};
+
+			final byte[] keyPrefixBytes = keySerializationStream.toByteArray();
+			return () -> new RocksDBListIterator(keyPrefixBytes);
 		} catch (IOException | RocksDBException ex) {
 			throw new RuntimeException(ex);
 		}
@@ -108,13 +94,9 @@ public class LargeRocksDBListState<K, N, V>
 	@Override
 	public void add(V value) throws IOException {
 		if (value != null) {
-			Integer index = this.indexState.value();
-			if (index == null) {
-				index = 0;
-			}
+			int index = getAndIncrementIndex();
 			try {
-				put(index++, value);
-				this.indexState.update(index);
+				putAt(index, value);
 			} catch (Exception e) {
 				throw new RuntimeException("Error while adding data to RocksDB", e);
 			}
@@ -160,7 +142,7 @@ public class LargeRocksDBListState<K, N, V>
 				} else {
 					separator = new byte[] { 0 };
 				}
-				this.userValueSerializer.serialize(v, out);
+				this.valueSerializer.serialize(v, out);
 			}
 			baos.flush();
 			return baos.toByteArray();
@@ -168,15 +150,21 @@ public class LargeRocksDBListState<K, N, V>
 	}
 
 	@Override
-	public void setCurrentNamespace(N namespace) {
-		super.setCurrentNamespace(namespace);
-		this.indexState.setCurrentNamespace(namespace);
-	}
-
-	@Override
 	public void clear() {
-		super.clear();
-		this.indexState.clear();
+		try {
+			Iterable<V> iter = get();
+			if (iter != null) {
+				Iterator<V> it = iter.iterator();
+				while (it.hasNext()) {
+					it.next();
+					it.remove();
+				}
+			}
+			removeIndex();
+		} catch (Exception e) {
+			LOG.warn("Error while cleaning the state.", e);
+		}
+
 	}
 
 	@Override
@@ -194,4 +182,113 @@ public class LargeRocksDBListState<K, N, V>
 		}
 	}
 
+	private byte[] serializeIndexWithNamespace(int index) throws IOException {
+		writeCurrentKeyWithGroupAndNamespace();
+		INDEX_SERIALIZER.serialize(index, keySerializationDataOutputView);
+		return keySerializationStream.toByteArray();
+	}
+
+	private void putAt(int index, V value) throws RocksDBException, IOException {
+		byte[] rawKeyBytes = serializeIndexWithNamespace(index);
+
+		keySerializationStream.reset();
+		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
+		valueSerializer.serialize(value, out);
+		byte[] rawValueBytes = keySerializationStream.toByteArray();
+		backend.db.put(columnFamily, writeOptions, rawKeyBytes, rawValueBytes);
+	}
+
+	private int getIndexWithNamespaceWritten(byte[] key) throws IOException, RocksDBException {
+		byte[] valueBytes = backend.db.get(columnFamily, key);
+		if (valueBytes == null) {
+			return 0;
+		}
+		return INDEX_SERIALIZER.deserialize(
+				new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
+	}
+
+	private int getAndIncrementIndex() {
+		try {
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = keySerializationStream.toByteArray();
+			int index = getIndexWithNamespaceWritten(key);
+			keySerializationStream.reset();
+			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
+			INDEX_SERIALIZER.serialize(++index, out);
+			out.flush();
+			backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
+			return index;
+		} catch (IOException | RocksDBException e) {
+			throw new RuntimeException("Error while retrieving data from RocksDB.", e);
+		}
+	}
+
+	private void removeAt(int index) throws IOException, RocksDBException {
+		byte[] rawKeyBytes = serializeIndexWithNamespace(index);
+
+		backend.db.delete(columnFamily, writeOptions, rawKeyBytes);
+	}
+
+	private void removeIndex() throws IOException, RocksDBException {
+		writeCurrentKeyWithGroupAndNamespace();
+		byte[] key = keySerializationStream.toByteArray();
+		backend.db.delete(columnFamily, writeOptions, key);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Internal Classes
+	// ------------------------------------------------------------------------
+
+	private final class RocksDBListIterator implements Iterator<V> {
+
+		private final RocksDBPrefixIterator<byte[], V> iter;
+
+		private RocksDBListIterator(byte[] keyPrefixBytes) {
+			this.iter = new RocksDBPrefixIterator<byte[], V>(LargeRocksDBListState.this, keyPrefixBytes) {
+				@Override
+				byte[] deserializeKey(byte[] bytes) {
+					return bytes;
+				}
+
+				@Override
+				V deserializeValue(byte[] bytes) {
+					ByteArrayInputStreamWithPos bais = new ByteArrayInputStreamWithPos(bytes);
+					DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
+					try {
+						return valueSerializer.deserialize(in);
+					} catch (IOException ex) {
+						throw new RuntimeException(ex);
+					}
+				}
+
+				@Override
+				byte[] serializeValue(V value) {
+					try {
+						keySerializationStream.reset();
+						valueSerializer.serialize(value, keySerializationDataOutputView);
+						return keySerializationStream.toByteArray();
+					} catch (IOException ex) {
+						throw new RuntimeException(ex);
+					}
+				}
+
+			};
+		}
+
+		@Override
+		public boolean hasNext() {
+			return iter.hasNext();
+		}
+
+		@Override
+		public V next() {
+			return iter.next().getValue();
+		}
+
+		@Override
+		public void remove() {
+			iter.remove();
+		}
+
+	}
 }
