@@ -28,7 +28,8 @@ import org.apache.flink.runtime.rest.messages.RequestBody;
  * @param <R> type of the request
  * @param <M> type of the message parameters
  */
-public abstract class AsynchronousOperationTriggerMessageHeaders<R extends RequestBody, M extends MessageParameters> implements MessageHeaders<R, TriggerResponse, M> {
+public abstract class AsynchronousOperationTriggerMessageHeaders<R extends RequestBody, M extends MessageParameters>
+	implements MessageHeaders<R, TriggerResponse, M> {
 
 	@Override
 	public Class<TriggerResponse> getResponseClass() {

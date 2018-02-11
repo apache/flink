@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.job;
+package org.apache.flink.runtime.rest.handler.job.rescaling;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
@@ -26,12 +26,10 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.async.AbstractAsynchronousOperationHandlers;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationInfo;
-import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationResult;
-import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
+import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.RescaleParallelismQueryParameter;
+import org.apache.flink.runtime.rest.messages.RescalingParallelismQueryParameter;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -54,14 +52,23 @@ public class RescalingHandlers extends AbstractAsynchronousOperationHandlers<Asy
 	 */
 	public class RescalingTriggerHandler extends TriggerHandler<RestfulGateway, EmptyRequestBody, RescalingTriggerMessageParameters> {
 
-		protected RescalingTriggerHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, MessageHeaders<EmptyRequestBody, TriggerResponse, RescalingTriggerMessageParameters> messageHeaders) {
-			super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+		public RescalingTriggerHandler(
+				CompletableFuture<String> localRestAddress,
+				GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+				Time timeout,
+				Map<String, String> responseHeaders) {
+			super(
+				localRestAddress,
+				leaderRetriever,
+				timeout,
+				responseHeaders,
+				RescalingTriggerHeaders.getInstance());
 		}
 
 		@Override
 		protected CompletableFuture<Acknowledge> triggerOperation(HandlerRequest<EmptyRequestBody, RescalingTriggerMessageParameters> request, RestfulGateway gateway) throws RestHandlerException {
 			final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-			final List<Integer> queryParameter = request.getQueryParameter(RescaleParallelismQueryParameter.class);
+			final List<Integer> queryParameter = request.getQueryParameter(RescalingParallelismQueryParameter.class);
 
 			if (queryParameter.isEmpty()) {
 				throw new RestHandlerException("No new parallelism was specified.", HttpResponseStatus.BAD_REQUEST);
@@ -69,7 +76,11 @@ public class RescalingHandlers extends AbstractAsynchronousOperationHandlers<Asy
 
 			final int newParallelism = queryParameter.get(0);
 
-			final CompletableFuture<Acknowledge> rescalingFuture = gateway.rescaleJob(jobId, newParallelism, RescalingBehaviour.STRICT, timeout);
+			final CompletableFuture<Acknowledge> rescalingFuture = gateway.rescaleJob(
+				jobId,
+				newParallelism,
+				RescalingBehaviour.STRICT,
+				timeout);
 
 			return rescalingFuture;
 		}
@@ -86,8 +97,17 @@ public class RescalingHandlers extends AbstractAsynchronousOperationHandlers<Asy
 	 */
 	public class RescalingStatusHandler extends StatusHandler<RestfulGateway, AsynchronousOperationInfo, RescalingStatusMessageParameters> {
 
-		protected RescalingStatusHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, MessageHeaders<EmptyRequestBody, AsynchronousOperationResult<AsynchronousOperationInfo>, RescalingStatusMessageParameters> messageHeaders) {
-			super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+		public RescalingStatusHandler(
+			CompletableFuture<String> localRestAddress,
+			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+			Time timeout,
+			Map<String, String> responseHeaders) {
+			super(
+				localRestAddress,
+				leaderRetriever,
+				timeout,
+				responseHeaders,
+				RescalingStatusHeaders.getInstance());
 		}
 
 		@Override
