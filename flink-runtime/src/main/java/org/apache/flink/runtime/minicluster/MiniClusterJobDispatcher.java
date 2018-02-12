@@ -31,7 +31,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
-import org.apache.flink.runtime.jobmaster.JobManagerServices;
+import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -79,7 +79,7 @@ public class MiniClusterJobDispatcher {
 	private final BlobServer blobServer;
 
 	/** all the services that the JobManager needs, such as BLOB service, factories, etc. */
-	private final JobManagerServices jobManagerServices;
+	private final JobManagerSharedServices jobManagerSharedServices;
 
 	/** Registry for all metrics in the mini cluster. */
 	private final MetricRegistry metricRegistry;
@@ -155,7 +155,7 @@ public class MiniClusterJobDispatcher {
 		this.numJobManagers = numJobManagers;
 
 		LOG.info("Creating JobMaster services");
-		this.jobManagerServices = JobManagerServices.fromConfiguration(config, blobServer);
+		this.jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(config, blobServer);
 	}
 
 	// ------------------------------------------------------------------------
@@ -191,9 +191,9 @@ public class MiniClusterJobDispatcher {
 					}
 				}
 
-				// shut down the JobManagerServices
+				// shut down the JobManagerSharedServices
 				try {
-					jobManagerServices.shutdown();
+					jobManagerSharedServices.shutdown();
 				} catch (Throwable throwable) {
 					exception = ExceptionUtils.firstOrSuppressed(throwable, exception);
 				}
@@ -285,7 +285,7 @@ public class MiniClusterJobDispatcher {
 					haServices,
 					heartbeatServices,
 					blobServer,
-					jobManagerServices,
+					jobManagerSharedServices,
 					metricRegistry,
 					onCompletion,
 					errorHandler,

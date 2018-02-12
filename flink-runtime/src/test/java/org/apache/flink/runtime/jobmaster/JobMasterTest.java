@@ -29,7 +29,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -40,8 +39,6 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.StackTraceSampleCoordinator;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -56,7 +53,6 @@ import org.junit.experimental.categories.Category;
 
 import java.net.URL;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -105,6 +101,11 @@ public class JobMasterTest extends TestLogger {
 		final JobGraph jobGraph = new JobGraph();
 
 		Configuration configuration = new Configuration();
+
+		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder()
+			.setTimeout(testingTimeout)
+			.build();
+
 		try (BlobServer blobServer = new BlobServer(configuration, new VoidBlobStore())) {
 			blobServer.start();
 
@@ -114,20 +115,15 @@ public class JobMasterTest extends TestLogger {
 				jobGraph,
 				configuration,
 				haServices,
+				jobManagerSharedServices,
 				heartbeatServices,
-				Executors.newScheduledThreadPool(1),
 				blobServer,
-				new NoRestartStrategy.NoRestartStrategyFactory(),
-				testingTimeout,
 				null,
 				new NoOpOnCompletionActions(),
 				testingFatalErrorHandler,
 				FlinkUserCodeClassLoaders.parentFirst(new URL[0], JobMasterTest.class.getClassLoader()),
 				null,
-				null,
-				new BackPressureStatsTracker(
-					new StackTraceSampleCoordinator(scheduledExecutor, testingTimeout.toMilliseconds()),
-					60000, 100, 60000, Time.milliseconds(50)));
+				null);
 
 			CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 
@@ -155,6 +151,7 @@ public class JobMasterTest extends TestLogger {
 			testingFatalErrorHandler.rethrowError();
 
 		} finally {
+			jobManagerSharedServices.shutdown();
 			rpc.stopService();
 		}
 	}
@@ -206,6 +203,11 @@ public class JobMasterTest extends TestLogger {
 		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		Configuration configuration = new Configuration();
+
+		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder()
+			.setTimeout(testingTimeout)
+			.build();
+
 		try (BlobServer blobServer = new BlobServer(configuration, new VoidBlobStore())) {
 			blobServer.start();
 
@@ -215,20 +217,15 @@ public class JobMasterTest extends TestLogger {
 				jobGraph,
 				configuration,
 				haServices,
+				jobManagerSharedServices,
 				heartbeatServices,
-				Executors.newScheduledThreadPool(1),
 				blobServer,
-				new NoRestartStrategy.NoRestartStrategyFactory(),
-				testingTimeout,
 				null,
 				new NoOpOnCompletionActions(),
 				testingFatalErrorHandler,
 				FlinkUserCodeClassLoaders.parentFirst(new URL[0], JobMasterTest.class.getClassLoader()),
 				null,
-				null,
-				new BackPressureStatsTracker(
-					new StackTraceSampleCoordinator(scheduledExecutor, testingTimeout.toMilliseconds()),
-					60000, 100, 60000, Time.milliseconds(50)));
+				null);
 
 			CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 
@@ -256,6 +253,7 @@ public class JobMasterTest extends TestLogger {
 			testingFatalErrorHandler.rethrowError();
 
 		} finally {
+			jobManagerSharedServices.shutdown();
 			rpc.stopService();
 		}
 	}

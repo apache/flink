@@ -34,7 +34,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
-import org.apache.flink.runtime.jobmaster.JobManagerServices;
+import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRestEndpoint;
@@ -73,7 +73,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 
 	private ResourceManager<?> resourceManager;
 
-	private JobManagerServices jobManagerServices;
+	private JobManagerSharedServices jobManagerSharedServices;
 
 	private JobMasterRestEndpoint jobMasterRestEndpoint;
 
@@ -98,7 +98,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry) throws Exception {
 
-		jobManagerServices = JobManagerServices.fromConfiguration(configuration, blobServer);
+		jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(configuration, blobServer);
 
 		resourceManagerRetrievalService = highAvailabilityServices.getResourceManagerLeaderRetriever();
 
@@ -154,7 +154,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			ResourceID.generate(),
 			rpcService,
 			highAvailabilityServices,
-			jobManagerServices,
+			jobManagerSharedServices,
 			heartbeatServices,
 			blobServer,
 			metricRegistry,
@@ -204,7 +204,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			ResourceID resourceId,
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
-			JobManagerServices jobManagerServices,
+			JobManagerSharedServices jobManagerSharedServices,
 			HeartbeatServices heartbeatServices,
 			BlobServer blobServer,
 			MetricRegistry metricRegistry,
@@ -221,7 +221,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			highAvailabilityServices,
 			heartbeatServices,
 			blobServer,
-			jobManagerServices,
+			jobManagerSharedServices,
 			metricRegistry,
 			new TerminatingOnCompleteActions(jobGraph.getJobID()),
 			fatalErrorHandler,
@@ -252,9 +252,9 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			}
 		}
 
-		if (jobManagerServices != null) {
+		if (jobManagerSharedServices != null) {
 			try {
-				jobManagerServices.shutdown();
+				jobManagerSharedServices.shutdown();
 			} catch (Throwable t) {
 				exception = ExceptionUtils.firstOrSuppressed(t, exception);
 			}

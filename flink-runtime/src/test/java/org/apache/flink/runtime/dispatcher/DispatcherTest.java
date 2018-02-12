@@ -39,7 +39,7 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
-import org.apache.flink.runtime.jobmaster.JobManagerServices;
+import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
@@ -392,7 +392,7 @@ public class DispatcherTest extends TestLogger {
 				HighAvailabilityServices highAvailabilityServices,
 				HeartbeatServices heartbeatServices,
 				BlobServer blobServer,
-				JobManagerServices jobManagerServices,
+				JobManagerSharedServices jobManagerSharedServices,
 				MetricRegistry metricRegistry,
 				OnCompletionActions onCompleteActions,
 				FatalErrorHandler fatalErrorHandler) throws Exception {
@@ -406,7 +406,7 @@ public class DispatcherTest extends TestLogger {
 				highAvailabilityServices,
 				heartbeatServices,
 				blobServer,
-				jobManagerServices,
+				jobManagerSharedServices,
 				metricRegistry,
 				onCompleteActions,
 				fatalErrorHandler,

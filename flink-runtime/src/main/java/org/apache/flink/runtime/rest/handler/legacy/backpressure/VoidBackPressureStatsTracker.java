@@ -19,36 +19,28 @@
 package org.apache.flink.runtime.rest.handler.legacy.backpressure;
 
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.util.FlinkException;
 
 import java.util.Optional;
 
 /**
- * Interface for a tracker of back pressure statistics for {@link ExecutionJobVertex}.
+ * {@link BackPressureStatsTracker} implementation which always returns no back pressure statistics.
  */
-public interface BackPressureStatsTracker {
+public enum VoidBackPressureStatsTracker implements BackPressureStatsTracker {
 
-	/**
-	 * Returns back pressure statistics for a operator. Automatically triggers stack trace sampling
-	 * if statistics are not available or outdated.
-	 *
-	 * @param vertex Operator to get the stats for.
-	 * @return Back pressure statistics for an operator
-	 */
-	Optional<OperatorBackPressureStats> getOperatorBackPressureStats(ExecutionJobVertex vertex);
+	INSTANCE {
+		@Override
+		public Optional<OperatorBackPressureStats> getOperatorBackPressureStats(ExecutionJobVertex vertex) {
+			return Optional.empty();
+		}
 
-	/**
-	 * Cleans up the operator stats cache if it contains timed out entries.
-	 *
-	 * <p>The Guava cache only evicts as maintenance during normal operations.
-	 * If this handler is inactive, it will never be cleaned.
-	 */
-	void cleanUpOperatorStatsCache();
+		@Override
+		public void cleanUpOperatorStatsCache() {
+			// nothing to do
+		}
 
-	/**
-	 * Shuts the BackPressureStatsTracker down.
-	 *
-	 * @throws FlinkException if the BackPressureStatsTracker could not be shut down
-	 */
-	void shutDown() throws FlinkException;
+		@Override
+		public void shutDown() {
+			// nothing to do
+		}
+	}
 }

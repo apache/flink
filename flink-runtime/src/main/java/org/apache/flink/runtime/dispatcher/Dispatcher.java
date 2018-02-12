@@ -38,7 +38,7 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
-import org.apache.flink.runtime.jobmaster.JobManagerServices;
+import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -89,7 +89,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	private final HighAvailabilityServices highAvailabilityServices;
 	private final ResourceManagerGateway resourceManagerGateway;
-	private final JobManagerServices jobManagerServices;
+	private final JobManagerSharedServices jobManagerSharedServices;
 	private final HeartbeatServices heartbeatServices;
 	private final BlobServer blobServer;
 	private final MetricRegistry metricRegistry;
@@ -127,7 +127,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		this.metricRegistry = Preconditions.checkNotNull(metricRegistry);
 		this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
 
-		this.jobManagerServices = JobManagerServices.fromConfiguration(
+		this.jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(
 			configuration,
 			this.blobServer);
 
@@ -155,7 +155,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		clearState();
 
 		try {
-			jobManagerServices.shutdown();
+			jobManagerSharedServices.shutdown();
 		} catch (Throwable t) {
 			exception = ExceptionUtils.firstOrSuppressed(t, exception);
 		}
@@ -234,7 +234,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 					highAvailabilityServices,
 					heartbeatServices,
 					blobServer,
-					jobManagerServices,
+					jobManagerSharedServices,
 					metricRegistry,
 					new DispatcherOnCompleteActions(jobGraph.getJobID()),
 					fatalErrorHandler);
@@ -545,7 +545,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		HighAvailabilityServices highAvailabilityServices,
 		HeartbeatServices heartbeatServices,
 		BlobServer blobServer,
-		JobManagerServices jobManagerServices,
+		JobManagerSharedServices jobManagerSharedServices,
 		MetricRegistry metricRegistry,
 		OnCompletionActions onCompleteActions,
 		FatalErrorHandler fatalErrorHandler) throws Exception;

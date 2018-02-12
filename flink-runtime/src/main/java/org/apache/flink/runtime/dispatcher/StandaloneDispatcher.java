@@ -26,7 +26,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
-import org.apache.flink.runtime.jobmaster.JobManagerServices;
+import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -76,7 +76,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			BlobServer blobServer,
-			JobManagerServices jobManagerServices,
+			JobManagerSharedServices jobManagerSharedServices,
 			MetricRegistry metricRegistry,
 			OnCompletionActions onCompleteActions,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
@@ -89,7 +89,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			highAvailabilityServices,
 			heartbeatServices,
 			blobServer,
-			jobManagerServices,
+			jobManagerSharedServices,
 			metricRegistry,
 			onCompleteActions,
 			fatalErrorHandler,
