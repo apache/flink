@@ -188,6 +188,8 @@ under the License.
 									<!--packages with configuration classes-->
 									<arg value="flink-core" />
 									<arg value="org.apache.flink.configuration" />
+									<arg value="flink-runtime" />
+									<arg value="org.apache.flink.runtime.io.network.netty" />
 									<arg value="flink-yarn" />
 									<arg value="org.apache.flink.yarn.configuration" />
 								</java>
