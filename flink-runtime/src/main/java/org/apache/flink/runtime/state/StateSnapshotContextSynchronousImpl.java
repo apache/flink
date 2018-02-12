@@ -109,14 +109,20 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 		return operatorStateCheckpointOutputStream;
 	}
 
-	public RunnableFuture<KeyedStateHandle> getKeyedStateStreamFuture() throws IOException {
-		KeyGroupsStateHandle keyGroupsStateHandle = closeAndUnregisterStreamToObtainStateHandle(keyedStateCheckpointOutputStream);
-		return new DoneFuture<KeyedStateHandle>(keyGroupsStateHandle);
+	public RunnableFuture<SnapshotResult<KeyedStateHandle>> getKeyedStateStreamFuture() throws IOException {
+		return getGenericStateStreamFuture(keyedStateCheckpointOutputStream);
 	}
 
-	public RunnableFuture<OperatorStateHandle> getOperatorStateStreamFuture() throws IOException {
-		OperatorStateHandle operatorStateHandle = closeAndUnregisterStreamToObtainStateHandle(operatorStateCheckpointOutputStream);
-		return new DoneFuture<>(operatorStateHandle);
+	public RunnableFuture<SnapshotResult<OperatorStateHandle>> getOperatorStateStreamFuture() throws IOException {
+		return getGenericStateStreamFuture(operatorStateCheckpointOutputStream);
+	}
+
+	private <T extends StateObject> RunnableFuture<SnapshotResult<T>> getGenericStateStreamFuture(
+		NonClosingCheckpointOutputStream<? extends T> stream) throws IOException {
+		T operatorStateHandle = (T) closeAndUnregisterStreamToObtainStateHandle(stream);
+		SnapshotResult<T> snapshotResult =
+			new SnapshotResult<>(operatorStateHandle, null);
+		return new DoneFuture<>(snapshotResult);
 	}
 
 	private <T extends StreamStateHandle> T closeAndUnregisterStreamToObtainStateHandle(
@@ -130,7 +136,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 	}
 
 	private <T extends StreamStateHandle> void closeAndUnregisterStream(
-		NonClosingCheckpointOutputStream<T> stream) throws IOException {
+		NonClosingCheckpointOutputStream<? extends T> stream) throws IOException {
 
 		Preconditions.checkNotNull(stream);
 

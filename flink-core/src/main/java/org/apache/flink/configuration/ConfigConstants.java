@@ -320,6 +320,11 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "taskmanager.refused-registration-pause";
 
 	/**
+	 * The config parameter defining the root directories for storing file-based state for local recovery.
+	 */
+	public static final String TASK_MANAGER_LOCAL_STATE_ROOT_DIR_KEY = "taskmanager.local-state-root.dir";
+
+	/**
 	 * @deprecated Deprecated. Please use {@link TaskManagerOptions#TASK_CANCELLATION_INTERVAL}.
 	 */
 	@PublicEvolving

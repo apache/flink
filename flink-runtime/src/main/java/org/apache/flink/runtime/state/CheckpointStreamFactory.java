@@ -38,9 +38,9 @@ public interface CheckpointStreamFactory {
 	 * @param scope The state's scope, whether it is exclusive or shared.
 	 * @return An output stream that writes state for the given checkpoint.
 	 *
-	 * @throws Exception Exceptions may occur while creating the stream and should be forwarded.
+	 * @throws IOException Exceptions may occur while creating the stream and should be forwarded.
 	 */
-	CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws Exception;
+	CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException;
 
 	/**
 	 * A dedicated output stream that produces a {@link StreamStateHandle} when closed.

@@ -16,25 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.contrib.streaming.state;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.streaming.api.operators.StreamOperatorSnapshotRestoreTest;
 
-public class OperatorStateHandleTest {
+import java.io.IOException;
 
-	@Test
-	public void testFixedEnumOrder() {
+/**
+ * Test snapshot/restore of stream operators for RocksDB (full snapshots).
+ */
+public class RocksStreamOperatorSnapshotRestoreTest extends StreamOperatorSnapshotRestoreTest {
 
-		// Ensure the order / ordinal of all values of enum 'mode' are fixed, as this is used for serialization
-		Assert.assertEquals(0, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE.ordinal());
-		Assert.assertEquals(1, OperatorStateHandle.Mode.UNION.ordinal());
-		Assert.assertEquals(2, OperatorStateHandle.Mode.BROADCAST.ordinal());
-
-		// Ensure all enum values are registered and fixed forever by this test
-		Assert.assertEquals(3, OperatorStateHandle.Mode.values().length);
-
-		// Byte is used to encode enum value on serialization
-		Assert.assertTrue(OperatorStateHandle.Mode.values().length <= Byte.MAX_VALUE);
+	@Override
+	protected StateBackend createStateBackend() throws IOException {
+		FsStateBackend stateBackend = createStateBackendInternal();
+		return new RocksDBStateBackend(stateBackend, false);
 	}
 }

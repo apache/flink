@@ -180,9 +180,7 @@ class HistoryServerArchiveFetcher {
 
 									// We overwrite existing files since this may be another attempt at fetching this archive.
 									// Existing files may be incomplete/corrupt.
-									if (Files.exists(targetPath)) {
-										Files.delete(targetPath);
-									}
+									Files.deleteIfExists(targetPath);
 
 									Files.createFile(target.toPath());
 									try (FileWriter fw = new FileWriter(target)) {

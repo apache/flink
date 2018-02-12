@@ -141,7 +141,7 @@ public class StreamTaskTestHarness<OUT> {
 
 	public void setTaskStateSnapshot(long checkpointId, TaskStateSnapshot taskStateSnapshot) {
 		taskStateManager.setReportedCheckpointId(checkpointId);
-		taskStateManager.setTaskStateSnapshotsByCheckpointId(
+		taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(
 			Collections.singletonMap(checkpointId, taskStateSnapshot));
 	}
 

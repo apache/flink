@@ -21,6 +21,7 @@ package org.apache.flink.runtime.metrics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -96,7 +97,8 @@ public class TaskManagerMetricsTest extends TestLogger {
 
 			TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
 				taskManagerServicesConfiguration,
-				tmResourceID);
+				tmResourceID,
+				Executors.directExecutor());
 
 			TaskManagerMetricGroup taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
 				metricRegistry,
@@ -112,6 +114,7 @@ public class TaskManagerMetricsTest extends TestLogger {
 				taskManagerServices.getMemoryManager(),
 				taskManagerServices.getIOManager(),
 				taskManagerServices.getNetworkEnvironment(),
+				taskManagerServices.getTaskManagerStateStore(),
 				highAvailabilityServices,
 				taskManagerMetricGroup);
 

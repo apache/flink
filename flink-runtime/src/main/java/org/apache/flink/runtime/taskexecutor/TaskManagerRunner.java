@@ -285,7 +285,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
 			taskManagerServicesConfiguration,
-			resourceID);
+			resourceID,
+			rpcService.getExecutor()); // TODO replace this later with some dedicated executor for io.
 
 		TaskManagerMetricGroup taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
 			metricRegistry,
@@ -300,7 +301,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			taskManagerServices.getTaskManagerLocation(),
 			taskManagerServices.getMemoryManager(),
 			taskManagerServices.getIOManager(),
-			taskManagerServices.getTaskStateManager(),
+			taskManagerServices.getTaskManagerStateStore(),
 			taskManagerServices.getNetworkEnvironment(),
 			highAvailabilityServices,
 			heartbeatServices,

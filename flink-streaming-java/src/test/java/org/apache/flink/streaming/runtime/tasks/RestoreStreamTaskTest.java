@@ -252,7 +252,7 @@ public class RestoreStreamTaskTest extends TestLogger {
 
 		JobManagerTaskRestore jobManagerTaskRestore = new JobManagerTaskRestore(
 			taskStateManager.getReportedCheckpointId(),
-			taskStateManager.getLastTaskStateSnapshot());
+			taskStateManager.getLastJobManagerTaskStateSnapshot());
 
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion();

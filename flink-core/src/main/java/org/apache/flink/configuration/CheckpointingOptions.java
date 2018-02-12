@@ -57,6 +57,13 @@ public class CheckpointingOptions {
 			.key("state.backend.incremental")
 			.defaultValue(false);
 
+	/**
+	 * This option configures local recovery for this state backend.
+	 */
+	public static final ConfigOption<String> LOCAL_RECOVERY = ConfigOptions
+		.key("state.backend.local-recovery")
+		.defaultValue("DISABLED");
+
 	// ------------------------------------------------------------------------
 	//  Options specific to the file-system-based state backends
 	// ------------------------------------------------------------------------

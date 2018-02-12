@@ -29,6 +29,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.NetUtils;
@@ -54,6 +55,8 @@ public class TaskManagerServicesConfiguration {
 
 	private final String[] tmpDirPaths;
 
+	private final String[] localRecoveryStateRootDirectories;
+
 	private final int numberOfSlots;
 
 	private final NetworkEnvironmentConfiguration networkConfig;
@@ -75,9 +78,13 @@ public class TaskManagerServicesConfiguration {
 
 	private final long timerServiceShutdownTimeout;
 
+	private final LocalRecoveryConfig.LocalRecoveryMode localRecoveryMode;
+
 	public TaskManagerServicesConfiguration(
 			InetAddress taskManagerAddress,
 			String[] tmpDirPaths,
+			String[] localRecoveryStateRootDirectories,
+			LocalRecoveryConfig.LocalRecoveryMode localRecoveryMode,
 			NetworkEnvironmentConfiguration networkConfig,
 			QueryableStateConfiguration queryableStateConfig,
 			int numberOfSlots,
@@ -89,6 +96,8 @@ public class TaskManagerServicesConfiguration {
 
 		this.taskManagerAddress = checkNotNull(taskManagerAddress);
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
+		this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
+		this.localRecoveryMode = checkNotNull(localRecoveryMode);
 		this.networkConfig = checkNotNull(networkConfig);
 		this.queryableStateConfig = checkNotNull(queryableStateConfig);
 		this.numberOfSlots = checkNotNull(numberOfSlots);
@@ -113,6 +122,14 @@ public class TaskManagerServicesConfiguration {
 
 	public String[] getTmpDirPaths() {
 		return tmpDirPaths;
+	}
+
+	public String[] getLocalRecoveryStateRootDirectories() {
+		return localRecoveryStateRootDirectories;
+	}
+
+	public LocalRecoveryConfig.LocalRecoveryMode getLocalRecoveryMode() {
+		return localRecoveryMode;
 	}
 
 	public NetworkEnvironmentConfiguration getNetworkConfig() {
@@ -185,6 +202,15 @@ public class TaskManagerServicesConfiguration {
 		}
 
 		final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
+		String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
+
+		if (localStateRootDir.length == 0) {
+			// default to temp dirs.
+			localStateRootDir = tmpDirs;
+		}
+
+		LocalRecoveryConfig.LocalRecoveryMode localRecoveryMode =
+			LocalRecoveryConfig.LocalRecoveryMode.fromConfig(configuration);
 
 		final NetworkEnvironmentConfiguration networkConfig = parseNetworkEnvironmentConfiguration(
 			configuration,
@@ -225,6 +251,8 @@ public class TaskManagerServicesConfiguration {
 		return new TaskManagerServicesConfiguration(
 			remoteAddress,
 			tmpDirs,
+			localStateRootDir,
+			localRecoveryMode,
 			networkConfig,
 			queryableStateConfig,
 			slots,

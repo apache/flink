@@ -43,6 +43,8 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOut
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestTaskStateManager;
@@ -55,6 +57,7 @@ import org.apache.flink.runtime.state.testutils.BackendForTestStream.StreamFacto
 import org.apache.flink.runtime.state.testutils.TestCheckpointStreamFactory;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
+import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -186,7 +189,8 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		TestTaskStateManager taskStateManagerTestMock = new TestTaskStateManager(
 			jobID,
 			executionAttemptID,
-			checkpointResponderMock);
+			checkpointResponderMock,
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED);
 
 		StreamMockEnvironment mockEnv = new StreamMockEnvironment(
 			testHarness.jobConfig,
@@ -256,12 +260,16 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 			int count = 1;
 
 			@Override
-			public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws Exception {
+			public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException {
 				// we skip the first created stream, because it is used to checkpoint the timer service, which is
 				// currently not asynchronous.
 				if (count > 0) {
 					--count;
-					return new MemCheckpointStreamFactory.MemoryCheckpointOutputStream(maxSize);
+					return new BlockingCheckpointOutputStream(
+						new MemCheckpointStreamFactory.MemoryCheckpointOutputStream(maxSize),
+						null,
+						null,
+						Integer.MAX_VALUE);
 				} else {
 					return super.createCheckpointStateOutputStream(scope);
 				}
@@ -373,7 +381,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 				StringSerializer.INSTANCE,
 				new ValueStateDescriptor<>("foobar", String.class));
 
-			RunnableFuture<KeyedStateHandle> snapshotFuture = keyedStateBackend.snapshot(
+			RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotFuture = keyedStateBackend.snapshot(
 				checkpointId, timestamp,
 				new TestCheckpointStreamFactory(() -> outputStream),
 				CheckpointOptions.forCheckpointWithDefaultLocation());
@@ -459,7 +467,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		}
 
 		@Override
-		public CheckpointStateOutputStream get() throws Exception {
+		public CheckpointStateOutputStream get() throws IOException {
 			return factory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
 		}
 	}

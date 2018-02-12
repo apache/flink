@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import javax.annotation.Nonnegative;
+import javax.annotation.Nonnull;
+
 import java.io.Serializable;
 
 /**
@@ -27,11 +30,13 @@ public class JobManagerTaskRestore implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
+	/** The id of the checkpoint from which we restore. */
 	private final long restoreCheckpointId;
 
+	/** The state for this task to restore. */
 	private final TaskStateSnapshot taskStateSnapshot;
 
-	public JobManagerTaskRestore(long restoreCheckpointId, TaskStateSnapshot taskStateSnapshot) {
+	public JobManagerTaskRestore(@Nonnegative long restoreCheckpointId, @Nonnull TaskStateSnapshot taskStateSnapshot) {
 		this.restoreCheckpointId = restoreCheckpointId;
 		this.taskStateSnapshot = taskStateSnapshot;
 	}
@@ -40,13 +45,14 @@ public class JobManagerTaskRestore implements Serializable {
 		return restoreCheckpointId;
 	}
 
+	@Nonnull
 	public TaskStateSnapshot getTaskStateSnapshot() {
 		return taskStateSnapshot;
 	}
 
 	@Override
 	public String toString() {
-		return "TaskRestore{" +
+		return "JobManagerTaskRestore{" +
 			"restoreCheckpointId=" + restoreCheckpointId +
 			", taskStateSnapshot=" + taskStateSnapshot +
 			'}';

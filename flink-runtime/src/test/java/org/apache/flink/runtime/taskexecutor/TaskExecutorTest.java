@@ -29,6 +29,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -76,6 +77,7 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -101,6 +103,7 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Matchers;
@@ -109,6 +112,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Arrays;
@@ -145,6 +149,9 @@ import static org.mockito.Mockito.when;
 
 @Category(Flip6.class)
 public class TaskExecutorTest extends TestLogger {
+
+	@Rule
+	public final TemporaryFolder tmp = new TemporaryFolder();
 
 	private final Time timeout = Time.milliseconds(10000L);
 
@@ -242,13 +249,18 @@ public class TaskExecutorTest extends TestLogger {
 		when(jobMasterGateway.getAddress()).thenReturn(jobMasterAddress);
 		when(jobMasterGateway.getHostname()).thenReturn("localhost");
 
+		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			new File[]{tmp.newFolder()},
+			Executors.directExecutor());
+
 		final TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			tmConfig,
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
+			localStateStoresManager,
 			mock(NetworkEnvironment.class),
 			haServices,
 			heartbeatServices,
@@ -350,13 +362,18 @@ public class TaskExecutorTest extends TestLogger {
 				}
 		);
 
+		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			new File[]{tmp.newFolder()},
+			Executors.directExecutor());
+
 		final TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
+			localStateStoresManager,
 			mock(NetworkEnvironment.class),
 			haServices,
 			heartbeatServices,
@@ -470,13 +487,18 @@ public class TaskExecutorTest extends TestLogger {
 			}
 		);
 
+		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			new File[]{tmp.newFolder()},
+			Executors.directExecutor());
+
 		final TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
+			localStateStoresManager,
 			mock(NetworkEnvironment.class),
 			haServices,
 			heartbeatServices,
@@ -566,13 +588,18 @@ public class TaskExecutorTest extends TestLogger {
 
 		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
+		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			new File[]{tmp.newFolder()},
+			Executors.directExecutor());
+
 		TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerServicesConfiguration,
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
+			localStateStoresManager,
 			mock(NetworkEnvironment.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
@@ -650,13 +677,18 @@ public class TaskExecutorTest extends TestLogger {
 
 		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
+		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			new File[]{tmp.newFolder()},
+			Executors.directExecutor());
+
 		TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerServicesConfiguration,
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
+			localStateStoresManager,
 			mock(NetworkEnvironment.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
@@ -791,13 +823,18 @@ public class TaskExecutorTest extends TestLogger {
 
 		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
+		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			new File[]{tmp.newFolder()},
+			Executors.directExecutor());
+
 		TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
 			mock(TaskManagerLocation.class),
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
+			localStateStoresManager,
 			networkEnvironment,
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
@@ -912,13 +949,18 @@ public class TaskExecutorTest extends TestLogger {
 		final SlotID slotId = new SlotID(resourceId, 0);
 		final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
 
+		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			new File[]{tmp.newFolder()},
+			Executors.directExecutor());
+
 		TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
+			localStateStoresManager,
 			mock(NetworkEnvironment.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
@@ -1032,13 +1074,18 @@ public class TaskExecutorTest extends TestLogger {
 		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
 		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
 
+		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			new File[]{tmp.newFolder()},
+			Executors.directExecutor());
+
 		TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
+			localStateStoresManager,
 			mock(NetworkEnvironment.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
@@ -1128,13 +1175,18 @@ public class TaskExecutorTest extends TestLogger {
 			when(rmGateway1.registerTaskExecutor(anyString(), eq(resourceID), any(SlotReport.class), anyInt(), any(HardwareDescription.class), any(Time.class))).thenReturn(
 			CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(new InstanceID(), ResourceID.generate(), 1000L, new ClusterInformation("localhost", 1234))));
 
+		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			new File[]{tmp.newFolder()},
+			Executors.directExecutor());
+
 		TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerServicesConfiguration,
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
+			localStateStoresManager,
 			mock(NetworkEnvironment.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
@@ -1300,13 +1352,18 @@ public class TaskExecutorTest extends TestLogger {
 
 		final NetworkEnvironment networkMock = mock(NetworkEnvironment.class, Mockito.RETURNS_MOCKS);
 
+		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			new File[]{tmp.newFolder()},
+			Executors.directExecutor());
+
 		final TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
+			localStateStoresManager,
 			networkMock,
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
@@ -1424,13 +1481,18 @@ public class TaskExecutorTest extends TestLogger {
 		final JMTMRegistrationSuccess registrationMessage = new JMTMRegistrationSuccess(ResourceID.generate());
 		final JobManagerTable jobManagerTableMock = spy(new JobManagerTable());
 
+		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			new File[]{tmp.newFolder()},
+			Executors.directExecutor());
+
 		final TaskExecutor taskExecutor = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
+			localStateStoresManager,
 			mock(NetworkEnvironment.class),
 			haServicesMock,
 			heartbeatServicesMock,
@@ -1504,13 +1566,18 @@ public class TaskExecutorTest extends TestLogger {
 
 		rpc.registerGateway(rmAddress, rmGateway);
 
+		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			new File[]{tmp.newFolder()},
+			Executors.directExecutor());
+
 		final TaskExecutor taskExecutor = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
+			localStateStoresManager,
 			mock(NetworkEnvironment.class),
 			haServices,
 			heartbeatServices,
@@ -1570,13 +1637,18 @@ public class TaskExecutorTest extends TestLogger {
 		final TestingLeaderRetrievalService resourceManagerLeaderRetriever = new TestingLeaderRetrievalService();
 		haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
 
+		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
+			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			new File[]{tmp.newFolder()},
+			Executors.directExecutor());
+
 		final TaskExecutor taskExecutor = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
 			localTaskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
+			localStateStoresManager,
 			mock(NetworkEnvironment.class),
 			haServices,
 			new HeartbeatServices(1000L, 1000L),

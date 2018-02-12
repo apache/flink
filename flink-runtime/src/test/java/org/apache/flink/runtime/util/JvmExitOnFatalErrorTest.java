@@ -56,8 +56,10 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
+import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -70,6 +72,7 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -137,13 +140,17 @@ public class JvmExitOnFatalErrorTest {
 
 			System.err.println("creating task");
 
+			TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 			// we suppress process exits via errors here to not
-			// have a test that exits accidentally due to a programming error 
+			// have a test that exits accidentally due to a programming error
 			try {
+				temporaryFolder.create();
 				final Configuration taskManagerConfig = new Configuration();
 				taskManagerConfig.setBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY, true);
 
 				final JobID jid = new JobID();
+				final AllocationID allocationID = new AllocationID();
 				final JobVertexID jobVertexId = new JobVertexID();
 				final ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
 				final AllocationID slotAllocationId = new AllocationID();
@@ -172,7 +179,15 @@ public class JvmExitOnFatalErrorTest {
 				BlobCacheService blobService =
 					new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
 
-				final TaskLocalStateStore localStateStore = new TaskLocalStateStore(jid, jobVertexId, 0);
+				final TaskLocalStateStore localStateStore =
+					new TaskLocalStateStoreImpl(
+						jid,
+						allocationID,
+						jobVertexId,
+						0,
+						TestLocalRecoveryConfig.disabled(),
+						executor);
+
 				final TaskStateManager slotStateManager =
 					new TaskStateManagerImpl(
 						jid,
@@ -218,6 +233,7 @@ public class JvmExitOnFatalErrorTest {
 			catch (Throwable t) {
 				System.err.println("ERROR STARTING TASK");
 				t.printStackTrace();
+				temporaryFolder.delete();
 			}
 
 			System.err.println("parking the main thread");
