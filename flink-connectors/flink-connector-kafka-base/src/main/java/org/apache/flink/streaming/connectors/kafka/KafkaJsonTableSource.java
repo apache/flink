@@ -27,6 +27,7 @@ import org.apache.flink.table.sources.DefinedFieldMapping;
 import org.apache.flink.table.sources.StreamTableSource;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 
 /**
@@ -84,6 +85,22 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource implements D
 	@Override
 	public String explainSource() {
 		return "KafkaJSONTableSource";
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (super.equals(other)) {
+			KafkaJsonTableSource otherSource = (KafkaJsonTableSource) other;
+			return Objects.equals(failOnMissingField, otherSource.failOnMissingField)
+					&& Objects.equals(jsonSchema, otherSource.jsonSchema)
+					&& Objects.equals(fieldMapping, otherSource.fieldMapping);
+		}
+		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		return 31 * super.hashCode() + Objects.hash(failOnMissingField, jsonSchema, fieldMapping);
 	}
 
 	//////// SETTERS FOR OPTIONAL PARAMETERS
