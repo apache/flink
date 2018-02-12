@@ -400,7 +400,7 @@ public class RocksDBMapState<K, N, UK, UV>
 	/** An auxiliary utility to scan all entries under the given key. */
 	private abstract class RocksDBMapIterator<T> implements Iterator<T> {
 
-		static final int CACHE_SIZE_BASE = 1;
+		static final int CACHE_SIZE_BASE = 32;
 		static final int CACHE_SIZE_LIMIT = 128;
 
 		/** The db where data resides. */
@@ -520,7 +520,7 @@ public class RocksDBMapState<K, N, UK, UV>
 				return false;
 			}
 
-			for (int i = 0; i < keyPrefixBytes.length; ++i) {
+			for (int i = keyPrefixBytes.length - 1; i >= backend.getKeyGroupPrefixBytes(); --i) {
 				if (rawKeyBytes[i] != keyPrefixBytes[i]) {
 					return false;
 				}
