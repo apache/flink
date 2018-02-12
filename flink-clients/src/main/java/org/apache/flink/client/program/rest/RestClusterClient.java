@@ -96,7 +96,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -197,40 +196,46 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 	@Override
 	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-		log.info("Submitting job.");
-		try {
-			submitJob(jobGraph).get();
-		} catch (InterruptedException | ExecutionException e) {
-			throw new ProgramInvocationException(ExceptionUtils.stripExecutionException(e));
-		}
+		log.info("Submitting job {}.", jobGraph.getJobID());
 
-		final CompletableFuture<JobResult> jobResultFuture = requestJobResult(jobGraph.getJobID());
+		final CompletableFuture<JobSubmitResponseBody> jobSubmissionFuture = submitJob(jobGraph);
 
-		final JobResult jobResult;
-		try {
-			jobResult = jobResultFuture.get();
-		} catch (Exception e) {
-			throw new ProgramInvocationException(e);
-		}
+		if (isDetached()) {
+			try {
+				jobSubmissionFuture.get();
+			} catch (Exception e) {
+				throw new ProgramInvocationException("Could not submit job " + jobGraph.getJobID() + '.', ExceptionUtils.stripExecutionException(e));
+			}
 
-		if (jobResult.getSerializedThrowable().isPresent()) {
-			final SerializedThrowable serializedThrowable = jobResult.getSerializedThrowable().get();
-			final Throwable throwable = serializedThrowable.deserializeError(classLoader);
-			throw new ProgramInvocationException(throwable);
-		}
+			return new JobSubmissionResult(jobGraph.getJobID());
+		} else {
+			final CompletableFuture<JobResult> jobResultFuture = jobSubmissionFuture.thenCompose(
+				ignored -> requestJobResult(jobGraph.getJobID()));
 
-		try {
-			// don't return just a JobSubmissionResult here, the signature is lying
-			// The CliFrontend expects this to be a JobExecutionResult
-			this.lastJobExecutionResult = new JobExecutionResult(
-				jobResult.getJobId(),
-				jobResult.getNetRuntime(),
-				AccumulatorHelper.deserializeAccumulators(
-					jobResult.getAccumulatorResults(),
-					classLoader));
-			return lastJobExecutionResult;
-		} catch (IOException | ClassNotFoundException e) {
-			throw new ProgramInvocationException(e);
+			final JobResult jobResult;
+			try {
+				jobResult = jobResultFuture.get();
+			} catch (Exception e) {
+				throw new ProgramInvocationException("Could not retrieve the execution result.", ExceptionUtils.stripExecutionException(e));
+			}
+
+			if (jobResult.getSerializedThrowable().isPresent()) {
+				final SerializedThrowable serializedThrowable = jobResult.getSerializedThrowable().get();
+				final Throwable throwable = serializedThrowable.deserializeError(classLoader);
+				throw new ProgramInvocationException(throwable);
+			}
+
+			try {
+				this.lastJobExecutionResult = new JobExecutionResult(
+					jobResult.getJobId(),
+					jobResult.getNetRuntime(),
+					AccumulatorHelper.deserializeAccumulators(
+						jobResult.getAccumulatorResults(),
+						classLoader));
+				return lastJobExecutionResult;
+			} catch (IOException | ClassNotFoundException e) {
+				throw new ProgramInvocationException(e);
+			}
 		}
 	}
 
