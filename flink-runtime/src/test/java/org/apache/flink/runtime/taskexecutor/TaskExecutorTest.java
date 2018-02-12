@@ -24,7 +24,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
-import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -39,7 +38,6 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
-import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
@@ -50,7 +48,6 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
@@ -63,7 +60,6 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -76,7 +72,6 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
@@ -242,23 +237,20 @@ public class TaskExecutorTest extends TestLogger {
 		when(jobMasterGateway.getAddress()).thenReturn(jobMasterAddress);
 		when(jobMasterGateway.getHostname()).thenReturn("localhost");
 
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setTaskSlotTable(taskSlotTable)
+			.setJobLeaderService(jobLeaderService)
+			.build();
+
 		final TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			tmConfig,
-			taskManagerLocation,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
-			mock(NetworkEnvironment.class),
 			haServices,
+			taskManagerServices,
 			heartbeatServices,
-			mock(TaskManagerMetricGroup.class),
-			mock(BroadcastVariableManager.class),
-			mock(FileCache.class),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			dummyBlobCacheService,
-			taskSlotTable,
-			new JobManagerTable(),
-			jobLeaderService,
 			testingFatalErrorHandler);
 
 		try {
@@ -350,23 +342,19 @@ public class TaskExecutorTest extends TestLogger {
 				}
 		);
 
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setTaskSlotTable(taskSlotTable)
+			.build();
+
 		final TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
-			taskManagerLocation,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
-			mock(NetworkEnvironment.class),
 			haServices,
+			taskManagerServices,
 			heartbeatServices,
-			mock(TaskManagerMetricGroup.class),
-			mock(BroadcastVariableManager.class),
-			mock(FileCache.class),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			dummyBlobCacheService,
-			taskSlotTable,
-			mock(JobManagerTable.class),
-			mock(JobLeaderService.class),
 			testingFatalErrorHandler);
 
 		try {
@@ -470,23 +458,19 @@ public class TaskExecutorTest extends TestLogger {
 			}
 		);
 
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setTaskSlotTable(taskSlotTable)
+			.build();
+
 		final TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
-			taskManagerLocation,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
-			mock(NetworkEnvironment.class),
 			haServices,
+			taskManagerServices,
 			heartbeatServices,
-			mock(TaskManagerMetricGroup.class),
-			mock(BroadcastVariableManager.class),
-			mock(FileCache.class),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			dummyBlobCacheService,
-			taskSlotTable,
-			mock(JobManagerTable.class),
-			mock(JobLeaderService.class),
 			testingFatalErrorHandler);
 
 		try {
@@ -566,23 +550,19 @@ public class TaskExecutorTest extends TestLogger {
 
 		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setTaskSlotTable(taskSlotTable)
+			.build();
+
 		TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerServicesConfiguration,
-			taskManagerLocation,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
-			mock(NetworkEnvironment.class),
 			haServices,
-			mock(HeartbeatServices.class, RETURNS_MOCKS),
-			mock(TaskManagerMetricGroup.class),
-			mock(BroadcastVariableManager.class),
-			mock(FileCache.class),
+			taskManagerServices,
+			new HeartbeatServices(1000L, 1000L),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			dummyBlobCacheService,
-			taskSlotTable,
-			mock(JobManagerTable.class),
-			mock(JobLeaderService.class),
 			testingFatalErrorHandler);
 
 		try {
@@ -650,23 +630,19 @@ public class TaskExecutorTest extends TestLogger {
 
 		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setTaskSlotTable(taskSlotTable)
+			.build();
+
 		TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerServicesConfiguration,
-			taskManagerLocation,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
-			mock(NetworkEnvironment.class),
 			haServices,
-			mock(HeartbeatServices.class, RETURNS_MOCKS),
-			mock(TaskManagerMetricGroup.class),
-			mock(BroadcastVariableManager.class),
-			mock(FileCache.class),
+			taskManagerServices,
+			new HeartbeatServices(1000L, 1000L),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			dummyBlobCacheService,
-			taskSlotTable,
-			mock(JobManagerTable.class),
-			mock(JobLeaderService.class),
 			testingFatalErrorHandler);
 
 		try {
@@ -791,23 +767,20 @@ public class TaskExecutorTest extends TestLogger {
 
 		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setNetworkEnvironment(networkEnvironment)
+			.setTaskSlotTable(taskSlotTable)
+			.setJobManagerTable(jobManagerTable)
+			.build();
+
 		TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
-			mock(TaskManagerLocation.class),
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
-			networkEnvironment,
 			haServices,
-			mock(HeartbeatServices.class, RETURNS_MOCKS),
+			taskManagerServices,
+			new HeartbeatServices(1000L, 1000L),
 			taskManagerMetricGroup,
-			mock(BroadcastVariableManager.class),
-			mock(FileCache.class),
 			dummyBlobCacheService,
-			taskSlotTable,
-			jobManagerTable,
-			mock(JobLeaderService.class),
 			testingFatalErrorHandler);
 
 		try {
@@ -912,23 +885,21 @@ public class TaskExecutorTest extends TestLogger {
 		final SlotID slotId = new SlotID(resourceId, 0);
 		final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
 
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setTaskSlotTable(taskSlotTable)
+			.setJobManagerTable(jobManagerTable)
+			.setJobLeaderService(jobLeaderService)
+			.build();
+
 		TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
-			taskManagerLocation,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
-			mock(NetworkEnvironment.class),
 			haServices,
-			mock(HeartbeatServices.class, RETURNS_MOCKS),
-			mock(TaskManagerMetricGroup.class),
-			mock(BroadcastVariableManager.class),
-			mock(FileCache.class),
+			taskManagerServices,
+			new HeartbeatServices(1000L, 1000L),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			dummyBlobCacheService,
-			taskSlotTable,
-			jobManagerTable,
-			jobLeaderService,
 			testingFatalErrorHandler);
 
 		try {
@@ -1032,23 +1003,21 @@ public class TaskExecutorTest extends TestLogger {
 		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
 		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
 
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setTaskSlotTable(taskSlotTable)
+			.setJobManagerTable(jobManagerTable)
+			.setJobLeaderService(jobLeaderService)
+			.build();
+
 		TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
-			taskManagerLocation,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
-			mock(NetworkEnvironment.class),
 			haServices,
-			mock(HeartbeatServices.class, RETURNS_MOCKS),
-			mock(TaskManagerMetricGroup.class),
-			mock(BroadcastVariableManager.class),
-			mock(FileCache.class),
+			taskManagerServices,
+			new HeartbeatServices(1000L, 1000L),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			dummyBlobCacheService,
-			taskSlotTable,
-			jobManagerTable,
-			jobLeaderService,
 			testingFatalErrorHandler);
 
 		try {
@@ -1124,27 +1093,22 @@ public class TaskExecutorTest extends TestLogger {
 		final TaskSlotTable taskSlotTable = mock(TaskSlotTable.class);
 		when(taskSlotTable.createSlotReport(any(ResourceID.class))).thenReturn(new SlotReport());
 		when(taskSlotTable.getCurrentAllocation(1)).thenReturn(new AllocationID());
+		when(rmGateway1.registerTaskExecutor(anyString(), eq(resourceID), any(SlotReport.class), anyInt(), any(HardwareDescription.class), any(Time.class))).thenReturn(
+		CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(new InstanceID(), ResourceID.generate(), 1000L, new ClusterInformation("localhost", 1234))));
 
-			when(rmGateway1.registerTaskExecutor(anyString(), eq(resourceID), any(SlotReport.class), anyInt(), any(HardwareDescription.class), any(Time.class))).thenReturn(
-			CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(new InstanceID(), ResourceID.generate(), 1000L, new ClusterInformation("localhost", 1234))));
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setTaskSlotTable(taskSlotTable)
+			.build();
 
 		TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerServicesConfiguration,
-			taskManagerLocation,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
-			mock(NetworkEnvironment.class),
 			haServices,
-			mock(HeartbeatServices.class, RETURNS_MOCKS),
-			mock(TaskManagerMetricGroup.class),
-			mock(BroadcastVariableManager.class),
-			mock(FileCache.class),
+			taskManagerServices,
+			new HeartbeatServices(1000L, 1000L),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			dummyBlobCacheService,
-			taskSlotTable,
-			mock(JobManagerTable.class),
-			mock(JobLeaderService.class),
 			testingFatalErrorHandler);
 
 		try {
@@ -1300,23 +1264,22 @@ public class TaskExecutorTest extends TestLogger {
 
 		final NetworkEnvironment networkMock = mock(NetworkEnvironment.class, Mockito.RETURNS_MOCKS);
 
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setNetworkEnvironment(networkMock)
+			.setTaskSlotTable(taskSlotTable)
+			.setJobLeaderService(jobLeaderService)
+			.setJobManagerTable(jobManagerTable)
+			.build();
+
 		final TaskExecutor taskManager = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
-			taskManagerLocation,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
-			networkMock,
 			haServices,
-			mock(HeartbeatServices.class, RETURNS_MOCKS),
+			taskManagerServices,
+			new HeartbeatServices(1000L, 1000L),
 			taskManagerMetricGroup,
-			mock(BroadcastVariableManager.class),
-			mock(FileCache.class),
 			dummyBlobCacheService,
-			taskSlotTable,
-			jobManagerTable,
-			jobLeaderService,
 			testingFatalErrorHandler);
 
 		try {
@@ -1424,23 +1387,20 @@ public class TaskExecutorTest extends TestLogger {
 		final JMTMRegistrationSuccess registrationMessage = new JMTMRegistrationSuccess(ResourceID.generate());
 		final JobManagerTable jobManagerTableMock = spy(new JobManagerTable());
 
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setJobManagerTable(jobManagerTableMock)
+			.setJobLeaderService(jobLeaderService)
+			.build();
+
 		final TaskExecutor taskExecutor = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
-			taskManagerLocation,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
-			mock(NetworkEnvironment.class),
 			haServicesMock,
+			taskManagerServices,
 			heartbeatServicesMock,
-			mock(TaskManagerMetricGroup.class),
-			mock(BroadcastVariableManager.class),
-			mock(FileCache.class),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			dummyBlobCacheService,
-			mock(TaskSlotTable.class),
-			jobManagerTableMock,
-			jobLeaderService,
 			testingFatalErrorHandler);
 
 		try {
@@ -1504,23 +1464,19 @@ public class TaskExecutorTest extends TestLogger {
 
 		rpc.registerGateway(rmAddress, rmGateway);
 
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setTaskSlotTable(taskSlotTable)
+			.build();
+
 		final TaskExecutor taskExecutor = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
-			taskManagerLocation,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
-			mock(NetworkEnvironment.class),
 			haServices,
+			taskManagerServices,
 			heartbeatServices,
-			mock(TaskManagerMetricGroup.class),
-			mock(BroadcastVariableManager.class),
-			mock(FileCache.class),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			dummyBlobCacheService,
-			taskSlotTable,
-			mock(JobManagerTable.class),
-			mock(JobLeaderService.class),
 			testingFatalErrorHandler);
 
 		try {
@@ -1570,23 +1526,20 @@ public class TaskExecutorTest extends TestLogger {
 		final TestingLeaderRetrievalService resourceManagerLeaderRetriever = new TestingLeaderRetrievalService();
 		haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
 
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(localTaskManagerLocation)
+			.setTaskSlotTable(taskSlotTable)
+			.setJobLeaderService(jobLeaderService)
+			.build();
+
 		final TaskExecutor taskExecutor = new TaskExecutor(
 			rpc,
 			taskManagerConfiguration,
-			localTaskManagerLocation,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			new TaskExecutorLocalStateStoresManager(),
-			mock(NetworkEnvironment.class),
 			haServices,
+			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			new BroadcastVariableManager(),
-			mock(FileCache.class),
 			dummyBlobCacheService,
-			taskSlotTable,
-			new JobManagerTable(),
-			jobLeaderService,
 			testingFatalErrorHandler);
 
 		try {

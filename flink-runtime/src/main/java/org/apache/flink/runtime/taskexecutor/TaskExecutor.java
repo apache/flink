@@ -25,7 +25,6 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobKey;
-import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -41,14 +40,12 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
-import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
@@ -59,7 +56,6 @@ import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
-import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -132,26 +128,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	public static final String TASK_MANAGER_NAME = "taskmanager";
 
-	/** The connection information of this task manager. */
-	private final TaskManagerLocation taskManagerLocation;
-
 	/** The access to the leader election and retrieval services. */
 	private final HighAvailabilityServices haServices;
 
+	private final TaskManagerServices taskExecutorServices;
+
 	/** The task manager configuration. */
 	private final TaskManagerConfiguration taskManagerConfiguration;
-
-	/** The I/O manager component in the task manager. */
-	private final IOManager ioManager;
-
-	/** The memory manager component in the task manager. */
-	private final MemoryManager memoryManager;
-
-	/** The state manager for this task, providing state managers per slot. */
-	private final TaskExecutorLocalStateStoresManager localStateStoresManager;
-
-	/** The network component in the task manager. */
-	private final NetworkEnvironment networkEnvironment;
 
 	/** The heartbeat manager for job manager in the task manager. */
 	private final HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
@@ -162,13 +145,20 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	/** The fatal error handler to use in case of a fatal error. */
 	private final FatalErrorHandler fatalErrorHandler;
 
+	private final BlobCacheService blobCacheService;
+
+	// --------- TaskManager services --------
+
+	/** The connection information of this task manager. */
+	private final TaskManagerLocation taskManagerLocation;
+
 	private final TaskManagerMetricGroup taskManagerMetricGroup;
 
-	private final BroadcastVariableManager broadcastVariableManager;
+	/** The state manager for this task, providing state managers per slot. */
+	private final TaskExecutorLocalStateStoresManager localStateStoresManager;
 
-	private final FileCache fileCache;
-
-	private final BlobCacheService blobCacheService;
+	/** The network component in the task manager. */
+	private final NetworkEnvironment networkEnvironment;
 
 	// --------- resource manager --------
 
@@ -193,20 +183,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	public TaskExecutor(
 			RpcService rpcService,
 			TaskManagerConfiguration taskManagerConfiguration,
-			TaskManagerLocation taskManagerLocation,
-			MemoryManager memoryManager,
-			IOManager ioManager,
-			TaskExecutorLocalStateStoresManager localStateStoresManager,
-			NetworkEnvironment networkEnvironment,
 			HighAvailabilityServices haServices,
+			TaskManagerServices taskExecutorServices,
 			HeartbeatServices heartbeatServices,
 			TaskManagerMetricGroup taskManagerMetricGroup,
-			BroadcastVariableManager broadcastVariableManager,
-			FileCache fileCache,
 			BlobCacheService blobCacheService,
-			TaskSlotTable taskSlotTable,
-			JobManagerTable jobManagerTable,
-			JobLeaderService jobLeaderService,
 			FatalErrorHandler fatalErrorHandler) {
 
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(TASK_MANAGER_NAME));
@@ -214,36 +195,37 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		checkArgument(taskManagerConfiguration.getNumberSlots() > 0, "The number of slots has to be larger than 0.");
 
 		this.taskManagerConfiguration = checkNotNull(taskManagerConfiguration);
-		this.taskManagerLocation = checkNotNull(taskManagerLocation);
-		this.memoryManager = checkNotNull(memoryManager);
-		this.localStateStoresManager = checkNotNull(localStateStoresManager);
-		this.ioManager = checkNotNull(ioManager);
-		this.networkEnvironment = checkNotNull(networkEnvironment);
+		this.taskExecutorServices = checkNotNull(taskExecutorServices);
 		this.haServices = checkNotNull(haServices);
-		this.taskSlotTable = checkNotNull(taskSlotTable);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 		this.taskManagerMetricGroup = checkNotNull(taskManagerMetricGroup);
-		this.broadcastVariableManager = checkNotNull(broadcastVariableManager);
-		this.fileCache = checkNotNull(fileCache);
 		this.blobCacheService = checkNotNull(blobCacheService);
-		this.jobManagerTable = checkNotNull(jobManagerTable);
-		this.jobLeaderService = checkNotNull(jobLeaderService);
+
+		this.taskSlotTable = taskExecutorServices.getTaskSlotTable();
+		this.jobManagerTable = taskExecutorServices.getJobManagerTable();
+		this.jobLeaderService = taskExecutorServices.getJobLeaderService();
+		this.taskManagerLocation = taskExecutorServices.getTaskManagerLocation();
+		this.localStateStoresManager = taskExecutorServices.getTaskStateManager();
+		this.networkEnvironment = taskExecutorServices.getNetworkEnvironment();
 
 		this.jobManagerConnections = new HashMap<>(4);
 
+		final ResourceID resourceId = taskExecutorServices.getTaskManagerLocation().getResourceID();
+
 		this.jobManagerHeartbeatManager = heartbeatServices.createHeartbeatManager(
-			getResourceID(),
+			resourceId,
 			new JobManagerHeartbeatListener(),
 			rpcService.getScheduledExecutor(),
 			log);
 
 		this.resourceManagerHeartbeatManager = heartbeatServices.createHeartbeatManager(
-			getResourceID(),
+			resourceId,
 			new ResourceManagerHeartbeatListener(),
 			rpcService.getScheduledExecutor(),
 			log);
 
-		hardwareDescription = HardwareDescription.extractFromSystem(memoryManager.getMemorySize());
+		hardwareDescription = HardwareDescription.extractFromSystem(
+			taskExecutorServices.getMemoryManager().getMemorySize());
 	}
 
 	// ------------------------------------------------------------------------
@@ -277,8 +259,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		Throwable throwable = null;
 
-		taskSlotTable.stop();
-
 		if (isConnectedToResourceManager()) {
 			resourceManagerConnection.close();
 		}
@@ -295,13 +275,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		resourceManagerHeartbeatManager.stop();
 
-		ioManager.shutdown();
-
-		memoryManager.shutdown();
-
-		networkEnvironment.shutdown();
-
-		fileCache.shutdown();
+		try {
+			taskExecutorServices.shutDown();
+		} catch (Throwable t) {
+			throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
+		}
 
 		try {
 			super.postStop();
@@ -504,17 +482,17 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				tdd.getProducedPartitions(),
 				tdd.getInputGates(),
 				tdd.getTargetSlotNumber(),
-				memoryManager,
-				ioManager,
-				networkEnvironment,
-				broadcastVariableManager,
+				taskExecutorServices.getMemoryManager(),
+				taskExecutorServices.getIOManager(),
+				taskExecutorServices.getNetworkEnvironment(),
+				taskExecutorServices.getBroadcastVariableManager(),
 				taskStateManager,
 				taskManagerActions,
 				inputSplitProvider,
 				checkpointResponder,
 				blobCacheService,
 				libraryCache,
-				fileCache,
+				taskExecutorServices.getFileCache(),
 				taskManagerConfiguration,
 				taskMetricGroup,
 				resultPartitionConsumableNotifier,
