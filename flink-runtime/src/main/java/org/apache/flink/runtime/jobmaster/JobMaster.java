@@ -23,6 +23,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.metrics.MetricGroup;
@@ -97,6 +98,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.clock.SystemClock;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -277,7 +279,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		resourceManagerLeaderRetriever = highAvailabilityServices.getResourceManagerLeaderRetriever();
 
-		this.slotPool = new SlotPool(rpcService, jobGraph.getJobID());
+		this.slotPool = new SlotPool(
+			rpcService,
+			jobGraph.getJobID(),
+			SystemClock.getInstance(),
+			Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT)),
+			Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_ALLOCATION_RM_TIMEOUT)),
+			Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_RM_TIMEOUT)),
+			Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_IDLE_TIMEOUT)));
+
 		this.slotPoolGateway = slotPool.getSelfGateway(SlotPoolGateway.class);
 
 		this.executionGraph = ExecutionGraphBuilder.buildGraph(

@@ -53,6 +53,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -88,11 +89,15 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 	// ------------------------------------------------------------------------
 
-	private static final Time DEFAULT_SLOT_REQUEST_TIMEOUT = Time.minutes(5);
+	private static final Time DEFAULT_SLOT_REQUEST_TIMEOUT = Time.minutes(10);
 
-	private static final Time DEFAULT_RM_ALLOCATION_TIMEOUT = Time.minutes(10);
+	private static final Time DEFAULT_RM_ALLOCATION_TIMEOUT = Time.minutes(5);
 
 	private static final Time DEFAULT_TIMEOUT = Time.seconds(10);
+
+	private static final Time DEFAULT_IDLE_SLOT_TIMEOUT = Time.minutes(5);
+
+	private static final int NUM_RELEASE_SLOT_TRIES = 3;
 
 	// ------------------------------------------------------------------------
 
@@ -121,6 +126,9 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	/** Timeout for allocation round trips (RM -> launch TM -> offer slot). */
 	private final Time resourceManagerAllocationTimeout;
 
+	/** Timeout for releasing idle slots. */
+	private final Time idleSlotTimeout;
+
 	private final Clock clock;
 
 	/** Managers for the different slot sharing groups. */
@@ -136,14 +144,16 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 	// ------------------------------------------------------------------------
 
-	public SlotPool(RpcService rpcService, JobID jobId) {
+	@VisibleForTesting
+	protected SlotPool(RpcService rpcService, JobID jobId) {
 		this(
 			rpcService,
 			jobId,
 			SystemClock.getInstance(),
 			DEFAULT_SLOT_REQUEST_TIMEOUT,
 			DEFAULT_RM_ALLOCATION_TIMEOUT,
-			DEFAULT_TIMEOUT);
+			DEFAULT_TIMEOUT,
+			DEFAULT_IDLE_SLOT_TIMEOUT);
 	}
 
 	public SlotPool(
@@ -152,13 +162,15 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			Clock clock,
 			Time slotRequestTimeout,
 			Time resourceManagerAllocationTimeout,
-			Time resourceManagerRequestTimeout) {
+			Time resourceManagerRequestTimeout,
+			Time idleSlotTimeout) {
 
 		super(rpcService);
 
 		this.jobId = checkNotNull(jobId);
 		this.clock = checkNotNull(clock);
 		this.timeout = checkNotNull(resourceManagerRequestTimeout);
+		this.idleSlotTimeout = checkNotNull(idleSlotTimeout);
 		this.resourceManagerAllocationTimeout = checkNotNull(resourceManagerAllocationTimeout);
 
 		this.registeredTaskManagers = new HashSet<>(16);
@@ -201,6 +213,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		} catch (Exception e) {
 			throw new RuntimeException("This should never happen", e);
 		}
+
+		scheduleRunAsync(() -> checkIdleSlot(), idleSlotTimeout);
 	}
 
 	@Override
@@ -265,6 +279,50 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	 */
 	public SlotProvider getSlotProvider() {
 		return providerAndOwner;
+	}
+
+	/**
+	 * Check the available slots, release the slot that is idle for a long time.
+	 */
+	protected void checkIdleSlot() {
+
+		// The timestamp in SlotAndTimestamp is relative
+		final long currentRelativeTimeMillis = clock.relativeTimeMillis();
+
+		final List<AllocatedSlot> expiredSlots = new ArrayList<>();
+
+		availableSlots.availableSlots.forEach((allocationID, slotAndTimestamp) -> {
+
+			if (slotAndTimestamp != null &&
+				currentRelativeTimeMillis - slotAndTimestamp.timestamp() > idleSlotTimeout.toMilliseconds()) {
+
+				expiredSlots.add(slotAndTimestamp.slot());
+
+			}
+		});
+
+		for (AllocatedSlot expiredSlot : expiredSlots) {
+			final AllocationID allocationID = expiredSlot.getAllocationId();
+			if (availableSlots.tryRemove(allocationID)) {
+
+				log.info("Releasing idle slot {}.", allocationID);
+
+				final CompletableFuture<Acknowledge> future = FutureUtils.retry(
+					() -> expiredSlot.getTaskManagerGateway().freeSlot(
+						allocationID,
+						new FlinkException("Releasing idle slot " + allocationID),
+						timeout),
+					NUM_RELEASE_SLOT_TRIES,
+					getMainThreadExecutor());
+
+				future.exceptionally(throwable -> {
+					log.warn("Releasing idle slot {} failed.", allocationID, throwable);
+					return null;
+				});
+			}
+		}
+
+		scheduleRunAsync(() -> checkIdleSlot(), idleSlotTimeout);
 	}
 
 	// ------------------------------------------------------------------------
