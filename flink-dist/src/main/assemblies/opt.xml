@@ -153,5 +153,20 @@
 			<destName>flink-queryable-state-runtime_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
+
+		<!-- Formats -->
+		<file>
+			<source>../flink-formats/flink-avro/target/flink-avro-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-avro-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>../flink-formats/flink-json/target/flink-json-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-json-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
 	</files>
 </assembly>

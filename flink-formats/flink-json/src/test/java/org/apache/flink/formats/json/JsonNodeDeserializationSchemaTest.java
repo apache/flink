@@ -15,22 +15,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka;
-
-import org.apache.flink.streaming.util.serialization.JSONDeserializationSchema;
+package org.apache.flink.formats.json;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.junit.Assert.assertEquals;
+
 /**
- * Tests for the {@link JSONDeserializationSchema}.
+ * Tests for the {@link JsonNodeDeserializationSchema}.
  */
-public class JSONDeserializationSchemaTest {
+public class JsonNodeDeserializationSchemaTest {
+
 	@Test
 	public void testDeserialize() throws IOException {
 		ObjectMapper mapper = new ObjectMapper();
@@ -38,10 +38,10 @@ public class JSONDeserializationSchemaTest {
 		initialValue.put("key", 4).put("value", "world");
 		byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
 
-		JSONDeserializationSchema schema = new JSONDeserializationSchema();
+		JsonNodeDeserializationSchema schema = new JsonNodeDeserializationSchema();
 		ObjectNode deserializedValue = schema.deserialize(serializedValue);
 
-		Assert.assertEquals(4, deserializedValue.get("key").asInt());
-		Assert.assertEquals("world", deserializedValue.get("value").asText());
+		assertEquals(4, deserializedValue.get("key").asInt());
+		assertEquals("world", deserializedValue.get("value").asText());
 	}
 }
