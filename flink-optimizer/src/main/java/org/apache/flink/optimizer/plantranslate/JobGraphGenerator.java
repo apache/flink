@@ -30,6 +30,7 @@ import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.dag.TempMode;
@@ -145,16 +146,14 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	 * Creates a new job graph generator that uses the default values for its resource configuration.
 	 */
 	public JobGraphGenerator() {
-		this.defaultMaxFan = ConfigConstants.DEFAULT_SPILLING_MAX_FAN;
-		this.defaultSortSpillingThreshold = ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD;
+		this.defaultMaxFan = AlgorithmOptions.SPILLING_MAX_FAN.defaultValue();
+		this.defaultSortSpillingThreshold = AlgorithmOptions.SORT_SPILLING_THRESHOLD.defaultValue();
 		this.useLargeRecordHandler = ConfigConstants.DEFAULT_USE_LARGE_RECORD_HANDLER;
 	}
 	
 	public JobGraphGenerator(Configuration config) {
-		this.defaultMaxFan = config.getInteger(ConfigConstants.DEFAULT_SPILLING_MAX_FAN_KEY, 
-			ConfigConstants.DEFAULT_SPILLING_MAX_FAN);
-		this.defaultSortSpillingThreshold = config.getFloat(ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD_KEY,
-			ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD);
+		this.defaultMaxFan = config.getInteger(AlgorithmOptions.SPILLING_MAX_FAN);
+		this.defaultSortSpillingThreshold = config.getFloat(AlgorithmOptions.SORT_SPILLING_THRESHOLD);
 		this.useLargeRecordHandler = config.getBoolean(
 				ConfigConstants.USE_LARGE_RECORD_HANDLER_KEY,
 				ConfigConstants.DEFAULT_USE_LARGE_RECORD_HANDLER);
