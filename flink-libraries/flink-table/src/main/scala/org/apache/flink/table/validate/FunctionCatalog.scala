@@ -176,6 +176,7 @@ object FunctionCatalog {
     "stddevSamp" -> classOf[StddevSamp],
     "varPop" -> classOf[VarPop],
     "varSamp" -> classOf[VarSamp],
+    "collect" -> classOf[Collect],
 
     // string functions
     "charLength" -> classOf[CharLength],

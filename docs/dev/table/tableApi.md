@@ -2885,6 +2885,17 @@ FIELD.varSamp
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight java %}
+FIELD.collect
+        {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the multiset aggregate of the input value.</p>
+      </td>
+    </tr>
+
     </tbody>
 </table>
 
@@ -4294,6 +4305,17 @@ FIELD.varSamp
         <p>Returns the sample variance (square of the sample standard deviation) of the numeric field across all input values.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+FIELD.collect
+        {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the multiset aggregate of the input value.</p>
+      </td>
+    </tr>
   </tbody>
 </table>
 
@@ -4551,7 +4573,6 @@ The following operations are not supported yet:
 
 - Binary string operators and functions
 - System functions
-- Collection functions
 - Aggregate functions like REGR_xxx
 - Distinct aggregate functions like COUNT DISTINCT
 
