@@ -2885,6 +2885,17 @@ FIELD.varSamp
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight java %}
+FIELD.collect
+        {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the multiset aggregate of the input value.</p>
+      </td>
+    </tr>
+
     </tbody>
 </table>
 
