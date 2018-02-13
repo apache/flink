@@ -35,6 +35,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.FlinkException;
@@ -384,21 +385,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			return deployInternal(
 				clusterSpecification,
 				getYarnSessionClusterEntrypoint(),
-				null);
+				null,
+				false);
 		} catch (Exception e) {
 			throw new ClusterDeploymentException("Couldn't deploy Yarn session cluster", e);
-		}
-	}
-
-	@Override
-	public ClusterClient<ApplicationId> deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) throws ClusterDeploymentException {
-		try {
-			return deployInternal(
-				clusterSpecification,
-				getYarnJobClusterEntrypoint(),
-				jobGraph);
-		} catch (Exception e) {
-			throw new ClusterDeploymentException("Could not deploy Yarn job cluster.", e);
 		}
 	}
 
@@ -416,12 +406,15 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	 * deployed on YARN.
 	 *
 	 * @param clusterSpecification Initial cluster specification for the to be deployed Flink cluster
-	 * @param jobGraph A job graph which is deployed with the Flink cluster, null if none
+	 * @param yarnClusterEntrypoint Class name of the Yarn cluster entry point.
+	 * @param jobGraph A job graph which is deployed with the Flink cluster, {@code null} if none
+	 * @param detached True if the cluster should be started in detached mode
 	 */
 	protected ClusterClient<ApplicationId> deployInternal(
 			ClusterSpecification clusterSpecification,
 			String yarnClusterEntrypoint,
-			@Nullable JobGraph jobGraph) throws Exception {
+			@Nullable JobGraph jobGraph,
+			boolean detached) throws Exception {
 
 		if (UserGroupInformation.isSecurityEnabled()) {
 			// note: UGI::hasKerberosCredentials inaccurately reports false
@@ -482,7 +475,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		LOG.info("Cluster specification: {}", validClusterSpecification);
 
+		final ClusterEntrypoint.ExecutionMode executionMode = detached ?
+			ClusterEntrypoint.ExecutionMode.DETACHED
+			: ClusterEntrypoint.ExecutionMode.NORMAL;
+
+		flinkConfiguration.setString(ClusterEntrypoint.EXECUTION_MODE, executionMode.toString());
+
 		ApplicationReport report = startAppMaster(
+			flinkConfiguration,
 			yarnClusterEntrypoint,
 			jobGraph,
 			yarnClient,
@@ -635,6 +635,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	public ApplicationReport startAppMaster(
+			Configuration configuration,
 			String yarnClusterEntrypoint,
 			JobGraph jobGraph,
 			YarnClient yarnClient,
@@ -644,7 +645,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// ------------------ Initialize the file systems -------------------------
 
 		try {
-			org.apache.flink.core.fs.FileSystem.initialize(flinkConfiguration);
+			org.apache.flink.core.fs.FileSystem.initialize(configuration);
 		} catch (IOException e) {
 			throw new IOException("Error while setting the default " +
 					"filesystem scheme from configuration.", e);
@@ -699,16 +700,16 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// no user specified cli argument for namespace?
 		if (zkNamespace == null || zkNamespace.isEmpty()) {
 			// namespace defined in config? else use applicationId as default.
-			zkNamespace = flinkConfiguration.getString(HighAvailabilityOptions.HA_CLUSTER_ID, String.valueOf(appId));
+			zkNamespace = configuration.getString(HighAvailabilityOptions.HA_CLUSTER_ID, String.valueOf(appId));
 			setZookeeperNamespace(zkNamespace);
 		}
 
-		flinkConfiguration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
+		configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
 
-		if (HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfiguration)) {
+		if (HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)) {
 			// activate re-execution of failed applications
 			appContext.setMaxAppAttempts(
-				flinkConfiguration.getInteger(
+				configuration.getInteger(
 					YarnConfigOptions.APPLICATION_ATTEMPTS.key(),
 					YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS));
 
@@ -716,7 +717,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		} else {
 			// set number of application retries to 1 in the default case
 			appContext.setMaxAppAttempts(
-				flinkConfiguration.getInteger(
+				configuration.getInteger(
 					YarnConfigOptions.APPLICATION_ATTEMPTS.key(),
 					1));
 		}
@@ -797,7 +798,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// write out configuration file
 		File tmpConfigurationFile = File.createTempFile(appId + "-flink-conf.yaml", null);
 		tmpConfigurationFile.deleteOnExit();
-		BootstrapTools.writeConfiguration(flinkConfiguration, tmpConfigurationFile);
+		BootstrapTools.writeConfiguration(configuration, tmpConfigurationFile);
 
 		Path remotePathConf = setupSingleLocalResource(
 			"flink-conf.yaml",
@@ -884,7 +885,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		// setup security tokens
 		Path remotePathKeytab = null;
-		String keytab = flinkConfiguration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
+		String keytab = configuration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
 		if (keytab != null) {
 			LOG.info("Adding keytab {} to the AM container local resource bucket", keytab);
 			remotePathKeytab = setupSingleLocalResource(
@@ -916,7 +917,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// Setup CLASSPATH and environment variables for ApplicationMaster
 		final Map<String, String> appMasterEnv = new HashMap<>();
 		// set user specified app master environment variables
-		appMasterEnv.putAll(Utils.getEnvironmentVariables(ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX, flinkConfiguration));
+		appMasterEnv.putAll(Utils.getEnvironmentVariables(ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX, configuration));
 		// set Flink app class path
 		appMasterEnv.put(YarnConfigKeys.ENV_FLINK_CLASSPATH, classPathBuilder.toString());
 
@@ -937,7 +938,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		if (remotePathKeytab != null) {
 			appMasterEnv.put(YarnConfigKeys.KEYTAB_PATH, remotePathKeytab.toString());
-			String principal = flinkConfiguration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
+			String principal = configuration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
 			appMasterEnv.put(YarnConfigKeys.KEYTAB_PRINCIPAL, principal);
 		}
 

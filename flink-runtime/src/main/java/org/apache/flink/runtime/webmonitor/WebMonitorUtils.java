@@ -186,7 +186,7 @@ public final class WebMonitorUtils {
 	 * @throws IOException if we cannot create the StaticFileServerHandler
 	 */
 	public static <T extends RestfulGateway> Optional<StaticFileServerHandler<T>> tryLoadWebContent(
-			GatewayRetriever<T> leaderRetriever,
+			GatewayRetriever<? extends T> leaderRetriever,
 			CompletableFuture<String> restAddressFuture,
 			Time timeout,
 			File tmpDir) throws IOException {
