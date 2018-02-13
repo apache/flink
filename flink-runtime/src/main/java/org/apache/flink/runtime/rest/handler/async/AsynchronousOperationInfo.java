@@ -43,9 +43,9 @@ public class AsynchronousOperationInfo {
 	private final SerializedThrowable failureCause;
 
 	private AsynchronousOperationInfo(
-		@JsonProperty(FIELD_NAME_FAILURE_CAUSE)
-		@JsonDeserialize(using = SerializedThrowableDeserializer.class)
-		@Nullable SerializedThrowable failureCause) {
+			@JsonProperty(FIELD_NAME_FAILURE_CAUSE)
+			@JsonDeserialize(using = SerializedThrowableDeserializer.class)
+			@Nullable SerializedThrowable failureCause) {
 		this.failureCause = failureCause;
 	}
 

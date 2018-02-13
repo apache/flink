@@ -473,11 +473,17 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			int newParallelism,
 			RescalingBehaviour rescalingBehaviour,
 			Time timeout) {
+
+		if (newParallelism <= 0) {
+			return FutureUtils.completedExceptionally(
+				new JobModificationException("The target parallelism of a rescaling operation must be larger than 0."));
+		}
+
 		// 1. Check whether we can rescale the job & rescale the respective vertices
 		for (JobVertexID jobVertexId : operators) {
 			final JobVertex jobVertex = jobGraph.findVertexByID(jobVertexId);
 
-			// update max parallelism in case that it has not been configure
+			// update max parallelism in case that it has not been configured
 			final ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
 			if (executionJobVertex != null) {
@@ -595,7 +601,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 					return Acknowledge.get();
 				} else {
-					throw new CompletionException(new JobModificationException("Detected concurrent modification of ExecutionGraph. Aborting the resacling."));
+					throw new CompletionException(new JobModificationException("Detected concurrent modification of ExecutionGraph. Aborting the rescaling."));
 				}
 
 			},
@@ -1145,8 +1151,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				jobMasterConfiguration.getConfiguration(),
 				userCodeLoader,
 				log);
-		} catch (FlinkException | IOException de) {
-			log.info("Could not dispose temporary rescaling savepoint under {}.", savepointPath, de);
+		} catch (FlinkException | IOException e) {
+			log.info("Could not dispose temporary rescaling savepoint under {}.", savepointPath, e);
 		}
 	}
 
