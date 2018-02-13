@@ -960,7 +960,7 @@ public class TaskManagerTest extends TestLogger {
 
 				final int dataPort = NetUtils.getAvailablePort();
 				Configuration config = new Configuration();
-				config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort);
+				config.setInteger(TaskManagerOptions.DATA_PORT, dataPort);
 				config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
 				config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
 
@@ -1173,7 +1173,7 @@ public class TaskManagerTest extends TestLogger {
 
 				final int dataPort = NetUtils.getAvailablePort();
 				Configuration config = new Configuration();
-				config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort);
+				config.setInteger(TaskManagerOptions.DATA_PORT, dataPort);
 				config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
 				config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
 				config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
