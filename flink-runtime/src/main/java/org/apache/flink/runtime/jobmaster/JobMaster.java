@@ -57,6 +57,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
@@ -296,6 +297,28 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			blobServer,
 			jobMasterConfiguration.getSlotRequestTimeout(),
 			log);
+
+		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+
+		if (checkpointCoordinator != null) {
+			// check whether we find a valid checkpoint
+			if (!checkpointCoordinator.restoreLatestCheckpointedState(
+				executionGraph.getAllVertices(),
+				false,
+				false)) {
+
+				// check whether we can restore from a savepoint
+				final SavepointRestoreSettings savepointRestoreSettings = jobGraph.getSavepointRestoreSettings();
+
+				if (savepointRestoreSettings.restoreSavepoint()) {
+					checkpointCoordinator.restoreSavepoint(
+						savepointRestoreSettings.getRestorePath(),
+						savepointRestoreSettings.allowNonRestoredState(),
+						executionGraph.getAllVertices(),
+						userCodeLoader);
+				}
+			}
+		}
 
 		// register self as job status change listener
 		executionGraph.registerJobStatusListener(new JobManagerJobStatusListener());

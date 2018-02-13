@@ -39,6 +39,7 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
@@ -177,7 +178,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 			submittedJobGraphStore.start(null);
 			CompletedCheckpointStore checkpointStore = new RecoverableCompletedCheckpointStore();
 			CheckpointIDCounter checkpointCounter = new StandaloneCheckpointIDCounter();
-			CheckpointRecoveryFactory checkpointStateFactory = new MyCheckpointRecoveryFactory(checkpointStore, checkpointCounter);
+			CheckpointRecoveryFactory checkpointStateFactory = new TestingCheckpointRecoveryFactory(checkpointStore, checkpointCounter);
 			TestingLeaderElectionService myLeaderElectionService = new TestingLeaderElectionService();
 			TestingLeaderRetrievalService myLeaderRetrievalService = new TestingLeaderRetrievalService(
 				null,
@@ -462,27 +463,6 @@ public class JobManagerHARecoveryTest extends TestLogger {
 					TestingFailingHAJobManager.super.handleMessage().apply(o);
 				}
 			}).build();
-		}
-	}
-
-	static class MyCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
-
-		private final CompletedCheckpointStore store;
-		private final CheckpointIDCounter counter;
-
-		public MyCheckpointRecoveryFactory(CompletedCheckpointStore store, CheckpointIDCounter counter) {
-			this.store = store;
-			this.counter = counter;
-		}
-
-		@Override
-		public CompletedCheckpointStore createCheckpointStore(JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader) throws Exception {
-			return store;
-		}
-
-		@Override
-		public CheckpointIDCounter createCheckpointIDCounter(JobID jobId) throws Exception {
-			return counter;
 		}
 	}
 

@@ -25,13 +25,25 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.checkpoint.CheckpointProperties;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
+import org.apache.flink.runtime.checkpoint.Checkpoints;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -40,6 +52,8 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -57,7 +71,12 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
+import javax.annotation.Nonnull;
+
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -162,21 +181,7 @@ public class JobMasterTest extends TestLogger {
 		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
 		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
-		final JobMaster jobMaster = new JobMaster(
-			rpcService,
-			jobMasterConfiguration,
-			jmResourceId,
-			jobGraph,
-			haServices,
-			jobManagerSharedServices,
-			fastHeartbeatServices,
-			blobServer,
-			null,
-			new NoOpOnCompletionActions(),
-			testingFatalErrorHandler,
-			JobMasterTest.class.getClassLoader(),
-			null,
-			null);
+		final JobMaster jobMaster = createJobMaster(jobMasterConfiguration, jobGraph, haServices, jobManagerSharedServices);
 
 		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 
@@ -237,21 +242,7 @@ public class JobMasterTest extends TestLogger {
 		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
 		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
-		final JobMaster jobMaster = new JobMaster(
-			rpcService,
-			jobMasterConfiguration,
-			jmResourceId,
-			jobGraph,
-			haServices,
-			jobManagerSharedServices,
-			fastHeartbeatServices,
-			blobServer,
-			null,
-			new NoOpOnCompletionActions(),
-			testingFatalErrorHandler,
-			JobMasterTest.class.getClassLoader(),
-			null,
-			null);
+		final JobMaster jobMaster = createJobMaster(jobMasterConfiguration, jobGraph, haServices, jobManagerSharedServices);
 
 		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 
@@ -282,6 +273,152 @@ public class JobMasterTest extends TestLogger {
 	}
 
 	/**
+	 * Tests that a JobMaster will restore the given JobGraph from its savepoint upon
+	 * initial submission.
+	 */
+	@Test
+	public void testRestoringFromSavepoint() throws Exception {
+
+		// create savepoint data
+		final long savepointId = 42L;
+		final File savepointFile = createSavepoint(savepointId);
+
+		// set savepoint settings
+		final SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.forPath(
+			savepointFile.getAbsolutePath(),
+			true);
+		final JobGraph jobGraph = createJobGraphWithCheckpointing(savepointRestoreSettings);
+
+		final StandaloneCompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(1);
+		final TestingCheckpointRecoveryFactory testingCheckpointRecoveryFactory = new TestingCheckpointRecoveryFactory(completedCheckpointStore, new StandaloneCheckpointIDCounter());
+		haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
+		final JobMaster jobMaster = createJobMaster(
+			JobMasterConfiguration.fromConfiguration(configuration),
+			jobGraph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build());
+
+		try {
+			// starting the JobMaster should have read the savepoint
+			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint();
+
+			assertThat(savepointCheckpoint, Matchers.notNullValue());
+
+			assertThat(savepointCheckpoint.getCheckpointID(), Matchers.is(savepointId));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	/**
+	 * Tests that an existing checkpoint will have precedence over an savepoint
+	 */
+	@Test
+	public void testCheckpointPrecedesSavepointRecovery() throws Exception {
+
+		// create savepoint data
+		final long savepointId = 42L;
+		final File savepointFile = createSavepoint(savepointId);
+
+		// set savepoint settings
+		final SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.forPath("" +
+				savepointFile.getAbsolutePath(),
+			true);
+		final JobGraph jobGraph = createJobGraphWithCheckpointing(savepointRestoreSettings);
+
+		final long checkpointId = 1L;
+
+		final CompletedCheckpoint completedCheckpoint = new CompletedCheckpoint(
+			jobGraph.getJobID(),
+			checkpointId,
+			1L,
+			1L,
+			Collections.emptyMap(),
+			null,
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+			new DummyCheckpointStorageLocation());
+
+		final StandaloneCompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(1);
+		completedCheckpointStore.addCheckpoint(completedCheckpoint);
+		final TestingCheckpointRecoveryFactory testingCheckpointRecoveryFactory = new TestingCheckpointRecoveryFactory(completedCheckpointStore, new StandaloneCheckpointIDCounter());
+		haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
+		final JobMaster jobMaster = createJobMaster(
+			JobMasterConfiguration.fromConfiguration(configuration),
+			jobGraph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build());
+
+		try {
+			// starting the JobMaster should have read the savepoint
+			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint();
+
+			assertThat(savepointCheckpoint, Matchers.notNullValue());
+
+			assertThat(savepointCheckpoint.getCheckpointID(), Matchers.is(checkpointId));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	private File createSavepoint(long savepointId) throws IOException {
+		final File savepointFile = temporaryFolder.newFile();
+		final SavepointV2 savepoint = new SavepointV2(savepointId, Collections.emptyList(), Collections.emptyList());
+
+		try (FileOutputStream fileOutputStream = new FileOutputStream(savepointFile)) {
+			Checkpoints.storeCheckpointMetadata(savepoint, fileOutputStream);
+		}
+
+		return savepointFile;
+	}
+
+	@Nonnull
+	private JobGraph createJobGraphWithCheckpointing(SavepointRestoreSettings savepointRestoreSettings) {
+		final JobGraph jobGraph = new JobGraph();
+
+		// enable checkpointing which is required to resume from a savepoint
+		final CheckpointCoordinatorConfiguration checkpoinCoordinatorConfiguration = new CheckpointCoordinatorConfiguration(
+			1000L,
+			1000L,
+			1000L,
+			1,
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true);
+		final JobCheckpointingSettings checkpointingSettings = new JobCheckpointingSettings(
+			Collections.emptyList(),
+			Collections.emptyList(),
+			Collections.emptyList(),
+			checkpoinCoordinatorConfiguration,
+			null);
+		jobGraph.setSnapshotSettings(checkpointingSettings);
+		jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
+
+		return jobGraph;
+	}
+
+	@Nonnull
+	private JobMaster createJobMaster(
+			JobMasterConfiguration jobMasterConfiguration,
+			JobGraph jobGraph,
+			HighAvailabilityServices highAvailabilityServices,
+			JobManagerSharedServices jobManagerSharedServices) throws Exception {
+		return new JobMaster(
+			rpcService,
+			jobMasterConfiguration,
+			jmResourceId,
+			jobGraph,
+			highAvailabilityServices,
+			jobManagerSharedServices,
+			fastHeartbeatServices,
+			blobServer,
+			null,
+			new NoOpOnCompletionActions(),
+			testingFatalErrorHandler,
+			JobMasterTest.class.getClassLoader(),
+			null,
+			null);
+	}
+
+	/**
 	 * No op implementation of {@link OnCompletionActions}.
 	 */
 	private static final class NoOpOnCompletionActions implements OnCompletionActions {
@@ -293,6 +430,26 @@ public class JobMasterTest extends TestLogger {
 
 		@Override
 		public void jobFinishedByOther() {
+
+		}
+	}
+
+	private static final class DummyCheckpointStorageLocation implements CompletedCheckpointStorageLocation {
+
+		private static final long serialVersionUID = 164095949572620688L;
+
+		@Override
+		public String getExternalPointer() {
+			return null;
+		}
+
+		@Override
+		public StreamStateHandle getMetadataHandle() {
+			return null;
+		}
+
+		@Override
+		public void disposeStorageLocation() throws IOException {
 
 		}
 	}
