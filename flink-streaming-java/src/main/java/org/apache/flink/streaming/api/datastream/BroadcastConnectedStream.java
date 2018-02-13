@@ -161,7 +161,7 @@ public class BroadcastConnectedStream<IN1, IN2> {
 				"A KeyedBroadcastProcessFunction can only be used with a keyed stream as the second input.");
 
 		TwoInputStreamOperator<IN1, IN2, OUT> operator =
-				new CoBroadcastWithKeyedOperator<>(function, broadcastStateDescriptors);
+				new CoBroadcastWithKeyedOperator<>(clean(function), broadcastStateDescriptors);
 		return transform("Co-Process-Broadcast-Keyed", outTypeInfo, operator);
 	}
 
@@ -212,7 +212,7 @@ public class BroadcastConnectedStream<IN1, IN2> {
 				"A BroadcastProcessFunction can only be used with a non-keyed stream as the second input.");
 
 		TwoInputStreamOperator<IN1, IN2, OUT> operator =
-				new CoBroadcastWithNonKeyedOperator<>(function, broadcastStateDescriptors);
+				new CoBroadcastWithNonKeyedOperator<>(clean(function), broadcastStateDescriptors);
 		return transform("Co-Process-Broadcast", outTypeInfo, operator);
 	}
 
