@@ -294,7 +294,8 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Long> TASK_CANCELLATION_INTERVAL =
 			key("task.cancellation.interval")
 			.defaultValue(30000L)
-			.withDeprecatedKeys("task.cancellation-interval");
+			.withDeprecatedKeys("task.cancellation-interval")
+			.withDescription("Time interval between two successive task cancellation attempts in milliseconds.");
 
 	/**
 	 * Timeout in milliseconds after which a task cancellation times out and
@@ -303,8 +304,10 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Long> TASK_CANCELLATION_TIMEOUT =
 			key("task.cancellation.timeout")
-			.defaultValue(180000L);
-
+			.defaultValue(180000L)
+			.withDescription("Timeout in milliseconds after which a task cancellation times out and" +
+				" leads to a fatal TaskManager error. A value of 0 deactivates" +
+				" the watch dog.");
 	/**
 	 * The maximum number of bytes that a checkpoint alignment may buffer.
 	 * If the checkpoint alignment buffers more than the configured amount of
@@ -314,7 +317,10 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Long> TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT =
 			key("task.checkpoint.alignment.max-size")
-			.defaultValue(-1L);
+			.defaultValue(-1L)
+			.withDescription("The maximum number of bytes that a checkpoint alignment may buffer. If the checkpoint" +
+				" alignment buffers more than the configured amount of data, the checkpoint is aborted (skipped)." +
+				" A value of -1 indicates that there is no limit.");
 
 	// ------------------------------------------------------------------------
 
