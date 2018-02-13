@@ -54,8 +54,6 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.util.Preconditions.checkState;
-
 /**
  * Super class for netty-based handlers that work with {@link RequestBody}.
  *
@@ -111,7 +109,15 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 			R request;
 			if (isFileUpload()) {
 				final Path path = ctx.channel().attr(FileUploadHandler.UPLOADED_FILE).get();
-				checkState(path != null, "missing uploaded file");
+				if (path == null) {
+					HandlerUtils.sendErrorResponse(
+						ctx,
+						httpRequest,
+						new ErrorResponseBody("Client did not upload a file."),
+						HttpResponseStatus.BAD_REQUEST,
+						responseHeaders);
+					return;
+				}
 				//noinspection unchecked
 				request = (R) new FileUpload(path);
 			} else if (msgContent.capacity() == 0) {

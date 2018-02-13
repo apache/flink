@@ -16,24 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.handlers;
+package org.apache.flink.runtime.webmonitor.handlers.legacy;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.webmonitor.handlers.legacy.JarListHandler;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Tests for the JarRunHandler.
+ * Tests for the JarListHandler.
  */
-public class JarRunHandlerTest {
+public class JarListHandlerTest {
 	@Test
 	public void testGetPaths() {
-		JarRunHandler handler = new JarRunHandler(Executors.directExecutor(), null, Time.seconds(0L), new Configuration());
+		JarListHandler handler = new JarListHandler(Executors.directExecutor(), null);
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
-		Assert.assertEquals("/jars/:jarid/run", paths[0]);
+		Assert.assertEquals("/jars", paths[0]);
 	}
 }

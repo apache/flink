@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.handlers.ng;
+package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import static java.util.Objects.requireNonNull;
@@ -39,7 +40,8 @@ public class JarUploadResponseBody implements ResponseBody {
 	@JsonProperty(FIELD_NAME_FILENAME)
 	private final String filename;
 
-	public JarUploadResponseBody(final String filename) {
+	@JsonCreator
+	public JarUploadResponseBody(@JsonProperty(FIELD_NAME_FILENAME) final String filename) {
 		this.filename = requireNonNull(filename);
 	}
 
@@ -51,7 +53,7 @@ public class JarUploadResponseBody implements ResponseBody {
 		return filename;
 	}
 
-	private enum UploadStatus {
+	public enum UploadStatus {
 		success
 	}
 

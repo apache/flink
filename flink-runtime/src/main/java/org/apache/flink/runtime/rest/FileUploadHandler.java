@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rest;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPipeline;
@@ -37,7 +39,6 @@ import org.apache.flink.shaded.netty4.io.netty.util.AttributeKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -69,7 +70,13 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 		super(false);
 
 		this.uploadDir = requireNonNull(uploadDir);
-		DiskFileUpload.baseDirectory = uploadDir.toAbsolutePath().toString();
+		DiskFileUpload.baseDirectory = uploadDir.normalize().toAbsolutePath().toString();
+
+		try {
+			createUploadDir(uploadDir);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	@Override
@@ -77,9 +84,8 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 		if (msg instanceof HttpRequest) {
 			final HttpRequest httpRequest = (HttpRequest) msg;
 			if (httpRequest.getMethod().equals(HttpMethod.POST)) {
-				final HttpPostRequestDecoder httpPostRequestDecoder = new HttpPostRequestDecoder(DATA_FACTORY, httpRequest);
-				if (httpPostRequestDecoder.isMultipart()) {
-					currentHttpPostRequestDecoder = httpPostRequestDecoder;
+				if (HttpPostRequestDecoder.isMultipart(httpRequest)) {
+					currentHttpPostRequestDecoder = new HttpPostRequestDecoder(DATA_FACTORY, httpRequest);
 					currentHttpRequest = httpRequest;
 				} else {
 					ctx.fireChannelRead(msg);
@@ -97,9 +103,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 					final DiskFileUpload fileUpload = (DiskFileUpload) data;
 					checkState(fileUpload.isCompleted());
 
-					if (!Files.exists(uploadDir)) {
-						checkAndCreateUploadDir(uploadDir.toFile());
-					}
+					createUploadDir(uploadDir);
 
 					final Path dest = uploadDir.resolve(Paths.get(UUID.randomUUID().toString() +
 						"_" + fileUpload.getFilename()));
@@ -126,22 +130,35 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 	}
 
 	/**
-	 * Checks whether the given directory exists and is writable. If it doesn't exist this method will attempt to create
-	 * it.
+	 * Creates the upload dir if needed.
+	 */
+	@VisibleForTesting
+	static void createUploadDir(final Path uploadDir) throws IOException {
+		if (!Files.exists(uploadDir)) {
+			LOG.warn("Upload directory {} does not exist, or has been deleted externally. " +
+				"Previously uploaded files are no longer available.", uploadDir);
+			checkAndCreateUploadDir(uploadDir);
+		}
+	}
+
+	/**
+	 * Checks whether the given directory exists and is writable. If it doesn't exist, this method
+	 * will attempt to create it.
 	 *
 	 * @param uploadDir directory to check
-	 * @throws IOException if the directory does not exist and cannot be created, or if the directory isn't writable
+	 * @throws IOException if the directory does not exist and cannot be created, or if the
+	 *                     directory isn't writable
 	 */
-	private static synchronized void checkAndCreateUploadDir(File uploadDir) throws IOException {
-		if (uploadDir.exists() && uploadDir.canWrite()) {
+	private static synchronized void checkAndCreateUploadDir(final Path uploadDir) throws IOException {
+		if (Files.exists(uploadDir) && Files.isWritable(uploadDir)) {
 			LOG.info("Using directory {} for file uploads.", uploadDir);
-		} else if (uploadDir.mkdirs() && uploadDir.canWrite()) {
+		} else if (Files.isWritable(Files.createDirectories(uploadDir))) {
 			LOG.info("Created directory {} for file uploads.", uploadDir);
 		} else {
-			LOG.warn("Upload directory {} cannot be created or is not writable.", uploadDir.getAbsolutePath());
+			LOG.warn("Upload directory {} cannot be created or is not writable.", uploadDir);
 			throw new IOException(
 				String.format("Upload directory %s cannot be created or is not writable.",
-					uploadDir.getAbsolutePath()));
+					uploadDir));
 		}
 	}
 }

@@ -16,22 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.handlers;
+package org.apache.flink.runtime.webmonitor.handlers.legacy;
 
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.webmonitor.handlers.legacy.JarPlanHandler;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Tests for the JarDeleteHandler.
+ * Tests for the JarPlanHandler.
  */
-public class JarDeleteHandlerTest {
+public class JarPlanHandlerTest {
 	@Test
 	public void testGetPaths() {
-		JarDeleteHandler handler = new JarDeleteHandler(Executors.directExecutor(), null);
+		JarPlanHandler handler = new JarPlanHandler(Executors.directExecutor(), null);
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
-		Assert.assertEquals("/jars/:jarid", paths[0]);
+		Assert.assertEquals("/jars/:jarid/plan", paths[0]);
 	}
 }

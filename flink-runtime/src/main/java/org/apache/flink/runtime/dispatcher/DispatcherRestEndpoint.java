@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -107,15 +108,15 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			timeout,
 			responseHeaders);
 
-		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> optJarHandlers =
-			WebMonitorUtils.tryLoadJarUploadHandler(
+		if (clusterConfiguration.getBoolean(WebOptions.SUBMIT_ENABLE)) {
+			handlers.addAll(WebMonitorUtils.tryLoadJarHandlers(
 				leaderRetriever,
 				restAddressFuture,
 				timeout,
+				responseHeaders,
 				uploadDir,
-				executor);
-
-		handlers.addAll(optJarHandlers);
+				executor));
+		}
 
 		handlers.add(Tuple2.of(JobTerminationHeaders.getInstance(), jobTerminationHandler));
 		handlers.add(Tuple2.of(blobServerPortHandler.getMessageHeaders(), blobServerPortHandler));

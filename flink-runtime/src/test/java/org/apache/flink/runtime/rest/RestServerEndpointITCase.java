@@ -63,6 +63,7 @@ import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -228,17 +229,16 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	/**
 	 * Tests that multipart/form-data uploads work correctly.
+	 *
+	 * @see FileUploadHandler
 	 */
 	@Test
 	public void testFileUpload() throws Exception {
-		final String boundary = Long.toHexString(System.currentTimeMillis());
+		final String boundary = generateMultiPartBoundary();
 		final String crlf = "\r\n";
 		final String uploadedContent = "hello";
+		final HttpURLConnection connection = openHttpConnectionForUpload(boundary);
 
-		final HttpURLConnection connection =
-			(HttpURLConnection) new URL(serverEndpoint.getRestAddress() + "/upload").openConnection();
-		connection.setDoOutput(true);
-		connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
 		try (OutputStream output = connection.getOutputStream(); PrintWriter writer =
 			new PrintWriter(new OutputStreamWriter(output, StandardCharsets.UTF_8), true)) {
 
@@ -255,6 +255,43 @@ public class RestServerEndpointITCase extends TestLogger {
 		assertEquals(200, connection.getResponseCode());
 		final Path lastUploadedPath = testUploadHandler.getLastUploadedPath();
 		assertEquals(uploadedContent, new String(Files.readAllBytes(lastUploadedPath), StandardCharsets.UTF_8));
+	}
+
+	/**
+	 * Sending multipart/form-data without a file should result in a bad request if the handler
+	 * expects a file upload.
+	 */
+	@Test
+	public void testMultiPartFormDataWithoutFileUpload() throws Exception {
+		final String boundary = generateMultiPartBoundary();
+		final String crlf = "\r\n";
+		final HttpURLConnection connection = openHttpConnectionForUpload(boundary);
+
+		try (OutputStream output = connection.getOutputStream(); PrintWriter writer =
+			new PrintWriter(new OutputStreamWriter(output, StandardCharsets.UTF_8), true)) {
+
+			writer.append("--" + boundary).append(crlf);
+			writer.append("Content-Disposition: form-data; name=\"foo\"").append(crlf);
+			writer.append(crlf).flush();
+			output.write("test".getBytes(StandardCharsets.UTF_8));
+			output.flush();
+			writer.append(crlf).flush();
+			writer.append("--" + boundary + "--").append(crlf).flush();
+		}
+
+		assertEquals(400, connection.getResponseCode());
+	}
+
+	private HttpURLConnection openHttpConnectionForUpload(final String boundary) throws IOException {
+		final HttpURLConnection connection =
+			(HttpURLConnection) new URL(serverEndpoint.getRestAddress() + "/upload").openConnection();
+		connection.setDoOutput(true);
+		connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+		return connection;
+	}
+
+	private static String generateMultiPartBoundary() {
+		return Long.toHexString(System.currentTimeMillis());
 	}
 
 	private static class TestRestServerEndpoint extends RestServerEndpoint {
