@@ -298,12 +298,18 @@ public final class ConfigConstants {
 
 	/**
 	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#DEBUG_MEMORY_USAGE_START_LOG_THREAD} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD = "taskmanager.debug.memory.startLogThread";
 
 	/**
 	 * The interval (in ms) for the log thread to log the current memory usage.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = "taskmanager.debug.memory.logIntervalMs";
 
 	/**
@@ -1428,12 +1434,18 @@ public final class ConfigConstants {
 
 	/**
 	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#DEBUG_MEMORY_USAGE_START_LOG_THREAD} instead
 	 */
+	@Deprecated
 	public static final boolean DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD = false;
 
 	/**
 	 * The interval (in ms) for the log thread to log the current memory usage.
+	 *
+	 * @deprecated use {@link TaskManagerOptions#DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS} instead
 	 */
+	@Deprecated
 	public static final long DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = 5000L;
 
 	/**

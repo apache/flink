@@ -143,6 +143,16 @@ public class TaskManagerOptions {
 			.defaultValue(1)
 			.withDescription("The config parameter defining the number of task slots of a task manager.");
 
+	public static final ConfigOption<Boolean> DEBUG_MEMORY_USAGE_START_LOG_THREAD =
+		key("taskmanager.debug.memory.startLogThread")
+			.defaultValue(false)
+			.withDescription("Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.");
+
+	public static final ConfigOption<Long> DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS =
+		key("taskmanager.debug.memory.logIntervalMs")
+			.defaultValue(5000L)
+			.withDescription("The interval (in ms) for the log thread to log the current memory usage.");
+
 	// ------------------------------------------------------------------------
 	//  Managed Memory Options
 	// ------------------------------------------------------------------------
