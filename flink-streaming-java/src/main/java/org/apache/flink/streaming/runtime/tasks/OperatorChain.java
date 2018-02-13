@@ -548,17 +548,20 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				operator.setKeyContextElement1(copy);
 				operator.processElement(copy);
 			} catch (ClassCastException e) {
-				// Enrich error message
-				ClassCastException replace = new ClassCastException(
-					String.format(
-						"%s. Failed to push OutputTag with id '%s' to operator. " +
-						"This can occur when multiple OutputTags with different types " +
-						"but identical names are being used.",
-						e.getMessage(),
-						outputTag.getId()));
+				if (outputTag != null) {
+					// Enrich error message
+					ClassCastException replace = new ClassCastException(
+						String.format(
+							"%s. Failed to push OutputTag with id '%s' to operator. " +
+								"This can occur when multiple OutputTags with different types " +
+								"but identical names are being used.",
+							e.getMessage(),
+							outputTag.getId()));
 
-				throw new ExceptionInChainedOperatorException(replace);
-
+					throw new ExceptionInChainedOperatorException(replace);
+				} else {
+					throw new ExceptionInChainedOperatorException(e);
+				}
 			} catch (Exception e) {
 				throw new ExceptionInChainedOperatorException(e);
 			}
