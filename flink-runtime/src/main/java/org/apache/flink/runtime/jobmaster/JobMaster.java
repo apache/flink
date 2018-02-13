@@ -22,8 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.metrics.MetricGroup;
@@ -148,6 +146,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	// ------------------------------------------------------------------------
 
+	private final JobMasterConfiguration jobMasterConfiguration;
+
 	private final ResourceID resourceId;
 
 	/** Logical representation of the job. */
@@ -210,9 +210,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	public JobMaster(
 			RpcService rpcService,
+			JobMasterConfiguration jobMasterConfiguration,
 			ResourceID resourceId,
 			JobGraph jobGraph,
-			Configuration configuration,
 			HighAvailabilityServices highAvailabilityService,
 			JobManagerSharedServices jobManagerSharedServices,
 			HeartbeatServices heartbeatServices,
@@ -228,9 +228,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		final JobMasterGateway selfGateway = getSelfGateway(JobMasterGateway.class);
 
+		this.jobMasterConfiguration = checkNotNull(jobMasterConfiguration);
 		this.resourceId = checkNotNull(resourceId);
 		this.jobGraph = checkNotNull(jobGraph);
-		this.rpcTimeout = jobManagerSharedServices.getTimeout();
+		this.rpcTimeout = jobMasterConfiguration.getRpcTimeout();
 		this.highAvailabilityServices = checkNotNull(highAvailabilityService);
 		this.blobServer = checkNotNull(blobServer);
 		this.scheduledExecutorService = jobManagerSharedServices.getScheduledExecutorService();
@@ -280,17 +281,16 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			rpcService,
 			jobGraph.getJobID(),
 			SystemClock.getInstance(),
-			rpcTimeout, Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT)),
-			Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_IDLE_TIMEOUT)));
+			rpcTimeout,
+			jobMasterConfiguration.getSlotRequestTimeout(),
+			jobMasterConfiguration.getSlotIdleTimeout());
 
 		this.slotPoolGateway = slotPool.getSelfGateway(SlotPoolGateway.class);
-
-		final Time allocationTimeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
 
 		this.executionGraph = ExecutionGraphBuilder.buildGraph(
 			null,
 			jobGraph,
-			configuration,
+			jobMasterConfiguration.getConfiguration(),
 			scheduledExecutorService,
 			scheduledExecutorService,
 			slotPool.getSlotProvider(),
@@ -301,7 +301,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			jobMetricGroup,
 			-1,
 			blobServer,
-			allocationTimeout,
+			jobMasterConfiguration.getSlotRequestTimeout(),
 			log);
 
 		// register self as job status change listener
