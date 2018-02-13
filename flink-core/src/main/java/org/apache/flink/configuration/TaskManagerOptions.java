@@ -96,7 +96,8 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Boolean> DATA_SSL_ENABLED =
 		key("taskmanager.data.ssl.enabled")
 			.defaultValue(true)
-			.withDescription("Config parameter to override SSL support for taskmanager's data transport.");
+			.withDescription("Enable SSL support for the taskmanager data transport. This is applicable only when the" +
+				" global ssl flag " + SecurityOptions.SSL_ENABLED.key() + " is set to true");
 
 	/**
 	 * The initial registration pause between two consecutive registration attempts. The pause
