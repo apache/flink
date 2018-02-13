@@ -134,8 +134,8 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 	}
 
 	private void waitForPendingUpdates() throws InterruptedException {
-		while (updatesPending.get() > 0) {
-			synchronized (updatesPending) {
+		synchronized (updatesPending) {
+			while (updatesPending.get() > 0) {
 				updatesPending.wait();
 			}
 		}
