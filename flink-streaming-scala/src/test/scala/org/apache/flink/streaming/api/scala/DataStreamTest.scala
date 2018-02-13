@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.scala
 import java.lang
 
 import org.apache.flink.api.common.functions._
+import org.apache.flink.api.java.io.ParallelIteratorInputFormat
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.functions.{KeyedProcessFunction, ProcessFunction}
@@ -671,6 +672,12 @@ class DataStreamTest extends AbstractTestBase {
     val sg = env.getStreamGraph
 
     assert(sg.getIterationSourceSinkPairs.size() == 2)
+  }
+
+  @Test
+  def testCreateInputPassesOnTypeInfo(): Unit = {
+    StreamExecutionEnvironment.getExecutionEnvironment.createInput[Tuple1[Integer]](
+      new ParallelIteratorInputFormat[Tuple1[Integer]](null))
   }
 
   /////////////////////////////////////////////////////////////
