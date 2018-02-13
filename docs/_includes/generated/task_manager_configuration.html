@@ -10,17 +10,17 @@
         <tr>
             <td><h5>task.cancellation.interval</h5></td>
             <td>30000</td>
-            <td></td>
+            <td>Time interval between two successive task cancellation attempts in milliseconds.</td>
         </tr>
         <tr>
             <td><h5>task.cancellation.timeout</h5></td>
             <td>180000</td>
-            <td></td>
+            <td>Timeout in milliseconds after which a task cancellation times out and leads to a fatal TaskManager error. A value of 0 deactivates the watch dog.</td>
         </tr>
         <tr>
             <td><h5>task.checkpoint.alignment.max-size</h5></td>
             <td>-1</td>
-            <td></td>
+            <td>The maximum number of bytes that a checkpoint alignment may buffer. If the checkpoint alignment buffers more than the configured amount of data, the checkpoint is aborted (skipped). A value of -1 indicates that there is no limit.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.data.port</h5></td>
@@ -30,7 +30,17 @@
         <tr>
             <td><h5>taskmanager.data.ssl.enabled</h5></td>
             <td>true</td>
-            <td>Config parameter to override SSL support for taskmanager's data transport.</td>
+            <td>Enable SSL support for the taskmanager data transport. This is applicable only when the global ssl flag security.ssl.enabled is set to true</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.debug.memory.logIntervalMs</h5></td>
+            <td>5000</td>
+            <td>The interval (in ms) for the log thread to log the current memory usage.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.debug.memory.startLogThread</h5></td>
+            <td>false</td>
+            <td>Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.exit-on-fatal-akka-error</h5></td>
@@ -56,6 +66,11 @@
             <td><h5>taskmanager.jvm-exit-on-oom</h5></td>
             <td>false</td>
             <td>Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.max-registration-pause</h5></td>
+            <td>"30 s"</td>
+            <td>The maximum registration pause between two consecutive registration attempts. The max registration pause requires a time unit specifier (ms/s/min/h/d).</td>
         </tr>
         <tr>
             <td><h5>taskmanager.maxRegistrationDuration</h5></td>
