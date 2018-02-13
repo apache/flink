@@ -135,22 +135,12 @@ public class JobManagerOptions {
 
 	public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
 		key("slot.request.timeout")
-		.defaultValue(10 * 60 * 1000L)
+		.defaultValue(5L * 60L * 1000L)
 		.withDescription("The timeout in milliseconds for requesting a slot from Slot Pool.");
-
-	public static final ConfigOption<Long> SLOT_REQUEST_RM_TIMEOUT =
-		key("slot.request.resourcemanager.timeout")
-			.defaultValue(10 * 1000L)
-			.withDescription("The timeout in milliseconds for sending a request to Resource Manager.");
-
-	public static final ConfigOption<Long> SLOT_ALLOCATION_RM_TIMEOUT =
-		key("slot.allocation.resourcemanager.timeout")
-			.defaultValue(5 * 60 * 1000L)
-			.withDescription("The timeout in milliseconds for allocation a slot from Resource Manager.");
 
 	public static final ConfigOption<Long> SLOT_IDLE_TIMEOUT =
 		key("slot.idle.timeout")
-			.defaultValue(5 * 60 * 1000L)
+			.defaultValue(20L * 1000L)
 			.withDescription("The timeout in milliseconds for a idle slot in Slot Pool.");
 
 	// ---------------------------------------------------------------------------------------------

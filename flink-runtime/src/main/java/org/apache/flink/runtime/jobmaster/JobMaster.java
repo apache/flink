@@ -280,8 +280,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			rpcService,
 			jobGraph.getJobID(),
 			SystemClock.getInstance(),
-			Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT)),
-			rpcTimeout,
+			rpcTimeout, Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT)),
 			Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_IDLE_TIMEOUT)));
 
 		this.slotPoolGateway = slotPool.getSelfGateway(SlotPoolGateway.class);

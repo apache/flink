@@ -360,8 +360,7 @@ public class SlotPoolRpcTest extends TestLogger {
 				rpcService,
 				jobId,
 				clock,
-				slotRequestTimeout,
-				rpcTimeout,
+				rpcTimeout, slotRequestTimeout,
 				idleSlotTimeout);
 
 			releaseSlotConsumer = null;

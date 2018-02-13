@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -137,8 +138,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			rpcService,
 			jobId,
 			SystemClock.getInstance(),
-			Time.milliseconds(JobManagerOptions.SLOT_ALLOCATION_RM_TIMEOUT.defaultValue()),
-			Time.milliseconds(JobManagerOptions.SLOT_REQUEST_RM_TIMEOUT.defaultValue()),
+			AkkaUtils.getDefaultTimeout(),
+			Time.milliseconds(JobManagerOptions.SLOT_REQUEST_TIMEOUT.defaultValue()),
 			Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
 	}
 
@@ -146,8 +147,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			RpcService rpcService,
 			JobID jobId,
 			Clock clock,
-			Time slotRequestTimeout,
 			Time rpcTimeout,
+			Time slotRequestTimeout,
 			Time idleSlotTimeout) {
 
 		super(rpcService);
@@ -714,7 +715,9 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	private void checkTimeoutSlotAllocation(SlotRequestId slotRequestID) {
 		PendingRequest request = pendingRequests.removeKeyA(slotRequestID);
 		if (request != null) {
-			failPendingRequest(request, new TimeoutException("Slot allocation request " + slotRequestID + " timed out"));
+			failPendingRequest(
+				request,
+				new TimeoutException("Slot allocation request " + slotRequestID + " timed out"));
 		}
 	}
 
@@ -733,7 +736,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		if (request != null) {
 			failPendingRequest(
 				request,
-				new NoResourceAvailableException("No slot available and no connection to Resource Manager established."));
+				new TimeoutException("No slot available and no connection to Resource Manager established."));
 		}
 	}
 
