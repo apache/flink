@@ -40,7 +40,7 @@ import akka.actor.ActorSelection;
 import akka.actor.ActorSystem;
 import akka.actor.Address;
 import akka.actor.Identify;
-import akka.actor.Kill;
+import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
@@ -303,7 +303,7 @@ public class AkkaRpcService implements RpcService {
 			}
 
 			if (rpcEndpoint != null) {
-				akkaClient.getActorRef().tell(Kill.getInstance(), ActorRef.noSender());
+				akkaClient.getActorRef().tell(PoisonPill.getInstance(), ActorRef.noSender());
 			} else {
 				LOG.debug("RPC endpoint {} already stopped or from different RPC service", selfGateway.getAddress());
 			}
