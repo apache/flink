@@ -43,7 +43,10 @@ public class ResourceManagerOptions {
 
 	public static final ConfigOption<Integer> IPC_PORT = ConfigOptions
 		.key("resourcemanager.rpc.port")
-		.defaultValue(0);
+		.defaultValue(0)
+		.withDescription("Defines the network port to connect to for communication with the resource manager. By" +
+			" default, the port of the JobManager, because the same ActorSystem is used." +
+			" Its not possible to use this configuration key to define port ranges.");
 
 	/**
 	 * Percentage of heap space to remove from containers (YARN / Mesos), to compensate
