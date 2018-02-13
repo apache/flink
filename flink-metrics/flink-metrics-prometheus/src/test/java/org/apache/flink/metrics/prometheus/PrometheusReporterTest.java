@@ -156,15 +156,6 @@ public class PrometheusReporterTest extends TestLogger {
 	}
 
 	@Test
-	public void endpointIsUnavailableAfterReporterIsClosed() throws UnirestException {
-		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9400-9500")));
-		PrometheusReporter reporter = (PrometheusReporter) registry.getReporters().get(0);
-		reporter.close();
-		thrown.expect(UnirestException.class);
-		pollMetrics(reporter.getPort());
-	}
-
-	@Test
 	public void invalidCharactersAreReplacedWithUnderscore() {
 		assertThat(PrometheusReporter.replaceInvalidChars(""), equalTo(""));
 		assertThat(PrometheusReporter.replaceInvalidChars("abc"), equalTo("abc"));
