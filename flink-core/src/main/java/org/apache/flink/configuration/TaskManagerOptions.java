@@ -109,6 +109,15 @@ public class TaskManagerOptions {
 				" is doubled for each new registration attempt until it reaches the maximum registration pause.");
 
 	/**
+	 * The maximum registration pause between two consecutive registration attempts.
+	 */
+	public static final ConfigOption<String> MAX_REGISTRATION_PAUSE =
+		key("taskmanager.max-registration-pause")
+			.defaultValue("30 s")
+			.withDescription("The maximum registration pause between two consecutive registration attempts. The max" +
+				" registration pause requires a time unit specifier (ms/s/min/h/d).");
+	
+	/**
 	 * The pause after a registration has been refused by the job manager before retrying to connect.
 	 */
 	public static final ConfigOption<String> REFUSED_REGISTRATION_PAUSE =

@@ -212,8 +212,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		final Time maxRegistrationPause;
 		try {
 			Duration pause = Duration.create(configuration.getString(
-				ConfigConstants.TASK_MANAGER_MAX_REGISTARTION_PAUSE,
-				ConfigConstants.DEFAULT_TASK_MANAGER_MAX_REGISTRATION_PAUSE));
+				TaskManagerOptions.MAX_REGISTRATION_PAUSE));
 			if (pause.isFinite()) {
 				maxRegistrationPause = Time.milliseconds(pause.toMillis());
 			} else {
