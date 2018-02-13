@@ -38,7 +38,9 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY =
 			key("taskmanager.heap.mb")
 			.defaultValue(1024)
-			.withDescription("JVM heap size (in megabytes) for the TaskManagers.");
+			.withDescription("JVM heap size (in megabytes) for the TaskManagers, which are the parallel workers of" +
+				" the system. On YARN setups, this value is automatically configured to the size of the TaskManager's" +
+				" YARN container, minus a certain tolerance value.");
 
 	/**
 	 * Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.
@@ -66,7 +68,11 @@ public class TaskManagerOptions {
 	public static final ConfigOption<String> HOST =
 		key("taskmanager.host")
 			.noDefaultValue()
-			.withDescription("The config parameter defining the task manager's hostname.");
+			.withDescription("The hostname of the network interface that the TaskManager binds to. By default, the" +
+				" TaskManager searches for network interfaces that can connect to the JobManager and other TaskManagers." +
+				" This option can be used to define a hostname if that strategy fails for some reason. Because" +
+				" different TaskManagers need different values for this option, it usually is specified in an" +
+				" additional non-shared TaskManager-specific config file.");
 
 	/**
 	 * The default network port range the task manager expects incoming IPC connections. The {@code "0"} means that
@@ -140,7 +146,12 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Integer> NUM_TASK_SLOTS =
 		key("taskmanager.numberOfTaskSlots")
 			.defaultValue(1)
-			.withDescription("The config parameter defining the number of task slots of a task manager.");
+			.withDescription("The number of parallel operator or user function instances that a single TaskManager can" +
+				" run. If this value is larger than 1, a single TaskManager takes multiple instances of a function or" +
+				" operator. That way, the TaskManager can utilize multiple CPU cores, but at the same time, the" +
+				" available memory is divided between the different operator or function instances. This value" +
+				" is typically proportional to the number of physical CPU cores that the TaskManager's machine has" +
+				" (e.g., equal to the number of cores, or half the number of cores).");
 
 	public static final ConfigOption<Boolean> DEBUG_MEMORY_USAGE_START_LOG_THREAD =
 		key("taskmanager.debug.memory.startLogThread")
@@ -180,7 +191,13 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Float> MANAGED_MEMORY_FRACTION =
 			key("taskmanager.memory.fraction")
-			.defaultValue(0.7f);
+			.defaultValue(0.7f)
+			.withDescription("The relative amount of memory (after subtracting the amount of memory used by network" +
+				" buffers) that the task manager reserves for sorting, hash tables, and caching of intermediate results." +
+				" For example, a value of `0.8` means that a task manager reserves 80% of its memory" +
+				" for internal data buffers, leaving 20% of free memory for the task manager's heap for objects" +
+				" created by user-defined functions. This parameter is only evaluated, if " + MANAGED_MEMORY_SIZE.key() + 
+				" is not set.");
 
 	/**
 	 * Memory allocation method (JVM heap or off-heap), used for managed memory of the TaskManager
@@ -188,14 +205,17 @@ public class TaskManagerOptions {
 	 **/
 	public static final ConfigOption<Boolean> MEMORY_OFF_HEAP =
 			key("taskmanager.memory.off-heap")
-			.defaultValue(false);
+			.defaultValue(false)
+			.withDescription("Memory allocation method (JVM heap or off-heap), used for managed memory of the" +
+				" TaskManager as well as the network buffers.");
 
 	/**
 	 * Whether TaskManager managed memory should be pre-allocated when the TaskManager is starting.
 	 */
 	public static final ConfigOption<Boolean> MANAGED_MEMORY_PRE_ALLOCATE =
 			key("taskmanager.memory.preallocate")
-			.defaultValue(false);
+			.defaultValue(false)
+			.withDescription("Whether TaskManager managed memory should be pre-allocated when the TaskManager is starting.");
 
 	// ------------------------------------------------------------------------
 	//  Network Options
@@ -219,7 +239,11 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Float> NETWORK_BUFFERS_MEMORY_FRACTION =
 			key("taskmanager.network.memory.fraction")
 			.defaultValue(0.1f)
-			.withDescription("Fraction of JVM memory to use for network buffers.");
+			.withDescription("Fraction of JVM memory to use for network buffers. This determines how many streaming" +
+				" data exchange channels a TaskManager can have at the same time and how well buffered the channels" +
+				" are. If a job is rejected or you get a warning that the system has not enough buffers available," +
+				" increase this value or the min/max values below. Also note, that \"taskmanager.network.memory.min\"" +
+				"` and \"taskmanager.network.memory.max\" may override this fraction.");
 
 	/**
 	 * Minimum memory size for network buffers (in bytes).
