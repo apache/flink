@@ -523,8 +523,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	protected void jobReachedGloballyTerminalState(ArchivedExecutionGraph archivedExecutionGraph) {
 		Preconditions.checkArgument(
 			archivedExecutionGraph.getState().isGloballyTerminalState(),
-			"Job " + archivedExecutionGraph.getJobID() + " is in state " +
-				archivedExecutionGraph.getState() + " which is not globally terminal.");
+			"Job %s is in state %s which is not globally terminal.",
+			archivedExecutionGraph.getJobID(),
+			archivedExecutionGraph.getState());
 
 		try {
 			archivedExecutionGraphStore.put(archivedExecutionGraph);
@@ -706,36 +707,35 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	 * Singleton default factory for {@link JobManagerRunner}.
 	 */
 	public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
-		INSTANCE {
-			@Override
-			public JobManagerRunner createJobManagerRunner(
-					ResourceID resourceId,
-					JobGraph jobGraph,
-					Configuration configuration,
-					RpcService rpcService,
-					HighAvailabilityServices highAvailabilityServices,
-					HeartbeatServices heartbeatServices,
-					BlobServer blobServer,
-					JobManagerSharedServices jobManagerServices,
-					MetricRegistry metricRegistry,
-					OnCompletionActions onCompleteActions,
-					FatalErrorHandler fatalErrorHandler,
-					@Nullable String restAddress) throws Exception {
-				return new JobManagerRunner(
-					resourceId,
-					jobGraph,
-					configuration,
-					rpcService,
-					highAvailabilityServices,
-					heartbeatServices,
-					blobServer,
-					jobManagerServices,
-					metricRegistry,
-					onCompleteActions,
-					fatalErrorHandler,
-					restAddress);
-			}
-		};
+		INSTANCE;
 
+		@Override
+		public JobManagerRunner createJobManagerRunner(
+				ResourceID resourceId,
+				JobGraph jobGraph,
+				Configuration configuration,
+				RpcService rpcService,
+				HighAvailabilityServices highAvailabilityServices,
+				HeartbeatServices heartbeatServices,
+				BlobServer blobServer,
+				JobManagerSharedServices jobManagerServices,
+				MetricRegistry metricRegistry,
+				OnCompletionActions onCompleteActions,
+				FatalErrorHandler fatalErrorHandler,
+				@Nullable String restAddress) throws Exception {
+			return new JobManagerRunner(
+				resourceId,
+				jobGraph,
+				configuration,
+				rpcService,
+				highAvailabilityServices,
+				heartbeatServices,
+				blobServer,
+				jobManagerServices,
+				metricRegistry,
+				onCompleteActions,
+				fatalErrorHandler,
+				restAddress);
+		}
 	}
 }

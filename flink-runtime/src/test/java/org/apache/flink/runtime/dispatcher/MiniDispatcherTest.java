@@ -62,6 +62,7 @@ import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
@@ -181,12 +182,14 @@ public class MiniDispatcherTest extends TestLogger {
 		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
 		// wait until we have submitted the job
-		jobGraphFuture.get();
+		jobGraphFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 		completeActions.jobReachedGloballyTerminalState(archivedExecutionGraph);
 
+		final CompletableFuture<Boolean> terminationFuture = miniDispatcher.getTerminationFuture();
+
 		// wait until we terminate
-		miniDispatcher.getTerminationFuture().get();
+		terminationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
 	private static final class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFactory {
