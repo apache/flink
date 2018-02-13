@@ -28,19 +28,19 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
-import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.TestingSlotOwner;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -57,9 +57,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
@@ -344,11 +346,11 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 	}
 
 	/**
-	 * This test verifies that the slot allocations times out after a certain time, and that
-	 * all slots are released in that case.
+	 * This tests makes sure that with eager scheduling no task is deployed if a single
+	 * slot allocation fails. Moreover we check that allocated slots will be returned.
 	 */
 	@Test
-	public void testTimeoutForSlotAllocation() throws Exception {
+	public void testEagerSchedulingWithSlotTimeout() throws Exception {
 
 		//  we construct a simple graph:    (task)
 
@@ -379,7 +381,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(parallelism);
 		slotProvider.addSlots(vertex.getID(), slotFutures);
 
-		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider, Time.milliseconds(20));
+		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider);
 
 		//  we complete one future
 		slotFutures[1].complete(slots[1]);
@@ -393,9 +395,13 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		//  we complete another future
 		slotFutures[2].complete(slots[2]);
 
-		// since future[0] is still missing the while operation must time out
-		// we have no restarts allowed, so the job will go terminal
-		eg.getTerminationFuture().get(2000, TimeUnit.MILLISECONDS);
+		// check that the ExecutionGraph is not terminated yet
+		assertThat(eg.getTerminationFuture().isDone(), is(false));
+
+		// time out one of the slot futures
+		slotFutures[0].completeExceptionally(new TimeoutException("Test time out"));
+
+		assertThat(eg.getTerminationFuture().get(), is(JobStatus.FAILED));
 
 		// wait until all slots are back
 		for (int i = 0; i < parallelism - 1; i++) {
@@ -404,12 +410,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		//  verify that no deployments have happened
 		verify(taskManager, times(0)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
-
-		for (CompletableFuture<LogicalSlot> future : slotFutures) {
-			if (future.isDone()) {
-				assertFalse(future.get().isAlive());
-			}
-		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -435,6 +435,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 			new UnregisteredMetricsGroup(),
 			1,
 			VoidBlobWriter.getInstance(),
+			timeout,
 			log);
 	}
 

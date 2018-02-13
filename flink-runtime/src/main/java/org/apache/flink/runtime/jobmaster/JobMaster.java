@@ -281,11 +281,12 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			jobGraph.getJobID(),
 			SystemClock.getInstance(),
 			Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT)),
-			Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_ALLOCATION_RM_TIMEOUT)),
-			Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_RM_TIMEOUT)),
+			rpcTimeout,
 			Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_IDLE_TIMEOUT)));
 
 		this.slotPoolGateway = slotPool.getSelfGateway(SlotPoolGateway.class);
+
+		final Time allocationTimeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
 
 		this.executionGraph = ExecutionGraphBuilder.buildGraph(
 			null,
@@ -301,6 +302,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			jobMetricGroup,
 			-1,
 			blobServer,
+			allocationTimeout,
 			log);
 
 		// register self as job status change listener

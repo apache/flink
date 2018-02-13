@@ -31,6 +31,7 @@ import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.junit.Test;
 
@@ -78,7 +79,8 @@ public class SlotPoolCoLocationTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				coLocationConstraint1),
 			true,
-			Collections.emptyList());
+			Collections.emptyList(),
+			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture22 = slotProvider.allocateSlot(
 			new ScheduledUnit(
@@ -86,7 +88,8 @@ public class SlotPoolCoLocationTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				coLocationConstraint2),
 			true,
-			Collections.emptyList());
+			Collections.emptyList(),
+			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture12 = slotProvider.allocateSlot(
 			new ScheduledUnit(
@@ -94,7 +97,8 @@ public class SlotPoolCoLocationTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				coLocationConstraint1),
 			true,
-			Collections.emptyList());
+			Collections.emptyList(),
+			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture21 = slotProvider.allocateSlot(
 			new ScheduledUnit(
@@ -102,7 +106,8 @@ public class SlotPoolCoLocationTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				coLocationConstraint2),
 			true,
-			Collections.emptyList());
+			Collections.emptyList(),
+			TestingUtils.infiniteTime());
 
 		final AllocationID allocationId1 = allocationIds.take();
 		final AllocationID allocationId2 = allocationIds.take();

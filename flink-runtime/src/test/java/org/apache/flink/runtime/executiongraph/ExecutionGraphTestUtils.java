@@ -354,6 +354,7 @@ public class ExecutionGraphTestUtils {
 			new UnregisteredMetricsGroup(),
 			1,
 			VoidBlobWriter.getInstance(),
+			timeout,
 			TEST_LOGGER);
 	}
 

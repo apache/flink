@@ -87,11 +87,12 @@ public class ExecutionGraphBuilder {
 			SlotProvider slotProvider,
 			ClassLoader classLoader,
 			CheckpointRecoveryFactory recoveryFactory,
-			Time timeout,
+			Time rpcTimeout,
 			RestartStrategy restartStrategy,
 			MetricGroup metrics,
 			int parallelismForAutoMax,
 			BlobWriter blobWriter,
+			Time allocationTimeout,
 			Logger log)
 		throws JobExecutionException, JobException {
 
@@ -119,12 +120,13 @@ public class ExecutionGraphBuilder {
 					jobInformation,
 					futureExecutor,
 					ioExecutor,
-					timeout,
+					rpcTimeout,
 					restartStrategy,
 					failoverStrategy,
 					slotProvider,
 					classLoader,
-					blobWriter);
+					blobWriter,
+					allocationTimeout);
 		} catch (IOException e) {
 			throw new JobException("Could not create the ExecutionGraph.", e);
 		}

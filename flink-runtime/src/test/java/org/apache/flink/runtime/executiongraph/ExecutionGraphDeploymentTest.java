@@ -166,7 +166,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 				new RestartAllStrategy.Factory(),
 				new Scheduler(TestingUtils.defaultExecutionContext()),
 				ExecutionGraph.class.getClassLoader(),
-				blobWriter);
+				blobWriter,
+				AkkaUtils.getDefaultTimeout());
 
 			checkJobOffloaded(eg);
 
@@ -448,7 +449,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			new RestartAllStrategy.Factory(),
 			scheduler,
 			ExecutionGraph.class.getClassLoader(),
-			blobWriter);
+			blobWriter,
+			AkkaUtils.getDefaultTimeout());
 
 		checkJobOffloaded(eg);
 
@@ -529,7 +531,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			new RestartAllStrategy.Factory(),
 			scheduler,
 			ExecutionGraph.class.getClassLoader(),
-			blobWriter);
+			blobWriter,
+			AkkaUtils.getDefaultTimeout());
 		checkJobOffloaded(eg);
 		
 		eg.setQueuedSchedulingAllowed(false);
@@ -694,6 +697,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 					false),
 				null));
 
+		final Time timeout = Time.seconds(10L);
 		return ExecutionGraphBuilder.buildGraph(
 			null,
 			jobGraph,
@@ -703,11 +707,12 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			new ProgrammedSlotProvider(1),
 			getClass().getClassLoader(),
 			new StandaloneCheckpointRecoveryFactory(),
-			Time.seconds(10),
+			timeout,
 			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
 			1,
 			blobWriter,
+			timeout,
 			LoggerFactory.getLogger(getClass()));
 	}
 }

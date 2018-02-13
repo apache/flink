@@ -25,7 +25,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -62,6 +61,7 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.jobmaster.slotpool.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
@@ -111,7 +111,6 @@ public class SlotPoolRpcTest extends TestLogger {
 			jid,
 			SystemClock.getInstance(),
 			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
 			Time.milliseconds(10L), // this is the timeout for the request tested here
 			TestingUtils.infiniteTime()
 		);
@@ -131,7 +130,7 @@ public class SlotPoolRpcTest extends TestLogger {
 				future.get();
 				fail("We expected an ExecutionException.");
 			} catch (ExecutionException e) {
-				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof NoResourceAvailableException);
+				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
 			}
 		} finally {
 			RpcUtils.terminateRpcEndpoint(pool, timeout);
@@ -146,7 +145,6 @@ public class SlotPoolRpcTest extends TestLogger {
 			rpcService,
 			jid,
 			SystemClock.getInstance(),
-			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime());
@@ -189,7 +187,6 @@ public class SlotPoolRpcTest extends TestLogger {
 			rpcService,
 			jid,
 			SystemClock.getInstance(),
-			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime());
@@ -237,7 +234,6 @@ public class SlotPoolRpcTest extends TestLogger {
 			rpcService,
 			jid,
 			SystemClock.getInstance(),
-			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime());
@@ -307,7 +303,6 @@ public class SlotPoolRpcTest extends TestLogger {
 			rpcService,
 			jid,
 			SystemClock.getInstance(),
-			Time.milliseconds(10L),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime());
@@ -328,7 +323,8 @@ public class SlotPoolRpcTest extends TestLogger {
 			CompletableFuture<LogicalSlot> future = pool.getSlotProvider().allocateSlot(
 				mockScheduledUnit,
 				true,
-				Collections.emptyList());
+				Collections.emptyList(),
+				Time.milliseconds(1L));
 
 			try {
 				future.get();
@@ -358,16 +354,14 @@ public class SlotPoolRpcTest extends TestLogger {
 				JobID jobId,
 				Clock clock,
 				Time slotRequestTimeout,
-				Time resourceManagerAllocationTimeout,
-				Time resourceManagerRequestTimeout,
+				Time rpcTimeout,
 				Time idleSlotTimeout) {
 			super(
 				rpcService,
 				jobId,
 				clock,
 				slotRequestTimeout,
-				resourceManagerAllocationTimeout,
-				resourceManagerRequestTimeout,
+				rpcTimeout,
 				idleSlotTimeout);
 
 			releaseSlotConsumer = null;

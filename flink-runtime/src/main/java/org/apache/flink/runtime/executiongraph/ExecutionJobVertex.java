@@ -496,11 +496,13 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * @param resourceProvider The resource provider from whom the slots are requested.
 	 * @param queued if the allocation can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allocationTimeout timeout for allocating the individual slots
 	 */
 	public Collection<CompletableFuture<Execution>> allocateResourcesForAll(
 			SlotProvider resourceProvider,
 			boolean queued,
-			LocationPreferenceConstraint locationPreferenceConstraint) {
+			LocationPreferenceConstraint locationPreferenceConstraint,
+			Time allocationTimeout) {
 		final ExecutionVertex[] vertices = this.taskVertices;
 		final CompletableFuture<Execution>[] slots = new CompletableFuture[vertices.length];
 
@@ -512,7 +514,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			final CompletableFuture<Execution> allocationFuture = exec.allocateAndAssignSlotForExecution(
 				resourceProvider,
 				queued,
-				locationPreferenceConstraint);
+				locationPreferenceConstraint,
+				allocationTimeout);
 			slots[i] = allocationFuture;
 		}
 

@@ -1268,6 +1268,9 @@ class JobManager(
             true
         }
 
+        val allocationTimeout: Long = flinkConfiguration.getLong(
+          JobManagerOptions.SLOT_REQUEST_TIMEOUT)
+
         executionGraph = ExecutionGraphBuilder.buildGraph(
           executionGraph,
           jobGraph,
@@ -1282,6 +1285,7 @@ class JobManager(
           jobMetrics,
           numSlots,
           blobServer,
+          Time.milliseconds(allocationTimeout),
           log.logger)
         
         if (registerNewGraph) {

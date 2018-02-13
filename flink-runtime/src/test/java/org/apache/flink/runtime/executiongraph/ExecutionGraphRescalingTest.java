@@ -77,6 +77,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			new UnregisteredMetricsGroup(),
 			-1,
 			VoidBlobWriter.getInstance(),
+			AkkaUtils.getDefaultTimeout(),
 			TEST_LOGGER);
 
 		for (JobVertex jv : jobVertices) {
@@ -106,6 +107,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			new UnregisteredMetricsGroup(),
 			-1,
 			VoidBlobWriter.getInstance(),
+			AkkaUtils.getDefaultTimeout(),
 			TEST_LOGGER);
 
 		for (JobVertex jv : jobVertices) {
@@ -135,6 +137,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			new UnregisteredMetricsGroup(),
 			-1,
 			VoidBlobWriter.getInstance(),
+			AkkaUtils.getDefaultTimeout(),
 			TEST_LOGGER);
 
 		for (JobVertex jv : jobVertices) {
@@ -177,6 +180,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 				new UnregisteredMetricsGroup(),
 				-1,
 				VoidBlobWriter.getInstance(),
+				AkkaUtils.getDefaultTimeout(),
 				TEST_LOGGER);
 
 			fail("Building the ExecutionGraph with a parallelism higher than the max parallelism should fail.");

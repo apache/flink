@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager.scheduler;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -151,8 +152,8 @@ public class SchedulerTestBase extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<LogicalSlot> allocateSlot(ScheduledUnit task, boolean allowQueued, Collection<TaskManagerLocation> preferredLocations) {
-			return scheduler.allocateSlot(task, allowQueued, preferredLocations);
+		public CompletableFuture<LogicalSlot> allocateSlot(ScheduledUnit task, boolean allowQueued, Collection<TaskManagerLocation> preferredLocations, Time allocationTimeout) {
+			return scheduler.allocateSlot(task, allowQueued, preferredLocations, allocationTimeout);
 		}
 
 		@Override
@@ -339,8 +340,8 @@ public class SchedulerTestBase extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<LogicalSlot> allocateSlot(ScheduledUnit task, boolean allowQueued, Collection<TaskManagerLocation> preferredLocations) {
-			return slotProvider.allocateSlot(task, allowQueued, preferredLocations).thenApply(
+		public CompletableFuture<LogicalSlot> allocateSlot(ScheduledUnit task, boolean allowQueued, Collection<TaskManagerLocation> preferredLocations, Time allocationTimeout) {
+			return slotProvider.allocateSlot(task, allowQueued, preferredLocations, allocationTimeout).thenApply(
 				(LogicalSlot logicalSlot) -> {
 					switch (logicalSlot.getLocality()) {
 						case LOCAL:
