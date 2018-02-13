@@ -131,7 +131,8 @@ public class CoreOptions {
 	public static final ConfigOption<String> DEFAULT_FILESYSTEM_SCHEME = ConfigOptions
 			.key("fs.default-scheme")
 			.noDefaultValue()
-			.withDescription("The default filesystem scheme, used for paths that do not declare a scheme explicitly.");
+			.withDescription("The default filesystem scheme, used for paths that do not declare a scheme explicitly." +
+				" May contain an authority, e.g. host:port in case of a HDFS NameNode.");
 
 	/**
 	 * Specifies whether file output writers should overwrite existing files by default.
