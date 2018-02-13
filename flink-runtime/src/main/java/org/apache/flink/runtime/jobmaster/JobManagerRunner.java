@@ -90,7 +90,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 
 	private final JobManagerMetricGroup jobManagerMetricGroup;
 
-	private final Time timeout;
+	private final Time rpcTimeout;
 
 	/** flag marking the runner as shut down. */
 	private volatile boolean shutdown;
@@ -154,14 +154,16 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			this.runningJobsRegistry = haServices.getRunningJobsRegistry();
 			this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
-			this.timeout = jobManagerSharedServices.getTimeout();
+			final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+
+			this.rpcTimeout = jobMasterConfiguration.getRpcTimeout();
 
 			// now start the JobManager
 			this.jobManager = new JobMaster(
 				rpcService,
+				jobMasterConfiguration,
 				resourceId,
 				jobGraph,
-				configuration,
 				haServices,
 				jobManagerSharedServices,
 				heartbeatServices,
@@ -367,7 +369,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 						runningJobsRegistry.setJobRunning(jobGraph.getJobID());
 					}
 
-					CompletableFuture<Acknowledge> startingFuture = jobManager.start(new JobMasterId(leaderSessionID), timeout);
+					CompletableFuture<Acknowledge> startingFuture = jobManager.start(new JobMasterId(leaderSessionID), rpcTimeout);
 
 					startingFuture.whenCompleteAsync(
 						(Acknowledge ack, Throwable throwable) -> {
@@ -394,7 +396,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			log.info("JobManager for job {} ({}) was revoked leadership at {}.",
 				jobGraph.getName(), jobGraph.getJobID(), getAddress());
 
-			CompletableFuture<Acknowledge>  suspendFuture = jobManager.suspend(new Exception("JobManager is no longer the leader."), timeout);
+			CompletableFuture<Acknowledge>  suspendFuture = jobManager.suspend(new Exception("JobManager is no longer the leader."), rpcTimeout);
 
 			suspendFuture.whenCompleteAsync(
 				(Acknowledge ack, Throwable throwable) -> {
