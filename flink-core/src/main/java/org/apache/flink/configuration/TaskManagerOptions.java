@@ -32,8 +32,6 @@ public class TaskManagerOptions {
 	//  General TaskManager Options
 	// ------------------------------------------------------------------------
 
-	// @TODO Migrate 'taskmanager.*' config options from ConfigConstants
-
 	/**
 	 * JVM heap size (in megabytes) for the TaskManagers.
 	 */
