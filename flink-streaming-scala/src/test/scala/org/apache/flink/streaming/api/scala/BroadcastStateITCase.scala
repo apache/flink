@@ -41,7 +41,7 @@ class BroadcastStateITCase extends AbstractTestBase {
 
     val timerTimestamp = 100000L
 
-    val DESCRIPTOR = new MapStateDescriptor[Long, String](
+    lazy val DESCRIPTOR = new MapStateDescriptor[Long, String](
       "broadcast-state",
       BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]],
       BasicTypeInfo.STRING_TYPE_INFO)
@@ -98,7 +98,7 @@ class TestBroadcastProcessFunction(
         expectedBroadcastState: Map[Long, String])
     extends KeyedBroadcastProcessFunction[Long, Long, String, String] {
 
-  val localDescriptor = new MapStateDescriptor[Long, String](
+  lazy val localDescriptor = new MapStateDescriptor[Long, String](
     "broadcast-state",
     BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]],
     BasicTypeInfo.STRING_TYPE_INFO)

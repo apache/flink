@@ -21,6 +21,7 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -46,6 +47,10 @@ public class BroadcastStateITCase {
 
 	@Test
 	public void testConnectWithBroadcastTranslation() throws Exception {
+
+		final MapStateDescriptor<Long, String> utterDescriptor = new MapStateDescriptor<>(
+				"broadcast-state", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
+		);
 
 		final Map<Long, String> expected = new HashMap<>();
 		expected.put(0L, "test:0");
@@ -80,7 +85,7 @@ public class BroadcastStateITCase {
 					}
 				});
 
-		final BroadcastStream<String> broadcast = srcTwo.broadcast(TestBroadcastProcessFunction.DESCRIPTOR);
+		final BroadcastStream<String> broadcast = srcTwo.broadcast(utterDescriptor);
 
 		// the timestamp should be high enough to trigger the timer after all the elements arrive.
 		final DataStream<String> output = srcOne.connect(broadcast).process(
@@ -143,9 +148,7 @@ public class BroadcastStateITCase {
 
 		private final long timerTimestamp;
 
-		static final MapStateDescriptor<Long, String> DESCRIPTOR = new MapStateDescriptor<>(
-				"broadcast-state", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
-		);
+		private transient MapStateDescriptor<Long, String> descriptor;
 
 		TestBroadcastProcessFunction(
 				final long timerTS,
@@ -156,6 +159,15 @@ public class BroadcastStateITCase {
 		}
 
 		@Override
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
+
+			descriptor = new MapStateDescriptor<>(
+					"broadcast-state", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
+			);
+		}
+
+		@Override
 		public void processElement(Long value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
 			ctx.timerService().registerEventTimeTimer(timerTimestamp);
 		}
@@ -163,7 +175,7 @@ public class BroadcastStateITCase {
 		@Override
 		public void processBroadcastElement(String value, KeyedContext ctx, Collector<String> out) throws Exception {
 			long key = Long.parseLong(value.split(":")[1]);
-			ctx.getBroadcastState(DESCRIPTOR).put(key, value);
+			ctx.getBroadcastState(descriptor).put(key, value);
 		}
 
 		@Override
@@ -171,7 +183,7 @@ public class BroadcastStateITCase {
 			Assert.assertEquals(timerTimestamp, timestamp);
 
 			Map<Long, String> map = new HashMap<>();
-			for (Map.Entry<Long, String> entry : ctx.getBroadcastState(DESCRIPTOR).immutableEntries()) {
+			for (Map.Entry<Long, String> entry : ctx.getBroadcastState(descriptor).immutableEntries()) {
 				map.put(entry.getKey(), entry.getValue());
 			}
 

@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators.co;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
@@ -86,8 +87,8 @@ public class CoBroadcastWithNonKeyedOperator<IN1, IN2, OUT>
 			broadcastStates.put(descriptor, getOperatorStateBackend().getBroadcastState(descriptor));
 		}
 
-		rwContext = new ReadWriteContextImpl(userFunction, broadcastStates, getProcessingTimeService());
-		rContext = new ReadOnlyContextImpl(userFunction, broadcastStates, getProcessingTimeService());
+		rwContext = new ReadWriteContextImpl(getExecutionConfig(), userFunction, broadcastStates, getProcessingTimeService());
+		rContext = new ReadOnlyContextImpl(getExecutionConfig(), userFunction, broadcastStates, getProcessingTimeService());
 	}
 
 	@Override
@@ -114,6 +115,8 @@ public class CoBroadcastWithNonKeyedOperator<IN1, IN2, OUT>
 
 	private class ReadWriteContextImpl extends BaseBroadcastProcessFunction.Context {
 
+		private final ExecutionConfig config;
+
 		private final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> states;
 
 		private final ProcessingTimeService timerService;
@@ -121,11 +124,13 @@ public class CoBroadcastWithNonKeyedOperator<IN1, IN2, OUT>
 		private StreamRecord<IN2> element;
 
 		ReadWriteContextImpl(
+				final ExecutionConfig executionConfig,
 				final BroadcastProcessFunction<IN1, IN2, OUT> function,
 				final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> broadcastStates,
 				final ProcessingTimeService timerService) {
 
 			function.super();
+			this.config = Preconditions.checkNotNull(executionConfig);
 			this.states = Preconditions.checkNotNull(broadcastStates);
 			this.timerService = Preconditions.checkNotNull(timerService);
 		}
@@ -143,6 +148,8 @@ public class CoBroadcastWithNonKeyedOperator<IN1, IN2, OUT>
 		@Override
 		public <K, V> BroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> stateDescriptor) {
 			Preconditions.checkNotNull(stateDescriptor);
+
+			stateDescriptor.initializeSerializerUnlessSet(config);
 			BroadcastState<K, V> state = (BroadcastState<K, V>) states.get(stateDescriptor);
 			if (state == null) {
 				throw new IllegalArgumentException("The requested state does not exist. " +
@@ -171,6 +178,8 @@ public class CoBroadcastWithNonKeyedOperator<IN1, IN2, OUT>
 
 	private class ReadOnlyContextImpl extends BroadcastProcessFunction<IN1, IN2, OUT>.ReadOnlyContext {
 
+		private final ExecutionConfig config;
+
 		private final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> states;
 
 		private final ProcessingTimeService timerService;
@@ -178,11 +187,13 @@ public class CoBroadcastWithNonKeyedOperator<IN1, IN2, OUT>
 		private StreamRecord<IN1> element;
 
 		ReadOnlyContextImpl(
+				final ExecutionConfig executionConfig,
 				final BroadcastProcessFunction<IN1, IN2, OUT> function,
 				final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> broadcastStates,
 				final ProcessingTimeService timerService) {
 
 			function.super();
+			this.config = Preconditions.checkNotNull(executionConfig);
 			this.states = Preconditions.checkNotNull(broadcastStates);
 			this.timerService = Preconditions.checkNotNull(timerService);
 		}
@@ -216,6 +227,8 @@ public class CoBroadcastWithNonKeyedOperator<IN1, IN2, OUT>
 		@Override
 		public <K, V> ReadOnlyBroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> stateDescriptor) {
 			Preconditions.checkNotNull(stateDescriptor);
+
+			stateDescriptor.initializeSerializerUnlessSet(config);
 			ReadOnlyBroadcastState<K, V> state = (ReadOnlyBroadcastState<K, V>) states.get(stateDescriptor);
 			if (state == null) {
 				throw new IllegalArgumentException("The requested state does not exist. " +
