@@ -90,7 +90,7 @@ import scala.concurrent.duration.FiniteDuration;
 public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 	public static final ConfigOption<String> EXECUTION_MODE = ConfigOptions
-		.key("cluster.execution-mode")
+		.key("internal.cluster.execution-mode")
 		.defaultValue(ExecutionMode.NORMAL.toString());
 
 	protected static final Logger LOG = LoggerFactory.getLogger(ClusterEntrypoint.class);
@@ -172,7 +172,6 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			shutDownAndTerminate(
 				STARTUP_FAILURE_RETURN_CODE,
 				ApplicationStatus.FAILED,
-				t.getMessage(),
 				false);
 		}
 	}
@@ -222,7 +221,6 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 					shutDownAndTerminate(
 						SUCCESS_RETURN_CODE,
 						ApplicationStatus.SUCCEEDED,
-						null,
 						true);
 				});
 		}
@@ -513,7 +511,6 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	private void shutDownAndTerminate(
 		int returnCode,
 		ApplicationStatus applicationStatus,
-		@Nullable String diagnostics,
 		boolean cleanupHaData) {
 
 		LOG.info("Shut down and terminate {} with return code {} and application status {}.",
@@ -592,7 +589,14 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	 * Execution mode of the {@link MiniDispatcher}.
 	 */
 	public enum ExecutionMode {
-		NORMAL, // waits until the job result has been served
-		DETACHED // directly stops after the job has finished
+		/**
+		 * Waits until the job result has been served.
+		 */
+		NORMAL,
+
+		/**
+		 * Directly stops after the job has finished.
+		 */
+		DETACHED
 	}
 }
