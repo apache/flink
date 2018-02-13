@@ -707,7 +707,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					executor);
 
 				// double check to resolve race conditions
-				if (consumerVertex.getExecutionState() == RUNNING){
+				if (consumerVertex.getExecutionState() == RUNNING) {
 					consumerVertex.sendPartitionInfos();
 				}
 			}
