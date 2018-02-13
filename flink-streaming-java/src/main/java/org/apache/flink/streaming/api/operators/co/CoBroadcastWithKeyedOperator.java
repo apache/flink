@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators.co;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
@@ -99,9 +100,9 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 			broadcastStates.put(descriptor, getOperatorStateBackend().getBroadcastState(descriptor));
 		}
 
-		rwContext = new ReadWriteContextImpl(getKeyedStateBackend(), userFunction, broadcastStates, timerService);
-		rContext = new ReadOnlyContextImpl(userFunction, broadcastStates, timerService);
-		onTimerContext = new OnTimerContextImpl(userFunction, broadcastStates, timerService);
+		rwContext = new ReadWriteContextImpl(getExecutionConfig(), getKeyedStateBackend(), userFunction, broadcastStates, timerService);
+		rContext = new ReadOnlyContextImpl(getExecutionConfig(), userFunction, broadcastStates, timerService);
+		onTimerContext = new OnTimerContextImpl(getExecutionConfig(), userFunction, broadcastStates, timerService);
 	}
 
 	@Override
@@ -142,6 +143,8 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 
 	private class ReadWriteContextImpl extends KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>.KeyedContext {
 
+		private final ExecutionConfig config;
+
 		private final KeyedStateBackend<KS> keyedStateBackend;
 
 		private final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> states;
@@ -151,12 +154,14 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		private StreamRecord<IN2> element;
 
 		ReadWriteContextImpl (
+				final ExecutionConfig executionConfig,
 				final KeyedStateBackend<KS> keyedStateBackend,
 				final KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> function,
 				final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> broadcastStates,
 				final TimerService timerService) {
 
 			function.super();
+			this.config = Preconditions.checkNotNull(executionConfig);
 			this.keyedStateBackend = Preconditions.checkNotNull(keyedStateBackend);
 			this.states = Preconditions.checkNotNull(broadcastStates);
 			this.timerService = Preconditions.checkNotNull(timerService);
@@ -175,6 +180,8 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		@Override
 		public <K, V> BroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> stateDescriptor) {
 			Preconditions.checkNotNull(stateDescriptor);
+
+			stateDescriptor.initializeSerializerUnlessSet(config);
 			BroadcastState<K, V> state = (BroadcastState<K, V>) states.get(stateDescriptor);
 			if (state == null) {
 				throw new IllegalArgumentException("The requested state does not exist. " +
@@ -215,6 +222,8 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 
 	private class ReadOnlyContextImpl extends KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>.KeyedReadOnlyContext {
 
+		private final ExecutionConfig config;
+
 		private final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> states;
 
 		private final TimerService timerService;
@@ -222,11 +231,13 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		private StreamRecord<IN1> element;
 
 		ReadOnlyContextImpl(
+				final ExecutionConfig executionConfig,
 				final KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> function,
 				final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> broadcastStates,
 				final TimerService timerService) {
 
 			function.super();
+			this.config = Preconditions.checkNotNull(executionConfig);
 			this.states = Preconditions.checkNotNull(broadcastStates);
 			this.timerService = Preconditions.checkNotNull(timerService);
 		}
@@ -265,6 +276,8 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		@Override
 		public  <K, V> ReadOnlyBroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> stateDescriptor) {
 			Preconditions.checkNotNull(stateDescriptor);
+
+			stateDescriptor.initializeSerializerUnlessSet(config);
 			ReadOnlyBroadcastState<K, V> state = (ReadOnlyBroadcastState<K, V>) states.get(stateDescriptor);
 			if (state == null) {
 				throw new IllegalArgumentException("The requested state does not exist. " +
@@ -277,6 +290,8 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 
 	private class OnTimerContextImpl extends KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>.OnTimerContext {
 
+		private final ExecutionConfig config;
+
 		private final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> states;
 
 		private final TimerService timerService;
@@ -286,11 +301,13 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		private InternalTimer<KS, VoidNamespace> timer;
 
 		OnTimerContextImpl(
+				final ExecutionConfig executionConfig,
 				final KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> function,
 				final Map<MapStateDescriptor<?, ?>, BroadcastState<?, ?>> broadcastStates,
 				final TimerService timerService) {
 
 			function.super();
+			this.config = Preconditions.checkNotNull(executionConfig);
 			this.states = Preconditions.checkNotNull(broadcastStates);
 			this.timerService = Preconditions.checkNotNull(timerService);
 		}
@@ -331,6 +348,8 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		@Override
 		public <K, V> ReadOnlyBroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> stateDescriptor) {
 			Preconditions.checkNotNull(stateDescriptor);
+
+			stateDescriptor.initializeSerializerUnlessSet(config);
 			ReadOnlyBroadcastState<K, V> state = (ReadOnlyBroadcastState<K, V>) states.get(stateDescriptor);
 			if (state == null) {
 				throw new IllegalArgumentException("The requested state does not exist. " +

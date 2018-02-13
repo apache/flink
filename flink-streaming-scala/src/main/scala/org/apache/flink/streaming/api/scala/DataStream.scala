@@ -478,9 +478,9 @@ class DataStream[T](stream: JavaStream[T]) {
   @PublicEvolving
   def broadcast(broadcastStateDescriptors: MapStateDescriptor[_, _]*): BroadcastStream[T] = {
     if (broadcastStateDescriptors == null) {
-      throw new NullPointerException("Map function must not be null.")
+      throw new NullPointerException("State Descriptors must not be null.")
     }
-    stream.broadcast(broadcastStateDescriptors: _*)
+    javaStream.broadcast(broadcastStateDescriptors: _*)
   }
 
   /**

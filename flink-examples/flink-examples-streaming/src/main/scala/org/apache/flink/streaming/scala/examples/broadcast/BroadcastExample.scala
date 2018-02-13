@@ -68,9 +68,10 @@ object BroadcastExample {
       .connect(broadcastStream)
       .process(new KeyedBroadcastProcessFunction[Int, (Int, Int), Int, String]() {
 
-        val valueState = new ValueStateDescriptor[String]("any", BasicTypeInfo.STRING_TYPE_INFO)
+        private lazy val valueState = new ValueStateDescriptor[String](
+          "any", BasicTypeInfo.STRING_TYPE_INFO)
 
-        val mapStateDesc = new MapStateDescriptor[String, Integer](
+        private lazy val mapStateDesc = new MapStateDescriptor[String, Integer](
           "Broadcast", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO)
 
         @throws[Exception]
