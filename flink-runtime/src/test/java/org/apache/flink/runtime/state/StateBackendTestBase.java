@@ -1295,6 +1295,68 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		backend.dispose();
 	}
 
+	/**
+	 * This test verifies that all ListState implementations are consistent in not allowing
+	 * adding {@code null}.
+	 */
+	@Test
+	public void testListStateAddNull() throws Exception {
+		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
+
+		final ListStateDescriptor<Long> stateDescr = new ListStateDescriptor<>("my-state", Long.class);
+
+		try {
+			ListState<Long> state =
+				keyedBackend.getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					stateDescr);
+
+			keyedBackend.setCurrentKey("abc");
+			assertNull(state.get());
+
+			expectedException.expect(NullPointerException.class);
+			state.add(null);
+		} finally {
+			keyedBackend.close();
+			keyedBackend.dispose();
+		}
+	}
+
+	/**
+	 * This test verifies that all ListState implementations are consistent in not allowing
+	 * adding {@code null}.
+	 */
+	@Test
+	public void testListStateAddAllNull() throws Exception {
+		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
+
+		final ListStateDescriptor<Long> stateDescr = new ListStateDescriptor<>("my-state", Long.class);
+
+		try {
+			ListState<Long> state =
+				keyedBackend.getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					stateDescr);
+
+			keyedBackend.setCurrentKey("abc");
+			assertNull(state.get());
+
+			expectedException.expect(NullPointerException.class);
+
+			List<Long> adding = new ArrayList<>();
+			adding.add(3L);
+			adding.add(null);
+			adding.add(5L);
+			state.addAll(adding);
+		} finally {
+			keyedBackend.close();
+			keyedBackend.dispose();
+		}
+	}
+
+
 	@Test
 	public void testListStateAPIs() throws Exception {
 
@@ -1305,11 +1367,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		try {
 			ListState<Long> state =
 				keyedBackend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
-
-			keyedBackend.setCurrentKey("abc");
-			assertNull(state.get());
-			state.add(null);
-			assertNull(state.get());
 
 			keyedBackend.setCurrentKey("def");
 			assertNull(state.get());
@@ -1324,7 +1381,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			assertNull(state.get());
 			state.update(Arrays.asList(10L, 16L));
 			assertThat(state.get(), containsInAnyOrder(16L, 10L));
-			state.add(null);
 			assertThat(state.get(), containsInAnyOrder(16L, 10L));
 
 			keyedBackend.setCurrentKey("abc");
@@ -1332,13 +1388,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			keyedBackend.setCurrentKey("g");
 			assertNull(state.get());
-			state.addAll(null);
 			assertNull(state.get());
 			state.addAll(Collections.emptyList());
 			assertNull(state.get());
 			state.addAll(Arrays.asList(3L, 4L));
 			assertThat(state.get(), containsInAnyOrder(3L, 4L));
-			state.addAll(null);
 			assertThat(state.get(), containsInAnyOrder(3L, 4L));
 			state.addAll(new ArrayList<>());
 			assertThat(state.get(), containsInAnyOrder(3L, 4L));
@@ -1347,7 +1401,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.addAll(new ArrayList<>());
 			assertThat(state.get(), containsInAnyOrder(3L, 4L, 5L, 6L));
 
-			state.add(null);
 			assertThat(state.get(), containsInAnyOrder(3L, 4L, 5L, 6L));
 			state.update(Arrays.asList(1L, 2L));
 			assertThat(state.get(), containsInAnyOrder(1L, 2L));

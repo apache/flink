@@ -28,6 +28,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Heap-backed partitioned {@link org.apache.flink.api.common.state.ListState} that is snapshotted
@@ -67,9 +68,7 @@ public class HeapListState<K, N, V>
 
 	@Override
 	public void add(V value) {
-		if (value == null) {
-			return;
-		}
+		Objects.requireNonNull(value, "You cannot add null to a ListState.");
 
 		final N namespace = currentNamespace;
 
@@ -134,12 +133,14 @@ public class HeapListState<K, N, V>
 	public void addAll(List<V> values) throws Exception {
 		if (values != null && !values.isEmpty()) {
 			stateTable.transform(currentNamespace, values, (previousState, value) -> {
-				if (previousState != null) {
-					previousState.addAll(value);
-					return previousState;
-				} else {
-					return new ArrayList<>(value);
+				if (previousState == null) {
+					previousState = new ArrayList<>();
 				}
+				for (V v : value) {
+					Objects.requireNonNull(v, "You cannot add null to a ListState.");
+					previousState.add(v);
+				}
+				return previousState;
 			});
 		}
 	}

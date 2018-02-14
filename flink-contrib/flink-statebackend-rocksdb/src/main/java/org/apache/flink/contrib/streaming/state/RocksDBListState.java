@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * {@link ListState} implementation that stores state in RocksDB.
@@ -112,9 +113,7 @@ public class RocksDBListState<K, N, V>
 
 	@Override
 	public void add(V value) throws IOException {
-		if (value == null) {
-			return;
-		}
+		Objects.requireNonNull(value, "You cannot add null to a ListState.");
 
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
@@ -213,6 +212,7 @@ public class RocksDBListState<K, N, V>
 		keySerializationStream.reset();
 		boolean first = true;
 		for (V value : values) {
+			Objects.requireNonNull(value);
 			if (first) {
 				first = false;
 			} else {

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.ListState;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Simple wrapper list state that exposes empty state properly as an empty list.
@@ -48,6 +49,7 @@ class UserFacingListState<T> implements ListState<T> {
 
 	@Override
 	public void add(T value) throws Exception {
+		Objects.requireNonNull(value, "You cannot add null to a ListState.");
 		originalState.add(value);
 	}
 
