@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.handlers;
+package org.apache.flink.runtime.webmonitor.handlers.legacy;
 
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractJsonRequestHandler;
