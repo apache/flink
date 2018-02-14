@@ -27,6 +27,7 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.FileUpload;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -52,7 +53,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link JarUploadHandler}.
  */
-public class JarUploadHandlerTest {
+public class JarUploadHandlerTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
