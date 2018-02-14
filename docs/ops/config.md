@@ -390,13 +390,7 @@ of the JobManager, because the same ActorSystem is used. Its not possible to use
 
 ### High Availability (HA)
 
-- `high-availability`: Defines the high availability mode used for the cluster execution. Currently, Flink supports the following modes:
-  - `none` (default): No high availability. A single JobManager runs and no JobManager state is checkpointed.
-  - `zookeeper`: Supports the execution of multiple JobManagers and JobManager state checkpointing. Among the group of JobManagers, ZooKeeper elects one of them as the leader which is responsible for the cluster execution. In case of a JobManager failure, a standby JobManager will be elected as the new leader and is given the last checkpointed JobManager state. In order to use the 'zookeeper' mode, it is mandatory to also define the `high-availability.zookeeper.quorum` configuration value.
-
-- `high-availability.cluster-id`: (Default `/default_ns` in standalone cluster mode, or the <yarn-application-id> under YARN) Defines the subdirectory under the root dir where the ZooKeeper HA mode will create znodes. This allows to isolate multiple applications on the same ZooKeeper. Previously this key was named `recovery.zookeeper.path.namespace` and `high-availability.zookeeper.path.namespace`.
-
-Previously this key was named `recovery.mode` and the default value was `standalone`.
+{% include generated/high_availability_configuration.html %}
 
 #### ZooKeeper-based HA Mode
 
