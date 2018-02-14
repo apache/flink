@@ -696,6 +696,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		@Override
 		public void add(T value) throws Exception {
+			Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 			list.add(value);
 		}
 
@@ -717,6 +718,8 @@ public class FlinkKafkaConsumerBaseTest {
 		@Override
 		public void addAll(List<T> values) throws Exception {
 			if (values != null) {
+				values.forEach(v -> Preconditions.checkNotNull(v, "You cannot add null to a ListState."));
+
 				list.addAll(values);
 			}
 		}

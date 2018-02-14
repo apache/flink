@@ -660,6 +660,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 		@Override
 		public void add(S value) {
+			Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 			internalList.add(value);
 		}
 

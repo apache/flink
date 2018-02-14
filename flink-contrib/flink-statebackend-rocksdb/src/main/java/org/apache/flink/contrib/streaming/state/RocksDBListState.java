@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
@@ -112,9 +113,7 @@ public class RocksDBListState<K, N, V>
 
 	@Override
 	public void add(V value) throws IOException {
-		if (value == null) {
-			return;
-		}
+		Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
@@ -169,9 +168,11 @@ public class RocksDBListState<K, N, V>
 
 	@Override
 	public void update(List<V> values) throws Exception {
+		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
+
 		clear();
 
-		if (values != null && !values.isEmpty()) {
+		if (!values.isEmpty()) {
 			try {
 				writeCurrentKeyWithGroupAndNamespace();
 				byte[] key = keySerializationStream.toByteArray();
@@ -190,7 +191,9 @@ public class RocksDBListState<K, N, V>
 
 	@Override
 	public void addAll(List<V> values) throws Exception {
-		if (values != null && !values.isEmpty()) {
+		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
+
+		if (!values.isEmpty()) {
 			try {
 				writeCurrentKeyWithGroupAndNamespace();
 				byte[] key = keySerializationStream.toByteArray();
@@ -213,6 +216,7 @@ public class RocksDBListState<K, N, V>
 		keySerializationStream.reset();
 		boolean first = true;
 		for (V value : values) {
+			Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 			if (first) {
 				first = false;
 			} else {
