@@ -110,7 +110,7 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectH
 	private final File rootPath;
 
 	public StaticFileServerHandler(
-			GatewayRetriever<T> retriever,
+			GatewayRetriever<? extends T> retriever,
 			CompletableFuture<String> localJobManagerAddressFuture,
 			Time timeout,
 			File rootPath) throws IOException {

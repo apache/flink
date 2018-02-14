@@ -135,7 +135,7 @@ import java.util.concurrent.Executor;
  */
 public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndpoint implements LeaderContender {
 
-	protected final GatewayRetriever<T> leaderRetriever;
+	protected final GatewayRetriever<? extends T> leaderRetriever;
 	private final Configuration clusterConfiguration;
 	protected final RestHandlerConfiguration restConfiguration;
 	private final GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever;
@@ -145,7 +145,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	private final ExecutionGraphCache executionGraphCache;
 	private final CheckpointStatsCache checkpointStatsCache;
 
-	private final MetricFetcher<T> metricFetcher;
+	private final MetricFetcher<? extends T> metricFetcher;
 
 	private final LeaderElectionService leaderElectionService;
 
@@ -153,7 +153,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 	public WebMonitorEndpoint(
 			RestServerEndpointConfiguration endpointConfiguration,
-			GatewayRetriever<T> leaderRetriever,
+			GatewayRetriever<? extends T> leaderRetriever,
 			Configuration clusterConfiguration,
 			RestHandlerConfiguration restConfiguration,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,

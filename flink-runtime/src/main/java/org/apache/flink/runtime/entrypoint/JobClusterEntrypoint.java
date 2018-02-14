@@ -18,52 +18,33 @@
 
 package org.apache.flink.runtime.entrypoint;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobService;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.MiniDispatcher;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmanager.OnCompletionActions;
-import org.apache.flink.runtime.jobmaster.JobManagerRunner;
-import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
-import org.apache.flink.runtime.jobmaster.JobMasterGateway;
-import org.apache.flink.runtime.jobmaster.JobMasterId;
-import org.apache.flink.runtime.jobmaster.JobMasterRestEndpoint;
+import org.apache.flink.runtime.jobmaster.MiniDispatcherRestEndpoint;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
-import org.apache.flink.util.ConfigurationException;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.Preconditions;
-
-import akka.actor.ActorSystem;
 
 import javax.annotation.Nullable;
 
-import java.net.InetSocketAddress;
+import java.io.IOException;
 import java.util.concurrent.Executor;
 
 /**
@@ -71,123 +52,24 @@ import java.util.concurrent.Executor;
  */
 public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 
-	private ResourceManager<?> resourceManager;
-
-	private JobManagerSharedServices jobManagerSharedServices;
-
-	private JobMasterRestEndpoint jobMasterRestEndpoint;
-
-	private LeaderRetrievalService jobMasterRetrievalService;
-
-	private LeaderRetrievalService resourceManagerRetrievalService;
-
-	private TransientBlobCache transientBlobCache;
-
-	private JobManagerRunner jobManagerRunner;
-
 	public JobClusterEntrypoint(Configuration configuration) {
 		super(configuration);
 	}
 
 	@Override
-	protected void startClusterComponents(
+	protected MiniDispatcherRestEndpoint createRestEndpoint(
 			Configuration configuration,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			BlobServer blobServer,
-			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry) throws Exception {
-
-		jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(configuration, blobServer);
-
-		resourceManagerRetrievalService = highAvailabilityServices.getResourceManagerLeaderRetriever();
-
-		final LeaderGatewayRetriever<JobMasterGateway> jobMasterGatewayRetriever = new RpcGatewayRetriever<>(
-			rpcService,
-			JobMasterGateway.class,
-			JobMasterId::new,
-			10,
-			Time.milliseconds(50L));
-
-		final LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
-			rpcService,
-			ResourceManagerGateway.class,
-			ResourceManagerId::new,
-			10,
-			Time.milliseconds(50L));
-
-		// TODO: Remove once we have ported the MetricFetcher to the RpcEndpoint
-		final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();
-		final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
-
-		final ClusterInformation clusterInformation = new ClusterInformation(rpcService.getAddress(), blobServer.getPort());
-
-		transientBlobCache = new TransientBlobCache(
-			configuration,
-			new InetSocketAddress(clusterInformation.getBlobServerHostname(), clusterInformation.getBlobServerPort()));
-
-		jobMasterRestEndpoint = createJobMasterRestEndpoint(
-			configuration,
-			jobMasterGatewayRetriever,
-			resourceManagerGatewayRetriever,
-			transientBlobCache,
-			rpcService.getExecutor(),
-			new AkkaQueryServiceRetriever(actorSystem, timeout),
-			highAvailabilityServices.getWebMonitorLeaderElectionService());
-
-		LOG.debug("Starting JobMaster REST endpoint.");
-		jobMasterRestEndpoint.start();
-
-		resourceManager = createResourceManager(
-			configuration,
-			ResourceID.generate(),
-			rpcService,
-			highAvailabilityServices,
-			heartbeatServices,
-			metricRegistry,
-			this,
-			clusterInformation,
-			jobMasterRestEndpoint.getRestAddress());
-
-		jobManagerRunner = createJobManagerRunner(
-			configuration,
-			ResourceID.generate(),
-			rpcService,
-			highAvailabilityServices,
-			jobManagerSharedServices,
-			heartbeatServices,
-			blobServer,
-			metricRegistry,
-			this,
-			jobMasterRestEndpoint.getRestAddress());
-
-		LOG.debug("Starting ResourceManager.");
-		resourceManager.start();
-		resourceManagerRetrievalService.start(resourceManagerGatewayRetriever);
-
-		LOG.debug("Starting JobManager.");
-		jobManagerRunner.start();
-
-		jobMasterRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(
-			jobManagerRunner.getJobGraph().getJobID(),
-			jobManagerRunner.getAddress());
-		jobMasterRetrievalService.start(jobMasterGatewayRetriever);
-	}
-
-	protected JobMasterRestEndpoint createJobMasterRestEndpoint(
-			Configuration configuration,
-			GatewayRetriever<JobMasterGateway> jobMasterGatewayRetriever,
-			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
+			LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			TransientBlobService transientBlobService,
 			Executor executor,
 			MetricQueryServiceRetriever metricQueryServiceRetriever,
-			LeaderElectionService leaderElectionService) throws ConfigurationException {
-
+			LeaderElectionService leaderElectionService) throws Exception {
 		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(configuration);
 
-		return new JobMasterRestEndpoint(
+		return new MiniDispatcherRestEndpoint(
 			RestServerEndpointConfiguration.fromConfiguration(configuration),
-			jobMasterGatewayRetriever,
+			dispatcherGatewayRetriever,
 			configuration,
 			restHandlerConfiguration,
 			resourceManagerGatewayRetriever,
@@ -196,155 +78,50 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			metricQueryServiceRetriever,
 			leaderElectionService,
 			this);
-
 	}
 
-	protected JobManagerRunner createJobManagerRunner(
+	@Override
+	protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
 			Configuration configuration,
-			ResourceID resourceId,
+			ScheduledExecutor scheduledExecutor) throws IOException {
+		return new MemoryArchivedExecutionGraphStore();
+	}
+
+	@Override
+	protected Dispatcher createDispatcher(
+			Configuration configuration,
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
-			JobManagerSharedServices jobManagerSharedServices,
-			HeartbeatServices heartbeatServices,
+			ResourceManagerGateway resourceManagerGateway,
 			BlobServer blobServer,
+			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
+			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			FatalErrorHandler fatalErrorHandler,
 			@Nullable String restAddress) throws Exception {
 
 		final JobGraph jobGraph = retrieveJobGraph(configuration);
 
-		return new JobManagerRunner(
-			resourceId,
-			jobGraph,
-			configuration,
+		final String executionModeValue = configuration.getString(EXECUTION_MODE);
+
+		final ExecutionMode executionMode = ExecutionMode.valueOf(executionModeValue);
+
+		return new MiniDispatcher(
 			rpcService,
+			Dispatcher.DISPATCHER_NAME,
+			configuration,
 			highAvailabilityServices,
-			heartbeatServices,
+			resourceManagerGateway,
 			blobServer,
-			jobManagerSharedServices,
+			heartbeatServices,
 			metricRegistry,
-			new TerminatingOnCompleteActions(jobGraph.getJobID()),
+			archivedExecutionGraphStore,
+			Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
 			fatalErrorHandler,
-			restAddress);
+			restAddress,
+			jobGraph,
+			executionMode);
 	}
-
-	@Override
-	protected void stopClusterComponents(boolean cleanupHaData) throws Exception {
-		Throwable exception = null;
-
-		if (jobMasterRestEndpoint != null) {
-			jobMasterRestEndpoint.shutdown(Time.seconds(10L));
-		}
-
-		if (jobMasterRetrievalService != null) {
-			try {
-				jobMasterRetrievalService.stop();
-			} catch (Throwable t) {
-				exception = ExceptionUtils.firstOrSuppressed(t, exception);
-			}
-		}
-
-		if (jobManagerRunner != null) {
-			try {
-				jobManagerRunner.shutdown();
-			} catch (Throwable t) {
-				exception = t;
-			}
-		}
-
-		if (jobManagerSharedServices != null) {
-			try {
-				jobManagerSharedServices.shutdown();
-			} catch (Throwable t) {
-				exception = ExceptionUtils.firstOrSuppressed(t, exception);
-			}
-		}
-
-		if (resourceManagerRetrievalService != null) {
-			try {
-				resourceManagerRetrievalService.stop();
-			} catch (Throwable t) {
-				exception = ExceptionUtils.firstOrSuppressed(t, exception);
-			}
-		}
-
-		if (resourceManager != null) {
-			try {
-				resourceManager.shutDown();
-			} catch (Throwable t) {
-				exception = ExceptionUtils.firstOrSuppressed(t, exception);
-			}
-		}
-
-		if (transientBlobCache != null) {
-			try {
-				transientBlobCache.close();
-			} catch (Throwable t) {
-				exception = ExceptionUtils.firstOrSuppressed(t, exception);
-			}
-		}
-
-		if (exception != null) {
-			throw new FlinkException("Could not properly shut down the job cluster entry point.", exception);
-		}
-	}
-
-	private void shutDownAndTerminate(
-			boolean cleanupHaData,
-			ApplicationStatus status,
-			@Nullable String optionalDiagnostics) {
-		try {
-			if (resourceManager != null) {
-				resourceManager.shutDownCluster(status, optionalDiagnostics);
-			}
-
-			shutDown(cleanupHaData);
-		} catch (Throwable t) {
-			LOG.error("Could not properly shut down cluster entrypoint.", t);
-		}
-
-		System.exit(SUCCESS_RETURN_CODE);
-	}
-
-	protected abstract ResourceManager<?> createResourceManager(
-		Configuration configuration,
-		ResourceID resourceId,
-		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		HeartbeatServices heartbeatServices,
-		MetricRegistry metricRegistry,
-		FatalErrorHandler fatalErrorHandler,
-		ClusterInformation clusterInformation,
-		@Nullable String webInterfaceUrl) throws Exception;
 
 	protected abstract JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException;
-
-	private final class TerminatingOnCompleteActions implements OnCompletionActions {
-
-		private final JobID jobId;
-
-		private TerminatingOnCompleteActions(JobID jobId) {
-			this.jobId = Preconditions.checkNotNull(jobId);
-		}
-
-		@Override
-		public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
-			LOG.info("Job({}) finished.", jobId);
-
-			final ErrorInfo errorInfo = executionGraph.getFailureInfo();
-
-			if (errorInfo == null) {
-				shutDownAndTerminate(true, ApplicationStatus.SUCCEEDED, null);
-			} else {
-				shutDownAndTerminate(true, ApplicationStatus.FAILED, errorInfo.getExceptionAsString());
-			}
-		}
-
-		@Override
-		public void jobFinishedByOther() {
-			LOG.info("Job({}) was finished by another JobManager.", jobId);
-
-			shutDownAndTerminate(false, ApplicationStatus.UNKNOWN, "Job was finished by another master");
-		}
-	}
 }
