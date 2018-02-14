@@ -224,31 +224,61 @@ public final class WebMonitorUtils {
 			return Collections.emptyList();
 		}
 
+		final String jarHandlerPackageName = "org.apache.flink.runtime.webmonitor.handlers.";
 		try {
-			final String classname = "org.apache.flink.runtime.webmonitor.handlers.JarUploadHandler";
-			final Class<?> clazz = Class.forName(classname);
-			final Constructor<?> constructor = clazz.getConstructor(
-				CompletableFuture.class,
-				GatewayRetriever.class,
-				Time.class,
-				Map.class,
-				MessageHeaders.class,
-				java.nio.file.Path.class,
-				Executor.class);
+			final Constructor<?> jarUploadHandlerConstrutor = Class
+				.forName(jarHandlerPackageName + "JarUploadHandler")
+				.getConstructor(
+					CompletableFuture.class,
+					GatewayRetriever.class,
+					Time.class,
+					Map.class,
+					MessageHeaders.class,
+					java.nio.file.Path.class,
+					Executor.class);
 
-			final MessageHeaders jarUploadMessageHeaders =
-				(MessageHeaders) Class
-					.forName("org.apache.flink.runtime.webmonitor.handlers.JarUploadMessageHeaders")
-					.newInstance();
+			final MessageHeaders jarUploadMessageHeaders = (MessageHeaders) Class
+				.forName(jarHandlerPackageName + "JarUploadMessageHeaders")
+				.newInstance();
 
-			return Arrays.asList(Tuple2.of(jarUploadMessageHeaders, (ChannelInboundHandler) constructor.newInstance(
-				restAddressFuture,
-				leaderRetriever,
-				timeout,
-				responseHeaders,
-				jarUploadMessageHeaders,
-				uploadDir,
-				executor)));
+			final ChannelInboundHandler jarUploadHandler = (ChannelInboundHandler) jarUploadHandlerConstrutor
+				.newInstance(
+					restAddressFuture,
+					leaderRetriever,
+					timeout,
+					responseHeaders,
+					jarUploadMessageHeaders,
+					uploadDir,
+					executor);
+
+			final Constructor<?> jarListHandlerConstructor = Class
+				.forName(jarHandlerPackageName + "JarListHandler")
+				.getConstructor(
+					CompletableFuture.class,
+					GatewayRetriever.class,
+					Time.class,
+					Map.class,
+					MessageHeaders.class,
+					File.class,
+					Executor.class);
+
+			final MessageHeaders jarListHeaders = (MessageHeaders) Class
+				.forName(jarHandlerPackageName + "JarListHeaders")
+				.newInstance();
+
+			final ChannelInboundHandler jarListHandler = (ChannelInboundHandler) jarListHandlerConstructor
+				.newInstance(
+					restAddressFuture,
+					leaderRetriever,
+					timeout,
+					responseHeaders,
+					jarListHeaders,
+					uploadDir.toFile(),
+					executor);
+
+			return Arrays.asList(
+				Tuple2.of(jarUploadMessageHeaders, jarUploadHandler),
+				Tuple2.of(jarListHeaders, jarListHandler));
 		} catch (ClassNotFoundException | InvocationTargetException | InstantiationException | NoSuchMethodException | IllegalAccessException e) {
 			throw new RuntimeException(e);
 		}
