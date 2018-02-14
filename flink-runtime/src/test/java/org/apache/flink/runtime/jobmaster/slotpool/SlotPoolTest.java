@@ -66,7 +66,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.runtime.jobmaster.slotpool.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -587,7 +586,7 @@ public class SlotPoolTest extends TestLogger {
 			rpcService,
 			jobId,
 			clock,
-			TestingUtils.infiniteTime(), TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime(),
 			timeout);
 
 		try {
@@ -623,37 +622,6 @@ public class SlotPoolTest extends TestLogger {
 
 			assertThat(freedSlot, Matchers.is(expiredSlotID));
 			assertThat(freedSlots.isEmpty(), Matchers.is(true));
-		} finally {
-			RpcUtils.terminateRpcEndpoint(slotPool, timeout);
-		}
-	}
-
-	/**
-	 * Tests that a slot allocation times out wrt to the specified time out.
-	 */
-	@Test
-	public void testSlotAllocationTimeout() throws Exception {
-		final SlotPool slotPool = new SlotPool(rpcService, jobId);
-
-		final Time allocationTimeout = Time.milliseconds(1L);
-
-		try {
-			setupSlotPool(slotPool, resourceManagerGateway);
-
-			final SlotProvider slotProvider = slotPool.getSlotProvider();
-
-			final CompletableFuture<LogicalSlot> allocationFuture = slotProvider.allocateSlot(
-				new DummyScheduledUnit(),
-				true,
-				Collections.emptyList(),
-				allocationTimeout);
-
-			try {
-				allocationFuture.get();
-				fail("Should have failed with a timeout exception.");
-			} catch (ExecutionException ee) {
-				assertThat(ExceptionUtils.stripExecutionException(ee), Matchers.instanceOf(TimeoutException.class));
-			}
 		} finally {
 			RpcUtils.terminateRpcEndpoint(slotPool, timeout);
 		}
