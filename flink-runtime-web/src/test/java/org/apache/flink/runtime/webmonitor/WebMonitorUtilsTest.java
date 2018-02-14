@@ -18,10 +18,21 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.webmonitor.handlers.JarUploadHandler;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.nio.file.Paths;
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the WebMonitorUtils.
@@ -37,5 +48,19 @@ public class WebMonitorUtilsTest {
 		for (int x = 0; x < direct.length; x++) {
 			Assert.assertSame(direct[x].getClass(), reflected[x].getClass());
 		}
+	}
+
+	/**
+	 * Tests dynamically loading of handlers such as {@link JarUploadHandler}.
+	 */
+	@Test
+	public void testTryLoadJarHandlers() {
+		assertThat(WebMonitorUtils.tryLoadJarHandlers(
+			CompletableFuture::new,
+			CompletableFuture.completedFuture("localhost:12345"),
+			Time.seconds(10),
+			Collections.emptyMap(),
+			Paths.get("/tmp"),
+			Executors.directExecutor()), not(empty()));
 	}
 }
