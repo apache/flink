@@ -136,11 +136,11 @@ import java.util.concurrent.Executor;
 public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndpoint implements LeaderContender {
 
 	protected final GatewayRetriever<? extends T> leaderRetriever;
-	private final Configuration clusterConfiguration;
+	protected final Configuration clusterConfiguration;
 	protected final RestHandlerConfiguration restConfiguration;
 	private final GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever;
 	private final TransientBlobService transientBlobService;
-	private final Executor executor;
+	protected final Executor executor;
 
 	private final ExecutionGraphCache executionGraphCache;
 	private final CheckpointStatsCache checkpointStatsCache;
