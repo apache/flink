@@ -358,7 +358,6 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-
 				</executions>
 			</plugin>
 
@@ -487,11 +486,45 @@ under the License.
 				</executions>
 			</plugin>
 
+
 			<!-- Use the shade plugin to build a fat jar for the kafka example -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
+
+					<!-- State Machine Example -->
+					<execution>
+						<id>state-machine-example</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.statemachine.StateMachineExample</mainClass>
+								</transformer>
+							</transformers>
+							<finalName>StateMachineExample</finalName>
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<includes>
+										<include>org/apache/flink/streaming/examples/statemachine/**</include>
+										<include>org/apache/flink/streaming/util/serialization/**</include>
+										<include>org/apache/flink/streaming/connectors/kafka/**</include>
+										<include>org/apache/kafka/**</include>
+										<include>kafka/</include>
+									</includes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+
 					<execution>
 						<id>fat-jar-kafka-010-example</id>
 						<phase>package</phase>
@@ -528,6 +561,7 @@ under the License.
 							</filters>
 						</configuration>
 					</execution>
+
 					<execution>
 						<id>fat-jar-twitter-example</id>
 						<phase>package</phase>
