@@ -136,7 +136,7 @@ public final class QueryableStateUtils {
 		} catch (ClassNotFoundException e) {
 			final String msg = "Could not load Queryable State Server. " + ERROR_MESSAGE_ON_LOAD_FAILURE;
 			if (LOG.isDebugEnabled()) {
-				LOG.debug(msg, e);
+				LOG.debug(msg + " Cause: " + e.getMessage());
 			} else {
 				LOG.info(msg);
 			}
