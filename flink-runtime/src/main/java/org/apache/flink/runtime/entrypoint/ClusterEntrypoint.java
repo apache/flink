@@ -172,10 +172,14 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		LOG.info("Initializing cluster services.");
 
 		final String bindAddress = configuration.getString(JobManagerOptions.ADDRESS);
-		// TODO: Add support for port ranges
-		final String portRange = String.valueOf(configuration.getInteger(JobManagerOptions.PORT));
+		final String portRange = getRPCPortRange(configuration);
 
 		commonRpcService = createRpcService(configuration, bindAddress, portRange);
+
+		// update the configuration used to create the high availability services
+		configuration.setString(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
+		configuration.setInteger(JobManagerOptions.PORT, commonRpcService.getPort());
+
 		haServices = createHaServices(configuration, commonRpcService.getExecutor());
 		blobServer = new BlobServer(configuration, haServices.createBlobStore());
 		blobServer.start();
@@ -186,6 +190,16 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		// start the MetricQueryService
 		final ActorSystem actorSystem = ((AkkaRpcService) commonRpcService).getActorSystem();
 		metricRegistry.startQueryService(actorSystem, null);
+	}
+
+	/**
+	 * Returns the port range for the common {@link RpcService}.
+	 *
+	 * @param configuration to extract the port range from
+	 * @return Port range for the common {@link RpcService}
+	 */
+	protected String getRPCPortRange(Configuration configuration) {
+		return String.valueOf(configuration.getInteger(JobManagerOptions.PORT));
 	}
 
 	protected RpcService createRpcService(
