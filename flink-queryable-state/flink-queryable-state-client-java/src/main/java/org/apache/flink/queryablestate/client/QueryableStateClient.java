@@ -268,7 +268,7 @@ public class QueryableStateClient {
 			final String queryableStateName,
 			final int keyHashCode,
 			final byte[] serializedKeyAndNamespace) {
-		LOG.info("Sending State Request to {}.", remoteAddress);
+		LOG.debug("Sending State Request to {}.", remoteAddress);
 		try {
 			KvStateRequest request = new KvStateRequest(jobId, queryableStateName, keyHashCode, serializedKeyAndNamespace);
 			return client.sendRequest(remoteAddress, request);
