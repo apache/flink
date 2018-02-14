@@ -393,6 +393,11 @@ public class OrcRowInputFormat extends FileInputFormat<Row> implements ResultTyp
 		}
 	}
 
+	@Override
+	public boolean supportsMultiPaths() {
+		return true;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Classes to define predicates
 	// --------------------------------------------------------------------------------------------

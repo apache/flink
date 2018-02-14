@@ -264,8 +264,14 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	public Path getFilePath() {
 
 		if (supportsMultiPaths()) {
-			throw new UnsupportedOperationException(
-				"FileInputFormat supports multiple paths. Use getFilePaths() instead.");
+			if (this.filePaths == null || this.filePaths.length == 0) {
+				return null;
+			} else if (this.filePaths.length == 1) {
+				return this.filePaths[0];
+			} else {
+				throw new UnsupportedOperationException(
+					"FileInputFormat is configured with multiple paths. Use getFilePaths() instead.");
+			}
 		} else {
 			return filePath;
 		}
@@ -323,11 +329,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 			throw new IllegalArgumentException("File path must not be null.");
 		}
 
-		if (supportsMultiPaths()) {
-			this.filePaths = new Path[] {filePath};
-		} else {
-			this.filePath = filePath;
-		}
+		setFilePaths(filePath);
 	}
 	
 	/**
@@ -349,12 +351,19 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 * @param filePaths The paths of the files to read.
 	 */
 	public void setFilePaths(Path... filePaths) {
-		if (!supportsMultiPaths()) {
+		if (!supportsMultiPaths() && filePaths.length > 1) {
 			throw new UnsupportedOperationException(
 				"Multiple paths are not supported by this FileInputFormat.");
 		}
 		if (filePaths.length < 1) {
 			throw new IllegalArgumentException("At least one file path must be specified.");
+		}
+		if (filePaths.length == 1) {
+			// set for backwards compatibility
+			this.filePath = filePaths[0];
+		} else {
+			// clear file path in case it had been set before
+			this.filePath = null;
 		}
 
 		this.filePaths = filePaths;
@@ -487,12 +496,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	}
 	
 	protected FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, Path[] filePaths, ArrayList<FileStatus> files) throws IOException {
-
-		// shortcut for a single path that preserves cached stats
-		if (filePaths.length == 1) {
-			final FileSystem fs = FileSystem.get(filePaths[0].toUri());
-			return getFileStats(cachedStats, filePaths[0], fs, files);
-		}
 
 		long totalLength = 0;
 		long latestModTime = 0;

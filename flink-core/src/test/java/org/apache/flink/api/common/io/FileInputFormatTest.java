@@ -107,9 +107,23 @@ public class FileInputFormatTest {
 		format.setFilePath("/some/imaginary/path");
 		Assert.assertEquals(format.getFilePath().toString(), "/some/imaginary/path");
 	}
-	
+
 	@Test
-	public void testSetPathsSingle() {
+	public void testSetPathOnMulti() {
+		final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+		final String myPath = "/an/imaginary/path";
+		format.setFilePath(myPath);
+		final Path[] filePaths = format.getFilePaths();
+
+		Assert.assertEquals(1, filePaths.length);
+		Assert.assertEquals(myPath, filePaths[0].toUri().toString());
+
+		// ensure backwards compatibility
+		Assert.assertEquals(myPath, format.filePath.toUri().toString());
+	}
+
+	@Test
+	public void testSetPathsSingleWithMulti() {
 		final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
 		final String myPath = "/an/imaginary/path";
 		format.setFilePaths(myPath);
@@ -117,6 +131,9 @@ public class FileInputFormatTest {
 
 		Assert.assertEquals(1, filePaths.length);
 		Assert.assertEquals(myPath, filePaths[0].toUri().toString());
+
+		// ensure backwards compatibility
+		Assert.assertEquals(myPath, format.filePath.toUri().toString());
 	}
 	
 	@Test
@@ -332,7 +349,7 @@ public class FileInputFormatTest {
 			format.setFilePath(tempFile);
 			format.configure(new Configuration());
 			
-			FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime()-1, FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+			FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime() - 1, FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 			BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
 			Assert.assertEquals("The file size from the statistics is wrong.", SIZE, reGathered.getTotalInputSize());
 			
@@ -381,7 +398,7 @@ public class FileInputFormatTest {
 			format.setFilePath(tempDir);
 			format.configure(new Configuration());
 			
-			FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime()-1, FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+			FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime() - 1, FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 			BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
 			Assert.assertEquals("The file size from the statistics is wrong.", TOTAL, reGathered.getTotalInputSize());
 			
@@ -447,7 +464,7 @@ public class FileInputFormatTest {
 	@Test
 	public void testGetStatisticsMultipleOneFileWithCachedVersion() throws IOException {
 		final long size1 = 50873;
-		final long cachedSize = 10065;
+		final long fakeSize = 10065;
 		String tempFile1 = TestFileUtils.createTempFile(size1);
 
 		final long size2 = 52573;
@@ -474,16 +491,16 @@ public class FileInputFormatTest {
 		format.setFilePath(tempFile1);
 		format.configure(new Configuration());
 		
-		FileBaseStatistics fakeStats = new FileBaseStatistics(stats.getLastModificationTime(), cachedSize, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+		FileBaseStatistics fakeStats = new FileBaseStatistics(stats.getLastModificationTime(), fakeSize, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 		BaseStatistics latest = format.getStatistics(fakeStats);
-		Assert.assertEquals("The file size from the statistics is wrong.", cachedSize, latest.getTotalInputSize());
+		Assert.assertEquals("The file size from the statistics is wrong.", fakeSize, latest.getTotalInputSize());
 		
 		// insert fake stats with the expired modification time. the call should return new accurate stats
 		format = new MultiDummyFileInputFormat();
 		format.setFilePaths(tempFile1, tempFile2);
 		format.configure(new Configuration());
 		
-		FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime()-1, cachedSize, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+		FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime() - 1, fakeSize, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 		BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
 		Assert.assertEquals("The file size from the statistics is wrong.", sizeTotal, reGathered.getTotalInputSize());
 	}

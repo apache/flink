@@ -467,7 +467,7 @@ public class DelimitedInputFormatTest {
 		final String myString = "my mocked line 1\nmy mocked line 2\n";
 		final Path tempFile = createTempFilePath(myString);
 		final long size = myString.length();
-		final long cachedSize = 10065;
+		final long fakeSize = 10065;
 
 		DelimitedInputFormat<String> format = new MyTextInputFormat();
 		format.setFilePath(tempFile);
@@ -489,16 +489,16 @@ public class DelimitedInputFormatTest {
 		format.setFilePath(tempFile);
 		format.configure(new Configuration());
 		
-		FileBaseStatistics fakeStats = new FileBaseStatistics(stats.getLastModificationTime(), cachedSize, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+		FileBaseStatistics fakeStats = new FileBaseStatistics(stats.getLastModificationTime(), fakeSize, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 		BaseStatistics latest = format.getStatistics(fakeStats);
-		assertEquals("The file size from the statistics is wrong.", cachedSize, latest.getTotalInputSize());
+		assertEquals("The file size from the statistics is wrong.", fakeSize, latest.getTotalInputSize());
 		
 		// insert fake stats with the expired modification time. the call should return new accurate stats
 		format = new MyTextInputFormat();
 		format.setFilePath(tempFile);
 		format.configure(new Configuration());
 		
-		FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime()-1, cachedSize, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+		FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime() - 1, fakeSize, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 		BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
 		assertEquals("The file size from the statistics is wrong.", size, reGathered.getTotalInputSize());
 	}
