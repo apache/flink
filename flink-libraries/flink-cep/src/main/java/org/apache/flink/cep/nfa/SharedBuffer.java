@@ -944,15 +944,12 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 					// the ids of the source and target SharedBufferEntry
 
 					Integer id = entryIDs.get(sharedBuffer);
-					Preconditions.checkState(id != null, "Could not find id for entry: " + sharedBuffer);
 
 					for (SharedBufferEdge<K, V> edge: sharedBuffer.edges) {
 						// in order to serialize the previous relation we simply serialize the ids
 						// of the source and target SharedBufferEntry
 						if (edge.target != null) {
 							Integer targetId = entryIDs.get(edge.getTarget());
-							Preconditions.checkState(targetId != null,
-									"Could not find id for entry: " + edge.getTarget());
 
 							target.writeInt(id);
 							target.writeInt(targetId);
