@@ -20,11 +20,13 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.TransientBlobService;
+import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
@@ -32,13 +34,13 @@ import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever
 import java.util.concurrent.Executor;
 
 /**
- * REST endpoint for the {@link JobMaster}.
+ * REST endpoint for the {@link JobClusterEntrypoint}.
  */
-public class JobMasterRestEndpoint extends WebMonitorEndpoint<JobMasterGateway> {
+public class MiniDispatcherRestEndpoint extends WebMonitorEndpoint<RestfulGateway> {
 
-	public JobMasterRestEndpoint(
+	public MiniDispatcherRestEndpoint(
 			RestServerEndpointConfiguration endpointConfiguration,
-			GatewayRetriever<JobMasterGateway> leaderRetriever,
+			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Configuration clusterConfiguration,
 			RestHandlerConfiguration restConfiguration,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
