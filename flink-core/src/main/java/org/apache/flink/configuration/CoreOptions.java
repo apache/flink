@@ -26,6 +26,9 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  * The set of configuration options for core parameters.
  */
 @PublicEvolving
+@ConfigGroups(groups = {
+	@ConfigGroup(name = "FileSystem", keyPrefix = "fs")
+})
 public class CoreOptions {
 
 	// ------------------------------------------------------------------------
@@ -127,7 +130,31 @@ public class CoreOptions {
 	 */
 	public static final ConfigOption<String> DEFAULT_FILESYSTEM_SCHEME = ConfigOptions
 			.key("fs.default-scheme")
-			.noDefaultValue();
+			.noDefaultValue()
+			.withDescription("The default filesystem scheme, used for paths that do not declare a scheme explicitly." +
+				" May contain an authority, e.g. host:port in case of a HDFS NameNode.");
+
+	/**
+	 * Specifies whether file output writers should overwrite existing files by default.
+	 */
+	public static final ConfigOption<Boolean> FILESYTEM_DEFAULT_OVERRIDE =
+		key("fs.overwrite-files")
+			.defaultValue(false)
+			.withDescription("Specifies whether file output writers should overwrite existing files by default. Set to" +
+				" \"true\" to overwrite by default,\"false\" otherwise.");
+
+	/**
+	 * Specifies whether the file systems should always create a directory for the output, even with a parallelism of one.
+	 */
+	public static final ConfigOption<Boolean> FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY =
+		key("fs.output.always-create-directory")
+			.defaultValue(false)
+			.withDescription("File writers running with a parallelism larger than one create a directory for the output" +
+				" file path and put the different result files (one per parallel writer task) into that directory." +
+				" If this option is set to \"true\", writers with a parallelism of 1 will also create a" +
+				" directory and place a single result file into it. If the option is set to \"false\"," +
+				" the writer will directly create the file directly at the output path, without creating a containing" +
+				" directory.");
 
 	/**
 	 * The total number of input plus output connections that a file system for the given scheme may open.
