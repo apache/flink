@@ -211,7 +211,10 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class LegacyCheckpointedSource
+	/**
+	 * Testing source.
+	 */
+	public static class LegacyCheckpointedSource
 		implements SourceFunction<Tuple2<Long, Long>> {
 
 		public static String checkpointedString = "Here be dragons!";
@@ -250,7 +253,10 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class CheckingRestoringSource
+	/**
+	 * Testing source.
+	 */
+	public static class CheckingRestoringSource
 		extends RichSourceFunction<Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
@@ -298,7 +304,10 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class LegacyCheckpointedFlatMap extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	/**
+	 * Testing {@link RichFlatMapFunction}.
+	 */
+	public static class LegacyCheckpointedFlatMap extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -311,7 +320,10 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class CheckingRestoringFlatMap extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	/**
+	 * Testing {@link RichFlatMapFunction} that counts incoming elements in accumulators.
+	 */
+	public static class CheckingRestoringFlatMap extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -336,7 +348,10 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 
 	}
 
-	private static class LegacyCheckpointedFlatMapWithKeyedState
+	/**
+	 * A {@link RichFlatMapFunction} with keyed state.
+	 */
+	public static class LegacyCheckpointedFlatMapWithKeyedState
 		extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
@@ -357,7 +372,10 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class CheckingRestoringFlatMapWithKeyedState
+	/**
+	 * A {@link RichFlatMapFunction} with keyed state and accumulator for counting incoming elements.
+	 */
+	public static class CheckingRestoringFlatMapWithKeyedState
 		extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
@@ -390,7 +408,10 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class CheckingRestoringFlatMapWithKeyedStateInOperator
+	/**
+	 * A {@link RichFlatMapFunction} with keyed state and accumulator for counting incoming elements.
+	 */
+	public static class CheckingRestoringFlatMapWithKeyedStateInOperator
 		extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
@@ -423,7 +444,10 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class KeyedStateSettingFlatMap extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	/**
+	 * A {@link RichFlatMapFunction} with keyed state.
+	 */
+	public static class KeyedStateSettingFlatMap extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -438,7 +462,11 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class CheckingKeyedStateFlatMap extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	/**
+	 * A {@link RichFlatMapFunction} with keyed state and accumulator for counting incoming elements.
+	 */
+
+	public static class CheckingKeyedStateFlatMap extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -468,7 +496,10 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class CheckpointedUdfOperator
+	/**
+	 * A custom operator with UDF.
+	 */
+	public static class CheckpointedUdfOperator
 		extends AbstractUdfStreamOperator<Tuple2<Long, Long>, FlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>>
 		implements OneInputStreamOperator<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		private static final long serialVersionUID = 1L;
@@ -490,7 +521,10 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class CheckingRestoringUdfOperator
+	/**
+	 * A custom operator that counts incoming elements using an accumulator.
+	 */
+	public static class CheckingRestoringUdfOperator
 		extends AbstractUdfStreamOperator<Tuple2<Long, Long>, FlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>>
 		implements OneInputStreamOperator<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
@@ -523,7 +557,10 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class TimelyStatefulOperator
+	/**
+	 * A stateful and triggerable operator.
+	 */
+	public static class TimelyStatefulOperator
 		extends AbstractStreamOperator<Tuple2<Long, Long>>
 		implements OneInputStreamOperator<Tuple2<Long, Long>, Tuple2<Long, Long>>, Triggerable<Long, Long> {
 		private static final long serialVersionUID = 1L;
@@ -575,7 +612,10 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class CheckingTimelyStatefulOperator
+	/**
+	 * A stateful and triggerable operator with accumulators.
+	 */
+	public static class CheckingTimelyStatefulOperator
 		extends AbstractStreamOperator<Tuple2<Long, Long>>
 		implements OneInputStreamOperator<Tuple2<Long, Long>, Tuple2<Long, Long>>, Triggerable<Long, Long> {
 		private static final long serialVersionUID = 1L;
@@ -639,7 +679,10 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class AccumulatorCountingSink<T> extends RichSinkFunction<T> {
+	/**
+	 * A {@link RichSinkFunction} with an accumulator that counts the incoming elements.
+	 */
+	public static class AccumulatorCountingSink<T> extends RichSinkFunction<T> {
 		private static final long serialVersionUID = 1L;
 
 		public static final String NUM_ELEMENTS_ACCUMULATOR = AccumulatorCountingSink.class + "_NUM_ELEMENTS";
