@@ -34,7 +34,7 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration._
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.core.io.InputSplitAssigner
-import org.apache.flink.metrics.{Gauge, MetricGroup}
+import org.apache.flink.metrics.{MetricGroup, NumberGauge}
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.{BlobServer, BlobStore}
@@ -1855,18 +1855,20 @@ class JobManager(
   }
 
   private def instantiateMetrics(jobManagerMetricGroup: MetricGroup) : Unit = {
-    jobManagerMetricGroup.gauge[Long, Gauge[Long]]("taskSlotsAvailable", new Gauge[Long] {
-      override def getValue: Long = JobManager.this.instanceManager.getNumberOfAvailableSlots
+    jobManagerMetricGroup.register("taskSlotsAvailable", new NumberGauge {
+      override def getNumberValue: Number
+      = JobManager.this.instanceManager.getNumberOfAvailableSlots
     })
-    jobManagerMetricGroup.gauge[Long, Gauge[Long]]("taskSlotsTotal", new Gauge[Long] {
-      override def getValue: Long = JobManager.this.instanceManager.getTotalNumberOfSlots
+    jobManagerMetricGroup.register("taskSlotsTotal", new NumberGauge {
+      override def getNumberValue: Number
+      = JobManager.this.instanceManager.getTotalNumberOfSlots
     })
-    jobManagerMetricGroup.gauge[Long, Gauge[Long]]("numRegisteredTaskManagers", new Gauge[Long] {
-      override def getValue: Long
+    jobManagerMetricGroup.register("numRegisteredTaskManagers", new NumberGauge {
+      override def getNumberValue: Number
       = JobManager.this.instanceManager.getNumberOfRegisteredTaskManagers
     })
-    jobManagerMetricGroup.gauge[Long, Gauge[Long]]("numRunningJobs", new Gauge[Long] {
-      override def getValue: Long = JobManager.this.currentJobs.size
+    jobManagerMetricGroup.register("numRunningJobs", new NumberGauge {
+      override def getNumberValue: Number = JobManager.this.currentJobs.size
     })
   }
 }

@@ -18,12 +18,12 @@
 
 package org.apache.flink.streaming.runtime.metrics;
 
-import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.NumberGauge;
 
 /**
- * A {@link Gauge} for exposing the minimum watermark of a {@link WatermarkGauge} pair.
+ * A {@link NumberGauge} for exposing the minimum watermark of a {@link WatermarkGauge} pair.
  */
-public class MinWatermarkGauge implements Gauge<Long> {
+public class MinWatermarkGauge implements NumberGauge {
 
 	private WatermarkGauge watermarkGauge1;
 	private WatermarkGauge watermarkGauge2;
@@ -34,7 +34,7 @@ public class MinWatermarkGauge implements Gauge<Long> {
 	}
 
 	@Override
-	public Long getValue() {
-		return Math.min(watermarkGauge1.getValue(), watermarkGauge2.getValue());
+	public Long getNumberValue() {
+		return Math.min(watermarkGauge1.getNumberValue(), watermarkGauge2.getNumberValue());
 	}
 }

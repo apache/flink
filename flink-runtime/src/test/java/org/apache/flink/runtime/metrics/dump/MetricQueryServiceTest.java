@@ -20,10 +20,10 @@ package org.apache.flink.runtime.metrics.dump;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.StringGauge;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
@@ -54,12 +54,7 @@ public class MetricQueryServiceTest extends TestLogger {
 		TestActor testActor = (TestActor) testActorRef.underlyingActor();
 
 		final Counter c = new SimpleCounter();
-		final Gauge<String> g = new Gauge<String>() {
-			@Override
-			public String getValue() {
-				return "Hello";
-			}
-		};
+		final StringGauge g = () -> "Hello";
 		final Histogram h = new TestHistogram();
 		final Meter m = new Meter() {
 

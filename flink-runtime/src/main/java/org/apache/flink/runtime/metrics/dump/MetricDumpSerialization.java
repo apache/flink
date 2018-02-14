@@ -23,11 +23,12 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.NumberGauge;
+import org.apache.flink.metrics.StringGauge;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -116,13 +117,16 @@ public class MetricDumpSerialization {
 		 * fully serialized before the failure will be returned.
 		 *
 		 * @param counters   counters to serialize
-		 * @param gauges     gauges to serialize
+		 * @param numberGauges number gauges to serialize
+		 * @param stringGauges string gauges to serialize
 		 * @param histograms histograms to serialize
+		 * @param meters meters to serialize
 		 * @return MetricSerializationResult containing the serialized metrics and the count of each metric type
 		 */
 		public MetricSerializationResult serialize(
 			Map<Counter, Tuple2<QueryScopeInfo, String>> counters,
-			Map<Gauge<?>, Tuple2<QueryScopeInfo, String>> gauges,
+			Map<NumberGauge, Tuple2<QueryScopeInfo, String>> numberGauges,
+			Map<StringGauge, Tuple2<QueryScopeInfo, String>> stringGauges,
 			Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms,
 			Map<Meter, Tuple2<QueryScopeInfo, String>> meters) {
 
@@ -139,7 +143,15 @@ public class MetricDumpSerialization {
 			}
 
 			int numGauges = 0;
-			for (Map.Entry<Gauge<?>, Tuple2<QueryScopeInfo, String>> entry : gauges.entrySet()) {
+			for (Map.Entry<NumberGauge, Tuple2<QueryScopeInfo, String>> entry : numberGauges.entrySet()) {
+				try {
+					serializeGauge(buffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
+					numGauges++;
+				} catch (Exception e) {
+					LOG.debug("Failed to serialize gauge.", e);
+				}
+			}
+			for (Map.Entry<StringGauge, Tuple2<QueryScopeInfo, String>> entry : stringGauges.entrySet()) {
 				try {
 					serializeGauge(buffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
 					numGauges++;
@@ -215,12 +227,12 @@ public class MetricDumpSerialization {
 		out.writeLong(count);
 	}
 
-	private static void serializeGauge(DataOutput out, QueryScopeInfo info, String name, Gauge<?> gauge) throws IOException {
-		Object value = gauge.getValue();
+	private static void serializeGauge(DataOutput out, QueryScopeInfo info, String name, NumberGauge gauge) throws IOException {
+		Object value = gauge.getNumberValue();
 		if (value == null) {
 			throw new NullPointerException("Value returned by gauge " + name + " was null.");
 		}
-		String stringValue = gauge.getValue().toString();
+		String stringValue = gauge.getNumberValue().toString();
 		if (stringValue == null) {
 			throw new NullPointerException("toString() of the value returned by gauge " + name + " returned null.");
 		}
@@ -228,6 +240,17 @@ public class MetricDumpSerialization {
 		serializeMetricInfo(out, info);
 		out.writeUTF(name);
 		out.writeUTF(stringValue);
+	}
+
+	private static void serializeGauge(DataOutput out, QueryScopeInfo info, String name, StringGauge gauge) throws IOException {
+		String value = gauge.getStringValue();
+		if (value == null) {
+			throw new NullPointerException("Value returned by gauge " + name + " was null.");
+		}
+
+		serializeMetricInfo(out, info);
+		out.writeUTF(name);
+		out.writeUTF(value);
 	}
 
 	private static void serializeHistogram(DataOutput out, QueryScopeInfo info, String name, Histogram histogram) throws IOException {

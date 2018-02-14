@@ -187,10 +187,10 @@ public class KafkaConsumerThread extends Thread {
 				} else {
 					// we have Kafka metrics, register them
 					for (Map.Entry<MetricName, ? extends Metric> metric: metrics.entrySet()) {
-						consumerMetricGroup.gauge(metric.getKey().name(), new KafkaMetricWrapper(metric.getValue()));
+						consumerMetricGroup.register(metric.getKey().name(), new KafkaMetricWrapper(metric.getValue()));
 
 						// TODO this metric is kept for compatibility purposes; should remove in the future
-						subtaskMetricGroup.gauge(metric.getKey().name(), new KafkaMetricWrapper(metric.getValue()));
+						subtaskMetricGroup.register(metric.getKey().name(), new KafkaMetricWrapper(metric.getValue()));
 					}
 				}
 			}

@@ -30,9 +30,9 @@ public class WatermarkGaugeTest {
 	public void testSetCurrentLowWatermark() {
 		WatermarkGauge metric = new WatermarkGauge();
 
-		Assert.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
+		Assert.assertEquals(Long.MIN_VALUE, metric.getNumberValue().longValue());
 
 		metric.setCurrentWatermark(64);
-		Assert.assertEquals(64, metric.getValue().longValue());
+		Assert.assertEquals(64, metric.getNumberValue().longValue());
 	}
 }

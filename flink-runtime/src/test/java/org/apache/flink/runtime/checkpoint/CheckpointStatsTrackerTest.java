@@ -33,8 +33,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.NumberGauge;
+import org.apache.flink.metrics.StringGauge;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -286,11 +287,13 @@ public class CheckpointStatsTrackerTest {
 
 		MetricGroup metricGroup = new UnregisteredMetricsGroup() {
 			@Override
-			public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
-				if (gauge != null) {
-					registeredGaugeNames.add(name);
-				}
-				return gauge;
+			public void register(String name, NumberGauge gauge) {
+				registeredGaugeNames.add(name);
+			}
+
+			@Override
+			public void register(String name, StringGauge gauge) {
+				registeredGaugeNames.add(name);
 			}
 		};
 
@@ -326,13 +329,18 @@ public class CheckpointStatsTrackerTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testMetricsAreUpdated() throws Exception {
-		final Map<String, Gauge<?>> registeredGauges = new HashMap<>();
+		final Map<String, NumberGauge> registeredNumberGauges = new HashMap<>();
+		final Map<String, StringGauge> registeredStringGauges = new HashMap<>();
 
 		MetricGroup metricGroup = new UnregisteredMetricsGroup() {
 			@Override
-			public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
-				registeredGauges.put(name, gauge);
-				return gauge;
+			public void register(String name, NumberGauge gauge) {
+				registeredNumberGauges.put(name, gauge);
+			}
+
+			@Override
+			public void register(String name, StringGauge gauge) {
+				registeredStringGauges.put(name, gauge);
 			}
 		};
 
@@ -347,28 +355,29 @@ public class CheckpointStatsTrackerTest {
 			metricGroup);
 
 		// Make sure to adjust this test if metrics are added/removed
-		assertEquals(9, registeredGauges.size());
+		assertEquals(8, registeredNumberGauges.size());
+		assertEquals(1, registeredStringGauges.size());
 
 		// Check initial values
-		Gauge<Long> numCheckpoints = (Gauge<Long>) registeredGauges.get(CheckpointStatsTracker.NUMBER_OF_CHECKPOINTS_METRIC);
-		Gauge<Integer> numInProgressCheckpoints = (Gauge<Integer>) registeredGauges.get(CheckpointStatsTracker.NUMBER_OF_IN_PROGRESS_CHECKPOINTS_METRIC);
-		Gauge<Long> numCompletedCheckpoints = (Gauge<Long>) registeredGauges.get(CheckpointStatsTracker.NUMBER_OF_COMPLETED_CHECKPOINTS_METRIC);
-		Gauge<Long> numFailedCheckpoints = (Gauge<Long>) registeredGauges.get(CheckpointStatsTracker.NUMBER_OF_FAILED_CHECKPOINTS_METRIC);
-		Gauge<Long> latestRestoreTimestamp = (Gauge<Long>) registeredGauges.get(CheckpointStatsTracker.LATEST_RESTORED_CHECKPOINT_TIMESTAMP_METRIC);
-		Gauge<Long> latestCompletedSize = (Gauge<Long>) registeredGauges.get(CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC);
-		Gauge<Long> latestCompletedDuration = (Gauge<Long>) registeredGauges.get(CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC);
-		Gauge<Long> latestCompletedAlignmentBuffered = (Gauge<Long>) registeredGauges.get(CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_ALIGNMENT_BUFFERED_METRIC);
-		Gauge<String> latestCompletedExternalPath = (Gauge<String>) registeredGauges.get(CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC);
+		NumberGauge numCheckpoints = registeredNumberGauges.get(CheckpointStatsTracker.NUMBER_OF_CHECKPOINTS_METRIC);
+		NumberGauge numInProgressCheckpoints = registeredNumberGauges.get(CheckpointStatsTracker.NUMBER_OF_IN_PROGRESS_CHECKPOINTS_METRIC);
+		NumberGauge numCompletedCheckpoints = registeredNumberGauges.get(CheckpointStatsTracker.NUMBER_OF_COMPLETED_CHECKPOINTS_METRIC);
+		NumberGauge numFailedCheckpoints = registeredNumberGauges.get(CheckpointStatsTracker.NUMBER_OF_FAILED_CHECKPOINTS_METRIC);
+		NumberGauge latestRestoreTimestamp = registeredNumberGauges.get(CheckpointStatsTracker.LATEST_RESTORED_CHECKPOINT_TIMESTAMP_METRIC);
+		NumberGauge latestCompletedSize = registeredNumberGauges.get(CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC);
+		NumberGauge latestCompletedDuration = registeredNumberGauges.get(CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC);
+		NumberGauge latestCompletedAlignmentBuffered = registeredNumberGauges.get(CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_ALIGNMENT_BUFFERED_METRIC);
+		StringGauge latestCompletedExternalPath = registeredStringGauges.get(CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC);
 
-		assertEquals(Long.valueOf(0), numCheckpoints.getValue());
-		assertEquals(Integer.valueOf(0), numInProgressCheckpoints.getValue());
-		assertEquals(Long.valueOf(0), numCompletedCheckpoints.getValue());
-		assertEquals(Long.valueOf(0), numFailedCheckpoints.getValue());
-		assertEquals(Long.valueOf(-1), latestRestoreTimestamp.getValue());
-		assertEquals(Long.valueOf(-1), latestCompletedSize.getValue());
-		assertEquals(Long.valueOf(-1), latestCompletedDuration.getValue());
-		assertEquals(Long.valueOf(-1), latestCompletedAlignmentBuffered.getValue());
-		assertEquals("n/a", latestCompletedExternalPath.getValue());
+		assertEquals(0L, numCheckpoints.getNumberValue().longValue());
+		assertEquals(0, numInProgressCheckpoints.getNumberValue().longValue());
+		assertEquals(0L, numCompletedCheckpoints.getNumberValue().longValue());
+		assertEquals(0L, numFailedCheckpoints.getNumberValue().longValue());
+		assertEquals(-1L, latestRestoreTimestamp.getNumberValue().longValue());
+		assertEquals(-1L, latestCompletedSize.getNumberValue().longValue());
+		assertEquals(-1L, latestCompletedDuration.getNumberValue().longValue());
+		assertEquals(-1L, latestCompletedAlignmentBuffered.getNumberValue().longValue());
+		assertEquals("n/a", latestCompletedExternalPath.getStringValue());
 
 		PendingCheckpointStats pending = stats.reportPendingCheckpoint(
 			0,
@@ -376,10 +385,10 @@ public class CheckpointStatsTrackerTest {
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 
 		// Check counts
-		assertEquals(Long.valueOf(1), numCheckpoints.getValue());
-		assertEquals(Integer.valueOf(1), numInProgressCheckpoints.getValue());
-		assertEquals(Long.valueOf(0), numCompletedCheckpoints.getValue());
-		assertEquals(Long.valueOf(0), numFailedCheckpoints.getValue());
+		assertEquals(1L, numCheckpoints.getNumberValue().longValue());
+		assertEquals(1L, numInProgressCheckpoints.getNumberValue().longValue());
+		assertEquals(0L, numCompletedCheckpoints.getNumberValue().longValue());
+		assertEquals(0L, numFailedCheckpoints.getNumberValue().longValue());
 
 		long ackTimestamp = 11231230L;
 		long stateSize = 12381238L;
@@ -401,15 +410,15 @@ public class CheckpointStatsTrackerTest {
 		pending.reportCompletedCheckpoint(externalPath);
 
 		// Verify completed checkpoint updated
-		assertEquals(Long.valueOf(1), numCheckpoints.getValue());
-		assertEquals(Integer.valueOf(0), numInProgressCheckpoints.getValue());
-		assertEquals(Long.valueOf(1), numCompletedCheckpoints.getValue());
-		assertEquals(Long.valueOf(0), numFailedCheckpoints.getValue());
-		assertEquals(Long.valueOf(-1), latestRestoreTimestamp.getValue());
-		assertEquals(Long.valueOf(stateSize), latestCompletedSize.getValue());
-		assertEquals(Long.valueOf(ackTimestamp), latestCompletedDuration.getValue());
-		assertEquals(Long.valueOf(alignmenetBuffered), latestCompletedAlignmentBuffered.getValue());
-		assertEquals(externalPath, latestCompletedExternalPath.getValue());
+		assertEquals(1L, numCheckpoints.getNumberValue());
+		assertEquals(0, numInProgressCheckpoints.getNumberValue());
+		assertEquals(1L, numCompletedCheckpoints.getNumberValue());
+		assertEquals(0L, numFailedCheckpoints.getNumberValue());
+		assertEquals((long) -1, latestRestoreTimestamp.getNumberValue());
+		assertEquals(stateSize, latestCompletedSize.getNumberValue());
+		assertEquals(ackTimestamp, latestCompletedDuration.getNumberValue());
+		assertEquals(alignmenetBuffered, latestCompletedAlignmentBuffered.getNumberValue());
+		assertEquals(externalPath, latestCompletedExternalPath.getStringValue());
 
 		// Check failed
 		PendingCheckpointStats nextPending = stats.reportPendingCheckpoint(
@@ -421,10 +430,10 @@ public class CheckpointStatsTrackerTest {
 		nextPending.reportFailedCheckpoint(failureTimestamp, null);
 
 		// Verify updated
-		assertEquals(Long.valueOf(2), numCheckpoints.getValue());
-		assertEquals(Integer.valueOf(0), numInProgressCheckpoints.getValue());
-		assertEquals(Long.valueOf(1), numCompletedCheckpoints.getValue());
-		assertEquals(Long.valueOf(1), numFailedCheckpoints.getValue()); // one failed now
+		assertEquals(2L, numCheckpoints.getNumberValue());
+		assertEquals(0, numInProgressCheckpoints.getNumberValue());
+		assertEquals(1L, numCompletedCheckpoints.getNumberValue());
+		assertEquals(1L, numFailedCheckpoints.getNumberValue()); // one failed now
 
 		// Check restore
 		long restoreTimestamp = 183419283L;
@@ -435,12 +444,12 @@ public class CheckpointStatsTrackerTest {
 			null);
 		stats.reportRestoredCheckpoint(restored);
 
-		assertEquals(Long.valueOf(2), numCheckpoints.getValue());
-		assertEquals(Integer.valueOf(0), numInProgressCheckpoints.getValue());
-		assertEquals(Long.valueOf(1), numCompletedCheckpoints.getValue());
-		assertEquals(Long.valueOf(1), numFailedCheckpoints.getValue());
+		assertEquals(2L, numCheckpoints.getNumberValue());
+		assertEquals(0, numInProgressCheckpoints.getNumberValue());
+		assertEquals(1L, numCompletedCheckpoints.getNumberValue());
+		assertEquals(1L, numFailedCheckpoints.getNumberValue());
 
-		assertEquals(Long.valueOf(restoreTimestamp), latestRestoreTimestamp.getValue());
+		assertEquals(restoreTimestamp, latestRestoreTimestamp.getNumberValue());
 
 		// Check Internal Checkpoint Configuration
 		PendingCheckpointStats thirdPending = stats.reportPendingCheckpoint(
@@ -452,7 +461,7 @@ public class CheckpointStatsTrackerTest {
 		thirdPending.reportCompletedCheckpoint(null);
 
 		// Verify external path is "n/a", because internal checkpoint won't generate external path.
-		assertEquals("n/a", latestCompletedExternalPath.getValue());
+		assertEquals("n/a", latestCompletedExternalPath.getStringValue());
 	}
 
 	// ------------------------------------------------------------------------

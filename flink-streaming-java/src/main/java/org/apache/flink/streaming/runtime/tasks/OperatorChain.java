@@ -21,7 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -140,7 +140,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				WatermarkGaugeExposingOutput<StreamRecord<OUT>> output = getChainEntryPoint();
 				headOperator.setup(containingTask, configuration, output);
 
-				headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, output.getWatermarkGauge());
+				headOperator.getMetricGroup().register(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, output.getWatermarkGauge());
 			}
 
 			// add head operator to end of chain
@@ -374,8 +374,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			currentOperatorOutput = new CopyingChainingOutput<>(chainedOperator, inSerializer, outputTag, this);
 		}
 
-		chainedOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, currentOperatorOutput.getWatermarkGauge());
-		chainedOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, chainedOperatorOutput.getWatermarkGauge());
+		chainedOperator.getMetricGroup().register(MetricNames.IO_CURRENT_INPUT_WATERMARK, currentOperatorOutput.getWatermarkGauge());
+		chainedOperator.getMetricGroup().register(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, chainedOperatorOutput.getWatermarkGauge());
 
 		return currentOperatorOutput;
 	}
@@ -431,7 +431,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	 * @param <T> The type of the elements that can be emitted.
 	 */
 	public interface WatermarkGaugeExposingOutput<T> extends Output<T> {
-		Gauge<Long> getWatermarkGauge();
+		NumberGauge getWatermarkGauge();
 	}
 
 	private static class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>> {
@@ -539,7 +539,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		}
 
 		@Override
-		public Gauge<Long> getWatermarkGauge() {
+		public NumberGauge getWatermarkGauge() {
 			return watermarkGauge;
 		}
 	}
@@ -649,7 +649,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		}
 
 		@Override
-		public Gauge<Long> getWatermarkGauge() {
+		public NumberGauge getWatermarkGauge() {
 			return watermarkGauge;
 		}
 

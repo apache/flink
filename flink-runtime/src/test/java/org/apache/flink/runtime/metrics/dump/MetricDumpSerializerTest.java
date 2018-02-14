@@ -20,10 +20,11 @@ package org.apache.flink.runtime.metrics.dump;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.StringGauge;
 import org.apache.flink.metrics.util.TestHistogram;
 
 import org.junit.Assert;
@@ -54,20 +55,19 @@ public class MetricDumpSerializerTest {
 		MetricDumpSerialization.MetricDumpSerializer serializer = new MetricDumpSerialization.MetricDumpSerializer();
 		MetricDumpSerialization.MetricDumpDeserializer deserializer = new MetricDumpSerialization.MetricDumpDeserializer();
 
-		Map<Gauge<?>, Tuple2<QueryScopeInfo, String>> gauges = new HashMap<>();
+		Map<NumberGauge, Tuple2<QueryScopeInfo, String>> numberGauges = new HashMap<>();
+		Map<StringGauge, Tuple2<QueryScopeInfo, String>> stringGauges = new HashMap<>();
 
-		gauges.put(new Gauge<Object>() {
-			@Override
-			public Object getValue() {
-				return null;
-			}
-		}, new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.JobManagerQueryScopeInfo("A"), "g"));
+		numberGauges.put(() -> null, new Tuple2<>(new QueryScopeInfo.JobManagerQueryScopeInfo("A"), "ng"));
+
+		stringGauges.put(() -> null, new Tuple2<>(new QueryScopeInfo.JobManagerQueryScopeInfo("A"), "sg"));
 
 		MetricDumpSerialization.MetricSerializationResult output = serializer.serialize(
-			Collections.<Counter, Tuple2<QueryScopeInfo, String>>emptyMap(),
-			gauges,
-			Collections.<Histogram, Tuple2<QueryScopeInfo, String>>emptyMap(),
-			Collections.<Meter, Tuple2<QueryScopeInfo, String>>emptyMap());
+			Collections.emptyMap(),
+			numberGauges,
+			stringGauges,
+			Collections.emptyMap(),
+			Collections.emptyMap());
 
 		// no metrics should be serialized
 		Assert.assertEquals(0, output.serializedMetrics.length);
@@ -84,10 +84,11 @@ public class MetricDumpSerializerTest {
 		final ObjectOutputStream oos = new ObjectOutputStream(bos);
 
 		oos.writeObject(serializer.serialize(
-			new HashMap<Counter, Tuple2<QueryScopeInfo, String>>(),
-			new HashMap<Gauge<?>, Tuple2<QueryScopeInfo, String>>(),
-			new HashMap<Histogram, Tuple2<QueryScopeInfo, String>>(),
-			new HashMap<Meter, Tuple2<QueryScopeInfo, String>>()));
+			new HashMap<>(),
+			new HashMap<>(),
+			new HashMap<>(),
+			new HashMap<>(),
+			new HashMap<>()));
 	}
 
 	@Test
@@ -96,7 +97,8 @@ public class MetricDumpSerializerTest {
 		MetricDumpSerialization.MetricDumpDeserializer deserializer = new MetricDumpSerialization.MetricDumpDeserializer();
 
 		Map<Counter, Tuple2<QueryScopeInfo, String>> counters = new HashMap<>();
-		Map<Gauge<?>, Tuple2<QueryScopeInfo, String>> gauges = new HashMap<>();
+		Map<NumberGauge, Tuple2<QueryScopeInfo, String>> numberGgauges = new HashMap<>();
+		Map<StringGauge, Tuple2<QueryScopeInfo, String>> stringGauges = new HashMap<>();
 		Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms = new HashMap<>();
 		Map<Meter, Tuple2<QueryScopeInfo, String>> meters = new HashMap<>();
 
@@ -106,12 +108,8 @@ public class MetricDumpSerializerTest {
 		c1.inc(1);
 		c2.inc(2);
 
-		Gauge<Integer> g1 = new Gauge<Integer>() {
-			@Override
-			public Integer getValue() {
-				return 4;
-			}
-		};
+		NumberGauge ng1 = () -> 4;
+		StringGauge sg1 = () -> "hello";
 
 		Histogram h1 = new TestHistogram();
 
@@ -135,17 +133,18 @@ public class MetricDumpSerializerTest {
 			}
 		};
 
-		counters.put(c1, new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.JobManagerQueryScopeInfo("A"), "c1"));
-		counters.put(c2, new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.TaskManagerQueryScopeInfo("tmid", "B"), "c2"));
-		meters.put(m1, new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.JobQueryScopeInfo("jid", "C"), "c3"));
-		gauges.put(g1, new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.TaskQueryScopeInfo("jid", "vid", 2, "D"), "g1"));
-		histograms.put(h1, new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.OperatorQueryScopeInfo("jid", "vid", 2, "opname", "E"), "h1"));
+		counters.put(c1, new Tuple2<>(new QueryScopeInfo.JobManagerQueryScopeInfo("A"), "c1"));
+		counters.put(c2, new Tuple2<>(new QueryScopeInfo.TaskManagerQueryScopeInfo("tmid", "B"), "c2"));
+		meters.put(m1, new Tuple2<>(new QueryScopeInfo.JobQueryScopeInfo("jid", "C"), "c3"));
+		numberGgauges.put(ng1, new Tuple2<>(new QueryScopeInfo.TaskQueryScopeInfo("jid", "vid", 2, "D"), "ng1"));
+		stringGauges.put(sg1, new Tuple2<>(new QueryScopeInfo.TaskQueryScopeInfo("jid", "vid", 2, "D"), "sg1"));
+		histograms.put(h1, new Tuple2<>(new QueryScopeInfo.OperatorQueryScopeInfo("jid", "vid", 2, "opname", "E"), "h1"));
 
-		MetricDumpSerialization.MetricSerializationResult serialized = serializer.serialize(counters, gauges, histograms, meters);
+		MetricDumpSerialization.MetricSerializationResult serialized = serializer.serialize(counters, numberGgauges, stringGauges, histograms, meters);
 		List<MetricDump> deserialized = deserializer.deserialize(serialized);
 
 		// ===== Counters ==============================================================================================
-		assertEquals(5, deserialized.size());
+		assertEquals(6, deserialized.size());
 
 		for (MetricDump metric : deserialized) {
 			switch (metric.getCategory()) {
@@ -171,16 +170,36 @@ public class MetricDumpSerializerTest {
 					break;
 				case METRIC_CATEGORY_GAUGE:
 					MetricDump.GaugeDump gaugeDump = (MetricDump.GaugeDump) metric;
-					assertEquals("4", gaugeDump.value);
-					assertEquals("g1", gaugeDump.name);
+					switch (gaugeDump.name) {
+						case "ng1": {
+							assertEquals("4", gaugeDump.value);
 
-					assertTrue(gaugeDump.scopeInfo instanceof QueryScopeInfo.TaskQueryScopeInfo);
-					QueryScopeInfo.TaskQueryScopeInfo taskInfo = (QueryScopeInfo.TaskQueryScopeInfo) gaugeDump.scopeInfo;
-					assertEquals("D", taskInfo.scope);
-					assertEquals("jid", taskInfo.jobID);
-					assertEquals("vid", taskInfo.vertexID);
-					assertEquals(2, taskInfo.subtaskIndex);
-					gauges.remove(g1);
+							assertTrue(gaugeDump.scopeInfo instanceof QueryScopeInfo.TaskQueryScopeInfo);
+							QueryScopeInfo.TaskQueryScopeInfo taskInfo = (QueryScopeInfo.TaskQueryScopeInfo) gaugeDump.scopeInfo;
+							assertEquals("D", taskInfo.scope);
+							assertEquals("jid", taskInfo.jobID);
+							assertEquals("vid", taskInfo.vertexID);
+							assertEquals(2, taskInfo.subtaskIndex);
+							numberGgauges.remove(ng1);
+							break;
+						}
+						case "sg1": {
+							assertEquals("hello", gaugeDump.value);
+							assertEquals("sg1", gaugeDump.name);
+
+							assertTrue(gaugeDump.scopeInfo instanceof QueryScopeInfo.TaskQueryScopeInfo);
+							QueryScopeInfo.TaskQueryScopeInfo taskInfo = (QueryScopeInfo.TaskQueryScopeInfo) gaugeDump.scopeInfo;
+							assertEquals("D", taskInfo.scope);
+							assertEquals("jid", taskInfo.jobID);
+							assertEquals("vid", taskInfo.vertexID);
+							assertEquals(2, taskInfo.subtaskIndex);
+							stringGauges.remove(sg1);
+							break;
+						}
+						default:
+							fail();
+							break;
+					}
 					break;
 				case METRIC_CATEGORY_HISTOGRAM:
 					MetricDump.HistogramDump histogramDump = (MetricDump.HistogramDump) metric;
@@ -220,7 +239,8 @@ public class MetricDumpSerializerTest {
 			}
 		}
 		assertTrue(counters.isEmpty());
-		assertTrue(gauges.isEmpty());
+		assertTrue(numberGgauges.isEmpty());
+		assertTrue(stringGauges.isEmpty());
 		assertTrue(histograms.isEmpty());
 	}
 }

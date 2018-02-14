@@ -308,10 +308,10 @@ public class ExecutionGraphBuilder {
 
 		// create all the metrics for the Execution Graph
 
-		metrics.gauge(RestartTimeGauge.METRIC_NAME, new RestartTimeGauge(executionGraph));
-		metrics.gauge(DownTimeGauge.METRIC_NAME, new DownTimeGauge(executionGraph));
-		metrics.gauge(UpTimeGauge.METRIC_NAME, new UpTimeGauge(executionGraph));
-		metrics.gauge(NumberOfFullRestartsGauge.METRIC_NAME, new NumberOfFullRestartsGauge(executionGraph));
+		metrics.register(RestartTimeGauge.METRIC_NAME, new RestartTimeGauge(executionGraph));
+		metrics.register(DownTimeGauge.METRIC_NAME, new DownTimeGauge(executionGraph));
+		metrics.register(UpTimeGauge.METRIC_NAME, new UpTimeGauge(executionGraph));
+		metrics.register(NumberOfFullRestartsGauge.METRIC_NAME, new NumberOfFullRestartsGauge(executionGraph));
 
 		executionGraph.getFailoverStrategy().registerMetrics(metrics);
 

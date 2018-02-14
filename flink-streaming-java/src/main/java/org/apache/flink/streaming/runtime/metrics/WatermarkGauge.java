@@ -18,12 +18,12 @@
 
 package org.apache.flink.streaming.runtime.metrics;
 
-import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.NumberGauge;
 
 /**
- * A {@link Gauge} for exposing the current input/output watermark.
+ * A {@link NumberGauge} for exposing the current input/output watermark.
  */
-public class WatermarkGauge implements Gauge<Long> {
+public class WatermarkGauge implements NumberGauge {
 
 	private long currentWatermark = Long.MIN_VALUE;
 
@@ -32,7 +32,7 @@ public class WatermarkGauge implements Gauge<Long> {
 	}
 
 	@Override
-	public Long getValue() {
+	public Long getNumberValue() {
 		return currentWatermark;
 	}
 }

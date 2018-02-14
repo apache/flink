@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -115,55 +114,15 @@ public class ResultPartitionMetrics {
 	}
 
 	// ------------------------------------------------------------------------
-	//  Gauges to access the stats
-	// ------------------------------------------------------------------------
-
-	private Gauge<Long> getTotalQueueLenGauge() {
-		return new Gauge<Long>() {
-			@Override
-			public Long getValue() {
-				return refreshAndGetTotal();
-			}
-		};
-	}
-
-	private Gauge<Integer> getMinQueueLenGauge() {
-		return new Gauge<Integer>() {
-			@Override
-			public Integer getValue() {
-				return refreshAndGetMin();
-			}
-		};
-	}
-
-	private Gauge<Integer> getMaxQueueLenGauge() {
-		return new Gauge<Integer>() {
-			@Override
-			public Integer getValue() {
-				return refreshAndGetMax();
-			}
-		};
-	}
-
-	private Gauge<Float> getAvgQueueLenGauge() {
-		return new Gauge<Float>() {
-			@Override
-			public Float getValue() {
-				return refreshAndGetAvg();
-			}
-		};
-	}
-
-	// ------------------------------------------------------------------------
 	//  Static access
 	// ------------------------------------------------------------------------
 
 	public static void registerQueueLengthMetrics(MetricGroup group, ResultPartition partition) {
 		ResultPartitionMetrics metrics = new ResultPartitionMetrics(partition);
 
-		group.gauge("totalQueueLen", metrics.getTotalQueueLenGauge());
-		group.gauge("minQueueLen", metrics.getMinQueueLenGauge());
-		group.gauge("maxQueueLen", metrics.getMaxQueueLenGauge());
-		group.gauge("avgQueueLen", metrics.getAvgQueueLenGauge());
+		group.register("totalQueueLen", metrics::refreshAndGetTotal);
+		group.register("minQueueLen", metrics::refreshAndGetMin);
+		group.register("maxQueueLen", metrics::refreshAndGetMax);
+		group.register("avgQueueLen", metrics::refreshAndGetAvg);
 	}
 }

@@ -21,10 +21,11 @@ package org.apache.flink.runtime.metrics.dump;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.NumberGauge;
+import org.apache.flink.metrics.StringGauge;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 
@@ -65,7 +66,8 @@ public class MetricQueryService extends UntypedActor {
 
 	private final MetricDumpSerializer serializer = new MetricDumpSerializer();
 
-	private final Map<Gauge<?>, Tuple2<QueryScopeInfo, String>> gauges = new HashMap<>();
+	private final Map<NumberGauge, Tuple2<QueryScopeInfo, String>> numbergGauges = new HashMap<>();
+	private final Map<StringGauge, Tuple2<QueryScopeInfo, String>> stringGauges = new HashMap<>();
 	private final Map<Counter, Tuple2<QueryScopeInfo, String>> counters = new HashMap<>();
 	private final Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms = new HashMap<>();
 	private final Map<Meter, Tuple2<QueryScopeInfo, String>> meters = new HashMap<>();
@@ -89,8 +91,10 @@ public class MetricQueryService extends UntypedActor {
 
 				if (metric instanceof Counter) {
 					counters.put((Counter) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
-				} else if (metric instanceof Gauge) {
-					gauges.put((Gauge<?>) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
+				} else if (metric instanceof NumberGauge) {
+					numbergGauges.put((NumberGauge) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
+				} else if (metric instanceof StringGauge) {
+					stringGauges.put((StringGauge) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
 				} else if (metric instanceof Histogram) {
 					histograms.put((Histogram) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
 				} else if (metric instanceof Meter) {
@@ -100,15 +104,17 @@ public class MetricQueryService extends UntypedActor {
 				Metric metric = (((RemoveMetric) message).metric);
 				if (metric instanceof Counter) {
 					this.counters.remove(metric);
-				} else if (metric instanceof Gauge) {
-					this.gauges.remove(metric);
+				} else if (metric instanceof NumberGauge) {
+					this.numbergGauges.remove(metric);
+				} else if (metric instanceof StringGauge) {
+					this.stringGauges.remove(metric);
 				} else if (metric instanceof Histogram) {
 					this.histograms.remove(metric);
 				} else if (metric instanceof Meter) {
 					this.meters.remove(metric);
 				}
 			} else if (message instanceof CreateDump) {
-				MetricDumpSerialization.MetricSerializationResult dump = serializer.serialize(counters, gauges, histograms, meters);
+				MetricDumpSerialization.MetricSerializationResult dump = serializer.serialize(counters, numbergGauges, stringGauges, histograms, meters);
 				getSender().tell(dump, getSelf());
 			} else {
 				LOG.warn("MetricQueryServiceActor received an invalid message. " + message.toString());

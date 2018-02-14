@@ -19,7 +19,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -166,7 +166,7 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 	}
 
 	@Override
-	public Gauge<Long> getWatermarkGauge() {
+	public NumberGauge getWatermarkGauge() {
 		return watermarkGauge;
 	}
 }

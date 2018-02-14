@@ -202,7 +202,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 
 		this.input1WatermarkGauge = input1WatermarkGauge;
 		this.input2WatermarkGauge = input2WatermarkGauge;
-		metrics.gauge("checkpointAlignmentTime", barrierHandler::getAlignmentDurationNanos);
+		metrics.register("checkpointAlignmentTime", barrierHandler::getAlignmentDurationNanos);
 	}
 
 	public boolean processInput() throws Exception {

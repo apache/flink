@@ -92,7 +92,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 					getEnvironment().getMetricGroup().getIOMetricGroup(),
 					inputWatermarkGauge);
 		}
-		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge);
+		headOperator.getMetricGroup().register(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge);
 	}
 
 	@Override

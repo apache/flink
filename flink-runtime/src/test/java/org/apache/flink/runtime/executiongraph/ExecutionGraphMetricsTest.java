@@ -97,13 +97,13 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			RestartTimeGauge restartingTime = new RestartTimeGauge(executionGraph);
 
 			// check that the restarting time is 0 since it's the initial start
-			assertEquals(0L, restartingTime.getValue().longValue());
+			assertEquals(0L, restartingTime.getNumberValue().longValue());
 
 			executionGraph.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
 
 			// start execution
 			executionGraph.scheduleForExecution();
-			assertEquals(0L, restartingTime.getValue().longValue());
+			assertEquals(0L, restartingTime.getNumberValue().longValue());
 
 			List<ExecutionAttemptID> executionIDs = new ArrayList<>();
 
@@ -117,7 +117,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			}
 
 			assertEquals(JobStatus.RUNNING, executionGraph.getState());
-			assertEquals(0L, restartingTime.getValue().longValue());
+			assertEquals(0L, restartingTime.getNumberValue().longValue());
 
 			// fail the job so that it goes into state restarting
 			for (ExecutionAttemptID executionID : executionIDs) {
@@ -131,11 +131,11 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			// wait some time so that the restarting time gauge shows a value different from 0
 			Thread.sleep(50);
 
-			long previousRestartingTime = restartingTime.getValue();
+			long previousRestartingTime = restartingTime.getNumberValue();
 
 			// check that the restarting time is monotonically increasing
 			for (int i = 0; i < 10; i++) {
-				long currentRestartingTime = restartingTime.getValue();
+				long currentRestartingTime = restartingTime.getNumberValue();
 
 				assertTrue(currentRestartingTime >= previousRestartingTime);
 				previousRestartingTime = currentRestartingTime;
@@ -161,11 +161,11 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 			assertTrue(firstRestartingTimestamp != 0);
 
-			previousRestartingTime = restartingTime.getValue();
+			previousRestartingTime = restartingTime.getNumberValue();
 
 			// check that the restarting time does not increase after we've reached the running state
 			for (int i = 0; i < 10; i++) {
-				long currentRestartingTime = restartingTime.getValue();
+				long currentRestartingTime = restartingTime.getNumberValue();
 
 				assertTrue(currentRestartingTime == previousRestartingTime);
 				previousRestartingTime = currentRestartingTime;
@@ -184,11 +184,11 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 			Thread.sleep(50);
 
-			previousRestartingTime = restartingTime.getValue();
+			previousRestartingTime = restartingTime.getNumberValue();
 
 			// check that the restarting time is increasing again
 			for (int i = 0; i < 10; i++) {
-				long currentRestartingTime = restartingTime.getValue();
+				long currentRestartingTime = restartingTime.getNumberValue();
 
 				assertTrue(currentRestartingTime >= previousRestartingTime);
 				previousRestartingTime = currentRestartingTime;
@@ -202,10 +202,10 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 	
 			assertEquals(JobStatus.FAILED, executionGraph.getState());
 
-			previousRestartingTime = restartingTime.getValue();
+			previousRestartingTime = restartingTime.getNumberValue();
 
 			for (int i = 0; i < 10; i++) {
-				long currentRestartingTime = restartingTime.getValue();
+				long currentRestartingTime = restartingTime.getNumberValue();
 
 				assertTrue(currentRestartingTime == previousRestartingTime);
 				previousRestartingTime = currentRestartingTime;

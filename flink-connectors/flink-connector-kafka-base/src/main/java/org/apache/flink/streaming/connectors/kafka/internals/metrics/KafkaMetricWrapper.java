@@ -19,13 +19,13 @@
 package org.apache.flink.streaming.connectors.kafka.internals.metrics;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.NumberGauge;
 
 /**
  * Gauge for getting the current value of a Kafka metric.
  */
 @Internal
-public class KafkaMetricWrapper implements Gauge<Double> {
+public class KafkaMetricWrapper implements NumberGauge {
 	private final org.apache.kafka.common.Metric kafkaMetric;
 
 	public KafkaMetricWrapper(org.apache.kafka.common.Metric metric) {
@@ -33,7 +33,7 @@ public class KafkaMetricWrapper implements Gauge<Double> {
 	}
 
 	@Override
-	public Double getValue() {
+	public Double getNumberValue() {
 		return kafkaMetric.value();
 	}
 }

@@ -22,10 +22,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.StringGauge;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
@@ -130,7 +131,8 @@ public class MetricFetcherTest extends TestLogger {
 			assertEquals("0.99", store.getJobManagerMetricStore().getMetric("abc.hist_p99"));
 			assertEquals("0.999", store.getJobManagerMetricStore().getMetric("abc.hist_p999"));
 
-			assertEquals("x", store.getTaskManagerMetricStore(tmRID.toString()).metrics.get("abc.gauge"));
+			assertEquals("4", store.getTaskManagerMetricStore(tmRID.toString()).metrics.get("abc.number"));
+			assertEquals("x", store.getTaskManagerMetricStore(tmRID.toString()).metrics.get("abc.string"));
 			assertEquals("5.0", store.getJobMetricStore(jobID.toString()).metrics.get("abc.jc"));
 			assertEquals("2", store.getTaskMetricStore(jobID.toString(), "taskid").metrics.get("2.abc.tc"));
 			assertEquals("1", store.getTaskMetricStore(jobID.toString(), "taskid").metrics.get("2.opname.abc.oc"));
@@ -139,7 +141,8 @@ public class MetricFetcherTest extends TestLogger {
 
 	private static MetricDumpSerialization.MetricSerializationResult createRequestDumpAnswer(ResourceID tmRID, JobID jobID) {
 		Map<Counter, Tuple2<QueryScopeInfo, String>> counters = new HashMap<>();
-		Map<Gauge<?>, Tuple2<QueryScopeInfo, String>> gauges = new HashMap<>();
+		Map<NumberGauge, Tuple2<QueryScopeInfo, String>> numberGauges = new HashMap<>();
+		Map<StringGauge, Tuple2<QueryScopeInfo, String>> stringGauges = new HashMap<>();
 		Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms = new HashMap<>();
 		Map<Meter, Tuple2<QueryScopeInfo, String>> meters = new HashMap<>();
 
@@ -170,16 +173,12 @@ public class MetricFetcherTest extends TestLogger {
 				return 10;
 			}
 		}, new Tuple2<>(new QueryScopeInfo.JobQueryScopeInfo(jobID.toString(), "abc"), "jc"));
-		gauges.put(new Gauge<String>() {
-			@Override
-			public String getValue() {
-				return "x";
-			}
-		}, new Tuple2<>(new QueryScopeInfo.TaskManagerQueryScopeInfo(tmRID.toString(), "abc"), "gauge"));
+		numberGauges.put(() -> 4, new Tuple2<>(new QueryScopeInfo.TaskManagerQueryScopeInfo(tmRID.toString(), "abc"), "number"));
+		stringGauges.put(() -> "x", new Tuple2<>(new QueryScopeInfo.TaskManagerQueryScopeInfo(tmRID.toString(), "abc"), "string"));
 		histograms.put(new TestHistogram(), new Tuple2<>(new QueryScopeInfo.JobManagerQueryScopeInfo("abc"), "hist"));
 
 		MetricDumpSerialization.MetricDumpSerializer serializer = new MetricDumpSerialization.MetricDumpSerializer();
-		MetricDumpSerialization.MetricSerializationResult dump = serializer.serialize(counters, gauges, histograms, meters);
+		MetricDumpSerialization.MetricSerializationResult dump = serializer.serialize(counters, numberGauges, stringGauges, histograms, meters);
 		serializer.close();
 
 		return dump;

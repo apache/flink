@@ -237,7 +237,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 			} else {
 				final MetricGroup kafkaMetricGroup = getRuntimeContext().getMetricGroup().addGroup("KafkaProducer");
 				for (Map.Entry<MetricName, ? extends Metric> metric: metrics.entrySet()) {
-					kafkaMetricGroup.gauge(metric.getKey().name(), new KafkaMetricWrapper(metric.getValue()));
+					kafkaMetricGroup.register(metric.getKey().name(), new KafkaMetricWrapper(metric.getValue()));
 				}
 			}
 		}

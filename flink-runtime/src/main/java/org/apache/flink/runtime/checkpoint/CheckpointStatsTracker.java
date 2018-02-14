@@ -19,9 +19,10 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.NumberGauge;
+import org.apache.flink.metrics.StringGauge;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -353,48 +354,20 @@ public class CheckpointStatsTracker {
 	 * @param metricGroup Metric group to use for the metrics.
 	 */
 	private void registerMetrics(MetricGroup metricGroup) {
-		metricGroup.gauge(NUMBER_OF_CHECKPOINTS_METRIC, new CheckpointsCounter());
-		metricGroup.gauge(NUMBER_OF_IN_PROGRESS_CHECKPOINTS_METRIC, new InProgressCheckpointsCounter());
-		metricGroup.gauge(NUMBER_OF_COMPLETED_CHECKPOINTS_METRIC, new CompletedCheckpointsCounter());
-		metricGroup.gauge(NUMBER_OF_FAILED_CHECKPOINTS_METRIC, new FailedCheckpointsCounter());
-		metricGroup.gauge(LATEST_RESTORED_CHECKPOINT_TIMESTAMP_METRIC, new LatestRestoredCheckpointTimestampGauge());
-		metricGroup.gauge(LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC, new LatestCompletedCheckpointSizeGauge());
-		metricGroup.gauge(LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC, new LatestCompletedCheckpointDurationGauge());
-		metricGroup.gauge(LATEST_COMPLETED_CHECKPOINT_ALIGNMENT_BUFFERED_METRIC, new LatestCompletedCheckpointAlignmentBufferedGauge());
-		metricGroup.gauge(LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC, new LatestCompletedCheckpointExternalPathGauge());
+		metricGroup.register(NUMBER_OF_CHECKPOINTS_METRIC, counts::getTotalNumberOfCheckpoints);
+		metricGroup.register(NUMBER_OF_IN_PROGRESS_CHECKPOINTS_METRIC, counts::getNumberOfInProgressCheckpoints);
+		metricGroup.register(NUMBER_OF_COMPLETED_CHECKPOINTS_METRIC, counts::getNumberOfCompletedCheckpoints);
+		metricGroup.register(NUMBER_OF_FAILED_CHECKPOINTS_METRIC, counts::getNumberOfFailedCheckpoints);
+		metricGroup.register(LATEST_RESTORED_CHECKPOINT_TIMESTAMP_METRIC, new LatestRestoredCheckpointTimestampGauge());
+		metricGroup.register(LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC, new LatestCompletedCheckpointSizeGauge());
+		metricGroup.register(LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC, new LatestCompletedCheckpointDurationGauge());
+		metricGroup.register(LATEST_COMPLETED_CHECKPOINT_ALIGNMENT_BUFFERED_METRIC, new LatestCompletedCheckpointAlignmentBufferedGauge());
+		metricGroup.register(LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC, new LatestCompletedCheckpointExternalPathGauge());
 	}
 
-	private class CheckpointsCounter implements Gauge<Long> {
+	private class LatestRestoredCheckpointTimestampGauge implements NumberGauge {
 		@Override
-		public Long getValue() {
-			return counts.getTotalNumberOfCheckpoints();
-		}
-	}
-
-	private class InProgressCheckpointsCounter implements Gauge<Integer> {
-		@Override
-		public Integer getValue() {
-			return counts.getNumberOfInProgressCheckpoints();
-		}
-	}
-
-	private class CompletedCheckpointsCounter implements Gauge<Long> {
-		@Override
-		public Long getValue() {
-			return counts.getNumberOfCompletedCheckpoints();
-		}
-	}
-
-	private class FailedCheckpointsCounter implements Gauge<Long> {
-		@Override
-		public Long getValue() {
-			return counts.getNumberOfFailedCheckpoints();
-		}
-	}
-
-	private class LatestRestoredCheckpointTimestampGauge implements Gauge<Long> {
-		@Override
-		public Long getValue() {
+		public Long getNumberValue() {
 			RestoredCheckpointStats restored = latestRestoredCheckpoint;
 			if (restored != null) {
 				return restored.getRestoreTimestamp();
@@ -404,9 +377,9 @@ public class CheckpointStatsTracker {
 		}
 	}
 
-	private class LatestCompletedCheckpointSizeGauge implements Gauge<Long> {
+	private class LatestCompletedCheckpointSizeGauge implements NumberGauge {
 		@Override
-		public Long getValue() {
+		public Long getNumberValue() {
 			CompletedCheckpointStats completed = latestCompletedCheckpoint;
 			if (completed != null) {
 				return completed.getStateSize();
@@ -416,9 +389,9 @@ public class CheckpointStatsTracker {
 		}
 	}
 
-	private class LatestCompletedCheckpointDurationGauge implements Gauge<Long> {
+	private class LatestCompletedCheckpointDurationGauge implements NumberGauge {
 		@Override
-		public Long getValue() {
+		public Long getNumberValue() {
 			CompletedCheckpointStats completed = latestCompletedCheckpoint;
 			if (completed != null) {
 				return completed.getEndToEndDuration();
@@ -428,9 +401,9 @@ public class CheckpointStatsTracker {
 		}
 	}
 
-	private class LatestCompletedCheckpointAlignmentBufferedGauge implements Gauge<Long> {
+	private class LatestCompletedCheckpointAlignmentBufferedGauge implements NumberGauge {
 		@Override
-		public Long getValue() {
+		public Long getNumberValue() {
 			CompletedCheckpointStats completed = latestCompletedCheckpoint;
 			if (completed != null) {
 				return completed.getAlignmentBuffered();
@@ -440,9 +413,9 @@ public class CheckpointStatsTracker {
 		}
 	}
 
-	private class LatestCompletedCheckpointExternalPathGauge implements Gauge<String> {
+	private class LatestCompletedCheckpointExternalPathGauge implements StringGauge {
 		@Override
-		public String getValue() {
+		public String getStringValue() {
 			CompletedCheckpointStats completed = latestCompletedCheckpoint;
 			if (completed != null && completed.getExternalPath() != null) {
 				return completed.getExternalPath();

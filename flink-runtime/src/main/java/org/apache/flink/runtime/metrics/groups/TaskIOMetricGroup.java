@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -114,16 +114,16 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	 */
 	public void initializeBufferMetrics(Task task) {
 		final MetricGroup buffers = addGroup("buffers");
-		buffers.gauge("inputQueueLength", new InputBuffersGauge(task));
-		buffers.gauge("outputQueueLength", new OutputBuffersGauge(task));
-		buffers.gauge("inPoolUsage", new InputBufferPoolUsageGauge(task));
-		buffers.gauge("outPoolUsage", new OutputBufferPoolUsageGauge(task));
+		buffers.register("inputQueueLength", new InputBuffersGauge(task));
+		buffers.register("outputQueueLength", new OutputBuffersGauge(task));
+		buffers.register("inPoolUsage", new InputBufferPoolUsageGauge(task));
+		buffers.register("outPoolUsage", new OutputBufferPoolUsageGauge(task));
 	}
 
 	/**
 	 * Gauge measuring the number of queued input buffers of a task.
 	 */
-	private static final class InputBuffersGauge implements Gauge<Integer> {
+	private static final class InputBuffersGauge implements NumberGauge {
 
 		private final Task task;
 
@@ -132,7 +132,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 		}
 
 		@Override
-		public Integer getValue() {
+		public Integer getNumberValue() {
 			int totalBuffers = 0;
 
 			for (SingleInputGate inputGate : task.getAllInputGates()) {
@@ -146,7 +146,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	/**
 	 * Gauge measuring the number of queued output buffers of a task.
 	 */
-	private static final class OutputBuffersGauge implements Gauge<Integer> {
+	private static final class OutputBuffersGauge implements NumberGauge {
 
 		private final Task task;
 
@@ -155,7 +155,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 		}
 
 		@Override
-		public Integer getValue() {
+		public Integer getNumberValue() {
 			int totalBuffers = 0;
 
 			for (ResultPartition producedPartition : task.getProducedPartitions()) {
@@ -169,7 +169,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	/**
 	 * Gauge measuring the input buffer pool usage gauge of a task.
 	 */
-	private static final class InputBufferPoolUsageGauge implements Gauge<Float> {
+	private static final class InputBufferPoolUsageGauge implements NumberGauge {
 
 		private final Task task;
 
@@ -178,7 +178,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 		}
 
 		@Override
-		public Float getValue() {
+		public Float getNumberValue() {
 			int usedBuffers = 0;
 			int bufferPoolSize = 0;
 
@@ -198,7 +198,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	/**
 	 * Gauge measuring the output buffer pool usage gauge of a task.
 	 */
-	private static final class OutputBufferPoolUsageGauge implements Gauge<Float> {
+	private static final class OutputBufferPoolUsageGauge implements NumberGauge {
 
 		private final Task task;
 
@@ -207,7 +207,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 		}
 
 		@Override
-		public Float getValue() {
+		public Float getNumberValue() {
 			int usedBuffers = 0;
 			int bufferPoolSize = 0;
 

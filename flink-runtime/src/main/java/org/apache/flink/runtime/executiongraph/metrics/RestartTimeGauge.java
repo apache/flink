@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.metrics;
 
-import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 
@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>If the job has not yet reached either of these states, then the time is measured since reaching
  * {@link JobStatus#RESTARTING}. If it is still the initial job execution, then the gauge will return 0.
  */
-public class RestartTimeGauge implements Gauge<Long> {
+public class RestartTimeGauge implements NumberGauge {
 
 	public static final String METRIC_NAME = "restartingTime";
 
@@ -48,7 +48,7 @@ public class RestartTimeGauge implements Gauge<Long> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public Long getValue() {
+	public Long getNumberValue() {
 		final JobStatus status = eg.getState();
 
 		final long restartingTimestamp = eg.getStatusTimestamp(JobStatus.RESTARTING);

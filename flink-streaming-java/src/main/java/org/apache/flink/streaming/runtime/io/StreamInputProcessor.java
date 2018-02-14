@@ -170,7 +170,7 @@ public class StreamInputProcessor<IN> {
 				new ForwardingValveOutputHandler(streamOperator, lock));
 
 		this.watermarkGauge = watermarkGauge;
-		metrics.gauge("checkpointAlignmentTime", barrierHandler::getAlignmentDurationNanos);
+		metrics.register("checkpointAlignmentTime", barrierHandler::getAlignmentDurationNanos);
 	}
 
 	public boolean processInput() throws Exception {

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.metrics;
 
-import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 
@@ -29,7 +29,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * 
  * <p>For jobs that are not running any more, it returns {@value NO_LONGER_RUNNING}. 
  */
-public class UpTimeGauge implements Gauge<Long> {
+public class UpTimeGauge implements NumberGauge {
 
 	public static final String METRIC_NAME = "uptime";
 
@@ -46,7 +46,7 @@ public class UpTimeGauge implements Gauge<Long> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public Long getValue() {
+	public Long getNumberValue() {
 		final JobStatus status = eg.getState();
 
 		if (status == JobStatus.RUNNING) {

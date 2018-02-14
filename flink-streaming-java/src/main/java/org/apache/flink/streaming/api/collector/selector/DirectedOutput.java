@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.collector.selector;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -157,7 +157,7 @@ public class DirectedOutput<OUT> implements OperatorChain.WatermarkGaugeExposing
 	}
 
 	@Override
-	public Gauge<Long> getWatermarkGauge() {
+	public NumberGauge getWatermarkGauge() {
 		return watermarkGauge;
 	}
 }

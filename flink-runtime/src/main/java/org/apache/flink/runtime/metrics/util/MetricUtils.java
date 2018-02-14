@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.metrics.util;
 
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
@@ -105,37 +105,17 @@ public class MetricUtils {
 	private static void instantiateNetworkMetrics(
 		MetricGroup metrics,
 		final NetworkEnvironment network) {
-		metrics.<Long, Gauge<Long>>gauge("TotalMemorySegments", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return (long) network.getNetworkBufferPool().getTotalNumberOfMemorySegments();
-			}
-		});
+		metrics.register("TotalMemorySegments", () -> network.getNetworkBufferPool().getTotalNumberOfMemorySegments());
 
-		metrics.<Long, Gauge<Long>>gauge("AvailableMemorySegments", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return (long) network.getNetworkBufferPool().getNumberOfAvailableMemorySegments();
-			}
-		});
+		metrics.register("AvailableMemorySegments", () -> network.getNetworkBufferPool().getNumberOfAvailableMemorySegments());
 	}
 
 	private static void instantiateClassLoaderMetrics(MetricGroup metrics) {
 		final ClassLoadingMXBean mxBean = ManagementFactory.getClassLoadingMXBean();
 
-		metrics.<Long, Gauge<Long>>gauge("ClassesLoaded", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getTotalLoadedClassCount();
-			}
-		});
+		metrics.register("ClassesLoaded", mxBean::getTotalLoadedClassCount);
 
-		metrics.<Long, Gauge<Long>>gauge("ClassesUnloaded", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getUnloadedClassCount();
-			}
-		});
+		metrics.register("ClassesUnloaded", mxBean::getUnloadedClassCount);
 	}
 
 	private static void instantiateGarbageCollectorMetrics(MetricGroup metrics) {
@@ -144,19 +124,9 @@ public class MetricUtils {
 		for (final GarbageCollectorMXBean garbageCollector: garbageCollectors) {
 			MetricGroup gcGroup = metrics.addGroup(garbageCollector.getName());
 
-			gcGroup.<Long, Gauge<Long>>gauge("Count", new Gauge<Long> () {
-				@Override
-				public Long getValue() {
-					return garbageCollector.getCollectionCount();
-				}
-			});
+			gcGroup.register("Count", garbageCollector::getCollectionCount);
 
-			gcGroup.<Long, Gauge<Long>>gauge("Time", new Gauge<Long> () {
-				@Override
-				public Long getValue() {
-					return garbageCollector.getCollectionTime();
-				}
-			});
+			gcGroup.register("Time", garbageCollector::getCollectionTime);
 		}
 	}
 
@@ -165,45 +135,15 @@ public class MetricUtils {
 
 		MetricGroup heap = metrics.addGroup("Heap");
 
-		heap.<Long, Gauge<Long>>gauge("Used", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getHeapMemoryUsage().getUsed();
-			}
-		});
-		heap.<Long, Gauge<Long>>gauge("Committed", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getHeapMemoryUsage().getCommitted();
-			}
-		});
-		heap.<Long, Gauge<Long>>gauge("Max", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getHeapMemoryUsage().getMax();
-			}
-		});
+		heap.register("Used",  mxBean.getHeapMemoryUsage()::getUsed);
+		heap.register("Committed",  mxBean.getHeapMemoryUsage()::getCommitted);
+		heap.register("Max",  mxBean.getHeapMemoryUsage()::getMax);
 
 		MetricGroup nonHeap = metrics.addGroup("NonHeap");
 
-		nonHeap.<Long, Gauge<Long>>gauge("Used", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getNonHeapMemoryUsage().getUsed();
-			}
-		});
-		nonHeap.<Long, Gauge<Long>>gauge("Committed", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getNonHeapMemoryUsage().getCommitted();
-			}
-		});
-		nonHeap.<Long, Gauge<Long>>gauge("Max", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getNonHeapMemoryUsage().getMax();
-			}
-		});
+		nonHeap.register("Used",  mxBean.getNonHeapMemoryUsage()::getUsed);
+		nonHeap.register("Committed",  mxBean.getNonHeapMemoryUsage()::getCommitted);
+		nonHeap.register("Max",  mxBean.getNonHeapMemoryUsage()::getMax);
 
 		final MBeanServer con = ManagementFactory.getPlatformMBeanServer();
 
@@ -214,9 +154,9 @@ public class MetricUtils {
 
 			MetricGroup direct = metrics.addGroup("Direct");
 
-			direct.<Long, Gauge<Long>>gauge("Count", new AttributeGauge<>(con, directObjectName, "Count", -1L));
-			direct.<Long, Gauge<Long>>gauge("MemoryUsed", new AttributeGauge<>(con, directObjectName, "MemoryUsed", -1L));
-			direct.<Long, Gauge<Long>>gauge("TotalCapacity", new AttributeGauge<>(con, directObjectName, "TotalCapacity", -1L));
+			direct.register("Count", new AttributeGauge(con, directObjectName, "Count", -1L));
+			direct.register("MemoryUsed", new AttributeGauge(con, directObjectName, "MemoryUsed", -1L));
+			direct.register("TotalCapacity", new AttributeGauge(con, directObjectName, "TotalCapacity", -1L));
 		} catch (MalformedObjectNameException e) {
 			LOG.warn("Could not create object name {}.", directBufferPoolName, e);
 		}
@@ -228,9 +168,9 @@ public class MetricUtils {
 
 			MetricGroup mapped = metrics.addGroup("Mapped");
 
-			mapped.<Long, Gauge<Long>>gauge("Count", new AttributeGauge<>(con, mappedObjectName, "Count", -1L));
-			mapped.<Long, Gauge<Long>>gauge("MemoryUsed", new AttributeGauge<>(con, mappedObjectName, "MemoryUsed", -1L));
-			mapped.<Long, Gauge<Long>>gauge("TotalCapacity", new AttributeGauge<>(con, mappedObjectName, "TotalCapacity", -1L));
+			mapped.register("Count", new AttributeGauge(con, mappedObjectName, "Count", -1L));
+			mapped.register("MemoryUsed", new AttributeGauge(con, mappedObjectName, "MemoryUsed", -1L));
+			mapped.register("TotalCapacity", new AttributeGauge(con, mappedObjectName, "TotalCapacity", -1L));
 		} catch (MalformedObjectNameException e) {
 			LOG.warn("Could not create object name {}.", mappedBufferPoolName, e);
 		}
@@ -239,43 +179,28 @@ public class MetricUtils {
 	private static void instantiateThreadMetrics(MetricGroup metrics) {
 		final ThreadMXBean mxBean = ManagementFactory.getThreadMXBean();
 
-		metrics.<Integer, Gauge<Integer>>gauge("Count", new Gauge<Integer> () {
-			@Override
-			public Integer getValue() {
-				return mxBean.getThreadCount();
-			}
-		});
+		metrics.register("Count",  mxBean::getThreadCount);
 	}
 
 	private static void instantiateCPUMetrics(MetricGroup metrics) {
 		try {
 			final com.sun.management.OperatingSystemMXBean mxBean = (com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
 
-			metrics.<Double, Gauge<Double>>gauge("Load", new Gauge<Double> () {
-				@Override
-				public Double getValue() {
-					return mxBean.getProcessCpuLoad();
-				}
-			});
-			metrics.<Long, Gauge<Long>>gauge("Time", new Gauge<Long> () {
-				@Override
-				public Long getValue() {
-					return mxBean.getProcessCpuTime();
-				}
-			});
+			metrics.register("Load",  mxBean::getProcessCpuLoad);
+			metrics.register("Time",  mxBean::getProcessCpuTime);
 		} catch (Exception e) {
 			LOG.warn("Cannot access com.sun.management.OperatingSystemMXBean.getProcessCpuLoad()" +
 				" - CPU load metrics will not be available.", e);
 		}
 	}
 
-	private static final class AttributeGauge<T> implements Gauge<T> {
+	private static final class AttributeGauge implements NumberGauge {
 		private final MBeanServer server;
 		private final ObjectName objectName;
 		private final String attributeName;
-		private final T errorValue;
+		private final long errorValue;
 
-		private AttributeGauge(MBeanServer server, ObjectName objectName, String attributeName, T errorValue) {
+		private AttributeGauge(MBeanServer server, ObjectName objectName, String attributeName, long errorValue) {
 			this.server = Preconditions.checkNotNull(server);
 			this.objectName = Preconditions.checkNotNull(objectName);
 			this.attributeName = Preconditions.checkNotNull(attributeName);
@@ -284,9 +209,9 @@ public class MetricUtils {
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public T getValue() {
+		public Number getNumberValue() {
 			try {
-				return (T) server.getAttribute(objectName, attributeName);
+				return (Number) server.getAttribute(objectName, attributeName);
 			} catch (MBeanException | AttributeNotFoundException | InstanceNotFoundException | ReflectionException e) {
 				LOG.warn("Could not read attribute {}.", attributeName, e);
 				return errorValue;

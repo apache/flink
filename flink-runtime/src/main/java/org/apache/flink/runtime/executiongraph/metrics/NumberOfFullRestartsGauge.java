@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.metrics;
 
-import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -26,7 +26,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Gauge which returns the number of full restarts.
  */
-public class NumberOfFullRestartsGauge implements Gauge<Long> {
+public class NumberOfFullRestartsGauge implements NumberGauge {
 
 	public static final String METRIC_NAME = "fullRestarts";
 
@@ -41,7 +41,7 @@ public class NumberOfFullRestartsGauge implements Gauge<Long> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public Long getValue() {
+	public Long getNumberValue() {
 		return eg.getNumberOfFullRestarts();
 	}
 }

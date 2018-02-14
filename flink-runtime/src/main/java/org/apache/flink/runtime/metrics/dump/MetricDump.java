@@ -74,7 +74,7 @@ public abstract class MetricDump {
 	}
 
 	/**
-	 * Container for the value of a {@link org.apache.flink.metrics.Gauge} as a string.
+	 * Container for the value of a {@link org.apache.flink.metrics.NumberGauge} or {@link org.apache.flink.metrics.StringGauge} as a string.
 	 */
 	public static class GaugeDump extends MetricDump {
 		public final String value;

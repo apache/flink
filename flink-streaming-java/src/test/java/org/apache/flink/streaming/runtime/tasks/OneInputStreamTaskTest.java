@@ -29,7 +29,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.NumberGauge;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -651,29 +651,29 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.invoke(env);
 		testHarness.waitForTaskRunning();
 
-		Gauge<Long> headInputWatermarkGauge = (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
-		Gauge<Long> headOutputWatermarkGauge = (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_OUTPUT_WATERMARK);
-		Gauge<Long> chainedInputWatermarkGauge = (Gauge<Long>) chainedOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
-		Gauge<Long> chainedOutputWatermarkGauge = (Gauge<Long>) chainedOperatorMetricGroup.get(MetricNames.IO_CURRENT_OUTPUT_WATERMARK);
+		NumberGauge headInputWatermarkGauge = (NumberGauge) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
+		NumberGauge headOutputWatermarkGauge = (NumberGauge) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_OUTPUT_WATERMARK);
+		NumberGauge chainedInputWatermarkGauge = (NumberGauge) chainedOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
+		NumberGauge chainedOutputWatermarkGauge = (NumberGauge) chainedOperatorMetricGroup.get(MetricNames.IO_CURRENT_OUTPUT_WATERMARK);
 
-		Assert.assertEquals(Long.MIN_VALUE, headInputWatermarkGauge.getValue().longValue());
-		Assert.assertEquals(Long.MIN_VALUE, headOutputWatermarkGauge.getValue().longValue());
-		Assert.assertEquals(Long.MIN_VALUE, chainedInputWatermarkGauge.getValue().longValue());
-		Assert.assertEquals(Long.MIN_VALUE, chainedOutputWatermarkGauge.getValue().longValue());
+		Assert.assertEquals(Long.MIN_VALUE, headInputWatermarkGauge.getNumberValue().longValue());
+		Assert.assertEquals(Long.MIN_VALUE, headOutputWatermarkGauge.getNumberValue().longValue());
+		Assert.assertEquals(Long.MIN_VALUE, chainedInputWatermarkGauge.getNumberValue().longValue());
+		Assert.assertEquals(Long.MIN_VALUE, chainedOutputWatermarkGauge.getNumberValue().longValue());
 
 		testHarness.processElement(new Watermark(1L));
 		testHarness.waitForInputProcessing();
-		Assert.assertEquals(1L, headInputWatermarkGauge.getValue().longValue());
-		Assert.assertEquals(2L, headOutputWatermarkGauge.getValue().longValue());
-		Assert.assertEquals(2L, chainedInputWatermarkGauge.getValue().longValue());
-		Assert.assertEquals(4L, chainedOutputWatermarkGauge.getValue().longValue());
+		Assert.assertEquals(1L, headInputWatermarkGauge.getNumberValue().longValue());
+		Assert.assertEquals(2L, headOutputWatermarkGauge.getNumberValue().longValue());
+		Assert.assertEquals(2L, chainedInputWatermarkGauge.getNumberValue().longValue());
+		Assert.assertEquals(4L, chainedOutputWatermarkGauge.getNumberValue().longValue());
 
 		testHarness.processElement(new Watermark(2L));
 		testHarness.waitForInputProcessing();
-		Assert.assertEquals(2L, headInputWatermarkGauge.getValue().longValue());
-		Assert.assertEquals(4L, headOutputWatermarkGauge.getValue().longValue());
-		Assert.assertEquals(4L, chainedInputWatermarkGauge.getValue().longValue());
-		Assert.assertEquals(8L, chainedOutputWatermarkGauge.getValue().longValue());
+		Assert.assertEquals(2L, headInputWatermarkGauge.getNumberValue().longValue());
+		Assert.assertEquals(4L, headOutputWatermarkGauge.getNumberValue().longValue());
+		Assert.assertEquals(4L, chainedInputWatermarkGauge.getNumberValue().longValue());
+		Assert.assertEquals(8L, chainedOutputWatermarkGauge.getNumberValue().longValue());
 
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion();
