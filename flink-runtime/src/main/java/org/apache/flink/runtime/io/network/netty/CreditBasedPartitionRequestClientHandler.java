@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
@@ -51,10 +52,12 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Channel handler to read the messages of buffer response or error response from the
  * producer, to write and flush the unannounced credits for the producer.
+ *
+ * <p>It is used in the new network credit-based mode.
  */
-class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
+class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdapter implements NetworkClientHandler {
 
-	private static final Logger LOG = LoggerFactory.getLogger(CreditBasedClientHandler.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CreditBasedPartitionRequestClientHandler.class);
 
 	/** Channels, which already requested partitions from the producers. */
 	private final ConcurrentMap<InputChannelID, RemoteInputChannel> inputChannels = new ConcurrentHashMap<>();
@@ -82,7 +85,8 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 	// Input channel/receiver registration
 	// ------------------------------------------------------------------------
 
-	void addInputChannel(RemoteInputChannel listener) throws IOException {
+	@Override
+	public void addInputChannel(RemoteInputChannel listener) throws IOException {
 		checkError();
 
 		if (!inputChannels.containsKey(listener.getInputChannelId())) {
@@ -90,11 +94,13 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 		}
 	}
 
-	void removeInputChannel(RemoteInputChannel listener) {
+	@Override
+	public void removeInputChannel(RemoteInputChannel listener) {
 		inputChannels.remove(listener.getInputChannelId());
 	}
 
-	void cancelRequestFor(InputChannelID inputChannelId) {
+	@Override
+	public void cancelRequestFor(InputChannelID inputChannelId) {
 		if (inputChannelId == null || ctx == null) {
 			return;
 		}
@@ -104,14 +110,8 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 		}
 	}
 
-	/**
-	 * The credit begins to announce after receiving the sender's backlog from buffer response.
-	 * Than means it should only happen after some interactions with the channel to make sure
-	 * the context will not be null.
-	 *
-	 * @param inputChannel The input channel with unannounced credits.
-	 */
-	void notifyCreditAvailable(final RemoteInputChannel inputChannel) {
+	@Override
+	public void notifyCreditAvailable(final RemoteInputChannel inputChannel) {
 		ctx.executor().execute(new Runnable() {
 			@Override
 			public void run() {
@@ -183,12 +183,15 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 		}
 	}
 
+	/**
+	 * Triggered by notifying credit available in the client handler pipeline.
+	 *
+	 * <p>Enqueues the input channel and will trigger write&flush unannounced credits
+	 * for this input channel if it is the first one in the queue.
+	 */
 	@Override
 	public void userEventTriggered(ChannelHandlerContext ctx, Object msg) throws Exception {
 		if (msg instanceof RemoteInputChannel) {
-			// Queue an input channel for available credits announcement.
-			// If the queue is empty, we try to trigger the actual write. Otherwise
-			// this will be handled by the writeAndFlushNextMessageIfPossible calls.
 			boolean triggerWrite = inputChannelsWithCredit.isEmpty();
 
 			inputChannelsWithCredit.add((RemoteInputChannel) msg);
@@ -294,20 +297,20 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 	private void decodeBufferOrEvent(RemoteInputChannel inputChannel, NettyMessage.BufferResponse bufferOrEvent) throws Throwable {
 		try {
 			ByteBuf nettyBuffer = bufferOrEvent.getNettyBuffer();
-			final int size = nettyBuffer.readableBytes();
+			final int receivedSize = nettyBuffer.readableBytes();
 			if (bufferOrEvent.isBuffer()) {
 				// ---- Buffer ------------------------------------------------
 
 				// Early return for empty buffers. Otherwise Netty's readBytes() throws an
 				// IndexOutOfBoundsException.
-				if (size == 0) {
+				if (receivedSize == 0) {
 					inputChannel.onEmptyBuffer(bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
 					return;
 				}
 
 				Buffer buffer = inputChannel.requestBuffer();
 				if (buffer != null) {
-					nettyBuffer.readBytes(buffer.asByteBuf(), size);
+					nettyBuffer.readBytes(buffer.asByteBuf(), receivedSize);
 
 					inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
 				} else if (inputChannel.isReleased()) {
@@ -318,11 +321,12 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 			} else {
 				// ---- Event -------------------------------------------------
 				// TODO We can just keep the serialized data in the Netty buffer and release it later at the reader
-				byte[] byteArray = new byte[size];
+				byte[] byteArray = new byte[receivedSize];
 				nettyBuffer.readBytes(byteArray);
 
 				MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
 				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false);
+				buffer.setSize(receivedSize);
 
 				inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
 			}
@@ -332,9 +336,10 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 	}
 
 	/**
-	 * Fetches one un-released input channel from the queue and writes the
-	 * unannounced credits immediately. After this is done, we will continue
-	 * with the next input channel via listener's callback.
+	 * Tries to write&flush unannounced credits for the next input channel in queue.
+	 *
+	 * <p>This method may be called by the first input channel enqueuing, or the complete
+	 * future's callback in previous input channel, or the channel writability changed event.
 	 */
 	private void writeAndFlushNextMessageIfPossible(Channel channel) {
 		if (channelError.get() != null || !channel.isWritable()) {

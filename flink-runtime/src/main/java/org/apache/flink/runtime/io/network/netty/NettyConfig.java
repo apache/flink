@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -223,6 +224,10 @@ public class NettyConfig {
 
 	public void setSSLVerifyHostname(SSLParameters sslParams) {
 		SSLUtils.setSSLVerifyHostname(config, sslParams);
+	}
+
+	public boolean isCreditBasedEnabled() {
+		return config.getBoolean(TaskManagerOptions.NETWORK_CREDIT_BASED_FLOW_CONTROL_ENABLED);
 	}
 
 	@Override

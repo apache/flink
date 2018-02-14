@@ -101,13 +101,14 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		ResultSubpartitionView view = subpartition.createReadView(listener);
 
 		// Empty => should return null
+		assertFalse(view.nextBufferIsEvent());
 		assertNull(view.getNextBuffer());
+		assertFalse(view.nextBufferIsEvent()); // also after getNextBuffer()
 		verify(listener, times(1)).notifyBuffersAvailable(eq(0L));
 
 		// Add data to the queue...
 		subpartition.add(createBuffer(BUFFER_SIZE));
-		assertEquals(1, subpartition.getTotalNumberOfBuffers());
-		assertEquals(BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
+		assertFalse(view.nextBufferIsEvent());
 
 		assertEquals(1, subpartition.getTotalNumberOfBuffers());
 		assertEquals(1, subpartition.getBuffersInBacklog());
@@ -117,30 +118,83 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		verify(listener, times(1)).notifyBuffersAvailable(eq(1L));
 
 		// ...and one available result
+		assertFalse(view.nextBufferIsEvent());
 		BufferAndBacklog read = view.getNextBuffer();
 		assertNotNull(read);
+		assertTrue(read.buffer().isBuffer());
 		assertEquals(0, subpartition.getBuffersInBacklog());
 		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
+		assertFalse(read.nextBufferIsEvent());
+		assertFalse(view.nextBufferIsEvent());
 		assertNull(view.getNextBuffer());
 		assertEquals(0, subpartition.getBuffersInBacklog());
 
 		// Add data to the queue...
 		subpartition.add(createBuffer(BUFFER_SIZE));
+		assertFalse(view.nextBufferIsEvent());
 
 		assertEquals(2, subpartition.getTotalNumberOfBuffers());
 		assertEquals(1, subpartition.getBuffersInBacklog());
 		assertEquals(2 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
 		verify(listener, times(2)).notifyBuffersAvailable(eq(1L));
 
-		// Add event to the queue...
-		Buffer event = createBuffer(BUFFER_SIZE);
-		event.tagAsEvent();
-		subpartition.add(event);
+		assertFalse(view.nextBufferIsEvent());
+		read = view.getNextBuffer();
+		assertNotNull(read);
+		assertTrue(read.buffer().isBuffer());
+		assertEquals(0, subpartition.getBuffersInBacklog());
+		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
+		assertFalse(read.nextBufferIsEvent());
+		assertFalse(view.nextBufferIsEvent());
+		assertNull(view.getNextBuffer());
+		assertEquals(0, subpartition.getBuffersInBacklog());
 
-		assertEquals(3, subpartition.getTotalNumberOfBuffers());
+		// some tests with events
+
+		// fill with: buffer, event, and buffer
+		subpartition.add(createBuffer(BUFFER_SIZE));
+		assertFalse(view.nextBufferIsEvent());
+		{
+			Buffer event = createBuffer(BUFFER_SIZE);
+			event.tagAsEvent();
+			subpartition.add(event);
+			assertFalse(view.nextBufferIsEvent());
+		}
+		subpartition.add(createBuffer(BUFFER_SIZE));
+		assertFalse(view.nextBufferIsEvent());
+
+		assertEquals(5, subpartition.getTotalNumberOfBuffers());
+		assertEquals(2, subpartition.getBuffersInBacklog()); // two buffers (events don't count)
+		assertEquals(5 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
+		verify(listener, times(5)).notifyBuffersAvailable(eq(1L));
+
+		assertFalse(view.nextBufferIsEvent()); // the first buffer
+		read = view.getNextBuffer();
+		assertNotNull(read);
+		assertTrue(read.buffer().isBuffer());
 		assertEquals(1, subpartition.getBuffersInBacklog());
-		assertEquals(3 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
-		verify(listener, times(3)).notifyBuffersAvailable(eq(1L));
+		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
+		assertTrue(read.nextBufferIsEvent());
+
+		assertTrue(view.nextBufferIsEvent()); // the event
+		read = view.getNextBuffer();
+		assertNotNull(read);
+		assertFalse(read.buffer().isBuffer());
+		assertEquals(1, subpartition.getBuffersInBacklog());
+		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
+		assertFalse(read.nextBufferIsEvent());
+
+		assertFalse(view.nextBufferIsEvent()); // the remaining buffer
+		read = view.getNextBuffer();
+		assertNotNull(read);
+		assertTrue(read.buffer().isBuffer());
+		assertEquals(0, subpartition.getBuffersInBacklog());
+		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
+		assertFalse(read.nextBufferIsEvent());
+
+		assertEquals(5, subpartition.getTotalNumberOfBuffers());
+		assertEquals(5 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
+		verify(listener, times(5)).notifyBuffersAvailable(eq(1L));
 	}
 
 	@Test

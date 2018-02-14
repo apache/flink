@@ -71,7 +71,8 @@ public class NetworkEnvironmentTest {
 			0,
 			0,
 			2,
-			8);
+			8,
+			true);
 
 		// result partitions
 		ResultPartition rp1 = createResultPartition(ResultPartitionType.PIPELINED, 2);
@@ -84,8 +85,7 @@ public class NetworkEnvironmentTest {
 		SingleInputGate ig1 = createSingleInputGateMock(ResultPartitionType.PIPELINED, 2);
 		SingleInputGate ig2 = createSingleInputGateMock(ResultPartitionType.BLOCKING, 2);
 		SingleInputGate ig3 = createSingleInputGateMock(ResultPartitionType.PIPELINED_BOUNDED, 2);
-		SingleInputGate ig4 = createSingleInputGateMock(ResultPartitionType.PIPELINED_CREDIT_BASED, 8);
-		final SingleInputGate[] inputGates = new SingleInputGate[] {ig1, ig2, ig3, ig4};
+		final SingleInputGate[] inputGates = new SingleInputGate[] {ig1, ig2, ig3};
 
 		// overall task to register
 		Task task = mock(Task.class);
@@ -99,7 +99,9 @@ public class NetworkEnvironmentTest {
 		assertEquals(2 * 2 + 8, rp3.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(8 * 2 + 8, rp4.getBufferPool().getMaxNumberOfMemorySegments());
 
-		verify(ig4, times(1)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
+		verify(ig1, times(1)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
+		verify(ig2, times(1)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
+		verify(ig3, times(1)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
 
 		network.shutdown();
 	}
@@ -153,8 +155,6 @@ public class NetworkEnvironmentTest {
 			public Void answer(final InvocationOnMock invocation) throws Throwable {
 				BufferPool bp = invocation.getArgumentAt(0, BufferPool.class);
 				if (partitionType == ResultPartitionType.PIPELINED_BOUNDED) {
-					assertEquals(channels * 2 + 8, bp.getMaxNumberOfMemorySegments());
-				} else if (partitionType == ResultPartitionType.PIPELINED_CREDIT_BASED) {
 					assertEquals(8, bp.getMaxNumberOfMemorySegments());
 				} else {
 					assertEquals(Integer.MAX_VALUE, bp.getMaxNumberOfMemorySegments());

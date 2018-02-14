@@ -31,6 +31,7 @@ import java.util.ArrayDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 class SpillableSubpartitionView implements ResultSubpartitionView {
 
@@ -133,25 +134,38 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	@Nullable
 	@Override
 	public BufferAndBacklog getNextBuffer() throws IOException, InterruptedException {
+		Buffer current = null;
+		boolean nextBufferIsEvent = false;
+		int newBacklog = 0; // this is always correct if current is non-null!
+
 		synchronized (buffers) {
 			if (isReleased.get()) {
 				return null;
 			} else if (nextBuffer != null) {
-				Buffer current = nextBuffer;
+				current = nextBuffer;
 				nextBuffer = buffers.poll();
+				newBacklog = parent.decreaseBuffersInBacklog(current);
 
 				if (nextBuffer != null) {
 					listener.notifyBuffersAvailable(1);
+					nextBufferIsEvent = !nextBuffer.isBuffer();
 				}
 
-				int newBacklog = parent.decreaseBuffersInBacklog(current);
-				return new BufferAndBacklog(current, newBacklog);
+				// if we are spilled (but still process a non-spilled nextBuffer), we don't know the
+				// state of nextBufferIsEvent...
+				if (spilledView == null) {
+					return new BufferAndBacklog(current, newBacklog, nextBufferIsEvent);
+				}
 			}
 		} // else: spilled
 
 		SpilledSubpartitionView spilled = spilledView;
 		if (spilled != null) {
-			return spilled.getNextBuffer();
+			if (current != null) {
+				return new BufferAndBacklog(current, newBacklog, spilled.nextBufferIsEvent());
+			} else {
+				return spilled.getNextBuffer();
+			}
 		} else {
 			throw new IllegalStateException("No in-memory buffers available, but also nothing spilled.");
 		}
@@ -197,6 +211,21 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		} else {
 			return parent.isReleased() || isReleased.get();
 		}
+	}
+
+	@Override
+	public boolean nextBufferIsEvent() {
+		synchronized (buffers) {
+			if (isReleased.get()) {
+				return false;
+			} else if (nextBuffer != null) {
+				return !nextBuffer.isBuffer();
+			}
+		} // else: spilled
+
+		checkState(spilledView != null, "No in-memory buffers available, but also nothing spilled.");
+
+		return spilledView.nextBufferIsEvent();
 	}
 
 	@Override
