@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.RouterHandler;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
@@ -45,6 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLEngine;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
@@ -286,6 +288,13 @@ public abstract class RestServerEndpoint {
 
 			restAddress = null;
 			started = false;
+
+			try {
+				log.info("Cleaning upload directory {}", uploadDir);
+				FileUtils.cleanDirectory(uploadDir.toFile());
+			} catch (IOException e) {
+				log.warn("Error while cleaning upload directory {}", uploadDir, e);
+			}
 		}
 	}
 

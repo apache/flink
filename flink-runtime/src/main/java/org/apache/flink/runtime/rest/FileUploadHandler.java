@@ -68,15 +68,8 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 	public FileUploadHandler(final Path uploadDir) {
 		super(false);
-
-		this.uploadDir = requireNonNull(uploadDir);
 		DiskFileUpload.baseDirectory = uploadDir.normalize().toAbsolutePath().toString();
-
-		try {
-			createUploadDir(uploadDir);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+		this.uploadDir = requireNonNull(uploadDir);
 	}
 
 	@Override
