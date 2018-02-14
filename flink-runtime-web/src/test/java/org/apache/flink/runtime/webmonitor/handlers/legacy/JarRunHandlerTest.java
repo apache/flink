@@ -21,7 +21,6 @@ package org.apache.flink.runtime.webmonitor.handlers.legacy;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.webmonitor.handlers.legacy.JarRunHandler;
 
 import org.junit.Assert;
 import org.junit.Test;

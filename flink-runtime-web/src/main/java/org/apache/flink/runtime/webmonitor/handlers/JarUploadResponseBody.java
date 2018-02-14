@@ -53,7 +53,7 @@ public class JarUploadResponseBody implements ResponseBody {
 		return filename;
 	}
 
-	public enum UploadStatus {
+	enum UploadStatus {
 		success
 	}
 

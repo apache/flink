@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.webmonitor.handlers.legacy;
 
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.webmonitor.handlers.legacy.JarListHandler;
 
 import org.junit.Assert;
 import org.junit.Test;

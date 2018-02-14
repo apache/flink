@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.webmonitor.handlers.legacy;
 
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.webmonitor.handlers.legacy.JarActionHandler;
 
 import org.junit.Assert;
 import org.junit.Test;
