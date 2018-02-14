@@ -265,6 +265,8 @@ public class BucketingSink<T>
 
 	private String partPrefix = DEFAULT_PART_REFIX;
 
+	private boolean useTruncate = true;
+
 	/**
 	 * The timeout for asynchronous operations such as recoverLease and truncate (in {@code ms}).
 	 */
@@ -572,6 +574,12 @@ public class BucketingSink<T>
 	 * <p><b>NOTE:</b> This code comes from Flume.
 	 */
 	private Method reflectTruncate(FileSystem fs) {
+		// completely disable the check for truncate() because the check can be problematic
+		// on some filesystem implementations
+		if (!useTruncate) {
+			return null;
+		}
+
 		Method m = null;
 		if (fs != null) {
 			Class<?> fsClass = fs.getClass();
@@ -592,7 +600,9 @@ public class BucketingSink<T>
 				outputStream.close();
 			} catch (IOException e) {
 				LOG.error("Could not create file for checking if truncate works.", e);
-				throw new RuntimeException("Could not create file for checking if truncate works.", e);
+				throw new RuntimeException("Could not create file for checking if truncate works. " +
+					"You can disable support for truncate() completely via " +
+					"BucketingSink.setUseTruncate(false).", e);
 			}
 
 			try {
@@ -606,7 +616,9 @@ public class BucketingSink<T>
 				fs.delete(testPath, false);
 			} catch (IOException e) {
 				LOG.error("Could not delete truncate test file.", e);
-				throw new RuntimeException("Could not delete truncate test file.", e);
+				throw new RuntimeException("Could not delete truncate test file. " +
+					"You can disable support for truncate() completely via " +
+					"BucketingSink.setUseTruncate(false).", e);
 			}
 		}
 		return m;
@@ -979,6 +991,17 @@ public class BucketingSink<T>
 	 */
 	public BucketingSink<T> setPartPrefix(String partPrefix) {
 		this.partPrefix = partPrefix;
+		return this;
+	}
+
+	/**
+	 * Sets whether to use {@code FileSystem.truncate()} to truncate written bucket files back to
+	 * a consistent state in case of a restore from checkpoint. If {@code truncate()} is not used
+	 * this sink will write valid-length files for corresponding bucket files that have to be used
+	 * when reading from bucket files to make sure to not read too far.
+	 */
+	public BucketingSink<T> setUseTruncate(boolean useTruncate) {
+		this.useTruncate = useTruncate;
 		return this;
 	}
 
