@@ -99,7 +99,6 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.clock.SystemClock;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
@@ -123,7 +122,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -387,8 +385,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	 * Suspend the job and shutdown all other services including rpc.
 	 */
 	@Override
-	public void postStop() throws Exception {
-		log.info("Stopping the JobMaster for job " + jobGraph.getName() + '(' + jobGraph.getJobID() + ").");
+	public CompletableFuture<Void> postStop() {
+		log.info("Stopping the JobMaster for job {}({}).", jobGraph.getName(), jobGraph.getJobID());
 
 		// disconnect from all registered TaskExecutors
 		final Set<ResourceID> taskManagerResourceIds = new HashSet<>(registeredTaskManagers.keySet());
@@ -407,28 +405,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		// shut down will internally release all registered slots
 		slotPool.shutDown();
-		CompletableFuture<Void> terminationFuture = slotPool.getTerminationFuture();
 
-		Exception exception = null;
-
-		// wait for the slot pool shut down
-		try {
-			terminationFuture.get(rpcTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-		} catch (Exception e) {
-			exception = e;
-		}
-
-		try {
-			super.postStop();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
-
-		if (exception != null) {
-			throw exception;
-		}
-
-		log.info("Stopped the JobMaster for job " + jobGraph.getName() + '(' + jobGraph.getJobID() + ").");
+		return slotPool.getTerminationFuture();
 	}
 
 	//----------------------------------------------------------------------------------------------

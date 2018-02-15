@@ -163,6 +163,11 @@ public class RpcEndpointTest extends TestLogger {
 		public CompletableFuture<Integer> foobar() {
 			return CompletableFuture.completedFuture(foobarValue);
 		}
+
+		@Override
+		public CompletableFuture<Void> postStop() {
+			return CompletableFuture.completedFuture(null);
+		}
 	}
 
 	public static class ExtendedEndpoint extends BaseEndpoint implements ExtendedGateway, DifferentGateway {

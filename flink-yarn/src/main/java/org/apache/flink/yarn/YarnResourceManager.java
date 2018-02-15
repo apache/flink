@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -56,6 +58,7 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -218,7 +221,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	@Override
-	public void postStop() throws Exception {
+	public CompletableFuture<Void> postStop() {
 		// shut down all components
 		Throwable firstException = null;
 
@@ -238,14 +241,12 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			}
 		}
 
-		try {
-			super.postStop();
-		} catch (Throwable t) {
-			firstException = ExceptionUtils.firstOrSuppressed(t, firstException);
-		}
+		final CompletableFuture<Void> terminationFuture = super.postStop();
 
 		if (firstException != null) {
-			ExceptionUtils.rethrowException(firstException, "Error while shutting down YARN resource manager");
+			return FutureUtils.completedExceptionally(new FlinkException("Error while shutting down YARN resource manager", firstException));
+		} else {
+			return terminationFuture;
 		}
 	}
 

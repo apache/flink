@@ -193,6 +193,11 @@ public class MessageSerializationTest extends TestLogger {
 		public void foobar(Object object) throws InterruptedException {
 			queue.put(object);
 		}
+
+		@Override
+		public CompletableFuture<Void> postStop() {
+			return CompletableFuture.completedFuture(null);
+		}
 	}
 
 	private static class NonSerializableObject {

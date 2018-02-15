@@ -199,7 +199,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	}
 
 	@Override
-	public void postStop() throws Exception {
+	public CompletableFuture<Void> postStop() {
 		// cancel all pending allocations
 		Set<AllocationID> allocationIds = pendingRequests.keySetB();
 
@@ -214,7 +214,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		clear();
 
-		super.postStop();
+		return CompletableFuture.completedFuture(null);
 	}
 
 	/**
