@@ -52,7 +52,12 @@ public interface ResultPartitionWriter {
 	void addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException;
 
 	/**
-	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers}.
+	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in all subpartitions.
 	 */
-	void flush();
+	void flushAll();
+
+	/**
+	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in one specified subpartition.
+	 */
+	void flush(int subpartitionIndex);
 }

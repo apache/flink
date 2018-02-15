@@ -130,7 +130,7 @@ public class RecordWriterTest {
 
 					try {
 						recordWriter.emit(val);
-						recordWriter.flush();
+						recordWriter.flushAll();
 
 						recordWriter.emit(val);
 					}
@@ -183,7 +183,7 @@ public class RecordWriterTest {
 
 		// This should not throw an Exception iff the serializer state
 		// has been cleared as expected.
-		recordWriter.flush();
+		recordWriter.flushAll();
 	}
 
 	/**
@@ -362,7 +362,7 @@ public class RecordWriterTest {
 		RecordWriter<IntValue> writer = new RecordWriter<>(partition);
 
 		writer.broadcastEmit(new IntValue(0));
-		writer.flush();
+		writer.flushAll();
 
 		// Verify added to all queues
 		assertEquals(1, queues[0].size());
@@ -426,7 +426,11 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public void flush() {
+		public void flushAll() {
+		}
+
+		@Override
+		public void flush(int subpartitionIndex) {
 		}
 	}
 
@@ -479,7 +483,11 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public void flush() {
+		public void flushAll() {
+		}
+
+		@Override
+		public void flush(int subpartitionIndex) {
 		}
 	}
 

@@ -153,7 +153,7 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 	}
 
 	public void flush() throws IOException {
-		recordWriter.flush();
+		recordWriter.flushAll();
 	}
 
 	@Override
