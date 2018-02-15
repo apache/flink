@@ -25,7 +25,7 @@ steps are required to keep the shading correct:
     }
     ```
   - copy `core-default.xml` to `src/main/resources/core-default-shaded.xml` and
-    - change every occurence of `org.apache.hadoop` into `org.apache.flink.fs.openstackhadoop.shaded.org.apache.hadoop`
+    - change every occurrence of `org.apache.hadoop` into `org.apache.flink.fs.openstackhadoop.shaded.org.apache.hadoop`
   - copy `core-site.xml` to `src/test/resources/core-site.xml` (as is)
 2. verify the shaded jar:
   - does not contain any unshaded classes except for `org.apache.hadoop.fs.swift.snative.SwiftNativeFileSystem`
