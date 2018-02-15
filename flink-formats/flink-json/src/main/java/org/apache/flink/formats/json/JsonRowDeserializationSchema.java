@@ -42,7 +42,7 @@ import java.sql.Timestamp;
 /**
  * Deserialization schema from JSON to Flink types.
  *
- * <p>Deserializes the <code>byte[]</code> messages as a JSON object and reads
+ * <p>Deserializes a <code>byte[]</code> message as a JSON object and reads
  * the specified fields.
  *
  * <p>Failure during deserialization are forwarded as wrapped IOExceptions.

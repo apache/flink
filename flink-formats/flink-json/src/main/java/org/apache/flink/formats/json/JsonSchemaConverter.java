@@ -44,7 +44,10 @@ import java.util.Set;
  * <p>Note: This converter implements just a subset of the JSON schema specification.
  * Union types (as well as "allOf", "anyOf", "not") are not supported yet. Simple
  * references that link to a common definition in the document are supported. "oneOf" and
- * arrays of type are only supported for specifying nullability;
+ * arrays of type are only supported for specifying nullability.
+ *
+ * <p>This converter has been developed for JSON Schema draft-07 but also includes keywords of
+ * older drafts to be as compatible as possible.
  */
 @SuppressWarnings("OptionalIsPresent")
 public final class JsonSchemaConverter {
@@ -86,7 +89,7 @@ public final class JsonSchemaConverter {
 	private static final String CONTENT_ENCODING_BASE64 = "base64";
 
 	/**
-	 * Converts a JSON schema into Flink's type information. Throws an exception of the schema
+	 * Converts a JSON schema into Flink's type information. Throws an exception if the schema
 	 * cannot converted because of loss of precision or too flexible schema.
 	 *
 	 * <p>The converter can resolve simple schema references to solve those cases where entities

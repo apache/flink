@@ -44,10 +44,4 @@ public class JsonNodeDeserializationSchema extends AbstractDeserializationSchema
 		}
 		return mapper.readValue(message, ObjectNode.class);
 	}
-
-	@Override
-	public boolean isEndOfStream(ObjectNode nextElement) {
-		return false;
-	}
-
 }
