@@ -102,18 +102,17 @@ public class JobMasterTest extends TestLogger {
 
 		Configuration configuration = new Configuration();
 
-		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder()
-			.setTimeout(testingTimeout)
-			.build();
+		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
 		try (BlobServer blobServer = new BlobServer(configuration, new VoidBlobStore())) {
 			blobServer.start();
 
 			final JobMaster jobMaster = new JobMaster(
 				rpc,
+				jobMasterConfiguration,
 				jmResourceId,
 				jobGraph,
-				configuration,
 				haServices,
 				jobManagerSharedServices,
 				heartbeatServices,
@@ -204,18 +203,17 @@ public class JobMasterTest extends TestLogger {
 
 		Configuration configuration = new Configuration();
 
-		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder()
-			.setTimeout(testingTimeout)
-			.build();
+		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
 		try (BlobServer blobServer = new BlobServer(configuration, new VoidBlobStore())) {
 			blobServer.start();
 
 			final JobMaster jobMaster = new JobMaster(
 				rpc,
+				jobMasterConfiguration,
 				jmResourceId,
 				jobGraph,
-				configuration,
 				haServices,
 				jobManagerSharedServices,
 				heartbeatServices,

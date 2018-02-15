@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
@@ -45,8 +44,6 @@ public class TestingJobManagerSharedServicesBuilder {
 	private StackTraceSampleCoordinator stackTraceSampleCoordinator;
 
 	private BackPressureStatsTracker backPressureStatsTracker;
-
-	private Time timeout;
 
 	public TestingJobManagerSharedServicesBuilder() {
 		scheduledExecutorService = TestingUtils.defaultExecutor();
@@ -83,19 +80,12 @@ public class TestingJobManagerSharedServicesBuilder {
 
 	}
 
-	public TestingJobManagerSharedServicesBuilder setTimeout(Time timeout) {
-		this.timeout = timeout;
-		return this;
-	}
-
 	public JobManagerSharedServices build() {
 		return new JobManagerSharedServices(
 			scheduledExecutorService,
 			libraryCacheManager,
 			restartStrategyFactory,
 			stackTraceSampleCoordinator,
-			backPressureStatsTracker,
-			timeout,
-			timeout);
+			backPressureStatsTracker);
 	}
 }
