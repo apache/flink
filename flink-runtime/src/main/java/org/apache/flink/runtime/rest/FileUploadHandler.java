@@ -87,6 +87,8 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 				ctx.fireChannelRead(msg);
 			}
 		} else if (msg instanceof HttpContent && currentHttpPostRequestDecoder != null) {
+			createUploadDir(uploadDir);
+
 			final HttpContent httpContent = (HttpContent) msg;
 			currentHttpPostRequestDecoder.offer(httpContent);
 
@@ -95,8 +97,6 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 				if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.FileUpload) {
 					final DiskFileUpload fileUpload = (DiskFileUpload) data;
 					checkState(fileUpload.isCompleted());
-
-					createUploadDir(uploadDir);
 
 					final Path dest = uploadDir.resolve(Paths.get(UUID.randomUUID().toString() +
 						"_" + fileUpload.getFilename()));
