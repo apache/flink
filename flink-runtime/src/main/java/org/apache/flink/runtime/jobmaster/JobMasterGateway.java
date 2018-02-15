@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -35,16 +34,15 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.webmonitor.RestfulGateway;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -55,7 +53,6 @@ import java.util.concurrent.CompletableFuture;
 public interface JobMasterGateway extends
 	CheckpointCoordinatorGateway,
 	FencedRpcGateway<JobMasterId>,
-	RestfulGateway,
 	KvStateLocationOracle,
 	KvStateRegistryGateway {
 
@@ -219,16 +216,30 @@ public interface JobMasterGateway extends
 	CompletableFuture<JobStatus> requestJobStatus(@RpcTimeout Time timeout);
 
 	/**
-	 * Requests the {@link ArchivedExecutionGraph} for the given jobId. If there is no such graph, then
-	 * the future is completed with a {@link FlinkJobNotFoundException}.
+	 * Requests the {@link ArchivedExecutionGraph} of the executed job.
 	 *
-	 * <p>Note: We enforce that the returned future contains a {@link ArchivedExecutionGraph} unlike
-	 * the super interface.
-	 *
-	 * @param jobId identifying the job whose AccessExecutionGraph is requested
-	 * @param timeout for the asynchronous operation
-	 * @return Future containing the AccessExecutionGraph for the given jobId, otherwise {@link FlinkJobNotFoundException}
+	 * @param timeout for the rpc call
+	 * @return Future which is completed with the {@link ArchivedExecutionGraph} of the executed job
 	 */
-	@Override
-	CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
+	CompletableFuture<ArchivedExecutionGraph> requestJob(@RpcTimeout Time timeout);
+
+	/**
+	 * Triggers taking a savepoint of the executed job.
+	 *
+	 * @param targetDirectory to which to write the savepoint data
+	 * @param timeout for the rpc call
+	 * @return Future which is completed with the savepoint path once completed
+	 */
+	CompletableFuture<String> triggerSavepoint(
+		final String targetDirectory,
+		final Time timeout);
+
+	/**
+	 * Requests the statistics on operator back pressure.
+	 *
+	 * @param jobVertexId JobVertex for which the stats are requested.
+	 * @return A Future to the {@link OperatorBackPressureStatsResponse} or {@code null} if the stats are
+	 * not available (yet).
+	 */
+	CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(JobVertexID jobVertexId);
 }
