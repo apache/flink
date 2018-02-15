@@ -157,7 +157,7 @@ public class ScheduleOrUpdateConsumersTest extends TestLogger {
 					for (int i = 0; i < numberOfTimesToSend; i++) {
 						writer.emit(subtaskIndex);
 					}
-					writer.flush();
+					writer.flushAll();
 				}
 				finally {
 					writer.clearBuffers();
