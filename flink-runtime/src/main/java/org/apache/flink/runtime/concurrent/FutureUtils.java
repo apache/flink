@@ -187,7 +187,7 @@ public class FutureUtils {
 		if (!resultFuture.isDone()) {
 			final CompletableFuture<T> operationResultFuture = operation.get();
 
-			operationResultFuture.whenCompleteAsync(
+			operationResultFuture.whenComplete(
 				(t, throwable) -> {
 					if (throwable != null) {
 						if (throwable instanceof CancellationException) {
@@ -213,8 +213,7 @@ public class FutureUtils {
 					} else {
 						resultFuture.complete(t);
 					}
-				},
-				scheduledExecutor);
+				});
 
 			resultFuture.whenComplete(
 				(t, throwable) -> operationResultFuture.cancel(false));
