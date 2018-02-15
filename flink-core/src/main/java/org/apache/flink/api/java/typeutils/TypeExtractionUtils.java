@@ -18,6 +18,11 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.InvalidTypesException;
+
+import java.lang.invoke.SerializedLambda;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.GenericArrayType;
@@ -29,9 +34,6 @@ import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.InvalidTypesException;
 
 import static org.apache.flink.shaded.asm5.org.objectweb.asm.Type.getConstructorDescriptor;
 import static org.apache.flink.shaded.asm5.org.objectweb.asm.Type.getMethodDescriptor;
@@ -97,7 +99,7 @@ public class TypeExtractionUtils {
 	public static LambdaExecutable checkAndExtractLambda(Function function) throws TypeExtractionException {
 		try {
 			// get serialized lambda
-			Object serializedLambda = null;
+			SerializedLambda serializedLambda = null;
 			for (Class<?> clazz = function.getClass(); clazz != null; clazz = clazz.getSuperclass()) {
 				try {
 					Method replaceMethod = clazz.getDeclaredMethod("writeReplace");
@@ -105,16 +107,8 @@ public class TypeExtractionUtils {
 					Object serialVersion = replaceMethod.invoke(function);
 
 					// check if class is a lambda function
-					if (serialVersion.getClass().getName().equals("java.lang.invoke.SerializedLambda")) {
-
-						// check if SerializedLambda class is present
-						try {
-							Class.forName("java.lang.invoke.SerializedLambda");
-						}
-						catch (Exception e) {
-							throw new TypeExtractionException("User code tries to use lambdas, but framework is running with a Java version < 8");
-						}
-						serializedLambda = serialVersion;
+					if (serialVersion != null && serialVersion.getClass() == SerializedLambda.class) {
+						serializedLambda = (SerializedLambda) serialVersion;
 						break;
 					}
 				}
@@ -129,13 +123,9 @@ public class TypeExtractionUtils {
 			}
 
 			// find lambda method
-			Method implClassMethod = serializedLambda.getClass().getDeclaredMethod("getImplClass");
-			Method implMethodNameMethod = serializedLambda.getClass().getDeclaredMethod("getImplMethodName");
-			Method implMethodSig = serializedLambda.getClass().getDeclaredMethod("getImplMethodSignature");
-
-			String className = (String) implClassMethod.invoke(serializedLambda);
-			String methodName = (String) implMethodNameMethod.invoke(serializedLambda);
-			String methodSig = (String) implMethodSig.invoke(serializedLambda);
+			String className = serializedLambda.getImplClass();
+			String methodName = serializedLambda.getImplMethodName();
+			String methodSig = serializedLambda.getImplMethodSignature();
 
 			Class<?> implClass = Class.forName(className.replace('/', '.'), true, Thread.currentThread().getContextClassLoader());
 
@@ -143,7 +133,7 @@ public class TypeExtractionUtils {
 			if (methodName.equals("<init>")) {
 				Constructor<?>[] constructors = implClass.getDeclaredConstructors();
 				for (Constructor<?> constructor : constructors) {
-					if(getConstructorDescriptor(constructor).equals(methodSig)) {
+					if (getConstructorDescriptor(constructor).equals(methodSig)) {
 						return new LambdaExecutable(constructor);
 					}
 				}
@@ -152,7 +142,7 @@ public class TypeExtractionUtils {
 			else {
 				List<Method> methods = getAllDeclaredMethods(implClass);
 				for (Method method : methods) {
-					if(method.getName().equals(methodName) && getMethodDescriptor(method).equals(methodSig)) {
+					if (method.getName().equals(methodName) && getMethodDescriptor(method).equals(methodSig)) {
 						return new LambdaExecutable(method);
 					}
 				}
@@ -268,7 +258,7 @@ public class TypeExtractionUtils {
 			return (Class<?>)t;
 		}
 		else if (t instanceof ParameterizedType) {
-			return ((Class<?>)((ParameterizedType) t).getRawType());
+			return ((Class<?>) ((ParameterizedType) t).getRawType());
 		}
 		throw new IllegalArgumentException("Cannot convert type to class");
 	}
@@ -333,7 +323,7 @@ public class TypeExtractionUtils {
 		if (isClassType(t)) {
 			return typeToClass(t);
 		} else if (t instanceof GenericArrayType) {
-			Type component = ((GenericArrayType)t).getGenericComponentType();
+			Type component = ((GenericArrayType) t).getGenericComponentType();
 			return Array.newInstance(getRawClass(component), 0).getClass();
 		}
 		return Object.class;
