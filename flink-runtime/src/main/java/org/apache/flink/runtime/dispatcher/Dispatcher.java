@@ -39,6 +39,7 @@ import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -380,8 +381,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		if (jobManagerRunner == null) {
 			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
 		} else {
-			return jobManagerRunner.getJobManagerGateway()
-				.requestOperatorBackPressureStats(jobId, jobVertexId);
+			return jobManagerRunner.getJobManagerGateway().requestOperatorBackPressureStats(jobVertexId);
 		}
 	}
 
@@ -399,7 +399,25 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				return CompletableFuture.completedFuture(serializableExecutionGraph);
 			}
 		} else {
-			return jobManagerRunner.getJobManagerGateway().requestJob(jobId, timeout);
+			return jobManagerRunner.getJobManagerGateway().requestJob(timeout);
+		}
+	}
+
+	@Override
+	public CompletableFuture<JobResult> requestJobResult(JobID jobId, Time timeout) {
+		final JobManagerRunner jobManagerRunner = jobManagerRunners.get(jobId);
+
+		if (jobManagerRunner == null) {
+			final ArchivedExecutionGraph archivedExecutionGraph = archivedExecutionGraphStore.get(jobId);
+
+			if (archivedExecutionGraph == null) {
+				return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
+			} else {
+				return CompletableFuture.completedFuture(JobResult.createFrom(archivedExecutionGraph));
+			}
+		} else {
+			return jobManagerRunner.getResultFuture().thenApply(
+				(ArchivedExecutionGraph archivedExecutionGraph) -> JobResult.createFrom(archivedExecutionGraph));
 		}
 	}
 
@@ -432,7 +450,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		if (jobManagerRunners.containsKey(jobId)) {
 			return jobManagerRunners.get(jobId)
 				.getJobManagerGateway()
-				.triggerSavepoint(jobId, targetDirectory, timeout);
+				.triggerSavepoint(targetDirectory, timeout);
 		} else {
 			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
 		}
