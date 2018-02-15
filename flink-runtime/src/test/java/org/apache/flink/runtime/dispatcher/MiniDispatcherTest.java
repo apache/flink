@@ -186,7 +186,7 @@ public class MiniDispatcherTest extends TestLogger {
 
 		completeActions.jobReachedGloballyTerminalState(archivedExecutionGraph);
 
-		final CompletableFuture<Boolean> terminationFuture = miniDispatcher.getTerminationFuture();
+		final CompletableFuture<Void> terminationFuture = miniDispatcher.getTerminationFuture();
 
 		// wait until we terminate
 		terminationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);

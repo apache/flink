@@ -188,7 +188,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 	}
 
 	// export the termination future for caller to know it is terminated
-	public CompletableFuture<Boolean> getTerminationFuture() {
+	public CompletableFuture<Void> getTerminationFuture() {
 		return taskManager.getTerminationFuture();
 	}
 
