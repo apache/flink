@@ -112,7 +112,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	/**
 	 * If true, the producer will wait until all outstanding records have been send to the broker.
 	 */
-	protected boolean flushOnCheckpoint;
+	protected boolean flushOnCheckpoint = true;
 
 	// -------------------------------- Runtime fields ------------------------------------------
 
