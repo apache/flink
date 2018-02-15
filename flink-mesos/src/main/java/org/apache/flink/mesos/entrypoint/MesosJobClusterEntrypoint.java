@@ -25,7 +25,6 @@ import org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameter
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServicesUtils;
 import org.apache.flink.mesos.util.MesosConfiguration;
-import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -114,17 +113,6 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 	}
 
 	@Override
-	protected void startClusterComponents(
-			Configuration configuration,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			BlobServer blobServer,
-			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry) throws Exception {
-		super.startClusterComponents(configuration, rpcService, highAvailabilityServices, blobServer, heartbeatServices, metricRegistry);
-	}
-
-	@Override
 	protected ResourceManager<?> createResourceManager(
 			Configuration configuration,
 			ResourceID resourceId,
@@ -179,11 +167,11 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 	}
 
 	@Override
-	protected void stopClusterComponents(boolean cleanupHaData) throws Exception {
+	protected void stopClusterServices(boolean cleanupHaData) throws FlinkException {
 		Throwable exception = null;
 
 		try {
-			super.stopClusterComponents(cleanupHaData);
+			super.stopClusterServices(cleanupHaData);
 		} catch (Throwable t) {
 			exception = ExceptionUtils.firstOrSuppressed(t, exception);
 		}

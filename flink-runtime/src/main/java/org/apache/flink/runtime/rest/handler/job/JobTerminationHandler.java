@@ -51,7 +51,7 @@ public class JobTerminationHandler extends AbstractRestHandler<DispatcherGateway
 
 	public JobTerminationHandler(
 			CompletableFuture<String> localRestAddress,
-			GatewayRetriever<DispatcherGateway> leaderRetriever,
+			GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
 			MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> messageHeaders) {

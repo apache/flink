@@ -18,9 +18,12 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.deployment.ClusterDeploymentException;
+import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 
@@ -49,6 +52,27 @@ public class Flip6YarnClusterDescriptor extends AbstractYarnClusterDescriptor {
 	@Override
 	protected String getYarnJobClusterEntrypoint() {
 		return YarnJobClusterEntrypoint.class.getName();
+	}
+
+	@Override
+	public ClusterClient<ApplicationId> deployJobCluster(
+		ClusterSpecification clusterSpecification,
+		JobGraph jobGraph,
+		boolean detached) throws ClusterDeploymentException {
+
+		// this is required to work with Flip-6 because the slots are allocated
+		// lazily
+		jobGraph.setAllowQueuedScheduling(true);
+
+		try {
+			return deployInternal(
+				clusterSpecification,
+				getYarnJobClusterEntrypoint(),
+				jobGraph,
+				detached);
+		} catch (Exception e) {
+			throw new ClusterDeploymentException("Could not deploy Yarn job cluster.", e);
+		}
 	}
 
 	@Override

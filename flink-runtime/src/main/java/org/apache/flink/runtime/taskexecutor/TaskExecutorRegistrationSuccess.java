@@ -44,7 +44,7 @@ public final class TaskExecutorRegistrationSuccess extends RegistrationResponse.
 
 	/**
 	 * Create a new {@code TaskExecutorRegistrationSuccess} message.
-	 * 
+	 *
 	 * @param registrationId The ID that the ResourceManager assigned the registration.
 	 * @param resourceManagerResourceId The unique ID that identifies the ResourceManager.
 	 * @param heartbeatInterval The interval in which the ResourceManager will heartbeat the TaskExecutor.
