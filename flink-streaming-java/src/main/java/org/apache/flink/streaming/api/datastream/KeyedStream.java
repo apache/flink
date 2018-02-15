@@ -37,6 +37,7 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
@@ -46,6 +47,7 @@ import org.apache.flink.streaming.api.functions.query.QueryableValueStateOperato
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
@@ -84,18 +86,18 @@ import java.util.UUID;
  * elements that have the same key.
  *
  * @param <T> The type of the elements in the Keyed Stream.
- * @param <KEY> The type of the key in the Keyed Stream.
+ * @param <K> The type of the key in the Keyed Stream.
  */
 @Public
-public class KeyedStream<T, KEY> extends DataStream<T> {
+public class KeyedStream<T, K> extends DataStream<T> {
 
 	/**
 	 * The key selector that can get the key by which the stream if partitioned from the elements.
 	 */
-	private final KeySelector<T, KEY> keySelector;
+	private final KeySelector<T, K> keySelector;
 
 	/** The type of the key by which the stream is partitioned. */
-	private final TypeInformation<KEY> keyType;
+	private final TypeInformation<K> keyType;
 
 	/**
 	 * Creates a new {@link KeyedStream} using the given {@link KeySelector}
@@ -106,7 +108,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param keySelector
 	 *            Function for determining state partitions
 	 */
-	public KeyedStream(DataStream<T> dataStream, KeySelector<T, KEY> keySelector) {
+	public KeyedStream(DataStream<T> dataStream, KeySelector<T, K> keySelector) {
 		this(dataStream, keySelector, TypeExtractor.getKeySelectorTypes(keySelector, dataStream.getType()));
 	}
 
@@ -119,7 +121,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param keySelector
 	 *            Function for determining state partitions
 	 */
-	public KeyedStream(DataStream<T> dataStream, KeySelector<T, KEY> keySelector, TypeInformation<KEY> keyType) {
+	public KeyedStream(DataStream<T> dataStream, KeySelector<T, K> keySelector, TypeInformation<K> keyType) {
 		this(
 			dataStream,
 			new PartitionTransformation<>(
@@ -146,8 +148,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	KeyedStream(
 		DataStream<T> stream,
 		PartitionTransformation<T> partitionTransformation,
-		KeySelector<T, KEY> keySelector,
-		TypeInformation<KEY> keyType) {
+		KeySelector<T, K> keySelector,
+		TypeInformation<K> keyType) {
 
 		super(stream.getExecutionEnvironment(), partitionTransformation);
 		this.keySelector = clean(keySelector);
@@ -162,7 +164,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *
 	 * @param keyType The {@link TypeInformation} of the key.
 	 */
-	private TypeInformation<KEY> validateKeyType(TypeInformation<KEY> keyType) {
+	private TypeInformation<K> validateKeyType(TypeInformation<K> keyType) {
 		Stack<TypeInformation<?>> stack = new Stack<>();
 		stack.push(keyType);
 
@@ -226,7 +228,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return The key selector for the key.
 	 */
 	@Internal
-	public KeySelector<T, KEY> getKeySelector() {
+	public KeySelector<T, K> getKeySelector() {
 		return this.keySelector;
 	}
 
@@ -235,7 +237,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return The type of the key by which the stream is partitioned.
 	 */
 	@Internal
-	public TypeInformation<KEY> getKeyType() {
+	public TypeInformation<K> getKeyType() {
 		return keyType;
 	}
 
@@ -272,8 +274,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	/**
-	 * Applies the given {@link ProcessFunction} on the input stream, thereby
-	 * creating a transformed output stream.
+	 * Applies the given {@link ProcessFunction} on the input stream, thereby creating a transformed output stream.
 	 *
 	 * <p>The function will be called for every element in the input streams and can produce zero
 	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
@@ -286,7 +287,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
 	 *
 	 * @return The transformed {@link DataStream}.
+	 *
+	 * @deprecated Use {@link KeyedStream#process(KeyedProcessFunction)}
 	 */
+	@Deprecated
 	@Override
 	@PublicEvolving
 	public <R> SingleOutputStreamOperator<R> process(ProcessFunction<T, R> processFunction) {
@@ -306,8 +310,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	/**
-	 * Applies the given {@link ProcessFunction} on the input stream, thereby
-	 * creating a transformed output stream.
+	 * Applies the given {@link ProcessFunction} on the input stream, thereby creating a transformed output stream.
 	 *
 	 * <p>The function will be called for every element in the input streams and can produce zero
 	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
@@ -321,19 +324,82 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
 	 *
 	 * @return The transformed {@link DataStream}.
+	 *
+	 * @deprecated Use {@link KeyedStream#process(KeyedProcessFunction, TypeInformation)}
 	 */
+	@Deprecated
 	@Override
 	@Internal
 	public <R> SingleOutputStreamOperator<R> process(
 			ProcessFunction<T, R> processFunction,
 			TypeInformation<R> outputType) {
 
-		KeyedProcessOperator<KEY, T, R> operator =
-				new KeyedProcessOperator<>(clean(processFunction));
+		LegacyKeyedProcessOperator<K, T, R> operator = new LegacyKeyedProcessOperator<>(clean(processFunction));
 
 		return transform("Process", outputType, operator);
 	}
 
+	/**
+	 * Applies the given {@link KeyedProcessFunction} on the input stream, thereby creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
+	 * function, this function can also query the time and set timers. When reacting to the firing
+	 * of set timers the function can directly emit elements and/or register yet more timers.
+	 *
+	 * @param keyedProcessFunction The {@link KeyedProcessFunction} that is called for each element in the stream.
+	 *
+	 * @param <K> The type of key in {@code KeyedProcessFunction}.
+	 *
+	 * @param <R> The type of elements emitted by the {@code KeyedProcessFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@Override
+	@PublicEvolving
+	public <K, R> SingleOutputStreamOperator<R> process(KeyedProcessFunction<K, T, R> keyedProcessFunction) {
+
+		TypeInformation<R> outType = TypeExtractor.getUnaryOperatorReturnType(
+				keyedProcessFunction,
+				KeyedProcessFunction.class,
+				0,
+				1,
+				TypeExtractor.NO_INDEX,
+				TypeExtractor.NO_INDEX,
+				getType(),
+				Utils.getCallLocationName(),
+				true);
+
+		return process(keyedProcessFunction, outType);
+	}
+
+	/**
+	 * Applies the given {@link KeyedProcessFunction} on the input stream, thereby creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
+	 * function, this function can also query the time and set timers. When reacting to the firing
+	 * of set timers the function can directly emit elements and/or register yet more timers.
+	 *
+	 * @param keyedProcessFunction The {@link KeyedProcessFunction} that is called for each element in the stream.
+	 *
+	 * @param outputType {@link TypeInformation} for the result type of the function.
+	 *
+	 * @param <K> The type of key in {@code KeyedProcessFunction}.
+	 *
+	 * @param <R> The type of elements emitted by the {@code KeyedProcessFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@Override
+	@Internal
+	public <K, R> SingleOutputStreamOperator<R> process(
+			KeyedProcessFunction<K, T, R> keyedProcessFunction,
+			TypeInformation<R> outputType) {
+
+		KeyedProcessOperator<K, T, R> operator = new KeyedProcessOperator<>(clean(keyedProcessFunction));
+		return transform("Process", outputType, operator);
+	}
 
 	// ------------------------------------------------------------------------
 	//  Windowing
@@ -349,7 +415,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *
 	 * @param size The size of the window.
 	 */
-	public WindowedStream<T, KEY, TimeWindow> timeWindow(Time size) {
+	public WindowedStream<T, K, TimeWindow> timeWindow(Time size) {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return window(TumblingProcessingTimeWindows.of(size));
 		} else {
@@ -367,7 +433,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *
 	 * @param size The size of the window.
 	 */
-	public WindowedStream<T, KEY, TimeWindow> timeWindow(Time size, Time slide) {
+	public WindowedStream<T, K, TimeWindow> timeWindow(Time size, Time slide) {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return window(SlidingProcessingTimeWindows.of(size, slide));
 		} else {
@@ -380,7 +446,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *
 	 * @param size The size of the windows in number of elements.
 	 */
-	public WindowedStream<T, KEY, GlobalWindow> countWindow(long size) {
+	public WindowedStream<T, K, GlobalWindow> countWindow(long size) {
 		return window(GlobalWindows.create()).trigger(PurgingTrigger.of(CountTrigger.of(size)));
 	}
 
@@ -390,7 +456,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param size The size of the windows in number of elements.
 	 * @param slide The slide interval in number of elements.
 	 */
-	public WindowedStream<T, KEY, GlobalWindow> countWindow(long size, long slide) {
+	public WindowedStream<T, K, GlobalWindow> countWindow(long size, long slide) {
 		return window(GlobalWindows.create())
 				.evictor(CountEvictor.of(size))
 				.trigger(CountTrigger.of(slide));
@@ -409,7 +475,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return The trigger windows data stream.
 	 */
 	@PublicEvolving
-	public <W extends Window> WindowedStream<T, KEY, W> window(WindowAssigner<? super T, W> assigner) {
+	public <W extends Window> WindowedStream<T, K, W> window(WindowAssigner<? super T, W> assigner) {
 		return new WindowedStream<>(this, assigner);
 	}
 
@@ -742,7 +808,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return Queryable state instance
 	 */
 	@PublicEvolving
-	public QueryableStateStream<KEY, T> asQueryableState(String queryableStateName) {
+	public QueryableStateStream<K, T> asQueryableState(String queryableStateName) {
 		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<T>(
 				UUID.randomUUID().toString(),
 				getType());
@@ -758,7 +824,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return Queryable state instance
 	 */
 	@PublicEvolving
-	public QueryableStateStream<KEY, T> asQueryableState(
+	public QueryableStateStream<K, T> asQueryableState(
 			String queryableStateName,
 			ValueStateDescriptor<T> stateDescriptor) {
 
@@ -785,7 +851,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 */
 	@PublicEvolving
 	@Deprecated
-	public <ACC> QueryableStateStream<KEY, ACC> asQueryableState(
+	public <ACC> QueryableStateStream<K, ACC> asQueryableState(
 			String queryableStateName,
 			FoldingStateDescriptor<T, ACC> stateDescriptor) {
 
@@ -809,7 +875,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return Queryable state instance
 	 */
 	@PublicEvolving
-	public QueryableStateStream<KEY, T> asQueryableState(
+	public QueryableStateStream<K, T> asQueryableState(
 			String queryableStateName,
 			ReducingStateDescriptor<T> stateDescriptor) {
 

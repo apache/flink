@@ -243,3 +243,16 @@ the current processing time as event-time timestamp. This behavior is very subtl
 harmful because processing-time timestamps are indeterministic and not aligned with watermarks. Besides, user-implemented logic
 depends on this wrong timestamp highly likely is unintendedly faulty. So we've decided to fix it. Upon upgrading to 1.4.0, Flink jobs
 that are using this incorrect event-time timestamp will fail, and users should adapt their jobs to the correct logic.
+
+## The KeyedProcessFunction
+
+`KeyedProcessFunction`, as an extension of `ProcessFunction`, gives access to the key of timers in its `onTimer(...)`
+method.
+
+{% highlight java %}
+@Override
+public void onTimer(long timestamp, OnTimerContext<K> ctx, Collector<OUT> out) throws Exception {
+    K key = ctx.getCurrentKey();
+    // ...
+}
+{% endhighlight %}

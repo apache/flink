@@ -50,6 +50,7 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
@@ -58,6 +59,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamFilter;
@@ -540,9 +542,7 @@ public class DataStream<T> {
 	 * iteration head. If no data received in the set time, the stream
 	 * terminates.
 	 *
-	 * @param maxWaitTimeMillis
-	 *            Number of milliseconds to wait between inputs before shutting
-	 *            down
+	 * @param maxWaitTimeMillis Number of milliseconds to wait between inputs before shutting down
 	 *
 	 * @return The iterative data stream created.
 	 */
@@ -558,11 +558,10 @@ public class DataStream<T> {
 	 * {@link RichMapFunction} to gain access to other features provided by the
 	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 *
-	 * @param mapper
-	 *            The MapFunction that is called for each element of the
-	 *            DataStream.
-	 * @param <R>
-	 *            output type
+	 * @param mapper The MapFunction that is called for each element of the DataStream.
+	 *
+	 * @param <R> output type
+	 *
 	 * @return The transformed {@link DataStream}.
 	 */
 	public <R> SingleOutputStreamOperator<R> map(MapFunction<T, R> mapper) {
@@ -581,12 +580,10 @@ public class DataStream<T> {
 	 * gain access to other features provided by the
 	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 *
-	 * @param flatMapper
-	 *            The FlatMapFunction that is called for each element of the
-	 *            DataStream
+	 * @param flatMapper The FlatMapFunction that is called for each element of the DataStream
 	 *
-	 * @param <R>
-	 *            output type
+	 * @param <R> output type
+	 *
 	 * @return The transformed {@link DataStream}.
 	 */
 	public <R> SingleOutputStreamOperator<R> flatMap(FlatMapFunction<T, R> flatMapper) {
@@ -599,14 +596,12 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Applies the given {@link ProcessFunction} on the input stream, thereby
-	 * creating a transformed output stream.
+	 * Applies the given {@link ProcessFunction} on the input stream, thereby creating a transformed output stream.
 	 *
 	 * <p>The function will be called for every element in the input streams and can produce zero
 	 * or more output elements.
 	 *
-	 * @param processFunction The {@link ProcessFunction} that is called for each element
-	 *                      in the stream.
+	 * @param processFunction The {@link ProcessFunction} that is called for each element in the stream.
 	 *
 	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
 	 *
@@ -630,14 +625,13 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Applies the given {@link ProcessFunction} on the input stream, thereby
-	 * creating a transformed output stream.
+	 * Applies the given {@link ProcessFunction} on the input stream, thereby creating a transformed output stream.
 	 *
 	 * <p>The function will be called for every element in the input streams and can produce zero
 	 * or more output elements.
 	 *
-	 * @param processFunction The {@link ProcessFunction} that is called for each element
-	 *                      in the stream.
+	 * @param processFunction The {@link ProcessFunction} that is called for each element in the stream.
+	 *
 	 * @param outputType {@link TypeInformation} for the result type of the function.
 	 *
 	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
@@ -652,6 +646,63 @@ public class DataStream<T> {
 		ProcessOperator<T, R> operator = new ProcessOperator<>(clean(processFunction));
 
 		return transform("Process", outputType, operator);
+	}
+
+	/**
+	 * Applies the given {@link KeyedProcessFunction} on the input stream, thereby creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements.
+	 *
+	 * @param keyedProcessFunction The {@link ProcessFunction} that is called for each element in the stream.
+	 *
+	 * @param <K> The type of key in {@code KeyedProcessFunction}.
+	 *
+	 * @param <R> The type of elements emitted by the {@code KeyedProcessFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@PublicEvolving
+	public <K, R> SingleOutputStreamOperator<R> process(KeyedProcessFunction<K, T, R> keyedProcessFunction) {
+
+		TypeInformation<R> outType = TypeExtractor.getUnaryOperatorReturnType(
+				keyedProcessFunction,
+				KeyedProcessFunction.class,
+				0,
+				1,
+				TypeExtractor.NO_INDEX,
+				TypeExtractor.NO_INDEX,
+				getType(),
+				Utils.getCallLocationName(),
+				true);
+
+		return process(keyedProcessFunction, outType);
+	}
+
+	/**
+	 * Applies the given {@link KeyedProcessFunction} on the input stream, thereby creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements.
+	 *
+	 * @param processFunction The {@link KeyedProcessFunction} that is called for each element in the stream.
+	 *
+	 * @param outputType {@link TypeInformation} for the result type of the function.
+	 *
+	 * @param <K> The type of key in {@code KeyedProcessFunction}.
+	 *
+	 * @param <R> The type of elements emitted by the {@code KeyedProcessFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@Internal
+	public <K, R> SingleOutputStreamOperator<R> process(
+			KeyedProcessFunction<K, T, R> processFunction,
+			TypeInformation<R> outputType) {
+
+		KeyedProcessOperator<K, T, R> operator = new KeyedProcessOperator<>(clean(processFunction));
+
+		return transform("KeyedProcess", outputType, operator);
 	}
 
 	/**
