@@ -18,16 +18,8 @@
 package org.apache.flink.streaming.util.serialization;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeType;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Preconditions;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * Serialization schema that serializes an object into a JSON bytes.
@@ -37,57 +29,24 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
  *
  * <p>Result <code>byte[]</code> messages can be deserialized using
  * {@link JsonRowDeserializationSchema}.
+ *
+ * @deprecated Please use {@link org.apache.flink.formats.json.JsonRowSerializationSchema} in
+ * the "flink-json" module.
  */
 @PublicEvolving
-public class JsonRowSerializationSchema implements SerializationSchema<Row> {
-
-	private static final long serialVersionUID = -2885556750743978636L;
-
-	/** Fields names in the input Row object. */
-	private final String[] fieldNames;
-	/** Object mapper that is used to create output JSON objects. */
-	private static ObjectMapper mapper = new ObjectMapper();
+@Deprecated
+public class JsonRowSerializationSchema extends org.apache.flink.formats.json.JsonRowSerializationSchema {
 
 	/**
 	 * Creates a JSON serialization schema for the given fields and types.
 	 *
-	 * @param rowSchema The schema of the rows to encode.
+	 * @param typeInfo The schema of the rows to encode.
+	 *
+	 * @deprecated Please use {@link org.apache.flink.formats.json.JsonRowSerializationSchema} in
+	 * the "flink-json" module.
 	 */
-	public JsonRowSerializationSchema(RowTypeInfo rowSchema) {
-
-		Preconditions.checkNotNull(rowSchema);
-		String[] fieldNames = rowSchema.getFieldNames();
-		TypeInformation[] fieldTypes = rowSchema.getFieldTypes();
-
-		// check that no field is composite
-		for (int i = 0; i < fieldTypes.length; i++) {
-			if (fieldTypes[i] instanceof CompositeType) {
-				throw new IllegalArgumentException("JsonRowSerializationSchema cannot encode rows with nested schema, " +
-					"but field '" + fieldNames[i] + "' is nested: " + fieldTypes[i].toString());
-			}
-		}
-
-		this.fieldNames = fieldNames;
-	}
-
-	@Override
-	public byte[] serialize(Row row) {
-		if (row.getArity() != fieldNames.length) {
-			throw new IllegalStateException(String.format(
-				"Number of elements in the row %s is different from number of field names: %d", row, fieldNames.length));
-		}
-
-		ObjectNode objectNode = mapper.createObjectNode();
-
-		for (int i = 0; i < row.getArity(); i++) {
-			JsonNode node = mapper.valueToTree(row.getField(i));
-			objectNode.set(fieldNames[i], node);
-		}
-
-		try {
-			return mapper.writeValueAsBytes(objectNode);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to serialize row", e);
-		}
+	@Deprecated
+	public JsonRowSerializationSchema(TypeInformation<Row> typeInfo) {
+		super(typeInfo);
 	}
 }
