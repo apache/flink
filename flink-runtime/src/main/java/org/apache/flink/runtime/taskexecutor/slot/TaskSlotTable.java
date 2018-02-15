@@ -580,7 +580,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	}
 
 	private void checkInit() {
-		Preconditions.checkState(started, "The " + TaskSlotTable.class.getSimpleName() + " has to be started.");
+		Preconditions.checkState(started, "The %s has to be started.", TaskSlotTable.class.getSimpleName());
 	}
 
 	// ---------------------------------------------------------------------

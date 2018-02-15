@@ -56,12 +56,15 @@ public interface ClusterDescriptor<T> extends AutoCloseable {
 	 *
 	 * @param clusterSpecification Initial cluster specification with which the Flink cluster is launched
 	 * @param jobGraph JobGraph with which the job cluster is started
+	 * @param detached true if the cluster should be stopped after the job completion without serving the result,
+	 *                 otherwise false
 	 * @return Cluster client to talk to the Flink cluster
 	 * @throws ClusterDeploymentException if the cluster could not be deployed
 	 */
 	ClusterClient<T> deployJobCluster(
 		final ClusterSpecification clusterSpecification,
-		final JobGraph jobGraph) throws ClusterDeploymentException;
+		final JobGraph jobGraph,
+		final boolean detached) throws ClusterDeploymentException;
 
 	/**
 	 * Terminates the cluster with the given cluster id.

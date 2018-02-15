@@ -40,6 +40,7 @@ import org.apache.flink.runtime.rest.handler.job.JobExceptionsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobExecutionResultHandler;
 import org.apache.flink.runtime.rest.handler.job.JobIdsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobPlanHandler;
+import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexBackPressureHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexTaskManagersHandler;
@@ -78,11 +79,15 @@ import org.apache.flink.runtime.rest.messages.JobConfigHeaders;
 import org.apache.flink.runtime.rest.messages.JobExceptionsHeaders;
 import org.apache.flink.runtime.rest.messages.JobIdsWithStatusesOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.JobPlanHeaders;
+import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexBackPressureHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexTaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.SubtasksTimesHeaders;
+import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
+import org.apache.flink.runtime.rest.messages.YarnCancelJobTerminationHeaders;
+import org.apache.flink.runtime.rest.messages.YarnStopJobTerminationHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointConfigHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatisticDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatisticsHeaders;
@@ -130,7 +135,7 @@ import java.util.concurrent.Executor;
  */
 public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndpoint implements LeaderContender {
 
-	protected final GatewayRetriever<T> leaderRetriever;
+	protected final GatewayRetriever<? extends T> leaderRetriever;
 	private final Configuration clusterConfiguration;
 	protected final RestHandlerConfiguration restConfiguration;
 	private final GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever;
@@ -140,7 +145,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	private final ExecutionGraphCache executionGraphCache;
 	private final CheckpointStatsCache checkpointStatsCache;
 
-	private final MetricFetcher<T> metricFetcher;
+	private final MetricFetcher<? extends T> metricFetcher;
 
 	private final LeaderElectionService leaderElectionService;
 
@@ -148,7 +153,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 	public WebMonitorEndpoint(
 			RestServerEndpointConfiguration endpointConfiguration,
-			GatewayRetriever<T> leaderRetriever,
+			GatewayRetriever<? extends T> leaderRetriever,
 			Configuration clusterConfiguration,
 			RestHandlerConfiguration restConfiguration,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
@@ -449,6 +454,22 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			responseHeaders,
 			JobVertexBackPressureHeaders.getInstance());
 
+		final JobTerminationHandler jobCancelTerminationHandler = new JobTerminationHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			JobTerminationHeaders.getInstance(),
+			TerminationModeQueryParameter.TerminationMode.CANCEL);
+
+		final JobTerminationHandler jobStopTerminationHandler = new JobTerminationHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			JobTerminationHeaders.getInstance(),
+			TerminationModeQueryParameter.TerminationMode.STOP);
+
 		final File tmpDir = restConfiguration.getTmpDir();
 
 		Optional<StaticFileServerHandler<T>> optWebContent;
@@ -495,6 +516,11 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		handlers.add(Tuple2.of(SubtaskCurrentAttemptDetailsHeaders.getInstance(), subtaskCurrentAttemptDetailsHandler));
 		handlers.add(Tuple2.of(JobVertexTaskManagersHeaders.getInstance(), jobVertexTaskManagersHandler));
 		handlers.add(Tuple2.of(JobVertexBackPressureHeaders.getInstance(), jobVertexBackPressureHandler));
+		handlers.add(Tuple2.of(JobTerminationHeaders.getInstance(), jobCancelTerminationHandler));
+
+		// TODO: Remove once the Yarn proxy can forward all REST verbs
+		handlers.add(Tuple2.of(YarnCancelJobTerminationHeaders.getInstance(), jobCancelTerminationHandler));
+		handlers.add(Tuple2.of(YarnStopJobTerminationHeaders.getInstance(), jobStopTerminationHandler));
 
 		optWebContent.ifPresent(
 			webContent -> handlers.add(Tuple2.of(WebContentHandlerSpecification.getInstance(), webContent)));
@@ -575,8 +601,6 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 	@Override
 	public void shutdown(Time timeout) {
-		super.shutdown(timeout);
-
 		executionGraphCache.close();
 
 		final File tmpDir = restConfiguration.getTmpDir();
@@ -593,6 +617,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		} catch (Exception e) {
 			log.warn("Error while stopping leaderElectionService", e);
 		}
+
+		super.shutdown(timeout);
 	}
 
 	//-------------------------------------------------------------------------

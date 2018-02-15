@@ -325,26 +325,43 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	@Override
 	public void onContainersAllocated(List<Container> containers) {
 		for (Container container : containers) {
-			numPendingContainerRequests = Math.max(0, numPendingContainerRequests - 1);
-			log.info("Received new container: {} - Remaining pending container requests: {}",
-					container.getId(), numPendingContainerRequests);
-			final String containerIdStr = container.getId().toString();
-			workerNodeMap.put(new ResourceID(containerIdStr),
-					new YarnWorkerNode(container));
-			try {
-				/** Context information used to start a TaskExecutor Java process */
-				ContainerLaunchContext taskExecutorLaunchContext =
-						createTaskExecutorLaunchContext(
-								container.getResource(), containerIdStr, container.getNodeId().getHost());
-				nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
-			}
-			catch (Throwable t) {
-				// failed to launch the container, will release the failed one and ask for a new one
-				log.error("Could not start TaskManager in container {},", container, t);
+			log.info(
+				"Received new container: {} - Remaining pending container requests: {}",
+				container.getId(),
+				numPendingContainerRequests);
+
+			if (numPendingContainerRequests > 0) {
+				numPendingContainerRequests--;
+
+				final String containerIdStr = container.getId().toString();
+
+				workerNodeMap.put(new ResourceID(containerIdStr), new YarnWorkerNode(container));
+
+				try {
+					// Context information used to start a TaskExecutor Java process
+					ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(
+						container.getResource(),
+						containerIdStr,
+						container.getNodeId().getHost());
+
+					nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
+				} catch (Throwable t) {
+					log.error("Could not start TaskManager in container {}.", container.getId(), t);
+
+					// release the failed container
+					resourceManagerClient.releaseAssignedContainer(container.getId());
+					// and ask for a new one
+					requestYarnContainer(container.getResource(), container.getPriority());
+				}
+			} else {
+				// return the excessive containers
+				log.info("Returning excess container {}.", container.getId());
 				resourceManagerClient.releaseAssignedContainer(container.getId());
-				requestYarnContainer(container.getResource(), container.getPriority());
 			}
 		}
+
+		// if we are waiting for no further containers, we can go to the
+		// regular heartbeat interval
 		if (numPendingContainerRequests <= 0) {
 			resourceManagerClient.setHeartbeatInterval(yarnHeartbeatIntervalMillis);
 		}
@@ -403,14 +420,13 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	private void requestYarnContainer(Resource resource, Priority priority) {
-		resourceManagerClient.addContainerRequest(
-				new AMRMClient.ContainerRequest(resource, null, null, priority));
+		resourceManagerClient.addContainerRequest(new AMRMClient.ContainerRequest(resource, null, null, priority));
+
 		// make sure we transmit the request fast and receive fast news of granted allocations
 		resourceManagerClient.setHeartbeatInterval(FAST_YARN_HEARTBEAT_INTERVAL_MS);
 
 		numPendingContainerRequests++;
-		log.info("Requesting new TaskManager container pending requests: {}",
-				numPendingContainerRequests);
+		log.info("Requesting new TaskManager container pending requests: {}", numPendingContainerRequests);
 	}
 
 	private ContainerLaunchContext createTaskExecutorLaunchContext(Resource resource, String containerId, String host)
