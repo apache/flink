@@ -83,7 +83,7 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	 * @return how much information was written to the target buffer and
 	 *         whether this buffer is full
 	 */
-	SerializationResult setNextBufferBuilder(BufferBuilder bufferBuilder) throws IOException;
+	SerializationResult continueWritingWithNextBufferBuilder(BufferBuilder bufferBuilder) throws IOException;
 
 	/**
 	 * Clear and release internal state.

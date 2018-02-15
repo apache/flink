@@ -75,7 +75,7 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 				if (hasData) {
 					serializer.clear();
 					BufferBuilder bufferBuilder = createBufferBuilder(bufferSize);
-					serializer.setNextBufferBuilder(bufferBuilder);
+					serializer.continueWritingWithNextBufferBuilder(bufferBuilder);
 					serializer.addRecord(reuse);
 
 					hasData = inputIterator.next(reuse) != null;

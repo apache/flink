@@ -132,7 +132,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 			}
 			BufferBuilder bufferBuilder = requestNewBufferBuilder(targetChannel);
 
-			result = serializer.setNextBufferBuilder(bufferBuilder);
+			result = serializer.continueWritingWithNextBufferBuilder(bufferBuilder);
 		}
 		checkState(!serializer.hasSerializedData(), "All data should be written at once");
 	}

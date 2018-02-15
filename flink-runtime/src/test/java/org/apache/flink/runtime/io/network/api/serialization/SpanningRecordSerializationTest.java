@@ -196,7 +196,7 @@ public class SpanningRecordSerializationTest {
 		serializer.clear();
 		return new BufferConsumerAndSerializerResult(
 			bufferConsumer,
-			serializer.setNextBufferBuilder(bufferBuilder));
+			serializer.continueWritingWithNextBufferBuilder(bufferBuilder));
 	}
 
 	private static class BufferConsumerAndSerializerResult {
