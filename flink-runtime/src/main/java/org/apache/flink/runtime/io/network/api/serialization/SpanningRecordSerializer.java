@@ -32,7 +32,7 @@ import java.nio.ByteOrder;
 /**
  * Record serializer which serializes the complete record to an intermediate
  * data serialization buffer and copies this buffer to target buffers
- * one-by-one using {@link #setNextBufferBuilder(BufferBuilder)}.
+ * one-by-one using {@link #continueWritingWithNextBufferBuilder(BufferBuilder)}.
  *
  * @param <T> The type of the records that are serialized.
  */
@@ -60,7 +60,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		lengthBuffer = ByteBuffer.allocate(4);
 		lengthBuffer.order(ByteOrder.BIG_ENDIAN);
 
-		// ensure initial state with hasRemaining false (for correct setNextBufferBuilder logic)
+		// ensure initial state with hasRemaining false (for correct continueWritingWithNextBufferBuilder logic)
 		dataBuffer = serializationBuffer.wrapAsByteBuffer();
 		lengthBuffer.position(4);
 	}
@@ -103,7 +103,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	}
 
 	@Override
-	public SerializationResult setNextBufferBuilder(BufferBuilder buffer) throws IOException {
+	public SerializationResult continueWritingWithNextBufferBuilder(BufferBuilder buffer) throws IOException {
 		targetBuffer = buffer;
 
 		boolean mustCommit = false;
