@@ -65,6 +65,7 @@ import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 
 import akka.actor.ActorSystem;
+import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -634,12 +635,17 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			boolean remoteEnabled,
 			String bindAddress) {
 
-		ActorSystem actorSystem;
+		final Config akkaConfig;
+
 		if (remoteEnabled) {
-			actorSystem = AkkaUtils.createActorSystem(configuration, bindAddress, 0);
+			akkaConfig = AkkaUtils.getAkkaConfig(configuration, bindAddress, 0);
 		} else {
-			actorSystem = AkkaUtils.createLocalActorSystem(configuration);
+			akkaConfig = AkkaUtils.getAkkaConfig(configuration);
 		}
+
+		final Config effectiveAkkaConfig = AkkaUtils.testDispatcherConfig().withFallback(akkaConfig);
+
+		final ActorSystem actorSystem = AkkaUtils.createActorSystem(effectiveAkkaConfig);
 
 		return new AkkaRpcService(actorSystem, askTimeout);
 	}
