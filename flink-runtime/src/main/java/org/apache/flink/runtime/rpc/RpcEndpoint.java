@@ -141,9 +141,10 @@ public abstract class RpcEndpoint implements RpcGateway {
 	 *
 	 * <p>IMPORTANT: This method should never be called directly by the user.
 	 *
-	 * @throws Exception if an error occurs. The exception is returned as result of the termination future.
+	 * @return Future which is completed once all post stop actions are completed. If an error
+	 * occurs this future is completed exceptionally
 	 */
-	public void postStop() throws Exception {}
+	public abstract CompletableFuture<Void> postStop();
 
 	/**
 	 * Triggers the shut down of the rpc endpoint. The shut down is executed asynchronously.
