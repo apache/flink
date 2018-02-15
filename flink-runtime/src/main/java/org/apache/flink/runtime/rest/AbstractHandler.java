@@ -25,6 +25,7 @@ import org.apache.flink.runtime.rest.handler.RedirectHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
+import org.apache.flink.runtime.rest.messages.FileUpload;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
@@ -49,6 +50,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -105,7 +107,20 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 			ByteBuf msgContent = ((FullHttpRequest) httpRequest).content();
 
 			R request;
-			if (msgContent.capacity() == 0) {
+			if (isFileUpload()) {
+				final Path path = ctx.channel().attr(FileUploadHandler.UPLOADED_FILE).get();
+				if (path == null) {
+					HandlerUtils.sendErrorResponse(
+						ctx,
+						httpRequest,
+						new ErrorResponseBody("Client did not upload a file."),
+						HttpResponseStatus.BAD_REQUEST,
+						responseHeaders);
+					return;
+				}
+				//noinspection unchecked
+				request = (R) new FileUpload(path);
+			} else if (msgContent.capacity() == 0) {
 				try {
 					request = MAPPER.readValue("{}", untypedResponseMessageHeaders.getRequestClass());
 				} catch (JsonParseException | JsonMappingException je) {
@@ -165,6 +180,10 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 				HttpResponseStatus.INTERNAL_SERVER_ERROR,
 				responseHeaders);
 		}
+	}
+
+	private boolean isFileUpload() {
+		return untypedResponseMessageHeaders.getRequestClass() == FileUpload.class;
 	}
 
 	/**
