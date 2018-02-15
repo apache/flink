@@ -118,7 +118,7 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> extends B
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
 	 *                   to fail and may trigger recovery.
 	 */
-	public void onTimer(final long timestamp, final OnTimerContext ctx, final Collector<OUT> out) throws Exception {
+	public void onTimer(final long timestamp, final OnTimerContext<KS> ctx, final Collector<OUT> out) throws Exception {
 		// the default implementation does nothing.
 	}
 
@@ -163,12 +163,16 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> extends B
 	/**
 	 * Information available in an invocation of {@link #onTimer(long, OnTimerContext, Collector)}.
 	 */
-	public abstract class OnTimerContext extends KeyedReadOnlyContext {
+	public abstract class OnTimerContext<KS> extends KeyedReadOnlyContext {
 
 		/**
-		 * The {@link TimeDomain} of the firing timer, i.e. if it is
-		 * event or processing time timer.
+		 * The {@link TimeDomain} of the firing timer, i.e. if it is event or processing time timer.
 		 */
 		public abstract TimeDomain timeDomain();
+
+		/**
+		 * Get the key of the firing timer.
+		 */
+		public abstract KS getCurrentKey();
 	}
 }

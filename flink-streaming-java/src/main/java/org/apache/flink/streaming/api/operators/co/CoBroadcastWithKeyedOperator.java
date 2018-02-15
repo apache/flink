@@ -288,7 +288,7 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		}
 	}
 
-	private class OnTimerContextImpl extends KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>.OnTimerContext {
+	private class OnTimerContextImpl<KS> extends KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>.OnTimerContext<KS> {
 
 		private final ExecutionConfig config;
 
@@ -322,6 +322,11 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		public TimeDomain timeDomain() {
 			checkState(timeDomain != null);
 			return timeDomain;
+		}
+
+		@Override
+		public KS getCurrentKey() {
+			return timer.getKey();
 		}
 
 		@Override
