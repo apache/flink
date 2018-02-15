@@ -72,7 +72,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -697,7 +696,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		@Override
 		public void add(T value) throws Exception {
-			Objects.requireNonNull(value, "You cannot add null to a ListState.");
+			Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 			list.add(value);
 		}
 

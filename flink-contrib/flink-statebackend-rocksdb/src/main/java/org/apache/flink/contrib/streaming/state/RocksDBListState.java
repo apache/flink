@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
@@ -34,7 +35,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * {@link ListState} implementation that stores state in RocksDB.
@@ -113,7 +113,7 @@ public class RocksDBListState<K, N, V>
 
 	@Override
 	public void add(V value) throws IOException {
-		Objects.requireNonNull(value, "You cannot add null to a ListState.");
+		Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
@@ -212,7 +212,7 @@ public class RocksDBListState<K, N, V>
 		keySerializationStream.reset();
 		boolean first = true;
 		for (V value : values) {
-			Objects.requireNonNull(value);
+			Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 			if (first) {
 				first = false;
 			} else {

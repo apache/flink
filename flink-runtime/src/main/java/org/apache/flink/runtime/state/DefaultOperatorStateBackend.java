@@ -52,7 +52,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.RunnableFuture;
 
@@ -661,7 +660,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 		@Override
 		public void add(S value) {
-			Objects.requireNonNull(value, "You cannot add null to a ListState.");
+			Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 			internalList.add(value);
 		}
 
