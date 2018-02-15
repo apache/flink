@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.common;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.Collections;
 import java.util.Map;
@@ -97,7 +97,7 @@ public class JobExecutionResult extends JobSubmissionResult {
 	public Map<String, Object> getAllAccumulatorResults() {
 		return this.accumulatorResults;
 	}
-	
+
 	/**
 	 * Gets the accumulator with the given name as an integer.
 	 *
@@ -120,9 +120,8 @@ public class JobExecutionResult extends JobSubmissionResult {
 		return (Integer) result;
 	}
 
-
 	/**
-	 * Returns a dummy object for wrapping a JobSubmissionResult
+	 * Returns a dummy object for wrapping a JobSubmissionResult.
 	 * @param result The SubmissionResult
 	 * @return a JobExecutionResult
 	 * @deprecated Will be removed in future versions.

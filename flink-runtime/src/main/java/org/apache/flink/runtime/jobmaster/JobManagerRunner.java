@@ -90,7 +90,9 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 
 	private final JobManagerMetricGroup jobManagerMetricGroup;
 
-	private final Time timeout;
+	private final Time rpcTimeout;
+
+	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
 
 	/** flag marking the runner as shut down. */
 	private volatile boolean shutdown;
@@ -154,14 +156,16 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			this.runningJobsRegistry = haServices.getRunningJobsRegistry();
 			this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
-			this.timeout = jobManagerSharedServices.getTimeout();
+			final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+
+			this.rpcTimeout = jobMasterConfiguration.getRpcTimeout();
 
 			// now start the JobManager
 			this.jobManager = new JobMaster(
 				rpcService,
+				jobMasterConfiguration,
 				resourceId,
 				jobGraph,
-				configuration,
 				haServices,
 				jobManagerSharedServices,
 				heartbeatServices,
@@ -172,6 +176,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 				userCodeLoader,
 				restAddress,
 				metricRegistry.getMetricQueryServicePath());
+
+			this.resultFuture = new CompletableFuture<>();
 		}
 		catch (Throwable t) {
 			// clean up everything
@@ -193,6 +199,10 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 
 	public JobGraph getJobGraph() {
 		return jobGraph;
+	}
+
+	public CompletableFuture<ArchivedExecutionGraph> getResultFuture() {
+		return resultFuture;
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -239,6 +249,9 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 						if (exception != null) {
 							throw new CompletionException(new FlinkException("Could not properly shut down the JobManagerRunner.", exception));
 						}
+
+						// cancel the result future if not already completed
+						resultFuture.cancel(false);
 					});
 		}
 	}
@@ -252,6 +265,9 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	 */
 	@Override
 	public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
+		// complete the result future with the terminal execution graph
+		resultFuture.complete(executionGraph);
+
 		try {
 			unregisterJobFromHighAvailability();
 			shutdownInternally();
@@ -367,7 +383,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 						runningJobsRegistry.setJobRunning(jobGraph.getJobID());
 					}
 
-					CompletableFuture<Acknowledge> startingFuture = jobManager.start(new JobMasterId(leaderSessionID), timeout);
+					CompletableFuture<Acknowledge> startingFuture = jobManager.start(new JobMasterId(leaderSessionID), rpcTimeout);
 
 					startingFuture.whenCompleteAsync(
 						(Acknowledge ack, Throwable throwable) -> {
@@ -394,7 +410,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			log.info("JobManager for job {} ({}) was revoked leadership at {}.",
 				jobGraph.getName(), jobGraph.getJobID(), getAddress());
 
-			CompletableFuture<Acknowledge>  suspendFuture = jobManager.suspend(new Exception("JobManager is no longer the leader."), timeout);
+			CompletableFuture<Acknowledge>  suspendFuture = jobManager.suspend(new Exception("JobManager is no longer the leader."), rpcTimeout);
 
 			suspendFuture.whenCompleteAsync(
 				(Acknowledge ack, Throwable throwable) -> {
