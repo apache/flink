@@ -29,8 +29,6 @@ import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.job.BlobServerPortHandler;
 import org.apache.flink.runtime.rest.handler.job.JobSubmitHandler;
-import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
-import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -81,13 +79,6 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 		final Time timeout = restConfiguration.getTimeout();
 		final Map<String, String> responseHeaders = restConfiguration.getResponseHeaders();
 
-		JobTerminationHandler jobTerminationHandler = new JobTerminationHandler(
-			restAddressFuture,
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			JobTerminationHeaders.getInstance());
-
 		BlobServerPortHandler blobServerPortHandler = new BlobServerPortHandler(
 			restAddressFuture,
 			leaderRetriever,
@@ -100,7 +91,6 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			timeout,
 			responseHeaders);
 
-		handlers.add(Tuple2.of(JobTerminationHeaders.getInstance(), jobTerminationHandler));
 		handlers.add(Tuple2.of(blobServerPortHandler.getMessageHeaders(), blobServerPortHandler));
 		handlers.add(Tuple2.of(jobSubmitHandler.getMessageHeaders(), jobSubmitHandler));
 

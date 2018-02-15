@@ -19,44 +19,29 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.legacy.JobCancellationHandler;
-
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
 
 /**
- * Message headers for the {@link JobCancellationHandler}.
+ * {@link RestHandlerSpecification} for the {@link JobTerminationHandler} which is registered for
+ * compatibility with the Yarn proxy as a GET call.
+ *
+ * <p>@see <a href="https://issues.apache.org/jira/browse/YARN-2031">YARN-2031</a>.
+ *
+ * @deprecated This should be removed once we can send arbitrary REST calls via the Yarn proxy.
  */
-public class JobTerminationHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> {
+@Deprecated
+public class YarnStopJobTerminationHeaders implements RestHandlerSpecification {
 
-	public static final String URL = "/jobs/:jobid";
+	private static final YarnStopJobTerminationHeaders INSTANCE = new YarnStopJobTerminationHeaders();
 
-	private static final JobTerminationHeaders INSTANCE = new JobTerminationHeaders();
+	private static final String URL = String.format("/jobs/:%s/yarn-stop", JobIDPathParameter.KEY);
 
-	protected JobTerminationHeaders() {}
-
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
-
-	@Override
-	public Class<EmptyResponseBody> getResponseClass() {
-		return EmptyResponseBody.class;
-	}
-
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.ACCEPTED;
-	}
-
-	@Override
-	public JobTerminationMessageParameters getUnresolvedMessageParameters() {
-		return new JobTerminationMessageParameters();
-	}
+	private YarnStopJobTerminationHeaders() {}
 
 	@Override
 	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.PATCH;
+		return HttpMethodWrapper.GET;
 	}
 
 	@Override
@@ -64,7 +49,7 @@ public class JobTerminationHeaders implements MessageHeaders<EmptyRequestBody, E
 		return URL;
 	}
 
-	public static JobTerminationHeaders getInstance() {
+	public static YarnStopJobTerminationHeaders getInstance() {
 		return INSTANCE;
 	}
 }
