@@ -707,7 +707,7 @@ public class DataStreamTest extends TestLogger {
 					Long value,
 					Context ctx,
 					Collector<Integer> out) throws Exception {
-
+				// Do nothing
 			}
 
 			@Override
@@ -715,7 +715,7 @@ public class DataStreamTest extends TestLogger {
 					long timestamp,
 					OnTimerContext ctx,
 					Collector<Integer> out) throws Exception {
-
+				// Do nothing
 			}
 		};
 
@@ -777,7 +777,7 @@ public class DataStreamTest extends TestLogger {
 					Long value,
 					Context ctx,
 					Collector<Integer> out) throws Exception {
-
+				// Do nothing
 			}
 
 			@Override
@@ -785,7 +785,7 @@ public class DataStreamTest extends TestLogger {
 					long timestamp,
 					OnTimerContext ctx,
 					Collector<Integer> out) throws Exception {
-
+				// Do nothing
 			}
 		};
 
