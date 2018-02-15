@@ -33,6 +33,7 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
@@ -96,7 +97,9 @@ public class TaskManagerMetricsTest extends TestLogger {
 
 			TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
 				taskManagerServicesConfiguration,
-				tmResourceID);
+				tmResourceID,
+				EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag(),
+				EnvironmentInformation.getMaxJvmHeapMemory());
 
 			TaskManagerMetricGroup taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
 				metricRegistry,

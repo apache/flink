@@ -20,6 +20,7 @@ package org.apache.flink.client.program.rest;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.deployment.StandaloneClusterId;
@@ -115,6 +116,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -147,6 +150,9 @@ public class RestClusterClientTest extends TestLogger {
 
 	private ExecutorService executor;
 
+	private JobGraph jobGraph;
+	private JobID jobId;
+
 	@Before
 	public void setUp() throws Exception {
 		MockitoAnnotations.initMocks(this);
@@ -178,6 +184,9 @@ public class RestClusterClientTest extends TestLogger {
 			}
 		};
 		restClusterClient = new RestClusterClient<>(config, restClient, StandaloneClusterId.getInstance(), (attempt) -> 0);
+
+		jobGraph = new JobGraph("testjob");
+		jobId = jobGraph.getJobID();
 	}
 
 	@After
@@ -193,16 +202,13 @@ public class RestClusterClientTest extends TestLogger {
 
 	@Test
 	public void testJobSubmitCancelStop() throws Exception {
-		final JobGraph job = new JobGraph("testjob");
-		final JobID id = job.getJobID();
-
 		TestBlobServerPortHandler portHandler = new TestBlobServerPortHandler();
 		TestJobSubmitHandler submitHandler = new TestJobSubmitHandler();
 		TestJobTerminationHandler terminationHandler = new TestJobTerminationHandler();
 		TestJobExecutionResultHandler testJobExecutionResultHandler =
 			new TestJobExecutionResultHandler(
 				JobExecutionResultResponseBody.created(new JobResult.Builder()
-					.jobId(id)
+					.jobId(jobId)
 					.netRuntime(Long.MAX_VALUE)
 					.build()));
 
@@ -214,18 +220,42 @@ public class RestClusterClientTest extends TestLogger {
 
 			Assert.assertFalse(portHandler.portRetrieved);
 			Assert.assertFalse(submitHandler.jobSubmitted);
-			restClusterClient.submitJob(job, ClassLoader.getSystemClassLoader());
+			restClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
 			Assert.assertTrue(portHandler.portRetrieved);
 			Assert.assertTrue(submitHandler.jobSubmitted);
 
 			Assert.assertFalse(terminationHandler.jobCanceled);
-			restClusterClient.cancel(id);
+			restClusterClient.cancel(jobId);
 			Assert.assertTrue(terminationHandler.jobCanceled);
 
 			Assert.assertFalse(terminationHandler.jobStopped);
-			restClusterClient.stop(id);
+			restClusterClient.stop(jobId);
 			Assert.assertTrue(terminationHandler.jobStopped);
 		}
+	}
+
+	/**
+	 * Tests that we can submit a jobGraph in detached mode.
+	 */
+	@Test
+	public void testDetachedJobSubmission() throws Exception {
+
+		final TestBlobServerPortHandler testBlobServerPortHandler = new TestBlobServerPortHandler();
+		final TestJobSubmitHandler testJobSubmitHandler = new TestJobSubmitHandler();
+
+		try (TestRestServerEndpoint ignored = createRestServerEndpoint(
+			testBlobServerPortHandler,
+			testJobSubmitHandler)) {
+
+			restClusterClient.setDetached(true);
+			final JobSubmissionResult jobSubmissionResult = restClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
+
+			// if the detached mode didn't work, then we would not reach this point because the execution result
+			// retrieval would have failed.
+			assertThat(jobSubmissionResult, is(not(instanceOf(JobExecutionResult.class))));
+			assertThat(jobSubmissionResult.getJobID(), is(jobId));
+		}
+
 	}
 
 	private class TestBlobServerPortHandler extends TestHandler<EmptyRequestBody, BlobServerPortResponseBody, EmptyMessageParameters> {
@@ -314,9 +344,6 @@ public class RestClusterClientTest extends TestLogger {
 
 	@Test
 	public void testSubmitJobAndWaitForExecutionResult() throws Exception {
-		final JobGraph jobGraph = new JobGraph("testjob");
-		final JobID jobId = jobGraph.getJobID();
-
 		final TestJobExecutionResultHandler testJobExecutionResultHandler =
 			new TestJobExecutionResultHandler(
 				new RestHandlerException("should trigger retry", HttpResponseStatus.NOT_FOUND),
@@ -509,7 +536,7 @@ public class RestClusterClientTest extends TestLogger {
 				Iterator<JobStatusMessage> jobDetailsIterator = jobDetails.iterator();
 				JobStatusMessage job1 = jobDetailsIterator.next();
 				JobStatusMessage job2 = jobDetailsIterator.next();
-				Assert.assertNotEquals("The job statues should not be equal.", job1.getJobState(), job2.getJobState());
+				Assert.assertNotEquals("The job status should not be equal.", job1.getJobState(), job2.getJobState());
 			}
 		}
 	}

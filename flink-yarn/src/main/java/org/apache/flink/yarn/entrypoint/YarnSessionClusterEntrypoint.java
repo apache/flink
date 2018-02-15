@@ -37,6 +37,7 @@ import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.YarnResourceManager;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 
@@ -62,6 +63,11 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 	@Override
 	protected SecurityContext installSecurityContext(Configuration configuration) throws Exception {
 		return YarnEntrypointUtils.installSecurityContext(configuration, workingDirectory);
+	}
+
+	@Override
+	protected String getRPCPortRange(Configuration configuration) {
+		return configuration.getString(YarnConfigOptions.APPLICATION_MASTER_PORT);
 	}
 
 	@Override
