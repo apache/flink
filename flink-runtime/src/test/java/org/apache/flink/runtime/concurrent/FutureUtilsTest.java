@@ -26,8 +26,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -45,13 +45,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests for the utility methods in {@link FutureUtils}.
@@ -175,8 +168,10 @@ public class FutureUtilsTest extends TestLogger {
 	@Test
 	public void testRetryWithDelay() throws Exception {
 		final int retries = 4;
-		final Time delay = Time.milliseconds(50L);
+		final Time delay = Time.milliseconds(5L);
 		final AtomicInteger countDown = new AtomicInteger(retries);
+
+		long start = System.currentTimeMillis();
 
 		CompletableFuture<Boolean> retryFuture = FutureUtils.retryWithDelay(
 			() -> {
@@ -189,8 +184,6 @@ public class FutureUtilsTest extends TestLogger {
 			retries,
 			delay,
 			TestingUtils.defaultScheduledExecutor());
-
-		long start = System.currentTimeMillis();
 
 		Boolean result = retryFuture.get();
 
@@ -205,29 +198,28 @@ public class FutureUtilsTest extends TestLogger {
 	 */
 	@Test
 	public void testRetryWithDelayCancellation() {
-		ScheduledFuture<?> scheduledFutureMock = mock(ScheduledFuture.class);
-		ScheduledExecutor scheduledExecutorMock = mock(ScheduledExecutor.class);
-		doReturn(scheduledFutureMock).when(scheduledExecutorMock).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
-		doAnswer(
-			(InvocationOnMock invocation) -> {
-				invocation.getArgumentAt(0, Runnable.class).run();
-				return null;
-			}).when(scheduledExecutorMock).execute(any(Runnable.class));
+		final ManuallyTriggeredScheduledExecutor scheduledExecutor = new ManuallyTriggeredScheduledExecutor();
 
 		CompletableFuture<?> retryFuture = FutureUtils.retryWithDelay(
 			() -> FutureUtils.completedExceptionally(new FlinkException("Test exception")),
 			1,
 			TestingUtils.infiniteTime(),
-			scheduledExecutorMock);
+			scheduledExecutor);
 
 		assertFalse(retryFuture.isDone());
 
-		verify(scheduledExecutorMock).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+		final Collection<ScheduledFuture<?>> scheduledTasks = scheduledExecutor.getScheduledTasks();
+
+		assertFalse(scheduledTasks.isEmpty());
+
+		final ScheduledFuture<?> scheduledFuture = scheduledTasks.iterator().next();
+
+		assertFalse(scheduledFuture.isDone());
 
 		retryFuture.cancel(false);
 
 		assertTrue(retryFuture.isCancelled());
-		verify(scheduledFutureMock).cancel(anyBoolean());
+		assertTrue(scheduledFuture.isCancelled());
 	}
 
 	/**
