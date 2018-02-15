@@ -92,6 +92,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 
 	private final Time rpcTimeout;
 
+	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
+
 	/** flag marking the runner as shut down. */
 	private volatile boolean shutdown;
 
@@ -174,6 +176,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 				userCodeLoader,
 				restAddress,
 				metricRegistry.getMetricQueryServicePath());
+
+			this.resultFuture = new CompletableFuture<>();
 		}
 		catch (Throwable t) {
 			// clean up everything
@@ -195,6 +199,10 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 
 	public JobGraph getJobGraph() {
 		return jobGraph;
+	}
+
+	public CompletableFuture<ArchivedExecutionGraph> getResultFuture() {
+		return resultFuture;
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -241,6 +249,9 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 						if (exception != null) {
 							throw new CompletionException(new FlinkException("Could not properly shut down the JobManagerRunner.", exception));
 						}
+
+						// cancel the result future if not already completed
+						resultFuture.cancel(false);
 					});
 		}
 	}
@@ -254,6 +265,9 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	 */
 	@Override
 	public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
+		// complete the result future with the terminal execution graph
+		resultFuture.complete(executionGraph);
+
 		try {
 			unregisterJobFromHighAvailability();
 			shutdownInternally();
