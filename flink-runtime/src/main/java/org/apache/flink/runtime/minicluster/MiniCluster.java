@@ -42,7 +42,6 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.leaderelection.LeaderAddressAndId;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -505,52 +504,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		// if anything went wrong, throw the first error with all the additional suppressed exceptions
 		if (exception != null) {
 			ExceptionUtils.rethrowException(exception, "Error while shutting down mini cluster");
-		}
-	}
-
-	public void waitUntilTaskManagerRegistrationsComplete() throws Exception {
-		LeaderRetrievalService rmMasterListener = null;
-		CompletableFuture<LeaderAddressAndId> addressAndIdFuture;
-
-		try {
-			synchronized (lock) {
-				checkState(running, "FlinkMiniCluster is not running");
-
-				OneTimeLeaderListenerFuture listenerFuture = new OneTimeLeaderListenerFuture();
-				rmMasterListener = haServices.getResourceManagerLeaderRetriever();
-				rmMasterListener.start(listenerFuture);
-				addressAndIdFuture = listenerFuture.future();
-			}
-
-			final LeaderAddressAndId addressAndId = addressAndIdFuture.get();
-
-			final ResourceManagerGateway resourceManager = commonRpcService
-				.connect(
-					addressAndId.leaderAddress(),
-					new ResourceManagerId(addressAndId.leaderId()),
-					ResourceManagerGateway.class)
-				.get();
-
-			final int numTaskManagersToWaitFor = taskManagers.length;
-
-			// poll and wait until enough TaskManagers are available
-			while (true) {
-				int numTaskManagersAvailable = resourceManager.getNumberOfRegisteredTaskManagers().get();
-
-				if (numTaskManagersAvailable >= numTaskManagersToWaitFor) {
-					break;
-				}
-				Thread.sleep(2);
-			}
-		}
-		finally {
-			try {
-				if (rmMasterListener != null) {
-					rmMasterListener.stop();
-				}
-			} catch (Exception e) {
-				LOG.warn("Error shutting down leader listener for ResourceManager");
-			}
 		}
 	}
 
