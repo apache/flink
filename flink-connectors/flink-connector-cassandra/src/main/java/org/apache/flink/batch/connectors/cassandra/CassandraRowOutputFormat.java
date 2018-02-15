@@ -17,16 +17,25 @@
 
 package org.apache.flink.batch.connectors.cassandra;
 
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
+import org.apache.flink.types.Row;
 
 /**
- * Same as CassandraTupleOutputFormat, will be deprecated.
- * @param <OUT>
+ * OutputFormat to write Flink {@link Row}s into a Cassandra cluster.
+ *
+ * @param <OUT> Type of elements to write, it must extend {@link Row}.
  */
-@Deprecated
-public class CassandraOutputFormat<OUT extends Tuple> extends CassandraTupleOutputFormat<OUT> {
-	public CassandraOutputFormat(String insertQuery, ClusterBuilder builder) {
+public class CassandraRowOutputFormat<OUT extends Row> extends CassandraOutputFormatBase<OUT> {
+	public CassandraRowOutputFormat(String insertQuery, ClusterBuilder builder) {
 		super(insertQuery, builder);
+	}
+
+	@Override
+	protected Object[] extractFields(OUT record) {
+		Object[] fields = new Object[record.getArity()];
+		for (int i = 0; i < record.getArity(); i++) {
+			fields[i] = record.getField(i);
+		}
+		return fields;
 	}
 }
