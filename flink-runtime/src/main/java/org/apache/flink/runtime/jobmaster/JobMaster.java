@@ -407,7 +407,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		// shut down will internally release all registered slots
 		slotPool.shutDown();
-		CompletableFuture<Boolean> terminationFuture = slotPool.getTerminationFuture();
+		CompletableFuture<Void> terminationFuture = slotPool.getTerminationFuture();
 
 		Exception exception = null;
 

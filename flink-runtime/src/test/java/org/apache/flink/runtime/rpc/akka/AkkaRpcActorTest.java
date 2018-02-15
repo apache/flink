@@ -185,7 +185,7 @@ public class AkkaRpcActorTest extends TestLogger {
 		final DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
 		rpcEndpoint.start();
 
-		CompletableFuture<Boolean> terminationFuture = rpcEndpoint.getTerminationFuture();
+		CompletableFuture<Void> terminationFuture = rpcEndpoint.getTerminationFuture();
 
 		assertFalse(terminationFuture.isDone());
 
@@ -246,7 +246,7 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		rpcEndpoint.shutDown();
 
-		CompletableFuture<Boolean> terminationFuture = rpcEndpoint.getTerminationFuture();
+		CompletableFuture<Void> terminationFuture = rpcEndpoint.getTerminationFuture();
 
 		try {
 			terminationFuture.get();
@@ -265,7 +265,7 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		simpleRpcEndpoint.shutDown();
 
-		CompletableFuture<Boolean> terminationFuture = simpleRpcEndpoint.getTerminationFuture();
+		CompletableFuture<Void> terminationFuture = simpleRpcEndpoint.getTerminationFuture();
 
 		// check that we executed the postStop method in the main thread, otherwise an exception
 		// would be thrown here.
@@ -285,7 +285,7 @@ public class AkkaRpcActorTest extends TestLogger {
 
 			rpcEndpoint.start();
 
-			CompletableFuture<Boolean> terminationFuture = rpcEndpoint.getTerminationFuture();
+			CompletableFuture<Void> terminationFuture = rpcEndpoint.getTerminationFuture();
 
 			rpcService.stopService();
 

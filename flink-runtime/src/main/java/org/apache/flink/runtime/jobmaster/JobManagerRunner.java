@@ -225,10 +225,10 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 
 				jobManager.shutDown();
 
-				final CompletableFuture<Boolean> jobManagerTerminationFuture = jobManager.getTerminationFuture();
+				final CompletableFuture<Void> jobManagerTerminationFuture = jobManager.getTerminationFuture();
 
 				jobManagerTerminationFuture.whenComplete(
-					(Boolean ignored, Throwable throwable) -> {
+					(Void ignored, Throwable throwable) -> {
 						try {
 							leaderElectionService.stop();
 						} catch (Throwable t) {

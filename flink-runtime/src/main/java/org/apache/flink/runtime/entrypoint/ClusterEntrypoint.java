@@ -213,7 +213,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 			// TODO: Make shutDownAndTerminate non blocking to not use the global executor
 			dispatcher.getTerminationFuture().whenCompleteAsync(
-				(Boolean success, Throwable throwable) -> {
+				(Void value, Throwable throwable) -> {
 					if (throwable != null) {
 						LOG.info("Could not properly terminate the Dispatcher.", throwable);
 					}

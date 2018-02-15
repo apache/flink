@@ -222,7 +222,7 @@ public class MiniDispatcherTest extends TestLogger {
 
 			resultFuture.complete(archivedExecutionGraph);
 
-			final CompletableFuture<Boolean> terminationFuture = miniDispatcher.getTerminationFuture();
+			final CompletableFuture<Void> terminationFuture = miniDispatcher.getTerminationFuture();
 
 			assertThat(terminationFuture.isDone(), is(false));
 

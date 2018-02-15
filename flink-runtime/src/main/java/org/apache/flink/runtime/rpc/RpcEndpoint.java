@@ -228,7 +228,7 @@ public abstract class RpcEndpoint implements RpcGateway {
 	 *
 	 * @return Future which is completed when the rpc endpoint has been terminated.
 	 */
-	public CompletableFuture<Boolean> getTerminationFuture() {
+	public CompletableFuture<Void> getTerminationFuture() {
 		return rpcServer.getTerminationFuture();
 	}
 
