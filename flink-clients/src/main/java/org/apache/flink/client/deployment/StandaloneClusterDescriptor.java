@@ -57,7 +57,10 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 	}
 
 	@Override
-	public StandaloneClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
+	public StandaloneClusterClient deployJobCluster(
+		ClusterSpecification clusterSpecification,
+		JobGraph jobGraph,
+		boolean detached) {
 		throw new UnsupportedOperationException("Can't deploy a standalone per-job cluster.");
 	}
 

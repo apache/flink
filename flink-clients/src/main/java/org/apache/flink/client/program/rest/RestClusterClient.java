@@ -196,83 +196,121 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 	@Override
 	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-		log.info("Submitting job.");
-		try {
-			// we have to enable queued scheduling because slot will be allocated lazily
-			jobGraph.setAllowQueuedScheduling(true);
-			submitJob(jobGraph);
-		} catch (JobSubmissionException e) {
-			throw new ProgramInvocationException(e);
-		}
+		log.info("Submitting job {}.", jobGraph.getJobID());
 
-		final JobResult jobExecutionResult;
-		try {
-			jobExecutionResult = pollResourceAsync(
-				() -> {
-					final JobMessageParameters messageParameters = new JobMessageParameters();
-					messageParameters.jobPathParameter.resolve(jobGraph.getJobID());
-					return sendRetryableRequest(
-						JobExecutionResultHeaders.getInstance(),
-						messageParameters,
-						EmptyRequestBody.getInstance(),
-						isConnectionProblemException().or(isHttpStatusUnsuccessfulException()));
-				}).get();
-		} catch (final Exception e) {
-			throw new ProgramInvocationException(e);
-		}
+		final CompletableFuture<JobSubmitResponseBody> jobSubmissionFuture = submitJob(jobGraph);
 
-		if (jobExecutionResult.getSerializedThrowable().isPresent()) {
-			final SerializedThrowable serializedThrowable = jobExecutionResult.getSerializedThrowable().get();
-			final Throwable throwable = serializedThrowable.deserializeError(classLoader);
-			throw new ProgramInvocationException(throwable);
-		}
+		if (isDetached()) {
+			try {
+				jobSubmissionFuture.get();
+			} catch (Exception e) {
+				throw new ProgramInvocationException("Could not submit job " + jobGraph.getJobID() + '.', ExceptionUtils.stripExecutionException(e));
+			}
 
-		try {
-			// don't return just a JobSubmissionResult here, the signature is lying
-			// The CliFrontend expects this to be a JobExecutionResult
-			this.lastJobExecutionResult = new JobExecutionResult(
-				jobExecutionResult.getJobId(),
-				jobExecutionResult.getNetRuntime(),
-				AccumulatorHelper.deserializeAccumulators(
-					jobExecutionResult.getAccumulatorResults(),
-					classLoader));
-			return lastJobExecutionResult;
-		} catch (IOException | ClassNotFoundException e) {
-			throw new ProgramInvocationException(e);
+			return new JobSubmissionResult(jobGraph.getJobID());
+		} else {
+			final CompletableFuture<JobResult> jobResultFuture = jobSubmissionFuture.thenCompose(
+				ignored -> requestJobResult(jobGraph.getJobID()));
+
+			final JobResult jobResult;
+			try {
+				jobResult = jobResultFuture.get();
+			} catch (Exception e) {
+				throw new ProgramInvocationException("Could not retrieve the execution result.", ExceptionUtils.stripExecutionException(e));
+			}
+
+			if (jobResult.getSerializedThrowable().isPresent()) {
+				final SerializedThrowable serializedThrowable = jobResult.getSerializedThrowable().get();
+				final Throwable throwable = serializedThrowable.deserializeError(classLoader);
+				throw new ProgramInvocationException(throwable);
+			}
+
+			try {
+				this.lastJobExecutionResult = new JobExecutionResult(
+					jobResult.getJobId(),
+					jobResult.getNetRuntime(),
+					AccumulatorHelper.deserializeAccumulators(
+						jobResult.getAccumulatorResults(),
+						classLoader));
+				return lastJobExecutionResult;
+			} catch (IOException | ClassNotFoundException e) {
+				throw new ProgramInvocationException(e);
+			}
 		}
 	}
 
-	private void submitJob(JobGraph jobGraph) throws JobSubmissionException {
+	/**
+	 * Requests the {@link JobResult} for the given {@link JobID}. The method retries multiple
+	 * times to poll the {@link JobResult} before giving up.
+	 *
+	 * @param jobId specifying the job for which to retrieve the {@link JobResult}
+	 * @return Future which is completed with the {@link JobResult} once the job has completed or
+	 * with a failure if the {@link JobResult} could not be retrieved.
+	 */
+	public CompletableFuture<JobResult> requestJobResult(JobID jobId) {
+		return pollResourceAsync(
+			() -> {
+				final JobMessageParameters messageParameters = new JobMessageParameters();
+				messageParameters.jobPathParameter.resolve(jobId);
+				return sendRetryableRequest(
+					JobExecutionResultHeaders.getInstance(),
+					messageParameters,
+					EmptyRequestBody.getInstance(),
+					isConnectionProblemException().or(isHttpStatusUnsuccessfulException()));
+			});
+	}
+
+	/**
+	 * Submits the given {@link JobGraph} to the dispatcher.
+	 *
+	 * @param jobGraph to submit
+	 * @return Future which is completed with the submission response
+	 */
+	public CompletableFuture<JobSubmitResponseBody> submitJob(JobGraph jobGraph) {
+		// we have to enable queued scheduling because slot will be allocated lazily
+		jobGraph.setAllowQueuedScheduling(true);
+
 		log.info("Requesting blob server port.");
-		int blobServerPort;
-		try {
-			CompletableFuture<BlobServerPortResponseBody> portFuture = sendRequest(
-				BlobServerPortHeaders.getInstance());
-			blobServerPort = portFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS).port;
-		} catch (Exception e) {
-			throw new JobSubmissionException(jobGraph.getJobID(), "Failed to retrieve blob server port.", e);
-		}
+		CompletableFuture<BlobServerPortResponseBody> portFuture = sendRequest(
+			BlobServerPortHeaders.getInstance());
 
-		log.info("Uploading jar files.");
-		try {
-			InetSocketAddress address = new InetSocketAddress(getDispatcherAddress().get(), blobServerPort);
-			List<PermanentBlobKey> keys = BlobClient.uploadJarFiles(address, this.flinkConfig, jobGraph.getJobID(), jobGraph.getUserJars());
-			for (PermanentBlobKey key : keys) {
-				jobGraph.addBlob(key);
-			}
-		} catch (Exception e) {
-			throw new JobSubmissionException(jobGraph.getJobID(), "Failed to upload user jars to blob server.", e);
-		}
+		CompletableFuture<JobGraph> jobUploadFuture = portFuture.thenCombine(
+			getDispatcherAddress(),
+			(BlobServerPortResponseBody response, String dispatcherAddress) -> {
+				log.info("Uploading jar files.");
+				final int blobServerPort = response.port;
+				final InetSocketAddress address = new InetSocketAddress(dispatcherAddress, blobServerPort);
+				final List<PermanentBlobKey> keys;
+				try {
+					keys = BlobClient.uploadJarFiles(address, flinkConfig, jobGraph.getJobID(), jobGraph.getUserJars());
+				} catch (IOException ioe) {
+					throw new CompletionException(new FlinkException("Could not upload job jar files.", ioe));
+				}
 
-		log.info("Submitting job graph.");
-		try {
-			CompletableFuture<JobSubmitResponseBody> responseFuture = sendRequest(
-				JobSubmitHeaders.getInstance(),
-				new JobSubmitRequestBody(jobGraph));
-			responseFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-		} catch (Exception e) {
-			throw new JobSubmissionException(jobGraph.getJobID(), "Failed to submit JobGraph.", e);
-		}
+				for (PermanentBlobKey key : keys) {
+					jobGraph.addBlob(key);
+				}
+
+				return jobGraph;
+			});
+
+		CompletableFuture<JobSubmitResponseBody> submissionFuture = jobUploadFuture.thenCompose(
+			(JobGraph jobGraphToSubmit) -> {
+				log.info("Submitting job graph.");
+
+				try {
+					return sendRequest(
+						JobSubmitHeaders.getInstance(),
+						new JobSubmitRequestBody(jobGraph));
+				} catch (IOException ioe) {
+					throw new CompletionException(new FlinkException("Could not create JobSubmitRequestBody.", ioe));
+				}
+			});
+
+		return submissionFuture.exceptionally(
+			(Throwable throwable) -> {
+				throw new CompletionException(new JobSubmissionException(jobGraph.getJobID(), "Failed to submit JobGraph.", throwable));
+			});
 	}
 
 	@Override

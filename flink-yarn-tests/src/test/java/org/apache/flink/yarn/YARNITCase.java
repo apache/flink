@@ -85,7 +85,10 @@ public class YARNITCase extends YarnTestBase {
 
 			jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
 
-			ClusterClient<ApplicationId> clusterClient = flip6YarnClusterDescriptor.deployJobCluster(clusterSpecification, jobGraph);
+			ClusterClient<ApplicationId> clusterClient = flip6YarnClusterDescriptor.deployJobCluster(
+				clusterSpecification,
+				jobGraph,
+				true);
 
 			clusterClient.shutdown();
 		}

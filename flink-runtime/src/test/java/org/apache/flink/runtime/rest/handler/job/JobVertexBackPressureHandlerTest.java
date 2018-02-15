@@ -70,7 +70,7 @@ public class JobVertexBackPressureHandlerTest {
 
 	@Before
 	public void setUp() {
-		restfulGateway = TestingRestfulGateway.newBuilder().setRequestOeratorBackPressureStatsFunction(
+		restfulGateway = TestingRestfulGateway.newBuilder().setRequestOperatorBackPressureStatsFunction(
 			(jobId, jobVertexId) -> {
 				if (jobId.equals(TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE)) {
 					return CompletableFuture.completedFuture(OperatorBackPressureStatsResponse.of(new OperatorBackPressureStats(

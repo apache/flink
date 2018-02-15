@@ -71,6 +71,8 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.mockito.Mockito;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -345,8 +347,6 @@ public class DispatcherTest extends TestLogger {
 
 	private static class TestingDispatcher extends Dispatcher {
 
-		private final JobID expectedJobId;
-
 		private final CountDownLatch submitJobLatch = new CountDownLatch(2);
 
 		/**
@@ -372,43 +372,13 @@ public class DispatcherTest extends TestLogger {
 				endpointId,
 				configuration,
 				highAvailabilityServices,
+				highAvailabilityServices.getSubmittedJobGraphStore(),
 				resourceManagerGateway,
 				blobServer,
 				heartbeatServices,
 				metricRegistry,
 				archivedExecutionGraphStore,
-				fatalErrorHandler,
-				null);
-
-			this.expectedJobId = expectedJobId;
-		}
-
-		@Override
-		protected JobManagerRunner createJobManagerRunner(
-				ResourceID resourceId,
-				JobGraph jobGraph,
-				Configuration configuration,
-				RpcService rpcService,
-				HighAvailabilityServices highAvailabilityServices,
-				HeartbeatServices heartbeatServices,
-				BlobServer blobServer,
-				JobManagerSharedServices jobManagerSharedServices,
-				MetricRegistry metricRegistry,
-				OnCompletionActions onCompleteActions,
-				FatalErrorHandler fatalErrorHandler) throws Exception {
-			assertEquals(expectedJobId, jobGraph.getJobID());
-
-			return new JobManagerRunner(
-				resourceId,
-				jobGraph,
-				configuration,
-				rpcService,
-				highAvailabilityServices,
-				heartbeatServices,
-				blobServer,
-				jobManagerSharedServices,
-				metricRegistry,
-				onCompleteActions,
+				new ExpectedJobIdJobManagerRunnerFactory(expectedJobId),
 				fatalErrorHandler,
 				null);
 		}
@@ -427,6 +397,46 @@ public class DispatcherTest extends TestLogger {
 			if (recoverJobsEnabled.get()) {
 				super.recoverJobs();
 			}
+		}
+	}
+
+	private static final class ExpectedJobIdJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFactory {
+
+		private final JobID expectedJobId;
+
+		private ExpectedJobIdJobManagerRunnerFactory(JobID expectedJobId) {
+			this.expectedJobId = expectedJobId;
+		}
+
+		@Override
+		public JobManagerRunner createJobManagerRunner(
+				ResourceID resourceId,
+				JobGraph jobGraph,
+				Configuration configuration,
+				RpcService rpcService,
+				HighAvailabilityServices highAvailabilityServices,
+				HeartbeatServices heartbeatServices,
+				BlobServer blobServer,
+				JobManagerSharedServices jobManagerSharedServices,
+				MetricRegistry metricRegistry,
+				OnCompletionActions onCompleteActions,
+				FatalErrorHandler fatalErrorHandler,
+				@Nullable String restAddress) throws Exception {
+			assertEquals(expectedJobId, jobGraph.getJobID());
+
+			return Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE.createJobManagerRunner(
+				resourceId,
+				jobGraph,
+				configuration,
+				rpcService,
+				highAvailabilityServices,
+				heartbeatServices,
+				blobServer,
+				jobManagerSharedServices,
+				metricRegistry,
+				onCompleteActions,
+				fatalErrorHandler,
+				restAddress);
 		}
 	}
 }
