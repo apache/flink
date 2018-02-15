@@ -31,7 +31,6 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -995,12 +994,8 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 			for (int j = 0; j < totalEdges; j++) {
 				int sourceIndex = source.readInt();
-				Preconditions.checkState(sourceIndex < entryList.size() && sourceIndex >= 0,
-						"Could not find source entry with index " + sourceIndex + 	". This indicates a corrupted state.");
 
 				int targetIndex = source.readInt();
-				Preconditions.checkState(targetIndex < entryList.size(),
-						"Could not find target entry with index " + sourceIndex + 	". This indicates a corrupted state.");
 
 				DeweyNumber version = versionSerializer.deserialize(source);
 
