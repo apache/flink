@@ -24,7 +24,7 @@ import org.apache.flink.api.common.state.{FoldingStateDescriptor, ReducingStateD
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.streaming.api.datastream.{QueryableStateStream, DataStream => JavaStream, KeyedStream => KeyedJavaStream, WindowedStream => WindowedJavaStream}
-import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.functions.{KeyedProcessFunction, ProcessFunction}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
 import org.apache.flink.streaming.api.functions.query.{QueryableAppendingStateOperator, QueryableValueStateOperator}
@@ -66,9 +66,11 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     * function, this function can also query the time and set timers. When reacting to the firing
     * of set timers the function can directly emit elements and/or register yet more timers.
     *
-    * @param processFunction The [[ProcessFunction]] that is called for each element
-    *                   in the stream.
+    * @param processFunction The [[ProcessFunction]] that is called for each element in the stream.
+    *
+    * @deprecated Use [[KeyedStream#process(KeyedProcessFunction)]]
     */
+  @deprecated("will be removed in a future version")
   @PublicEvolving
   override def process[R: TypeInformation](
     processFunction: ProcessFunction[T, R]): DataStream[R] = {
@@ -79,7 +81,34 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     asScalaStream(javaStream.process(processFunction, implicitly[TypeInformation[R]]))
   }
-  
+
+  /**
+   * Applies the given [[KeyedProcessFunction]] on the input stream, thereby
+   * creating a transformed output stream.
+   *
+   * The function will be called for every element in the stream and can produce
+   * zero or more output. The function can also query the time and set timers. When
+   * reacting to the firing of set timers the function can emit yet more elements.
+   *
+   * The function will be called for every element in the input streams and can produce zero
+   * or more output elements. Contrary to the [[DataStream#flatMap(FlatMapFunction)]]
+   * function, this function can also query the time and set timers. When reacting to the firing
+   * of set timers the function can directly emit elements and/or register yet more timers.
+   *
+   * @param keyedProcessFunction The [[KeyedProcessFunction]] that is called for each element
+   *                             in the stream.
+   */
+  @PublicEvolving
+  def process[R: TypeInformation](
+    keyedProcessFunction: KeyedProcessFunction[K, T, R]): DataStream[R] = {
+
+    if (keyedProcessFunction == null) {
+      throw new NullPointerException("KeyedProcessFunction must not be null.")
+    }
+
+    asScalaStream(javaStream.process(keyedProcessFunction, implicitly[TypeInformation[R]]))
+  }
+
   // ------------------------------------------------------------------------
   //  Windowing
   // ------------------------------------------------------------------------

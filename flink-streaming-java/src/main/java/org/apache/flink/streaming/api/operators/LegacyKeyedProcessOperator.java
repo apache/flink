@@ -23,7 +23,7 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.SimpleTimerService;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 
@@ -31,11 +31,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A {@link StreamOperator} for executing {@link KeyedProcessFunction KeyedProcessFunctions}.
+ * A {@link StreamOperator} for executing keyed {@link ProcessFunction ProcessFunctions}.
+ *
+ * @deprecated Replaced by {@link KeyedProcessOperator} which takes {@code KeyedProcessFunction}
  */
+@Deprecated
 @Internal
-public class KeyedProcessOperator<K, IN, OUT>
-		extends AbstractUdfStreamOperator<OUT, KeyedProcessFunction<K, IN, OUT>>
+public class LegacyKeyedProcessOperator<K, IN, OUT>
+		extends AbstractUdfStreamOperator<OUT, ProcessFunction<IN, OUT>>
 		implements OneInputStreamOperator<IN, OUT>, Triggerable<K, VoidNamespace> {
 
 	private static final long serialVersionUID = 1L;
@@ -46,7 +49,7 @@ public class KeyedProcessOperator<K, IN, OUT>
 
 	private transient OnTimerContextImpl onTimerContext;
 
-	public KeyedProcessOperator(KeyedProcessFunction<K, IN, OUT> function) {
+	public LegacyKeyedProcessOperator(ProcessFunction<IN, OUT> function) {
 		super(function);
 
 		chainingStrategy = ChainingStrategy.ALWAYS;
@@ -96,13 +99,13 @@ public class KeyedProcessOperator<K, IN, OUT>
 		onTimerContext.timer = null;
 	}
 
-	private class ContextImpl extends KeyedProcessFunction<K, IN, OUT>.Context {
+	private class ContextImpl extends ProcessFunction<IN, OUT>.Context {
 
 		private final TimerService timerService;
 
 		private StreamRecord<IN> element;
 
-		ContextImpl(KeyedProcessFunction<K, IN, OUT> function, TimerService timerService) {
+		ContextImpl(ProcessFunction<IN, OUT> function, TimerService timerService) {
 			function.super();
 			this.timerService = checkNotNull(timerService);
 		}
@@ -133,15 +136,15 @@ public class KeyedProcessOperator<K, IN, OUT>
 		}
 	}
 
-	private class OnTimerContextImpl extends KeyedProcessFunction<K, IN, OUT>.OnTimerContext {
+	private class OnTimerContextImpl extends ProcessFunction<IN, OUT>.OnTimerContext{
 
 		private final TimerService timerService;
 
 		private TimeDomain timeDomain;
 
-		private InternalTimer<K, VoidNamespace> timer;
+		private InternalTimer<?, VoidNamespace> timer;
 
-		OnTimerContextImpl(KeyedProcessFunction<K, IN, OUT> function, TimerService timerService) {
+		OnTimerContextImpl(ProcessFunction<IN, OUT> function, TimerService timerService) {
 			function.super();
 			this.timerService = checkNotNull(timerService);
 		}
@@ -170,11 +173,6 @@ public class KeyedProcessOperator<K, IN, OUT>
 		public TimeDomain timeDomain() {
 			checkState(timeDomain != null);
 			return timeDomain;
-		}
-
-		@Override
-		public K getCurrentKey() {
-			return timer.getKey();
 		}
 	}
 }
