@@ -45,6 +45,7 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.util.ExceptionUtils;
 
 import akka.actor.ActorSystem;
+import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -481,12 +482,17 @@ public class MiniCluster implements JobExecutorService {
 			boolean remoteEnabled,
 			String bindAddress) {
 
-		ActorSystem actorSystem;
+		final Config akkaConfig;
+
 		if (remoteEnabled) {
-			actorSystem = AkkaUtils.createActorSystem(configuration, bindAddress, 0);
+			akkaConfig = AkkaUtils.getAkkaConfig(configuration, bindAddress, 0);
 		} else {
-			actorSystem = AkkaUtils.createLocalActorSystem(configuration);
+			akkaConfig = AkkaUtils.getAkkaConfig(configuration);
 		}
+
+		final Config effectiveAkkaConfig = AkkaUtils.testDispatcherConfig().withFallback(akkaConfig);
+
+		final ActorSystem actorSystem = AkkaUtils.createActorSystem(effectiveAkkaConfig);
 
 		return new AkkaRpcService(actorSystem, askTimeout);
 	}
