@@ -28,6 +28,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -98,6 +99,18 @@ public class MiniDispatcher extends Dispatcher {
 			});
 
 		return acknowledgeCompletableFuture;
+	}
+
+	@Override
+	public CompletableFuture<JobResult> requestJobResult(JobID jobId, Time timeout) {
+		final CompletableFuture<JobResult> jobResultFuture = super.requestJobResult(jobId, timeout);
+
+		if (executionMode == ClusterEntrypoint.ExecutionMode.NORMAL) {
+			// terminate the MiniDispatcher once we served the first JobResult successfully
+			jobResultFuture.whenComplete((JobResult ignored, Throwable throwable) -> shutDown());
+		}
+
+		return jobResultFuture;
 	}
 
 	@Override
