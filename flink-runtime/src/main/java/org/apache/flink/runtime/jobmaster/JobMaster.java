@@ -68,10 +68,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
-import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
-import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateLocation;
@@ -82,7 +79,6 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
@@ -110,7 +106,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -124,7 +119,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -819,94 +813,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		return CompletableFuture.completedFuture(executionGraph.getState());
 	}
 
-	//----------------------------------------------------------------------------------------------
-	// RestfulGateway RPC methods
-	//----------------------------------------------------------------------------------------------
-
 	@Override
-	public CompletableFuture<Acknowledge> cancelJob(JobID jobId, Time timeout) {
-		if (jobGraph.getJobID().equals(jobId)) {
-			return cancel(timeout);
-		} else {
-			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
-		}
-	}
-
-	@Override
-	public CompletableFuture<Acknowledge> stopJob(JobID jobId, Time timeout) {
-		if (jobGraph.getJobID().equals(jobId)) {
-			return stop(timeout);
-		} else {
-			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
-		}
-	}
-
-	@Override
-	public CompletableFuture<String> requestRestAddress(Time timeout) {
-		return restAddressFuture;
-	}
-
-	@Override
-	public CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, Time timeout) {
-		if (jobGraph.getJobID().equals(jobId)) {
-			return CompletableFuture.completedFuture(ArchivedExecutionGraph.createFrom(executionGraph));
-		} else {
-			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
-		}
-	}
-
-	@Override
-	public CompletableFuture<MultipleJobsDetails> requestMultipleJobDetails(Time timeout) {
-		return requestJobDetails(timeout)
-			.thenApply(
-				jobDetails -> new MultipleJobsDetails(Collections.singleton(jobDetails)));
-	}
-
-	@Override
-	public CompletableFuture<ClusterOverview> requestClusterOverview(Time timeout) {
-		final CompletableFuture<ResourceOverview> resourceOverviewFuture;
-		if (resourceManagerConnection != null) {
-			resourceOverviewFuture = resourceManagerConnection.getTargetGateway().requestResourceOverview(timeout);
-		} else {
-			resourceOverviewFuture = CompletableFuture.completedFuture(ResourceOverview.empty());
-		}
-
-		Collection<JobStatus> jobStatuses = Collections.singleton(executionGraph.getState());
-
-		return resourceOverviewFuture.thenApply(
-			(ResourceOverview resourceOverview) -> new ClusterOverview(
-				resourceOverview,
-				JobsOverview.create(jobStatuses)));
-	}
-
-	@Override
-	public CompletableFuture<Collection<String>> requestMetricQueryServicePaths(Time timeout) {
-		if (metricQueryServicePath != null) {
-			return CompletableFuture.completedFuture(Collections.singleton(metricQueryServicePath));
-		} else {
-			return CompletableFuture.completedFuture(Collections.emptyList());
-		}
-	}
-
-	@Override
-	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(Time timeout) {
-		if (resourceManagerConnection != null) {
-			return resourceManagerConnection.getTargetGateway().requestTaskManagerMetricQueryServicePaths(timeout);
-		} else {
-			return CompletableFuture.completedFuture(Collections.emptyList());
-		}
+	public CompletableFuture<ArchivedExecutionGraph> requestJob(Time timeout) {
+		return CompletableFuture.completedFuture(ArchivedExecutionGraph.createFrom(executionGraph));
 	}
 
 	@Override
 	public CompletableFuture<String> triggerSavepoint(
-			final JobID jobId,
-			final String targetDirectory,
-			final Time timeout) {
-		checkArgument(
-			jobGraph.getJobID().equals(jobId),
-			"Expected job id %s, was %s",
-			jobGraph.getJobID(),
-			jobId);
+		final String targetDirectory,
+		final Time timeout) {
 		try {
 			return executionGraph.getCheckpointCoordinator()
 				.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
@@ -917,8 +832,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	@Override
-	public CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
-			final JobID jobId, final JobVertexID jobVertexId) {
+	public CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(final JobVertexID jobVertexId) {
 		final ExecutionJobVertex jobVertex = executionGraph.getJobVertex(jobVertexId);
 		if (jobVertex == null) {
 			return FutureUtils.completedExceptionally(new FlinkException("JobVertexID not found " +

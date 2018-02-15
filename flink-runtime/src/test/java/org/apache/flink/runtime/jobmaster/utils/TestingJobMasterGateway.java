@@ -41,11 +41,11 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 
 import java.net.InetSocketAddress;
 import java.util.Collection;
@@ -54,7 +54,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * {@link JobMasterGateway} implementation for testing purposes.
  */
-public class TestingJobMasterGateway extends TestingRestfulGateway implements JobMasterGateway {
+public class TestingJobMasterGateway implements JobMasterGateway {
 
 	@Override
 	public CompletableFuture<Acknowledge> cancel(Time timeout) {
@@ -137,6 +137,21 @@ public class TestingJobMasterGateway extends TestingRestfulGateway implements Jo
 	}
 
 	@Override
+	public CompletableFuture<ArchivedExecutionGraph> requestJob(Time timeout) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CompletableFuture<String> triggerSavepoint(String targetDirectory, Time timeout) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(JobVertexID jobVertexId) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public void acknowledgeCheckpoint(JobID jobID, ExecutionAttemptID executionAttemptID, long checkpointId, CheckpointMetrics checkpointMetrics, TaskStateSnapshot subtaskState) {
 		throw new UnsupportedOperationException();
 	}
@@ -148,16 +163,6 @@ public class TestingJobMasterGateway extends TestingRestfulGateway implements Jo
 
 	@Override
 	public JobMasterId getFencingToken() {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public CompletableFuture<String> triggerSavepoint(JobID jobId, String targetDirectory, Time timeout) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, Time timeout) {
 		throw new UnsupportedOperationException();
 	}
 
@@ -174,5 +179,15 @@ public class TestingJobMasterGateway extends TestingRestfulGateway implements Jo
 	@Override
 	public CompletableFuture<Acknowledge> notifyKvStateUnregistered(JobID jobId, JobVertexID jobVertexId, KeyGroupRange keyGroupRange, String registrationName) {
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public String getAddress() {
+		return null;
+	}
+
+	@Override
+	public String getHostname() {
+		return null;
 	}
 }
