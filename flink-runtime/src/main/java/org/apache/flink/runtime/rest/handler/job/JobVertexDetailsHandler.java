@@ -74,10 +74,16 @@ public class JobVertexDetailsHandler extends AbstractExecutionGraphHandler<JobVe
 	}
 
 	@Override
-	protected JobVertexDetailsInfo handleRequest(HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request, AccessExecutionGraph executionGraph) {
+	protected JobVertexDetailsInfo handleRequest(
+			HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
+			AccessExecutionGraph executionGraph) throws NotFoundException {
 		JobID jobID = request.getPathParameter(JobIDPathParameter.class);
 		JobVertexID jobVertexID = request.getPathParameter(JobVertexIdPathParameter.class);
 		AccessExecutionJobVertex jobVertex = executionGraph.getJobVertex(jobVertexID);
+
+		if (jobVertex == null) {
+			throw new NotFoundException(String.format("JobVertex %s not found", jobVertexID));
+		}
 
 		List<JobVertexDetailsInfo.VertexTaskDetail> subtasks = new ArrayList<>();
 		final long now = System.currentTimeMillis();
