@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
+import org.apache.flink.streaming.connectors.kinesis.KinesisShardAssigner;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
@@ -33,13 +34,14 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGen
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestSourceContext;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableKinesisDataFetcher;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.TestLogger;
 
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.TestLogger;
 import org.junit.Test;
+import org.powermock.reflect.Whitebox;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -53,6 +55,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -644,4 +647,67 @@ public class KinesisDataFetcherTest extends TestLogger {
 			return context;
 		}
 	}
+
+
+	// ----------------------------------------------------------------------
+	// Tests shard distribution with custom hash function
+	// ----------------------------------------------------------------------
+
+	@Test
+	public void testShardToSubtaskMappingWithCustomHashFunction() throws Exception {
+
+		int totalCountOfSubtasks = 10;
+		int shardCount = 3;
+
+		for (int i = 0; i < 2; i++) {
+
+			final int hash = i;
+			final KinesisShardAssigner allShardsSingleSubtaskFn = (shard, subtasks) -> hash;
+			Map<String, Integer> streamToShardCount = new HashMap<>();
+			List<String> fakeStreams = new LinkedList<>();
+			fakeStreams.add("fakeStream");
+			streamToShardCount.put("fakeStream", shardCount);
+
+			for (int j = 0; j < totalCountOfSubtasks; j++) {
+
+				int subtaskIndex = j;
+				// subscribe with default hashing
+				final TestableKinesisDataFetcher fetcher =
+					new TestableKinesisDataFetcher(
+						fakeStreams,
+						new TestSourceContext<>(),
+						new Properties(),
+						new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
+						totalCountOfSubtasks,
+						subtaskIndex,
+						new AtomicReference<>(),
+						new LinkedList<>(),
+						KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(fakeStreams),
+						FakeKinesisBehavioursFactory.nonReshardedStreamsBehaviour(streamToShardCount));
+				Whitebox.setInternalState(fetcher, "shardAssigner", allShardsSingleSubtaskFn); // override hashing
+				List<StreamShardHandle> shards = fetcher.discoverNewShardsToSubscribe();
+				fetcher.shutdownFetcher();
+
+				String msg = String.format("for hash=%d, subtask=%d", hash, subtaskIndex);
+				if (j == i) {
+					assertEquals(msg, shardCount, shards.size());
+				} else {
+					assertEquals(msg, 0, shards.size());
+				}
+			}
+
+		}
+
+	}
+
+	@Test
+	public void testIsThisSubtaskShouldSubscribeTo() {
+		assertTrue(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(0, 2, 0));
+		assertFalse(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(1, 2, 0));
+		assertTrue(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(2, 2, 0));
+		assertFalse(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(0, 2, 1));
+		assertTrue(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(1, 2, 1));
+		assertFalse(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(2, 2, 1));
+	}
+
 }
