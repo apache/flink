@@ -145,7 +145,7 @@ public class PackagedProgram {
 	 *         This invocation is thrown if the Program can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
 	 */
-	public PackagedProgram(File jarFile, String entryPointClassName, String... args) throws ProgramInvocationException {
+	public PackagedProgram(File jarFile, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
 		this(jarFile, Collections.<URL>emptyList(), entryPointClassName, args);
 	}
 
@@ -168,7 +168,7 @@ public class PackagedProgram {
 	 *         This invocation is thrown if the Program can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
 	 */
-	public PackagedProgram(File jarFile, List<URL> classpaths, String entryPointClassName, String... args) throws ProgramInvocationException {
+	public PackagedProgram(File jarFile, List<URL> classpaths, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
 		if (jarFile == null) {
 			throw new IllegalArgumentException("The jar file must not be null.");
 		}
