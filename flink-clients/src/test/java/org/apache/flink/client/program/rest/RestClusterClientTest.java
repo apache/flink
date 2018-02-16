@@ -596,8 +596,11 @@ public class RestClusterClientTest extends TestLogger {
 		}
 
 		@Override
+		protected void startInternal() throws Exception {}
+
+		@Override
 		public void close() throws Exception {
-			shutdown(Time.seconds(5));
+			shutDownAsync().get();
 		}
 	}
 
