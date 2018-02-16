@@ -48,7 +48,7 @@ import java.util.regex.Pattern;
  */
 public class ConfigOptionsDocGenerator {
 
-	private static final OptionsClassLocation[] LOCATIONS = new OptionsClassLocation[]{
+	static final OptionsClassLocation[] LOCATIONS = new OptionsClassLocation[]{
 		new OptionsClassLocation("flink-core", "org.apache.flink.configuration"),
 		new OptionsClassLocation("flink-runtime", "org.apache.flink.runtime.io.network.netty"),
 		new OptionsClassLocation("flink-yarn", "org.apache.flink.yarn.configuration"),
@@ -107,7 +107,7 @@ public class ConfigOptionsDocGenerator {
 		});
 	}
 
-	private static void processConfigOptions(String rootDir, String module, String packageName, ThrowingConsumer<Class<?>, IOException> classConsumer) throws IOException, ClassNotFoundException {
+	static void processConfigOptions(String rootDir, String module, String packageName, ThrowingConsumer<Class<?>, IOException> classConsumer) throws IOException, ClassNotFoundException {
 		Path configDir = Paths.get(rootDir, module, "src/main/java", packageName.replaceAll("\\.", "/"));
 
 		try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir)) {
@@ -147,7 +147,7 @@ public class ConfigOptionsDocGenerator {
 		return tables;
 	}
 
-	private static List<OptionWithMetaInfo> extractConfigOptions(Class<?> clazz) {
+	static List<OptionWithMetaInfo> extractConfigOptions(Class<?> clazz) {
 		try {
 			List<OptionWithMetaInfo> configOptions = new ArrayList<>(8);
 			Field[] fields = clazz.getFields();
@@ -200,31 +200,31 @@ public class ConfigOptionsDocGenerator {
 	 */
 	private static String toHtmlString(final OptionWithMetaInfo optionWithMetaInfo) {
 		ConfigOption<?> option = optionWithMetaInfo.option;
-		String defaultValue;
+		String defaultValue = stringifyDefault(optionWithMetaInfo);
 
-		Documentation.OverrideDefault overrideDocumentedDefault = optionWithMetaInfo.field.getAnnotation(Documentation.OverrideDefault.class);
-		if (overrideDocumentedDefault != null) {
-			defaultValue = escapeCharacters(addWordBreakOpportunities(overrideDocumentedDefault.value()));
-		} else {
-			defaultValue = escapeCharacters(addWordBreakOpportunities(defaultValueToHtml(option.defaultValue())));
-		}
 		return "" +
 			"        <tr>\n" +
 			"            <td><h5>" + escapeCharacters(option.key()) + "</h5></td>\n" +
-			"            <td style=\"word-wrap: break-word;\">" + defaultValue + "</td>\n" +
+			"            <td style=\"word-wrap: break-word;\">" + escapeCharacters(addWordBreakOpportunities(defaultValue)) + "</td>\n" +
 			"            <td>" + escapeCharacters(option.description()) + "</td>\n" +
 			"        </tr>\n";
 	}
 
-	private static String defaultValueToHtml(Object value) {
-		if (value instanceof String) {
-			if (((String) value).isEmpty()) {
-				return "(none)";
+	static String stringifyDefault(OptionWithMetaInfo optionWithMetaInfo) {
+		ConfigOption<?> option = optionWithMetaInfo.option;
+		Documentation.OverrideDefault overrideDocumentedDefault = optionWithMetaInfo.field.getAnnotation(Documentation.OverrideDefault.class);
+		if (overrideDocumentedDefault != null) {
+			return overrideDocumentedDefault.value();
+		} else {
+			Object value = option.defaultValue();
+			if (value instanceof String) {
+				if (((String) value).isEmpty()) {
+					return "(none)";
+				}
+				return "\"" + value + "\"";
 			}
-			return "\"" + value + "\"";
+			return value == null ? "(none)" : value.toString();
 		}
-
-		return value == null ? "(none)" : value.toString();
 	}
 
 	private static String escapeCharacters(String value) {
@@ -328,9 +328,9 @@ public class ConfigOptionsDocGenerator {
 		}
 	}
 
-	private static class OptionWithMetaInfo {
-		private final ConfigOption<?> option;
-		private final Field field;
+	static class OptionWithMetaInfo {
+		final ConfigOption<?> option;
+		final Field field;
 
 		public OptionWithMetaInfo(ConfigOption<?> option, Field field) {
 			this.option = option;
