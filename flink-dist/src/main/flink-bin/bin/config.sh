@@ -446,6 +446,7 @@ readMasters() {
     MASTERS=()
     WEBUIPORTS=()
 
+    MASTERS_ALL_LOCALHOST=true
     GOON=true
     while $GOON; do
         read line || GOON=false
@@ -460,6 +461,10 @@ readMasters() {
                 WEBUIPORTS+=(0)
             else
                 WEBUIPORTS+=(${WEBUIPORT})
+            fi
+
+            if [ "${HOST}" != "localhost" ] ; then
+                MASTERS_ALL_LOCALHOST=false
             fi
         fi
     done < "$MASTERS_FILE"

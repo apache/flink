@@ -33,7 +33,12 @@ if [[ $HIGH_AVAILABILITY == "zookeeper" ]]; then
     for ((i=0;i<${#MASTERS[@]};++i)); do
         master=${MASTERS[i]}
         webuiport=${WEBUIPORTS[i]}
-        ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/jobmanager.sh\" start cluster ${master} ${webuiport} &"
+
+        if [ ${MASTERS_ALL_LOCALHOST} = true ] ; then
+            "${FLINK_BIN_DIR}"/jobmanager.sh start cluster "${master}" "${webuiport}"
+        else
+            ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/jobmanager.sh\" start cluster ${master} ${webuiport} &"
+        fi
     done
 
 else
