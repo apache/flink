@@ -23,10 +23,6 @@ if [[ -z $FLINK_DIR ]]; then
     echo "FLINK_DIR needs to point to a Flink distribution directory"
     exit 1
 fi
-if [[ -z $CLUSTER_MODE ]]; then
-    echo "CLUSTER_MODE needs to be one of local or cluster."
-    exit 1
-fi
 
 export PASS=1
 
@@ -44,14 +40,7 @@ export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
 echo "TEST_DATA_DIR: $TEST_DATA_DIR"
 
 function start_cluster {
-  if [[ "$CLUSTER_MODE" == "local" ]]; then
-    $FLINK_DIR/bin/start-local.sh
-  elif [[ "$CLUSTER_MODE" == "cluster" ]]; then
-    $FLINK_DIR/bin/start-cluster.sh
-  else
-    echo "Unrecognized cluster mode: $CLUSTER_MODE"
-    exit
-  fi
+  "$FLINK_DIR"/bin/start-cluster.sh
 
   # wait for TaskManager to come up
   # wait roughly 10 seconds
@@ -71,11 +60,7 @@ function start_cluster {
 }
 
 function stop_cluster {
-  if [[ "$CLUSTER_MODE" == "local" ]]; then
-    $FLINK_DIR/bin/stop-local.sh
-  elif [[ "$CLUSTER_MODE" == "cluster" ]]; then
-    $FLINK_DIR/bin/stop-cluster.sh
-  fi
+  "$FLINK_DIR"/bin/stop-cluster.sh
 
   if grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
       | grep -v "RetriableCommitFailedException" \
