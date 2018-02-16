@@ -942,7 +942,7 @@ public class DataStream<T> {
 	@PublicEvolving
 	public DataStreamSink<T> print() {
 		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>();
-		return addSink(printFunction);
+		return addSink(printFunction).name("Print to Std. Out");
 	}
 
 	/**
@@ -955,7 +955,7 @@ public class DataStream<T> {
 	@PublicEvolving
 	public DataStreamSink<T> printToErr() {
 		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(true);
-		return addSink(printFunction);
+		return addSink(printFunction).name("Print to Std. Err");
 	}
 
 	/**
