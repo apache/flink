@@ -1325,10 +1325,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 	/**
 	 * This test verifies that all ListState implementations are consistent in not allowing
-	 * adding {@code null}.
+	 * {@link ListState#addAll(List)} to be called with {@code null} entries in the list of entries
+	 * to add.
 	 */
 	@Test
-	public void testListStateAddAllNull() throws Exception {
+	public void testListStateAddAllNullEntries() throws Exception {
 		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
 
 		final ListStateDescriptor<Long> stateDescr = new ListStateDescriptor<>("my-state", Long.class);
@@ -1356,6 +1357,95 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		}
 	}
 
+	/**
+	 * This test verifies that all ListState implementations are consistent in not allowing
+	 * {@link ListState#addAll(List)} to be called with {@code null}.
+	 */
+	@Test
+	public void testListStateAddAllNull() throws Exception {
+		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
+
+		final ListStateDescriptor<Long> stateDescr = new ListStateDescriptor<>("my-state", Long.class);
+
+		try {
+			ListState<Long> state =
+				keyedBackend.getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					stateDescr);
+
+			keyedBackend.setCurrentKey("abc");
+			assertNull(state.get());
+
+			expectedException.expect(NullPointerException.class);
+			state.addAll(null);
+		} finally {
+			keyedBackend.close();
+			keyedBackend.dispose();
+		}
+	}
+
+	/**
+	 * This test verifies that all ListState implementations are consistent in not allowing
+	 * {@link ListState#addAll(List)} to be called with {@code null} entries in the list of entries
+	 * to add.
+	 */
+	@Test
+	public void testListStateUpdateNullEntries() throws Exception {
+		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
+
+		final ListStateDescriptor<Long> stateDescr = new ListStateDescriptor<>("my-state", Long.class);
+
+		try {
+			ListState<Long> state =
+				keyedBackend.getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					stateDescr);
+
+			keyedBackend.setCurrentKey("abc");
+			assertNull(state.get());
+
+			expectedException.expect(NullPointerException.class);
+
+			List<Long> adding = new ArrayList<>();
+			adding.add(3L);
+			adding.add(null);
+			adding.add(5L);
+			state.update(adding);
+		} finally {
+			keyedBackend.close();
+			keyedBackend.dispose();
+		}
+	}
+
+	/**
+	 * This test verifies that all ListState implementations are consistent in not allowing
+	 * {@link ListState#addAll(List)} to be called with {@code null}.
+	 */
+	@Test
+	public void testListStateUpdateNull() throws Exception {
+		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
+
+		final ListStateDescriptor<Long> stateDescr = new ListStateDescriptor<>("my-state", Long.class);
+
+		try {
+			ListState<Long> state =
+				keyedBackend.getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					stateDescr);
+
+			keyedBackend.setCurrentKey("abc");
+			assertNull(state.get());
+
+			expectedException.expect(NullPointerException.class);
+			state.update(null);
+		} finally {
+			keyedBackend.close();
+			keyedBackend.dispose();
+		}
+	}
 
 	@Test
 	public void testListStateAPIs() throws Exception {
@@ -1373,9 +1463,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.add(17L);
 			state.add(11L);
 			assertThat(state.get(), containsInAnyOrder(17L, 11L));
-			// update(null) should remain the value null
-			state.update(null);
-			assertNull(state.get());
 			// update(emptyList) should remain the value null
 			state.update(Collections.emptyList());
 			assertNull(state.get());

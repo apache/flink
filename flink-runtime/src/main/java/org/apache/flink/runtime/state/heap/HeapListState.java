@@ -121,16 +121,27 @@ public class HeapListState<K, N, V>
 
 	@Override
 	public void update(List<V> values) throws Exception {
-		if (values != null && !values.isEmpty()) {
-			stateTable.put(currentNamespace, new ArrayList<>(values));
-		} else {
+		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
+
+		if (values.isEmpty()) {
 			clear();
+			return;
 		}
+
+		List<V> newStateList = new ArrayList<>();
+		for (V v : values) {
+			Preconditions.checkNotNull(v, "You cannot add null to a ListState.");
+			newStateList.add(v);
+		}
+
+		stateTable.put(currentNamespace, newStateList);
 	}
 
 	@Override
 	public void addAll(List<V> values) throws Exception {
-		if (values != null && !values.isEmpty()) {
+		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
+
+		if (!values.isEmpty()) {
 			stateTable.transform(currentNamespace, values, (previousState, value) -> {
 				if (previousState == null) {
 					previousState = new ArrayList<>();
