@@ -24,6 +24,7 @@ import java.util
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.streaming.api.functions.source.FileProcessingMode
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource}
@@ -57,7 +58,9 @@ object CommonTestData {
       fieldDelim = "#",
       rowDelim = "$",
       ignoreFirstLine = true,
-      ignoreComments = "%"
+      ignoreComments = "%",
+      processingMode = FileProcessingMode.PROCESS_ONCE,
+      updateInterval = -1
     )
   }
 

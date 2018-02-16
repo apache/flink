@@ -22,6 +22,7 @@ import _root_.java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.streaming.api.functions.source.FileProcessingMode
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.runtime.utils.CommonTestData
@@ -375,7 +376,9 @@ class TableSourceTest extends TableTestBase {
       ';',
       true,
       "%%",
-      true)
+      true,
+      FileProcessingMode.PROCESS_ONCE,
+      -1)
 
     Assert.assertEquals(source1, source2)
   }

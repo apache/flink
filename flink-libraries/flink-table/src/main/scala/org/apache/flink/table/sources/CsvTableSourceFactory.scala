@@ -20,10 +20,11 @@ package org.apache.flink.table.sources
 
 import java.util
 
+import org.apache.flink.streaming.api.functions.source.FileProcessingMode
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_TYPE, CONNECTOR_VERSION}
 import org.apache.flink.table.descriptors.CsvValidator._
-import org.apache.flink.table.descriptors.FileSystemValidator.{CONNECTOR_PATH, CONNECTOR_TYPE_VALUE}
+import org.apache.flink.table.descriptors.FileSystemValidator.{CONNECTOR_PATH, CONNECTOR_TYPE_VALUE, PROCESSING_MODE, UPDATE_INTERVAL}
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_TYPE, FORMAT_VERSION}
 import org.apache.flink.table.descriptors.SchemaValidator.{SCHEMA, SCHEMA_VERSION}
 import org.apache.flink.table.descriptors._
@@ -58,6 +59,7 @@ class CsvTableSourceFactory extends TableSourceFactory[Row] {
     properties.add(FORMAT_IGNORE_FIRST_LINE)
     properties.add(FORMAT_IGNORE_PARSE_ERRORS)
     properties.add(CONNECTOR_PATH)
+    properties.add(PROCESSING_MODE)
     // schema
     properties.add(s"$SCHEMA.#.${DescriptorProperties.TYPE}")
     properties.add(s"$SCHEMA.#.${DescriptorProperties.NAME}")
@@ -87,6 +89,9 @@ class CsvTableSourceFactory extends TableSourceFactory[Row] {
     }
 
     params.getString(CONNECTOR_PATH).foreach(csvTableSourceBuilder.path)
+    params.getString(PROCESSING_MODE).foreach(
+      v => csvTableSourceBuilder.processingMode(FileProcessingMode.valueOf(v)))
+    params.getLong(UPDATE_INTERVAL).foreach(csvTableSourceBuilder.updateInterval)
     params.getString(FORMAT_FIELD_DELIMITER).foreach(csvTableSourceBuilder.fieldDelimiter)
     params.getString(FORMAT_LINE_DELIMITER).foreach(csvTableSourceBuilder.lineDelimiter)
 

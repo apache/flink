@@ -27,6 +27,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.fs.Path
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.functions.source.FileProcessingMode
 import org.apache.flink.table.api.{TableException, TableSchema}
 
 import scala.collection.mutable
@@ -57,7 +58,9 @@ class CsvTableSource private (
     private val quoteCharacter: Character,
     private val ignoreFirstLine: Boolean,
     private val ignoreComments: String,
-    private val lenient: Boolean)
+    private val lenient: Boolean,
+    private val processingMode: FileProcessingMode,
+    private val updateInterval: Long)
   extends BatchTableSource[Row]
   with StreamTableSource[Row]
   with ProjectableTableSource[Row] {
@@ -85,7 +88,9 @@ class CsvTableSource private (
     quoteCharacter: Character = null,
     ignoreFirstLine: Boolean = false,
     ignoreComments: String = null,
-    lenient: Boolean = false) = {
+    lenient: Boolean = false,
+    processingMode: FileProcessingMode,
+    updateInterval: Long) = {
 
     this(
       path,
@@ -97,7 +102,9 @@ class CsvTableSource private (
       quoteCharacter,
       ignoreFirstLine,
       ignoreComments,
-      lenient)
+      lenient,
+      processingMode,
+      updateInterval)
 
   }
 
@@ -110,8 +117,18 @@ class CsvTableSource private (
     * @param fieldTypes The types of the table fields.
     */
   def this(path: String, fieldNames: Array[String], fieldTypes: Array[TypeInformation[_]]) = {
-    this(path, fieldNames, fieldTypes, CsvInputFormat.DEFAULT_FIELD_DELIMITER,
-      CsvInputFormat.DEFAULT_LINE_DELIMITER, null, false, null, false)
+    this(
+      path,
+      fieldNames,
+      fieldTypes,
+      CsvInputFormat.DEFAULT_FIELD_DELIMITER,
+      CsvInputFormat.DEFAULT_LINE_DELIMITER,
+      null,
+      false,
+      null,
+      false,
+      FileProcessingMode.PROCESS_ONCE,
+      -1)
   }
 
   if (fieldNames.length != fieldTypes.length) {
@@ -143,7 +160,7 @@ class CsvTableSource private (
     *       Do not use it in Table API programs.
     */
   override def getDataStream(streamExecEnv: StreamExecutionEnvironment): DataStream[Row] = {
-    streamExecEnv.createInput(createCsvInput(), returnType).name(explainSource())
+    streamExecEnv.readFile(createCsvInput(), path, processingMode, updateInterval)
   }
 
   /** Returns the schema of the produced table. */
@@ -164,7 +181,9 @@ class CsvTableSource private (
       quoteCharacter,
       ignoreFirstLine,
       ignoreComments,
-      lenient)
+      lenient,
+      processingMode,
+      updateInterval)
   }
 
   private def createCsvInput(): RowCsvInputFormat = {
@@ -236,6 +255,8 @@ object CsvTableSource {
     private var isIgnoreFirstLine: Boolean = false
     private var commentPrefix: String = _
     private var lenient: Boolean = false
+    private var processingMode: FileProcessingMode = FileProcessingMode.PROCESS_ONCE
+    private var updateInterval: Long = 1000
 
     /**
       * Sets the path to the CSV file. Required.
@@ -244,6 +265,23 @@ object CsvTableSource {
       */
     def path(path: String): Builder = {
       this.path = path
+      this
+    }
+
+    /**
+     * Sets the processing mode of the source.
+     */
+    def processingMode(processingMode: FileProcessingMode): Builder = {
+      this.processingMode = processingMode
+      this
+    }
+
+    /**
+     * Sets the update interval in milliseconds when using
+     * [[FileProcessingMode.PROCESS_CONTINUOUSLY]].
+     */
+    def updateInterval(interval: Long): Builder = {
+      this.updateInterval = interval
       this
     }
 
@@ -340,7 +378,9 @@ object CsvTableSource {
         quoteCharacter,
         isIgnoreFirstLine,
         commentPrefix,
-        lenient)
+        lenient,
+        processingMode,
+        updateInterval)
     }
 
   }

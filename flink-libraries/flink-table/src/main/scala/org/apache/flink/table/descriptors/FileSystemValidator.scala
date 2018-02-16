@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.descriptors
 
+import org.apache.flink.streaming.api.functions.source.FileProcessingMode
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
-import org.apache.flink.table.descriptors.FileSystemValidator.{CONNECTOR_PATH, CONNECTOR_TYPE_VALUE}
+import org.apache.flink.table.descriptors.FileSystemValidator.{CONNECTOR_PATH, CONNECTOR_TYPE_VALUE, PROCESSING_MODE, UPDATE_INTERVAL}
 
 /**
   * Validator for [[FileSystem]].
@@ -30,6 +31,18 @@ class FileSystemValidator extends ConnectorDescriptorValidator {
     super.validate(properties)
     properties.validateValue(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE, isOptional = false)
     properties.validateString(CONNECTOR_PATH, isOptional = false, minLen = 1)
+    properties.validateLong(UPDATE_INTERVAL, isOptional = true, min = 500)
+
+    val noValidation = () => {}
+
+    properties.validateEnum(
+      PROCESSING_MODE,
+      isOptional = true,
+      Map(
+        FileProcessingMode.PROCESS_CONTINUOUSLY.toString -> noValidation,
+        FileProcessingMode.PROCESS_ONCE.toString -> noValidation
+      )
+    )
   }
 }
 
@@ -37,5 +50,6 @@ object FileSystemValidator {
 
   val CONNECTOR_TYPE_VALUE = "filesystem"
   val CONNECTOR_PATH = "connector.path"
-
+  val PROCESSING_MODE = "connector.processing-mode"
+  val UPDATE_INTERVAL = "connector.update-interval-ms"
 }
