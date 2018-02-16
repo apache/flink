@@ -254,7 +254,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	 * Called to shut down the TaskManager. The method closes all TaskManager services.
 	 */
 	@Override
-	public void postStop() throws Exception {
+	public CompletableFuture<Void> postStop() {
 		log.info("Stopping TaskManager {}.", getAddress());
 
 		Throwable throwable = null;
@@ -281,17 +281,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
 		}
 
-		try {
-			super.postStop();
-		} catch (Throwable e) {
-			throwable = ExceptionUtils.firstOrSuppressed(e, throwable);
-		}
-
 		if (throwable != null) {
-			ExceptionUtils.rethrowException(throwable, "Error while shutting the TaskExecutor down.");
+			return FutureUtils.completedExceptionally(new FlinkException("Error while shutting the TaskExecutor down.", throwable));
+		} else {
+			return CompletableFuture.completedFuture(null);
 		}
-
-		log.info("Stopped TaskManager {}.", getAddress());
 	}
 
 	// ======================================================================

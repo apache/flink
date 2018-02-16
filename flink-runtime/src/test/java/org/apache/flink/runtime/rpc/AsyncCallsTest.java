@@ -333,6 +333,11 @@ public class AsyncCallsTest extends TestLogger {
 		public boolean hasConcurrentAccess() {
 			return concurrentAccess;
 		}
+
+		@Override
+		public CompletableFuture<Void> postStop() {
+			return CompletableFuture.completedFuture(null);
+		}
 	}
 
 	public interface FencedTestGateway extends FencedRpcGateway<UUID> {
@@ -376,6 +381,11 @@ public class AsyncCallsTest extends TestLogger {
 			setFencingToken(fencingToken);
 
 			return CompletableFuture.completedFuture(Acknowledge.get());
+		}
+
+		@Override
+		public CompletableFuture<Void> postStop() {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 }
