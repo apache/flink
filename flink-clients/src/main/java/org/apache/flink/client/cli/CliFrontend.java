@@ -1126,7 +1126,7 @@ public class CliFrontend {
 	 * @return JobGraph extracted from the PackagedProgram
 	 * @throws ProgramInvocationException if the JobGraph generation failed
 	 */
-	private static JobGraph createJobGraph(Configuration configuration, PackagedProgram packagedProgram, int defaultParallelism) throws ProgramInvocationException {
+	public static JobGraph createJobGraph(Configuration configuration, PackagedProgram packagedProgram, int defaultParallelism) throws ProgramInvocationException {
 		Thread.currentThread().setContextClassLoader(packagedProgram.getUserCodeClassLoader());
 		final Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
 		final FlinkPlan flinkPlan;

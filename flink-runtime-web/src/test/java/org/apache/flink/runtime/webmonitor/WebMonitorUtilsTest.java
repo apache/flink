@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.webmonitor.handlers.JarUploadHandler;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
@@ -55,12 +57,15 @@ public class WebMonitorUtilsTest {
 	 */
 	@Test
 	public void testTryLoadJarHandlers() {
+		final Configuration configuration = new Configuration();
+		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
 		assertThat(WebMonitorUtils.tryLoadJarHandlers(
 			CompletableFuture::new,
 			CompletableFuture.completedFuture("localhost:12345"),
 			Time.seconds(10),
 			Collections.emptyMap(),
 			Paths.get("/tmp"),
-			Executors.directExecutor()), not(empty()));
+			Executors.directExecutor(),
+			configuration), not(empty()));
 	}
 }

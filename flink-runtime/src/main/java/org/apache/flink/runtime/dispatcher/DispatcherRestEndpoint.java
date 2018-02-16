@@ -106,7 +106,8 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 				timeout,
 				responseHeaders,
 				uploadDir,
-				executor));
+				executor,
+				clusterConfiguration));
 		}
 
 		handlers.add(Tuple2.of(blobServerPortHandler.getMessageHeaders(), blobServerPortHandler));
