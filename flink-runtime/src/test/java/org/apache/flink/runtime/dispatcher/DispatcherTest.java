@@ -79,6 +79,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.hamcrest.Matchers.contains;
@@ -134,9 +135,9 @@ public class DispatcherTest extends TestLogger {
 	}
 
 	@AfterClass
-	public static void teardown() {
+	public static void teardown() throws InterruptedException, ExecutionException, TimeoutException {
 		if (rpcService != null) {
-			rpcService.stopService();
+			RpcUtils.terminateRpcService(rpcService, TIMEOUT);
 
 			rpcService = null;
 		}

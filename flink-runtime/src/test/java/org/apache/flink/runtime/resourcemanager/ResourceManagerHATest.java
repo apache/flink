@@ -126,7 +126,7 @@ public class ResourceManagerHATest extends TestLogger {
 				testingFatalErrorHandler.rethrowError();
 			}
 		} finally {
-			rpcService.stopService();
+			rpcService.stopService().get();
 		}
 	}
 }

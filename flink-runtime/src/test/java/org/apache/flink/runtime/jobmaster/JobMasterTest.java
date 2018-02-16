@@ -39,6 +39,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -151,7 +152,7 @@ public class JobMasterTest extends TestLogger {
 
 		} finally {
 			jobManagerSharedServices.shutdown();
-			rpc.stopService();
+			RpcUtils.terminateRpcService(rpc, testingTimeout);
 		}
 	}
 
@@ -252,7 +253,7 @@ public class JobMasterTest extends TestLogger {
 
 		} finally {
 			jobManagerSharedServices.shutdown();
-			rpc.stopService();
+			RpcUtils.terminateRpcService(rpc, testingTimeout);
 		}
 	}
 

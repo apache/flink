@@ -308,7 +308,7 @@ public class YarnResourceManagerTest extends TestLogger {
 		 * Stop the Akka actor system.
 		 */
 		public void stopResourceManager() throws Exception {
-			rpcService.stopService();
+			rpcService.stopService().get();
 		}
 	}
 

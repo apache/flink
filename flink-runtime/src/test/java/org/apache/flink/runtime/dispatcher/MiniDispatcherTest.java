@@ -63,6 +63,8 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -137,13 +139,13 @@ public class MiniDispatcherTest extends TestLogger {
 	}
 
 	@AfterClass
-	public static void teardownClass() throws IOException {
+	public static void teardownClass() throws IOException, InterruptedException, ExecutionException, TimeoutException {
 		if (blobServer != null) {
 			blobServer.close();
 		}
 
 		if (rpcService != null) {
-			rpcService.stopService();
+			RpcUtils.terminateRpcService(rpcService, timeout);
 		}
 	}
 
