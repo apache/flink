@@ -134,6 +134,6 @@ public class TextValueInputFormat extends DelimitedInputFormat<StringValue> {
 
 	@Override
 	public String toString() {
-		return "TextValueInputFormat (" + getFilePath() + ") - " + this.charsetName + (this.skipInvalidLines ? "(skipping invalid lines)" : "");
+		return "TextValueInputFormat (" + Arrays.toString(getFilePaths()) + ") - " + this.charsetName + (this.skipInvalidLines ? "(skipping invalid lines)" : "");
 	}
 }
