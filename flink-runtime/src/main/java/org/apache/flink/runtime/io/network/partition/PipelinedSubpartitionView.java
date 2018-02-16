@@ -76,6 +76,11 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 	}
 
 	@Override
+	public boolean nextBufferIsEvent() {
+		return parent.nextBufferIsEvent();
+	}
+
+	@Override
 	public Throwable getFailureCause() {
 		return parent.getFailureCause();
 	}

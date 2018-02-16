@@ -126,7 +126,7 @@ public class SingleInputGateTest {
 
 		final ResultSubpartitionView iterator = mock(ResultSubpartitionView.class);
 		when(iterator.getNextBuffer()).thenReturn(
-			new BufferAndBacklog(new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(1024), FreeingBufferRecycler.INSTANCE), 0));
+			new BufferAndBacklog(new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(1024), FreeingBufferRecycler.INSTANCE), 0, false));
 
 		final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		when(partitionManager.createSubpartitionView(
@@ -386,7 +386,7 @@ public class SingleInputGateTest {
 			"t1",
 			new JobID(),
 			new IntermediateDataSetID(),
-			ResultPartitionType.PIPELINED_CREDIT_BASED,
+			ResultPartitionType.PIPELINED_BOUNDED,
 			0,
 			1,
 			mock(TaskActions.class),
@@ -414,7 +414,7 @@ public class SingleInputGateTest {
 			"t1",
 			new JobID(),
 			new IntermediateDataSetID(),
-			ResultPartitionType.PIPELINED_CREDIT_BASED,
+			ResultPartitionType.PIPELINED_BOUNDED,
 			0,
 			1,
 			mock(TaskActions.class),

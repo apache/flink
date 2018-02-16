@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileReader;
@@ -27,11 +26,14 @@ import org.apache.flink.runtime.io.disk.iomanager.SynchronousBufferFileReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.util.event.NotificationListener;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -73,6 +75,9 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 
 	/** Flag indicating whether all resources have been released. */
 	private AtomicBoolean isReleased = new AtomicBoolean();
+
+	/** The next buffer to hand out. */
+	private Buffer nextBuffer;
 
 	/** Flag indicating whether a spill is still in progress. */
 	private volatile boolean isSpillInProgress = true;
@@ -119,17 +124,38 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	@Nullable
 	@Override
 	public BufferAndBacklog getNextBuffer() throws IOException, InterruptedException {
-		if (fileReader.hasReachedEndOfFile() || isSpillInProgress) {
+		if (isSpillInProgress) {
 			return null;
 		}
 
+		Buffer current;
+		if (nextBuffer == null) {
+			current = requestAndFillBuffer();
+			nextBuffer = requestAndFillBuffer();
+		} else {
+			current = nextBuffer;
+			nextBuffer = requestAndFillBuffer();
+		}
+
+		if (current == null) {
+			return null;
+		}
+
+		int newBacklog = parent.decreaseBuffersInBacklog(current);
+		boolean nextBufferIsEvent = nextBuffer != null && !nextBuffer.isBuffer();
+		return new BufferAndBacklog(current, newBacklog, nextBufferIsEvent);
+	}
+
+	@Nullable
+	private Buffer requestAndFillBuffer() throws IOException, InterruptedException {
+		if (fileReader.hasReachedEndOfFile()) {
+			return null;
+		}
 		// TODO This is fragile as we implicitly expect that multiple calls to
 		// this method don't happen before recycling buffers returned earlier.
 		Buffer buffer = bufferPool.requestBufferBlocking();
 		fileReader.readInto(buffer);
-
-		int newBacklog = parent.decreaseBuffersInBacklog(buffer);
-		return new BufferAndBacklog(buffer, newBacklog);
+		return buffer;
 	}
 
 	@Override
@@ -155,6 +181,10 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 			spillWriter.closeAndDelete();
 
 			fileReader.close();
+			if (nextBuffer != null) {
+				nextBuffer.recycleBuffer();
+				nextBuffer = null;
+			}
 			bufferPool.destroy();
 		}
 	}
@@ -162,6 +192,19 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	@Override
 	public boolean isReleased() {
 		return parent.isReleased() || isReleased.get();
+	}
+
+	@Override
+	public boolean nextBufferIsEvent() {
+		if (nextBuffer == null) {
+			try {
+				nextBuffer = requestAndFillBuffer();
+			} catch (Exception e) {
+				// we can ignore this here (we will get it again once getNextBuffer() is called)
+				return false;
+			}
+		}
+		return nextBuffer != null && !nextBuffer.isBuffer();
 	}
 
 	@Override
