@@ -225,7 +225,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				keyedState.update(key * 2);
 			}
 
-			try (Stream<Integer> keysStream = backend.getKeys(fieldName, VoidNamespace.INSTANCE).sorted()) {
+			try (Stream<Integer> keysStream = backend.getKeys(fieldName, VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE).sorted()) {
 				PrimitiveIterator.OfInt actualIterator = keysStream.mapToInt(value -> value.intValue()).iterator();
 
 				for (int expectedKey = 0; expectedKey < elementsToTest; expectedKey++) {

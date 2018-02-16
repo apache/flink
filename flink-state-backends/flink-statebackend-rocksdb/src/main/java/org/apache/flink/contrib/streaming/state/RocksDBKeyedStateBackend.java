@@ -94,6 +94,7 @@ import org.rocksdb.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -257,7 +258,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N> Stream<K> getKeys(String state, N namespace) {
+	public <N> Stream<K> getKeys(String state, N namespace, TypeSerializer<N> namespaceSerializer) {
 		Tuple2<ColumnFamilyHandle, ?> columnInfo = kvStateInformation.get(state);
 		if (columnInfo == null) {
 			return Stream.empty();
@@ -266,9 +267,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RocksIterator iterator = db.newIterator(columnInfo.f0);
 		iterator.seekToFirst();
 
-		Iterable<K> iterable = () -> new RocksIteratorWrapper<>(iterator, state, keySerializer, keyGroupPrefixBytes);
-		Stream<K> targetStream = StreamSupport.stream(iterable.spliterator(), false);
-		return targetStream.onClose(iterator::close);
+		final byte[] namespaceBytes;
+		try {
+			ByteArrayOutputStream outputStream = new ByteArrayOutputStream(8);
+			namespaceSerializer.serialize(namespace, new DataOutputViewStreamWrapper(outputStream));
+			namespaceBytes = outputStream.toByteArray();
+			Iterable<K> iterable = () -> new RocksIteratorWrapper<>(iterator, state, keySerializer, keyGroupPrefixBytes, namespaceBytes);
+			Stream<K> targetStream = StreamSupport.stream(iterable.spliterator(), false);
+			return targetStream.onClose(iterator::close);
+		} catch (IOException ex) {
+			throw new FlinkRuntimeException("", ex);
+		}
 	}
 
 	/**
@@ -1991,26 +2000,60 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return count;
 	}
 
+	/**
+	 * This class is not thread safety.
+	 */
 	private static class RocksIteratorWrapper<K> implements Iterator<K> {
 		private final RocksIterator iterator;
 		private final String state;
 		private final TypeSerializer<K> keySerializer;
 		private final int keyGroupPrefixBytes;
+		private final byte[] namespaceBytes;
+		private K nextKey;
 
 		public RocksIteratorWrapper(
 				RocksIterator iterator,
 				String state,
 				TypeSerializer<K> keySerializer,
-				int keyGroupPrefixBytes) {
+				int keyGroupPrefixBytes,
+				byte[] namespaceBytes) {
 			this.iterator = Preconditions.checkNotNull(iterator);
 			this.state = Preconditions.checkNotNull(state);
 			this.keySerializer = Preconditions.checkNotNull(keySerializer);
 			this.keyGroupPrefixBytes = Preconditions.checkNotNull(keyGroupPrefixBytes);
+			this.namespaceBytes = Preconditions.checkNotNull(namespaceBytes);
+			this.nextKey = null;
 		}
 
 		@Override
 		public boolean hasNext() {
-			return iterator.isValid();
+			final int namespaceBytesLength = namespaceBytes.length;
+			while (nextKey != null && iterator.isValid()) {
+				try {
+					boolean namespaceValid = true;
+					byte[] key = iterator.key();
+					if (key.length >= namespaceBytesLength) {
+						for (int i = 1; i <= namespaceBytesLength; --i) {
+							if (key[key.length - i] != namespaceBytes[namespaceBytesLength - i]) {
+								namespaceValid = false;
+								break;
+							}
+						}
+						if (namespaceValid) {
+							DataInputViewStreamWrapper dataInput = new DataInputViewStreamWrapper(
+								new ByteArrayInputStreamWithPos(key, keyGroupPrefixBytes, key.length - keyGroupPrefixBytes));
+							K value = keySerializer.deserialize(dataInput);
+							if (dataInput.available() == namespaceBytesLength) {
+								nextKey = value;
+							}
+						}
+					}
+					iterator.next();
+				} catch (IOException e) {
+					throw new FlinkRuntimeException("Failed to access state [" + state + "]", e);
+				}
+			}
+			return nextKey != null;
 		}
 
 		@Override
@@ -2018,16 +2061,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			if (!hasNext()) {
 				throw new NoSuchElementException("Failed to access state [" + state + "]");
 			}
-			try {
-				byte[] key = iterator.key();
-					DataInputViewStreamWrapper dataInput = new DataInputViewStreamWrapper(
-					new ByteArrayInputStreamWithPos(key, keyGroupPrefixBytes, key.length - keyGroupPrefixBytes));
-				K value = keySerializer.deserialize(dataInput);
-				iterator.next();
-				return value;
-			} catch (IOException e) {
-				throw new FlinkRuntimeException("Failed to access state [" + state + "]", e);
-			}
+
+			K tmpKey = nextKey;
+			nextKey = null;
+			return tmpKey;
 		}
 	}
 }

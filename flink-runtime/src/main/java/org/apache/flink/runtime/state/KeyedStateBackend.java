@@ -62,7 +62,7 @@ public interface KeyedStateBackend<K> extends InternalKeyContext<K> {
 	 * @param state State variable for which existing keys will be returned.
 	 * @param namespace Namespace for which existing keys will be returned.
 	 */
-	<N> Stream<K> getKeys(String state, N namespace);
+	<N> Stream<K> getKeys(String state, N namespace, TypeSerializer<N> namespaceSerializer);
 
 	/**
 	 * Creates or retrieves a keyed state backed by this state backend.
