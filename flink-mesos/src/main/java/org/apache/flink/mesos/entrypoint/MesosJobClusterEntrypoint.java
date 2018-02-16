@@ -28,6 +28,7 @@ import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -43,7 +44,6 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -59,6 +59,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Entry point for Mesos per-job clusters.
@@ -167,26 +168,16 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 	}
 
 	@Override
-	protected void stopClusterServices(boolean cleanupHaData) throws FlinkException {
-		Throwable exception = null;
+	protected CompletableFuture<Void> stopClusterServices(boolean cleanupHaData) {
+		final CompletableFuture<Void> serviceShutDownFuture = super.stopClusterServices(cleanupHaData);
 
-		try {
-			super.stopClusterServices(cleanupHaData);
-		} catch (Throwable t) {
-			exception = ExceptionUtils.firstOrSuppressed(t, exception);
-		}
-
-		if (mesosServices != null) {
-			try {
-				mesosServices.close(cleanupHaData);
-			} catch (Throwable t) {
-				exception = ExceptionUtils.firstOrSuppressed(t, exception);
-			}
-		}
-
-		if (exception != null) {
-			throw new FlinkException("Could not properly shut down the Mesos job cluster entry point.", exception);
-		}
+		return FutureUtils.runAfterwards(
+			serviceShutDownFuture,
+			() -> {
+				if (mesosServices != null) {
+					mesosServices.close(cleanupHaData);
+				}
+			});
 	}
 
 	public static void main(String[] args) {
