@@ -51,7 +51,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -72,12 +71,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	/** The job graph needs to run. */
 	private final JobGraph jobGraph;
 
-	/** The listener to notify once the job completes - either successfully or unsuccessfully. */
-	private final OnCompletionActions toNotifyOnComplete;
-
-	/** The handler to call in case of fatal (unrecoverable) errors. */
-	private final FatalErrorHandler errorHandler;
-
 	/** Used to check whether a job needs to be run. */
 	private final RunningJobsRegistry runningJobsRegistry;
 
@@ -93,6 +86,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	private final Time rpcTimeout;
 
 	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
+
+	private final CompletableFuture<Void> terminationFuture;
 
 	/** flag marking the runner as shut down. */
 	private volatile boolean shutdown;
@@ -119,17 +114,16 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			final BlobServer blobServer,
 			final JobManagerSharedServices jobManagerSharedServices,
 			final MetricRegistry metricRegistry,
-			final OnCompletionActions toNotifyOnComplete,
-			final FatalErrorHandler errorHandler,
 			@Nullable final String restAddress) throws Exception {
 
 		JobManagerMetricGroup jobManagerMetrics = null;
 
+		this.resultFuture = new CompletableFuture<>();
+		this.terminationFuture = new CompletableFuture<>();
+
 		// make sure we cleanly shut down out JobManager services if initialization fails
 		try {
 			this.jobGraph = checkNotNull(jobGraph);
-			this.toNotifyOnComplete = checkNotNull(toNotifyOnComplete);
-			this.errorHandler = checkNotNull(errorHandler);
 			this.jobManagerSharedServices = checkNotNull(jobManagerSharedServices);
 
 			checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
@@ -176,14 +170,15 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 				userCodeLoader,
 				restAddress,
 				metricRegistry.getMetricQueryServicePath());
-
-			this.resultFuture = new CompletableFuture<>();
 		}
 		catch (Throwable t) {
 			// clean up everything
 			if (jobManagerMetrics != null) {
 				jobManagerMetrics.close();
 			}
+
+			terminationFuture.completeExceptionally(t);
+			resultFuture.completeExceptionally(t);
 
 			throw new JobExecutionException(jobGraph.getJobID(), "Could not set up JobManager", t);
 		}
@@ -225,34 +220,43 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 
 	private CompletableFuture<Void> shutdownInternally() {
 		synchronized (lock) {
-			shutdown = true;
+			if (!shutdown) {
+				shutdown = true;
 
-			jobManager.shutDown();
+				jobManager.shutDown();
 
-			return jobManager.getTerminationFuture()
-				.thenAccept(
-					ignored -> {
-						Throwable exception = null;
+				final CompletableFuture<Boolean> jobManagerTerminationFuture = jobManager.getTerminationFuture();
+
+				jobManagerTerminationFuture.whenComplete(
+					(Boolean ignored, Throwable throwable) -> {
 						try {
 							leaderElectionService.stop();
 						} catch (Throwable t) {
-							exception = ExceptionUtils.firstOrSuppressed(t, exception);
+							throwable = ExceptionUtils.firstOrSuppressed(t, ExceptionUtils.stripCompletionException(throwable));
 						}
 
 						// make all registered metrics go away
 						try {
 							jobManagerMetricGroup.close();
 						} catch (Throwable t) {
-							exception = ExceptionUtils.firstOrSuppressed(t, exception);
+							throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
 						}
 
-						if (exception != null) {
-							throw new CompletionException(new FlinkException("Could not properly shut down the JobManagerRunner.", exception));
+						if (throwable != null) {
+							terminationFuture.completeExceptionally(
+								new FlinkException("Could not properly shut down the JobManagerRunner", throwable));
+						} else {
+							terminationFuture.complete(null);
 						}
-
-						// cancel the result future if not already completed
-						resultFuture.cancel(false);
 					});
+
+				terminationFuture.whenComplete(
+					(Void ignored, Throwable throwable) -> {
+						resultFuture.completeExceptionally(new JobNotFinishedException(jobGraph.getJobID()));
+					});
+			}
+
+			return terminationFuture;
 		}
 	}
 
@@ -267,16 +271,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
 		// complete the result future with the terminal execution graph
 		resultFuture.complete(executionGraph);
-
-		try {
-			unregisterJobFromHighAvailability();
-			shutdownInternally();
-		}
-		finally {
-			if (toNotifyOnComplete != null) {
-				toNotifyOnComplete.jobReachedGloballyTerminalState(executionGraph);
-			}
-		}
+		unregisterJobFromHighAvailability();
 	}
 
 	/**
@@ -284,14 +279,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	 */
 	@Override
 	public void jobFinishedByOther() {
-		try {
-			shutdownInternally();
-		}
-		finally {
-			if (toNotifyOnComplete != null) {
-				toNotifyOnComplete.jobFinishedByOther();
-			}
-		}
+		resultFuture.completeExceptionally(new JobNotFinishedException(jobGraph.getJobID()));
 	}
 
 	/**
@@ -306,17 +294,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			log.error("JobManager runner encountered a fatal error.", exception);
 		} catch (Throwable ignored) {}
 
-		// in any case, notify our handler, so it can react fast
-		try {
-			if (errorHandler != null) {
-				errorHandler.onFatalError(exception);
-			}
-		}
-		finally {
-			// the shutdown may not even needed any more, if the fatal error
-			// handler kills the process. that is fine, a process kill cleans up better than anything.
-			shutdownInternally();
-		}
+		resultFuture.completeExceptionally(exception);
 	}
 
 	/**

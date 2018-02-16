@@ -124,8 +124,8 @@ public class MiniDispatcher extends Dispatcher {
 	}
 
 	@Override
-	protected void jobFinishedByOther(JobID jobId) {
-		super.jobFinishedByOther(jobId);
+	protected void jobNotFinished(JobID jobId) {
+		super.jobNotFinished(jobId);
 
 		// shut down since we have done our job
 		shutDown();
