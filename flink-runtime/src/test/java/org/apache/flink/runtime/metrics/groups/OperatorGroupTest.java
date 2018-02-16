@@ -32,6 +32,8 @@ import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Map;
@@ -45,10 +47,22 @@ import static org.junit.Assert.assertNotNull;
  */
 public class OperatorGroupTest extends TestLogger {
 
-	@Test
-	public void testGenerateScopeDefault() {
-		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+	private MetricRegistryImpl registry;
 
+	@Before
+	public void setup() {
+		registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+	}
+
+	@After
+	public void teardown() throws Exception {
+		if (registry != null) {
+			registry.shutdown().get();
+		}
+	}
+
+	@Test
+	public void testGenerateScopeDefault() throws Exception {
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
 		TaskManagerJobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
 		TaskMetricGroup taskGroup = new TaskMetricGroup(
@@ -62,12 +76,10 @@ public class OperatorGroupTest extends TestLogger {
 		assertEquals(
 				"theHostName.taskmanager.test-tm-id.myJobName.myOpName.11.name",
 				opGroup.getMetricIdentifier("name"));
-
-		registry.shutdown();
 	}
 
 	@Test
-	public void testGenerateScopeCustom() {
+	public void testGenerateScopeCustom() throws Exception {
 		Configuration cfg = new Configuration();
 		cfg.setString(MetricOptions.SCOPE_NAMING_OPERATOR, "<tm_id>.<job_id>.<task_id>.<operator_name>.<operator_id>");
 		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
@@ -91,14 +103,12 @@ public class OperatorGroupTest extends TestLogger {
 				String.format("%s.%s.%s.%s.%s.name", tmID, jid, vertexId, operatorName, operatorID),
 				operatorGroup.getMetricIdentifier("name"));
 		} finally {
-			registry.shutdown();
+			registry.shutdown().get();
 		}
 	}
 
 	@Test
-	public void testIOMetricGroupInstantiation() {
-		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
-
+	public void testIOMetricGroupInstantiation() throws Exception {
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
 		TaskManagerJobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
 		TaskMetricGroup taskGroup = new TaskMetricGroup(
@@ -108,14 +118,10 @@ public class OperatorGroupTest extends TestLogger {
 		assertNotNull(opGroup.getIOMetricGroup());
 		assertNotNull(opGroup.getIOMetricGroup().getNumRecordsInCounter());
 		assertNotNull(opGroup.getIOMetricGroup().getNumRecordsOutCounter());
-
-		registry.shutdown();
 	}
 
 	@Test
 	public void testVariables() {
-		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
-
 		JobID jid = new JobID();
 		JobVertexID tid = new JobVertexID();
 		AbstractID eid = new AbstractID();
@@ -140,8 +146,6 @@ public class OperatorGroupTest extends TestLogger {
 		testVariable(variables, ScopeFormat.SCOPE_TASK_ATTEMPT_NUM, "0");
 		testVariable(variables, ScopeFormat.SCOPE_OPERATOR_ID, oid.toString());
 		testVariable(variables, ScopeFormat.SCOPE_OPERATOR_NAME, "myOpName");
-
-		registry.shutdown();
 	}
 
 	private static void testVariable(Map<String, String> variables, String key, String expectedValue) {
@@ -156,7 +160,6 @@ public class OperatorGroupTest extends TestLogger {
 		JobVertexID vid = new JobVertexID();
 		AbstractID eid = new AbstractID();
 		OperatorID oid = new OperatorID();
-		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
 		TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");
 		TaskMetricGroup task = new TaskMetricGroup(registry, job, vid, eid, "taskName", 4, 5);

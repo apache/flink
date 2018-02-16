@@ -44,7 +44,7 @@ public class MetricGroupRegistrationTest extends TestLogger {
 	 * Verifies that group methods instantiate the correct metric with the given name.
 	 */
 	@Test
-	public void testMetricInstantiation() {
+	public void testMetricInstantiation() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
 
@@ -85,7 +85,7 @@ public class MetricGroupRegistrationTest extends TestLogger {
 
 		Assert.assertEquals(histogram, TestReporter1.lastPassedMetric);
 		assertEquals("histogram", TestReporter1.lastPassedName);
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 
 	/**
@@ -107,7 +107,7 @@ public class MetricGroupRegistrationTest extends TestLogger {
 	 * Verifies that when attempting to create a group with the name of an existing one the existing one will be returned instead.
 	 */
 	@Test
-	public void testDuplicateGroupName() {
+	public void testDuplicateGroupName() throws Exception {
 		Configuration config = new Configuration();
 
 		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
@@ -119,6 +119,6 @@ public class MetricGroupRegistrationTest extends TestLogger {
 		MetricGroup group3 = root.addGroup("group");
 		Assert.assertTrue(group1 == group2 && group2 == group3);
 
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 }
