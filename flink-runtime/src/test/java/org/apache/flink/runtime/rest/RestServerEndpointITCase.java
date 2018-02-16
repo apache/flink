@@ -136,14 +136,14 @@ public class RestServerEndpointITCase extends TestLogger {
 	}
 
 	@After
-	public void teardown() {
+	public void teardown() throws Exception {
 		if (restClient != null) {
 			restClient.shutdown(timeout);
 			restClient = null;
 		}
 
 		if (serverEndpoint != null) {
-			serverEndpoint.shutdown(timeout);
+			serverEndpoint.shutDownAsync().get();
 			serverEndpoint = null;
 		}
 	}
@@ -316,6 +316,9 @@ public class RestServerEndpointITCase extends TestLogger {
 				Tuple2.of(new TestHeaders(), testHandler),
 				Tuple2.of(TestUploadHeaders.INSTANCE, testUploadHandler));
 		}
+
+		@Override
+		protected void startInternal() throws Exception {}
 	}
 
 	private static class TestHandler extends AbstractRestHandler<RestfulGateway, TestRequest, TestResponse, TestParameters> {

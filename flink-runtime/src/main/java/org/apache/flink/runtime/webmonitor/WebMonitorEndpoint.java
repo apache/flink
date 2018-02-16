@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.TransientBlobService;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -113,6 +114,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -607,31 +609,39 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	}
 
 	@Override
-	public void start() throws Exception {
-		super.start();
+	public void startInternal() throws Exception {
 		leaderElectionService.start(this);
 	}
 
 	@Override
-	public void shutdown(Time timeout) {
+	protected CompletableFuture<Void> shutDownInternal() {
 		executionGraphCache.close();
+
+		final CompletableFuture<Void> shutdownFuture = super.shutDownInternal();
 
 		final File tmpDir = restConfiguration.getTmpDir();
 
-		try {
-			log.info("Removing cache directory {}", tmpDir);
-			FileUtils.deleteDirectory(tmpDir);
-		} catch (Throwable t) {
-			log.warn("Error while deleting cache directory {}", tmpDir, t);
-		}
+		return FutureUtils.runAfterwardsAsync(
+			shutdownFuture,
+			() -> {
+				Exception exception = null;
+				try {
+					log.info("Removing cache directory {}", tmpDir);
+					FileUtils.deleteDirectory(tmpDir);
+				} catch (Exception e) {
+					exception = e;
+				}
 
-		try {
-			leaderElectionService.stop();
-		} catch (Exception e) {
-			log.warn("Error while stopping leaderElectionService", e);
-		}
+				try {
+					leaderElectionService.stop();
+				} catch (Exception e) {
+					exception = ExceptionUtils.firstOrSuppressed(e, exception);
+				}
 
-		super.shutdown(timeout);
+				if (exception != null) {
+					throw exception;
+				}
+			});
 	}
 
 	//-------------------------------------------------------------------------

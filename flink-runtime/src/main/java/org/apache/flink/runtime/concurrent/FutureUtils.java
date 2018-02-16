@@ -33,6 +33,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -282,6 +283,20 @@ public class FutureUtils {
 	 */
 	public static CompletableFuture<Void> runAfterwards(CompletableFuture<?> future, RunnableWithException runnable) {
 		return runAfterwardsAsync(future, runnable, Executors.directExecutor());
+	}
+
+	/**
+	 * Run the given action after the completion of the given future. The given future can be
+	 * completed normally or exceptionally. In case of an exceptional completion the, the
+	 * action's exception will be added to the initial exception.
+	 *
+	 * @param future to wait for its completion
+	 * @param runnable action which is triggered after the future's completion
+	 * @return Future which is completed after the action has completed. This future can contain an exception,
+	 * if an error occurred in the given future or action.
+	 */
+	public static CompletableFuture<Void> runAfterwardsAsync(CompletableFuture<?> future, RunnableWithException runnable) {
+		return runAfterwardsAsync(future, runnable, ForkJoinPool.commonPool());
 	}
 
 	/**
