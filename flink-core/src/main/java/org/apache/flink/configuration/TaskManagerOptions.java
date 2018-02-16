@@ -81,7 +81,7 @@ public class TaskManagerOptions {
 	public static final ConfigOption<String> RPC_PORT =
 		key("taskmanager.rpc.port")
 			.defaultValue("0")
-			.withDescription(" The task manager’s IPC port. Accepts a list of ports (“50100,50101”), ranges" +
+			.withDescription("The task manager’s IPC port. Accepts a list of ports (“50100,50101”), ranges" +
 				" (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid" +
 				" collisions when multiple TaskManagers are running on the same machine.");
 
