@@ -36,15 +36,10 @@ import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractJsonRequestHandler;
-import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
 import org.apache.flink.runtime.webmonitor.WebRuntimeMonitor;
-import org.apache.flink.util.ExceptionUtils;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -107,18 +102,6 @@ public abstract class JarActionHandler extends AbstractJsonRequestHandler {
 			}
 		}
 		return Tuple2.of(graph, classLoader);
-	}
-
-	protected String sendError(Exception e) throws Exception {
-		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
-
-		gen.writeStartObject();
-		gen.writeStringField("error", ExceptionUtils.stringifyException(e));
-		gen.writeEndObject();
-		gen.close();
-
-		return writer.toString();
 	}
 
 	/**
