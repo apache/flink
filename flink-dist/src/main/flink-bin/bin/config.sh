@@ -463,7 +463,7 @@ readMasters() {
                 WEBUIPORTS+=(${WEBUIPORT})
             fi
 
-            if [ "${HOST}" != "localhost" ] ; then
+            if [ "${HOST}" != "localhost" ] && [ "${HOST}" != "127.0.0.1" ] ; then
                 MASTERS_ALL_LOCALHOST=false
             fi
         fi
@@ -487,7 +487,7 @@ readSlaves() {
         HOST=$( extractHostName $line)
         if [ -n "$HOST" ] ; then
             SLAVES+=(${HOST})
-            if [ "${HOST}" != "localhost" ] ; then
+            if [ "${HOST}" != "localhost" ] && [ "${HOST}" != "127.0.0.1" ] ; then
                 SLAVES_ALL_LOCALHOST=false
             fi
         fi
