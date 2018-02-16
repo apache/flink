@@ -84,6 +84,7 @@ public class CheckpointingOptions {
 	public static final ConfigOption<String> CHECKPOINTS_DIRECTORY = ConfigOptions
 			.key("state.checkpoints.dir")
 			.noDefaultValue()
+			.withDeprecatedKeys("state.backend.fs.checkpointdir")
 			.withDescription("The default directory used for checkpoints. Used by the state backends that write" +
 				" checkpoints to file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend).");
 
