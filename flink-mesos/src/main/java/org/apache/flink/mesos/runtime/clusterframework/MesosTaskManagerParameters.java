@@ -18,10 +18,10 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.util.Preconditions;
 
@@ -51,8 +51,7 @@ public class MesosTaskManagerParameters {
 	public static final Pattern TASK_ID_PATTERN = Pattern.compile("_TASK_", Pattern.LITERAL);
 
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_SLOTS =
-		key(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS)
-		.defaultValue(1);
+		TaskManagerOptions.NUM_TASK_SLOTS;
 
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_MEMORY_MB =
 		key("mesos.resourcemanager.tasks.mem")
