@@ -28,6 +28,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -41,10 +43,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.Matchers.arrayContaining;
+import static org.hamcrest.Matchers.emptyArray;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyLong;
@@ -276,6 +283,153 @@ public class FutureUtilsTest extends TestLogger {
 			assertThat(e.getMessage(), containsString("Could not complete the operation"));
 		} finally {
 			retryExecutor.shutdownNow();
+		}
+	}
+
+	@Test
+	public void testRunAfterwards() throws Exception {
+		final CompletableFuture<Void> inputFuture = new CompletableFuture<>();
+		final OneShotLatch runnableLatch = new OneShotLatch();
+
+		final CompletableFuture<Void> runFuture = FutureUtils.runAfterwards(
+			inputFuture,
+			runnableLatch::trigger);
+
+		assertThat(runnableLatch.isTriggered(), is(false));
+		assertThat(runFuture.isDone(), is(false));
+
+		inputFuture.complete(null);
+
+		assertThat(runnableLatch.isTriggered(), is(true));
+		assertThat(runFuture.isDone(), is(true));
+
+		// check that this future is not exceptionally completed
+		runFuture.get();
+	}
+
+	@Test
+	public void testRunAfterwardsExceptional() throws Exception {
+		final CompletableFuture<Void> inputFuture = new CompletableFuture<>();
+		final OneShotLatch runnableLatch = new OneShotLatch();
+		final FlinkException testException = new FlinkException("Test exception");
+
+		final CompletableFuture<Void> runFuture = FutureUtils.runAfterwards(
+			inputFuture,
+			runnableLatch::trigger);
+
+		assertThat(runnableLatch.isTriggered(), is(false));
+		assertThat(runFuture.isDone(), is(false));
+
+		inputFuture.completeExceptionally(testException);
+
+		assertThat(runnableLatch.isTriggered(), is(true));
+		assertThat(runFuture.isDone(), is(true));
+
+		try {
+			runFuture.get();
+			fail("Expected an exceptional completion");
+		} catch (ExecutionException ee) {
+			assertThat(ExceptionUtils.stripExecutionException(ee), is(testException));
+		}
+	}
+
+	@Test
+	public void testCompleteAll() throws Exception {
+		final CompletableFuture<String> inputFuture1 = new CompletableFuture<>();
+		final CompletableFuture<Integer> inputFuture2 = new CompletableFuture<>();
+
+		final List<CompletableFuture<?>> futuresToComplete = Arrays.asList(inputFuture1, inputFuture2);
+		final FutureUtils.ConjunctFuture<Void> completeFuture = FutureUtils.completeAll(futuresToComplete);
+
+		assertThat(completeFuture.isDone(), is(false));
+		assertThat(completeFuture.getNumFuturesCompleted(), is(0));
+		assertThat(completeFuture.getNumFuturesTotal(), is(futuresToComplete.size()));
+
+		inputFuture2.complete(42);
+
+		assertThat(completeFuture.isDone(), is(false));
+		assertThat(completeFuture.getNumFuturesCompleted(), is(1));
+
+		inputFuture1.complete("foobar");
+
+		assertThat(completeFuture.isDone(), is(true));
+		assertThat(completeFuture.getNumFuturesCompleted(), is(2));
+
+		completeFuture.get();
+	}
+
+	@Test
+	public void testCompleteAllPartialExceptional() throws Exception {
+		final CompletableFuture<String> inputFuture1 = new CompletableFuture<>();
+		final CompletableFuture<Integer> inputFuture2 = new CompletableFuture<>();
+
+		final List<CompletableFuture<?>> futuresToComplete = Arrays.asList(inputFuture1, inputFuture2);
+		final FutureUtils.ConjunctFuture<Void> completeFuture = FutureUtils.completeAll(futuresToComplete);
+
+		assertThat(completeFuture.isDone(), is(false));
+		assertThat(completeFuture.getNumFuturesCompleted(), is(0));
+		assertThat(completeFuture.getNumFuturesTotal(), is(futuresToComplete.size()));
+
+		final FlinkException testException1 = new FlinkException("Test exception 1");
+		inputFuture2.completeExceptionally(testException1);
+
+		assertThat(completeFuture.isDone(), is(false));
+		assertThat(completeFuture.getNumFuturesCompleted(), is(1));
+
+		inputFuture1.complete("foobar");
+
+		assertThat(completeFuture.isDone(), is(true));
+		assertThat(completeFuture.getNumFuturesCompleted(), is(2));
+
+		try {
+			completeFuture.get();
+			fail("Expected an exceptional completion");
+		} catch (ExecutionException ee) {
+			assertThat(ExceptionUtils.stripExecutionException(ee), is(testException1));
+		}
+	}
+
+	@Test
+	public void testCompleteAllExceptional() throws Exception {
+		final CompletableFuture<String> inputFuture1 = new CompletableFuture<>();
+		final CompletableFuture<Integer> inputFuture2 = new CompletableFuture<>();
+
+		final List<CompletableFuture<?>> futuresToComplete = Arrays.asList(inputFuture1, inputFuture2);
+		final FutureUtils.ConjunctFuture<Void> completeFuture = FutureUtils.completeAll(futuresToComplete);
+
+		assertThat(completeFuture.isDone(), is(false));
+		assertThat(completeFuture.getNumFuturesCompleted(), is(0));
+		assertThat(completeFuture.getNumFuturesTotal(), is(futuresToComplete.size()));
+
+		final FlinkException testException1 = new FlinkException("Test exception 1");
+		inputFuture1.completeExceptionally(testException1);
+
+		assertThat(completeFuture.isDone(), is(false));
+		assertThat(completeFuture.getNumFuturesCompleted(), is(1));
+
+		final FlinkException testException2 = new FlinkException("Test exception 2");
+		inputFuture2.completeExceptionally(testException2);
+
+		assertThat(completeFuture.isDone(), is(true));
+		assertThat(completeFuture.getNumFuturesCompleted(), is(2));
+
+		try {
+			completeFuture.get();
+			fail("Expected an exceptional completion");
+		} catch (ExecutionException ee) {
+			final Throwable actual = ExceptionUtils.stripExecutionException(ee);
+
+			final Throwable[] suppressed = actual.getSuppressed();
+			final FlinkException suppressedException;
+
+			if (actual.equals(testException1)) {
+				 suppressedException = testException2;
+			} else {
+				suppressedException = testException1;
+			}
+
+			assertThat(suppressed, is(not(emptyArray())));
+			assertThat(suppressed, arrayContaining(suppressedException));
 		}
 	}
 }
