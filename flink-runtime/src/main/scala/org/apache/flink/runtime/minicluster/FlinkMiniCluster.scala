@@ -468,7 +468,7 @@ abstract class FlinkMiniCluster(
 
     Await.ready(Future.sequence(jmFutures ++ tmFutures ++ rmFutures), timeout)
 
-    metricRegistryOpt.foreach(_.shutdown())
+    metricRegistryOpt.foreach(_.shutdown().get())
 
     if (!useSingleActorSystem) {
       taskManagerActorSystems foreach {

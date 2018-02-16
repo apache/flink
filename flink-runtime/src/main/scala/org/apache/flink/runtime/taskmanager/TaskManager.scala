@@ -1900,7 +1900,7 @@ object TaskManager {
 
     // shut down the metric query service
     try {
-      metricRegistry.shutdown()
+      metricRegistry.shutdown().get()
     } catch {
       case t: Throwable =>
         LOG.error("Could not properly shut down the metric registry.", t)
