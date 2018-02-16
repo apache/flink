@@ -77,7 +77,7 @@ public class Slf4jReporterTest extends TestLogger {
 
 	@AfterClass
 	public static void tearDown() throws Exception {
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	@Test

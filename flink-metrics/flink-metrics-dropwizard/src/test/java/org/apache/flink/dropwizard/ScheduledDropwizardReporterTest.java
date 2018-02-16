@@ -131,7 +131,7 @@ public class ScheduledDropwizardReporterTest {
 
 		assertEquals(expectedCounterName, counters.get(myCounter));
 
-		metricRegistry.shutdown().get();
+		metricRegistry.shutDownAsync().get();
 	}
 
 	/**

@@ -82,7 +82,7 @@ public class PrometheusReporterTest extends TestLogger {
 	@After
 	public void shutdownRegistry() throws Exception {
 		if (registry != null) {
-			registry.shutdown().get();
+			registry.shutDownAsync().get();
 		}
 	}
 
@@ -251,8 +251,8 @@ public class PrometheusReporterTest extends TestLogger {
 		final MetricRegistryImpl fixedPort2 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", String.valueOf(firstReporter.getPort()))));
 		assertThat(fixedPort2.getReporters(), hasSize(0));
 
-		fixedPort1.shutdown().get();
-		fixedPort2.shutdown().get();
+		fixedPort1.shutDownAsync().get();
+		fixedPort2.shutDownAsync().get();
 	}
 
 	@Test
@@ -263,8 +263,8 @@ public class PrometheusReporterTest extends TestLogger {
 		assertThat(portRange1.getReporters(), hasSize(1));
 		assertThat(portRange2.getReporters(), hasSize(1));
 
-		portRange1.shutdown().get();
-		portRange2.shutdown().get();
+		portRange1.shutDownAsync().get();
+		portRange2.shutDownAsync().get();
 	}
 
 	private String addMetricAndPollResponse(Metric metric, String metricName) throws UnirestException {
@@ -285,6 +285,6 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@After
 	public void closeReporterAndShutdownRegistry() throws Exception {
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 }

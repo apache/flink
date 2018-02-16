@@ -60,7 +60,7 @@ public class AbstractMetricGroupTest {
 		};
 		assertTrue(group.getAllVariables().isEmpty());
 
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	// ========================================================================
@@ -101,7 +101,7 @@ public class AbstractMetricGroupTest {
 				}
 			}
 		} finally {
-			testRegistry.shutdown().get();
+			testRegistry.shutDownAsync().get();
 		}
 	}
 
@@ -193,7 +193,7 @@ public class AbstractMetricGroupTest {
 			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, -1));
 			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, 2));
 		} finally {
-			testRegistry.shutdown().get();
+			testRegistry.shutDownAsync().get();
 		}
 	}
 }

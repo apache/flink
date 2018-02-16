@@ -52,7 +52,7 @@ public class JobManagerJobGroupTest extends TestLogger {
 				"theHostName.jobmanager.myJobName.name",
 				jmGroup.getMetricIdentifier("name"));
 
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	@Test
@@ -75,7 +75,7 @@ public class JobManagerJobGroupTest extends TestLogger {
 				"some-constant.myJobName.name",
 				jmGroup.getMetricIdentifier("name"));
 
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	@Test
@@ -98,7 +98,7 @@ public class JobManagerJobGroupTest extends TestLogger {
 				"peter.some-constant." + jid + ".name",
 				jmGroup.getMetricIdentifier("name"));
 
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	@Test

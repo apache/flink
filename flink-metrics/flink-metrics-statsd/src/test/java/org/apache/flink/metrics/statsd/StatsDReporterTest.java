@@ -124,7 +124,7 @@ public class StatsDReporterTest extends TestLogger {
 
 		assertEquals(expectedCounterName, counters.get(myCounter));
 
-		metricRegistry.shutdown().get();
+		metricRegistry.shutDownAsync().get();
 	}
 
 	/**
@@ -187,7 +187,7 @@ public class StatsDReporterTest extends TestLogger {
 
 		} finally {
 			if (registry != null) {
-				registry.shutdown().get();
+				registry.shutDownAsync().get();
 			}
 
 			if (receiver != null) {
@@ -247,7 +247,7 @@ public class StatsDReporterTest extends TestLogger {
 
 		} finally {
 			if (registry != null) {
-				registry.shutdown().get();
+				registry.shutDownAsync().get();
 			}
 
 			if (receiver != null) {

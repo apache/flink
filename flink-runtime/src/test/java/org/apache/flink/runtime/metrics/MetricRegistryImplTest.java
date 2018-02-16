@@ -64,7 +64,7 @@ public class MetricRegistryImplTest extends TestLogger {
 
 		Assert.assertFalse(metricRegistry.isShutdown());
 
-		metricRegistry.shutdown().get();
+		metricRegistry.shutDownAsync().get();
 
 		Assert.assertTrue(metricRegistry.isShutdown());
 	}
@@ -87,7 +87,7 @@ public class MetricRegistryImplTest extends TestLogger {
 		Assert.assertTrue(TestReporter1.wasOpened);
 		Assert.assertFalse(TestReporter11.wasOpened);
 
-		metricRegistry.shutdown().get();
+		metricRegistry.shutDownAsync().get();
 	}
 
 	/**
@@ -121,7 +121,7 @@ public class MetricRegistryImplTest extends TestLogger {
 		Assert.assertTrue(TestReporter12.wasOpened);
 		Assert.assertTrue(TestReporter13.wasOpened);
 
-		metricRegistry.shutdown().get();
+		metricRegistry.shutDownAsync().get();
 	}
 
 	/**
@@ -171,7 +171,7 @@ public class MetricRegistryImplTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg1", "hello");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg2", "world");
 
-		new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config)).shutdown().get();
+		new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config)).shutDownAsync().get();
 
 		Assert.assertEquals("hello", TestReporter2.mc.getString("arg1", null));
 		Assert.assertEquals("world", TestReporter2.mc.getString("arg2", null));
@@ -223,7 +223,7 @@ public class MetricRegistryImplTest extends TestLogger {
 		}
 		Assert.assertTrue("No report was triggered.", TestReporter3.reportCount > 0);
 
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	/**
@@ -266,7 +266,7 @@ public class MetricRegistryImplTest extends TestLogger {
 		assertTrue(TestReporter7.removedMetric instanceof Counter);
 		assertEquals("rootCounter", TestReporter7.removedMetricName);
 
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	/**
@@ -346,7 +346,7 @@ public class MetricRegistryImplTest extends TestLogger {
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "host", "id");
 		assertEquals("A_B_C_D_E_name", tmGroup.getMetricIdentifier("name"));
 
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	@Test
@@ -368,7 +368,7 @@ public class MetricRegistryImplTest extends TestLogger {
 		assertEquals(GLOBAL_DEFAULT_DELIMITER, registry.getDelimiter(3));
 		assertEquals(GLOBAL_DEFAULT_DELIMITER, registry.getDelimiter(-1));
 
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	@Test
@@ -393,7 +393,7 @@ public class MetricRegistryImplTest extends TestLogger {
 		TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, "host", "id");
 		group.counter("C");
 		group.close();
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 		assertEquals(4, TestReporter8.numCorrectDelimitersForRegister);
 		assertEquals(4, TestReporter8.numCorrectDelimitersForUnregister);
 	}
@@ -413,7 +413,7 @@ public class MetricRegistryImplTest extends TestLogger {
 
 		ActorRef queryServiceActor = registry.getQueryService();
 
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 
 		try {
 			Await.result(actorSystem.actorSelection(queryServiceActor.path()).resolveOne(timeout), timeout);
@@ -469,7 +469,7 @@ public class MetricRegistryImplTest extends TestLogger {
 		assertEquals(metric, TestReporter7.removedMetric);
 		assertEquals("counter", TestReporter7.removedMetricName);
 
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	/**

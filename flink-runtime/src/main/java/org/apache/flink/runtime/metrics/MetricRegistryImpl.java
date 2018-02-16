@@ -93,12 +93,13 @@ public class MetricRegistryImpl implements MetricRegistry {
 	public MetricRegistryImpl(MetricRegistryConfiguration config) {
 		this.scopeFormats = config.getScopeFormats();
 		this.globalDelimiter = config.getDelimiter();
-		this.delimiters = new ArrayList<>(10);
+		final int initialCapacity = 4;
+		this.delimiters = new ArrayList<>(initialCapacity);
 		this.terminationFuture = new CompletableFuture<>();
 		this.isShutdown = false;
 
 		// second, instantiate any custom configured reporters
-		this.reporters = new ArrayList<>(4);
+		this.reporters = new ArrayList<>(initialCapacity);
 
 		List<Tuple2<String, Configuration>> reporterConfigurations = config.getReporterConfigurations();
 
@@ -248,7 +249,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 	 * @return Future which is completed once the {@link MetricRegistryImpl}
 	 * is shut down.
 	 */
-	public CompletableFuture<Void> shutdown() {
+	public CompletableFuture<Void> shutDownAsync() {
 		synchronized (lock) {
 			if (isShutdown) {
 				return terminationFuture;

@@ -57,7 +57,7 @@ public class OperatorGroupTest extends TestLogger {
 	@After
 	public void teardown() throws Exception {
 		if (registry != null) {
-			registry.shutdown().get();
+			registry.shutDownAsync().get();
 		}
 	}
 
@@ -103,7 +103,7 @@ public class OperatorGroupTest extends TestLogger {
 				String.format("%s.%s.%s.%s.%s.name", tmID, jid, vertexId, operatorName, operatorID),
 				operatorGroup.getMetricIdentifier("name"));
 		} finally {
-			registry.shutdown().get();
+			registry.shutDownAsync().get();
 		}
 	}
 

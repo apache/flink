@@ -72,7 +72,7 @@ public class JobManagerGroupTest extends TestLogger {
 		assertTrue(jmJobGroup21.isClosed());
 		assertEquals(0, group.numRegisteredJobMetricGroups());
 
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	@Test
@@ -94,7 +94,7 @@ public class JobManagerGroupTest extends TestLogger {
 		assertTrue(jmJobGroup11.isClosed());
 		assertTrue(jmJobGroup21.isClosed());
 
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	// ------------------------------------------------------------------------
@@ -109,7 +109,7 @@ public class JobManagerGroupTest extends TestLogger {
 		assertArrayEquals(new String[]{"localhost", "jobmanager"}, group.getScopeComponents());
 		assertEquals("localhost.jobmanager.name", group.getMetricIdentifier("name"));
 
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	@Test
@@ -123,7 +123,7 @@ public class JobManagerGroupTest extends TestLogger {
 		assertArrayEquals(new String[]{"constant", "host", "foo", "host"}, group.getScopeComponents());
 		assertEquals("constant.host.foo.host.name", group.getMetricIdentifier("name"));
 
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	@Test

@@ -49,7 +49,7 @@ public class TaskManagerJobGroupTest extends TestLogger {
 	@After
 	public void teardown() throws Exception {
 		if (registry != null) {
-			registry.shutdown().get();
+			registry.shutDownAsync().get();
 		}
 	}
 
@@ -86,7 +86,7 @@ public class TaskManagerJobGroupTest extends TestLogger {
 		assertEquals(
 				"some-constant.myJobName.name",
 				jmGroup.getMetricIdentifier("name"));
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	@Test
@@ -108,7 +108,7 @@ public class TaskManagerJobGroupTest extends TestLogger {
 		assertEquals(
 				"peter.test-tm-id.some-constant." + jid + ".name",
 				jmGroup.getMetricIdentifier("name"));
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	@Test

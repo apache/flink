@@ -85,7 +85,7 @@ public class MetricGroupRegistrationTest extends TestLogger {
 
 		Assert.assertEquals(histogram, TestReporter1.lastPassedMetric);
 		assertEquals("histogram", TestReporter1.lastPassedName);
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 
 	/**
@@ -119,6 +119,6 @@ public class MetricGroupRegistrationTest extends TestLogger {
 		MetricGroup group3 = root.addGroup("group");
 		Assert.assertTrue(group1 == group2 && group2 == group3);
 
-		registry.shutdown().get();
+		registry.shutDownAsync().get();
 	}
 }
