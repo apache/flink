@@ -181,7 +181,7 @@ public class ConfigOptionsDocGenerator {
 		return "" +
 			"        <tr>\n" +
 			"            <td><h5>" + escapeCharacters(option.key()) + "</h5></td>\n" +
-			"            <td>" + escapeCharacters(defaultValueToHtml(defaultValue)) + "</td>\n" +
+			"            <td style=\"word-wrap: break-word;\">" + escapeCharacters(defaultValueToHtml(defaultValue)) + "</td>\n" +
 			"            <td>" + escapeCharacters(option.description()) + "</td>\n" +
 			"        </tr>\n";
 	}

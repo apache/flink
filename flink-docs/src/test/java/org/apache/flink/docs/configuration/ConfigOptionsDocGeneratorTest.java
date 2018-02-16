@@ -62,12 +62,12 @@ public class ConfigOptionsDocGeneratorTest {
 			"    <tbody>\n" +
 			"        <tr>\n" +
 			"            <td><h5>first.option.a</h5></td>\n" +
-			"            <td>2</td>\n" +
+			"            <td style=\"word-wrap: break-word;\">2</td>\n" +
 			"            <td>This is example description for the first option.</td>\n" +
 			"        </tr>\n" +
 			"        <tr>\n" +
 			"            <td><h5>second.option.a</h5></td>\n" +
-			"            <td>(none)</td>\n" +
+			"            <td style=\"word-wrap: break-word;\">(none)</td>\n" +
 			"            <td>This is long example description for the second option.</td>\n" +
 			"        </tr>\n" +
 			"    </tbody>\n" +
@@ -125,7 +125,7 @@ public class ConfigOptionsDocGeneratorTest {
 			"    <tbody>\n" +
 			"        <tr>\n" +
 			"            <td><h5>first.option.a</h5></td>\n" +
-			"            <td>2</td>\n" +
+			"            <td style=\"word-wrap: break-word;\">2</td>\n" +
 			"            <td>This is example description for the first option.</td>\n" +
 			"        </tr>\n" +
 			"    </tbody>\n" +
@@ -142,7 +142,7 @@ public class ConfigOptionsDocGeneratorTest {
 			"    <tbody>\n" +
 			"        <tr>\n" +
 			"            <td><h5>second.option.a</h5></td>\n" +
-			"            <td>(none)</td>\n" +
+			"            <td style=\"word-wrap: break-word;\">(none)</td>\n" +
 			"            <td>This is long example description for the second option.</td>\n" +
 			"        </tr>\n" +
 			"    </tbody>\n" +
@@ -159,12 +159,12 @@ public class ConfigOptionsDocGeneratorTest {
 			"    <tbody>\n" +
 			"        <tr>\n" +
 			"            <td><h5>fourth.option.a</h5></td>\n" +
-			"            <td>(none)</td>\n" +
+			"            <td style=\"word-wrap: break-word;\">(none)</td>\n" +
 			"            <td>This is long example description for the fourth option.</td>\n" +
 			"        </tr>\n" +
 			"        <tr>\n" +
 			"            <td><h5>third.option.a</h5></td>\n" +
-			"            <td>2</td>\n" +
+			"            <td style=\"word-wrap: break-word;\">2</td>\n" +
 			"            <td>This is example description for the third option.</td>\n" +
 			"        </tr>\n" +
 			"    </tbody>\n" +
