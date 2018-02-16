@@ -437,7 +437,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 			if (commonRpcService != null) {
 				try {
-					commonRpcService.stopService();
+					commonRpcService.stopService().get();
 				} catch (Throwable t) {
 					exception = ExceptionUtils.firstOrSuppressed(t, exception);
 				}

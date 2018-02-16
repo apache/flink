@@ -756,7 +756,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	private static Throwable shutDownRpc(RpcService rpcService, Throwable priorException) {
 		if (rpcService != null) {
 			try {
-				rpcService.stopService();
+				rpcService.stopService().get();
 			}
 			catch (Throwable t) {
 				return ExceptionUtils.firstOrSuppressed(t, priorException);
@@ -773,7 +773,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			for (RpcService service : rpcServices) {
 				try {
 					if (service != null) {
-						service.stopService();
+						service.stopService().get();
 					}
 				}
 				catch (Throwable t) {

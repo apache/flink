@@ -46,6 +46,7 @@ import org.junit.experimental.categories.Category;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 @Category(Flip6.class)
 public class ResourceManagerTest extends TestLogger {
@@ -54,18 +55,13 @@ public class ResourceManagerTest extends TestLogger {
 
 	@Before
 	public void setUp() {
-		if (rpcService != null) {
-			rpcService.stopService();
-			rpcService = null;
-		}
-
 		rpcService = new TestingRpcService();
 	}
 
 	@After
-	public void tearDown() {
+	public void tearDown() throws ExecutionException, InterruptedException {
 		if (rpcService != null) {
-			rpcService.stopService();
+			rpcService.stopService().get();
 			rpcService = null;
 		}
 	}

@@ -117,7 +117,7 @@ public class SchedulerTestBase extends TestLogger {
 		}
 
 		if (rpcService != null) {
-			rpcService.stopService();
+			rpcService.stopService().get();
 			rpcService = null;
 		}
 	}

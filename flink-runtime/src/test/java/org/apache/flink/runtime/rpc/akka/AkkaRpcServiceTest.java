@@ -27,10 +27,12 @@ import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
+import akka.actor.Terminated;
 import org.junit.AfterClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -59,10 +61,13 @@ public class AkkaRpcServiceTest extends TestLogger {
 			new AkkaRpcService(actorSystem, timeout);
 
 	@AfterClass
-	public static void shutdown() {
-		akkaRpcService.stopService();
-		actorSystem.shutdown();
-		actorSystem.awaitTermination(FutureUtils.toFiniteDuration(timeout));
+	public static void shutdown() throws InterruptedException, ExecutionException, TimeoutException {
+		final CompletableFuture<Void> rpcTerminationFuture = akkaRpcService.stopService();
+		final CompletableFuture<Terminated> actorSystemTerminationFuture = FutureUtils.toJava(actorSystem.terminate());
+
+		FutureUtils
+			.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
+			.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
 	// ------------------------------------------------------------------------

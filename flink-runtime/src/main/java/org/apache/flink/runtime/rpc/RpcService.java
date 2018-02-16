@@ -116,9 +116,12 @@ public interface RpcService {
 	void stopServer(RpcServer selfGateway);
 
 	/**
-	 * Stop the rpc service shutting down all started rpc servers.
+	 * Trigger the asynchronous stopping of the {@link RpcService}.
+	 *
+	 * @return Future which is completed once the {@link RpcService} has been
+	 * fully stopped.
 	 */
-	void stopService();
+	CompletableFuture<Void> stopService();
 
 	/**
 	 * Returns a future indicating when the RPC service has been shut down.

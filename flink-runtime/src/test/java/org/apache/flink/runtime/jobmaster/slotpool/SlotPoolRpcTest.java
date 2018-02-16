@@ -92,9 +92,9 @@ public class SlotPoolRpcTest extends TestLogger {
 	}
 
 	@AfterClass
-	public static  void shutdown() {
+	public static  void shutdown() throws InterruptedException, ExecutionException, TimeoutException {
 		if (rpcService != null) {
-			rpcService.stopService();
+			RpcUtils.terminateRpcService(rpcService, timeout);
 			rpcService = null;
 		}
 	}

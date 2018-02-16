@@ -134,9 +134,9 @@ public class DispatcherTest extends TestLogger {
 	}
 
 	@AfterClass
-	public static void teardownClass() {
+	public static void teardownClass() throws Exception {
 		if (rpcService != null) {
-			rpcService.stopService();
+			RpcUtils.terminateRpcService(rpcService, TIMEOUT);
 
 			rpcService = null;
 		}

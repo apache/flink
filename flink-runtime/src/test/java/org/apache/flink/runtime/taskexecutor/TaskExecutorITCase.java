@@ -48,6 +48,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
@@ -220,7 +221,7 @@ public class TaskExecutorITCase extends TestLogger {
 				testingFatalErrorHandler.rethrowError();
 			}
 
-			rpcService.stopService();
+			RpcUtils.terminateRpcService(rpcService, timeout);
 		}
 
 
