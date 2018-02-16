@@ -49,7 +49,6 @@ class UserFacingListState<T> implements ListState<T> {
 
 	@Override
 	public void add(T value) throws Exception {
-		Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 		originalState.add(value);
 	}
 
