@@ -371,31 +371,8 @@ fi
 
 INTERNAL_HADOOP_CLASSPATHS="${HADOOP_CLASSPATH}:${HADOOP_CONF_DIR}:${YARN_CONF_DIR}"
 
-# check if the "hadoop" binary is available, if yes, use that to augment the CLASSPATH
-if command -v hadoop >/dev/null 2>&1; then
-    echo "Using the result of 'hadoop classpath' to augment the Hadoop classpath: `hadoop classpath`"
-    INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`hadoop classpath`"
-fi
-
 if [ -n "${HBASE_CONF_DIR}" ]; then
-    # Look for hbase command in HBASE_HOME or search PATH.
-    if [ -n "${HBASE_HOME}" ]; then
-        HBASE_PATH="${HBASE_HOME}/bin"
-        HBASE_COMMAND=`command -v "${HBASE_PATH}/hbase"`
-    else
-        HBASE_PATH=$PATH
-        HBASE_COMMAND=`command -v hbase`
-    fi
-
-    # Whether the hbase command was found.
-    if [[ $? -eq 0 ]]; then
-        # Setup the HBase classpath. We add the HBASE_CONF_DIR last to ensure the right config directory is used.
-        INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`${HBASE_COMMAND} classpath`:${HBASE_CONF_DIR}"
-    else
-        echo "HBASE_CONF_DIR=${HBASE_CONF_DIR} is set but 'hbase' command was not found in ${HBASE_PATH} so classpath could not be updated."
-    fi
-
-    unset HBASE_COMMAND HBASE_PATH
+    INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:${HBASE_CONF_DIR}"
 fi
 
 # Auxilliary function which extracts the name of host from a line which
