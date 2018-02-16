@@ -25,6 +25,8 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -298,15 +300,19 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 							}
 						}
 
-						if (this.format instanceof CheckpointableInputFormat && currentSplit.getSplitState() != null) {
-							// recovering after a node failure with an input
-							// format that supports resetting the offset
-							((CheckpointableInputFormat<TimestampedFileInputSplit, Serializable>) this.format).
-								reopen(currentSplit, currentSplit.getSplitState());
-						} else {
-							// we either have a new split, or we recovered from a node
-							// failure but the input format does not support resetting the offset.
-							this.format.open(currentSplit);
+						Path currentPath = this.currentSplit.getPath();
+						final FileSystem fs = FileSystem.get(currentPath.toUri());
+						if (fs.exists(currentPath)) {
+							if (this.format instanceof CheckpointableInputFormat && currentSplit.getSplitState() != null) {
+								// recovering after a node failure with an input
+								// format that supports resetting the offset
+								((CheckpointableInputFormat<TimestampedFileInputSplit, Serializable>) this.format).
+									reopen(currentSplit, currentSplit.getSplitState());
+							} else {
+								// we either have a new split, or we recovered from a node
+								// failure but the input format does not support resetting the offset.
+								this.format.open(currentSplit);
+							}
 						}
 
 						// reset the restored state to null for the next iteration
