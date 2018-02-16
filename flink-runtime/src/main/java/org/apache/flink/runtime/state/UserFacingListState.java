@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.List;
