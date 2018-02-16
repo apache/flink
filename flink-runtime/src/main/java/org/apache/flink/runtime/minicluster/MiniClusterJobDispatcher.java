@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
+import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -142,10 +143,10 @@ public class MiniClusterJobDispatcher {
 			MetricRegistry metricRegistry,
 			int numJobManagers,
 			RpcService[] rpcServices) throws Exception {
-		
+
 		checkArgument(numJobManagers >= 1);
 		checkArgument(rpcServices.length == numJobManagers);
-		
+
 		this.configuration = checkNotNull(config);
 		this.rpcServices = rpcServices;
 		this.haServices = checkNotNull(haServices);
@@ -237,7 +238,7 @@ public class MiniClusterJobDispatcher {
 	 * This method runs a job in blocking mode. The method returns only after the job
 	 * completed successfully, or after it failed terminally.
 	 *
-	 * @param job  The Flink job to execute 
+	 * @param job  The Flink job to execute
 	 * @return The result of the job execution
 	 *
 	 * @throws JobExecutionException Thrown if anything went amiss during initial job launch,
@@ -245,7 +246,7 @@ public class MiniClusterJobDispatcher {
 	 */
 	public JobExecutionResult runJobBlocking(JobGraph job) throws JobExecutionException, InterruptedException {
 		checkNotNull(job);
-		
+
 		LOG.info("Received job for blocking execution: {} ({})", job.getName(), job.getJobID());
 		final BlockingJobSync sync = new BlockingJobSync(job.getJobID(), numJobManagers);
 
@@ -287,9 +288,32 @@ public class MiniClusterJobDispatcher {
 					blobServer,
 					jobManagerSharedServices,
 					metricRegistry,
-					onCompletion,
-					errorHandler,
 					null);
+
+				final int index = i;
+
+				runners[i].getResultFuture()
+					.whenComplete(
+						(ArchivedExecutionGraph archivedExecutionGraph, Throwable throwable) -> {
+							try {
+								runners[index].shutdown();
+							} catch (Exception e) {
+								errorHandler.onFatalError(e);
+							}
+
+							if (archivedExecutionGraph != null) {
+								onCompletion.jobReachedGloballyTerminalState(archivedExecutionGraph);
+							} else {
+								final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+
+								if (strippedThrowable instanceof JobNotFinishedException) {
+									onCompletion.jobFinishedByOther();
+								} else {
+									errorHandler.onFatalError(strippedThrowable);
+								}
+							}
+						});
+
 				runners[i].start();
 			}
 			catch (Throwable t) {
@@ -395,8 +419,8 @@ public class MiniClusterJobDispatcher {
 	 * This class is used to sync on blocking jobs across multiple runners.
 	 * Only after all runners reported back that they are finished, the
 	 * result will be released.
-	 * 
-	 * That way it is guaranteed that after the blocking job submit call returns,
+	 *
+	 * <p>That way it is guaranteed that after the blocking job submit call returns,
 	 * the dispatcher is immediately free to accept another job.
 	 */
 	private static class BlockingJobSync implements OnCompletionActions, FatalErrorHandler {
@@ -408,7 +432,7 @@ public class MiniClusterJobDispatcher {
 		private volatile Throwable runnerException;
 
 		private volatile JobResult result;
-		
+
 		BlockingJobSync(JobID jobId, int numJobMastersToWaitFor) {
 			this.jobId = jobId;
 			this.jobMastersToWaitFor = new CountDownLatch(numJobMastersToWaitFor);
@@ -430,6 +454,8 @@ public class MiniClusterJobDispatcher {
 			if (runnerException == null) {
 				runnerException = exception;
 			}
+
+			jobMastersToWaitFor.countDown();
 		}
 
 		public JobExecutionResult getResult() throws JobExecutionException, InterruptedException {

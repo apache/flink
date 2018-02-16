@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BlobServerOptions;
@@ -35,7 +36,6 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
@@ -129,12 +129,12 @@ public class DispatcherTest extends TestLogger {
 	private TestingDispatcher dispatcher;
 
 	@BeforeClass
-	public static void setup() {
+	public static void setupClass() {
 		rpcService = new TestingRpcService();
 	}
 
 	@AfterClass
-	public static void teardown() {
+	public static void teardownClass() {
 		if (rpcService != null) {
 			rpcService.stopService();
 
@@ -274,10 +274,7 @@ public class DispatcherTest extends TestLogger {
 
 		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
-		OnCompletionActions onCompletionActions;
-
 		final JobID failedJobId = new JobID();
-		onCompletionActions = dispatcher.new DispatcherOnCompleteActions(failedJobId);
 
 		final JobStatus expectedState = JobStatus.FAILED;
 		final ArchivedExecutionGraph failedExecutionGraph = new ArchivedExecutionGraphBuilder()
@@ -286,7 +283,7 @@ public class DispatcherTest extends TestLogger {
 			.setFailureCause(new ErrorInfo(new RuntimeException("expected"), 1L))
 			.build();
 
-		onCompletionActions.jobReachedGloballyTerminalState(failedExecutionGraph);
+		dispatcher.completeJobExecution(failedExecutionGraph);
 
 		assertThat(
 			dispatcherGateway.requestJobStatus(failedJobId, TIMEOUT).get(),
@@ -398,6 +395,12 @@ public class DispatcherTest extends TestLogger {
 				super.recoverJobs();
 			}
 		}
+
+		@VisibleForTesting
+		void completeJobExecution(ArchivedExecutionGraph archivedExecutionGraph) {
+			runAsync(
+				() -> jobReachedGloballyTerminalState(archivedExecutionGraph));
+		}
 	}
 
 	private static final class ExpectedJobIdJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFactory {
@@ -419,8 +422,6 @@ public class DispatcherTest extends TestLogger {
 				BlobServer blobServer,
 				JobManagerSharedServices jobManagerSharedServices,
 				MetricRegistry metricRegistry,
-				OnCompletionActions onCompleteActions,
-				FatalErrorHandler fatalErrorHandler,
 				@Nullable String restAddress) throws Exception {
 			assertEquals(expectedJobId, jobGraph.getJobID());
 
@@ -434,8 +435,6 @@ public class DispatcherTest extends TestLogger {
 				blobServer,
 				jobManagerSharedServices,
 				metricRegistry,
-				onCompleteActions,
-				fatalErrorHandler,
 				restAddress);
 		}
 	}
