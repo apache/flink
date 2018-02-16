@@ -52,6 +52,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -289,24 +290,23 @@ public abstract class AbstractKeyedStateBackend<K>
 			final StateDescriptor<S, T> stateDescriptor,
 			final KeyedStateFunction<K, S> function) throws Exception {
 
-		try {
-			getKeys(stateDescriptor.getName(), namespace)
-					.forEach((K key) -> {
-						setCurrentKey(key);
-						try {
-							function.process(
-									key,
-									getPartitionedState(
-											namespace,
-											namespaceSerializer,
-											stateDescriptor)
-							);
-						} catch (Throwable e) {
-							// we wrap the checked exception in an unchecked
-							// one and catch it (and re-throw it) later.
-							throw new RuntimeException(e);
-						}
-					});
+		try (Stream<K> keyStream = getKeys(stateDescriptor.getName(), namespace)) {
+			keyStream.forEach((K key) -> {
+				setCurrentKey(key);
+				try {
+					function.process(
+						key,
+						getPartitionedState(
+							namespace,
+							namespaceSerializer,
+							stateDescriptor)
+					);
+				} catch (Throwable e) {
+					// we wrap the checked exception in an unchecked
+					// one and catch it (and re-throw it) later.
+					throw new RuntimeException(e);
+				}
+			});
 		} catch (RuntimeException e) {
 			throw e;
 		}
