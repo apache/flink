@@ -31,6 +31,7 @@ import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
@@ -105,7 +106,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 
 	@After
 	public void teardown() throws Exception {
-		rpcService.stopService();
+		RpcUtils.terminateRpcService(rpcService, timeout);
 	}
 
 	/**

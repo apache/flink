@@ -70,7 +70,7 @@ public class MainThreadValidationTest extends TestLogger {
 			testEndpoint.shutDown();
 		}
 		finally {
-			akkaRpcService.stopService();
+			akkaRpcService.stopService().get();
 		}
 	}
 

@@ -171,7 +171,15 @@ public class TaskManagerRunner implements FatalErrorHandler {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
-			rpcService.stopService();
+			try {
+				rpcService.stopService().get();
+			} catch (InterruptedException ie) {
+				exception = ExceptionUtils.firstOrSuppressed(ie, exception);
+
+				Thread.currentThread().interrupt();
+			} catch (Exception e) {
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			}
 
 			try {
 				highAvailabilityServices.close();

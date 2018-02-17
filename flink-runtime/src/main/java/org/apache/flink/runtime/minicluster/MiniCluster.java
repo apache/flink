@@ -377,7 +377,6 @@ public class MiniCluster implements JobExecutorService {
 			blobCacheService = null;
 		}
 
-
 		// shut down the blob server
 		if (blobServer != null) {
 			try {
@@ -608,7 +607,7 @@ public class MiniCluster implements JobExecutorService {
 	private static Throwable shutDownRpc(RpcService rpcService, Throwable priorException) {
 		if (rpcService != null) {
 			try {
-				rpcService.stopService();
+				rpcService.stopService().get();
 			}
 			catch (Throwable t) {
 				return firstOrSuppressed(t, priorException);
@@ -625,7 +624,7 @@ public class MiniCluster implements JobExecutorService {
 			for (RpcService service : rpcServices) {
 				try {
 					if (service != null) {
-						service.stopService();
+						service.stopService().get();
 					}
 				}
 				catch (Throwable t) {

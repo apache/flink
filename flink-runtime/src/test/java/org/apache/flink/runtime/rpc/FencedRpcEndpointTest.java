@@ -60,8 +60,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 	@AfterClass
 	public static void teardown() throws ExecutionException, InterruptedException, TimeoutException {
 		if (rpcService != null) {
-			rpcService.stopService();
-			rpcService.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcService(rpcService, timeout);
 		}
 	}
 
