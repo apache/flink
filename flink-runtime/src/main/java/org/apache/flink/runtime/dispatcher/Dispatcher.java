@@ -34,11 +34,11 @@ import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
+import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
@@ -243,9 +243,22 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 					blobServer,
 					jobManagerSharedServices,
 					metricRegistry,
-					new DispatcherOnCompleteActions(jobGraph.getJobID()),
-					fatalErrorHandler,
 					restAddress);
+
+				jobManagerRunner.getResultFuture().whenCompleteAsync(
+					(ArchivedExecutionGraph archivedExecutionGraph, Throwable throwable) -> {
+						if (archivedExecutionGraph != null) {
+							jobReachedGloballyTerminalState(archivedExecutionGraph);
+						} else {
+							final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+
+							if (strippedThrowable instanceof JobNotFinishedException) {
+								jobNotFinished(jobId);
+							} else {
+								onFatalError(new FlinkException("JobManagerRunner for job " + jobId + " failed.", strippedThrowable));
+							}
+						}
+					}, getMainThreadExecutor());
 
 				jobManagerRunner.start();
 			} catch (Exception e) {
@@ -544,6 +557,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			archivedExecutionGraph.getJobID(),
 			archivedExecutionGraph.getState());
 
+		log.info("Job {} reached globally terminal state {}.", archivedExecutionGraph.getJobID(), archivedExecutionGraph.getState());
+
 		try {
 			archivedExecutionGraphStore.put(archivedExecutionGraph);
 		} catch (IOException e) {
@@ -563,7 +578,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		}
 	}
 
-	protected void jobFinishedByOther(JobID jobId) {
+	protected void jobNotFinished(JobID jobId) {
+		log.info("Job {} was not finished by JobManager.", jobId);
+
 		try {
 			removeJob(jobId, false);
 		} catch (Exception e) {
@@ -668,35 +685,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	//------------------------------------------------------
-	// Utility classes
-	//------------------------------------------------------
-
-	@VisibleForTesting
-	class DispatcherOnCompleteActions implements OnCompletionActions {
-
-		private final JobID jobId;
-
-		DispatcherOnCompleteActions(JobID jobId) {
-			this.jobId = Preconditions.checkNotNull(jobId);
-		}
-
-		@Override
-		public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
-			log.info("Job {} reached globally terminal state {}.", jobId, executionGraph.getState());
-
-			runAsync(() -> Dispatcher.this.jobReachedGloballyTerminalState(executionGraph));
-		}
-
-		@Override
-		public void jobFinishedByOther() {
-			log.info("Job {} was finished by other JobManager.", jobId);
-
-			runAsync(
-				() -> Dispatcher.this.jobFinishedByOther(jobId));
-		}
-	}
-
-	//------------------------------------------------------
 	// Factories
 	//------------------------------------------------------
 
@@ -715,8 +703,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			BlobServer blobServer,
 			JobManagerSharedServices jobManagerServices,
 			MetricRegistry metricRegistry,
-			OnCompletionActions onCompleteActions,
-			FatalErrorHandler fatalErrorHandler,
 			@Nullable String restAddress) throws Exception;
 	}
 
@@ -737,8 +723,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				BlobServer blobServer,
 				JobManagerSharedServices jobManagerServices,
 				MetricRegistry metricRegistry,
-				OnCompletionActions onCompleteActions,
-				FatalErrorHandler fatalErrorHandler,
 				@Nullable String restAddress) throws Exception {
 			return new JobManagerRunner(
 				resourceId,
@@ -750,8 +734,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				blobServer,
 				jobManagerServices,
 				metricRegistry,
-				onCompleteActions,
-				fatalErrorHandler,
 				restAddress);
 		}
 	}
