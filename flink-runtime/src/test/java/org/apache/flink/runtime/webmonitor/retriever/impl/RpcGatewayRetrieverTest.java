@@ -139,5 +139,10 @@ public class RpcGatewayRetrieverTest extends TestLogger {
 		public UUID getFencingToken() {
 			return HighAvailabilityServices.DEFAULT_LEADER_ID;
 		}
+
+		@Override
+		public CompletableFuture<Void> postStop() {
+			return CompletableFuture.completedFuture(null);
+		}
 	}
 }
