@@ -313,6 +313,8 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 								// failure but the input format does not support resetting the offset.
 								this.format.open(currentSplit);
 							}
+						} else {
+							break;
 						}
 
 						// reset the restored state to null for the next iteration
