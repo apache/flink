@@ -966,7 +966,7 @@ public class CheckpointCoordinator {
 	 * Restores the latest checkpointed state.
 	 *
 	 * @param tasks Map of job vertices to restore. State for these vertices is
-	 * restored via {@link Execution#setInitialState(TaskStateSnapshot)}.
+	 * restored via {@link Execution#setInitialState(JobManagerTaskRestore)}.
 	 * @param errorIfNoCheckpoint Fail if no completed checkpoint is available to
 	 * restore from.
 	 * @param allowNonRestoredState Allow checkpoint state that cannot be mapped
@@ -1065,7 +1065,7 @@ public class CheckpointCoordinator {
 	 *                         mapped to any job vertex in tasks.
 	 * @param tasks            Map of job vertices to restore. State for these
 	 *                         vertices is restored via
-	 *                         {@link Execution#setInitialState(TaskStateSnapshot)}.
+	 *                         {@link Execution#setInitialState(JobManagerTaskRestore)}.
 	 * @param userClassLoader  The class loader to resolve serialized classes in
 	 *                         legacy savepoint versions.
 	 */

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
@@ -49,6 +50,7 @@ import javax.net.ssl.SSLEngine;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Comparator;
@@ -77,12 +79,14 @@ public abstract class RestServerEndpoint {
 
 	private volatile boolean started;
 
-	public RestServerEndpoint(RestServerEndpointConfiguration configuration) {
+	public RestServerEndpoint(RestServerEndpointConfiguration configuration) throws IOException {
 		Preconditions.checkNotNull(configuration);
 		this.configuredAddress = configuration.getEndpointBindAddress();
 		this.configuredPort = configuration.getEndpointBindPort();
 		this.sslEngine = configuration.getSslEngine();
+
 		this.uploadDir = configuration.getUploadDir();
+		createUploadDir(uploadDir, log);
 
 		this.restAddress = null;
 
@@ -136,7 +140,7 @@ public abstract class RestServerEndpoint {
 			ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 
 				@Override
-				protected void initChannel(SocketChannel ch) throws IOException {
+				protected void initChannel(SocketChannel ch) {
 					Handler handler = new RouterHandler(router);
 
 					// SSL should be the first handler in the pipeline
@@ -314,6 +318,40 @@ public abstract class RestServerEndpoint {
 				break;
 			default:
 				throw new RuntimeException("Unsupported http method: " + specificationHandler.f0.getHttpMethod() + '.');
+		}
+	}
+
+	/**
+	 * Creates the upload dir if needed.
+	 */
+	@VisibleForTesting
+	static void createUploadDir(final Path uploadDir, final Logger log) throws IOException {
+		if (!Files.exists(uploadDir)) {
+			log.warn("Upload directory {} does not exist, or has been deleted externally. " +
+				"Previously uploaded files are no longer available.", uploadDir);
+			checkAndCreateUploadDir(uploadDir, log);
+		}
+	}
+
+	/**
+	 * Checks whether the given directory exists and is writable. If it doesn't exist, this method
+	 * will attempt to create it.
+	 *
+	 * @param uploadDir directory to check
+	 * @param log logger used for logging output
+	 * @throws IOException if the directory does not exist and cannot be created, or if the
+	 *                     directory isn't writable
+	 */
+	private static synchronized void checkAndCreateUploadDir(final Path uploadDir, final Logger log) throws IOException {
+		if (Files.exists(uploadDir) && Files.isWritable(uploadDir)) {
+			log.info("Using directory {} for file uploads.", uploadDir);
+		} else if (Files.isWritable(Files.createDirectories(uploadDir))) {
+			log.info("Created directory {} for file uploads.", uploadDir);
+		} else {
+			log.warn("Upload directory {} cannot be created or is not writable.", uploadDir);
+			throw new IOException(
+				String.format("Upload directory %s cannot be created or is not writable.",
+					uploadDir));
 		}
 	}
 

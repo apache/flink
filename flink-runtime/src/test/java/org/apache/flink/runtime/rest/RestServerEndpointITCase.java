@@ -303,7 +303,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		TestRestServerEndpoint(
 			RestServerEndpointConfiguration configuration,
 			TestHandler testHandler,
-			TestUploadHandler testUploadHandler) {
+			TestUploadHandler testUploadHandler) throws IOException {
 			super(configuration);
 
 			this.testHandler = Preconditions.checkNotNull(testHandler);

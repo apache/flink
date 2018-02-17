@@ -23,6 +23,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -53,6 +54,7 @@ import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -232,6 +234,13 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		final String configDir = parameterTool.get("configDir");
 
 		final Configuration configuration = GlobalConfiguration.loadConfiguration(configDir);
+
+		try {
+			FileSystem.initialize(configuration);
+		} catch (IOException e) {
+			throw new IOException("Error while setting the default " +
+				"filesystem scheme from configuration.", e);
+		}
 
 		SecurityUtils.install(new SecurityConfiguration(configuration));
 
