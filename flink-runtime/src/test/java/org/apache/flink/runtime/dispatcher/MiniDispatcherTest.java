@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
@@ -56,14 +57,12 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -77,6 +76,11 @@ public class MiniDispatcherTest extends TestLogger {
 
 	private static final JobGraph jobGraph = new JobGraph();
 
+	private static final ArchivedExecutionGraph archivedExecutionGraph = new ArchivedExecutionGraphBuilder()
+		.setJobID(jobGraph.getJobID())
+		.setState(JobStatus.FINISHED)
+		.build();
+
 	private static final Time timeout = Time.seconds(10L);
 
 	@ClassRule
@@ -88,11 +92,21 @@ public class MiniDispatcherTest extends TestLogger {
 
 	private static BlobServer blobServer;
 
-	private MiniDispatcher miniDispatcher;
+	private final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+
+	private final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
+
+	private final ArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
 
 	private CompletableFuture<JobGraph> jobGraphFuture;
 
 	private TestingLeaderElectionService dispatcherLeaderElectionService;
+
+	private TestingHighAvailabilityServices highAvailabilityServices;
+
+	private TestingFatalErrorHandler testingFatalErrorHandler;
+
+	private TestingJobManagerRunnerFactory testingJobManagerRunnerFactory;
 
 	@BeforeClass
 	public static void setupClass() throws IOException {
@@ -107,18 +121,128 @@ public class MiniDispatcherTest extends TestLogger {
 	@Before
 	public void setup() throws Exception {
 		dispatcherLeaderElectionService = new TestingLeaderElectionService();
-		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
-		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-		final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
-		final ArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
-		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
+		highAvailabilityServices = new TestingHighAvailabilityServices();
+		testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		highAvailabilityServices.setDispatcherLeaderElectionService(dispatcherLeaderElectionService);
 
 		jobGraphFuture = new CompletableFuture<>();
-		final TestingJobManagerRunnerFactory testingJobManagerRunnerFactory = new TestingJobManagerRunnerFactory(jobGraphFuture);
 
-		miniDispatcher = new MiniDispatcher(
+		testingJobManagerRunnerFactory = new TestingJobManagerRunnerFactory(jobGraphFuture);
+	}
+
+	@After
+	public void teardown() throws Exception {
+		testingFatalErrorHandler.rethrowError();
+	}
+
+	@AfterClass
+	public static void teardownClass() throws IOException {
+		if (blobServer != null) {
+			blobServer.close();
+		}
+
+		if (rpcService != null) {
+			rpcService.stopService();
+		}
+	}
+
+	/**
+	 * Tests that the {@link MiniDispatcher} recovers the single job with which it
+	 * was started.
+	 */
+	@Test
+	public void testSingleJobRecovery() throws Exception {
+		final MiniDispatcher miniDispatcher = createMiniDispatcher(ClusterEntrypoint.ExecutionMode.DETACHED);
+
+		miniDispatcher.start();
+
+		try {
+			// wait until the Dispatcher is the leader
+			dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+			final JobGraph actualJobGraph = jobGraphFuture.get();
+
+			assertThat(actualJobGraph.getJobID(), is(jobGraph.getJobID()));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
+		}
+	}
+
+	/**
+	 * Tests that in detached mode, the {@link MiniDispatcher} will terminate after the job
+	 * has completed.
+	 */
+	@Test
+	public void testTerminationAfterJobCompletion() throws Exception {
+		final MiniDispatcher miniDispatcher = createMiniDispatcher(ClusterEntrypoint.ExecutionMode.DETACHED);
+
+		miniDispatcher.start();
+
+		try {
+			final Dispatcher.DispatcherOnCompleteActions completeActions = miniDispatcher.new DispatcherOnCompleteActions(jobGraph.getJobID());
+
+			// wait until the Dispatcher is the leader
+			dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+			// wait until we have submitted the job
+			jobGraphFuture.get();
+
+			completeActions.jobReachedGloballyTerminalState(archivedExecutionGraph);
+
+			// wait until we terminate
+			miniDispatcher.getTerminationFuture().get();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
+		}
+	}
+
+	/**
+	 * Tests that the {@link MiniDispatcher} only terminates in {@link ClusterEntrypoint.ExecutionMode#NORMAL}
+	 * after it has served the {@link org.apache.flink.runtime.jobmaster.JobResult} once.
+	 */
+	@Test
+	public void testJobResultRetrieval() throws Exception {
+		final MiniDispatcher miniDispatcher = createMiniDispatcher(ClusterEntrypoint.ExecutionMode.NORMAL);
+
+		miniDispatcher.start();
+
+		try {
+			final Dispatcher.DispatcherOnCompleteActions completeActions = miniDispatcher.new DispatcherOnCompleteActions(jobGraph.getJobID());
+
+			// wait until the Dispatcher is the leader
+			dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+			// wait until we have submitted the job
+			jobGraphFuture.get();
+
+			completeActions.jobReachedGloballyTerminalState(archivedExecutionGraph);
+
+			final CompletableFuture<Boolean> terminationFuture = miniDispatcher.getTerminationFuture();
+
+			assertThat(terminationFuture.isDone(), is(false));
+
+			final DispatcherGateway dispatcherGateway = miniDispatcher.getSelfGateway(DispatcherGateway.class);
+
+			final CompletableFuture<JobResult> jobResultFuture = dispatcherGateway.requestJobResult(jobGraph.getJobID(), timeout);
+
+			final JobResult jobResult = jobResultFuture.get();
+
+			assertThat(jobResult.getJobId(), is(jobGraph.getJobID()));
+
+			terminationFuture.get();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
+		}
+	}
+
+	// --------------------------------------------------------
+	// Utilities
+	// --------------------------------------------------------
+
+	@Nonnull
+	private MiniDispatcher createMiniDispatcher(ClusterEntrypoint.ExecutionMode executionMode) throws Exception {
+		return new MiniDispatcher(
 			rpcService,
 			UUID.randomUUID().toString(),
 			configuration,
@@ -132,64 +256,7 @@ public class MiniDispatcherTest extends TestLogger {
 			testingFatalErrorHandler,
 			null,
 			jobGraph,
-			ClusterEntrypoint.ExecutionMode.DETACHED);
-
-		miniDispatcher.start();
-	}
-
-	@After
-	public void teardown() throws InterruptedException, ExecutionException, TimeoutException {
-		if (miniDispatcher != null) {
-			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
-			miniDispatcher = null;
-		}
-	}
-
-	@AfterClass
-	public static void teardownClass() throws IOException {
-		blobServer.close();
-		rpcService.stopService();
-	}
-
-	/**
-	 * Tests that the {@link MiniDispatcher} recovers the single job with which it
-	 * was started.
-	 */
-	@Test
-	public void testSingleJobRecovery() throws Exception {
-		// wait until the Dispatcher is the leader
-		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
-
-		final JobGraph actualJobGraph = jobGraphFuture.get();
-
-		assertThat(actualJobGraph.getJobID(), is(jobGraph.getJobID()));
-	}
-
-	/**
-	 * Tests that in detached mode, the {@link MiniDispatcher} will terminate after the job
-	 * has completed.
-	 */
-	@Test
-	public void testTerminationAfterJobCompletion() throws Exception {
-		final Dispatcher.DispatcherOnCompleteActions completeActions = miniDispatcher.new DispatcherOnCompleteActions(jobGraph.getJobID());
-
-		final ArchivedExecutionGraph archivedExecutionGraph = new ArchivedExecutionGraphBuilder()
-			.setJobID(jobGraph.getJobID())
-			.setState(JobStatus.FINISHED)
-			.build();
-
-		// wait until the Dispatcher is the leader
-		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
-
-		// wait until we have submitted the job
-		jobGraphFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-
-		completeActions.jobReachedGloballyTerminalState(archivedExecutionGraph);
-
-		final CompletableFuture<Boolean> terminationFuture = miniDispatcher.getTerminationFuture();
-
-		// wait until we terminate
-		terminationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			executionMode);
 	}
 
 	private static final class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFactory {
