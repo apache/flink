@@ -2054,7 +2054,7 @@ object JobManager {
     }
 
     try {
-      metricRegistry.shutdown()
+      metricRegistry.shutDownAsync().get()
     } catch {
       case t: Throwable =>
         LOG.warn("Could not properly shut down the metric registry.", t)

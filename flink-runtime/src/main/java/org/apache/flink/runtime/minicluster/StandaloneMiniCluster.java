@@ -145,7 +145,7 @@ public class StandaloneMiniCluster {
 		Exception exception = null;
 
 		try {
-			metricRegistry.shutdown();
+			metricRegistry.shutDownAsync();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}

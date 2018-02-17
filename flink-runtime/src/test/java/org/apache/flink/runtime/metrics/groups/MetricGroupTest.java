@@ -62,8 +62,8 @@ public class MetricGroupTest extends TestLogger {
 	}
 
 	@After
-	public void shutdownRegistry() {
-		this.registry.shutdown();
+	public void shutdownRegistry() throws Exception {
+		this.registry.shutDownAsync().get();
 		this.registry = null;
 	}
 

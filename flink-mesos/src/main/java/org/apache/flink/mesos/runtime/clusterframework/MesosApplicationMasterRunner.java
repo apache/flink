@@ -433,7 +433,7 @@ public class MesosApplicationMasterRunner {
 
 		if (metricRegistry != null) {
 			try {
-				metricRegistry.shutdown();
+				metricRegistry.shutDownAsync().get();
 			} catch (Throwable t) {
 				LOG.error("Could not shut down metric registry.", t);
 			}

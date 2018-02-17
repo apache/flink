@@ -80,9 +80,9 @@ public class PrometheusReporterTest extends TestLogger {
 	}
 
 	@After
-	public void shutdownRegistry() {
+	public void shutdownRegistry() throws Exception {
 		if (registry != null) {
-			registry.shutdown();
+			registry.shutDownAsync().get();
 		}
 	}
 
@@ -242,7 +242,7 @@ public class PrometheusReporterTest extends TestLogger {
 	}
 
 	@Test
-	public void cannotStartTwoReportersOnSamePort() {
+	public void cannotStartTwoReportersOnSamePort() throws Exception {
 		final MetricRegistryImpl fixedPort1 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9400-9500")));
 		assertThat(fixedPort1.getReporters(), hasSize(1));
 
@@ -251,20 +251,20 @@ public class PrometheusReporterTest extends TestLogger {
 		final MetricRegistryImpl fixedPort2 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", String.valueOf(firstReporter.getPort()))));
 		assertThat(fixedPort2.getReporters(), hasSize(0));
 
-		fixedPort1.shutdown();
-		fixedPort2.shutdown();
+		fixedPort1.shutDownAsync().get();
+		fixedPort2.shutDownAsync().get();
 	}
 
 	@Test
-	public void canStartTwoReportersWhenUsingPortRange() {
+	public void canStartTwoReportersWhenUsingPortRange() throws Exception {
 		final MetricRegistryImpl portRange1 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9200-9300")));
 		final MetricRegistryImpl portRange2 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", "9200-9300")));
 
 		assertThat(portRange1.getReporters(), hasSize(1));
 		assertThat(portRange2.getReporters(), hasSize(1));
 
-		portRange1.shutdown();
-		portRange2.shutdown();
+		portRange1.shutDownAsync().get();
+		portRange2.shutDownAsync().get();
 	}
 
 	private String addMetricAndPollResponse(Metric metric, String metricName) throws UnirestException {
@@ -284,7 +284,7 @@ public class PrometheusReporterTest extends TestLogger {
 	}
 
 	@After
-	public void closeReporterAndShutdownRegistry() {
-		registry.shutdown();
+	public void closeReporterAndShutdownRegistry() throws Exception {
+		registry.shutDownAsync().get();
 	}
 }

@@ -409,7 +409,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		synchronized (lock) {
 			if (metricRegistry != null) {
 				try {
-					metricRegistry.shutdown();
+					metricRegistry.shutDownAsync();
 				} catch (Throwable t) {
 					exception = t;
 				}

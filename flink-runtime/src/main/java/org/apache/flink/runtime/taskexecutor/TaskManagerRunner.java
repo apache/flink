@@ -166,7 +166,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			}
 
 			try {
-				metricRegistry.shutdown();
+				metricRegistry.shutDownAsync();
 			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}

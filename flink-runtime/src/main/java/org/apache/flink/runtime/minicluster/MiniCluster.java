@@ -354,7 +354,7 @@ public class MiniCluster implements JobExecutorService {
 		}
 		// metrics shutdown
 		if (metricRegistry != null) {
-			metricRegistry.shutdown();
+			metricRegistry.shutDownAsync();
 			metricRegistry = null;
 		}
 
