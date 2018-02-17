@@ -267,16 +267,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RocksIterator iterator = db.newIterator(columnInfo.f0);
 		iterator.seekToFirst();
 
-		final byte[] namespaceBytes;
 		try {
 			ByteArrayOutputStream outputStream = new ByteArrayOutputStream(8);
 			namespaceSerializer.serialize(namespace, new DataOutputViewStreamWrapper(outputStream));
-			namespaceBytes = outputStream.toByteArray();
+			final byte[] namespaceBytes = outputStream.toByteArray();
 			Iterable<K> iterable = () -> new RocksIteratorWrapper<>(iterator, state, keySerializer, keyGroupPrefixBytes, namespaceBytes);
 			Stream<K> targetStream = StreamSupport.stream(iterable.spliterator(), false);
 			return targetStream.onClose(iterator::close);
 		} catch (IOException ex) {
-			throw new FlinkRuntimeException("", ex);
+			throw new FlinkRuntimeException("Failed to get keys from RocksDB state backend.", ex);
 		}
 	}
 
@@ -2028,12 +2027,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@Override
 		public boolean hasNext() {
 			final int namespaceBytesLength = namespaceBytes.length;
-			while (nextKey != null && iterator.isValid()) {
+			while (nextKey == null && iterator.isValid()) {
 				try {
 					boolean namespaceValid = true;
 					byte[] key = iterator.key();
-					if (key.length >= namespaceBytesLength) {
-						for (int i = 1; i <= namespaceBytesLength; --i) {
+					if (key.length >= namespaceBytesLength + keyGroupPrefixBytes) {
+						for (int i = 1; i <= namespaceBytesLength; ++i) {
 							if (key[key.length - i] != namespaceBytes[namespaceBytesLength - i]) {
 								namespaceValid = false;
 								break;
