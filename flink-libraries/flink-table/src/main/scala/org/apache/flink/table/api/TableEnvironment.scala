@@ -537,6 +537,30 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
+    * Gets the names of all tables registered in this environment.
+    *
+    * @return A list of the names of all registered tables.
+    */
+  def listTables(): Array[String] = {
+    rootSchema.getTableNames.asScala.toArray
+  }
+
+  /**
+    * Gets the names of all functions registered in this environment.
+    */
+  def listUserDefinedFunctions(): Array[String] = {
+    functionCatalog.getUserDefinedFunctions.toArray
+  }
+
+  /**
+    * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
+    * the result of the given [[Table]].
+    *
+    * @param table The table for which the AST and execution plan will be returned.
+    */
+  def explain(table: Table): String
+
+  /**
     * Evaluates a SQL query on registered tables and retrieves the result as a [[Table]].
     *
     * All tables referenced by the query must be registered in the TableEnvironment.
