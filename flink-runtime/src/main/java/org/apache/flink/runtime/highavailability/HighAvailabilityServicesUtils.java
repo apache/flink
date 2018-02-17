@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
@@ -62,11 +63,14 @@ public class HighAvailabilityServicesUtils {
 					config,
 					blobStoreService);
 
+			case CUSTOM:
+				return createCustomHAServices(config, executor);
+
 			default:
 				throw new Exception("High availability mode " + highAvailabilityMode + " is not supported.");
 		}
 	}
-	
+
 	public static HighAvailabilityServices createHighAvailabilityServices(
 		Configuration configuration,
 		Executor executor,
@@ -74,7 +78,7 @@ public class HighAvailabilityServicesUtils {
 
 		HighAvailabilityMode highAvailabilityMode = LeaderRetrievalUtils.getRecoveryMode(configuration);
 
-		switch(highAvailabilityMode) {
+		switch (highAvailabilityMode) {
 			case NONE:
 				final Tuple2<String, Integer> hostnamePort = getJobManagerAddress(configuration);
 
@@ -115,6 +119,10 @@ public class HighAvailabilityServicesUtils {
 					executor,
 					configuration,
 					blobStoreService);
+
+			case CUSTOM:
+				return createCustomHAServices(configuration, executor);
+
 			default:
 				throw new Exception("Recovery mode " + highAvailabilityMode + " is not supported.");
 		}
@@ -145,6 +153,23 @@ public class HighAvailabilityServicesUtils {
 		}
 
 		return Tuple2.of(hostname, port);
+	}
+
+	private static HighAvailabilityServices createCustomHAServices(Configuration config, Executor executor) throws Exception {
+		Class<HighAvailabilityServicesFactory> factoryClass;
+		try {
+			factoryClass = config.getClass(
+				HighAvailabilityOptions.HA_FACTORY_CLASS.key(), null, Thread.currentThread().getContextClassLoader());
+		} catch (ClassNotFoundException e) {
+			throw new Exception("Custom HA FactoryClass not found");
+		}
+
+		if (factoryClass != null) {
+			return factoryClass.newInstance().createHAServices(config, executor);
+		} else {
+			throw new Exception("Custom HA FactoryClass not configured. " +
+				"Check configuration property '" + HighAvailabilityOptions.HA_FACTORY_CLASS.key() + "'");
+		}
 	}
 
 	public enum AddressResolution {

@@ -25,6 +25,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class HighAvailabilityModeTest {
 
@@ -45,6 +46,10 @@ public class HighAvailabilityModeTest {
 		// Check not equals default
 		config.setString(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
 		assertEquals(HighAvailabilityMode.ZOOKEEPER, HighAvailabilityMode.fromConfig(config));
+
+		// Check custom
+		config.setString(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.CUSTOM.name().toLowerCase());
+		assertEquals(HighAvailabilityMode.CUSTOM, HighAvailabilityMode.fromConfig(config));
 	}
 
 	/**
@@ -67,6 +72,26 @@ public class HighAvailabilityModeTest {
 		config.setString("recovery.mode", HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
 
 		assertEquals(HighAvailabilityMode.NONE, HighAvailabilityMode.fromConfig(config));
+	}
+
+	@Test
+	public void testCheckHighAvailabilityModeActivated() throws Exception {
+		Configuration config = new Configuration();
+
+		// check defaults
+		assertTrue(!HighAvailabilityMode.isHighAvailabilityModeActivated(config));
+
+		// check NONE
+		config.setString("high-availability", HighAvailabilityMode.NONE.name().toLowerCase());
+		assertTrue(!HighAvailabilityMode.isHighAvailabilityModeActivated(config));
+
+		// check ZOOKEEPER
+		config.setString("high-availability", HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
+		assertTrue(HighAvailabilityMode.isHighAvailabilityModeActivated(config));
+
+		// check CUSTOM
+		config.setString("high-availability", HighAvailabilityMode.CUSTOM.name().toLowerCase());
+		assertTrue(HighAvailabilityMode.isHighAvailabilityModeActivated(config));
 	}
 
 }

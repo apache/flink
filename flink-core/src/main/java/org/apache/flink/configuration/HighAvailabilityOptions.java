@@ -68,6 +68,14 @@ public class HighAvailabilityOptions {
 			.withDescription("File system path (URI) where Flink persists metadata in high-availability setups.");
 
 
+	/**
+	 * When HA_MODE=CUSTOM Flink uses this factory implementation to create HA services.
+	 */
+	public static final ConfigOption<String> HA_FACTORY_CLASS =
+		key("high-availability.factoryClass")
+			.noDefaultValue()
+			.withDescription("Custom high-availability factory class FQN.");
+
 	// ------------------------------------------------------------------------
 	//  Recovery Options
 	// ------------------------------------------------------------------------
