@@ -276,7 +276,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			jobGraph.getJobID(),
 			SystemClock.getInstance(),
 			rpcTimeout,
-			jobMasterConfiguration.getSlotRequestTimeout(),
 			jobMasterConfiguration.getSlotIdleTimeout());
 
 		this.slotPoolGateway = slotPool.getSelfGateway(SlotPoolGateway.class);
@@ -347,7 +346,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	 * @param timeout for this operation
 	 * @return Future acknowledge indicating that the job has been suspended. Otherwise the future contains an exception
 	 */
-	public CompletableFuture<Acknowledge> suspend(final Throwable cause, final Time timeout) {
+	public CompletableFuture<Acknowledge> suspend(final Exception cause, final Time timeout) {
 		CompletableFuture<Acknowledge> suspendFuture = callAsyncWithoutFencing(() -> suspendExecution(cause), timeout);
 
 		stop();
@@ -375,7 +374,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		resourceManagerHeartbeatManager.stop();
 
 		// make sure there is a graceful exit
-		suspendExecution(new Exception("JobManager is shutting down."));
+		suspendExecution(new FlinkException("JobManager is shutting down."));
 
 		// shut down will internally release all registered slots
 		slotPool.shutDown();
@@ -595,14 +594,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
 
 		if (checkpointCoordinator != null) {
-			getRpcService().execute(new Runnable() {
-				@Override
-				public void run() {
-					try {
-						checkpointCoordinator.receiveDeclineMessage(decline);
-					} catch (Exception e) {
-						log.error("Error in CheckpointCoordinator while processing {}", decline, e);
-					}
+			getRpcService().execute(() -> {
+				try {
+					checkpointCoordinator.receiveDeclineMessage(decline);
+				} catch (Exception e) {
+					log.error("Error in CheckpointCoordinator while processing {}", decline, e);
 				}
 			});
 		} else {
@@ -915,7 +911,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	 *
 	 * @param cause The reason of why this job been suspended.
 	 */
-	private Acknowledge suspendExecution(final Throwable cause) {
+	private Acknowledge suspendExecution(final Exception cause) {
 		validateRunsInMainThread();
 
 		if (getFencingToken() == null) {
@@ -939,7 +935,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		slotPoolGateway.suspend();
 
 		// disconnect from resource manager:
-		closeResourceManagerConnection(new Exception("Execution was suspended.", cause));
+		closeResourceManagerConnection(cause);
 
 		return Acknowledge.get();
 	}
@@ -1037,7 +1033,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private void closeResourceManagerConnection(Exception cause) {
 		if (resourceManagerConnection != null) {
-			log.info("Close ResourceManager connection {}.", resourceManagerConnection.getResourceManagerResourceID(), cause);
+			if (log.isDebugEnabled()) {
+				log.debug("Close ResourceManager connection {}.", resourceManagerConnection.getResourceManagerResourceID(), cause);
+			} else {
+				log.info("Close ResourceManager connection {}: {}.", resourceManagerConnection.getResourceManagerResourceID(), cause.getMessage());
+			}
 
 			resourceManagerHeartbeatManager.unmonitorTarget(resourceManagerConnection.getResourceManagerResourceID());
 

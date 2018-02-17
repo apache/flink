@@ -20,9 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -60,9 +58,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.duration.FiniteDuration;
 
 /**
  * The yarn implementation of the resource manager. Used when the system is started
@@ -437,23 +432,24 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		final ContaineredTaskManagerParameters taskManagerParameters =
 				ContaineredTaskManagerParameters.create(flinkConfig, resource.getMemory(), 1);
 
-		log.info("TaskExecutor{} will be started with container size {} MB, JVM heap size {} MB, " +
+		log.info("TaskExecutor {} will be started with container size {} MB, JVM heap size {} MB, " +
 				"JVM direct memory limit {} MB",
 				containerId,
 				taskManagerParameters.taskManagerTotalMemoryMB(),
 				taskManagerParameters.taskManagerHeapSizeMB(),
 				taskManagerParameters.taskManagerDirectMemoryLimitMB());
-		int timeout = flinkConfig.getInteger(TaskManagerOptions.MAX_REGISTRATION_DURATION.key(),
-				DEFAULT_TASK_MANAGER_REGISTRATION_DURATION);
-		FiniteDuration teRegistrationTimeout = new FiniteDuration(timeout, TimeUnit.SECONDS);
-		final Configuration taskManagerConfig = BootstrapTools.generateTaskManagerConfiguration(
-				flinkConfig, "", 0, 1, teRegistrationTimeout);
-		log.debug("TaskManager configuration: {}", taskManagerConfig);
+
+		log.debug("TaskManager configuration: {}", flinkConfig);
 
 		ContainerLaunchContext taskExecutorLaunchContext = Utils.createTaskExecutorContext(
-				flinkConfig, yarnConfig, env,
-				taskManagerParameters, taskManagerConfig,
-				currDir, YarnTaskExecutorRunner.class, log);
+			flinkConfig,
+			yarnConfig,
+			env,
+			taskManagerParameters,
+			flinkConfig,
+			currDir,
+			YarnTaskExecutorRunner.class,
+			log);
 
 		// set a special environment variable to uniquely identify this container
 		taskExecutorLaunchContext.getEnvironment()

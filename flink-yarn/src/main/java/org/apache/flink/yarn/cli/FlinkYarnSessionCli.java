@@ -365,7 +365,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	}
 
 	private ClusterSpecification createClusterSpecification(Configuration configuration, CommandLine cmd) {
-		if (!cmd.hasOption(container.getOpt())) { // number of containers is required option!
+		if (!flip6 && !cmd.hasOption(container.getOpt())) { // number of containers is required option!
 			LOG.error("Missing required argument {}", container.getOpt());
 			printUsage();
 			throw new IllegalArgumentException("Missing required argument " + container.getOpt());

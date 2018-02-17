@@ -267,7 +267,7 @@ fi
 
 # Define FLIP if it is not already set
 if [ -z "${FLINK_MODE}" ]; then
-    FLINK_MODE=$(readFromConfig ${KEY_FLINK_MODE} "old" "${YAML_CONF}")
+    FLINK_MODE=$(readFromConfig ${KEY_FLINK_MODE} "flip6" "${YAML_CONF}")
 fi
 
 
