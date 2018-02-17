@@ -27,9 +27,10 @@ import java.util.concurrent.Executor;
 public interface HighAvailabilityServicesFactory {
 
 	/**
-	 * @param config            flink configuration
-	 * @param executor          background task executor
+	 * @param config   flink configuration
+	 * @param executor background task executor
 	 * @return instance of {@link HighAvailabilityServices}
+	 * @throws Exception when HAServices cannot be created
 	 */
-	HighAvailabilityServices createHAServices(Configuration config, Executor executor);
+	HighAvailabilityServices createHAServices(Configuration config, Executor executor) throws Exception;
 }
