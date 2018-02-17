@@ -288,7 +288,7 @@ public class RestAPIDocGenerator {
 			metricQueryServiceRetriever = path -> null;
 		}
 
-		private DocumentingDispatcherRestEndpoint() {
+		private DocumentingDispatcherRestEndpoint() throws IOException {
 			super(
 				restConfig,
 				dispatcherGatewayRetriever,

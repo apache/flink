@@ -20,6 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Preconditions;
@@ -187,6 +188,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 	private YarnClient yarnClient = null;
 	protected org.apache.flink.configuration.Configuration flinkConfiguration;
+	protected boolean flip6;
 
 	@Before
 	public void checkClusterEmpty() throws IOException, YarnException {
@@ -207,6 +209,8 @@ public abstract class YarnTestBase extends TestLogger {
 		}
 
 		flinkConfiguration = new org.apache.flink.configuration.Configuration();
+
+		flip6 = CoreOptions.FLIP6_MODE.equalsIgnoreCase(flinkConfiguration.getString(CoreOptions.MODE));
 	}
 
 	/**
