@@ -454,7 +454,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			Throwable exception = null;
 
 			if (webMonitorEndpoint != null) {
-				webMonitorEndpoint.shutdown(Time.seconds(10L));
+				webMonitorEndpoint.shutDownAsync().get();
 			}
 
 			if (dispatcherLeaderRetrievalService != null) {
