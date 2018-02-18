@@ -691,8 +691,13 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 			LOG.debug("Opening input split " + fileSplit.getPath() + " [" + this.splitStart + "," + this.splitLength + "]");
 		}
 
-		if (!exists(this.currentSplit.getPath())) return;
-		
+		if (!exists(fileSplit.getPath())) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Input split " + fileSplit.getPath() + " doesn't exist, skip and continue");
+			}
+			return;
+		}
+
 		// open the split in an asynchronous thread
 		final InputSplitOpenThread isot = new InputSplitOpenThread(fileSplit, this.openTimeout);
 		isot.start();
