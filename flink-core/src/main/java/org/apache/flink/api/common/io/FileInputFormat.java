@@ -810,6 +810,12 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 			LOG.debug("Opening input split " + fileSplit.getPath() + " [" + this.splitStart + "," + this.splitLength + "]");
 		}
 
+		if (!exists(fileSplit.getPath())) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Input split " + fileSplit.getPath() + " doesn't exist, skip and continue");
+			}
+			return;
+		}
 		
 		// open the split in an asynchronous thread
 		final InputSplitOpenThread isot = new InputSplitOpenThread(fileSplit, this.openTimeout);
@@ -861,6 +867,16 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 			this.stream.close();
 			stream = null;
 		}
+	}
+
+	/**
+	 * Check if the file input stream exists
+	 * @param path of the input file
+	 * @return True if the path exists, else False
+	 */
+	public boolean exists(Path path) throws IOException {
+		final FileSystem fs = FileSystem.get(path.toUri());
+		return fs.exists(path);
 	}
 	
 	/**
