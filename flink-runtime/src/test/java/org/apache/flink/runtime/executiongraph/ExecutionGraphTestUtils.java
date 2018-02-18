@@ -64,8 +64,10 @@ import akka.actor.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
+import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 
@@ -74,6 +76,8 @@ import scala.concurrent.ExecutionContext$;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
@@ -350,6 +354,7 @@ public class ExecutionGraphTestUtils {
 			new UnregisteredMetricsGroup(),
 			1,
 			VoidBlobWriter.getInstance(),
+			timeout,
 			TEST_LOGGER);
 	}
 
@@ -475,5 +480,78 @@ public class ExecutionGraphTestUtils {
 	
 	public static ExecutionJobVertex getExecutionVertex(JobVertexID id) throws Exception {
 		return getExecutionVertex(id, TestingUtils.defaultExecutor());
+	}
+
+	// ------------------------------------------------------------------------
+	//  graph vertex verifications
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Verifies the generated {@link ExecutionJobVertex} for a given {@link JobVertex} in a {@link ExecutionGraph}
+	 *
+	 * @param executionGraph the generated execution graph
+	 * @param originJobVertex the vertex to verify for
+	 * @param inputJobVertices upstream vertices of the verified vertex, used to check inputs of generated vertex
+	 * @param outputJobVertices downstream vertices of the verified vertex, used to
+	 *                          check produced data sets of generated vertex
+	 */
+	public static void verifyGeneratedExecutionJobVertex(
+			ExecutionGraph executionGraph,
+			JobVertex originJobVertex,
+			@Nullable List<JobVertex> inputJobVertices,
+			@Nullable List<JobVertex> outputJobVertices) {
+
+		ExecutionJobVertex ejv = executionGraph.getAllVertices().get(originJobVertex.getID());
+		assertNotNull(ejv);
+
+		// verify basic properties
+		assertEquals(originJobVertex.getParallelism(), ejv.getParallelism());
+		assertEquals(executionGraph.getJobID(), ejv.getJobId());
+		assertEquals(originJobVertex.getID(), ejv.getJobVertexId());
+		assertEquals(originJobVertex, ejv.getJobVertex());
+
+		// verify produced data sets
+		if (outputJobVertices == null) {
+			assertEquals(0, ejv.getProducedDataSets().length);
+		} else {
+			assertEquals(outputJobVertices.size(), ejv.getProducedDataSets().length);
+			for (int i = 0; i < outputJobVertices.size(); i++) {
+				assertEquals(originJobVertex.getProducedDataSets().get(i).getId(), ejv.getProducedDataSets()[i].getId());
+				assertEquals(originJobVertex.getParallelism(), ejv.getProducedDataSets()[0].getPartitions().length);
+			}
+		}
+
+		// verify task vertices for their basic properties and their inputs
+		assertEquals(originJobVertex.getParallelism(), ejv.getTaskVertices().length);
+
+		int subtaskIndex = 0;
+		for (ExecutionVertex ev : ejv.getTaskVertices()) {
+			assertEquals(executionGraph.getJobID(), ev.getJobId());
+			assertEquals(originJobVertex.getID(), ev.getJobvertexId());
+
+			assertEquals(originJobVertex.getParallelism(), ev.getTotalNumberOfParallelSubtasks());
+			assertEquals(subtaskIndex, ev.getParallelSubtaskIndex());
+
+			if (inputJobVertices == null) {
+				assertEquals(0, ev.getNumberOfInputs());
+			} else {
+				assertEquals(inputJobVertices.size(), ev.getNumberOfInputs());
+
+				for (int i = 0; i < inputJobVertices.size(); i++) {
+					ExecutionEdge[] inputEdges = ev.getInputEdges(i);
+					assertEquals(inputJobVertices.get(i).getParallelism(), inputEdges.length);
+
+					int expectedPartitionNum = 0;
+					for (ExecutionEdge inEdge : inputEdges) {
+						assertEquals(i, inEdge.getInputNum());
+						assertEquals(expectedPartitionNum, inEdge.getSource().getPartitionNumber());
+
+						expectedPartitionNum++;
+					}
+				}
+			}
+
+			subtaskIndex++;
+		}
 	}
 }

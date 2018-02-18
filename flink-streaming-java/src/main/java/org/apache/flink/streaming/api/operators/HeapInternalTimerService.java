@@ -19,14 +19,13 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -84,8 +83,6 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 
 	private TypeSerializer<N> namespaceSerializer;
 
-	private InternalTimer.TimerSerializer<K, N> timerSerializer;
-
 	private Triggerable<K, N> triggerTarget;
 
 	private volatile boolean isInitialized;
@@ -93,6 +90,9 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	private TypeSerializer<K> keyDeserializer;
 
 	private TypeSerializer<N> namespaceDeserializer;
+
+	/** The restored timers snapshot, if any. */
+	private InternalTimersSnapshot<K, N> restoredTimersSnapshot;
 
 	public HeapInternalTimerService(
 		int totalKeyGroups,
@@ -148,10 +148,23 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 			}
 
 			// the following is the case where we restore
-			if ((this.keyDeserializer != null && !this.keyDeserializer.equals(keySerializer)) ||
-				(this.namespaceDeserializer != null && !this.namespaceDeserializer.equals(namespaceSerializer))) {
-				throw new IllegalStateException("Tried to initialize restored TimerService " +
-					"with different serializers than those used to snapshot its state.");
+			if (restoredTimersSnapshot != null) {
+				CompatibilityResult<K> keySerializerCompatibility = CompatibilityUtil.resolveCompatibilityResult(
+					this.keyDeserializer,
+					null,
+					restoredTimersSnapshot.getKeySerializerConfigSnapshot(),
+					keySerializer);
+
+				CompatibilityResult<N> namespaceSerializerCompatibility = CompatibilityUtil.resolveCompatibilityResult(
+					this.namespaceDeserializer,
+					null,
+					restoredTimersSnapshot.getNamespaceSerializerConfigSnapshot(),
+					namespaceSerializer);
+
+				if (keySerializerCompatibility.isRequiresMigration() || namespaceSerializerCompatibility.isRequiresMigration()) {
+					throw new IllegalStateException("Tried to initialize restored TimerService " +
+						"with incompatible serializers than those used to snapshot its state.");
+				}
 			}
 
 			this.keySerializer = keySerializer;
@@ -160,8 +173,6 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 			this.namespaceDeserializer = null;
 
 			this.triggerTarget = Preconditions.checkNotNull(triggerTarget);
-
-			this.timerSerializer = new InternalTimer.TimerSerializer<>(this.keySerializer, this.namespaceSerializer);
 
 			// re-register the restored timers (if any)
 			if (processingTimeTimersQueue.size() > 0) {
@@ -280,86 +291,53 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 
 	/**
 	 * Snapshots the timers (both processing and event time ones) for a given {@code keyGroupIdx}.
-	 * @param stream the stream to write to.
+	 *
 	 * @param keyGroupIdx the id of the key-group to be put in the snapshot.
+	 * @return a snapshot containing the timers for the given key-group, and the serializers for them
 	 */
-	public void snapshotTimersForKeyGroup(DataOutputViewStreamWrapper stream, int keyGroupIdx) throws Exception {
-		InstantiationUtil.serializeObject(stream, keySerializer);
-		InstantiationUtil.serializeObject(stream, namespaceSerializer);
-
-		// write the event time timers
-		Set<InternalTimer<K, N>> eventTimers = getEventTimeTimerSetForKeyGroup(keyGroupIdx);
-		if (eventTimers != null) {
-			stream.writeInt(eventTimers.size());
-			for (InternalTimer<K, N> timer : eventTimers) {
-				this.timerSerializer.serialize(timer, stream);
-			}
-		} else {
-			stream.writeInt(0);
-		}
-
-		// write the processing time timers
-		Set<InternalTimer<K, N>> processingTimers = getProcessingTimeTimerSetForKeyGroup(keyGroupIdx);
-		if (processingTimers != null) {
-			stream.writeInt(processingTimers.size());
-			for (InternalTimer<K, N> timer : processingTimers) {
-				this.timerSerializer.serialize(timer, stream);
-			}
-		} else {
-			stream.writeInt(0);
-		}
+	public InternalTimersSnapshot<K, N> snapshotTimersForKeyGroup(int keyGroupIdx) {
+		return new InternalTimersSnapshot<>(
+				keySerializer,
+				keySerializer.snapshotConfiguration(),
+				namespaceSerializer,
+				namespaceSerializer.snapshotConfiguration(),
+				getEventTimeTimerSetForKeyGroup(keyGroupIdx),
+				getProcessingTimeTimerSetForKeyGroup(keyGroupIdx));
 	}
 
 	/**
 	 * Restore the timers (both processing and event time ones) for a given {@code keyGroupIdx}.
-	 * @param stream the stream to read from.
+	 *
+	 * @param restoredTimersSnapshot the restored snapshot containing the key-group's timers,
+	 *                       and the serializers that were used to write them
 	 * @param keyGroupIdx the id of the key-group to be put in the snapshot.
-	 * @param userCodeClassLoader the class loader that will be used to deserialize
-	 * 								the local key and namespace serializers.
 	 */
-	public void restoreTimersForKeyGroup(DataInputViewStreamWrapper stream, int keyGroupIdx,
-										ClassLoader userCodeClassLoader) throws IOException, ClassNotFoundException {
+	@SuppressWarnings("unchecked")
+	public void restoreTimersForKeyGroup(InternalTimersSnapshot<?, ?> restoredTimersSnapshot, int keyGroupIdx) throws IOException {
+		this.restoredTimersSnapshot = (InternalTimersSnapshot<K, N>) restoredTimersSnapshot;
 
-		TypeSerializer<K> tmpKeyDeserializer = InstantiationUtil.deserializeObject(stream, userCodeClassLoader);
-		TypeSerializer<N> tmpNamespaceDeserializer = InstantiationUtil.deserializeObject(stream, userCodeClassLoader);
-
-		if ((this.keyDeserializer != null && !this.keyDeserializer.equals(tmpKeyDeserializer)) ||
-			(this.namespaceDeserializer != null && !this.namespaceDeserializer.equals(tmpNamespaceDeserializer))) {
+		if ((this.keyDeserializer != null && !this.keyDeserializer.equals(restoredTimersSnapshot.getKeySerializer())) ||
+			(this.namespaceDeserializer != null && !this.namespaceDeserializer.equals(restoredTimersSnapshot.getNamespaceSerializer()))) {
 
 			throw new IllegalArgumentException("Tried to restore timers " +
 				"for the same service with different serializers.");
 		}
 
-		this.keyDeserializer = tmpKeyDeserializer;
-		this.namespaceDeserializer = tmpNamespaceDeserializer;
-
-		InternalTimer.TimerSerializer<K, N> timerSerializer =
-			new InternalTimer.TimerSerializer<>(this.keyDeserializer, this.namespaceDeserializer);
+		this.keyDeserializer = this.restoredTimersSnapshot.getKeySerializer();
+		this.namespaceDeserializer = this.restoredTimersSnapshot.getNamespaceSerializer();
 
 		checkArgument(localKeyGroupRange.contains(keyGroupIdx),
 			"Key Group " + keyGroupIdx + " does not belong to the local range.");
 
-		// read the event time timers
-		int sizeOfEventTimeTimers = stream.readInt();
-		if (sizeOfEventTimeTimers > 0) {
-			Set<InternalTimer<K, N>> eventTimers = getEventTimeTimerSetForKeyGroup(keyGroupIdx);
-			for (int i = 0; i < sizeOfEventTimeTimers; i++) {
-				InternalTimer<K, N> timer = timerSerializer.deserialize(stream);
-				eventTimers.add(timer);
-				eventTimeTimersQueue.add(timer);
-			}
-		}
+		// restore the event time timers
+		Set<InternalTimer<K, N>> eventTimers = getEventTimeTimerSetForKeyGroup(keyGroupIdx);
+		eventTimers.addAll(this.restoredTimersSnapshot.getEventTimeTimers());
+		eventTimeTimersQueue.addAll(this.restoredTimersSnapshot.getEventTimeTimers());
 
-		// read the processing time timers
-		int sizeOfProcessingTimeTimers = stream.readInt();
-		if (sizeOfProcessingTimeTimers > 0) {
-			Set<InternalTimer<K, N>> processingTimers = getProcessingTimeTimerSetForKeyGroup(keyGroupIdx);
-			for (int i = 0; i < sizeOfProcessingTimeTimers; i++) {
-				InternalTimer<K, N> timer = timerSerializer.deserialize(stream);
-				processingTimers.add(timer);
-				processingTimeTimersQueue.add(timer);
-			}
-		}
+		// restore the processing time timers
+		Set<InternalTimer<K, N>> processingTimers = getProcessingTimeTimerSetForKeyGroup(keyGroupIdx);
+		processingTimers.addAll(this.restoredTimersSnapshot.getProcessingTimeTimers());
+		processingTimeTimersQueue.addAll(this.restoredTimersSnapshot.getProcessingTimeTimers());
 	}
 
 	/**

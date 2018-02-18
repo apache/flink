@@ -43,22 +43,22 @@ public class Slf4jReporter extends AbstractReporter implements Scheduled {
 	private static final String lineSeparator = System.lineSeparator();
 
 	@VisibleForTesting
-	public Map<Gauge<?>, String> getGauges() {
+	Map<Gauge<?>, String> getGauges() {
 		return gauges;
 	}
 
 	@VisibleForTesting
-	public Map<Counter, String> getCounters() {
+	Map<Counter, String> getCounters() {
 		return counters;
 	}
 
 	@VisibleForTesting
-	public Map<Histogram, String> getHistograms() {
+	Map<Histogram, String> getHistograms() {
 		return histograms;
 	}
 
 	@VisibleForTesting
-	public Map<Meter, String> getMeters() {
+	Map<Meter, String> getMeters() {
 		return meters;
 	}
 

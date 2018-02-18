@@ -36,6 +36,10 @@ public final class QueryableStateUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(QueryableStateUtils.class);
 
+	private static final String ERROR_MESSAGE_ON_LOAD_FAILURE =
+		"Probable reason: flink-queryable-state-runtime is not in the classpath. " +
+		"To enable Queryable State, please move the flink-queryable-state-runtime jar from the opt to the lib folder.";
+
 	/**
 	 * Initializes the {@link KvStateClientProxy client proxy} responsible for
 	 * receiving requests from the external (to the cluster) client and forwarding them internally.
@@ -73,11 +77,9 @@ public final class QueryableStateUtils {
 					KvStateRequestStats.class);
 			return constructor.newInstance(address, ports, eventLoopThreads, queryThreads, stats);
 		} catch (ClassNotFoundException e) {
-			final String msg = "Could not load Queryable State Client Proxy. " +
-				"Probable reason: flink-queryable-state-runtime is not in the classpath. " +
-				"Please put the corresponding jar from the opt to the lib folder.";
+			final String msg = "Could not load Queryable State Client Proxy. " + ERROR_MESSAGE_ON_LOAD_FAILURE;
 			if (LOG.isDebugEnabled()) {
-				LOG.debug(msg, e);
+				LOG.debug(msg + " Cause: " + e.getMessage());
 			} else {
 				LOG.info(msg);
 			}
@@ -132,11 +134,9 @@ public final class QueryableStateUtils {
 					KvStateRequestStats.class);
 			return constructor.newInstance(address, ports, eventLoopThreads, queryThreads, kvStateRegistry, stats);
 		} catch (ClassNotFoundException e) {
-			final String msg = "Could not load Queryable State Server. " +
-				"Probable reason: flink-queryable-state-runtime is not in the classpath. " +
-				"Please put the corresponding jar from the opt to the lib folder.";
+			final String msg = "Could not load Queryable State Server. " + ERROR_MESSAGE_ON_LOAD_FAILURE;
 			if (LOG.isDebugEnabled()) {
-				LOG.debug(msg, e);
+				LOG.debug(msg + " Cause: " + e.getMessage());
 			} else {
 				LOG.info(msg);
 			}

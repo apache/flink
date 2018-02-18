@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigGroup;
 import org.apache.flink.configuration.ConfigGroups;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.WebOptions;
 
 import java.io.IOException;
@@ -70,8 +71,8 @@ public class ConfigOptionsDocGenerator {
 	private static void createTable(String rootDir, String module, String packageName, String outputDirectory) throws IOException, ClassNotFoundException {
 		Path configDir = Paths.get(rootDir, module, "src/main/java", packageName.replaceAll("\\.", "/"));
 
-		Pattern p = Pattern.compile("(([a-zA-Z]*)(Options))\\.java");
-		try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir, "*Options.java")) {
+		Pattern p = Pattern.compile("(([a-zA-Z]*)(Options|Config|Parameters))\\.java");
+		try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir)) {
 			for (Path entry : stream) {
 				String fileName = entry.getFileName().toString();
 				Matcher matcher = p.matcher(fileName);
@@ -174,13 +175,13 @@ public class ConfigOptionsDocGenerator {
 		// This is a temporary hack that should be removed once FLINK-6490 is resolved.
 		// These options use System.getProperty("java.io.tmpdir") as the default.
 		// As a result the generated table contains an actual path as the default, which is simply wrong.
-		if (option == WebOptions.TMP_DIR || option.key().equals("python.dc.tmp.dir")) {
+		if (option == WebOptions.TMP_DIR || option.key().equals("python.dc.tmp.dir") || option == CoreOptions.TMP_DIRS) {
 			defaultValue = null;
 		}
 		return "" +
 			"        <tr>\n" +
 			"            <td><h5>" + escapeCharacters(option.key()) + "</h5></td>\n" +
-			"            <td>" + escapeCharacters(defaultValueToHtml(defaultValue)) + "</td>\n" +
+			"            <td style=\"word-wrap: break-word;\">" + escapeCharacters(defaultValueToHtml(defaultValue)) + "</td>\n" +
 			"            <td>" + escapeCharacters(option.description()) + "</td>\n" +
 			"        </tr>\n";
 	}

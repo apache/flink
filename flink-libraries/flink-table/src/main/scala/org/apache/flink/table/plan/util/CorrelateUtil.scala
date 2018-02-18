@@ -22,7 +22,7 @@ import org.apache.calcite.rex.{RexProgram, RexProgramBuilder}
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableFunctionScan}
 
 /**
-  * A utility for datasteam and dataset correlate rules.
+  * A utility for datastream and dataset correlate rules.
   */
 object CorrelateUtil {
 

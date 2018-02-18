@@ -25,6 +25,7 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -37,6 +38,8 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.datastream.BroadcastConnectedStream;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -45,9 +48,12 @@ import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
@@ -57,6 +63,7 @@ import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
@@ -78,6 +85,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import javax.annotation.Nullable;
+
 import java.lang.reflect.Method;
 import java.util.List;
 
@@ -92,6 +101,9 @@ import static org.junit.Assert.fail;
  */
 @SuppressWarnings("serial")
 public class DataStreamTest extends TestLogger {
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
 	/**
 	 * Tests union functionality. This ensures that self-unions and unions of streams
@@ -753,6 +765,107 @@ public class DataStreamTest extends TestLogger {
 		assertTrue(getOperatorForDataStream(processed) instanceof ProcessOperator);
 	}
 
+	/**
+	 * Tests that with a {@link KeyedStream} we have to provide a {@link KeyedBroadcastProcessFunction}.
+	 */
+	@Test
+	public void testFailedTranslationOnKeyed() {
+
+		final MapStateDescriptor<Long, String> descriptor = new MapStateDescriptor<>(
+				"broadcast", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
+		);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final DataStream<Long> srcOne = env.generateSequence(0L, 5L)
+				.assignTimestampsAndWatermarks(new CustomWmEmitter<Long>() {
+
+					@Override
+					public long extractTimestamp(Long element, long previousElementTimestamp) {
+						return element;
+					}
+				}).keyBy((KeySelector<Long, Long>) value -> value);
+
+		final DataStream<String> srcTwo = env.fromElements("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
+				.assignTimestampsAndWatermarks(new CustomWmEmitter<String>() {
+					@Override
+					public long extractTimestamp(String element, long previousElementTimestamp) {
+						return Long.parseLong(element.split(":")[1]);
+					}
+				});
+
+		BroadcastStream<String> broadcast = srcTwo.broadcast(descriptor);
+		BroadcastConnectedStream<Long, String> bcStream = srcOne.connect(broadcast);
+
+		expectedException.expect(IllegalArgumentException.class);
+		bcStream.process(
+				new BroadcastProcessFunction<Long, String, String>() {
+					@Override
+					public void processBroadcastElement(String value, Context ctx, Collector<String> out) throws Exception {
+						// do nothing
+					}
+
+					@Override
+					public void processElement(Long value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
+						// do nothing
+					}
+				});
+	}
+
+	/**
+	 * Tests that with a non-keyed stream we have to provide a {@link BroadcastProcessFunction}.
+	 */
+	@Test
+	public void testFailedTranslationOnNonKeyed() {
+
+		final MapStateDescriptor<Long, String> descriptor = new MapStateDescriptor<>(
+				"broadcast", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
+		);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final DataStream<Long> srcOne = env.generateSequence(0L, 5L)
+				.assignTimestampsAndWatermarks(new CustomWmEmitter<Long>() {
+
+					@Override
+					public long extractTimestamp(Long element, long previousElementTimestamp) {
+						return element;
+					}
+				});
+
+		final DataStream<String> srcTwo = env.fromElements("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
+				.assignTimestampsAndWatermarks(new CustomWmEmitter<String>() {
+					@Override
+					public long extractTimestamp(String element, long previousElementTimestamp) {
+						return Long.parseLong(element.split(":")[1]);
+					}
+				});
+
+		BroadcastStream<String> broadcast = srcTwo.broadcast(descriptor);
+		BroadcastConnectedStream<Long, String> bcStream = srcOne.connect(broadcast);
+
+		expectedException.expect(IllegalArgumentException.class);
+		bcStream.process(
+				new KeyedBroadcastProcessFunction<String, Long, String, String>() {
+					@Override
+					public void processBroadcastElement(String value, KeyedContext ctx, Collector<String> out) throws Exception {
+						// do nothing
+					}
+
+					@Override
+					public void processElement(Long value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+						// do nothing
+					}
+				});
+	}
+
+	private abstract static class CustomWmEmitter<T> implements AssignerWithPunctuatedWatermarks<T> {
+
+		@Nullable
+		@Override
+		public Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp) {
+			return new Watermark(extractedTimestamp);
+		}
+	}
+
 	@Test
 	public void operatorTest() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -944,9 +1057,6 @@ public class DataStreamTest extends TestLogger {
 	/////////////////////////////////////////////////////////////
 	// KeyBy testing
 	/////////////////////////////////////////////////////////////
-
-	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
 
 	@Test
 	public void testPrimitiveArrayKeyRejection() {

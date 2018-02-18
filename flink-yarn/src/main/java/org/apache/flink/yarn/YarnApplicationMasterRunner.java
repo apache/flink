@@ -146,18 +146,8 @@ public class YarnApplicationMasterRunner {
 			require(currDir != null, "Current working directory variable (%s) not set", Environment.PWD.key());
 			LOG.debug("Current working Directory: {}", currDir);
 
-			final String remoteKeytabPath = ENV.get(YarnConfigKeys.KEYTAB_PATH);
-			LOG.debug("remoteKeytabPath obtained {}", remoteKeytabPath);
-
 			final String remoteKeytabPrincipal = ENV.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
 			LOG.info("remoteKeytabPrincipal obtained {}", remoteKeytabPrincipal);
-
-			String keytabPath = null;
-			if (remoteKeytabPath != null) {
-				File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
-				keytabPath = f.getAbsolutePath();
-				LOG.debug("keytabPath: {}", keytabPath);
-			}
 
 			UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
 
@@ -171,9 +161,13 @@ public class YarnApplicationMasterRunner {
 
 			final Configuration flinkConfig = createConfiguration(currDir, dynamicProperties, LOG);
 
-			// set keytab principal and replace path with the local path of the shipped keytab file in NodeManager
-			if (keytabPath != null && remoteKeytabPrincipal != null) {
-				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
+			File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
+			if (remoteKeytabPrincipal != null && f.exists()) {
+				String keytabPath = f.getAbsolutePath();
+				LOG.debug("keytabPath: {}", keytabPath);
+
+				// set keytab principal and replace path with the local path of the shipped keytab file in NodeManager
+				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, f.getAbsolutePath());
 				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
@@ -253,18 +247,13 @@ public class YarnApplicationMasterRunner {
 
 			LOG.info("YARN assigned hostname for application master: {}", appMasterHostname);
 
-			//Update keytab and principal path to reflect YARN container path location
-			final String remoteKeytabPath = ENV.get(YarnConfigKeys.KEYTAB_PATH);
-
 			final String remoteKeytabPrincipal = ENV.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
 
-			String keytabPath = null;
-			if (remoteKeytabPath != null) {
-				File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
-				keytabPath = f.getAbsolutePath();
-				LOG.info("keytabPath: {}", keytabPath);
-			}
-			if (keytabPath != null && remoteKeytabPrincipal != null) {
+			File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
+			if (remoteKeytabPrincipal != null && f.exists()) {
+				String keytabPath = f.getAbsolutePath();
+				LOG.debug("keytabPath: {}", keytabPath);
+
 				config.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
 				config.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}

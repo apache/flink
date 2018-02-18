@@ -28,6 +28,7 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.java.typeutils.MultisetTypeInfo
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
@@ -155,6 +156,27 @@ case class Avg(child: Expression) extends Aggregation {
 
   override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
     SqlStdOperatorTable.AVG
+  }
+}
+
+/**
+  * Returns a multiset aggregates.
+  */
+case class Collect(child: Expression) extends Aggregation  {
+
+  override private[flink] def children: Seq[Expression] = Seq(child)
+
+  override private[flink] def resultType: TypeInformation[_] =
+    MultisetTypeInfo.getInfoFor(child.resultType)
+
+  override def toString: String = s"collect($child)"
+
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.COLLECT, false, false, null, name, child.toRexNode)
+  }
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
+    SqlStdOperatorTable.COLLECT
   }
 }
 

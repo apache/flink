@@ -95,7 +95,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -213,11 +213,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	private final long[] stateTimestamps;
 
 	/** The timeout for all messages that require a response/acknowledgement */
-	private final Time rpcCallTimeout;
+	private final Time rpcTimeout;
 
-	/** The timeout for bulk slot allocation (eager scheduling mode). After this timeout,
-	 * slots are released and a recovery is triggered */
-	private final Time scheduleAllocationTimeout;
+	/** The timeout for slot allocations. */
+	private final Time allocationTimeout;
 
 	/** Strategy to use for restarts */
 	private final RestartStrategy restartStrategy;
@@ -356,19 +355,21 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			failoverStrategy,
 			slotProvider,
 			ExecutionGraph.class.getClassLoader(),
-			VoidBlobWriter.getInstance());
+			VoidBlobWriter.getInstance(),
+			timeout);
 	}
 
 	public ExecutionGraph(
 			JobInformation jobInformation,
 			ScheduledExecutorService futureExecutor,
 			Executor ioExecutor,
-			Time timeout,
+			Time rpcTimeout,
 			RestartStrategy restartStrategy,
 			FailoverStrategy.Factory failoverStrategyFactory,
 			SlotProvider slotProvider,
 			ClassLoader userClassLoader,
-			BlobWriter blobWriter) throws IOException {
+			BlobWriter blobWriter,
+			Time allocationTimeout) throws IOException {
 
 		checkNotNull(futureExecutor);
 
@@ -395,8 +396,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		this.stateTimestamps = new long[JobStatus.values().length];
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
 
-		this.rpcCallTimeout = checkNotNull(timeout);
-		this.scheduleAllocationTimeout = checkNotNull(timeout);
+		this.rpcTimeout = checkNotNull(rpcTimeout);
+		this.allocationTimeout = checkNotNull(allocationTimeout);
 
 		this.restartStrategy = restartStrategy;
 		this.kvStateLocationRegistry = new KvStateLocationRegistry(jobInformation.getJobId(), getAllVertices());
@@ -437,6 +438,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	public ScheduleMode getScheduleMode() {
 		return scheduleMode;
+	}
+
+	public Time getAllocationTimeout() {
+		return allocationTimeout;
 	}
 
 	@Override
@@ -821,7 +826,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				this,
 				jobVertex,
 				1,
-				rpcCallTimeout,
+				rpcTimeout,
 				globalModVersion,
 				createTimestamp);
 
@@ -861,7 +866,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					break;
 
 				case EAGER:
-					scheduleEager(slotProvider, scheduleAllocationTimeout);
+					scheduleEager(slotProvider, allocationTimeout);
 					break;
 
 				default:
@@ -910,59 +915,45 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			Collection<CompletableFuture<Execution>> allocationFutures = ejv.allocateResourcesForAll(
 				slotProvider,
 				queued,
-				LocationPreferenceConstraint.ALL);
+				LocationPreferenceConstraint.ALL,
+				allocationTimeout);
 
 			allAllocationFutures.addAll(allocationFutures);
 		}
 
 		// this future is complete once all slot futures are complete.
 		// the future fails once one slot future fails.
-		final ConjunctFuture<Collection<Execution>> allAllocationsComplete = FutureUtils.combineAll(allAllocationFutures);
+		final ConjunctFuture<Collection<Execution>> allAllocationsFuture = FutureUtils.combineAll(allAllocationFutures);
 
-		// make sure that we fail if the allocation timeout was exceeded
-		final ScheduledFuture<?> timeoutCancelHandle = futureExecutor.schedule(new Runnable() {
-			@Override
-			public void run() {
-				// When the timeout triggers, we try to complete the conjunct future with an exception.
-				// Note that this is a no-op if the future is already completed
-				int numTotal = allAllocationsComplete.getNumFuturesTotal();
-				int numComplete = allAllocationsComplete.getNumFuturesCompleted();
-				String message = "Could not allocate all requires slots within timeout of " +
-						timeout + ". Slots required: " + numTotal + ", slots allocated: " + numComplete;
+		allAllocationsFuture.whenCompleteAsync(
+			(Collection<Execution> allAllocations, Throwable throwable) -> {
+				if (throwable != null) {
+					final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+					final Throwable resultThrowable;
 
-				allAllocationsComplete.completeExceptionally(new NoResourceAvailableException(message));
-			}
-		}, timeout.getSize(), timeout.getUnit());
+					if (strippedThrowable instanceof TimeoutException) {
+						int numTotal = allAllocationsFuture.getNumFuturesTotal();
+						int numComplete = allAllocationsFuture.getNumFuturesCompleted();
+						String message = "Could not allocate all requires slots within timeout of " +
+							timeout + ". Slots required: " + numTotal + ", slots allocated: " + numComplete;
 
+						resultThrowable = new NoResourceAvailableException(message);
+					} else {
+						resultThrowable = strippedThrowable;
+					}
 
-		allAllocationsComplete.handleAsync(
-			(Collection<Execution> executions, Throwable throwable) -> {
-				try {
-					// we do not need the cancellation timeout any more
-					timeoutCancelHandle.cancel(false);
-
-					if (throwable == null) {
+					failGlobal(resultThrowable);
+				} else {
+					try {
 						// successfully obtained all slots, now deploy
-						for (Execution execution : executions) {
+						for (Execution execution : allAllocations) {
 							execution.deploy();
 						}
-					}
-					else {
-						// let the exception handler deal with this
-						throw throwable;
+					} catch (Throwable t) {
+						failGlobal(new FlinkException("Could not deploy executions.", t));
 					}
 				}
-				catch (Throwable t) {
-					// we catch everything here to make sure cleanup happens and the
-					// ExecutionGraph notices the error
-					failGlobal(ExceptionUtils.stripCompletionException(t));
-				}
-
-				// Wouldn't it be nice if we could return an actual Void object?
-				// return (Void) Unsafe.getUnsafe().allocateInstance(Void.class);
-				return null;
-			},
-			futureExecutor);
+			}, futureExecutor);
 	}
 
 	public void cancel() {

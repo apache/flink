@@ -24,6 +24,7 @@ import java.util
 import java.util.regex.Pattern
 
 import org.apache.commons.codec.binary.Base64
+import org.apache.commons.lang.StringEscapeUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{TableSchema, ValidationException}
 import org.apache.flink.table.descriptors.DescriptorProperties.{NAME, TYPE, normalizeTableSchema}
@@ -32,7 +33,6 @@ import org.apache.flink.util.InstantiationUtil
 import org.apache.flink.util.Preconditions.checkNotNull
 
 import scala.collection.mutable
-
 import scala.collection.JavaConverters._
 
 /**
@@ -73,7 +73,7 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     }
   }
 
-  def putProperties(properties: java.util.Map[String, String]): Unit = {
+  def putProperties(properties: util.Map[String, String]): Unit = {
     properties.asScala.foreach { case (k, v) =>
       put(k, v)
     }
@@ -485,5 +485,13 @@ object DescriptorProperties {
         throw new ValidationException(
           s"Unable to serialize class '${obj.getClass.getCanonicalName}'.", e)
     }
+  }
+
+  def toString(keyOrValue: String): String = {
+    StringEscapeUtils.escapeJava(keyOrValue)
+  }
+
+  def toString(key: String, value: String): String = {
+    toString(key) + "=" + toString(value)
   }
 }

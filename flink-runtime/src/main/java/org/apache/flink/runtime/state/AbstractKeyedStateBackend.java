@@ -52,6 +52,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -98,9 +99,7 @@ public abstract class AbstractKeyedStateBackend<K>
 
 	private final ExecutionConfig executionConfig;
 
-	/**
-	 * Decorates the input and output streams to write key-groups compressed.
-	 */
+	/** Decorates the input and output streams to write key-groups compressed. */
 	protected final StreamCompressionDecorator keyGroupCompressionDecorator;
 
 	public AbstractKeyedStateBackend(
@@ -279,6 +278,38 @@ public abstract class AbstractKeyedStateBackend<K>
 	@Override
 	public KeyGroupRange getKeyGroupRange() {
 		return keyGroupRange;
+	}
+
+	/**
+	 * @see KeyedStateBackend
+	 */
+	@Override
+	public <N, S extends State, T> void applyToAllKeys(
+			final N namespace,
+			final TypeSerializer<N> namespaceSerializer,
+			final StateDescriptor<S, T> stateDescriptor,
+			final KeyedStateFunction<K, S> function) throws Exception {
+
+		try (Stream<K> keyStream = getKeys(stateDescriptor.getName(), namespace)) {
+			keyStream.forEach((K key) -> {
+				setCurrentKey(key);
+				try {
+					function.process(
+						key,
+						getPartitionedState(
+							namespace,
+							namespaceSerializer,
+							stateDescriptor)
+					);
+				} catch (Throwable e) {
+					// we wrap the checked exception in an unchecked
+					// one and catch it (and re-throw it) later.
+					throw new RuntimeException(e);
+				}
+			});
+		} catch (RuntimeException e) {
+			throw e;
+		}
 	}
 
 	/**

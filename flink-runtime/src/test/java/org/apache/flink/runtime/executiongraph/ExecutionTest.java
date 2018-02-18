@@ -88,7 +88,8 @@ public class ExecutionTest extends TestLogger {
 		CompletableFuture<Execution> allocationFuture = execution.allocateAndAssignSlotForExecution(
 			slotProvider,
 			false,
-			LocationPreferenceConstraint.ALL);
+			LocationPreferenceConstraint.ALL,
+			TestingUtils.infiniteTime());
 
 		assertFalse(allocationFuture.isDone());
 
@@ -140,7 +141,8 @@ public class ExecutionTest extends TestLogger {
 		CompletableFuture<Execution> allocationFuture = execution.allocateAndAssignSlotForExecution(
 			slotProvider,
 			false,
-			LocationPreferenceConstraint.ALL);
+			LocationPreferenceConstraint.ALL,
+			TestingUtils.infiniteTime());
 
 		assertTrue(allocationFuture.isDone());
 
@@ -189,7 +191,8 @@ public class ExecutionTest extends TestLogger {
 		CompletableFuture<Execution> allocationFuture = execution.allocateAndAssignSlotForExecution(
 			slotProvider,
 			false,
-			LocationPreferenceConstraint.ALL);
+			LocationPreferenceConstraint.ALL,
+			TestingUtils.infiniteTime());
 
 		assertTrue(allocationFuture.isDone());
 

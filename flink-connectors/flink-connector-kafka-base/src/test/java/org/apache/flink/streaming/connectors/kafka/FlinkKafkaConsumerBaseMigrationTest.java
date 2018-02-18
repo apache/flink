@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -92,7 +93,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
 	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
 	public static Collection<MigrationVersion> parameters () {
-		return Arrays.asList(MigrationVersion.v1_2, MigrationVersion.v1_3);
+		return Arrays.asList(MigrationVersion.v1_2, MigrationVersion.v1_3, MigrationVersion.v1_4);
 	}
 
 	public FlinkKafkaConsumerBaseMigrationTest(MigrationVersion testMigrateVersion) {
@@ -349,11 +350,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
 			fail("Restore from savepoints from version before Flink 1.3.x should have failed if discovery is enabled.");
 		} catch (Exception e) {
-			if (testMigrateVersion == MigrationVersion.v1_1) {
-				Assert.assertTrue(e.getCause() instanceof IllegalArgumentException);
-			} else {
-				Assert.assertTrue(e instanceof IllegalArgumentException);
-			}
+			Assert.assertTrue(e instanceof IllegalArgumentException);
 		}
 	}
 
@@ -376,7 +373,8 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 				Arrays.asList("dummy-topic"),
 				null,
 				(KeyedDeserializationSchema< T >) mock(KeyedDeserializationSchema.class),
-				discoveryInterval);
+				discoveryInterval,
+				false);
 
 			this.fetcher = fetcher;
 			this.partitions = partitions;
@@ -393,7 +391,9 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 				StreamingRuntimeContext runtimeContext,
-				OffsetCommitMode offsetCommitMode) throws Exception {
+				OffsetCommitMode offsetCommitMode,
+				MetricGroup consumerMetricGroup,
+				boolean useMetrics) throws Exception {
 			return fetcher;
 		}
 

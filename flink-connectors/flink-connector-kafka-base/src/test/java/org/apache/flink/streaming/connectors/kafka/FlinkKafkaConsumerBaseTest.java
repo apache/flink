@@ -19,9 +19,11 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -640,7 +642,8 @@ public class FlinkKafkaConsumerBaseTest {
 					Collections.singletonList("dummy-topic"),
 					null,
 					(KeyedDeserializationSchema < T >) mock(KeyedDeserializationSchema.class),
-					PARTITION_DISCOVERY_DISABLED);
+					PARTITION_DISCOVERY_DISABLED,
+					false);
 
 			this.testFetcher = testFetcher;
 			this.testPartitionDiscoverer = testPartitionDiscoverer;
@@ -655,7 +658,9 @@ public class FlinkKafkaConsumerBaseTest {
 				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 				StreamingRuntimeContext runtimeContext,
-				OffsetCommitMode offsetCommitMode) throws Exception {
+				OffsetCommitMode offsetCommitMode,
+				MetricGroup consumerMetricGroup,
+				boolean useMetrics) throws Exception {
 			return this.testFetcher;
 		}
 
@@ -691,6 +696,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		@Override
 		public void add(T value) throws Exception {
+			Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 			list.add(value);
 		}
 
@@ -712,6 +718,8 @@ public class FlinkKafkaConsumerBaseTest {
 		@Override
 		public void addAll(List<T> values) throws Exception {
 			if (values != null) {
+				values.forEach(v -> Preconditions.checkNotNull(v, "You cannot add null to a ListState."));
+
 				list.addAll(values);
 			}
 		}
@@ -752,6 +760,7 @@ public class FlinkKafkaConsumerBaseTest {
 					new TestProcessingTimeService(),
 					0,
 					MockFetcher.class.getClassLoader(),
+					new UnregisteredMetricsGroup(),
 					false);
 
 			this.stateSnapshotsToReturn.addAll(Arrays.asList(stateSnapshotsToReturn));
@@ -890,12 +899,22 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 
 		@Override
+		public <K, V> BroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> stateDescriptor) throws Exception {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
 		public <S> ListState<S> getListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Set<String> getRegisteredStateNames() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Set<String> getRegisteredBroadcastStateNames() {
 			throw new UnsupportedOperationException();
 		}
 	}

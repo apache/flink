@@ -27,7 +27,7 @@ import java.util.Collections;
  */
 public class JobVertexMessageParameters extends JobMessageParameters {
 
-	protected final JobVertexIdPathParameter jobVertexIdPathParameter = new JobVertexIdPathParameter();
+	public final JobVertexIdPathParameter jobVertexIdPathParameter = new JobVertexIdPathParameter();
 
 	@Override
 	public Collection<MessagePathParameter<?>> getPathParameters() {

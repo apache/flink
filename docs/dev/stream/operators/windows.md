@@ -757,7 +757,7 @@ input
 
 class MyProcessWindowFunction extends ProcessWindowFunction[(String, Long), String, String, TimeWindow] {
 
-  def apply(key: String, context: Context, input: Iterable[(String, Long)], out: Collector[String]): () = {
+  def process(key: String, context: Context, input: Iterable[(String, Long)], out: Collector[String]): () = {
     var count = 0L
     for (in <- input) {
       count = count + 1
@@ -812,7 +812,7 @@ private static class MyReduceFunction implements ReduceFunction<SensorReading> {
 private static class MyProcessWindowFunction
     implements ProcessWindowFunction<SensorReading, Tuple2<Long, SensorReading>, String, TimeWindow> {
 
-  public void apply(String key,
+  public void process(String key,
                     Context context,
                     Iterable<SensorReading> minReadings,
                     Collector<Tuple2<Long, SensorReading>> out) {
@@ -895,7 +895,7 @@ private static class AverageAggregate
 private static class MyProcessWindowFunction
     implements ProcessWindowFunction<Double, Tuple2<String, Double>, String, TimeWindow> {
 
-  public void apply(String key,
+  public void process(String key,
                     Context context,
                     Iterable<Double> averages,
                     Collector<Tuple2<String, Double>> out) {
@@ -936,11 +936,7 @@ class AverageAggregate extends AggregateFunction[(String, Long), (Long, Long), D
 
 class MyProcessWindowFunction extends ProcessWindowFunction[Double, (String, Double), String, TimeWindow] {
 
-  def apply(key: String, context: Context, averages: Iterable[Double], out: Collector[(String, Double]): () = {
-    var count = 0L
-    for (in <- input) {
-      count = count + 1
-    }
+  def process(key: String, context: Context, averages: Iterable[Double], out: Collector[(String, Double]): () = {
     val average = averages.iterator.next()
     out.collect((key, average))
   }

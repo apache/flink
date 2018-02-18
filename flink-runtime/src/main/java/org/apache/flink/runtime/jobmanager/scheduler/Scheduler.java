@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager.scheduler;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -60,6 +61,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The scheduler is responsible for distributing the ready-to-run tasks among instances and slots.
@@ -142,7 +144,8 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 	public CompletableFuture<LogicalSlot> allocateSlot(
 			ScheduledUnit task,
 			boolean allowQueued,
-			Collection<TaskManagerLocation> preferredLocations) {
+			Collection<TaskManagerLocation> preferredLocations,
+			Time allocationTimeout) {
 
 		try {
 			final Object ret = scheduleTask(task, allowQueued, preferredLocations);
@@ -153,7 +156,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 			else if (ret instanceof CompletableFuture) {
 				@SuppressWarnings("unchecked")
 				CompletableFuture<LogicalSlot> typed = (CompletableFuture<LogicalSlot>) ret;
-				return typed;
+				return FutureUtils.orTimeout(typed, allocationTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			}
 			else {
 				// this should never happen, simply guard this case with an exception

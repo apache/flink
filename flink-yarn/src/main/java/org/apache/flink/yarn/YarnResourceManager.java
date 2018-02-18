@@ -19,13 +19,12 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -59,9 +58,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.duration.FiniteDuration;
 
 /**
  * The yarn implementation of the resource manager. Used when the system is started
@@ -128,6 +124,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			SlotManager slotManager,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
+			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
 			@Nullable String webInterfaceUrl) {
 		super(
@@ -140,6 +137,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			slotManager,
 			metricRegistry,
 			jobLeaderIdService,
+			clusterInformation,
 			fatalErrorHandler);
 		this.flinkConfig  = flinkConfig;
 		this.yarnConfig = new YarnConfiguration();
@@ -322,26 +320,43 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	@Override
 	public void onContainersAllocated(List<Container> containers) {
 		for (Container container : containers) {
-			numPendingContainerRequests = Math.max(0, numPendingContainerRequests - 1);
-			log.info("Received new container: {} - Remaining pending container requests: {}",
-					container.getId(), numPendingContainerRequests);
-			final String containerIdStr = container.getId().toString();
-			workerNodeMap.put(new ResourceID(containerIdStr),
-					new YarnWorkerNode(container));
-			try {
-				/** Context information used to start a TaskExecutor Java process */
-				ContainerLaunchContext taskExecutorLaunchContext =
-						createTaskExecutorLaunchContext(
-								container.getResource(), containerIdStr, container.getNodeId().getHost());
-				nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
-			}
-			catch (Throwable t) {
-				// failed to launch the container, will release the failed one and ask for a new one
-				log.error("Could not start TaskManager in container {},", container, t);
+			log.info(
+				"Received new container: {} - Remaining pending container requests: {}",
+				container.getId(),
+				numPendingContainerRequests);
+
+			if (numPendingContainerRequests > 0) {
+				numPendingContainerRequests--;
+
+				final String containerIdStr = container.getId().toString();
+
+				workerNodeMap.put(new ResourceID(containerIdStr), new YarnWorkerNode(container));
+
+				try {
+					// Context information used to start a TaskExecutor Java process
+					ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(
+						container.getResource(),
+						containerIdStr,
+						container.getNodeId().getHost());
+
+					nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
+				} catch (Throwable t) {
+					log.error("Could not start TaskManager in container {}.", container.getId(), t);
+
+					// release the failed container
+					resourceManagerClient.releaseAssignedContainer(container.getId());
+					// and ask for a new one
+					requestYarnContainer(container.getResource(), container.getPriority());
+				}
+			} else {
+				// return the excessive containers
+				log.info("Returning excess container {}.", container.getId());
 				resourceManagerClient.releaseAssignedContainer(container.getId());
-				requestYarnContainer(container.getResource(), container.getPriority());
 			}
 		}
+
+		// if we are waiting for no further containers, we can go to the
+		// regular heartbeat interval
 		if (numPendingContainerRequests <= 0) {
 			resourceManagerClient.setHeartbeatInterval(yarnHeartbeatIntervalMillis);
 		}
@@ -400,14 +415,13 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	private void requestYarnContainer(Resource resource, Priority priority) {
-		resourceManagerClient.addContainerRequest(
-				new AMRMClient.ContainerRequest(resource, null, null, priority));
+		resourceManagerClient.addContainerRequest(new AMRMClient.ContainerRequest(resource, null, null, priority));
+
 		// make sure we transmit the request fast and receive fast news of granted allocations
 		resourceManagerClient.setHeartbeatInterval(FAST_YARN_HEARTBEAT_INTERVAL_MS);
 
 		numPendingContainerRequests++;
-		log.info("Requesting new TaskManager container pending requests: {}",
-				numPendingContainerRequests);
+		log.info("Requesting new TaskManager container pending requests: {}", numPendingContainerRequests);
 	}
 
 	private ContainerLaunchContext createTaskExecutorLaunchContext(Resource resource, String containerId, String host)
@@ -418,23 +432,24 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		final ContaineredTaskManagerParameters taskManagerParameters =
 				ContaineredTaskManagerParameters.create(flinkConfig, resource.getMemory(), 1);
 
-		log.info("TaskExecutor{} will be started with container size {} MB, JVM heap size {} MB, " +
+		log.info("TaskExecutor {} will be started with container size {} MB, JVM heap size {} MB, " +
 				"JVM direct memory limit {} MB",
 				containerId,
 				taskManagerParameters.taskManagerTotalMemoryMB(),
 				taskManagerParameters.taskManagerHeapSizeMB(),
 				taskManagerParameters.taskManagerDirectMemoryLimitMB());
-		int timeout = flinkConfig.getInteger(ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION,
-				DEFAULT_TASK_MANAGER_REGISTRATION_DURATION);
-		FiniteDuration teRegistrationTimeout = new FiniteDuration(timeout, TimeUnit.SECONDS);
-		final Configuration taskManagerConfig = BootstrapTools.generateTaskManagerConfiguration(
-				flinkConfig, "", 0, 1, teRegistrationTimeout);
-		log.debug("TaskManager configuration: {}", taskManagerConfig);
+
+		log.debug("TaskManager configuration: {}", flinkConfig);
 
 		ContainerLaunchContext taskExecutorLaunchContext = Utils.createTaskExecutorContext(
-				flinkConfig, yarnConfig, env,
-				taskManagerParameters, taskManagerConfig,
-				currDir, YarnTaskExecutorRunner.class, log);
+			flinkConfig,
+			yarnConfig,
+			env,
+			taskManagerParameters,
+			flinkConfig,
+			currDir,
+			YarnTaskExecutorRunner.class,
+			log);
 
 		// set a special environment variable to uniquely identify this container
 		taskExecutorLaunchContext.getEnvironment()

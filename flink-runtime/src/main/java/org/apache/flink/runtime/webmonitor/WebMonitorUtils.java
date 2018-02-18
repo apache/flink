@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.Path;
@@ -32,7 +33,9 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
@@ -41,6 +44,7 @@ import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,11 +55,15 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Utilities for the web runtime monitor. This class contains for example methods to build
@@ -63,6 +71,8 @@ import java.util.concurrent.CompletableFuture;
  * to the web server.
  */
 public final class WebMonitorUtils {
+
+	private static final String WEB_RUNTIME_MONITOR_CLASS_FQN = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor";
 
 	private static final Logger LOG = LoggerFactory.getLogger(WebMonitorUtils.class);
 
@@ -101,8 +111,8 @@ public final class WebMonitorUtils {
 
 			String outFilePath = logFilePath.substring(0, logFilePath.length() - 3).concat("out");
 
-			LOG.info("Determined location of JobManager log file: {}", logFilePath);
-			LOG.info("Determined location of JobManager stdout file: {}", outFilePath);
+			LOG.info("Determined location of main cluster component log file: {}", logFilePath);
+			LOG.info("Determined location of main cluster component stdout file: {}", outFilePath);
 
 			return new LogFileLocation(resolveFileLocation(logFilePath), resolveFileLocation(outFilePath));
 		}
@@ -142,8 +152,7 @@ public final class WebMonitorUtils {
 			ScheduledExecutor scheduledExecutor) {
 		// try to load and instantiate the class
 		try {
-			String classname = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor";
-			Class<? extends WebMonitor> clazz = Class.forName(classname).asSubclass(WebMonitor.class);
+			Class<? extends WebMonitor> clazz = Class.forName(WEB_RUNTIME_MONITOR_CLASS_FQN).asSubclass(WebMonitor.class);
 
 			Constructor<? extends WebMonitor> constructor = clazz.getConstructor(
 				Configuration.class,
@@ -186,34 +195,100 @@ public final class WebMonitorUtils {
 	 * @throws IOException if we cannot create the StaticFileServerHandler
 	 */
 	public static <T extends RestfulGateway> Optional<StaticFileServerHandler<T>> tryLoadWebContent(
-			GatewayRetriever<T> leaderRetriever,
+			GatewayRetriever<? extends T> leaderRetriever,
 			CompletableFuture<String> restAddressFuture,
 			Time timeout,
 			File tmpDir) throws IOException {
 
-		// 1. Check if flink-runtime-web is in the classpath
-		try {
-			final String classname = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor";
-			Class.forName(classname).asSubclass(WebMonitor.class);
-
+		if (isFlinkRuntimeWebInClassPath()) {
 			return Optional.of(new StaticFileServerHandler<>(
 				leaderRetriever,
 				restAddressFuture,
 				timeout,
 				tmpDir));
-		} catch (ClassNotFoundException ignored) {
-			// class not found means that there is no flink-runtime-web in the classpath
+		} else {
 			return Optional.empty();
+		}
+	}
+
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	public static <T extends RestfulGateway> Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> tryLoadJarHandlers(
+			GatewayRetriever<T> leaderRetriever,
+			CompletableFuture<String> restAddressFuture,
+			Time timeout,
+			Map<String, String> responseHeaders,
+			java.nio.file.Path uploadDir,
+			Executor executor) {
+
+		if (!isFlinkRuntimeWebInClassPath()) {
+			return Collections.emptyList();
+		}
+
+		final String jarHandlerPackageName = "org.apache.flink.runtime.webmonitor.handlers.";
+		try {
+			final Constructor<?> jarUploadHandlerConstrutor = Class
+				.forName(jarHandlerPackageName + "JarUploadHandler")
+				.getConstructor(
+					CompletableFuture.class,
+					GatewayRetriever.class,
+					Time.class,
+					Map.class,
+					MessageHeaders.class,
+					java.nio.file.Path.class,
+					Executor.class);
+
+			final MessageHeaders jarUploadMessageHeaders = (MessageHeaders) Class
+				.forName(jarHandlerPackageName + "JarUploadMessageHeaders")
+				.newInstance();
+
+			final ChannelInboundHandler jarUploadHandler = (ChannelInboundHandler) jarUploadHandlerConstrutor
+				.newInstance(
+					restAddressFuture,
+					leaderRetriever,
+					timeout,
+					responseHeaders,
+					jarUploadMessageHeaders,
+					uploadDir,
+					executor);
+
+			final Constructor<?> jarListHandlerConstructor = Class
+				.forName(jarHandlerPackageName + "JarListHandler")
+				.getConstructor(
+					CompletableFuture.class,
+					GatewayRetriever.class,
+					Time.class,
+					Map.class,
+					MessageHeaders.class,
+					File.class,
+					Executor.class);
+
+			final MessageHeaders jarListHeaders = (MessageHeaders) Class
+				.forName(jarHandlerPackageName + "JarListHeaders")
+				.newInstance();
+
+			final ChannelInboundHandler jarListHandler = (ChannelInboundHandler) jarListHandlerConstructor
+				.newInstance(
+					restAddressFuture,
+					leaderRetriever,
+					timeout,
+					responseHeaders,
+					jarListHeaders,
+					uploadDir.toFile(),
+					executor);
+
+			return Arrays.asList(
+				Tuple2.of(jarUploadMessageHeaders, jarUploadHandler),
+				Tuple2.of(jarListHeaders, jarListHandler));
+		} catch (ClassNotFoundException | InvocationTargetException | InstantiationException | NoSuchMethodException | IllegalAccessException e) {
+			throw new RuntimeException(e);
 		}
 	}
 
 	public static JsonArchivist[] getJsonArchivists() {
 		try {
-			String classname = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor";
-			Class<? extends WebMonitor> clazz = Class.forName(classname).asSubclass(WebMonitor.class);
+			Class<? extends WebMonitor> clazz = Class.forName(WEB_RUNTIME_MONITOR_CLASS_FQN).asSubclass(WebMonitor.class);
 			Method method = clazz.getMethod("getJsonArchivists");
-			JsonArchivist[] result = (JsonArchivist[]) method.invoke(null);
-			return result;
+			return (JsonArchivist[]) method.invoke(null);
 		} catch (ClassNotFoundException e) {
 			LOG.error("Could not load web runtime monitor. " +
 				"Probably reason: flink-runtime-web is not in the classpath");
@@ -313,5 +388,19 @@ public final class WebMonitorUtils {
 	 */
 	private WebMonitorUtils() {
 		throw new RuntimeException();
+	}
+
+	/**
+	 * Returns {@code true} if the optional dependency {@code flink-runtime-web} is in the
+	 * classpath.
+	 */
+	private static boolean isFlinkRuntimeWebInClassPath() {
+		try {
+			Class.forName(WEB_RUNTIME_MONITOR_CLASS_FQN).asSubclass(WebMonitor.class);
+			return true;
+		} catch (ClassNotFoundException e) {
+			// class not found means that there is no flink-runtime-web in the classpath
+			return false;
+		}
 	}
 }

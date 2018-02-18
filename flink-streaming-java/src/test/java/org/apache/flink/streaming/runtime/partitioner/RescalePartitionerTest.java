@@ -155,7 +155,8 @@ public class RescalePartitionerTest extends TestLogger {
 			new RestartAllStrategy.Factory(),
 			new Scheduler(TestingUtils.defaultExecutionContext()),
 			ExecutionGraph.class.getClassLoader(),
-			VoidBlobWriter.getInstance());
+			VoidBlobWriter.getInstance(),
+			AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(jobVertices);
 		}

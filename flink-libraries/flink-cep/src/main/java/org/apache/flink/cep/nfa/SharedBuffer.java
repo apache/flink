@@ -30,7 +30,6 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -928,15 +927,11 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 					// the ids of the source and target SharedBufferEntry
 
 					int sourceId = sharedBuffer.entryId;
-					Preconditions.checkState(sourceId != -1,
-							"Could not find id for entry: " + sharedBuffer);
 
 					for (SharedBufferEdge<K, V> edge: sharedBuffer.edges) {
 						int targetId = -1;
 						if (edge.getTarget() != null) {
 							targetId = edge.getTarget().entryId;
-							Preconditions.checkState(targetId != -1,
-									"Could not find id for entry: " + edge.getTarget());
 						}
 
 						target.writeInt(sourceId);
@@ -978,12 +973,8 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 			for (int j = 0; j < totalEdges; j++) {
 				int sourceIdx = source.readInt();
-				Preconditions.checkState(sourceIdx < entryList.size() && sourceIdx >= 0,
-						"Could not find source entry with index " + sourceIdx + 	". This indicates a corrupted state.");
 
 				int targetIdx = source.readInt();
-				Preconditions.checkState(targetIdx < entryList.size(),
-						"Could not find target entry with index " + sourceIdx + 	". This indicates a corrupted state.");
 
 				DeweyNumber version = versionSerializer.deserialize(source);
 

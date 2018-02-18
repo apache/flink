@@ -76,7 +76,13 @@ With Flink >= 1.2.0 it is also possible to *resume from savepoints* using the we
 
 ### Triggering Savepoints
 
-When triggering a savepoint, a new savepoint directory beneath the target directory is created. In there, the data as well as the meta data will be stored. For example with a `FsStateBackend` or `RocksDBStateBackend`:
+When triggering a savepoint, a new savepoint directory is created where the data as well as the meta data will be stored. The location of this directory can be controlled by [configuring a default target directory](#configuration) or by specifying a custom target directory with the trigger commands (see the [`:targetDirectory` argument](#trigger-a-savepoint)).
+
+<div class="alert alert-warning">
+<strong>Attention:</strong> The target directory has to be a location accessible by both the JobManager(s) and TaskManager(s) e.g. a location on a distributed file-system.
+</div>
+
+For example with a `FsStateBackend` or `RocksDBStateBackend`:
 
 ```sh
 # Savepoint target directory
@@ -103,24 +109,18 @@ Note that if you use the `MemoryStateBackend`, metadata *and* savepoint state wi
 #### Trigger a Savepoint
 
 ```sh
-$ bin/flink savepoint :jobId [:savepointDirectory]
+$ bin/flink savepoint :jobId [:targetDirectory]
 ```
 
 This will trigger a savepoint for the job with ID `:jobId`, and returns the path of the created savepoint. You need this path to restore and dispose savepoints.
 
-Furthermore, you can optionally specify a target file system directory to store the savepoint in. The directory needs to be accessible by the JobManager.
-
-If you don't specify a target directory, you need to have [configured a default directory](#configuration) (see [Savepoints]({{site.baseurl}}/ops/state/savepoints.html#configuration)). Otherwise, triggering the savepoint will fail.
-
 #### Trigger a Savepoint with YARN
 
 ```sh
-$ bin/flink savepoint :jobId [:savepointDirectory] -yid :yarnAppId
+$ bin/flink savepoint :jobId [:targetDirectory] -yid :yarnAppId
 ```
 
 This will trigger a savepoint for the job with ID `:jobId` and YARN application ID `:yarnAppId`, and returns the path of the created savepoint.
-
-Everything else is the same as described in the above **Trigger a Savepoint** section.
 
 #### Cancel Job with Savepoint
 
@@ -128,9 +128,7 @@ Everything else is the same as described in the above **Trigger a Savepoint** se
 $ bin/flink cancel -s [:targetDirectory] :jobId
 ```
 
-This will atomically trigger a savepoint for the job with ID `:jobid` and cancel the job. Furthermore, you can specify a target file system directory to store the savepoint in.  The directory needs to be accessible by the JobManager.
-
-If you don't specify a target directory, you need to have [configured a default directory](#configuration). Otherwise, cancelling the job with a savepoint will fail.
+This will atomically trigger a savepoint for the job with ID `:jobid` and cancel the job. Furthermore, you can specify a target file system directory to store the savepoint in.  The directory needs to be accessible by the JobManager(s) and TaskManager(s).
 
 ### Resuming from Savepoints
 
@@ -168,6 +166,10 @@ state.savepoints.dir: hdfs:///flink/savepoints
 ```
 
 If you neither configure a default nor specify a custom target directory, triggering the savepoint will fail.
+
+<div class="alert alert-warning">
+<strong>Attention:</strong> The target directory has to be a location accessible by both the JobManager(s) and TaskManager(s) e.g. a location on a distributed file-system.
+</div>
 
 ## F.A.Q
 

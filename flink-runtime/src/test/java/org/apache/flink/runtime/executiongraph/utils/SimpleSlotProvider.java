@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph.utils;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -74,7 +75,8 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 	public CompletableFuture<LogicalSlot> allocateSlot(
 			ScheduledUnit task,
 			boolean allowQueued,
-			Collection<TaskManagerLocation> preferredLocations) {
+			Collection<TaskManagerLocation> preferredLocations,
+			Time allocationTimeout) {
 		final SlotContext slot;
 
 		synchronized (slots) {

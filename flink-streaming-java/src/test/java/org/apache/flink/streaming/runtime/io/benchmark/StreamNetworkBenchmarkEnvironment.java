@@ -35,7 +35,6 @@ import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
-import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
@@ -165,7 +164,8 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL.defaultValue(),
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX.defaultValue(),
 			TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue(),
-			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.defaultValue());
+			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.defaultValue(),
+			true);
 	}
 
 	protected ResultPartitionWriter createResultPartition(
@@ -187,15 +187,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			ioManager,
 			false);
 
-		// similar to NetworkEnvironment#registerTask()
-		int numBuffers = resultPartition.getNumberOfSubpartitions() *
-			TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() +
-			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.defaultValue();
-
-		BufferPool bufferPool = environment.getNetworkBufferPool().createBufferPool(channels, numBuffers);
-		resultPartition.registerBufferPool(bufferPool);
-
-		environment.getResultPartitionManager().registerResultPartition(resultPartition);
+		environment.setupPartition(resultPartition);
 
 		return resultPartition;
 	}
@@ -232,15 +224,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 				new NoOpTaskActions(),
 				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
-			// similar to NetworkEnvironment#registerTask()
-			int numBuffers = gate.getNumberOfInputChannels() *
-				TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() +
-				TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.defaultValue();
-
-			BufferPool bufferPool =
-				environment.getNetworkBufferPool().createBufferPool(gate.getNumberOfInputChannels(), numBuffers);
-
-			gate.setBufferPool(bufferPool);
+			environment.setupInputGate(gate);
 			gates[channel] = gate;
 		}
 

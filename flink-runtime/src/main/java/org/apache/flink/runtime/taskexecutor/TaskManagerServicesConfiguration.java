@@ -257,10 +257,9 @@ public class TaskManagerServicesConfiguration {
 
 		// ----> hosts / ports for communication and data exchange
 
-		int dataport = configuration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT);
+		int dataport = configuration.getInteger(TaskManagerOptions.DATA_PORT);
 
-		checkConfigParameter(dataport >= 0, dataport, ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
+		checkConfigParameter(dataport >= 0, dataport, TaskManagerOptions.DATA_PORT.key(),
 			"Leave config parameter empty or use 0 to let the system choose a port automatically.");
 
 		checkConfigParameter(slots >= 1, slots, ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
@@ -413,11 +412,9 @@ public class TaskManagerServicesConfiguration {
 	private static QueryableStateConfiguration parseQueryableStateConfiguration(Configuration config) {
 
 		final Iterator<Integer> proxyPorts = NetUtils.getPortRangeFromString(
-				config.getString(QueryableStateOptions.PROXY_PORT_RANGE,
-						QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
+				config.getString(QueryableStateOptions.PROXY_PORT_RANGE));
 		final Iterator<Integer> serverPorts = NetUtils.getPortRangeFromString(
-				config.getString(QueryableStateOptions.SERVER_PORT_RANGE,
-						QueryableStateOptions.SERVER_PORT_RANGE.defaultValue()));
+				config.getString(QueryableStateOptions.SERVER_PORT_RANGE));
 
 		final int numProxyServerNetworkThreads = config.getInteger(QueryableStateOptions.PROXY_NETWORK_THREADS);
 		final int numProxyServerQueryThreads = config.getInteger(QueryableStateOptions.PROXY_ASYNC_QUERY_THREADS);

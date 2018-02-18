@@ -205,9 +205,7 @@ class LocalFlinkMiniCluster(
 
     val rpcPortIterator = NetUtils.getPortRangeFromString(rpcPortRange)
 
-    val dataPort = config.getInteger(
-      ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT)
+    val dataPort = config.getInteger(TaskManagerOptions.DATA_PORT)
 
     if (rpcPortIterator.hasNext) {
       val rpcPort = rpcPortIterator.next()
@@ -216,7 +214,7 @@ class LocalFlinkMiniCluster(
       }
     }
     if (dataPort > 0) {
-      config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort + index)
+      config.setInteger(TaskManagerOptions.DATA_PORT, dataPort + index)
     }
 
     val localExecution = numTaskManagers == 1
@@ -239,7 +237,9 @@ class LocalFlinkMiniCluster(
 
     val taskManagerServices = TaskManagerServices.fromConfiguration(
       taskManagerServicesConfiguration,
-      resourceID)
+      resourceID,
+      EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag,
+      EnvironmentInformation.getMaxJvmHeapMemory)
 
     val taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
       metricRegistryOpt.get,

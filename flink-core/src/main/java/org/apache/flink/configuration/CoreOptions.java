@@ -26,6 +26,10 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  * The set of configuration options for core parameters.
  */
 @PublicEvolving
+@ConfigGroups(groups = {
+	@ConfigGroup(name = "Environment", keyPrefix = "env"),
+	@ConfigGroup(name = "FileSystem", keyPrefix = "fs")
+})
 public class CoreOptions {
 
 	// ------------------------------------------------------------------------
@@ -45,7 +49,11 @@ public class CoreOptions {
 	 */
 	public static final ConfigOption<String> CLASSLOADER_RESOLVE_ORDER = ConfigOptions
 		.key("classloader.resolve-order")
-		.defaultValue("child-first");
+		.defaultValue("child-first")
+		.withDescription("Defines the class resolution strategy when loading classes from user code, meaning whether to" +
+			" first check the user code jar (\"child-first\") or the application classpath (\"parent-first\")." +
+			" The default settings indicate to load classes first from the user code jar, which means that user code" +
+			" jars can include and load different dependencies than Flink uses (transitively).");
 
 	/**
 	 * The namespace patterns for classes that are loaded with a preference from the
@@ -79,7 +87,10 @@ public class CoreOptions {
 	 */
 	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER = ConfigOptions
 		.key("classloader.parent-first-patterns")
-		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback");
+		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback")
+		.withDescription("A (semicolon-separated) list of patterns that specifies which classes should always be" +
+			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
+			" the fully qualified class name.");
 
 	// ------------------------------------------------------------------------
 	//  process parameters
@@ -96,6 +107,24 @@ public class CoreOptions {
 	public static final ConfigOption<String> FLINK_TM_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.taskmanager")
 		.defaultValue("");
+
+	public static final ConfigOption<String> FLINK_LOG_DIR = ConfigOptions
+		.key("env.log.dir")
+		.noDefaultValue()
+		.withDescription("Defines the directory where the Flink logs are saved. It has to be an absolute path." +
+			" (Defaults to the log directory under Flink’s home)");
+
+	public static final ConfigOption<Integer> FLINK_LOG_MAX = ConfigOptions
+		.key("env.log.max")
+		.defaultValue(5)
+		.withDescription("The maximum number of old log files to keep.");
+
+	public static final ConfigOption<String> FLINK_SSH_OPTIONS = ConfigOptions
+		.key("env.ssh.opts")
+		.noDefaultValue()
+		.withDescription("Additional command line options passed to SSH clients when starting or stopping JobManager," +
+			" TaskManager, and Zookeeper services (start-cluster.sh, stop-cluster.sh, start-zookeeper-quorum.sh," +
+			" stop-zookeeper-quorum.sh).");
 
 	// ------------------------------------------------------------------------
 	//  generic io
@@ -127,7 +156,31 @@ public class CoreOptions {
 	 */
 	public static final ConfigOption<String> DEFAULT_FILESYSTEM_SCHEME = ConfigOptions
 			.key("fs.default-scheme")
-			.noDefaultValue();
+			.noDefaultValue()
+			.withDescription("The default filesystem scheme, used for paths that do not declare a scheme explicitly." +
+				" May contain an authority, e.g. host:port in case of a HDFS NameNode.");
+
+	/**
+	 * Specifies whether file output writers should overwrite existing files by default.
+	 */
+	public static final ConfigOption<Boolean> FILESYTEM_DEFAULT_OVERRIDE =
+		key("fs.overwrite-files")
+			.defaultValue(false)
+			.withDescription("Specifies whether file output writers should overwrite existing files by default. Set to" +
+				" \"true\" to overwrite by default,\"false\" otherwise.");
+
+	/**
+	 * Specifies whether the file systems should always create a directory for the output, even with a parallelism of one.
+	 */
+	public static final ConfigOption<Boolean> FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY =
+		key("fs.output.always-create-directory")
+			.defaultValue(false)
+			.withDescription("File writers running with a parallelism larger than one create a directory for the output" +
+				" file path and put the different result files (one per parallel writer task) into that directory." +
+				" If this option is set to \"true\", writers with a parallelism of 1 will also create a" +
+				" directory and place a single result file into it. If the option is set to \"false\"," +
+				" the writer will directly create the file directly at the output path, without creating a containing" +
+				" directory.");
 
 	/**
 	 * The total number of input plus output connections that a file system for the given scheme may open.
@@ -171,4 +224,21 @@ public class CoreOptions {
 	public static ConfigOption<Long> fileSystemConnectionLimitStreamInactivityTimeout(String scheme) {
 		return ConfigOptions.key("fs." + scheme + ".limit.stream-timeout").defaultValue(0L);
 	}
+
+	// ------------------------------------------------------------------------
+	//  Distributed architecture
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Constant value for the Flip-6 execution mode.
+	 */
+	public static final String FLIP6_MODE = "flip6";
+
+	/**
+	 * Switch to select the execution mode. Possible values are 'flip6' and 'old'.
+	 */
+	public static final ConfigOption<String> MODE = ConfigOptions
+		.key("mode")
+		.defaultValue(FLIP6_MODE)
+		.withDescription("Switch to select the execution mode. Possible values are 'flip6' and 'old'.");
 }

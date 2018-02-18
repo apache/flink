@@ -288,8 +288,18 @@ public class RestAPIDocGenerator {
 			metricQueryServiceRetriever = path -> null;
 		}
 
-		private DocumentingDispatcherRestEndpoint() {
-			super(restConfig, dispatcherGatewayRetriever, config, handlerConfig, resourceManagerGatewayRetriever, executor, metricQueryServiceRetriever, NoOpElectionService.INSTANCE, NoOpFatalErrorHandler.INSTANCE);
+		private DocumentingDispatcherRestEndpoint() throws IOException {
+			super(
+				restConfig,
+				dispatcherGatewayRetriever,
+				config,
+				handlerConfig,
+				resourceManagerGatewayRetriever,
+				NoOpTransientBlobService.INSTANCE,
+				executor,
+				metricQueryServiceRetriever,
+				NoOpElectionService.INSTANCE,
+				NoOpFatalErrorHandler.INSTANCE);
 		}
 
 		@Override

@@ -21,12 +21,11 @@ package org.apache.flink.api.common.io;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.OptimizerOptions;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.util.Preconditions;
@@ -97,37 +96,34 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	}
 
 	protected static void loadConfigParameters(Configuration parameters) {
-		int maxSamples = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
-				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
-		int minSamples = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
-			ConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES);
+		int maxSamples = parameters.getInteger(OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES);
+		int minSamples = parameters.getInteger(OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES);
 		
 		if (maxSamples < 0) {
 			LOG.error("Invalid default maximum number of line samples: " + maxSamples + ". Using default value of " +
-				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
-			maxSamples = ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES;
+				OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES.key());
+			maxSamples = OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES.defaultValue();
 		}
 		if (minSamples < 0) {
 			LOG.error("Invalid default minimum number of line samples: " + minSamples + ". Using default value of " +
-				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES);
-			minSamples = ConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES;
+				OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES.key());
+			minSamples = OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES.defaultValue();
 		}
 		
 		DEFAULT_MAX_NUM_SAMPLES = maxSamples;
 		
 		if (minSamples > maxSamples) {
-			LOG.error("Defaul minimum number of line samples cannot be greater the default maximum number " +
-					"of line samples: min=" + minSamples + ", max=" + maxSamples + ". Defaulting minumum to maximum.");
+			LOG.error("Default minimum number of line samples cannot be greater the default maximum number " +
+					"of line samples: min=" + minSamples + ", max=" + maxSamples + ". Defaulting minimum to maximum.");
 			DEFAULT_MIN_NUM_SAMPLES = maxSamples;
 		} else {
 			DEFAULT_MIN_NUM_SAMPLES = minSamples;
 		}
 		
-		int maxLen = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_SAMPLE_LENGTH_KEY,
-				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
+		int maxLen = parameters.getInteger(OptimizerOptions.DELIMITED_FORMAT_MAX_SAMPLE_LEN);
 		if (maxLen <= 0) {
-			maxLen = ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN;
-			LOG.error("Invalid value for the maximum sample record length. Using defailt value of " + maxLen + '.');
+			maxLen = OptimizerOptions.DELIMITED_FORMAT_MAX_SAMPLE_LEN.defaultValue();
+			LOG.error("Invalid value for the maximum sample record length. Using default value of " + maxLen + '.');
 		} else if (maxLen < DEFAULT_READ_BUFFER_SIZE) {
 			maxLen = DEFAULT_READ_BUFFER_SIZE;
 			LOG.warn("Increasing maximum sample record length to size of the read buffer (" + maxLen + ").");
@@ -353,14 +349,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		final int oldBufferSize = this.bufferSize;
 		final int oldLineLengthLimit = this.lineLengthLimit;
 		try {
-			final Path filePath = this.filePath;
-		
-			// get the filesystem
-			final FileSystem fs = FileSystem.get(filePath.toUri());
-			final ArrayList<FileStatus> allFiles = new ArrayList<FileStatus>(1);
-			
+
+			final ArrayList<FileStatus> allFiles = new ArrayList<>(1);
+
 			// let the file input format deal with the up-to-date check and the basic size
-			final FileBaseStatistics stats = getFileStats(cachedFileStats, filePath, fs, allFiles);
+			final FileBaseStatistics stats = getFileStats(cachedFileStats, getFilePaths(), allFiles);
 			if (stats == null) {
 				return null;
 			}
@@ -371,10 +364,10 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 					stats.getTotalInputSize() == FileBaseStatistics.SIZE_UNKNOWN) {
 				return stats;
 			}
-			
+
 			// disabling sampling for unsplittable files since the logic below assumes splitability.
 			// TODO: Add sampling for unsplittable files. Right now, only compressed text files are affected by this limitation.
-			if(unsplittable) {
+			if (unsplittable) {
 				return stats;
 			}
 			
@@ -444,13 +437,13 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			
 		} catch (IOException ioex) {
 			if (LOG.isWarnEnabled()) {
-				LOG.warn("Could not determine statistics for file '" + this.filePath + "' due to an io error: "
-						+ ioex.getMessage());
+				LOG.warn("Could not determine statistics for files '" + Arrays.toString(getFilePaths()) + "' " +
+						 "due to an io error: " + ioex.getMessage());
 			}
 		}
 		catch (Throwable t) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error("Unexpected problem while getting the file statistics for file '" + this.filePath + "': "
+				LOG.error("Unexpected problem while getting the file statistics for files '" + Arrays.toString(getFilePaths()) + "': "
 						+ t.getMessage(), t);
 			}
 		} finally {

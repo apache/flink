@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -41,13 +42,15 @@ public interface SlotProvider {
 	/**
 	 * Allocating slot with specific requirement.
 	 *
-	 * @param task         The task to allocate the slot for
-	 * @param allowQueued  Whether allow the task be queued if we do not have enough resource
+	 * @param task The task to allocate the slot for
+	 * @param allowQueued Whether allow the task be queued if we do not have enough resource
 	 * @param preferredLocations preferred locations for the slot allocation
+	 * @param timeout after which the allocation fails with a timeout exception
 	 * @return The future of the allocation
 	 */
 	CompletableFuture<LogicalSlot> allocateSlot(
 		ScheduledUnit task,
 		boolean allowQueued,
-		Collection<TaskManagerLocation> preferredLocations);
+		Collection<TaskManagerLocation> preferredLocations,
+		Time timeout);
 }

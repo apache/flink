@@ -1,0 +1,66 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 65%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>mesos.failover-timeout</h5></td>
+            <td style="word-wrap: break-word;">600</td>
+            <td>The failover timeout in seconds for the Mesos scheduler, after which running tasks are automatically shut down.</td>
+        </tr>
+        <tr>
+            <td><h5>mesos.initial-tasks</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>The initial workers to bring up when the master starts</td>
+        </tr>
+        <tr>
+            <td><h5>mesos.master</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>The Mesos master URL. The value should be in one of the following forms: "host:port", "zk://host1:port1,host2:port2,.../path", "zk://username:password@host1:port1,host2:port2,.../path" or "file:///path/to/file"</td>
+        </tr>
+        <tr>
+            <td><h5>mesos.maximum-failed-tasks</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>The maximum number of failed workers before the cluster fails. May be set to -1 to disable this feature</td>
+        </tr>
+        <tr>
+            <td><h5>mesos.resourcemanager.artifactserver.port</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>The config parameter defining the Mesos artifact server port to use. Setting the port to 0 will let the OS choose an available port.</td>
+        </tr>
+        <tr>
+            <td><h5>mesos.resourcemanager.artifactserver.ssl.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Enables SSL for the Flink artifact server. Note that security.ssl.enabled also needs to be set to true encryption to enable encryption.</td>
+        </tr>
+        <tr>
+            <td><h5>mesos.resourcemanager.framework.name</h5></td>
+            <td style="word-wrap: break-word;">"Flink"</td>
+            <td>Mesos framework name</td>
+        </tr>
+        <tr>
+            <td><h5>mesos.resourcemanager.framework.principal</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Mesos framework principal</td>
+        </tr>
+        <tr>
+            <td><h5>mesos.resourcemanager.framework.role</h5></td>
+            <td style="word-wrap: break-word;">"*"</td>
+            <td>Mesos framework role definition</td>
+        </tr>
+        <tr>
+            <td><h5>mesos.resourcemanager.framework.secret</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Mesos framework secret</td>
+        </tr>
+        <tr>
+            <td><h5>mesos.resourcemanager.framework.user</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Mesos framework user</td>
+        </tr>
+    </tbody>
+</table>

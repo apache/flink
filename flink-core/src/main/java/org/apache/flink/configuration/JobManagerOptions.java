@@ -40,7 +40,14 @@ public class JobManagerOptions {
 	 */
 	public static final ConfigOption<String> ADDRESS =
 		key("jobmanager.rpc.address")
-		.noDefaultValue();
+		.noDefaultValue()
+		.withDescription("The config parameter defining the network address to connect to" +
+			" for communication with the job manager." +
+			" This value is only interpreted in setups where a single JobManager with static" +
+			" name or address exists (simple standalone setups, or container setups with dynamic" +
+			" service name resolution). It is not used in many high-availability setups, when a" +
+			" leader-election service (like ZooKeeper) is used to elect and discover the JobManager" +
+			" leader from potentially multiple standby JobManagers.");
 
 	/**
 	 * The config parameter defining the network port to connect to
@@ -55,14 +62,23 @@ public class JobManagerOptions {
 	 */
 	public static final ConfigOption<Integer> PORT =
 		key("jobmanager.rpc.port")
-		.defaultValue(6123);
+		.defaultValue(6123)
+		.withDescription("The config parameter defining the network port to connect to" +
+			" for communication with the job manager." +
+			" Like " + ADDRESS.key() + ", this value is only interpreted in setups where" +
+			" a single JobManager with static name/address and port exists (simple standalone setups," +
+			" or container setups with dynamic service name resolution)." +
+			" This config option is not used in many high-availability setups, when a" +
+			" leader-election service (like ZooKeeper) is used to elect and discover the JobManager" +
+			" leader from potentially multiple standby JobManagers.");
 
 	/**
 	 * JVM heap size (in megabytes) for the JobManager.
 	 */
 	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY =
 		key("jobmanager.heap.mb")
-		.defaultValue(1024);
+		.defaultValue(1024)
+		.withDescription("JVM heap size (in megabytes) for the JobManager.");
 
 	/**
 	 * The maximum number of prior execution attempts kept in history.
@@ -70,14 +86,16 @@ public class JobManagerOptions {
 	public static final ConfigOption<Integer> MAX_ATTEMPTS_HISTORY_SIZE =
 		key("jobmanager.execution.attempts-history-size")
 			.defaultValue(16)
-			.withDeprecatedKeys("job-manager.max-attempts-history-size");
+			.withDeprecatedKeys("job-manager.max-attempts-history-size")
+			.withDescription("The maximum number of prior execution attempts kept in history.");
 
 	/**
 	 * The maximum number of prior execution attempts kept in history.
 	 */
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
 		key("jobmanager.execution.failover-strategy")
-			.defaultValue("full");
+			.defaultValue("full")
+			.withDescription("The maximum number of prior execution attempts kept in history.");
 
 	/**
 	 * This option specifies the interval in order to trigger a resource manager reconnection if the connection
@@ -87,7 +105,9 @@ public class JobManagerOptions {
 	 */
 	public static final ConfigOption<Long> RESOURCE_MANAGER_RECONNECT_INTERVAL =
 		key("jobmanager.resourcemanager.reconnect-interval")
-		.defaultValue(2000L);
+		.defaultValue(2000L)
+		.withDescription("This option specifies the interval in order to trigger a resource manager reconnection if the connection" +
+			" to the resource manager has been lost. This option is only intended for internal use.");
 
 	/**
 	 * The location where the JobManager stores the archives of completed jobs.
@@ -112,6 +132,16 @@ public class JobManagerOptions {
 		key("jobstore.expiration-time")
 		.defaultValue(60L * 60L)
 		.withDescription("The time in seconds after which a completed job expires and is purged from the job store.");
+
+	public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
+		key("slot.request.timeout")
+		.defaultValue(5L * 60L * 1000L)
+		.withDescription("The timeout in milliseconds for requesting a slot from Slot Pool.");
+
+	public static final ConfigOption<Long> SLOT_IDLE_TIMEOUT =
+		key("slot.idle.timeout")
+			.defaultValue(10L * 1000L)
+			.withDescription("The timeout in milliseconds for a idle slot in Slot Pool.");
 
 	// ---------------------------------------------------------------------------------------------
 

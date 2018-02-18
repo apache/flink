@@ -100,7 +100,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			keys.add(server[0].putPermanent(jobId, expected2)); // Request 2
 
 			// The cache
-			cache = new PermanentBlobCache(serverAddress[0], config, blobStoreService);
+			cache = new PermanentBlobCache(config, blobStoreService, serverAddress[0]);
 
 			// Register uploaded libraries
 			ExecutionAttemptID executionId = new ExecutionAttemptID();
@@ -121,7 +121,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			// Shutdown cache and start with other server
 			cache.close();
 
-			cache = new PermanentBlobCache(serverAddress[1], config, blobStoreService);
+			cache = new PermanentBlobCache(config, blobStoreService, serverAddress[1]);
 
 			// Verify key 1
 			f = cache.getFile(jobId, keys.get(0));

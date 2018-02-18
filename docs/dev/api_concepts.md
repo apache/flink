@@ -895,4 +895,3 @@ result type ```R``` for the final result. E.g. for a histogram, ```V``` is a num
  a histogram. ```SimpleAccumulator``` is for the cases where both types are the same, e.g. for counters.
 
 {% top %}
-

@@ -50,7 +50,10 @@ public class YarnClusterDescriptor extends AbstractYarnClusterDescriptor {
 	}
 
 	@Override
-	public YarnClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
+	public YarnClusterClient deployJobCluster(
+			ClusterSpecification clusterSpecification,
+			JobGraph jobGraph,
+			boolean detached) {
 		throw new UnsupportedOperationException("Cannot deploy a per-job yarn cluster yet.");
 	}
 

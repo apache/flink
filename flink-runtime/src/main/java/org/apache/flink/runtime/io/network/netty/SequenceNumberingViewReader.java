@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -31,13 +32,12 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Simple wrapper for the partition readerQueue iterator, which increments a
- * sequence number for each returned buffer and remembers the receiver ID.
+ * Simple wrapper for the subpartition view used in the old network mode.
  *
  * <p>It also keeps track of available buffers and notifies the outbound
  * handler about non-emptiness, similar to the {@link LocalInputChannel}.
  */
-class SequenceNumberingViewReader implements BufferAvailabilityListener {
+class SequenceNumberingViewReader implements BufferAvailabilityListener, NetworkSequenceViewReader {
 
 	private final Object requestLock = new Object();
 
@@ -56,7 +56,8 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener {
 		this.requestQueue = requestQueue;
 	}
 
-	void requestSubpartitionView(
+	@Override
+	public void requestSubpartitionView(
 		ResultPartitionProvider partitionProvider,
 		ResultPartitionID resultPartitionId,
 		int subPartitionIndex) throws IOException {
@@ -77,14 +78,35 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener {
 		}
 	}
 
-	InputChannelID getReceiverId() {
+	@Override
+	public void addCredit(int creditDeltas) {
+	}
+
+	@Override
+	public void setRegisteredAsAvailable(boolean isRegisteredAvailable) {
+	}
+
+	@Override
+	public boolean isRegisteredAsAvailable() {
+		return false;
+	}
+
+	@Override
+	public boolean isAvailable() {
+		return true;
+	}
+
+	@Override
+	public InputChannelID getReceiverId() {
 		return receiverId;
 	}
 
-	int getSequenceNumber() {
+	@Override
+	public int getSequenceNumber() {
 		return sequenceNumber;
 	}
 
+	@Override
 	public BufferAndAvailability getNextBuffer() throws IOException, InterruptedException {
 		BufferAndBacklog next = subpartitionView.getNextBuffer();
 		if (next != null) {
@@ -101,18 +123,22 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener {
 		}
 	}
 
+	@Override
 	public void notifySubpartitionConsumed() throws IOException {
 		subpartitionView.notifySubpartitionConsumed();
 	}
 
+	@Override
 	public boolean isReleased() {
 		return subpartitionView.isReleased();
 	}
 
+	@Override
 	public Throwable getFailureCause() {
 		return subpartitionView.getFailureCause();
 	}
 
+	@Override
 	public void releaseAllResources() throws IOException {
 		subpartitionView.releaseAllResources();
 	}

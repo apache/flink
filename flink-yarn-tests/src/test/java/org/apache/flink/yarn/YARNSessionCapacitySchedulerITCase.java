@@ -78,6 +78,7 @@ import java.util.regex.Pattern;
 import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.yarn.UtilsTest.addTestAppender;
 import static org.apache.flink.yarn.UtilsTest.checkForLogString;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * This test starts a MiniYARNCluster with a CapacityScheduler.
@@ -101,6 +102,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 */
 	@Test
 	public void testClientStartup() throws IOException {
+		assumeTrue("Flip-6 does not start TMs upfront.", !flip6);
 		LOG.info("Starting testClientStartup()");
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 						"-n", "1",
@@ -130,7 +132,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-yjm", "768",
 				"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
 			/* test succeeded after this string */
-			"Job execution complete",
+			"Program execution finished",
 			/* prohibited strings: (to verify the parallelism) */
 			// (we should see "DataSink (...) (1/2)" and "DataSink (...) (2/2)" instead)
 			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
@@ -177,7 +179,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-yD", "taskmanager.memory.size=" + offHeapMemory,
 				"-yD", "taskmanager.memory.preallocate=true", exampleJarLocation.getAbsolutePath()},
 			/* test succeeded after this string */
-			"Job execution complete",
+			"Program execution finished",
 			/* prohibited strings: (to verify the parallelism) */
 			// (we should see "DataSink (...) (1/2)" and "DataSink (...) (2/2)" instead)
 			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
@@ -190,6 +192,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 */
 	@Test(timeout = 100000) // timeout after 100 seconds
 	public void testTaskManagerFailure() throws Exception {
+		assumeTrue("Flip-6 does not start TMs upfront.", !flip6);
 		LOG.info("Starting testTaskManagerFailure()");
 		Runner runner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 				"-n", "1",
@@ -402,7 +405,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-yjm", "768",
 				"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
-			"Job execution complete",
+			"Program execution finished",
 			/* prohibited strings: (we want to see "DataSink (...) (2/2) switched to FINISHED") */
 			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
 			RunTypes.CLI_FRONTEND, 0, true);
@@ -477,7 +480,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-yD", "yarn.tags=test-tag",
 				"-ytm", "1024",
 				"-ys", "2", // test requesting slots from YARN.
-				"--yarndetached", job,
+				"-p", "2",
+				"--detached", job,
 				"--input", tmpInFile.getAbsoluteFile().toString(),
 				"--output", tmpOutFolder.getAbsoluteFile().toString()},
 			"Job has been submitted with JobID",

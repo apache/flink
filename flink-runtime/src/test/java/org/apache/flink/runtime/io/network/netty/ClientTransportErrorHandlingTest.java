@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
@@ -78,7 +79,8 @@ public class ClientTransportErrorHandlingTest {
 
 		NettyProtocol protocol = new NettyProtocol(
 				mock(ResultPartitionProvider.class),
-				mock(TaskEventDispatcher.class)) {
+				mock(TaskEventDispatcher.class),
+				true) {
 
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
@@ -92,7 +94,7 @@ public class ClientTransportErrorHandlingTest {
 
 		Channel ch = connect(serverAndClient);
 
-		PartitionRequestClientHandler handler = getClientHandler(ch);
+		NetworkClientHandler handler = getClientHandler(ch);
 
 		// Last outbound handler throws Exception after 1st write
 		ch.pipeline().addFirst(new ChannelOutboundHandlerAdapter() {
@@ -159,7 +161,7 @@ public class ClientTransportErrorHandlingTest {
 	public void testWrappingOfRemoteErrorMessage() throws Exception {
 		EmbeddedChannel ch = createEmbeddedChannel();
 
-		PartitionRequestClientHandler handler = getClientHandler(ch);
+		NetworkClientHandler handler = getClientHandler(ch);
 
 		// Create input channels
 		RemoteInputChannel[] rich = new RemoteInputChannel[] {
@@ -213,7 +215,8 @@ public class ClientTransportErrorHandlingTest {
 
 		NettyProtocol protocol = new NettyProtocol(
 				mock(ResultPartitionProvider.class),
-				mock(TaskEventDispatcher.class)) {
+				mock(TaskEventDispatcher.class),
+				true) {
 
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
@@ -235,7 +238,7 @@ public class ClientTransportErrorHandlingTest {
 
 		Channel ch = connect(serverAndClient);
 
-		PartitionRequestClientHandler handler = getClientHandler(ch);
+		NetworkClientHandler handler = getClientHandler(ch);
 
 		// Create input channels
 		RemoteInputChannel[] rich = new RemoteInputChannel[] {
@@ -280,7 +283,7 @@ public class ClientTransportErrorHandlingTest {
 	public void testExceptionCaught() throws Exception {
 		EmbeddedChannel ch = createEmbeddedChannel();
 
-		PartitionRequestClientHandler handler = getClientHandler(ch);
+		NetworkClientHandler handler = getClientHandler(ch);
 
 		// Create input channels
 		RemoteInputChannel[] rich = new RemoteInputChannel[] {
@@ -316,7 +319,7 @@ public class ClientTransportErrorHandlingTest {
 	public void testConnectionResetByPeer() throws Throwable {
 		EmbeddedChannel ch = createEmbeddedChannel();
 
-		PartitionRequestClientHandler handler = getClientHandler(ch);
+		NetworkClientHandler handler = getClientHandler(ch);
 
 		RemoteInputChannel rich = addInputChannel(handler);
 
@@ -355,7 +358,7 @@ public class ClientTransportErrorHandlingTest {
 	public void testChannelClosedOnExceptionDuringErrorNotification() throws Exception {
 		EmbeddedChannel ch = createEmbeddedChannel();
 
-		PartitionRequestClientHandler handler = getClientHandler(ch);
+		NetworkClientHandler handler = getClientHandler(ch);
 
 		RemoteInputChannel rich = addInputChannel(handler);
 
@@ -374,12 +377,13 @@ public class ClientTransportErrorHandlingTest {
 	private EmbeddedChannel createEmbeddedChannel() {
 		NettyProtocol protocol = new NettyProtocol(
 				mock(ResultPartitionProvider.class),
-				mock(TaskEventDispatcher.class));
+				mock(TaskEventDispatcher.class),
+				true);
 
 		return new EmbeddedChannel(protocol.getClientChannelHandlers());
 	}
 
-	private RemoteInputChannel addInputChannel(PartitionRequestClientHandler clientHandler)
+	private RemoteInputChannel addInputChannel(NetworkClientHandler clientHandler)
 		throws IOException {
 		RemoteInputChannel rich = createRemoteInputChannel();
 		clientHandler.addInputChannel(rich);
@@ -387,8 +391,8 @@ public class ClientTransportErrorHandlingTest {
 		return rich;
 	}
 
-	private PartitionRequestClientHandler getClientHandler(Channel ch) {
-		return ch.pipeline().get(PartitionRequestClientHandler.class);
+	private NetworkClientHandler getClientHandler(Channel ch) {
+		return ch.pipeline().get(NetworkClientHandler.class);
 	}
 
 	private RemoteInputChannel createRemoteInputChannel() {

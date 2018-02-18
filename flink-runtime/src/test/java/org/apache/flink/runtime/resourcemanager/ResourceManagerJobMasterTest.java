@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -295,6 +296,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			slotManager,
 			metricRegistry,
 			jobLeaderIdService,
+			new ClusterInformation("localhost", 1234),
 			fatalErrorHandler);
 		resourceManager.start();
 		return resourceManager;

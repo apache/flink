@@ -2731,10 +2731,15 @@ public class CheckpointCoordinatorTest extends TestLogger {
 	@Test
 	public void testReplicateModeStateHandle() {
 		Map<String, OperatorStateHandle.StateMetaInfo> metaInfoMap = new HashMap<>(1);
-		metaInfoMap.put("t-1", new OperatorStateHandle.StateMetaInfo(new long[]{0, 23}, OperatorStateHandle.Mode.BROADCAST));
-		metaInfoMap.put("t-2", new OperatorStateHandle.StateMetaInfo(new long[]{42, 64}, OperatorStateHandle.Mode.BROADCAST));
+		metaInfoMap.put("t-1", new OperatorStateHandle.StateMetaInfo(new long[]{0, 23}, OperatorStateHandle.Mode.UNION));
+		metaInfoMap.put("t-2", new OperatorStateHandle.StateMetaInfo(new long[]{42, 64}, OperatorStateHandle.Mode.UNION));
 		metaInfoMap.put("t-3", new OperatorStateHandle.StateMetaInfo(new long[]{72, 83}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
-		OperatorStateHandle osh = new OperatorStateHandle(metaInfoMap, new ByteStreamStateHandle("test", new byte[100]));
+		metaInfoMap.put("t-4", new OperatorStateHandle.StateMetaInfo(new long[]{87, 94, 95}, OperatorStateHandle.Mode.BROADCAST));
+		metaInfoMap.put("t-5", new OperatorStateHandle.StateMetaInfo(new long[]{97, 108, 112}, OperatorStateHandle.Mode.BROADCAST));
+		metaInfoMap.put("t-6", new OperatorStateHandle.StateMetaInfo(new long[]{121, 143, 147}, OperatorStateHandle.Mode.BROADCAST));
+
+		// this is what a single task will return
+		OperatorStateHandle osh = new OperatorStateHandle(metaInfoMap, new ByteStreamStateHandle("test", new byte[150]));
 
 		OperatorStateRepartitioner repartitioner = RoundRobinOperatorStateRepartitioner.INSTANCE;
 		List<Collection<OperatorStateHandle>> repartitionedStates =
@@ -2757,18 +2762,26 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 					OperatorStateHandle.StateMetaInfo stateMetaInfo = stateNameToMetaInfo.getValue();
 					if (OperatorStateHandle.Mode.SPLIT_DISTRIBUTE.equals(stateMetaInfo.getDistributionMode())) {
+						// SPLIT_DISTRIBUTE: so split the state and re-distribute it -> each one will go to one task
 						Assert.assertEquals(1, stateNameToMetaInfo.getValue().getOffsets().length);
-					} else {
+					} else if (OperatorStateHandle.Mode.UNION.equals(stateMetaInfo.getDistributionMode())) {
+						// BROADCAST: so all to all
 						Assert.assertEquals(2, stateNameToMetaInfo.getValue().getOffsets().length);
+					} else {
+						// UNIFORM_BROADCAST: so all to all
+						Assert.assertEquals(3, stateNameToMetaInfo.getValue().getOffsets().length);
 					}
 				}
 			}
 		}
 
-		Assert.assertEquals(3, checkCounts.size());
+		Assert.assertEquals(6, checkCounts.size());
 		Assert.assertEquals(3, checkCounts.get("t-1").intValue());
 		Assert.assertEquals(3, checkCounts.get("t-2").intValue());
 		Assert.assertEquals(2, checkCounts.get("t-3").intValue());
+		Assert.assertEquals(3, checkCounts.get("t-4").intValue());
+		Assert.assertEquals(3, checkCounts.get("t-5").intValue());
+		Assert.assertEquals(3, checkCounts.get("t-6").intValue());
 	}
 
 	// ------------------------------------------------------------------------
@@ -3243,7 +3256,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			Path fakePath = new Path("/fake-" + i);
 			Map<String, OperatorStateHandle.StateMetaInfo> namedStatesToOffsets = new HashMap<>();
 			int off = 0;
-			for (int s = 0; s < numNamedStates; ++s) {
+			for (int s = 0; s < numNamedStates - 1; ++s) {
 				long[] offs = new long[1 + r.nextInt(maxPartitionsPerState)];
 
 				for (int o = 0; o < offs.length; ++o) {
@@ -3252,11 +3265,20 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				}
 
 				OperatorStateHandle.Mode mode = r.nextInt(10) == 0 ?
-						OperatorStateHandle.Mode.BROADCAST : OperatorStateHandle.Mode.SPLIT_DISTRIBUTE;
+						OperatorStateHandle.Mode.UNION : OperatorStateHandle.Mode.SPLIT_DISTRIBUTE;
 				namedStatesToOffsets.put(
 						"State-" + s,
 						new OperatorStateHandle.StateMetaInfo(offs, mode));
 
+			}
+
+			if (numNamedStates % 2 == 0) {
+				// finally add a broadcast state
+				long[] offs = {off + 1, off + 2, off + 3, off + 4};
+
+				namedStatesToOffsets.put(
+						"State-" + (numNamedStates - 1),
+						new OperatorStateHandle.StateMetaInfo(offs, OperatorStateHandle.Mode.BROADCAST));
 			}
 
 			previousParallelOpInstanceStates.add(
@@ -3265,6 +3287,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		Map<StreamStateHandle, Map<String, List<Long>>> expected = new HashMap<>();
 
+		int taskIndex = 0;
 		int expectedTotalPartitions = 0;
 		for (OperatorStateHandle psh : previousParallelOpInstanceStates) {
 			Map<String, OperatorStateHandle.StateMetaInfo> offsMap = psh.getStateNameToPartitionOffsets();
@@ -3272,20 +3295,39 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> e : offsMap.entrySet()) {
 
 				long[] offs = e.getValue().getOffsets();
-				int replication = e.getValue().getDistributionMode().equals(OperatorStateHandle.Mode.BROADCAST) ?
-						newParallelism : 1;
-
-				expectedTotalPartitions += replication * offs.length;
-				List<Long> offsList = new ArrayList<>(offs.length);
-
-				for (long off : offs) {
-					for (int p = 0; p < replication; ++p) {
-						offsList.add(off);
-					}
+				int replication;
+				switch (e.getValue().getDistributionMode()) {
+					case UNION:
+						replication = newParallelism;
+						break;
+					case BROADCAST:
+						int extra = taskIndex < (newParallelism % oldParallelism) ? 1 : 0;
+						replication = newParallelism / oldParallelism + extra;
+						break;
+					case SPLIT_DISTRIBUTE:
+						replication = 1;
+						break;
+					default:
+						throw new RuntimeException("Unknown distribution mode " + e.getValue().getDistributionMode());
 				}
-				offsMapWithList.put(e.getKey(), offsList);
+
+				if (replication > 0) {
+					expectedTotalPartitions += replication * offs.length;
+					List<Long> offsList = new ArrayList<>(offs.length);
+
+					for (long off : offs) {
+						for (int p = 0; p < replication; ++p) {
+							offsList.add(off);
+						}
+					}
+					offsMapWithList.put(e.getKey(), offsList);
+				}
 			}
-			expected.put(psh.getDelegateStateHandle(), offsMapWithList);
+
+			if (!offsMapWithList.isEmpty()) {
+				expected.put(psh.getDelegateStateHandle(), offsMapWithList);
+			}
+			taskIndex++;
 		}
 
 		OperatorStateRepartitioner repartitioner = RoundRobinOperatorStateRepartitioner.INSTANCE;

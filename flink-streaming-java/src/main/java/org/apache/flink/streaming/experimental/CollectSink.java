@@ -35,7 +35,7 @@ import java.net.Socket;
  * for more information.
  */
 @Internal
-class CollectSink<IN> extends RichSinkFunction<IN> {
+public class CollectSink<IN> extends RichSinkFunction<IN> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -61,7 +61,7 @@ class CollectSink<IN> extends RichSinkFunction<IN> {
 	}
 
 	@Override
-	public void invoke(IN value) throws Exception {
+	public void invoke(IN value, Context context) throws Exception {
 		try {
 			serializer.serialize(value, streamWriter);
 		}

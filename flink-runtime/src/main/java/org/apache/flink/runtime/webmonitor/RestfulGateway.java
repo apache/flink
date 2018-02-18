@@ -25,10 +25,14 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
@@ -43,6 +47,24 @@ import java.util.concurrent.CompletableFuture;
  * under the returned address.
  */
 public interface RestfulGateway extends RpcGateway {
+
+	/**
+	 * Cancel the given job.
+	 *
+	 * @param jobId identifying the job to cancel
+	 * @param timeout of the operation
+	 * @return A future acknowledge if the cancellation succeeded
+	 */
+	CompletableFuture<Acknowledge> cancelJob(JobID jobId, @RpcTimeout Time timeout);
+
+	/**
+	 * Stop the given job.
+	 *
+	 * @param jobId identifying the job to stop
+	 * @param timeout of the operation
+	 * @return A future acknowledge if the stopping succeeded
+	 */
+	CompletableFuture<Acknowledge> stopJob(JobID jobId, @RpcTimeout Time timeout);
 
 	/**
 	 * Requests the REST address of this {@link RpcEndpoint}.
@@ -61,6 +83,15 @@ public interface RestfulGateway extends RpcGateway {
 	 * @return Future containing the AccessExecutionGraph for the given jobId, otherwise {@link FlinkJobNotFoundException}
 	 */
 	CompletableFuture<? extends AccessExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
+
+	/**
+	 * Requests the {@link JobResult} of a job specified by the given jobId.
+	 *
+	 * @param jobId identifying the job for which to retrieve the {@link JobResult}.
+	 * @param timeout for the asynchronous operation
+	 * @return Future which is completed with the job's {@link JobResult} once the job has finished
+	 */
+	CompletableFuture<JobResult> requestJobResult(JobID jobId, @RpcTimeout Time timeout);
 
 	/**
 	 * Requests job details currently being executed on the Flink cluster.
@@ -123,4 +154,19 @@ public interface RestfulGateway extends RpcGateway {
 			@RpcTimeout Time timeout) {
 		throw new UnsupportedOperationException();
 	}
+
+	/**
+	 * Requests the statistics on operator back pressure.
+	 *
+	 * @param jobId       Job for which the stats are requested.
+	 * @param jobVertexId JobVertex for which the stats are requested.
+	 * @return A Future to the {@link OperatorBackPressureStatsResponse} or {@code null} if the stats are
+	 * not available (yet).
+	 */
+	default CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
+			JobID jobId,
+			JobVertexID jobVertexId) {
+		throw new UnsupportedOperationException();
+	}
+
 }

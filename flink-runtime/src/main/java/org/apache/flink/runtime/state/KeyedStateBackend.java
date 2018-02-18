@@ -39,6 +39,24 @@ public interface KeyedStateBackend<K> extends InternalKeyContext<K> {
 	void setCurrentKey(K newKey);
 
 	/**
+	 * Applies the provided {@link KeyedStateFunction} to the state with the provided
+	 * {@link StateDescriptor} of all the currently active keys.
+	 *
+	 * @param namespace the namespace of the state.
+	 * @param namespaceSerializer the serializer for the namespace.
+	 * @param stateDescriptor the descriptor of the state to which the function is going to be applied.
+	 * @param function the function to be applied to the keyed state.
+	 *
+	 * @param <N> The type of the namespace.
+	 * @param <S> The type of the state.
+	 */
+	<N, S extends State, T> void applyToAllKeys(
+			final N namespace,
+			final TypeSerializer<N> namespaceSerializer,
+			final StateDescriptor<S, T> stateDescriptor,
+			final KeyedStateFunction<K, S> function) throws Exception;
+
+	/**
 	 * @return A stream of all keys for the given state and namespace. Modifications to the state during iterating
 	 * 		   over it keys are not supported.
 	 * @param state State variable for which existing keys will be returned.

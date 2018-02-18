@@ -618,11 +618,10 @@ public class StateAssignmentOperation {
 					Map<String, OperatorStateHandle.StateMetaInfo> partitionOffsets =
 						operatorStateHandle.getStateNameToPartitionOffsets();
 
-
 					for (OperatorStateHandle.StateMetaInfo metaInfo : partitionOffsets.values()) {
 
 						// if we find any broadcast state, we cannot take the shortcut and need to go through repartitioning
-						if (OperatorStateHandle.Mode.BROADCAST.equals(metaInfo.getDistributionMode())) {
+						if (OperatorStateHandle.Mode.UNION.equals(metaInfo.getDistributionMode())) {
 							return opStateRepartitioner.repartitionState(
 								chainOpParallelStates,
 								newParallelism);
@@ -639,7 +638,7 @@ public class StateAssignmentOperation {
 	/**
 	 * Determine the subset of {@link KeyGroupsStateHandle KeyGroupsStateHandles} with correct
 	 * key group index for the given subtask {@link KeyGroupRange}.
-	 * <p>
+	 *
 	 * <p>This is publicly visible to be used in tests.
 	 */
 	public static List<KeyedStateHandle> getKeyedStateHandles(

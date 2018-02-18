@@ -31,7 +31,8 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
-import org.apache.flink.runtime.jobmaster.JobManagerServices;
+import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
+import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -60,46 +61,49 @@ public class MiniClusterJobDispatcher {
 
 	// ------------------------------------------------------------------------
 
-	/** lock to ensure that this dispatcher executes only one job at a time */
+	/** lock to ensure that this dispatcher executes only one job at a time. */
 	private final Object lock = new Object();
 
-	/** the configuration with which the mini cluster was started */
+	/** the configuration with which the mini cluster was started. */
 	private final Configuration configuration;
 
-	/** the RPC services to use by the job managers */
+	/** the RPC services to use by the job managers. */
 	private final RpcService[] rpcServices;
 
-	/** services for discovery, leader election, and recovery */
+	/** services for discovery, leader election, and recovery. */
 	private final HighAvailabilityServices haServices;
 
-	/** services for heartbeating */
+	/** services for heartbeating. */
 	private final HeartbeatServices heartbeatServices;
 
-	/** all the services that the JobManager needs, such as BLOB service, factories, etc */
-	private final JobManagerServices jobManagerServices;
+	/** BlobServer for storing blobs. */
+	private final BlobServer blobServer;
 
-	/** Registry for all metrics in the mini cluster */
+	/** all the services that the JobManager needs, such as BLOB service, factories, etc. */
+	private final JobManagerSharedServices jobManagerSharedServices;
+
+	/** Registry for all metrics in the mini cluster. */
 	private final MetricRegistry metricRegistry;
 
-	/** The number of JobManagers to launch (more than one simulates a high-availability setup) */
+	/** The number of JobManagers to launch (more than one simulates a high-availability setup). */
 	private final int numJobManagers;
 
-	/** The runner for the job and master. non-null if a job is currently running */
+	/** The runner for the job and master. non-null if a job is currently running. */
 	private volatile JobManagerRunner[] runners;
 
-	/** flag marking the dispatcher as hut down */
+	/** flag marking the dispatcher as hut down. */
 	private volatile boolean shutdown;
 
 
 	/**
 	 * Starts a mini cluster job dispatcher.
-	 * 
+	 *
 	 * <p>The dispatcher kicks off one JobManager per job, a behavior similar to a
 	 * non-highly-available setup.
-	 * 
+	 *
 	 * @param config The configuration of the mini cluster
 	 * @param haServices Access to the discovery, leader election, and recovery services
-	 * 
+	 *
 	 * @throws Exception Thrown, if the services for the JobMaster could not be started.
 	 */
 	public MiniClusterJobDispatcher(
@@ -124,11 +128,11 @@ public class MiniClusterJobDispatcher {
 	 *
 	 * <p>The dispatcher may kick off more than one JobManager per job, thus simulating
 	 * a highly-available setup.
-	 * 
+	 *
 	 * @param config The configuration of the mini cluster
 	 * @param haServices Access to the discovery, leader election, and recovery services
 	 * @param numJobManagers The number of JobMasters to start for each job.
-	 * 
+	 *
 	 * @throws Exception Thrown, if the services for the JobMaster could not be started.
 	 */
 	public MiniClusterJobDispatcher(
@@ -139,19 +143,20 @@ public class MiniClusterJobDispatcher {
 			MetricRegistry metricRegistry,
 			int numJobManagers,
 			RpcService[] rpcServices) throws Exception {
-		
+
 		checkArgument(numJobManagers >= 1);
 		checkArgument(rpcServices.length == numJobManagers);
-		
+
 		this.configuration = checkNotNull(config);
 		this.rpcServices = rpcServices;
 		this.haServices = checkNotNull(haServices);
 		this.heartbeatServices = checkNotNull(heartbeatServices);
+		this.blobServer = checkNotNull(blobServer);
 		this.metricRegistry = checkNotNull(metricRegistry);
 		this.numJobManagers = numJobManagers;
 
 		LOG.info("Creating JobMaster services");
-		this.jobManagerServices = JobManagerServices.fromConfiguration(config, blobServer);
+		this.jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(config, blobServer);
 	}
 
 	// ------------------------------------------------------------------------
@@ -187,9 +192,9 @@ public class MiniClusterJobDispatcher {
 					}
 				}
 
-				// shut down the JobManagerServices
+				// shut down the JobManagerSharedServices
 				try {
-					jobManagerServices.shutdown();
+					jobManagerSharedServices.shutdown();
 				} catch (Throwable throwable) {
 					exception = ExceptionUtils.firstOrSuppressed(throwable, exception);
 				}
@@ -233,7 +238,7 @@ public class MiniClusterJobDispatcher {
 	 * This method runs a job in blocking mode. The method returns only after the job
 	 * completed successfully, or after it failed terminally.
 	 *
-	 * @param job  The Flink job to execute 
+	 * @param job  The Flink job to execute
 	 * @return The result of the job execution
 	 *
 	 * @throws JobExecutionException Thrown if anything went amiss during initial job launch,
@@ -241,7 +246,7 @@ public class MiniClusterJobDispatcher {
 	 */
 	public JobExecutionResult runJobBlocking(JobGraph job) throws JobExecutionException, InterruptedException {
 		checkNotNull(job);
-		
+
 		LOG.info("Received job for blocking execution: {} ({})", job.getName(), job.getJobID());
 		final BlockingJobSync sync = new BlockingJobSync(job.getJobID(), numJobManagers);
 
@@ -280,11 +285,35 @@ public class MiniClusterJobDispatcher {
 					rpcServices[i],
 					haServices,
 					heartbeatServices,
-					jobManagerServices,
+					blobServer,
+					jobManagerSharedServices,
 					metricRegistry,
-					onCompletion,
-					errorHandler,
 					null);
+
+				final int index = i;
+
+				runners[i].getResultFuture()
+					.whenComplete(
+						(ArchivedExecutionGraph archivedExecutionGraph, Throwable throwable) -> {
+							try {
+								runners[index].shutdown();
+							} catch (Exception e) {
+								errorHandler.onFatalError(e);
+							}
+
+							if (archivedExecutionGraph != null) {
+								onCompletion.jobReachedGloballyTerminalState(archivedExecutionGraph);
+							} else {
+								final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+
+								if (strippedThrowable instanceof JobNotFinishedException) {
+									onCompletion.jobFinishedByOther();
+								} else {
+									errorHandler.onFatalError(strippedThrowable);
+								}
+							}
+						});
+
 				runners[i].start();
 			}
 			catch (Throwable t) {
@@ -390,8 +419,8 @@ public class MiniClusterJobDispatcher {
 	 * This class is used to sync on blocking jobs across multiple runners.
 	 * Only after all runners reported back that they are finished, the
 	 * result will be released.
-	 * 
-	 * That way it is guaranteed that after the blocking job submit call returns,
+	 *
+	 * <p>That way it is guaranteed that after the blocking job submit call returns,
 	 * the dispatcher is immediately free to accept another job.
 	 */
 	private static class BlockingJobSync implements OnCompletionActions, FatalErrorHandler {
@@ -403,7 +432,7 @@ public class MiniClusterJobDispatcher {
 		private volatile Throwable runnerException;
 
 		private volatile JobResult result;
-		
+
 		BlockingJobSync(JobID jobId, int numJobMastersToWaitFor) {
 			this.jobId = jobId;
 			this.jobMastersToWaitFor = new CountDownLatch(numJobMastersToWaitFor);
@@ -425,6 +454,8 @@ public class MiniClusterJobDispatcher {
 			if (runnerException == null) {
 				runnerException = exception;
 			}
+
+			jobMastersToWaitFor.countDown();
 		}
 
 		public JobExecutionResult getResult() throws JobExecutionException, InterruptedException {

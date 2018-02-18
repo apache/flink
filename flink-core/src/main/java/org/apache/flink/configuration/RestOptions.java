@@ -41,7 +41,7 @@ public class RestOptions {
 	 */
 	public static final ConfigOption<Integer> REST_PORT =
 		key("rest.port")
-			.defaultValue(9067)
+			.defaultValue(9065)
 			.withDescription("The port that the server listens on / the client connects to.");
 
 	/**

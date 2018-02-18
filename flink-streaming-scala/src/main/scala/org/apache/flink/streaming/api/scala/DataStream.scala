@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, M
 import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.common.operators.ResourceSpec
 import org.apache.flink.api.common.serialization.SerializationSchema
+import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.{Tuple => JavaTuple}
@@ -364,6 +365,27 @@ class DataStream[T](stream: JavaStream[T]) {
     asScalaStream(stream.connect(dataStream.javaStream))
 
   /**
+    * Creates a new [[BroadcastConnectedStream]] by connecting the current
+    * [[DataStream]] or [[KeyedStream]] with a [[BroadcastStream]].
+    *
+    * The latter can be created using the [[broadcast(MapStateDescriptor[])]] method.
+    *
+    * The resulting stream can be further processed using the
+    * ``broadcastConnectedStream.process(myFunction)``
+    * method, where ``myFunction`` can be either a
+    * [[org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction]]
+    * or a [[org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction]]
+    * depending on the current stream being a [[KeyedStream]] or not.
+    *
+    * @param broadcastStream The broadcast stream with the broadcast state to be
+    *                        connected with this stream.
+    * @return The [[BroadcastConnectedStream]].
+    */
+  @PublicEvolving
+  def connect[R](broadcastStream: BroadcastStream[R]): BroadcastConnectedStream[T, R] =
+    asScalaStream(stream.connect(broadcastStream))
+
+  /**
    * Groups the elements of a DataStream by the given key positions (for tuple/array types) to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
@@ -440,6 +462,26 @@ class DataStream[T](stream: JavaStream[T]) {
    * are broad casted to every parallel instance of the next component.
    */
   def broadcast: DataStream[T] = asScalaStream(stream.broadcast())
+
+  /**
+    * Sets the partitioning of the [[DataStream]] so that the output elements
+    * are broadcasted to every parallel instance of the next operation. In addition,
+    * it implicitly creates as many
+    * [[org.apache.flink.api.common.state.BroadcastState broadcast states]]
+    * as the specified descriptors which can be used to store the element of the stream.
+    *
+    * @param broadcastStateDescriptors the descriptors of the broadcast states to create.
+    * @return A [[BroadcastStream]] which can be used in the
+    *         [[DataStream.connect(BroadcastStream)]] to create a
+    *         [[BroadcastConnectedStream]] for further processing of the elements.
+    */
+  @PublicEvolving
+  def broadcast(broadcastStateDescriptors: MapStateDescriptor[_, _]*): BroadcastStream[T] = {
+    if (broadcastStateDescriptors == null) {
+      throw new NullPointerException("State Descriptors must not be null.")
+    }
+    javaStream.broadcast(broadcastStateDescriptors: _*)
+  }
 
   /**
    * Sets the partitioning of the DataStream so that the output values all go to

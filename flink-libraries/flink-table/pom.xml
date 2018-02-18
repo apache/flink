@@ -242,7 +242,7 @@ under the License.
 										<exclude>META-INF/*.SF</exclude>
 										<exclude>META-INF/*.DSA</exclude>
 										<exclude>META-INF/*.RSA</exclude>
-										<exclude>META-INF/services/**</exclude>
+										<exclude>META-INF/services/java.sql.Driver</exclude>
 										<exclude>properties.dtd</exclude>
 										<exclude>PropertyList-1.0.dtd</exclude>
 										<exclude>digesterRules.xml</exclude>

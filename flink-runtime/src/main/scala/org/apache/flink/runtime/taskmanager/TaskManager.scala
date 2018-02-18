@@ -944,9 +944,20 @@ class TaskManager(
       val kvStateRegistry = network.getKvStateRegistry()
 
       kvStateRegistry.registerListener(
+        HighAvailabilityServices.DEFAULT_JOB_ID,
         new ActorGatewayKvStateRegistryListener(
           jobManagerGateway,
           kvStateServer.getServerAddress))
+    }
+
+    val proxy = network.getKvStateProxy
+
+    if (proxy != null) {
+      proxy.updateKvStateLocationOracle(
+        HighAvailabilityServices.DEFAULT_JOB_ID,
+        new ActorGatewayKvStateLocationOracle(
+          jobManagerGateway,
+          config.getTimeout()))
     }
 
     // start a blob service, if a blob server is specified
@@ -957,9 +968,9 @@ class TaskManager(
 
     try {
       val blobcache = new BlobCacheService(
-        address,
         config.getConfiguration(),
-        highAvailabilityServices.createBlobStore())
+        highAvailabilityServices.createBlobStore(),
+        address)
       blobCache = Option(blobcache)
       libraryCacheManager = Some(
         new BlobLibraryCacheManager(
@@ -1050,7 +1061,14 @@ class TaskManager(
     connectionUtils = None
 
     if (network.getKvStateRegistry != null) {
-      network.getKvStateRegistry.unregisterListener()
+      network.getKvStateRegistry.unregisterListener(HighAvailabilityServices.DEFAULT_JOB_ID)
+    }
+
+    val proxy = network.getKvStateProxy
+
+    if (proxy != null) {
+      // clear the key-value location oracle
+      proxy.updateKvStateLocationOracle(HighAvailabilityServices.DEFAULT_JOB_ID, null)
     }
     
     // failsafe shutdown of the metrics registry
@@ -1437,28 +1455,6 @@ class TaskManager(
   }
 
   override def notifyLeaderAddress(leaderAddress: String, leaderSessionID: UUID): Unit = {
-    val proxy = network.getKvStateProxy
-    if (proxy != null) {
-
-      val askTimeoutString = config.getConfiguration.getString(AkkaOptions.ASK_TIMEOUT)
-
-      val timeout = Duration(askTimeoutString)
-
-      if (!timeout.isFinite) {
-        throw new IllegalConfigurationException(AkkaOptions.ASK_TIMEOUT.key +
-          " is not a finite timeout ('" + askTimeoutString + "')")
-      }
-
-      if (leaderAddress != null) {
-        val actorGwFuture: Future[ActorGateway] =
-          AkkaUtils.getActorRefFuture(
-            leaderAddress, context.system, timeout.asInstanceOf[FiniteDuration]
-          ).map(actor => new AkkaActorGateway(actor, leaderSessionID))(context.system.dispatcher)
-
-        proxy.updateJobManager(FutureUtils.toJava(actorGwFuture))
-      }
-    }
-
     self ! JobManagerLeaderAddress(leaderAddress, leaderSessionID)
   }
 
@@ -1878,14 +1874,12 @@ object TaskManager {
       // if desired, start the logging daemon that periodically logs the
       // memory usage information
       if (LOG.isInfoEnabled && configuration.getBoolean(
-        ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD,
-        ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD))
+        TaskManagerOptions.DEBUG_MEMORY_USAGE_START_LOG_THREAD))
       {
         LOG.info("Starting periodic memory usage logger")
 
         val interval = configuration.getLong(
-          ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS,
-          ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
+          TaskManagerOptions.DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
 
         val logger = new MemoryLogger(LOG.logger, interval, taskManagerSystem)
         logger.start()
@@ -2018,7 +2012,9 @@ object TaskManager {
 
     val taskManagerServices = TaskManagerServices.fromConfiguration(
       taskManagerServicesConfiguration,
-      resourceID)
+      resourceID,
+      EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag,
+      EnvironmentInformation.getMaxJvmHeapMemory)
 
     val taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
       metricRegistry,

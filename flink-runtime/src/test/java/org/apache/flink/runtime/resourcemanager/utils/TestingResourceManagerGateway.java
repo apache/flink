@@ -23,11 +23,13 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -39,6 +41,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
+import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.util.Preconditions;
@@ -76,6 +79,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	private volatile Consumer<Tuple2<JobID, Throwable>> disconnectJobManagerConsumer;
 
 	private volatile Function<Tuple5<String, ResourceID, SlotReport, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction;
+
+	private volatile Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadFunction;
+
+	private volatile Consumer<Tuple2<ResourceID, Throwable>> disconnectTaskExecutorConsumer;
 
 	public TestingResourceManagerGateway() {
 		this(
@@ -124,6 +131,14 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	public void setRegisterTaskExecutorFunction(Function<Tuple5<String, ResourceID, SlotReport, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction) {
 		this.registerTaskExecutorFunction = registerTaskExecutorFunction;
+	}
+
+	public void setRequestTaskManagerFileUploadFunction(Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadFunction) {
+		this.requestTaskManagerFileUploadFunction = requestTaskManagerFileUploadFunction;
+	}
+
+	public void setDisconnectTaskExecutorConsumer(Consumer<Tuple2<ResourceID, Throwable>> disconnectTaskExecutorConsumer) {
+		this.disconnectTaskExecutorConsumer = disconnectTaskExecutorConsumer;
 	}
 
 	@Override
@@ -178,7 +193,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 				new TaskExecutorRegistrationSuccess(
 					new InstanceID(),
 					ownResourceId,
-					heartbeatInterval));
+					heartbeatInterval,
+					new ClusterInformation("localhost", 1234)));
 		}
 	}
 
@@ -219,7 +235,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	@Override
 	public void disconnectTaskManager(ResourceID resourceID, Exception cause) {
+		final Consumer<Tuple2<ResourceID, Throwable>> currentConsumer = disconnectTaskExecutorConsumer;
 
+		if (currentConsumer != null) {
+			currentConsumer.accept(Tuple2.of(resourceID, cause));
+		}
 	}
 
 	@Override
@@ -249,6 +269,17 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	@Override
 	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(Time timeout) {
 		return CompletableFuture.completedFuture(Collections.emptyList());
+	}
+
+	@Override
+	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(ResourceID taskManagerId, FileType fileType, Time timeout) {
+		final Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> function = requestTaskManagerFileUploadFunction;
+
+		if (function != null) {
+			return function.apply(Tuple2.of(taskManagerId, fileType));
+		} else {
+			return CompletableFuture.completedFuture(new TransientBlobKey());
+		}
 	}
 
 	@Override
