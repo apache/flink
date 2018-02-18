@@ -28,6 +28,11 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
  * {@link MessageHeaders} for {@link JarRunHandler}.
  */
 public class JarRunHeaders implements MessageHeaders<EmptyRequestBody, JarRunResponseBody, JarRunMessageParameters> {
+
+	private static final JarRunHeaders INSTANCE = new JarRunHeaders();
+
+	private JarRunHeaders() {}
+
 	@Override
 	public Class<JarRunResponseBody> getResponseClass() {
 		return JarRunResponseBody.class;
@@ -56,5 +61,9 @@ public class JarRunHeaders implements MessageHeaders<EmptyRequestBody, JarRunRes
 	@Override
 	public String getTargetRestEndpointURL() {
 		return "/jars/:" + JarIdPathParameter.KEY + "/run";
+	}
+
+	public static JarRunHeaders getInstance() {
+		return INSTANCE;
 	}
 }

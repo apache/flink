@@ -23,14 +23,12 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.JobWithJars;
-import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.ProgramMissingJobException;
 import org.apache.flink.client.program.ProgramParametrizationException;
@@ -40,7 +38,6 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
@@ -48,7 +45,6 @@ import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -74,7 +70,6 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.InetSocketAddress;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -229,7 +224,7 @@ public class CliFrontend {
 			if (flip6 && clusterId == null && runOptions.getDetachedMode()) {
 				int parallelism = runOptions.getParallelism() == -1 ? defaultParallelism : runOptions.getParallelism();
 
-				final JobGraph jobGraph = createJobGraph(configuration, program, parallelism);
+				final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(program, configuration, parallelism);
 
 				final ClusterSpecification clusterSpecification = customCommandLine.getClusterSpecification(commandLine);
 				client = clusterDescriptor.deployJobCluster(
@@ -1115,64 +1110,6 @@ public class CliFrontend {
 		}
 
 		return customCommandLines;
-	}
-
-	/**
-	 * Creates a {@link JobGraph} from the given {@link PackagedProgram}.
-	 *
-	 * @param configuration to use for the optimizer and job graph generator
-	 * @param packagedProgram to extract the JobGraph from
-	 * @param defaultParallelism for the JobGraph
-	 * @return JobGraph extracted from the PackagedProgram
-	 * @throws ProgramInvocationException if the JobGraph generation failed
-	 */
-	public static JobGraph createJobGraph(Configuration configuration, PackagedProgram packagedProgram, int defaultParallelism) throws ProgramInvocationException {
-		Thread.currentThread().setContextClassLoader(packagedProgram.getUserCodeClassLoader());
-		final Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
-		final FlinkPlan flinkPlan;
-
-		if (packagedProgram.isUsingProgramEntryPoint()) {
-
-			final JobWithJars jobWithJars = packagedProgram.getPlanWithJars();
-
-			final Plan plan = jobWithJars.getPlan();
-
-			if (plan.getDefaultParallelism() <= 0) {
-				plan.setDefaultParallelism(defaultParallelism);
-			}
-
-			flinkPlan = optimizer.compile(jobWithJars.getPlan());
-		} else if (packagedProgram.isUsingInteractiveMode()) {
-			final OptimizerPlanEnvironment optimizerPlanEnvironment = new OptimizerPlanEnvironment(optimizer);
-
-			optimizerPlanEnvironment.setParallelism(defaultParallelism);
-
-			flinkPlan = optimizerPlanEnvironment.getOptimizedPlan(packagedProgram);
-		} else {
-			throw new ProgramInvocationException("PackagedProgram does not have a valid invocation mode.");
-		}
-
-		final JobGraph jobGraph;
-
-		if (flinkPlan instanceof StreamingPlan) {
-			jobGraph = ((StreamingPlan) flinkPlan).getJobGraph();
-			jobGraph.setSavepointRestoreSettings(packagedProgram.getSavepointSettings());
-		} else {
-			final JobGraphGenerator jobGraphGenerator = new JobGraphGenerator(configuration);
-			jobGraph = jobGraphGenerator.compileJobGraph((OptimizedPlan) flinkPlan);
-		}
-
-		for (URL url : packagedProgram.getAllLibraries()) {
-			try {
-				jobGraph.addJar(new Path(url.toURI()));
-			} catch (URISyntaxException e) {
-				throw new ProgramInvocationException("Invalid URL for jar file: " + url + '.', e);
-			}
-		}
-
-		jobGraph.setClasspaths(packagedProgram.getClasspaths());
-
-		return jobGraph;
 	}
 
 	// --------------------------------------------------------------------------------------------

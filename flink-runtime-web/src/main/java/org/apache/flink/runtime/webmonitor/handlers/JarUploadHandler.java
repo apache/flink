@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.FileUpload;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -46,7 +46,7 @@ import static java.util.Objects.requireNonNull;
  * Handles .jar file uploads.
  */
 public class JarUploadHandler extends
-		AbstractRestHandler<DispatcherGateway, FileUpload, JarUploadResponseBody, EmptyMessageParameters> {
+		AbstractRestHandler<RestfulGateway, FileUpload, JarUploadResponseBody, EmptyMessageParameters> {
 
 	private final Path jarDir;
 
@@ -54,7 +54,7 @@ public class JarUploadHandler extends
 
 	public JarUploadHandler(
 			final CompletableFuture<String> localRestAddress,
-			final GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
+			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> responseHeaders,
 			final MessageHeaders<FileUpload, JarUploadResponseBody, EmptyMessageParameters> messageHeaders,
@@ -68,7 +68,7 @@ public class JarUploadHandler extends
 	@Override
 	protected CompletableFuture<JarUploadResponseBody> handleRequest(
 			@Nonnull final HandlerRequest<FileUpload, EmptyMessageParameters> request,
-			@Nonnull final DispatcherGateway gateway) throws RestHandlerException {
+			@Nonnull final RestfulGateway gateway) throws RestHandlerException {
 
 		final FileUpload fileUpload = request.getRequestBody();
 		return CompletableFuture.supplyAsync(() -> {

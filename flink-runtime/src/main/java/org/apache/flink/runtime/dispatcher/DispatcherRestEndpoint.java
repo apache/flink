@@ -32,9 +32,12 @@ import org.apache.flink.runtime.rest.handler.job.BlobServerPortHandler;
 import org.apache.flink.runtime.rest.handler.job.JobSubmitHandler;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
+import org.apache.flink.runtime.webmonitor.WebMonitorExtension;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
@@ -51,6 +54,8 @@ import java.util.concurrent.Executor;
 public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway> {
 
 	private final Path uploadDir;
+
+	private WebMonitorExtension webSubmissionExtension;
 
 	public DispatcherRestEndpoint(
 			RestServerEndpointConfiguration endpointConfiguration,
@@ -77,6 +82,7 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			fatalErrorHandler);
 
 		uploadDir = endpointConfiguration.getUploadDir();
+		webSubmissionExtension = WebMonitorExtension.empty();
 	}
 
 	@Override
@@ -101,19 +107,52 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			responseHeaders);
 
 		if (clusterConfiguration.getBoolean(WebOptions.SUBMIT_ENABLE)) {
-			handlers.addAll(WebMonitorUtils.tryLoadJarHandlers(
-				leaderRetriever,
-				restAddressFuture,
-				timeout,
-				responseHeaders,
-				uploadDir,
-				executor,
-				clusterConfiguration));
+			try {
+				webSubmissionExtension = WebMonitorUtils.loadWebSubmissionExtension(
+					leaderRetriever,
+					restAddressFuture,
+					timeout,
+					responseHeaders,
+					uploadDir,
+					executor,
+					clusterConfiguration);
+
+				// register extension handlers
+				handlers.addAll(webSubmissionExtension.getHandlers());
+			} catch (FlinkException e) {
+				log.info("Failed to load web based job submission extension.", e);
+			}
+		} else {
+			log.info("Web-based job submission is not enabled.");
 		}
 
 		handlers.add(Tuple2.of(blobServerPortHandler.getMessageHeaders(), blobServerPortHandler));
 		handlers.add(Tuple2.of(jobSubmitHandler.getMessageHeaders(), jobSubmitHandler));
 
 		return handlers;
+	}
+
+	@Override
+	protected CompletableFuture<Void> shutDownInternal() {
+		final CompletableFuture<Void> shutdownFuture = super.shutDownInternal();
+
+		final CompletableFuture<Void> shutdownResultFuture = new CompletableFuture<>();
+
+		shutdownFuture.whenComplete(
+			(Void ignored, Throwable throwable) -> {
+				webSubmissionExtension.closeAsync().whenComplete(
+					(Void innerIgnored, Throwable innerThrowable) -> {
+						if (innerThrowable != null) {
+							shutdownResultFuture.completeExceptionally(
+								ExceptionUtils.firstOrSuppressed(innerThrowable, throwable));
+						} else if (throwable != null) {
+							shutdownResultFuture.completeExceptionally(throwable);
+						} else {
+							shutdownResultFuture.complete(null);
+						}
+					});
+			});
+
+		return shutdownResultFuture;
 	}
 }

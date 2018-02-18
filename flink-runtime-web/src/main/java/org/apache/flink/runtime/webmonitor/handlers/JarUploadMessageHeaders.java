@@ -30,6 +30,10 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
  */
 public final class JarUploadMessageHeaders implements MessageHeaders<FileUpload, JarUploadResponseBody, EmptyMessageParameters> {
 
+	private static final JarUploadMessageHeaders INSTANCE = new JarUploadMessageHeaders();
+
+	private JarUploadMessageHeaders() {}
+
 	@Override
 	public Class<JarUploadResponseBody> getResponseClass() {
 		return JarUploadResponseBody.class;
@@ -60,4 +64,7 @@ public final class JarUploadMessageHeaders implements MessageHeaders<FileUpload,
 		return "/jars/upload";
 	}
 
+	public static JarUploadMessageHeaders getInstance() {
+		return INSTANCE;
+	}
 }

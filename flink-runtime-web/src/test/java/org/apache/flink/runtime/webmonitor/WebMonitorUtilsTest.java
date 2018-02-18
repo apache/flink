@@ -33,8 +33,9 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -57,16 +58,18 @@ public class WebMonitorUtilsTest extends TestLogger {
 	 * Tests dynamically loading of handlers such as {@link JarUploadHandler}.
 	 */
 	@Test
-	public void testTryLoadJarHandlers() {
+	public void testLoadWebSubmissionExtension() throws Exception {
 		final Configuration configuration = new Configuration();
 		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
-		assertThat(WebMonitorUtils.tryLoadJarHandlers(
+		final WebMonitorExtension webMonitorExtension = WebMonitorUtils.loadWebSubmissionExtension(
 			CompletableFuture::new,
 			CompletableFuture.completedFuture("localhost:12345"),
 			Time.seconds(10),
 			Collections.emptyMap(),
 			Paths.get("/tmp"),
 			Executors.directExecutor(),
-			configuration), not(empty()));
+			configuration);
+
+		assertThat(webMonitorExtension, is(not(nullValue())));
 	}
 }

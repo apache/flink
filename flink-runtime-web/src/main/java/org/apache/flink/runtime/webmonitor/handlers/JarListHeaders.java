@@ -32,6 +32,10 @@ public class JarListHeaders implements MessageHeaders<EmptyRequestBody, JarListI
 
 	public static final String URL = "/jars";
 
+	private static final JarListHeaders INSTANCE = new JarListHeaders();
+
+	private JarListHeaders() {}
+
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {
 		return EmptyRequestBody.class;
@@ -62,4 +66,7 @@ public class JarListHeaders implements MessageHeaders<EmptyRequestBody, JarListI
 		return URL;
 	}
 
+	public static JarListHeaders getInstance() {
+		return INSTANCE;
+	}
 }

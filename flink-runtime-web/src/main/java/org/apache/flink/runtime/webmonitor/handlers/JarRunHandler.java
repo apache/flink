@@ -20,12 +20,11 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -60,7 +60,7 @@ import static org.apache.flink.shaded.guava18.com.google.common.base.Strings.emp
  * Handler to submit jobs uploaded via the Web UI.
  */
 public class JarRunHandler extends
-		AbstractRestHandler<DispatcherGateway, EmptyRequestBody, JarRunResponseBody, JarRunMessageParameters> {
+		AbstractRestHandler<RestfulGateway, EmptyRequestBody, JarRunResponseBody, JarRunMessageParameters> {
 
 	private static final Pattern ARGUMENTS_TOKENIZE_PATTERN = Pattern.compile("([^\"\']\\S*|\".+?\"|\'.+?\')\\s*");
 
@@ -74,29 +74,26 @@ public class JarRunHandler extends
 
 	public JarRunHandler(
 			final CompletableFuture<String> localRestAddress,
-			final GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
+			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> responseHeaders,
 			final MessageHeaders<EmptyRequestBody, JarRunResponseBody, JarRunMessageParameters> messageHeaders,
 			final Path jarDir,
 			final Configuration configuration,
-			final Executor executor) {
+			final Executor executor,
+			final RestClusterClient<?> restClusterClient) {
 		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
 
 		this.jarDir = requireNonNull(jarDir);
 		this.configuration = requireNonNull(configuration);
 		this.executor = requireNonNull(executor);
-		try {
-			this.restClusterClient = new RestClusterClient<>(configuration, "Unknown cluster id");
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+		this.restClusterClient = requireNonNull(restClusterClient);
 	}
 
 	@Override
 	protected CompletableFuture<JarRunResponseBody> handleRequest(
 			@Nonnull final HandlerRequest<EmptyRequestBody, JarRunMessageParameters> request,
-			@Nonnull final DispatcherGateway gateway) throws RestHandlerException {
+			@Nonnull final RestfulGateway gateway) throws RestHandlerException {
 
 		final String pathParameter = request.getPathParameter(JarIdPathParameter.class);
 		final Path jarFile = jarDir.resolve(pathParameter);
@@ -160,7 +157,7 @@ public class JarRunHandler extends
 					jarFile.toFile(),
 					entryClass,
 					programArgs.toArray(new String[programArgs.size()]));
-				jobGraph = CliFrontend.createJobGraph(configuration, packagedProgram, parallelism);
+				jobGraph = PackagedProgramUtils.createJobGraph(packagedProgram, configuration, parallelism);
 			} catch (final ProgramInvocationException e) {
 				throw new CompletionException(e);
 			}
