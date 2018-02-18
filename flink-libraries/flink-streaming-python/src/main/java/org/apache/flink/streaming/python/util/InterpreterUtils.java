@@ -107,8 +107,6 @@ public class InterpreterUtils {
 		fullArgs[0] = scriptDirectory.resolve(scriptName).toString();
 		System.arraycopy(args, 0, fullArgs, 1, args.length);
 
-		initPythonInterpreter(fullArgs, scriptDirectory.toUri().getPath(), scriptName);
-
 		PythonInterpreter pythonInterpreter = initPythonInterpreter(fullArgs, scriptDirectory.toUri().getPath(), scriptName);
 
 		pythonInterpreter.set("__flink_env_factory__", factory);
