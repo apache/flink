@@ -220,48 +220,4 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 			value >>>= 8;
 		} while (value != 0);
 	}
-
-	protected Tuple3<Integer, K, N> readKeyWithGroupAndNamespace(ByteArrayInputStreamWithPos inputStream, DataInputView inputView) throws IOException {
-		int keyGroup = readKeyGroup(inputView);
-		K key = readKey(inputStream, inputView);
-		N namespace = readNamespace(inputStream, inputView);
-
-		return new Tuple3<>(keyGroup, key, namespace);
-	}
-
-	private int readKeyGroup(DataInputView inputView) throws IOException {
-		int keyGroup = 0;
-		for (int i = 0; i < backend.getKeyGroupPrefixBytes(); ++i) {
-			keyGroup <<= 8;
-			keyGroup |= (inputView.readByte() & 0xFF);
-		}
-		return keyGroup;
-	}
-
-	private K readKey(ByteArrayInputStreamWithPos inputStream, DataInputView inputView) throws IOException {
-		int beforeRead = inputStream.getPosition();
-		K key = backend.getKeySerializer().deserialize(inputView);
-		if (ambiguousKeyPossible) {
-			int length = inputStream.getPosition() - beforeRead;
-			readVariableIntBytes(inputView, length);
-		}
-		return key;
-	}
-
-	private N readNamespace(ByteArrayInputStreamWithPos inputStream, DataInputView inputView) throws IOException {
-		int beforeRead = inputStream.getPosition();
-		N namespace = namespaceSerializer.deserialize(inputView);
-		if (ambiguousKeyPossible) {
-			int length = inputStream.getPosition() - beforeRead;
-			readVariableIntBytes(inputView, length);
-		}
-		return namespace;
-	}
-
-	private void readVariableIntBytes(DataInputView inputView, int value) throws IOException {
-		do {
-			inputView.readByte();
-			value >>>= 8;
-		} while (value != 0);
-	}
 }
