@@ -72,7 +72,7 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implemen
 	 * cluster execution, see LocalFlinkMiniCluster.
 	 * @param configuration The configuration to load defaults from
 	 */
-	private static void initDefaultsFromConfiguration(Configuration configuration) {
+	public static void initDefaultsFromConfiguration(Configuration configuration) {
 		final boolean overwrite = configuration.getBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE);
 	
 		DEFAULT_WRITE_MODE = overwrite ? WriteMode.OVERWRITE : WriteMode.NO_OVERWRITE;
