@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_TYPE, CONNECTOR_VERSION}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_TYPE, CONNECTOR_PROPERTY_VERSION}
 
 /**
   * Describes a connector to an other system.
@@ -27,7 +27,8 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTO
   */
 abstract class ConnectorDescriptor(
     private val tpe: String,
-    private val version: Int)
+    private val version: Int,
+    private val formatNeeded: Boolean)
   extends Descriptor {
 
   override def toString: String = this.getClass.getSimpleName
@@ -37,7 +38,7 @@ abstract class ConnectorDescriptor(
     */
   final private[flink] def addProperties(properties: DescriptorProperties): Unit = {
     properties.putString(CONNECTOR_TYPE, tpe)
-    properties.putLong(CONNECTOR_VERSION, version)
+    properties.putLong(CONNECTOR_PROPERTY_VERSION, version)
     addConnectorProperties(properties)
   }
 
@@ -49,6 +50,6 @@ abstract class ConnectorDescriptor(
   /**
     * Internal method that defines if this connector requires a format descriptor.
     */
-  private[flink] def needsFormat(): Boolean
+  private[flink] def needsFormat(): Boolean = formatNeeded
 
 }

@@ -476,7 +476,7 @@ public class LocalExecutor implements Executor {
 			}
 
 			env.getSources().forEach((name, source) -> {
-				TableSource<?> tableSource = TableSourceFactoryService.findTableSourceFactory(source);
+				TableSource<?> tableSource = TableSourceFactoryService.findAndCreateTableSource(source);
 				tableEnv.registerTableSource(name, tableSource);
 			});
 
