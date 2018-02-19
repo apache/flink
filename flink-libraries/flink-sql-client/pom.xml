@@ -46,21 +46,21 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<!-- use a dedicated Scala version to not depend on it -->
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients_2.11</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<!-- use a dedicated Scala version to not depend on it -->
-			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-scala_2.11</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<!-- use a dedicated Scala version to not depend on it -->
-			<artifactId>flink-table_${scala.binary.version}</artifactId>
+			<artifactId>flink-table_2.11</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -115,7 +115,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<!-- use a dedicated Scala version to not depend on it -->
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime_2.11</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -124,7 +124,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<!-- use a dedicated Scala version to not depend on it -->
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils_2.11</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
