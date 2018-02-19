@@ -16,26 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors
+package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.table.descriptors.JsonValidator.{FORMAT_FAIL_ON_MISSING_FIELD, FORMAT_SCHEMA_STRING}
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_VERSION_VALUE_08;
 
 /**
-  * Validator for [[Json]].
-  */
-class JsonValidator extends FormatDescriptorValidator {
+ * Tests for {@link Kafka08JsonTableSourceFactory}.
+ */
+public class Kafka08JsonTableSourceFactoryTest extends KafkaJsonTableSourceFactoryTestBase {
 
-  override def validate(properties: DescriptorProperties): Unit = {
-    super.validate(properties)
-    properties.validateString(FORMAT_SCHEMA_STRING, isOptional = false, minLen = 1)
-    properties.validateBoolean(FORMAT_FAIL_ON_MISSING_FIELD, isOptional = true)
-  }
-}
+	@Override
+	protected String version() {
+		return CONNECTOR_VERSION_VALUE_08;
+	}
 
-object JsonValidator {
+	@Override
+	protected KafkaJsonTableSource.Builder builder() {
+		return Kafka08JsonTableSource.builder();
+	}
 
-  val FORMAT_TYPE_VALUE = "json"
-  val FORMAT_SCHEMA_STRING = "format.schema-string"
-  val FORMAT_FAIL_ON_MISSING_FIELD = "format.fail-on-missing-field"
-
+	@Override
+	protected KafkaJsonTableSourceFactory factory() {
+		return new Kafka08JsonTableSourceFactory();
+	}
 }

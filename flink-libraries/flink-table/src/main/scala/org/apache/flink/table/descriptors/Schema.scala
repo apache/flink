@@ -32,10 +32,35 @@ import scala.collection.mutable
   */
 class Schema extends Descriptor {
 
+  private var deriveFields: Option[String] = None
+
   // maps a field name to a list of properties that describe type, origin, and the time attribute
   private val tableSchema = mutable.LinkedHashMap[String, mutable.LinkedHashMap[String, String]]()
 
   private var lastField: Option[String] = None
+
+  /**
+    * Derives field names and types from a preceding connector or format. Additional fields that
+    * are defined in this schema extend the derived fields. The derived fields are
+    * added in an alphabetical order according to their field name.
+    */
+  def deriveFieldsAlphabetically(): Schema = {
+    deriveFields = Some(SCHEMA_DERIVE_FIELDS_VALUE_ALPHABETICALLY)
+    this
+  }
+
+  /**
+    * Derives field names and types from a preceding connector or format. Additional fields that
+    * are defined in this schema extend the derived fields. The derived fields are
+    * added in a sequential order that is equivalent to the field order of the input.
+    *
+    * Because not all inputs have a deterministic field order, the alphabetical derivation is
+    * recommended.
+    */
+  def deriveFieldsSequentially(): Schema = {
+    deriveFields = Some(SCHEMA_DERIVE_FIELDS_VALUE_SEQUENTIALLY)
+    this
+  }
 
   /**
     * Sets the schema with field names and the types. Required.
@@ -80,7 +105,7 @@ class Schema extends Descriptor {
     }
 
     val fieldProperties = mutable.LinkedHashMap[String, String]()
-    fieldProperties += (TYPE -> fieldType)
+    fieldProperties += (SCHEMA_FIELDS_TYPE -> fieldType)
 
     tableSchema += (fieldName -> fieldProperties)
 
@@ -100,7 +125,7 @@ class Schema extends Descriptor {
     lastField match {
       case None => throw new ValidationException("No field previously defined. Use field() before.")
       case Some(f) =>
-        tableSchema(f) += (FROM -> originFieldName)
+        tableSchema(f) += (SCHEMA_FIELDS_FROM -> originFieldName)
         lastField = None
     }
     this
@@ -115,7 +140,7 @@ class Schema extends Descriptor {
     lastField match {
       case None => throw new ValidationException("No field defined previously. Use field() before.")
       case Some(f) =>
-        tableSchema(f) += (PROCTIME -> PROCTIME_VALUE_TRUE)
+        tableSchema(f) += (SCHEMA_FIELDS_PROCTIME -> "true")
         lastField = None
     }
     this
@@ -132,7 +157,7 @@ class Schema extends Descriptor {
       case Some(f) =>
         val fieldProperties = new DescriptorProperties()
         rowtime.addProperties(fieldProperties)
-        tableSchema(f) ++= fieldProperties.asMap
+        tableSchema(f) ++= fieldProperties.asScalaMap
         lastField = None
     }
     this
@@ -142,11 +167,12 @@ class Schema extends Descriptor {
     * Internal method for properties conversion.
     */
   final override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
-    properties.putInt(SCHEMA_VERSION, 1)
+    properties.putInt(SCHEMA_PROPERTY_VERSION, 1)
+    deriveFields.foreach(mode => properties.putString(SCHEMA_DERIVE_FIELDS, mode))
     properties.putIndexedVariableProperties(
-      SCHEMA,
+      SCHEMA_FIELDS,
       tableSchema.toSeq.map { case (name, props) =>
-        Map(NAME -> name) ++ props
+        Map(SCHEMA_FIELDS_NAME -> name) ++ props
       }
     )
   }

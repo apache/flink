@@ -18,37 +18,85 @@
 
 package org.apache.flink.table.descriptors
 
+import org.apache.flink.util.Preconditions
 import org.junit.Assert.assertEquals
+import org.junit.Test
+
+import scala.collection.JavaConverters._
 
 abstract class DescriptorTestBase {
 
   /**
-    * Returns a valid descriptor.
+    * Returns a set of valid descriptors.
+    * This method is implemented in both Scala and Java.
     */
-  def descriptor(): Descriptor
+  def descriptors(): java.util.List[Descriptor]
 
   /**
-    * Returns a validator that can validate this descriptor.
+    * Returns a set of properties for each valid descriptor.
+    * This code is implemented in both Scala and Java.
+    */
+  def properties(): java.util.List[java.util.Map[String, String]]
+
+  /**
+    * Returns a validator that can validate all valid descriptors.
     */
   def validator(): DescriptorValidator
 
-  def verifyProperties(descriptor: Descriptor, expected: Seq[(String, String)]): Unit = {
-    val normProps = new DescriptorProperties
-    descriptor.addProperties(normProps)
-    assertEquals(expected.toMap, normProps.asMap)
+  @Test
+  def testValidation(): Unit = {
+    val d = descriptors().asScala
+    val p = properties().asScala
+
+    Preconditions.checkArgument(d.length == p.length)
+
+    d.zip(p).foreach { case (desc, props) =>
+      verifyProperties(desc, props.asScala.toMap)
+    }
   }
 
-  def verifyInvalidProperty(property: String, invalidValue: String): Unit = {
+  def verifyProperties(descriptor: Descriptor, expected: Map[String, String]): Unit = {
+    val normProps = new DescriptorProperties
+    descriptor.addProperties(normProps)
+    assertEquals(expected, normProps.asScalaMap)
+  }
+
+  def verifyInvalidProperty(
+      descriptor: Descriptor,
+      property: String,
+      invalidValue: String): Unit = {
     val properties = new DescriptorProperties
-    descriptor().addProperties(properties)
+    descriptor.addProperties(properties)
     properties.unsafePut(property, invalidValue)
     validator().validate(properties)
   }
 
-  def verifyMissingProperty(removeProperty: String): Unit = {
+  def verifyMissingProperty(descriptor: Descriptor, removeProperty: String): Unit = {
     val properties = new DescriptorProperties
-    descriptor().addProperties(properties)
+    descriptor.addProperties(properties)
     properties.unsafeRemove(removeProperty)
     validator().validate(properties)
+  }
+}
+
+class TestTableSourceDescriptor(connector: ConnectorDescriptor)
+  extends TableSourceDescriptor(connector) {
+
+  def addFormat(format: FormatDescriptor): TestTableSourceDescriptor = {
+    this.formatDescriptor = Some(format)
+    this
+  }
+
+  def addSchema(schema: Schema): TestTableSourceDescriptor = {
+    this.schemaDescriptor = Some(schema)
+    this
+  }
+
+  def getPropertyMap: java.util.Map[String, String] = {
+    val props = new DescriptorProperties()
+    connectorDescriptor.addProperties(props)
+    formatDescriptor.foreach(f => f.addProperties(props))
+    schemaDescriptor.foreach(s => s.addProperties(props))
+    props.asScalaMap.asJava
   }
 }

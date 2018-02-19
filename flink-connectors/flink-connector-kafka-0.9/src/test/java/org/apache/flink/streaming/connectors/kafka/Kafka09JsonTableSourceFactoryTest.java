@@ -18,24 +18,25 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.table.descriptors.Kafka;
-
-import static org.apache.flink.table.descriptors.KafkaValidator.KAFKA_VERSION_VALUE_011;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_VERSION_VALUE_09;
 
 /**
- * Tests for {@link Kafka011JsonTableSourceFactory}.
+ * Factory for creating configured instances of {@link Kafka09JsonTableSource}.
  */
-public class Kafka011TableSourceFactoryTest extends KafkaJsonTableFromDescriptorTestBase {
-	protected String versionForTest() {
-		return KAFKA_VERSION_VALUE_011;
-	}
+public class Kafka09JsonTableSourceFactoryTest extends KafkaJsonTableSourceFactoryTestBase {
 
-	protected KafkaJsonTableSource.Builder builderForTest() {
-		return Kafka011JsonTableSource.builder();
+	@Override
+	protected String version() {
+		return CONNECTOR_VERSION_VALUE_09;
 	}
 
 	@Override
-	protected void extraSettings(KafkaTableSource.Builder builder, Kafka kafka) {
-		// no extra settings
+	protected KafkaJsonTableSource.Builder builder() {
+		return Kafka09JsonTableSource.builder();
+	}
+
+	@Override
+	protected KafkaJsonTableSourceFactory factory() {
+		return new Kafka09JsonTableSourceFactory();
 	}
 }

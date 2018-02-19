@@ -135,7 +135,7 @@ class Statistics extends Descriptor {
     * Internal method for properties conversion.
     */
   final override def addProperties(properties: DescriptorProperties): Unit = {
-    properties.putInt(STATISTICS_VERSION, 1)
+    properties.putInt(STATISTICS_PROPERTY_VERSION, 1)
     rowCount.foreach(rc => properties.putLong(STATISTICS_ROW_COUNT, rc))
     val namedStats = columnStats.map { case (name, stats) =>
       // name should not be part of the properties key

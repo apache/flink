@@ -20,24 +20,31 @@ package org.apache.flink.table.descriptors
 
 import java.io.Serializable
 import java.lang.{Boolean => JBoolean, Double => JDouble, Integer => JInt, Long => JLong}
-import java.util
+import java.util.function.{Consumer, Supplier}
 import java.util.regex.Pattern
+import java.util.{Optional, List => JList, Map => JMap}
 
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.lang.StringEscapeUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{TableSchema, ValidationException}
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.table.api.{TableException, TableSchema, ValidationException}
 import org.apache.flink.table.descriptors.DescriptorProperties.{NAME, TYPE, normalizeTableSchema}
 import org.apache.flink.table.typeutils.TypeStringUtils
 import org.apache.flink.util.InstantiationUtil
 import org.apache.flink.util.Preconditions.checkNotNull
 
-import scala.collection.mutable
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
   * Utility class for having a unified string-based representation of Table API related classes
   * such as [[TableSchema]], [[TypeInformation]], etc.
+  *
+  * '''Note to implementers''': Please try to reuse key names as much as possible. Key-names
+  * should be hierarchical and lower case. Use "-" instead of dots or camel case.
+  * E.g., conntector.schema.start-from = from-earliest. Try not to use the higher level in a
+  * key-name. E.g., instead of connector.kafka.kafka-version use connector.kafka.version.
   *
   * @param normalizeKeys flag that indicates if keys should be normalized (this flag is
   *                      necessary for backwards compatibility)
@@ -67,18 +74,27 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     properties.remove(key)
   }
 
+  /**
+    * Adds a set of properties.
+    */
   def putProperties(properties: Map[String, String]): Unit = {
     properties.foreach { case (k, v) =>
       put(k, v)
     }
   }
 
-  def putProperties(properties: util.Map[String, String]): Unit = {
+  /**
+    * Adds a set of properties. This method is intended for Java code.
+    */
+  def putProperties(properties: JMap[String, String]): Unit = {
     properties.asScala.foreach { case (k, v) =>
       put(k, v)
     }
   }
 
+  /**
+    * Adds a class under the given key.
+    */
   def putClass(key: String, clazz: Class[_]): Unit = {
     checkNotNull(key)
     checkNotNull(clazz)
@@ -89,43 +105,71 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     put(key, clazz.getName)
   }
 
+  /**
+    * Adds a string under the given key.
+    */
   def putString(key: String, str: String): Unit = {
     checkNotNull(key)
     checkNotNull(str)
     put(key, str)
   }
 
+  /**
+    * Adds a boolean under the given key.
+    */
   def putBoolean(key: String, b: Boolean): Unit = {
     checkNotNull(key)
     put(key, b.toString)
   }
 
+  /**
+    * Adds a long under the given key.
+    */
   def putLong(key: String, l: Long): Unit = {
     checkNotNull(key)
     put(key, l.toString)
   }
 
+  /**
+    * Adds an integer under the given key.
+    */
   def putInt(key: String, i: Int): Unit = {
     checkNotNull(key)
     put(key, i.toString)
   }
 
+  /**
+    * Adds a character under the given key.
+    */
   def putCharacter(key: String, c: Character): Unit = {
     checkNotNull(key)
     checkNotNull(c)
     put(key, c.toString)
   }
 
+  /**
+    * Adds a table schema under the given key.
+    */
   def putTableSchema(key: String, schema: TableSchema): Unit = {
     putTableSchema(key, normalizeTableSchema(schema))
   }
 
+  /**
+    * Adds a table schema under the given key.
+    */
   def putTableSchema(key: String, nameAndType: Seq[(String, String)]): Unit = {
     putIndexedFixedProperties(
       key,
       Seq(NAME, TYPE),
       nameAndType.map(t => Seq(t._1, t._2))
     )
+  }
+
+  /**
+    * Adds a table schema under the given key. This method is intended for Java code.
+    */
+  def putTableSchema(key: String, nameAndType: JList[JTuple2[String, String]]): Unit = {
+    putTableSchema(key, nameAndType.asScala.map(t => (t.f0, t.f1)))
   }
 
   /**
@@ -156,6 +200,28 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
   }
 
   /**
+    * Adds an indexed sequence of properties (with sub-properties) under a common key.
+    *
+    * For example:
+    *
+    * schema.fields.0.type = INT, schema.fields.0.name = test
+    * schema.fields.1.type = LONG, schema.fields.1.name = test2
+    *
+    * The arity of each propertyValue must match the arity of propertyKeys.
+    *
+    * This method is intended for Java code.
+    */
+  def putIndexedFixedProperties(
+      key: String,
+      propertyKeys: JList[String],
+      propertyValues: JList[JList[String]])
+    : Unit = {
+    checkNotNull(key)
+    checkNotNull(propertyValues)
+    putIndexedFixedProperties(key, propertyKeys.asScala, propertyValues.asScala.map(_.asScala))
+  }
+
+  /**
     * Adds an indexed mapping of properties under a common key.
     *
     * For example:
@@ -178,46 +244,128 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     }
   }
 
+  /**
+    * Adds an indexed mapping of properties under a common key.
+    *
+    * For example:
+    *
+    * schema.fields.0.type = INT, schema.fields.0.name = test
+    *                             schema.fields.1.name = test2
+    *
+    * The arity of the propertySets can differ.
+    *
+    * This method is intended for Java code.
+    */
+  def putIndexedVariableProperties(
+      key: String,
+      propertySets: JList[JMap[String, String]])
+    : Unit = {
+    checkNotNull(key)
+    checkNotNull(propertySets)
+    putIndexedVariableProperties(key, propertySets.asScala.map(_.asScala.toMap))
+  }
+
   // ----------------------------------------------------------------------------------------------
 
+  /**
+    * Returns a string value under the given key if it exists.
+    */
   def getString(key: String): Option[String] = {
     properties.get(key)
   }
 
-  def getCharacter(key: String): Option[Character] = getString(key) match {
-    case Some(c) =>
-      if (c.length != 1) {
-        throw new ValidationException(s"The value of $key must only contain one character.")
+  /**
+    * Returns a string value under the given key if it exists.
+    * This method is intended for Java code.
+    */
+  def getOptionalString(key: String): Optional[String] = toJava(getString(key))
+
+  /**
+    * Returns a character value under the given key if it exists.
+    */
+  def getCharacter(key: String): Option[Character] = getString(key).map { c =>
+    if (c.length != 1) {
+      throw new ValidationException(s"The value of $key must only contain one character.")
+    }
+    c.charAt(0)
+  }
+
+  /**
+    * Returns a class value under the given key if it exists.
+    */
+  def getClass[T](key: String, superClass: Class[T]): Option[Class[T]] = {
+    properties.get(key).map { name =>
+      val clazz = try {
+        Class.forName(
+          name,
+          true,
+          Thread.currentThread().getContextClassLoader).asInstanceOf[Class[T]]
+      } catch {
+        case e: Exception =>
+          throw new ValidationException(s"Coult not get class for key '$key'.", e)
       }
-      Some(c.charAt(0))
-
-    case None => None
+      if (!superClass.isAssignableFrom(clazz)) {
+        throw new ValidationException(s"Class '$name' does not extend from the required " +
+          s"class '${superClass.getName}' for key '$key'.")
+      }
+      clazz
+    }
   }
 
-  def getBoolean(key: String): Option[Boolean] = getString(key) match {
-    case Some(b) => Some(JBoolean.parseBoolean(b))
+  /**
+    * Returns a character value under the given key if it exists.
+    * This method is intended for Java code.
+    */
+  def getOptionalCharacter(key: String): Optional[Character] = toJava(getCharacter(key))
 
-    case None => None
-  }
+  /**
+    * Returns a boolean value under the given key if it exists.
+    */
+  def getBoolean(key: String): Option[Boolean] = getString(key).map(JBoolean.parseBoolean(_))
 
-  def getInt(key: String): Option[Int] = getString(key) match {
-    case Some(l) => Some(JInt.parseInt(l))
+  /**
+    * Returns a boolean value under the given key if it exists.
+    * This method is intended for Java code.
+    */
+  def getOptionalBoolean(key: String): Optional[java.lang.Boolean] =
+    toJava(getBoolean(key).map(Boolean.box))
 
-    case None => None
-  }
+  /**
+    * Returns an integer value under the given key if it exists.
+    */
+  def getInt(key: String): Option[Int] = getString(key).map(JInt.parseInt(_))
 
-  def getLong(key: String): Option[Long] = getString(key) match {
-    case Some(l) => Some(JLong.parseLong(l))
+  /**
+    * Returns an integer value under the given key if it exists.
+    * This method is intended for Java code.
+    */
+  def getOptionalInt(key: String): Optional[java.lang.Integer] = toJava(getInt(key).map(Int.box))
 
-    case None => None
-  }
+  /**
+    * Returns a long value under the given key if it exists.
+    */
+  def getLong(key: String): Option[Long] = getString(key).map(JLong.parseLong(_))
 
-  def getDouble(key: String): Option[Double] = getString(key) match {
-    case Some(d) => Some(JDouble.parseDouble(d))
+  /**
+    * Returns a long value under the given key if it exists.
+    * This method is intended for Java code.
+    */
+  def getOptionalLong(key: String): Optional[java.lang.Long] = toJava(getLong(key).map(Long.box))
 
-    case None => None
-  }
+  /**
+    * Returns a double value under the given key if it exists.
+    */
+  def getDouble(key: String): Option[Double] = getString(key).map(JDouble.parseDouble(_))
 
+  /**
+    * Returns a long value under the given key if it exists.
+    * This method is intended for Java code.
+    */
+  def getOptionalDouble(key: String): Optional[Double] = toJava(getDouble(key).map(Double.box))
+
+  /**
+    * Returns a table schema under the given key if it exists.
+    */
   def getTableSchema(key: String): Option[TableSchema] = {
     // filter for number of columns
     val fieldCount = properties
@@ -246,13 +394,93 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     Some(schemaBuilder.build())
   }
 
+  /**
+    * Returns a table schema under the given key if it exists.
+    */
+  def getOptionalTableSchema(key: String): Optional[TableSchema] = toJava(getTableSchema(key))
+
+  /**
+    * Returns the type information under the given key if it exists.
+    */
+  def getType(key: String): Option[TypeInformation[_]] = {
+    properties.get(key).map(TypeStringUtils.readTypeInfo)
+  }
+
+  /**
+    * Returns the type information under the given key if it exists.
+    * This method is intended for Java code.
+    */
+  def getOptionalType(key: String): Optional[TypeInformation[_]] = {
+    toJava(getType(key))
+  }
+
+  /**
+    * Returns a prefix subset of properties.
+    */
+  def getPrefix(prefixKey: String): Map[String, String] = {
+    val prefix = prefixKey + '.'
+    properties.filterKeys(_.startsWith(prefix)).toSeq.map{ case (k, v) =>
+      k.substring(prefix.length) -> v // remove prefix
+    }.toMap
+  }
+
+  /**
+    * Returns a prefix subset of properties.
+    * This method is intended for Java code.
+    */
+  def getPrefixMap(prefixKey: String): JMap[String, String] = getPrefix(prefixKey).asJava
+
+  /**
+    * Returns all properties under a given key that contains an index in between.
+    *
+    * E.g. rowtime.0.name -> returns all rowtime.#.name properties
+    */
+  def getIndexedProperty(key: String, property: String): Map[String, String] = {
+    val escapedKey = Pattern.quote(key)
+    properties.filterKeys(k => k.matches(s"$escapedKey\\.\\d+\\.$property")).toMap
+  }
+
+  /**
+    * Returns all properties under a given key that contains an index in between.
+    *
+    * E.g. rowtime.0.name -> returns all rowtime.#.name properties
+    *
+    * This method is intended for Java code.
+    */
+  def getIndexedPropertyMap(key: String, property: String): JMap[String, String] =
+    getIndexedProperty(key, property).asJava
+
   // ----------------------------------------------------------------------------------------------
 
+  /**
+    * Validates a string property.
+    */
+  def validateString(
+      key: String,
+      isOptional: Boolean)
+    : Unit = {
+    validateString(key, isOptional, 0, Integer.MAX_VALUE)
+  }
+
+  /**
+    * Validates a string property. The boundaries are inclusive.
+    */
   def validateString(
       key: String,
       isOptional: Boolean,
-      minLen: Int = 0, // inclusive
-      maxLen: Int = Integer.MAX_VALUE) // inclusive
+      minLen: Int) // inclusive
+    : Unit = {
+    validateString(key, isOptional, minLen, Integer.MAX_VALUE)
+  }
+
+  /**
+    * Validates a string property. The boundaries are inclusive.
+    */
+  def validateString(
+      key: String,
+      isOptional: Boolean,
+      minLen: Int, // inclusive
+      maxLen: Int) // inclusive
     : Unit = {
 
     if (!properties.contains(key)) {
@@ -269,6 +497,9 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     }
   }
 
+  /**
+    * Validates an integer property. The boundaries are inclusive.
+    */
   def validateInt(
       key: String,
       isOptional: Boolean,
@@ -295,6 +526,9 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     }
   }
 
+  /**
+    * Validates a long property. The boundaries are inclusive.
+    */
   def validateLong(
       key: String,
       isOptional: Boolean,
@@ -321,6 +555,9 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     }
   }
 
+  /**
+    * Validates that a certain value is present under the given key.
+    */
   def validateValue(key: String, value: String, isOptional: Boolean): Unit = {
     if (!properties.contains(key)) {
       if (!isOptional) {
@@ -334,6 +571,9 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     }
   }
 
+  /**
+    * Validates that a boolean value is present under the given key.
+    */
   def validateBoolean(key: String, isOptional: Boolean): Unit = {
     if (!properties.contains(key)) {
       if (!isOptional) {
@@ -348,6 +588,9 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     }
   }
 
+  /**
+    * Validates a double property. The boundaries are inclusive.
+    */
   def validateDouble(
       key: String,
       isOptional: Boolean,
@@ -374,6 +617,9 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     }
   }
 
+  /**
+    * Validates a table schema property.
+    */
   def validateTableSchema(key: String, isOptional: Boolean): Unit = {
     // filter for name columns
     val names = getIndexedProperty(key, NAME)
@@ -389,10 +635,13 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     }
   }
 
+  /**
+    * Validates a enum property with a set of validation logic for each enum value.
+    */
   def validateEnum(
       key: String,
       isOptional: Boolean,
-      enumToValidation: Map[String, () => Unit])
+      enumToValidation: Map[String, (DescriptorProperties) => Unit])
     : Unit = {
 
     if (!properties.contains(key)) {
@@ -405,11 +654,44 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
         throw new ValidationException(s"Unknown value for property '$key'. " +
           s"Supported values [${enumToValidation.keys.mkString(", ")}] but was: $value")
       } else {
-        enumToValidation(value).apply() // run validation logic
+        enumToValidation(value).apply(this) // run validation logic
       }
     }
   }
 
+  /**
+    * Validates a enum property with a set of validation logic for each enum value.
+    * This method is intended for Java code.
+    */
+  def validateEnum(
+      key: String,
+      isOptional: Boolean,
+      enumToValidation: JMap[String, Consumer[DescriptorProperties]])
+    : Unit = {
+    val converted = enumToValidation.asScala.mapValues { c =>
+      (props: DescriptorProperties) => c.accept(props)
+    }.toMap
+    validateEnum(key, isOptional, converted)
+  }
+
+  /**
+    * Validates a enum property with a set of enum values.
+    */
+  def validateEnumValues(key: String, isOptional: Boolean, values: Seq[String]): Unit = {
+    validateEnum(key, isOptional, values.map(_ -> DescriptorProperties.emptyFunction).toMap)
+  }
+
+  /**
+    * Validates a enum property with a set of enum values.
+    * This method is intended for Java code.
+    */
+  def validateEnumValues(key: String, isOptional: Boolean, values: JList[String]): Unit = {
+    validateEnum(key, isOptional, values.asScala.map(_ -> DescriptorProperties.emptyFunction).toMap)
+  }
+
+  /**
+    * Validates a type property.
+    */
   def validateType(key: String, isOptional: Boolean): Unit = {
     if (!properties.contains(key)) {
       if (!isOptional) {
@@ -420,6 +702,9 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     }
   }
 
+  /**
+    * Validates that the given prefix is not included in these properties.
+    */
   def validatePrefixExclusion(prefix: String): Unit = {
     val invalidField = properties.find(_._1.startsWith(prefix))
     if (invalidField.isDefined) {
@@ -428,6 +713,9 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     }
   }
 
+  /**
+    * Validates that the given key is not included in these properties.
+    */
   def validateExclusion(key: String): Unit = {
     if (properties.contains(key)) {
       throw new ValidationException(s"Property '$key' is not allowed in this context.")
@@ -436,28 +724,76 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
 
   // ----------------------------------------------------------------------------------------------
 
-  def getIndexedProperty(key: String, property: String): Map[String, String] = {
-    val escapedKey = Pattern.quote(key)
-    properties.filterKeys(k => k.matches(s"$escapedKey\\.\\d+\\.$property")).toMap
-  }
-
-  def contains(str: String): Boolean = {
+  /**
+    * Returns if any property contains parts of a given string.
+    */
+  def containsString(str: String): Boolean = {
     properties.exists(e => e._1.contains(str))
   }
 
+  /**
+    * Returns if the given key is contained.
+    */
+  def containsKey(key: String): Boolean = {
+    properties.contains(key)
+  }
+
+  /**
+    * Returns if a given prefix exists in the properties.
+    */
   def hasPrefix(prefix: String): Boolean = {
     properties.exists(e => e._1.startsWith(prefix))
   }
 
-  def asMap: Map[String, String] = {
+  /**
+    * Returns a Scala Map.
+    */
+  def asScalaMap: Map[String, String] = {
     properties.toMap
+  }
+
+  // ----------------------------------------------------------------------------------------------
+
+  /**
+    * Returns an empty validation logic.
+    */
+  def noValidation(): DescriptorProperties => Unit = DescriptorProperties.emptyFunction
+
+  /**
+    * Returns an empty validation logic.
+    * This method is intended for Java code.
+    */
+  def noValidationConsumer(): Consumer[DescriptorProperties] = DescriptorProperties.emptyConsumer
+
+  /**
+    * Returns a throwable supplier.
+    */
+  def errorSupplier(): Supplier[TableException] = DescriptorProperties.errorSupplier
+
+  // ----------------------------------------------------------------------------------------------
+
+  private def toJava[T](option: Option[T]): Optional[T] = option match {
+    case Some(v) => Optional.of(v)
+    case None => Optional.empty()
   }
 }
 
 object DescriptorProperties {
 
-  val TYPE = "type"
-  val NAME = "name"
+  private val emptyFunction: DescriptorProperties => Unit = (_: DescriptorProperties) => {}
+  // Scala compiler complains otherwise
+  private val emptyConsumer: Consumer[DescriptorProperties] = new Consumer[DescriptorProperties] {
+    override def accept(t: DescriptorProperties): Unit = {}
+  }
+  private val errorSupplier: Supplier[TableException] = new Supplier[TableException] {
+    override def get(): TableException = {
+      new TableException("This value should be present. " +
+        "This indicates a bug in the validation logic. Please file an issue.")
+    }
+  }
+
+  val TYPE: String = "type"
+  val NAME: String = "name"
 
   // the string representation should be equal to SqlTypeName
   def normalizeTypeInfo(typeInfo: TypeInformation[_]): String = {
@@ -484,6 +820,24 @@ object DescriptorProperties {
       case e: Exception =>
         throw new ValidationException(
           s"Unable to serialize class '${obj.getClass.getCanonicalName}'.", e)
+    }
+  }
+
+  def deserialize[T](data: String, expected: Class[T]): T = {
+    try {
+      val byteData = Base64.decodeBase64(data)
+      val obj = InstantiationUtil.deserializeObject[T](
+        byteData,
+        Thread.currentThread.getContextClassLoader)
+      if (!expected.isAssignableFrom(obj.getClass)) {
+        throw new ValidationException(
+          s"Serialized data contains an object of unexpected type. " +
+          s"Expected '${expected.getName}' but was '${obj.getClass.getName}'")
+      }
+      obj
+    } catch {
+      case e: Exception =>
+        throw new ValidationException(s"Could not deserialize data: '$data'", e)
     }
   }
 

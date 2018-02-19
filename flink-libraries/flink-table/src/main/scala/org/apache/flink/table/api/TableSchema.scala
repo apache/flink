@@ -94,7 +94,7 @@ class TableSchema(
   /**
     * Returns the number of columns.
     */
-  def getColumnNum: Int = columnNames.length
+  def getColumnCount: Int = columnNames.length
 
   /**
     * Returns all column names as an array.

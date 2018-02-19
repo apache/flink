@@ -84,26 +84,32 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource implements D
 
 	@Override
 	public String explainSource() {
-		return "KafkaJSONTableSource";
+		return "KafkaJsonTableSource";
 	}
 
 	@Override
-	public boolean equals(Object other) {
-		if (super.equals(other)) {
-			KafkaJsonTableSource otherSource = (KafkaJsonTableSource) other;
-			return Objects.equals(failOnMissingField, otherSource.failOnMissingField)
-					&& Objects.equals(jsonSchema, otherSource.jsonSchema)
-					&& Objects.equals(fieldMapping, otherSource.fieldMapping);
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
 		}
-		return false;
+		if (!(o instanceof KafkaJsonTableSource)) {
+			return false;
+		}
+		if (!super.equals(o)) {
+			return false;
+		}
+		KafkaJsonTableSource that = (KafkaJsonTableSource) o;
+		return failOnMissingField == that.failOnMissingField &&
+			Objects.equals(jsonSchema, that.jsonSchema) &&
+			Objects.equals(fieldMapping, that.fieldMapping);
 	}
 
 	@Override
 	public int hashCode() {
-		return 31 * super.hashCode() + Objects.hash(failOnMissingField, jsonSchema, fieldMapping);
+		return Objects.hash(super.hashCode(), jsonSchema, fieldMapping, failOnMissingField);
 	}
 
-	//////// SETTERS FOR OPTIONAL PARAMETERS
+//////// SETTERS FOR OPTIONAL PARAMETERS
 
 	/**
 	 * Sets the flag that specifies the behavior in case of missing fields.

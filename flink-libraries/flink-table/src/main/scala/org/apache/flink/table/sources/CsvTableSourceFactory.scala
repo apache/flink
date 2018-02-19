@@ -21,11 +21,11 @@ package org.apache.flink.table.sources
 import java.util
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_TYPE, CONNECTOR_VERSION}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
 import org.apache.flink.table.descriptors.CsvValidator._
 import org.apache.flink.table.descriptors.FileSystemValidator.{CONNECTOR_PATH, CONNECTOR_TYPE_VALUE}
-import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_TYPE, FORMAT_VERSION}
-import org.apache.flink.table.descriptors.SchemaValidator.{SCHEMA, SCHEMA_VERSION}
+import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
+import org.apache.flink.table.descriptors.SchemaValidator.{SCHEMA, SCHEMA_DERIVE_FIELDS, SCHEMA_FIELDS, SCHEMA_PROPERTY_VERSION}
 import org.apache.flink.table.descriptors._
 import org.apache.flink.types.Row
 
@@ -38,9 +38,9 @@ class CsvTableSourceFactory extends TableSourceFactory[Row] {
     val context = new util.HashMap[String, String]()
     context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE)
     context.put(FORMAT_TYPE, FORMAT_TYPE_VALUE)
-    context.put(CONNECTOR_VERSION, "1")
-    context.put(FORMAT_VERSION, "1")
-    context.put(SCHEMA_VERSION, "1")
+    context.put(CONNECTOR_PROPERTY_VERSION, "1")
+    context.put(FORMAT_PROPERTY_VERSION, "1")
+    context.put(SCHEMA_PROPERTY_VERSION, "1")
     context
   }
 
@@ -59,6 +59,7 @@ class CsvTableSourceFactory extends TableSourceFactory[Row] {
     properties.add(FORMAT_IGNORE_PARSE_ERRORS)
     properties.add(CONNECTOR_PATH)
     // schema
+    properties.add(SCHEMA_DERIVE_FIELDS)
     properties.add(s"$SCHEMA.#.${DescriptorProperties.TYPE}")
     properties.add(s"$SCHEMA.#.${DescriptorProperties.NAME}")
     properties
@@ -76,12 +77,12 @@ class CsvTableSourceFactory extends TableSourceFactory[Row] {
     // build
     val csvTableSourceBuilder = new CsvTableSource.Builder
 
-    val tableSchema = params.getTableSchema(SCHEMA).get
-    val encodingSchema = params.getTableSchema(FORMAT_FIELDS)
+    val formatSchema = params.getTableSchema(FORMAT_FIELDS)
+    val tableSchema = params.getTableSchema(SCHEMA_FIELDS).get
 
     // the CsvTableSource needs some rework first
     // for now the schema must be equal to the encoding
-    if (!encodingSchema.contains(tableSchema)) {
+    if (!formatSchema.contains(tableSchema)) {
       throw new TableException(
         "Encodings that differ from the schema are not supported yet for CsvTableSources.")
     }
@@ -90,7 +91,7 @@ class CsvTableSourceFactory extends TableSourceFactory[Row] {
     params.getString(FORMAT_FIELD_DELIMITER).foreach(csvTableSourceBuilder.fieldDelimiter)
     params.getString(FORMAT_LINE_DELIMITER).foreach(csvTableSourceBuilder.lineDelimiter)
 
-    encodingSchema.foreach { schema =>
+    formatSchema.foreach { schema =>
       schema.getColumnNames.zip(schema.getTypes).foreach { case (name, tpe) =>
         csvTableSourceBuilder.field(name, tpe)
       }

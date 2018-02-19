@@ -141,31 +141,27 @@ public abstract class KafkaTableSource
 
 	@Override
 	public boolean equals(Object o) {
-		if (!o.getClass().equals(this.getClass())) {
+		if (this == o) {
+			return true;
+		}
+		if (!(o instanceof KafkaTableSource)) {
 			return false;
 		}
-		KafkaTableSource other = (KafkaTableSource) o;
-		return Objects.equals(topic, other.topic)
-				&& Objects.equals(schema, other.schema)
-				&& Objects.equals(properties, other.properties)
-				&& Objects.equals(proctimeAttribute, other.proctimeAttribute)
-				&& Objects.equals(returnType, other.returnType)
-				&& Objects.equals(rowtimeAttributeDescriptors, other.rowtimeAttributeDescriptors)
-				&& Objects.equals(specificStartupOffsets, other.specificStartupOffsets)
-				&& Objects.equals(startupMode, other.startupMode);
+		KafkaTableSource that = (KafkaTableSource) o;
+		return Objects.equals(schema, that.schema) &&
+			Objects.equals(topic, that.topic) &&
+			Objects.equals(properties, that.properties) &&
+			Objects.equals(returnType, that.returnType) &&
+			Objects.equals(proctimeAttribute, that.proctimeAttribute) &&
+			Objects.equals(rowtimeAttributeDescriptors, that.rowtimeAttributeDescriptors) &&
+			startupMode == that.startupMode &&
+			Objects.equals(specificStartupOffsets, that.specificStartupOffsets);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(
-				topic,
-				schema,
-				properties,
-				proctimeAttribute,
-				returnType,
-				rowtimeAttributeDescriptors,
-				specificStartupOffsets,
-				startupMode);
+		return Objects.hash(schema, topic, properties, returnType,
+			proctimeAttribute, rowtimeAttributeDescriptors, startupMode, specificStartupOffsets);
 	}
 
 	/**
@@ -211,9 +207,9 @@ public abstract class KafkaTableSource
 			// validate that field exists and is of correct type
 			Option<TypeInformation<?>> tpe = schema.getType(proctimeAttribute);
 			if (tpe.isEmpty()) {
-				throw new ValidationException("Processing time attribute " + proctimeAttribute + " is not present in TableSchema.");
+				throw new ValidationException("Processing time attribute '" + proctimeAttribute + "' is not present in TableSchema.");
 			} else if (tpe.get() != Types.SQL_TIMESTAMP()) {
-				throw new ValidationException("Processing time attribute " + proctimeAttribute + " is not of type SQL_TIMESTAMP.");
+				throw new ValidationException("Processing time attribute '" + proctimeAttribute + "' is not of type SQL_TIMESTAMP.");
 			}
 		}
 		this.proctimeAttribute = proctimeAttribute;
@@ -230,9 +226,9 @@ public abstract class KafkaTableSource
 			String rowtimeAttribute = desc.getAttributeName();
 			Option<TypeInformation<?>> tpe = schema.getType(rowtimeAttribute);
 			if (tpe.isEmpty()) {
-				throw new ValidationException("Rowtime attribute " + rowtimeAttribute + " is not present in TableSchema.");
+				throw new ValidationException("Rowtime attribute '" + rowtimeAttribute + "' is not present in TableSchema.");
 			} else if (tpe.get() != Types.SQL_TIMESTAMP()) {
-				throw new ValidationException("Rowtime attribute " + rowtimeAttribute + " is not of type SQL_TIMESTAMP.");
+				throw new ValidationException("Rowtime attribute '" + rowtimeAttribute + "' is not of type SQL_TIMESTAMP.");
 			}
 		}
 		this.rowtimeAttributeDescriptors = rowtimeAttributeDescriptors;

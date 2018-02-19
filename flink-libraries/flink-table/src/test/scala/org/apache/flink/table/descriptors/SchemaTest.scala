@@ -18,59 +18,101 @@
 
 package org.apache.flink.table.descriptors
 
+import java.util
+
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.junit.Test
 
+import scala.collection.JavaConverters._
+
 class SchemaTest extends DescriptorTestBase {
 
-  @Test
-  def testSchema(): Unit = {
-    val desc = Schema()
+  @Test(expected = classOf[ValidationException])
+  def testInvalidType(): Unit = {
+    verifyInvalidProperty(
+      descriptors().get(0),
+      "schema.fields.1.type", "dfghj")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testBothRowtimeAndProctime(): Unit = {
+    verifyInvalidProperty(
+      descriptors().get(0),
+      "schema.fields.2.rowtime.watermarks.type", "from-source")
+  }
+
+  // ----------------------------------------------------------------------------------------------
+
+  override def descriptors(): util.List[Descriptor] = {
+    val desc1 = Schema()
       .field("myField", Types.BOOLEAN)
       .field("otherField", "VARCHAR").from("csvField")
       .field("p", Types.SQL_TIMESTAMP).proctime()
       .field("r", Types.SQL_TIMESTAMP).rowtime(
         Rowtime().timestampsFromSource().watermarksFromSource())
-    val expected = Seq(
-      "schema.version" -> "1",
-      "schema.0.name" -> "myField",
-      "schema.0.type" -> "BOOLEAN",
-      "schema.1.name" -> "otherField",
-      "schema.1.type" -> "VARCHAR",
-      "schema.1.from" -> "csvField",
-      "schema.2.name" -> "p",
-      "schema.2.type" -> "TIMESTAMP",
-      "schema.2.proctime" -> "true",
-      "schema.3.name" -> "r",
-      "schema.3.type" -> "TIMESTAMP",
-      "schema.3.rowtime.0.version" -> "1",
-      "schema.3.rowtime.0.watermarks.type" -> "from-source",
-      "schema.3.rowtime.0.timestamps.type" -> "from-source"
-    )
-    verifyProperties(desc, expected)
-  }
 
-  @Test(expected = classOf[ValidationException])
-  def testInvalidType(): Unit = {
-    verifyInvalidProperty("schema.1.type", "dfghj")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testBothRowtimeAndProctime(): Unit = {
-    verifyInvalidProperty("schema.2.rowtime.0.version", "1")
-    verifyInvalidProperty("schema.2.rowtime.0.watermarks.type", "from-source")
-    verifyInvalidProperty("schema.2.rowtime.0.timestamps.type", "from-source")
-  }
-
-  override def descriptor(): Descriptor = {
-    Schema()
+    val desc2 = Schema()
       .field("myField", Types.BOOLEAN)
       .field("otherField", "VARCHAR").from("csvField")
       .field("p", Types.SQL_TIMESTAMP).proctime()
       .field("r", Types.SQL_TIMESTAMP)
+
+    val desc3 = Schema()
+      .deriveFieldsAlphabetically()
+      .field("p", Types.SQL_TIMESTAMP).proctime()
+      .field("r", Types.SQL_TIMESTAMP).rowtime(
+        Rowtime().timestampsFromSource().watermarksFromSource())
+
+    util.Arrays.asList(desc1, desc2, desc3)
   }
 
   override def validator(): DescriptorValidator = {
     new SchemaValidator(isStreamEnvironment = true)
+  }
+
+  override def properties(): util.List[util.Map[String, String]] = {
+    val props1 = Map(
+      "schema.property-version" -> "1",
+      "schema.fields.0.name" -> "myField",
+      "schema.fields.0.type" -> "BOOLEAN",
+      "schema.fields.1.name" -> "otherField",
+      "schema.fields.1.type" -> "VARCHAR",
+      "schema.fields.1.from" -> "csvField",
+      "schema.fields.2.name" -> "p",
+      "schema.fields.2.type" -> "TIMESTAMP",
+      "schema.fields.2.proctime" -> "true",
+      "schema.fields.3.name" -> "r",
+      "schema.fields.3.type" -> "TIMESTAMP",
+      "schema.fields.3.rowtime.watermarks.type" -> "from-source",
+      "schema.fields.3.rowtime.timestamps.type" -> "from-source"
+    )
+
+    val props2 = Map(
+      "schema.property-version" -> "1",
+      "schema.fields.0.name" -> "myField",
+      "schema.fields.0.type" -> "BOOLEAN",
+      "schema.fields.1.name" -> "otherField",
+      "schema.fields.1.type" -> "VARCHAR",
+      "schema.fields.1.from" -> "csvField",
+      "schema.fields.2.name" -> "p",
+      "schema.fields.2.type" -> "TIMESTAMP",
+      "schema.fields.2.proctime" -> "true",
+      "schema.fields.3.name" -> "r",
+      "schema.fields.3.type" -> "TIMESTAMP"
+    )
+
+    val props3 = Map(
+      "schema.property-version" -> "1",
+      "schema.derive-fields" -> "alphabetically",
+      "schema.fields.0.name" -> "p",
+      "schema.fields.0.type" -> "TIMESTAMP",
+      "schema.fields.0.proctime" -> "true",
+      "schema.fields.1.name" -> "r",
+      "schema.fields.1.type" -> "TIMESTAMP",
+      "schema.fields.1.rowtime.watermarks.type" -> "from-source",
+      "schema.fields.1.rowtime.timestamps.type" -> "from-source"
+    )
+
+    util.Arrays.asList(props1.asJava, props2.asJava, props3.asJava)
   }
 }

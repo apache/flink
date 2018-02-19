@@ -16,20 +16,27 @@
  * limitations under the License.
  */
 
-{
-  "title": "Fruit",
-  "type": "object",
-  "properties": {
-    "name": {
-      "type": "string"
-    },
-    "count": {
-      "type": "integer"
-    },
-    "time": {
-      "description": "Age in years",
-      "type": "number"
-    }
-  },
-  "required": ["name", "count", "time"]
+package org.apache.flink.streaming.connectors.kafka;
+
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_VERSION_VALUE_011;
+
+/**
+ * Tests for {@link Kafka011JsonTableSourceFactory}.
+ */
+public class Kafka011JsonTableSourceFactoryTest extends KafkaJsonTableSourceFactoryTestBase {
+
+	@Override
+	protected String version() {
+		return CONNECTOR_VERSION_VALUE_011;
+	}
+
+	@Override
+	protected KafkaJsonTableSource.Builder builder() {
+		return Kafka011JsonTableSource.builder();
+	}
+
+	@Override
+	protected KafkaJsonTableSourceFactory factory() {
+		return new Kafka011JsonTableSourceFactory();
+	}
 }

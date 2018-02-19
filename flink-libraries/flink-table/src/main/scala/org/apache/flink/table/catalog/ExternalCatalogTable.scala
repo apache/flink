@@ -105,7 +105,7 @@ class ExternalCatalogTable(
     val props = new DescriptorProperties(normalizeKeys = false)
     val legacyProps = new JHashMap[String, String]()
     connectorDesc.addProperties(props)
-    props.asMap.flatMap { case (k, v) =>
+    props.asScalaMap.flatMap { case (k, v) =>
       if (k.startsWith(CONNECTOR_LEGACY_PROPERTY)) {
         // remove "connector.legacy-property-"
         Some(legacyProps.put(k.substring(CONNECTOR_LEGACY_PROPERTY.length + 1), v))
@@ -267,7 +267,7 @@ object ExternalCatalogTable {
       tableType: String,
       schema: TableSchema,
       legacyProperties: JMap[String, String])
-    extends ConnectorDescriptor(CONNECTOR_TYPE_VALUE, version = 1) {
+    extends ConnectorDescriptor(CONNECTOR_TYPE_VALUE, version = 1, formatNeeded = false) {
 
     override protected def addConnectorProperties(properties: DescriptorProperties): Unit = {
       properties.putString(CONNECTOR_LEGACY_TYPE, tableType)
@@ -276,8 +276,6 @@ object ExternalCatalogTable {
           properties.putString(s"$CONNECTOR_LEGACY_PROPERTY-$k", v)
       }
     }
-
-    override private[flink] def needsFormat() = false
   }
 
   def toConnectorDescriptor(
