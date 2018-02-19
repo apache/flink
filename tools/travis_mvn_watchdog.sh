@@ -45,7 +45,7 @@ LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
 MODULES_CORE="\
 flink-test-utils-parent/flink-test-utils,\
-flink-contrib/flink-statebackend-rocksdb,\
+flink-state-backends/flink-statebackend-rocksdb,\
 flink-clients,\
 flink-core,\
 flink-java,\
