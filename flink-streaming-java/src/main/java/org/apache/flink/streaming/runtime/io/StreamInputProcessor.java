@@ -21,8 +21,6 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -127,25 +125,8 @@ public class StreamInputProcessor<IN> {
 
 		InputGate inputGate = InputGateUtil.createInputGate(inputGates);
 
-		if (checkpointMode == CheckpointingMode.EXACTLY_ONCE) {
-			long maxAlign = taskManagerConfig.getLong(TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT);
-			if (!(maxAlign == -1 || maxAlign > 0)) {
-				throw new IllegalConfigurationException(
-						TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT.key()
-						+ " must be positive or -1 (infinite)");
-			}
-			this.barrierHandler = new BarrierBuffer(inputGate, ioManager, maxAlign);
-		}
-		else if (checkpointMode == CheckpointingMode.AT_LEAST_ONCE) {
-			this.barrierHandler = new BarrierTracker(inputGate);
-		}
-		else {
-			throw new IllegalArgumentException("Unrecognized Checkpointing Mode: " + checkpointMode);
-		}
-
-		if (checkpointedTask != null) {
-			this.barrierHandler.registerCheckpointEventHandler(checkpointedTask);
-		}
+		this.barrierHandler = InputProcessorUtil.createCheckpointBarrierHandler(
+			checkpointedTask, checkpointMode, ioManager, inputGate, taskManagerConfig);
 
 		this.lock = checkNotNull(lock);
 
@@ -157,7 +138,7 @@ public class StreamInputProcessor<IN> {
 
 		for (int i = 0; i < recordDeserializers.length; i++) {
 			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<>(
-					ioManager.getSpillingDirectoriesPaths());
+				ioManager.getSpillingDirectoriesPaths());
 		}
 
 		this.numInputChannels = inputGate.getNumberOfInputChannels();
