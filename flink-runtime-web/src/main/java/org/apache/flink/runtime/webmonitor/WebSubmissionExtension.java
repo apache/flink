@@ -23,6 +23,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.webmonitor.handlers.JarDeleteHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JarDeleteHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.JarListHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JarListHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.JarRunHandler;
@@ -91,9 +93,19 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			executor,
 			restClusterClient);
 
+		final JarDeleteHandler jarDeleteHandler = new JarDeleteHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			JarDeleteHeaders.getInstance(),
+			jarDir,
+			executor);
+
 		webSubmissionHandlers.add(Tuple2.of(JarUploadMessageHeaders.getInstance(), jarUploadHandler));
 		webSubmissionHandlers.add(Tuple2.of(JarListHeaders.getInstance(), jarListHandler));
 		webSubmissionHandlers.add(Tuple2.of(JarRunHeaders.getInstance(), jarRunHandler));
+		webSubmissionHandlers.add(Tuple2.of(JarDeleteHeaders.getInstance(), jarDeleteHandler));
 	}
 
 	@Override

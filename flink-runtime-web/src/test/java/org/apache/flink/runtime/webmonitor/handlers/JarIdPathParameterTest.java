@@ -19,33 +19,35 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.messages.ConversionException;
-import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 /**
- * Path parameter to identify uploaded jar files.
+ * Tests for {@link JarIdPathParameter}.
  */
-public class JarIdPathParameter extends MessagePathParameter<String> {
+public class JarIdPathParameterTest {
 
-	public static final String KEY = "jarid";
+	private JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
 
-	protected JarIdPathParameter() {
-		super(KEY);
+	@Test(expected = ConversionException.class)
+	public void testJarIdWithParentDir() throws Exception {
+		jarIdPathParameter.convertFromString("../../test.jar");
 	}
 
-	@Override
-	protected String convertFromString(final String value) throws ConversionException {
-		final Path path = Paths.get(value);
-		if (path.getParent() != null) {
-			throw new ConversionException(String.format("%s must be a filename only (%s)", KEY, path));
-		}
-		return value;
+	@Test
+	public void testConvertFromString() throws Exception {
+		final String expectedJarId = "test.jar";
+		final String jarId = jarIdPathParameter.convertFromString(expectedJarId);
+		assertEquals(expectedJarId, jarId);
 	}
 
-	@Override
-	protected String convertToString(final String value) {
-		return value;
+	@Test
+	public void testConvertToString() throws Exception {
+		final String expected = "test.jar";
+		final String toString = jarIdPathParameter.convertToString(expected);
+		assertEquals(expected, toString);
 	}
+
 }
