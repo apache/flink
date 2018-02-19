@@ -49,7 +49,6 @@ import java.util.Set;
  * <p>This converter has been developed for JSON Schema draft-07 but also includes keywords of
  * older drafts to be as compatible as possible.
  */
-@SuppressWarnings("OptionalIsPresent")
 public final class JsonSchemaConverter {
 
 	private JsonSchemaConverter() {
@@ -180,9 +179,9 @@ public final class JsonSchemaConverter {
 				}
 			}
 		}
-		// use TYPE of reference as fallback
-		else if (ref.isPresent() && ref.get().has(TYPE)) {
-			typeSet.add(convertType(node.get(REF).asText(), ref.get(), root));
+		// use TYPE of reference as fallback if present
+		else {
+			ref.filter(r -> r.has(TYPE)).ifPresent(r -> typeSet.add(convertType(node.get(REF).asText(), r, root)));
 		}
 
 		// simple interpretation of ONE_OF for supporting "object or null"
