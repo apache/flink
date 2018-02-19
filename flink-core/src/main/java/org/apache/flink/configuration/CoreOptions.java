@@ -235,6 +235,11 @@ public class CoreOptions {
 	public static final String FLIP6_MODE = "flip6";
 
 	/**
+	 * Constant value for the old execution mode.
+	 */
+	public static final String OLD_MODE = "old";
+
+	/**
 	 * Switch to select the execution mode. Possible values are 'flip6' and 'old'.
 	 */
 	public static final ConfigOption<String> MODE = ConfigOptions
