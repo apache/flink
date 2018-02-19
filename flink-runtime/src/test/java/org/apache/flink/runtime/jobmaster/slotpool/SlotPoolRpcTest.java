@@ -361,11 +361,13 @@ public class SlotPoolRpcTest extends TestLogger {
 			@Nullable Throwable cause) {
 			final Consumer<SlotRequestId> currentReleaseSlotConsumer = releaseSlotConsumer;
 
+			final CompletableFuture<Acknowledge> acknowledgeCompletableFuture = super.releaseSlot(slotRequestId, slotSharingGroupId, cause);
+
 			if (currentReleaseSlotConsumer != null) {
 				currentReleaseSlotConsumer.accept(slotRequestId);
 			}
 
-			return super.releaseSlot(slotRequestId, slotSharingGroupId, cause);
+			return acknowledgeCompletableFuture;
 		}
 
 		CompletableFuture<Boolean> containsAllocatedSlot(AllocationID allocationId) {
