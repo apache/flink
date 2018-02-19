@@ -402,10 +402,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	/**
-	 * This method will block until the ApplicationMaster/JobManager have been
-	 * deployed on YARN.
+	 * This method will block until the ApplicationMaster/JobManager have been deployed on YARN.
 	 *
-	 * @param clusterSpecification Initial cluster specification for the to be deployed Flink cluster
+	 * @param clusterSpecification Initial cluster specification for the Flink cluster to be deployed
 	 * @param yarnClusterEntrypoint Class name of the Yarn cluster entry point.
 	 * @param jobGraph A job graph which is deployed with the Flink cluster, {@code null} if none
 	 * @param detached True if the cluster should be started in detached mode
@@ -459,7 +458,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			throw new YarnDeploymentException("Could not retrieve information about free cluster resources.", e);
 		}
 
-		final int yarnMinAllocationMB = yarnConfiguration.getInt("yarn.scheduler.minimum-allocation-mb", 0);
+		final int yarnMinAllocationMB = yarnConfiguration.getInt(yarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 0);
 
 		final ClusterSpecification validClusterSpecification;
 		try {
