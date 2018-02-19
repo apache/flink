@@ -18,34 +18,27 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.rest.messages.ConversionException;
+import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
+import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * Path parameter to identify uploaded jar files.
+ * Message parameters for {@link JarDeleteHandler}.
  */
-public class JarIdPathParameter extends MessagePathParameter<String> {
+public class JarDeleteMessageParameters extends MessageParameters {
 
-	public static final String KEY = "jarid";
+	private JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
 
-	protected JarIdPathParameter() {
-		super(KEY);
+	@Override
+	public Collection<MessagePathParameter<?>> getPathParameters() {
+		return Collections.singletonList(jarIdPathParameter);
 	}
 
 	@Override
-	protected String convertFromString(final String value) throws ConversionException {
-		final Path path = Paths.get(value);
-		if (path.getParent() != null) {
-			throw new ConversionException(String.format("%s must be a filename only (%s)", KEY, path));
-		}
-		return value;
-	}
-
-	@Override
-	protected String convertToString(final String value) {
-		return value;
+	public Collection<MessageQueryParameter<?>> getQueryParameters() {
+		return Collections.emptyList();
 	}
 }
