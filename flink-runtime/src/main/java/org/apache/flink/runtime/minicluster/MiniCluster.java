@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -159,6 +160,8 @@ public class MiniCluster implements JobExecutorService {
 			final boolean useSingleRpcService = miniClusterConfiguration.getRpcServiceSharing() == MiniClusterConfiguration.RpcServiceSharing.SHARED;
 
 			try {
+				initializeIOFormatClasses(configuration);
+
 				LOG.info("Starting Metrics Registry");
 				metricRegistry = createMetricRegistry(configuration);
 
@@ -604,6 +607,11 @@ public class MiniCluster implements JobExecutorService {
 	// ------------------------------------------------------------------------
 	//  miscellaneous utilities
 	// ------------------------------------------------------------------------
+
+	private void initializeIOFormatClasses(Configuration configuration) {
+		// TODO: That we still have to call something like this is a crime against humanity
+		FileOutputFormat.initDefaultsFromConfiguration(configuration);
+	}
 
 	private static Throwable shutDownRpc(RpcService rpcService, Throwable priorException) {
 		if (rpcService != null) {
