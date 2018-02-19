@@ -510,6 +510,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private CheckpointStreamFactory.CheckpointStateOutputStream outStream;
 		private DataOutputView outputView;
 
+		/** The state meta data. */
+		private final List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots = new ArrayList<>();
+
+		/** The copied column handle. */
+		private final List<ColumnFamilyHandle> copiedColumnFamilyHandles = new ArrayList<>();
+
 		RocksDBFullSnapshotOperation(
 			RocksDBKeyedStateBackend<K> stateBackend,
 			CheckpointStreamFactory checkpointStreamFactory,
@@ -534,6 +540,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			this.checkpointId = checkpointId;
 			this.checkpointTimeStamp = checkpointTimeStamp;
 			this.snapshot = stateBackend.db.getSnapshot();
+
+			// save meta data
+			for (Map.Entry<String, Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>> stateMetaInfoEntry
+				: stateBackend.kvStateInformation.entrySet()) {
+				// copy column family handle
+				copiedColumnFamilyHandles.add(stateMetaInfoEntry.getValue().f0);
+
+				// snapshot meta info
+				stateMetaInfoSnapshots.add(stateMetaInfoEntry.getValue().f1.snapshot());
+			}
 		}
 
 		/**
@@ -615,21 +631,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private void writeKVStateMetaData() throws IOException {
 
-			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> metaInfoSnapshots =
-				new ArrayList<>(stateBackend.kvStateInformation.size());
-
 			int kvStateId = 0;
-			for (Map.Entry<String, Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>> column :
-				stateBackend.kvStateInformation.entrySet()) {
-
-				metaInfoSnapshots.add(column.getValue().f1.snapshot());
+			for (ColumnFamilyHandle column : copiedColumnFamilyHandles) {
 
 				//retrieve iterator for this k/v states
 				readOptions = new ReadOptions();
 				readOptions.setSnapshot(snapshot);
 
 				kvStateIterators.add(
-					new Tuple2<>(stateBackend.db.newIterator(column.getValue().f0, readOptions), kvStateId));
+					new Tuple2<>(stateBackend.db.newIterator(column, readOptions), kvStateId));
 
 				++kvStateId;
 			}
@@ -637,7 +647,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			KeyedBackendSerializationProxy<K> serializationProxy =
 				new KeyedBackendSerializationProxy<>(
 					stateBackend.getKeySerializer(),
-					metaInfoSnapshots,
+					stateMetaInfoSnapshots,
 					!Objects.equals(UncompressedStreamCompressionDecorator.INSTANCE, stateBackend.keyGroupCompressionDecorator));
 
 			serializationProxy.write(outputView);
