@@ -49,7 +49,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	private static final Logger LOG = LoggerFactory.getLogger(LocalStreamEnvironment.class);
 
 	/** The configuration to use for the local cluster. */
-	private final Configuration conf;
+	protected final Configuration conf;
 
 	/**
 	 * Creates a new local stream environment that uses the default configuration.
