@@ -348,7 +348,7 @@ to the location where you installed Flink and start a local cluster:
 
 {% highlight bash %}
 $ cd my/flink/directory
-$ bin/start-local.sh
+$ bin/start-cluster.sh
 {% endhighlight %}
 
 We also have to create the Kafka Topic, so that our program can write to it:
