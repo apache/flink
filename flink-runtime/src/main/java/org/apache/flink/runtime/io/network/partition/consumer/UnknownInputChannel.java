@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -76,7 +77,7 @@ class UnknownInputChannel extends InputChannel {
 	}
 
 	@Override
-	public BufferAndAvailability getNextBuffer() throws IOException {
+	public Optional<BufferAndAvailability> getNextBuffer() throws IOException {
 		// Nothing to do here
 		throw new UnsupportedOperationException("Cannot retrieve a buffer from an UnknownInputChannel");
 	}

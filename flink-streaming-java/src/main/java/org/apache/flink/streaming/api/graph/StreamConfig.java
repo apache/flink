@@ -202,6 +202,10 @@ public class StreamConfig implements Serializable {
 		return config.getLong(BUFFER_TIMEOUT, DEFAULT_TIMEOUT);
 	}
 
+	public boolean isFlushAlwaysEnabled() {
+		return getBufferTimeout() == 0;
+	}
+
 	public void setStreamOperator(StreamOperator<?> operator) {
 		if (operator != null) {
 			config.setClass(USER_FUNCTION, operator.getClass());
@@ -411,6 +415,13 @@ public class StreamConfig implements Serializable {
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate configuration.", e);
 		}
+	}
+
+	public Map<Integer, StreamConfig> getTransitiveChainedTaskConfigsWithSelf(ClassLoader cl) {
+		//TODO: could this logic be moved to the user of #setTransitiveChainedTaskConfigs() ?
+		Map<Integer, StreamConfig> chainedTaskConfigs = getTransitiveChainedTaskConfigs(cl);
+		chainedTaskConfigs.put(getVertexID(), this);
+		return chainedTaskConfigs;
 	}
 
 	public void setOperatorID(OperatorID operatorID) {

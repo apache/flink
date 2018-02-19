@@ -23,6 +23,8 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
@@ -31,7 +33,9 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
+import java.util.Optional;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 import static org.mockito.Mockito.when;
 
@@ -62,24 +66,26 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 
 		// The input iterator can produce an infinite stream. That's why we have to serialize each
 		// record on demand and cannot do it upfront.
-		final Answer<InputChannel.BufferAndAvailability> answer = new Answer<InputChannel.BufferAndAvailability>() {
+		final Answer<Optional<BufferAndAvailability>> answer = new Answer<Optional<BufferAndAvailability>>() {
 
 			private boolean hasData = inputIterator.next(reuse) != null;
 
 			@Override
-			public InputChannel.BufferAndAvailability answer(InvocationOnMock invocationOnMock) throws Throwable {
+			public Optional<BufferAndAvailability> answer(InvocationOnMock invocationOnMock) throws Throwable {
 				if (hasData) {
-					serializer.setNextBufferBuilder(createBufferBuilder(bufferSize));
+					serializer.clear();
+					BufferBuilder bufferBuilder = createBufferBuilder(bufferSize);
+					serializer.continueWritingWithNextBufferBuilder(bufferBuilder);
 					serializer.addRecord(reuse);
 
 					hasData = inputIterator.next(reuse) != null;
 
 					// Call getCurrentBuffer to ensure size is set
-					return new InputChannel.BufferAndAvailability(serializer.getCurrentBuffer(), true, 0);
+					return Optional.of(new BufferAndAvailability(buildSingleBuffer(bufferBuilder), true, 0));
 				} else {
 					when(inputChannel.getInputChannel().isReleased()).thenReturn(true);
 
-					return new InputChannel.BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), false, 0);
+					return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), false, 0));
 				}
 			}
 		};

@@ -175,7 +175,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 		this.environment = Preconditions.checkNotNull(env);
 
-		this.taskStateManager = env.getTaskStateManager();
+		this.taskStateManager = (TestTaskStateManager) env.getTaskStateManager();
 		this.internalEnvironment = environmentIsInternal ? Optional.of(environment) : Optional.empty();
 
 		mockTask = mock(StreamTask.class);

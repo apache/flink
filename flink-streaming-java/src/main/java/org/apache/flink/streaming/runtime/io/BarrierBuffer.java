@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -158,52 +159,55 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	public BufferOrEvent getNextNonBlocked() throws Exception {
 		while (true) {
 			// process buffered BufferOrEvents before grabbing new ones
-			BufferOrEvent next;
+			Optional<BufferOrEvent> next;
 			if (currentBuffered == null) {
 				next = inputGate.getNextBufferOrEvent();
 			}
 			else {
-				next = currentBuffered.getNext();
-				if (next == null) {
+				next = Optional.ofNullable(currentBuffered.getNext());
+				if (!next.isPresent()) {
 					completeBufferedSequence();
 					return getNextNonBlocked();
 				}
 			}
 
-			if (next != null) {
-				if (isBlocked(next.getChannelIndex())) {
-					// if the channel is blocked we, we just store the BufferOrEvent
-					bufferSpiller.add(next);
-					checkSizeLimit();
-				}
-				else if (next.isBuffer()) {
-					return next;
-				}
-				else if (next.getEvent().getClass() == CheckpointBarrier.class) {
-					if (!endOfStream) {
-						// process barriers only if there is a chance of the checkpoint completing
-						processBarrier((CheckpointBarrier) next.getEvent(), next.getChannelIndex());
-					}
-				}
-				else if (next.getEvent().getClass() == CancelCheckpointMarker.class) {
-					processCancellationBarrier((CancelCheckpointMarker) next.getEvent());
+			if (!next.isPresent()) {
+				if (!endOfStream) {
+					// end of input stream. stream continues with the buffered data
+					endOfStream = true;
+					releaseBlocksAndResetBarriers();
+					return getNextNonBlocked();
 				}
 				else {
-					if (next.getEvent().getClass() == EndOfPartitionEvent.class) {
-						processEndOfPartition();
-					}
-					return next;
+					// final end of both input and buffered data
+					return null;
 				}
 			}
-			else if (!endOfStream) {
-				// end of input stream. stream continues with the buffered data
-				endOfStream = true;
-				releaseBlocksAndResetBarriers();
-				return getNextNonBlocked();
+
+			BufferOrEvent bufferOrEvent = next.get();
+
+			if (isBlocked(bufferOrEvent.getChannelIndex())) {
+				// if the channel is blocked we, we just store the BufferOrEvent
+				bufferSpiller.add(bufferOrEvent);
+				checkSizeLimit();
+			}
+			else if (bufferOrEvent.isBuffer()) {
+				return bufferOrEvent;
+			}
+			else if (bufferOrEvent.getEvent().getClass() == CheckpointBarrier.class) {
+				if (!endOfStream) {
+					// process barriers only if there is a chance of the checkpoint completing
+					processBarrier((CheckpointBarrier) bufferOrEvent.getEvent(), bufferOrEvent.getChannelIndex());
+				}
+			}
+			else if (bufferOrEvent.getEvent().getClass() == CancelCheckpointMarker.class) {
+				processCancellationBarrier((CancelCheckpointMarker) bufferOrEvent.getEvent());
 			}
 			else {
-				// final end of both input and buffered data
-				return null;
+				if (bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class) {
+					processEndOfPartition();
+				}
+				return bufferOrEvent;
 			}
 		}
 	}

@@ -42,6 +42,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -183,7 +184,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	}
 
 	@Override
-	BufferAndAvailability getNextBuffer() throws IOException {
+	Optional<BufferAndAvailability> getNextBuffer() throws IOException {
 		checkState(!isReleased.get(), "Queried for a buffer after channel has been closed.");
 		checkState(partitionRequestClient != null, "Queried for a buffer before requesting a queue.");
 
@@ -198,7 +199,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		}
 
 		numBytesIn.inc(next.getSizeUnsafe());
-		return new BufferAndAvailability(next, remaining > 0, getSenderBacklog());
+		return Optional.of(new BufferAndAvailability(next, remaining > 0, getSenderBacklog()));
 	}
 
 	// ------------------------------------------------------------------------

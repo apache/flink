@@ -27,29 +27,23 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
-import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.SerializationResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
-import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
-import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
-import org.apache.flink.runtime.io.network.util.TestTaskEvent;
-import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.XORShiftRandom;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -65,14 +59,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -129,7 +119,7 @@ public class RecordWriterTest {
 			BufferProvider bufferProvider = mock(BufferProvider.class);
 			when(bufferProvider.requestBufferBuilderBlocking()).thenAnswer(request);
 
-			ResultPartitionWriter partitionWriter = spy(new RecyclingPartitionWriter(bufferProvider));
+			ResultPartitionWriter partitionWriter = new RecyclingPartitionWriter(bufferProvider);
 
 			final RecordWriter<IntValue> recordWriter = new RecordWriter<IntValue>(partitionWriter);
 
@@ -163,9 +153,8 @@ public class RecordWriterTest {
 
 			recordWriter.clearBuffers();
 
-			// Verify that buffer have been requested, but only one has been written out.
+			// Verify that buffer have been requested twice
 			verify(bufferProvider, times(2)).requestBufferBuilderBlocking();
-			verify(partitionWriter, times(1)).writeBuffer(any(Buffer.class), anyInt());
 
 			// Verify that the written out buffer has only been recycled once
 			// (by the partition writer).
@@ -180,134 +169,6 @@ public class RecordWriterTest {
 	}
 
 	@Test
-	public void testClearBuffersAfterExceptionInPartitionWriter() throws Exception {
-		NetworkBufferPool buffers = new NetworkBufferPool(1, 1024);
-		BufferPool bufferPool = null;
-
-		try {
-			bufferPool = buffers.createBufferPool(1, Integer.MAX_VALUE);
-
-			ResultPartitionWriter partitionWriter = mock(ResultPartitionWriter.class);
-			when(partitionWriter.getBufferProvider()).thenReturn(checkNotNull(bufferPool));
-			when(partitionWriter.getNumberOfSubpartitions()).thenReturn(1);
-
-			// Recycle buffer and throw Exception
-			doAnswer(new Answer<Void>() {
-				@Override
-				public Void answer(InvocationOnMock invocation) throws Throwable {
-					Buffer buffer = (Buffer) invocation.getArguments()[0];
-					buffer.recycleBuffer();
-
-					throw new ExpectedTestException();
-				}
-			}).when(partitionWriter).writeBuffer(any(Buffer.class), anyInt());
-
-			RecordWriter<IntValue> recordWriter = new RecordWriter<>(partitionWriter);
-
-			// Validate that memory segment was assigned to recordWriter
-			assertEquals(1, buffers.getNumberOfAvailableMemorySegments());
-			assertEquals(0, bufferPool.getNumberOfAvailableMemorySegments());
-			recordWriter.emit(new IntValue(0));
-			assertEquals(0, buffers.getNumberOfAvailableMemorySegments());
-			assertEquals(0, bufferPool.getNumberOfAvailableMemorySegments());
-
-			try {
-				// Verify that emit correctly clears the buffer. The infinite loop looks
-				// dangerous indeed, but the buffer will only be flushed after its full. Adding a
-				// manual flush here doesn't test this case (see next).
-				for (;;) {
-					recordWriter.emit(new IntValue(0));
-				}
-			}
-			catch (ExpectedTestException e) {
-				// Verify that the buffer is not part of the record writer state after a failure
-				// to flush it out. If the buffer is still part of the record writer state, this
-				// will fail, because the buffer has already been recycled. NOTE: The mock
-				// partition writer needs to recycle the buffer to correctly test this.
-				recordWriter.clearBuffers();
-			}
-
-			// Verify expected methods have been called
-			verify(partitionWriter, times(1)).writeBuffer(any(Buffer.class), anyInt());
-			assertEquals(1, bufferPool.getNumberOfAvailableMemorySegments());
-
-			try {
-				// Verify that manual flushing correctly clears the buffer.
-				recordWriter.emit(new IntValue(0));
-				assertEquals(0, bufferPool.getNumberOfAvailableMemorySegments());
-				recordWriter.flush();
-
-				Assert.fail("Did not throw expected test Exception");
-			}
-			catch (ExpectedTestException e) {
-				recordWriter.clearBuffers();
-			}
-
-			// Verify expected methods have been called
-			verify(partitionWriter, times(2)).writeBuffer(any(Buffer.class), anyInt());
-			assertEquals(1, bufferPool.getNumberOfAvailableMemorySegments());
-
-			try {
-				// Verify that broadcast emit correctly clears the buffer.
-				recordWriter.broadcastEmit(new IntValue(0));
-				assertEquals(0, bufferPool.getNumberOfAvailableMemorySegments());
-
-				for (;;) {
-					recordWriter.broadcastEmit(new IntValue(0));
-				}
-			}
-			catch (ExpectedTestException e) {
-				recordWriter.clearBuffers();
-			}
-
-			// Verify expected methods have been called
-			verify(partitionWriter, times(3)).writeBuffer(any(Buffer.class), anyInt());
-			assertEquals(1, bufferPool.getNumberOfAvailableMemorySegments());
-
-			try {
-				// Verify that end of super step correctly clears the buffer.
-				recordWriter.emit(new IntValue(0));
-				assertEquals(0, bufferPool.getNumberOfAvailableMemorySegments());
-				recordWriter.broadcastEvent(EndOfSuperstepEvent.INSTANCE);
-
-				Assert.fail("Did not throw expected test Exception");
-			}
-			catch (ExpectedTestException e) {
-				recordWriter.clearBuffers();
-			}
-
-			// Verify expected methods have been called
-			verify(partitionWriter, times(4)).writeBuffer(any(Buffer.class), anyInt());
-			assertEquals(1, bufferPool.getNumberOfAvailableMemorySegments());
-
-			try {
-				// Verify that broadcasting and event correctly clears the buffer.
-				recordWriter.emit(new IntValue(0));
-				assertEquals(0, bufferPool.getNumberOfAvailableMemorySegments());
-				recordWriter.broadcastEvent(new TestTaskEvent());
-
-				Assert.fail("Did not throw expected test Exception");
-			}
-			catch (ExpectedTestException e) {
-				recordWriter.clearBuffers();
-			}
-
-			// Verify expected methods have been called
-			verify(partitionWriter, times(5)).writeBuffer(any(Buffer.class), anyInt());
-			assertEquals(1, bufferPool.getNumberOfAvailableMemorySegments());
-		}
-		finally {
-			if (bufferPool != null) {
-				assertEquals(1, bufferPool.getNumberOfAvailableMemorySegments());
-				bufferPool.lazyDestroy();
-			}
-
-			assertEquals(1, buffers.getNumberOfAvailableMemorySegments());
-			buffers.destroy();
-		}
-	}
-
-	@Test
 	public void testSerializerClearedAfterClearBuffers() throws Exception {
 		ResultPartitionWriter partitionWriter =
 			spy(new RecyclingPartitionWriter(new TestPooledBufferProvider(1, 16)));
@@ -316,7 +177,6 @@ public class RecordWriterTest {
 
 		// Fill a buffer, but don't write it out.
 		recordWriter.emit(new IntValue(0));
-		verify(partitionWriter, never()).writeBuffer(any(Buffer.class), anyInt());
 
 		// Clear all buffers.
 		recordWriter.clearBuffers();
@@ -335,7 +195,7 @@ public class RecordWriterTest {
 		int bufferSize = 32;
 
 		@SuppressWarnings("unchecked")
-		Queue<Buffer>[] queues = new Queue[numChannels];
+		Queue<BufferConsumer>[] queues = new Queue[numChannels];
 		for (int i = 0; i < numChannels; i++) {
 			queues[i] = new ArrayDeque<>();
 		}
@@ -372,7 +232,7 @@ public class RecordWriterTest {
 		int lenBytes = 4; // serialized length
 
 		@SuppressWarnings("unchecked")
-		Queue<Buffer>[] queues = new Queue[numChannels];
+		Queue<BufferConsumer>[] queues = new Queue[numChannels];
 		for (int i = 0; i < numChannels; i++) {
 			queues[i] = new ArrayDeque<>();
 		}
@@ -436,21 +296,15 @@ public class RecordWriterTest {
 	 */
 	@Test
 	public void testBroadcastEventBufferReferenceCounting() throws Exception {
-		Buffer buffer = EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE);
-
-		// Partial mocking of static method...
-		PowerMockito
-			.stub(PowerMockito.method(EventSerializer.class, "toBuffer"))
-			.toReturn(buffer);
 
 		@SuppressWarnings("unchecked")
-		ArrayDeque<Buffer>[] queues = new ArrayDeque[] { new ArrayDeque(), new ArrayDeque() };
+		ArrayDeque<BufferConsumer>[] queues = new ArrayDeque[] { new ArrayDeque(), new ArrayDeque() };
 
 		ResultPartitionWriter partition =
 			new CollectingPartitionWriter(queues, new TestPooledBufferProvider(Integer.MAX_VALUE));
 		RecordWriter<?> writer = new RecordWriter<>(partition);
 
-		writer.broadcastEvent(EndOfPartitionEvent.INSTANCE);
+		BufferConsumer bufferConsumer = writer.broadcastEvent(EndOfPartitionEvent.INSTANCE);
 
 		// Verify added to all queues
 		assertEquals(1, queues[0].size());
@@ -461,7 +315,7 @@ public class RecordWriterTest {
 			assertTrue(parseBuffer(queues[i].remove(), i).isEvent());
 		}
 
-		assertTrue(buffer.isRecycled());
+		assertTrue(bufferConsumer.isRecycled());
 	}
 
 	/**
@@ -471,7 +325,7 @@ public class RecordWriterTest {
 	@Test
 	public void testBroadcastEventBufferIndependence() throws Exception {
 		@SuppressWarnings("unchecked")
-		ArrayDeque<Buffer>[] queues =
+		ArrayDeque<BufferConsumer>[] queues =
 			new ArrayDeque[]{new ArrayDeque(), new ArrayDeque()};
 
 		ResultPartitionWriter partition =
@@ -485,8 +339,8 @@ public class RecordWriterTest {
 		assertEquals(1, queues[1].size());
 
 		// these two buffers may share the memory but not the indices!
-		Buffer buffer1 = queues[0].remove();
-		Buffer buffer2 = queues[1].remove();
+		Buffer buffer1 = buildSingleBuffer(queues[0].remove());
+		Buffer buffer2 = buildSingleBuffer(queues[1].remove());
 		assertEquals(0, buffer1.getReaderIndex());
 		assertEquals(0, buffer2.getReaderIndex());
 		buffer1.setReaderIndex(1);
@@ -500,7 +354,7 @@ public class RecordWriterTest {
 	@Test
 	public void testBroadcastEmitBufferIndependence() throws Exception {
 		@SuppressWarnings("unchecked")
-		ArrayDeque<Buffer>[] queues =
+		ArrayDeque<BufferConsumer>[] queues =
 			new ArrayDeque[]{new ArrayDeque(), new ArrayDeque()};
 
 		ResultPartitionWriter partition =
@@ -515,8 +369,8 @@ public class RecordWriterTest {
 		assertEquals(1, queues[1].size());
 
 		// these two buffers may share the memory but not the indices!
-		Buffer buffer1 = queues[0].remove();
-		Buffer buffer2 = queues[1].remove();
+		Buffer buffer1 = buildSingleBuffer(queues[0].remove());
+		Buffer buffer2 = buildSingleBuffer(queues[1].remove());
 		assertEquals(0, buffer1.getReaderIndex());
 		assertEquals(0, buffer2.getReaderIndex());
 		buffer1.setReaderIndex(1);
@@ -531,7 +385,7 @@ public class RecordWriterTest {
 	 * Partition writer that collects the added buffers/events in multiple queue.
 	 */
 	private static class CollectingPartitionWriter implements ResultPartitionWriter {
-		private final Queue<Buffer>[] queues;
+		private final Queue<BufferConsumer>[] queues;
 		private final BufferProvider bufferProvider;
 		private final ResultPartitionID partitionId = new ResultPartitionID();
 
@@ -541,7 +395,7 @@ public class RecordWriterTest {
 		 * @param queues one queue per outgoing channel
 		 * @param bufferProvider buffer provider
 		 */
-		private CollectingPartitionWriter(Queue<Buffer>[] queues, BufferProvider bufferProvider) {
+		private CollectingPartitionWriter(Queue<BufferConsumer>[] queues, BufferProvider bufferProvider) {
 			this.queues = queues;
 			this.bufferProvider = bufferProvider;
 		}
@@ -567,12 +421,17 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public void writeBuffer(Buffer buffer, int targetChannel) throws IOException {
+		public void addBufferConsumer(BufferConsumer buffer, int targetChannel) throws IOException {
 			queues[targetChannel].add(buffer);
+		}
+
+		@Override
+		public void flush() {
 		}
 	}
 
-	private static BufferOrEvent parseBuffer(Buffer buffer, int targetChannel) throws IOException {
+	private static BufferOrEvent parseBuffer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
+		Buffer buffer = buildSingleBuffer(bufferConsumer);
 		if (buffer.isBuffer()) {
 			return new BufferOrEvent(buffer, targetChannel);
 		} else {
@@ -615,8 +474,12 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public void writeBuffer(Buffer buffer, int targetChannel) throws IOException {
-			buffer.recycleBuffer();
+		public void addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
+			bufferConsumer.close();
+		}
+
+		@Override
+		public void flush() {
 		}
 	}
 

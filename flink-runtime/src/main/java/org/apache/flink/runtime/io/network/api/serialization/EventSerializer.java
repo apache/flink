@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
@@ -298,6 +299,14 @@ public class EventSerializer {
 		buffer.setSize(serializedEvent.remaining());
 
 		return buffer;
+	}
+
+	public static BufferConsumer toBufferConsumer(AbstractEvent event) throws IOException {
+		final ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(event);
+
+		MemorySegment data = MemorySegmentFactory.wrap(serializedEvent.array());
+
+		return new BufferConsumer(data, FreeingBufferRecycler.INSTANCE, false);
 	}
 
 	public static AbstractEvent fromBuffer(Buffer buffer, ClassLoader classLoader) throws IOException {

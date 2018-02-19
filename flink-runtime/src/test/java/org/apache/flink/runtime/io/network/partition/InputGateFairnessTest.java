@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -45,11 +47,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultPartitionManager;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -62,7 +66,7 @@ public class InputGateFairnessTest {
 		final int buffersPerChannel = 27;
 
 		final ResultPartition resultPartition = mock(ResultPartition.class);
-		final Buffer mockBuffer = TestBufferFactory.createBuffer(42);
+		final BufferConsumer bufferConsumer = createFilledBufferConsumer(42);
 
 		// ----- create some source channels and fill them with buffers -----
 
@@ -72,7 +76,7 @@ public class InputGateFairnessTest {
 			PipelinedSubpartition partition = new PipelinedSubpartition(0, resultPartition);
 
 			for (int p = 0; p < buffersPerChannel; p++) {
-				partition.add(mockBuffer);
+				partition.add(bufferConsumer.copy());
 			}
 
 			partition.finish();
@@ -113,7 +117,7 @@ public class InputGateFairnessTest {
 			assertTrue(max == min || max == min+1);
 		}
 
-		assertNull(gate.getNextBufferOrEvent());
+		assertFalse(gate.getNextBufferOrEvent().isPresent());
 	}
 
 	@Test
@@ -122,21 +126,21 @@ public class InputGateFairnessTest {
 		final int buffersPerChannel = 27;
 
 		final ResultPartition resultPartition = mock(ResultPartition.class);
-		final Buffer mockBuffer = TestBufferFactory.createBuffer(42);
+		try (BufferConsumer bufferConsumer = createFilledBufferConsumer(42)) {
 
-		// ----- create some source channels and fill them with one buffer each -----
+			// ----- create some source channels and fill them with one buffer each -----
 
-		final PipelinedSubpartition[] sources = new PipelinedSubpartition[numChannels];
+			final PipelinedSubpartition[] sources = new PipelinedSubpartition[numChannels];
 
-		for (int i = 0; i < numChannels; i++) {
-			sources[i] = new PipelinedSubpartition(0, resultPartition);
-		}
+			for (int i = 0; i < numChannels; i++) {
+				sources[i] = new PipelinedSubpartition(0, resultPartition);
+			}
 
-		// ----- create reading side -----
+			// ----- create reading side -----
 
-		ResultPartitionManager resultPartitionManager = createResultPartitionManager(sources);
+			ResultPartitionManager resultPartitionManager = createResultPartitionManager(sources);
 
-		SingleInputGate gate = new FairnessVerifyingInputGate(
+			SingleInputGate gate = new FairnessVerifyingInputGate(
 				"Test Task Name",
 				new JobID(),
 				new IntermediateDataSetID(),
@@ -144,37 +148,37 @@ public class InputGateFairnessTest {
 				mock(TaskActions.class),
 				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
-		for (int i = 0; i < numChannels; i++) {
-			LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
+			for (int i = 0; i < numChannels; i++) {
+				LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
 					resultPartitionManager, mock(TaskEventDispatcher.class), UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
-			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
-		}
-
-		// seed one initial buffer
-		sources[12].add(mockBuffer);
-
-		// read all the buffers and the EOF event
-		for (int i = 0; i < numChannels * buffersPerChannel; i++) {
-			assertNotNull(gate.getNextBufferOrEvent());
-
-			int min = Integer.MAX_VALUE;
-			int max = 0;
-
-			for (PipelinedSubpartition source : sources) {
-				int size = source.getCurrentNumberOfBuffers();
-				min = Math.min(min, size);
-				max = Math.max(max, size);
+				gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 			}
 
-			assertTrue(max == min || max == min+1);
+			// seed one initial buffer
+			sources[12].add(bufferConsumer.copy());
 
-			if (i % (2 * numChannels) == 0) {
-				// add three buffers to each channel, in random order
-				fillRandom(sources, 3, mockBuffer);
+			// read all the buffers and the EOF event
+			for (int i = 0; i < numChannels * buffersPerChannel; i++) {
+				assertNotNull(gate.getNextBufferOrEvent());
+
+				int min = Integer.MAX_VALUE;
+				int max = 0;
+
+				for (PipelinedSubpartition source : sources) {
+					int size = source.getCurrentNumberOfBuffers();
+					min = Math.min(min, size);
+					max = Math.max(max, size);
+				}
+
+				assertTrue(max == min || max == min + 1);
+
+				if (i % (2 * numChannels) == 0) {
+					// add three buffers to each channel, in random order
+					fillRandom(sources, 3, bufferConsumer);
+				}
 			}
+			// there is still more in the queues
 		}
-
-		// there is still more in the queues
 	}
 
 	@Test
@@ -229,7 +233,7 @@ public class InputGateFairnessTest {
 			assertTrue(max == min || max == min+1);
 		}
 
-		assertNull(gate.getNextBufferOrEvent());
+		assertFalse(gate.getNextBufferOrEvent().isPresent());
 	}
 
 	@Test
@@ -292,7 +296,7 @@ public class InputGateFairnessTest {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private void fillRandom(PipelinedSubpartition[] partitions, int numPerPartition, Buffer buffer) throws Exception {
+	private void fillRandom(PipelinedSubpartition[] partitions, int numPerPartition, BufferConsumer buffer) throws Exception {
 		ArrayList<Integer> poss = new ArrayList<>(partitions.length * numPerPartition);
 
 		for (int i = 0; i < partitions.length; i++) {
@@ -304,7 +308,7 @@ public class InputGateFairnessTest {
 		Collections.shuffle(poss);
 
 		for (Integer i : poss) {
-			partitions[i].add(buffer);
+			partitions[i].add(buffer.copy());
 		}
 	}
 
@@ -365,7 +369,7 @@ public class InputGateFairnessTest {
 
 
 		@Override
-		public BufferOrEvent getNextBufferOrEvent() throws IOException, InterruptedException {
+		public Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException {
 			synchronized (channelsWithData) {
 				assertTrue("too many input channels", channelsWithData.size() <= getNumberOfInputChannels());
 				ensureUnique(channelsWithData);

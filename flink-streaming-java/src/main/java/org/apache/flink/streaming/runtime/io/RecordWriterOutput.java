@@ -161,10 +161,6 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 		recordWriter.close();
 	}
 
-	public void clearBuffers() {
-		recordWriter.clearBuffers();
-	}
-
 	@Override
 	public Gauge<Long> getWatermarkGauge() {
 		return watermarkGauge;

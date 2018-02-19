@@ -86,68 +86,62 @@ public class StreamTaskTimerTest {
 	}
 
 	@Test
-	public void checkScheduledTimestampe() {
-		try {
-			final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-					OneInputStreamTask::new,
-					BasicTypeInfo.STRING_TYPE_INFO,
-					BasicTypeInfo.STRING_TYPE_INFO);
+	public void checkScheduledTimestampe() throws Exception {
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
+				OneInputStreamTask::new,
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO);
 
-			testHarness.setupOutputForSingletonOperatorChain();
+		testHarness.setupOutputForSingletonOperatorChain();
 
-			StreamConfig streamConfig = testHarness.getStreamConfig();
-			StreamMap<String, String> mapOperator = new StreamMap<>(new DummyMapFunction<String>());
-			streamConfig.setStreamOperator(mapOperator);
+		StreamConfig streamConfig = testHarness.getStreamConfig();
+		StreamMap<String, String> mapOperator = new StreamMap<>(new DummyMapFunction<String>());
+		streamConfig.setStreamOperator(mapOperator);
 
-			testHarness.invoke();
-			testHarness.waitForTaskRunning();
+		testHarness.invoke();
+		testHarness.waitForTaskRunning();
 
-			final OneInputStreamTask<String, String> mapTask = testHarness.getTask();
+		final OneInputStreamTask<String, String> mapTask = testHarness.getTask();
 
-			final AtomicReference<Throwable> errorRef = new AtomicReference<>();
+		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 
-			final long t1 = System.currentTimeMillis();
-			final long t2 = System.currentTimeMillis() - 200;
-			final long t3 = System.currentTimeMillis() + 100;
-			final long t4 = System.currentTimeMillis() + 200;
+		final long t1 = System.currentTimeMillis();
+		final long t2 = System.currentTimeMillis() - 200;
+		final long t3 = System.currentTimeMillis() + 100;
+		final long t4 = System.currentTimeMillis() + 200;
 
-			ProcessingTimeService timeService = mapTask.getProcessingTimeService();
-			timeService.registerTimer(t1, new ValidatingProcessingTimeCallback(errorRef, t1, 0));
-			timeService.registerTimer(t2, new ValidatingProcessingTimeCallback(errorRef, t2, 1));
-			timeService.registerTimer(t3, new ValidatingProcessingTimeCallback(errorRef, t3, 2));
-			timeService.registerTimer(t4, new ValidatingProcessingTimeCallback(errorRef, t4, 3));
+		ProcessingTimeService timeService = mapTask.getProcessingTimeService();
+		timeService.registerTimer(t1, new ValidatingProcessingTimeCallback(errorRef, t1, 0));
+		timeService.registerTimer(t2, new ValidatingProcessingTimeCallback(errorRef, t2, 1));
+		timeService.registerTimer(t3, new ValidatingProcessingTimeCallback(errorRef, t3, 2));
+		timeService.registerTimer(t4, new ValidatingProcessingTimeCallback(errorRef, t4, 3));
 
-			long deadline = System.currentTimeMillis() + 20000;
-			while (errorRef.get() == null &&
-					ValidatingProcessingTimeCallback.numInSequence < 4 &&
-					System.currentTimeMillis() < deadline) {
-				Thread.sleep(100);
-			}
-
-			// handle errors
-			if (errorRef.get() != null) {
-				errorRef.get().printStackTrace();
-				fail(errorRef.get().getMessage());
-			}
-
-			assertEquals(4, ValidatingProcessingTimeCallback.numInSequence);
-
-			testHarness.endInput();
-			testHarness.waitForTaskCompletion();
-
-			// wait until the trigger thread is shut down. otherwise, the other tests may become unstable
-			deadline = System.currentTimeMillis() + 4000;
-			while (StreamTask.TRIGGER_THREAD_GROUP.activeCount() > 0 && System.currentTimeMillis() < deadline) {
-				Thread.sleep(10);
-			}
-
-			assertEquals("Trigger timer thread did not properly shut down",
-					0, StreamTask.TRIGGER_THREAD_GROUP.activeCount());
+		long deadline = System.currentTimeMillis() + 20000;
+		while (errorRef.get() == null &&
+				ValidatingProcessingTimeCallback.numInSequence < 4 &&
+				System.currentTimeMillis() < deadline) {
+			Thread.sleep(100);
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+
+		// handle errors
+		if (errorRef.get() != null) {
+			errorRef.get().printStackTrace();
+			fail(errorRef.get().getMessage());
 		}
+
+		assertEquals(4, ValidatingProcessingTimeCallback.numInSequence);
+
+		testHarness.endInput();
+		testHarness.waitForTaskCompletion();
+
+		// wait until the trigger thread is shut down. otherwise, the other tests may become unstable
+		deadline = System.currentTimeMillis() + 4000;
+		while (StreamTask.TRIGGER_THREAD_GROUP.activeCount() > 0 && System.currentTimeMillis() < deadline) {
+			Thread.sleep(10);
+		}
+
+		assertEquals("Trigger timer thread did not properly shut down",
+				0, StreamTask.TRIGGER_THREAD_GROUP.activeCount());
 	}
 
 	private static class ValidatingProcessingTimeCallback implements ProcessingTimeCallback {
