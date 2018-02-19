@@ -47,6 +47,7 @@ import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -1633,9 +1634,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A local execution environment with the specified parallelism.
 	 */
 	public static LocalStreamEnvironment createLocalEnvironment(int parallelism) {
-		LocalStreamEnvironment env = new LocalStreamEnvironment();
-		env.setParallelism(parallelism);
-		return env;
+		return createLocalEnvironment(parallelism, new Configuration());
 	}
 
 	/**
@@ -1651,7 +1650,14 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A local execution environment with the specified parallelism.
 	 */
 	public static LocalStreamEnvironment createLocalEnvironment(int parallelism, Configuration configuration) {
-		LocalStreamEnvironment currentEnvironment = new LocalStreamEnvironment(configuration);
+		final LocalStreamEnvironment currentEnvironment;
+
+		if (CoreOptions.FLIP6_MODE.equals(configuration.getString(CoreOptions.MODE))) {
+			currentEnvironment = new Flip6LocalStreamEnvironment(configuration);
+		} else {
+			currentEnvironment = new LocalStreamEnvironment(configuration);
+		}
+
 		currentEnvironment.setParallelism(parallelism);
 		return currentEnvironment;
 	}
@@ -1673,10 +1679,7 @@ public abstract class StreamExecutionEnvironment {
 
 		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
 
-		LocalStreamEnvironment localEnv = new LocalStreamEnvironment(conf);
-		localEnv.setParallelism(defaultLocalParallelism);
-
-		return localEnv;
+		return createLocalEnvironment(defaultLocalParallelism, conf);
 	}
 
 	/**
