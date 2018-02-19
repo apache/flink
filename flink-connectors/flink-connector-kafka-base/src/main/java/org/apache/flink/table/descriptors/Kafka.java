@@ -18,182 +18,199 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
-
-import static org.apache.flink.table.descriptors.KafkaValidator.BOOTSTRAP_SERVERS;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TYPE_VALUE;
-import static org.apache.flink.table.descriptors.KafkaValidator.GROUP_ID;
-import static org.apache.flink.table.descriptors.KafkaValidator.JSON_FIELD;
-import static org.apache.flink.table.descriptors.KafkaValidator.KAFKA_VERSION;
-import static org.apache.flink.table.descriptors.KafkaValidator.OFFSET;
-import static org.apache.flink.table.descriptors.KafkaValidator.PARTITION;
-import static org.apache.flink.table.descriptors.KafkaValidator.SPECIFIC_OFFSETS;
-import static org.apache.flink.table.descriptors.KafkaValidator.TABLE_FIELD;
-import static org.apache.flink.table.descriptors.KafkaValidator.TABLE_JSON_MAPPING;
-import static org.apache.flink.table.descriptors.KafkaValidator.TOPIC;
-import static org.apache.flink.table.descriptors.KafkaValidator.ZOOKEEPER_CONNECT;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Properties;
+import java.util.stream.Collectors;
 
-import scala.collection.JavaConversions;
-import scala.collection.Seq;
+import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_KEY;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_VALUE;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_OFFSET;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_PARTITION;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_STARTUP_MODE;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TOPIC;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TYPE_VALUE_KAFKA;
 
 /**
- * Connector descriptor for the kafka message queue.
+ * Connector descriptor for the Apache Kafka message queue.
  */
 public class Kafka extends ConnectorDescriptor {
 
-	private Optional<String> version = Optional.empty();
-	private Optional<String> bootstrapServers = Optional.empty();
-	private Optional<String> groupId = Optional.empty();
-	private Optional<String> topic = Optional.empty();
-	private Optional<String> zookeeperConnect = Optional.empty();
-	private Optional<Map<String, String>> tableJsonMapping = Optional.empty();
+	private String version;
+	private String topic;
+	private StartupMode startupMode;
+	private Map<Integer, Long> specificOffsets;
+	private Map<String, String> kafkaProperties;
 
-	private Optional<StartupMode> startupMode = Optional.empty();
-	private Optional<Map<Integer, Long>> specificOffsets = Optional.empty();
-
+	/**
+	 * Connector descriptor for the Apache Kafka message queue.
+	 */
 	public Kafka() {
-		super(CONNECTOR_TYPE_VALUE, 1);
+		super(CONNECTOR_TYPE_VALUE_KAFKA, 1, true);
 	}
 
 	/**
-	 * Sets the kafka version.
+	 * Sets the Kafka version to be used.
 	 *
-	 * @param version
-	 * Could be {@link KafkaValidator#KAFKA_VERSION_VALUE_011},
-	 * {@link KafkaValidator#KAFKA_VERSION_VALUE_010},
-	 * {@link KafkaValidator#KAFKA_VERSION_VALUE_09},
-	 * or {@link KafkaValidator#KAFKA_VERSION_VALUE_08}.
+	 * @param version Kafka version. E.g., "0.8", "0.11", etc.
 	 */
 	public Kafka version(String version) {
-		this.version = Optional.of(version);
+		Preconditions.checkNotNull(version);
+		this.version = version;
 		return this;
 	}
 
 	/**
-	 * Sets the bootstrap servers for kafka.
-	 */
-	public Kafka bootstrapServers(String bootstrapServers) {
-		this.bootstrapServers = Optional.of(bootstrapServers);
-		return this;
-	}
-
-	/**
-	 * Sets the consumer group id.
-	 */
-	public Kafka groupId(String groupId) {
-		this.groupId = Optional.of(groupId);
-		return this;
-	}
-
-	/**
-	 * Sets the topic to consume.
+	 * Sets the topic from which the table is read.
+	 *
+	 * @param topic The topic from which the table is read.
 	 */
 	public Kafka topic(String topic) {
-		this.topic = Optional.of(topic);
+		Preconditions.checkNotNull(topic);
+		this.topic = topic;
 		return this;
 	}
 
 	/**
-	 * Sets the startup mode.
+	 * Sets the configuration properties for the Kafka consumer. Resets previously set properties.
+	 *
+	 * @param properties The configuration properties for the Kafka consumer.
 	 */
-	public Kafka startupMode(StartupMode startupMode) {
-		this.startupMode = Optional.of(startupMode);
+	public Kafka properties(Properties properties) {
+		Preconditions.checkNotNull(properties);
+		if (this.kafkaProperties == null) {
+			this.kafkaProperties = new HashMap<>();
+		}
+		this.kafkaProperties.clear();
+		properties.forEach((k, v) -> this.kafkaProperties.put((String) k, (String) v));
 		return this;
 	}
 
 	/**
-	 * Sets the zookeeper hosts. Only required by kafka 0.8.
+	 * Adds a configuration properties for the Kafka consumer.
+	 *
+	 * @param key property key for the Kafka consumer
+	 * @param value property value for the Kafka consumer
 	 */
-	public Kafka zookeeperConnect(String zookeeperConnect) {
-		this.zookeeperConnect = Optional.of(zookeeperConnect);
+	public Kafka property(String key, String value) {
+		Preconditions.checkNotNull(key);
+		Preconditions.checkNotNull(value);
+		if (this.kafkaProperties == null) {
+			this.kafkaProperties = new HashMap<>();
+		}
+		kafkaProperties.put(key, value);
 		return this;
 	}
 
 	/**
-	 * Sets the consume offsets for the topic set with {@link Kafka#topic(String)}.
-	 * Only works in {@link StartupMode#SPECIFIC_OFFSETS} mode.
+	 * Configures to start reading from the earliest offset for all partitions.
+	 *
+	 * @see FlinkKafkaConsumerBase#setStartFromEarliest()
 	 */
-	public Kafka specificOffsets(Map<Integer, Long> specificOffsets) {
-		this.specificOffsets = Optional.of(specificOffsets);
+	public Kafka startFromEarliest() {
+		this.startupMode = StartupMode.EARLIEST;
+		this.specificOffsets = null;
 		return this;
 	}
 
 	/**
-	 * Sets the mapping from logical table schema to json schema.
+	 * Configures to start reading from the latest offset for all partitions.
+	 *
+	 * @see FlinkKafkaConsumerBase#setStartFromLatest()
 	 */
-	public Kafka tableJsonMapping(Map<String, String> jsonTableMapping) {
-		this.tableJsonMapping = Optional.of(jsonTableMapping);
+	public Kafka startFromLatest() {
+		this.startupMode = StartupMode.LATEST;
+		this.specificOffsets = null;
 		return this;
 	}
 
+	/**
+	 * Configures to start reading from any committed group offsets found in Zookeeper / Kafka brokers.
+	 *
+	 * @see FlinkKafkaConsumerBase#setStartFromGroupOffsets()
+	 */
+	public Kafka startFromGroupOffsets() {
+		this.startupMode = StartupMode.GROUP_OFFSETS;
+		this.specificOffsets = null;
+		return this;
+	}
+
+	/**
+	 * Configures to start reading partitions from specific offsets, set independently for each partition.
+	 * Resets previously set offsets.
+	 *
+	 * @param specificOffsets the specified offsets for partitions
+	 * @see FlinkKafkaConsumerBase#setStartFromSpecificOffsets(Map)
+	 */
+	public Kafka startFromSpecificOffsets(Map<Integer, Long> specificOffsets) {
+		this.startupMode = StartupMode.SPECIFIC_OFFSETS;
+		this.specificOffsets = Preconditions.checkNotNull(specificOffsets);
+		return this;
+	}
+
+	/**
+	 * Configures to start reading partitions from specific offsets and specifies the given offset for
+	 * the given partition.
+	 *
+	 * @param partition partition index
+	 * @param specificOffset partition offset to start reading from
+	 * @see FlinkKafkaConsumerBase#setStartFromSpecificOffsets(Map)
+	 */
+	public Kafka startFromSpecificOffset(int partition, long specificOffset) {
+		this.startupMode = StartupMode.SPECIFIC_OFFSETS;
+		if (this.specificOffsets == null) {
+			this.specificOffsets = new HashMap<>();
+		}
+		this.specificOffsets.put(partition, specificOffset);
+		return this;
+	}
+
+	/**
+	 * Internal method for connector properties conversion.
+	 */
 	@Override
 	public void addConnectorProperties(DescriptorProperties properties) {
-		if (version.isPresent()) {
-			properties.putString(KAFKA_VERSION, version.get());
+		if (version != null) {
+			properties.putString(CONNECTOR_VERSION(), version);
 		}
-		if (bootstrapServers.isPresent()) {
-			properties.putString(BOOTSTRAP_SERVERS, bootstrapServers.get());
-		}
-		if (groupId.isPresent()) {
-			properties.putString(GROUP_ID, groupId.get());
-		}
-		if (topic.isPresent()) {
-			properties.putString(TOPIC, topic.get());
-		}
-		if (zookeeperConnect.isPresent()) {
-			properties.putString(ZOOKEEPER_CONNECT, zookeeperConnect.get());
-		}
-		if (startupMode.isPresent()) {
-			Map<String, String> map = KafkaValidator.normalizeStartupMode(startupMode.get());
-			for (Map.Entry<String, String> entry : map.entrySet()) {
-				properties.putString(entry.getKey(), entry.getValue());
-			}
-		}
-		if (specificOffsets.isPresent()) {
-			List<String> propertyKeys = new ArrayList<>();
-			propertyKeys.add(PARTITION);
-			propertyKeys.add(OFFSET);
 
-			List<Seq<String>> propertyValues = new ArrayList<>(specificOffsets.get().size());
-			for (Map.Entry<Integer, Long> entry : specificOffsets.get().entrySet()) {
-				List<String> partitionOffset = new ArrayList<>(2);
-				partitionOffset.add(entry.getKey().toString());
-				partitionOffset.add(entry.getValue().toString());
-				propertyValues.add(JavaConversions.asScalaBuffer(partitionOffset).toSeq());
+		if (topic != null) {
+			properties.putString(CONNECTOR_TOPIC, topic);
+		}
+
+		if (startupMode != null) {
+			properties.putString(CONNECTOR_STARTUP_MODE, KafkaValidator.normalizeStartupMode(startupMode));
+		}
+
+		if (specificOffsets != null) {
+			final List<List<String>> values = new ArrayList<>();
+			for (Map.Entry<Integer, Long> specificOffset : specificOffsets.entrySet()) {
+				values.add(Arrays.asList(specificOffset.getKey().toString(), specificOffset.getValue().toString()));
 			}
 			properties.putIndexedFixedProperties(
-					SPECIFIC_OFFSETS,
-					JavaConversions.asScalaBuffer(propertyKeys).toSeq(),
-					JavaConversions.asScalaBuffer(propertyValues).toSeq()
-			);
+				CONNECTOR_SPECIFIC_OFFSETS,
+				Arrays.asList(CONNECTOR_SPECIFIC_OFFSETS_PARTITION, CONNECTOR_SPECIFIC_OFFSETS_OFFSET),
+				values);
 		}
-		if (tableJsonMapping.isPresent()) {
-			List<String> propertyKeys = new ArrayList<>();
-			propertyKeys.add(TABLE_FIELD);
-			propertyKeys.add(JSON_FIELD);
 
-			List<Seq<String>> mappingFields = new ArrayList<>(tableJsonMapping.get().size());
-			for (Map.Entry<String, String> entry : tableJsonMapping.get().entrySet()) {
-				List<String> singleMapping = new ArrayList<>(2);
-				singleMapping.add(entry.getKey());
-				singleMapping.add(entry.getValue());
-				mappingFields.add(JavaConversions.asScalaBuffer(singleMapping).toSeq());
-			}
+		if (kafkaProperties != null) {
 			properties.putIndexedFixedProperties(
-					TABLE_JSON_MAPPING,
-					JavaConversions.asScalaBuffer(propertyKeys).toSeq(),
-					JavaConversions.asScalaBuffer(mappingFields).toSeq()
-			);
+				CONNECTOR_PROPERTIES,
+				Arrays.asList(CONNECTOR_PROPERTIES_KEY, CONNECTOR_PROPERTIES_VALUE),
+				this.kafkaProperties.entrySet().stream()
+					.map(e -> Arrays.asList(e.getKey(), e.getValue()))
+					.collect(Collectors.toList())
+				);
 		}
-	}
-
-	@Override
-	public boolean needsFormat() {
-		return true;
 	}
 }

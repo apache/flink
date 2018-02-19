@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_TYPE, CONNECTOR_VERSION}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_TYPE, CONNECTOR_PROPERTY_VERSION}
 
 /**
   * Validator for [[ConnectorDescriptor]].
@@ -27,13 +27,27 @@ class ConnectorDescriptorValidator extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
     properties.validateString(CONNECTOR_TYPE, isOptional = false, minLen = 1)
-    properties.validateInt(CONNECTOR_VERSION, isOptional = true, 0, Integer.MAX_VALUE)
+    properties.validateInt(CONNECTOR_PROPERTY_VERSION, isOptional = true, 0, Integer.MAX_VALUE)
   }
 }
 
 object ConnectorDescriptorValidator {
 
+  /**
+    * Key for describing the type of the connector. Usually used for factory discovery.
+    */
   val CONNECTOR_TYPE = "connector.type"
+
+  /**
+    * Key for describing the property version. This property can be used for backwards
+    * compatibility in case the property format changes.
+    */
+  val CONNECTOR_PROPERTY_VERSION = "connector.property-version"
+
+  /**
+    * Key for describing the version of the connector. This property can be used for different
+    * connector versions (e.g. Kafka 0.8 or Kafka 0.11).
+    */
   val CONNECTOR_VERSION = "connector.version"
 
 }

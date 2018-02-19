@@ -18,16 +18,36 @@
 
 package org.apache.flink.table.descriptors
 
+import java.util
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.api.{TableSchema, Types, ValidationException}
 import org.junit.Test
 
+import scala.collection.JavaConverters._
+
 class CsvTest extends DescriptorTestBase {
 
-  @Test
-  def testCsv(): Unit = {
-    val desc = Csv()
+  @Test(expected = classOf[ValidationException])
+  def testInvalidType(): Unit = {
+    addPropertyAndVerify(descriptors().get(0), "format.fields.0.type", "WHATEVER")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidField(): Unit = {
+    addPropertyAndVerify(descriptors().get(0), "format.fields.10.name", "WHATEVER")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidQuoteCharacter(): Unit = {
+    addPropertyAndVerify(descriptors().get(0), "format.quote-character", "qq")
+  }
+
+  // ----------------------------------------------------------------------------------------------
+
+  override def descriptors(): util.List[Descriptor] = {
+    val desc1 = Csv()
       .field("field1", "STRING")
       .field("field2", Types.SQL_TIMESTAMP)
       .field("field3", TypeExtractor.createTypeInfo(classOf[Class[_]]))
@@ -35,9 +55,21 @@ class CsvTest extends DescriptorTestBase {
         Array[String]("test", "row"),
         Array[TypeInformation[_]](Types.INT, Types.STRING)))
       .lineDelimiter("^")
-    val expected = Seq(
+
+    val desc2 = Csv()
+      .schema(new TableSchema(
+        Array[String]("test", "row"),
+        Array[TypeInformation[_]](Types.INT, Types.STRING)))
+      .quoteCharacter('#')
+      .ignoreFirstLine()
+
+    util.Arrays.asList(desc1, desc2)
+  }
+
+  override def properties(): util.List[util.Map[String, String]] = {
+    val props1 = Map(
       "format.type" -> "csv",
-      "format.version" -> "1",
+      "format.property-version" -> "1",
       "format.fields.0.name" -> "field1",
       "format.fields.0.type" -> "STRING",
       "format.fields.1.name" -> "field2",
@@ -47,53 +79,18 @@ class CsvTest extends DescriptorTestBase {
       "format.fields.3.name" -> "field4",
       "format.fields.3.type" -> "ROW(test INT, row VARCHAR)",
       "format.line-delimiter" -> "^")
-    verifyProperties(desc, expected)
-  }
 
-  @Test
-  def testCsvTableSchema(): Unit = {
-    val desc = Csv()
-      .schema(new TableSchema(
-        Array[String]("test", "row"),
-        Array[TypeInformation[_]](Types.INT, Types.STRING)))
-      .quoteCharacter('#')
-      .ignoreFirstLine()
-    val expected = Seq(
+    val props2 = Map(
       "format.type" -> "csv",
-      "format.version" -> "1",
+      "format.property-version" -> "1",
       "format.fields.0.name" -> "test",
       "format.fields.0.type" -> "INT",
       "format.fields.1.name" -> "row",
       "format.fields.1.type" -> "VARCHAR",
       "format.quote-character" -> "#",
       "format.ignore-first-line" -> "true")
-    verifyProperties(desc, expected)
-  }
 
-  @Test(expected = classOf[ValidationException])
-  def testInvalidType(): Unit = {
-    verifyInvalidProperty("format.fields.0.type", "WHATEVER")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidField(): Unit = {
-    verifyInvalidProperty("format.fields.10.name", "WHATEVER")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidQuoteCharacter(): Unit = {
-    verifyInvalidProperty("format.quote-character", "qq")
-  }
-
-  override def descriptor(): Descriptor = {
-    Csv()
-      .field("field1", "STRING")
-      .field("field2", Types.SQL_TIMESTAMP)
-      .field("field3", TypeExtractor.createTypeInfo(classOf[Class[_]]))
-      .field("field4", Types.ROW(
-        Array[String]("test", "row"),
-        Array[TypeInformation[_]](Types.INT, Types.STRING)))
-      .lineDelimiter("^")
+    util.Arrays.asList(props1.asJava, props2.asJava)
   }
 
   override def validator(): DescriptorValidator = {
