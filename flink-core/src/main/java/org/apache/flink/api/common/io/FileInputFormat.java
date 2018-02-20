@@ -39,6 +39,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -809,13 +810,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Opening input split " + fileSplit.getPath() + " [" + this.splitStart + "," + this.splitLength + "]");
 		}
-
-		if (!exists(fileSplit.getPath())) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Input split " + fileSplit.getPath() + " doesn't exist, skip and continue");
-			}
-			return;
-		}
 		
 		// open the split in an asynchronous thread
 		final InputSplitOpenThread isot = new InputSplitOpenThread(fileSplit, this.openTimeout);
@@ -824,6 +818,9 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		try {
 			this.stream = isot.waitForCompletion();
 			this.stream = decorateInputStream(this.stream, fileSplit);
+		}
+		catch (FileNotFoundException e) {
+			throw new FileNotFoundException("Input split " + fileSplit.getPath() + " doesn't exist, skip and continue");
 		}
 		catch (Throwable t) {
 			throw new IOException("Error opening the Input Split " + fileSplit.getPath() + 

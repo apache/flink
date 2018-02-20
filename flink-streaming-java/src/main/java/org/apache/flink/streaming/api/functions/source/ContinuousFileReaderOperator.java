@@ -39,6 +39,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -345,6 +346,10 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 						}
 					}
 				}
+
+			} catch (FileNotFoundException e) {
+
+				getContainingTask().handleAsyncException("Could not found split: " + currentSplit, e);
 
 			} catch (Throwable e) {
 
