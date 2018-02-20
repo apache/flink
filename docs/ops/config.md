@@ -88,11 +88,11 @@ Flink will use the environment variable `HADOOP_CLASSPATH` to augment the
 classpath that is used when starting Flink components such as the Client,
 JobManager, or TaskManager. Most Hadoop distributions and cloud environments
 will not set this variable by default so if the Hadoop classpath should be
-picked up by Flink the environment variable should be exported on all machines
+picked up by Flink the environment variable must be exported on all machines
 that are running Flink components.
 
 When running on YARN, this is usually not a problem because the components
-running inside YARN will be started with the Hadoop classpaths anyways but it
+running inside YARN will be started with the Hadoop classpaths, but it
 can happen that the Hadoop dependencies must be in the classpath when submitting
 a job to YARN. For this, it's usually enough to do a
 
