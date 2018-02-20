@@ -223,21 +223,18 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE)
 			);
 
-			((InternalValueState<String, Integer>) keyedState1).setCurrentNamespace(ns1);
-
 			for (int key = 0; key < namespace1ElementsNum; key++) {
 				backend.setCurrentKey(key);
 				keyedState1.update(key * 2);
 			}
 
+			final String ns2 = "ns2";
 			ValueState<Integer> keyedState2 = backend.getPartitionedState(
-				ns1,
+				ns2,
 				StringSerializer.INSTANCE,
 				new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE)
 			);
 
-			final String ns2 = "ns2";
-			((InternalValueState<String, Integer>) keyedState2).setCurrentNamespace(ns2);
 			for (int key = namespace1ElementsNum; key < namespace1ElementsNum + namespace2ElementsNum; key++) {
 				backend.setCurrentKey(key);
 				keyedState2.update(key * 2);
