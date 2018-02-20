@@ -207,8 +207,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		assertEquals(1, subpartition.getTotalNumberOfBuffers());
 		assertEquals(1, subpartition.getBuffersInBacklog());
-		// TODO: re-enable?
-//		assertEquals(BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
+		assertEquals(0, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 
 		// ...should have resulted in a notification
 		verify(listener, times(1)).notifyDataAvailable();
@@ -218,6 +217,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		BufferAndBacklog read = view.getNextBuffer();
 		assertNotNull(read);
 		assertTrue(read.buffer().isBuffer());
+		assertEquals(BUFFER_SIZE, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 		assertEquals(0, subpartition.getBuffersInBacklog());
 		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertFalse(read.nextBufferIsEvent());
@@ -231,14 +231,14 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		assertEquals(2, subpartition.getTotalNumberOfBuffers());
 		assertEquals(1, subpartition.getBuffersInBacklog());
-		// TODO: re-enable?
-//		assertEquals(2 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
+		assertEquals(BUFFER_SIZE, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 		verify(listener, times(2)).notifyDataAvailable();
 
 		assertFalse(view.nextBufferIsEvent());
 		read = view.getNextBuffer();
 		assertNotNull(read);
 		assertTrue(read.buffer().isBuffer());
+		assertEquals(2 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 		assertEquals(0, subpartition.getBuffersInBacklog());
 		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertFalse(read.nextBufferIsEvent());
@@ -258,14 +258,14 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		assertEquals(5, subpartition.getTotalNumberOfBuffers());
 		assertEquals(2, subpartition.getBuffersInBacklog()); // two buffers (events don't count)
-		// TODO: re-enable?
-//		assertEquals(5 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
+		assertEquals(2 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 		verify(listener, times(4)).notifyDataAvailable();
 
 		assertFalse(view.nextBufferIsEvent()); // the first buffer
 		read = view.getNextBuffer();
 		assertNotNull(read);
 		assertTrue(read.buffer().isBuffer());
+		assertEquals(3 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 		assertEquals(1, subpartition.getBuffersInBacklog());
 		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertTrue(read.nextBufferIsEvent());
@@ -274,6 +274,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		read = view.getNextBuffer();
 		assertNotNull(read);
 		assertFalse(read.buffer().isBuffer());
+		assertEquals(4 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 		assertEquals(1, subpartition.getBuffersInBacklog());
 		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertFalse(read.nextBufferIsEvent());
@@ -282,6 +283,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		read = view.getNextBuffer();
 		assertNotNull(read);
 		assertTrue(read.buffer().isBuffer());
+		assertEquals(5 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 		assertEquals(0, subpartition.getBuffersInBacklog());
 		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertFalse(read.nextBufferIsEvent());
@@ -473,6 +475,6 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 			Assert.fail("buffer 2 not recycled");
 		}
 		assertEquals(2, partition.getTotalNumberOfBuffers());
-		//assertEquals(2 * 4096, partition.getTotalNumberOfBytes());
+		assertEquals(0, partition.getTotalNumberOfBytes()); // buffer data is never consumed
 	}
 }

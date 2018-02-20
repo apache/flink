@@ -18,15 +18,17 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -115,6 +117,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 						checkState(bufferConsumer.isFinished(), "BufferConsumer must be finished before " +
 							"spilling. Otherwise we would not be able to simply remove it from the queue. This should " +
 							"be guaranteed by creating ResultSubpartitionView only once Subpartition isFinished.");
+						parent.updateStatistics(buffer);
 						spilledBytes += buffer.getSize();
 						spillWriter.writeBlock(buffer);
 					}
