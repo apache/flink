@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.messages.ConversionException;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -27,7 +28,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link JarIdPathParameter}.
  */
-public class JarIdPathParameterTest {
+public class JarIdPathParameterTest extends TestLogger {
 
 	private JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
 

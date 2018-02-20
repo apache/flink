@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -28,7 +29,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link JarDeleteHeaders}.
  */
-public class JarDeleteHeadersTest {
+public class JarDeleteHeadersTest extends TestLogger {
 
 	@Test
 	public void testUrl() {

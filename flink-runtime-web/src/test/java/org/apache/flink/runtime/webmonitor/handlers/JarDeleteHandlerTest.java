@@ -27,6 +27,7 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -53,7 +54,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Unit tests for {@link JarDeleteHandler}.
  */
-public class JarDeleteHandlerTest {
+public class JarDeleteHandlerTest extends TestLogger {
 
 	private static final String TEST_JAR_NAME = "test.jar";
 
