@@ -101,6 +101,11 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 		return session.executeAsync(mapper.saveQuery(value));
 	}
 
+	/**
+	 * This method examines the value of the "keyspace" portion of the {@link Table} annotation.  If this value is not set, it will be
+	 * 		populated with the provided defaultKeyspace property
+	 * @throws Exception
+	 */
 	private void applyDefaultKeyspace() throws Exception {
 		Annotation tableAnnotation = clazz.getAnnotation(Table.class);
 		Method keyspaceMethod = tableAnnotation.getClass().getDeclaredMethod("keyspace");
@@ -110,6 +115,9 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 			Field overwriteValue = keyspaceActualValue.getClass().getDeclaredField("value");
 			overwriteValue.setAccessible(true);
 			overwriteValue.set(keyspaceActualValue, defaultKeyspace.toCharArray());
+		} else {
+			String message = String.format("%s already has a defined keyspace. Did not write to provided default", clazz.getName());
+			log.warn(message);
 		}
 	}
 }
