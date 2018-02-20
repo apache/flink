@@ -22,9 +22,14 @@ import org.apache.flink.configuration.Configuration;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
+import com.datastax.driver.mapping.annotations.Table;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import javax.annotation.Nullable;
+
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 /**
  * Flink Sink to save data into a Cassandra cluster using
@@ -38,6 +43,7 @@ import javax.annotation.Nullable;
 public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 
 	private static final long serialVersionUID = 1L;
+	private String defaultKeyspace;
 
 	protected final Class<IN> clazz;
 	private final MapperOptions options;
@@ -59,11 +65,25 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 		this.options = options;
 	}
 
+	/**
+	 * Defines what a keyspace should be used in case the annotated POJO doesn't contain keyspace information.  This can be useful
+	 * 		for testing environment where multiple environments may be pointed to single Cassandra, differentiating only by keyspace.
+	 * @param defaultKeyspace
+	 * @return
+	 */
+	public CassandraPojoSink defaultKeyspace(String defaultKeyspace) {
+		this.defaultKeyspace = defaultKeyspace;
+		return this;
+	}
+
 	@Override
 	public void open(Configuration configuration) {
 		super.open(configuration);
 		try {
 			this.mappingManager = new MappingManager(session);
+			if (defaultKeyspace != null && !defaultKeyspace.isEmpty()) {
+				applyDefaultKeyspace();
+			}
 			this.mapper = mappingManager.mapper(clazz);
 			if (options != null) {
 				Mapper.Option[] optionsArray = options.getMapperOptions();
@@ -79,5 +99,17 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 	@Override
 	public ListenableFuture<ResultSet> send(IN value) {
 		return session.executeAsync(mapper.saveQuery(value));
+	}
+
+	private void applyDefaultKeyspace() throws Exception {
+		Annotation tableAnnotation = clazz.getAnnotation(Table.class);
+		Method keyspaceMethod = tableAnnotation.getClass().getDeclaredMethod("keyspace");
+		keyspaceMethod.setAccessible(true);
+		String keyspaceActualValue = (String) keyspaceMethod.invoke(tableAnnotation);
+		if (keyspaceActualValue == null || keyspaceActualValue.isEmpty()) {
+			Field overwriteValue = keyspaceActualValue.getClass().getDeclaredField("value");
+			overwriteValue.setAccessible(true);
+			overwriteValue.set(keyspaceActualValue, defaultKeyspace.toCharArray());
+		}
 	}
 }
