@@ -41,11 +41,8 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.util.XORShiftRandom;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -71,8 +68,6 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the {@link RecordWriter}.
  */
-@PrepareForTest({EventSerializer.class})
-@RunWith(PowerMockRunner.class)
 public class RecordWriterTest {
 
 	// ---------------------------------------------------------------------------------------------
