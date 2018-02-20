@@ -16,28 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.savepoints;
+package org.apache.flink.runtime.rest.handler.async;
 
-import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
-
-import static org.junit.Assert.fail;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.MessageParameters;
+import org.apache.flink.runtime.rest.messages.RequestBody;
 
 /**
- * Tests for {@link SavepointInfo}.
+ * Message headers for the triggering of an asynchronous operation.
+ *
+ * @param <R> type of the request
+ * @param <M> type of the message parameters
  */
-public class SavepointInfoTest extends TestLogger {
+public abstract class AsynchronousOperationTriggerMessageHeaders<R extends RequestBody, M extends MessageParameters>
+	implements MessageHeaders<R, TriggerResponse, M> {
 
-	@Test
-	public void testSetBothLocationAndFailureCause()  {
-		try {
-			new SavepointInfo(
-				"/tmp",
-				new SerializedThrowable(new RuntimeException()));
-			fail("Expected exception not thrown");
-		} catch (IllegalArgumentException e) {
-		}
+	@Override
+	public Class<TriggerResponse> getResponseClass() {
+		return TriggerResponse.class;
 	}
 }

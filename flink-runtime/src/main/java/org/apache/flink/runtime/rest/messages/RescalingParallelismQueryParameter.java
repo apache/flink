@@ -16,28 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.savepoints;
-
-import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
-
-import static org.junit.Assert.fail;
+package org.apache.flink.runtime.rest.messages;
 
 /**
- * Tests for {@link SavepointInfo}.
+ * Parallelism for the rescaling of jobs specified as a {@link MessageQueryParameter}.
  */
-public class SavepointInfoTest extends TestLogger {
+public class RescalingParallelismQueryParameter extends MessageQueryParameter<Integer> {
 
-	@Test
-	public void testSetBothLocationAndFailureCause()  {
-		try {
-			new SavepointInfo(
-				"/tmp",
-				new SerializedThrowable(new RuntimeException()));
-			fail("Expected exception not thrown");
-		} catch (IllegalArgumentException e) {
-		}
+	public static final String KEY = "parallelism";
+
+	public RescalingParallelismQueryParameter() {
+		super(KEY, MessageParameterRequisiteness.MANDATORY);
+	}
+
+	@Override
+	public Integer convertValueFromString(String value) {
+		return Integer.valueOf(value);
+	}
+
+	@Override
+	public String convertStringToValue(Integer value) {
+		return value.toString();
 	}
 }

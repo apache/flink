@@ -246,7 +246,7 @@ public class Checkpoints {
 		try (InputStream in = metadataHandle.openInputStream();
 			DataInputStream dis = new DataInputStream(in)) {
 
-				savepoint = loadCheckpointMetadata(dis, classLoader);
+			savepoint = loadCheckpointMetadata(dis, classLoader);
 		}
 
 		Exception exception = null;

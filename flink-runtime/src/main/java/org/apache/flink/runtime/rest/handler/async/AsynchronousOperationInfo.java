@@ -16,14 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.savepoints;
+package org.apache.flink.runtime.rest.handler.async;
 
-import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.json.SerializedThrowableDeserializer;
 import org.apache.flink.runtime.rest.messages.json.SerializedThrowableSerializer;
 import org.apache.flink.util.SerializedThrowable;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -31,49 +29,36 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
 
 import javax.annotation.Nullable;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-
 /**
- * Represents information about a finished savepoint.
+ * Basic information object for asynchronous operations.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class SavepointInfo implements ResponseBody {
-
-	private static final String FIELD_NAME_LOCATION = "location";
+public class AsynchronousOperationInfo {
 
 	private static final String FIELD_NAME_FAILURE_CAUSE = "failure-cause";
 
-	@JsonProperty(FIELD_NAME_LOCATION)
-	@Nullable
-	private final String location;
-
 	@JsonProperty(FIELD_NAME_FAILURE_CAUSE)
 	@JsonSerialize(using = SerializedThrowableSerializer.class)
-	@JsonDeserialize(using = SerializedThrowableDeserializer.class)
 	@Nullable
 	private final SerializedThrowable failureCause;
 
-	@JsonCreator
-	public SavepointInfo(
-			@JsonProperty(FIELD_NAME_LOCATION) @Nullable final String location,
-			@JsonProperty(FIELD_NAME_FAILURE_CAUSE)
-			@JsonDeserialize(using = SerializedThrowableDeserializer.class)
-			@Nullable final SerializedThrowable failureCause) {
-		checkArgument(
-			location != null ^ failureCause != null,
-			"Either location or failureCause must be set");
-
-		this.location = location;
+	private AsynchronousOperationInfo(
+		@JsonProperty(FIELD_NAME_FAILURE_CAUSE)
+		@JsonDeserialize(using = SerializedThrowableDeserializer.class)
+		@Nullable SerializedThrowable failureCause) {
 		this.failureCause = failureCause;
-	}
-
-	@Nullable
-	public String getLocation() {
-		return location;
 	}
 
 	@Nullable
 	public SerializedThrowable getFailureCause() {
 		return failureCause;
+	}
+
+	public static AsynchronousOperationInfo completeExceptional(SerializedThrowable serializedThrowable) {
+		return new AsynchronousOperationInfo(serializedThrowable);
+	}
+
+	public static AsynchronousOperationInfo complete() {
+		return new AsynchronousOperationInfo(null);
 	}
 }

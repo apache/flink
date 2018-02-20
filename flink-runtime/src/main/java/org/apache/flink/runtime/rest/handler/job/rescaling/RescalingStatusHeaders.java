@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.savepoints;
+package org.apache.flink.runtime.rest.handler.job.rescaling;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationInfo;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationStatusMessageHeaders;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
@@ -27,19 +28,23 @@ import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * These headers define the protocol for triggering a savepoint.
+ * Message headers for polling the status of an ongoing rescaling operation.
  */
-public class SavepointStatusHeaders
-		extends AsynchronousOperationStatusMessageHeaders<SavepointInfo, SavepointStatusMessageParameters> {
+public class RescalingStatusHeaders extends
+	AsynchronousOperationStatusMessageHeaders<AsynchronousOperationInfo, RescalingStatusMessageParameters> {
 
-	private static final SavepointStatusHeaders INSTANCE = new SavepointStatusHeaders();
+	private static final RescalingStatusHeaders INSTANCE = new RescalingStatusHeaders();
 
 	private static final String URL = String.format(
-		"/jobs/:%s/savepoints/:%s",
+		"/jobs/:%s/rescaling/:%s",
 		JobIDPathParameter.KEY,
 		TriggerIdPathParameter.KEY);
 
-	private SavepointStatusHeaders() {
+	private RescalingStatusHeaders() {}
+
+	@Override
+	protected Class<AsynchronousOperationInfo> getValueClass() {
+		return AsynchronousOperationInfo.class;
 	}
 
 	@Override
@@ -53,8 +58,8 @@ public class SavepointStatusHeaders
 	}
 
 	@Override
-	public SavepointStatusMessageParameters getUnresolvedMessageParameters() {
-		return new SavepointStatusMessageParameters();
+	public RescalingStatusMessageParameters getUnresolvedMessageParameters() {
+		return new RescalingStatusMessageParameters();
 	}
 
 	@Override
@@ -67,12 +72,7 @@ public class SavepointStatusHeaders
 		return URL;
 	}
 
-	public static SavepointStatusHeaders getInstance() {
+	public static RescalingStatusHeaders getInstance() {
 		return INSTANCE;
-	}
-
-	@Override
-	protected Class<SavepointInfo> getValueClass() {
-		return SavepointInfo.class;
 	}
 }

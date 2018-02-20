@@ -73,6 +73,34 @@ public interface JobMasterGateway extends
 	CompletableFuture<Acknowledge> stop(@RpcTimeout Time timeout);
 
 	/**
+	 * Triggers rescaling of the executed job.
+	 *
+	 * @param newParallelism new parallelism of the job
+	 * @param rescalingBehaviour defining how strict the rescaling has to be executed
+	 * @param timeout of this operation
+	 * @return Future which is completed with {@link Acknowledge} once the rescaling was successful
+	 */
+	CompletableFuture<Acknowledge> rescaleJob(
+		int newParallelism,
+		RescalingBehaviour rescalingBehaviour,
+		@RpcTimeout Time timeout);
+
+	/**
+	 * Triggers rescaling of the given set of operators.
+	 *
+	 * @param operators set of operators which shall be rescaled
+	 * @param newParallelism new parallelism of the given set of operators
+	 * @param rescalingBehaviour defining how strict the rescaling has to be executed
+	 * @param timeout of this operation
+	 * @return Future which is completed with {@link Acknowledge} once the rescaling was successful
+	 */
+	CompletableFuture<Acknowledge> rescaleOperators(
+		Collection<JobVertexID> operators,
+		int newParallelism,
+		RescalingBehaviour rescalingBehaviour,
+		@RpcTimeout Time timeout);
+
+	/**
 	 * Updates the task execution state for a given task.
 	 *
 	 * @param taskExecutionState New task execution state for a given task
