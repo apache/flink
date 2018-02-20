@@ -1099,7 +1099,7 @@ public class CliFrontend {
 					configurationDirectory,
 					"y",
 					"yarn"));
-		} catch (Exception e) {
+		} catch (NoClassDefFoundError | Exception e) {
 			LOG.warn("Could not load CLI class {}.", flinkYarnSessionCLI, e);
 		}
 
