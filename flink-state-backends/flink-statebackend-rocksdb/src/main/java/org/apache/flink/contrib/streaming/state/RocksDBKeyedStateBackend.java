@@ -2080,9 +2080,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 								inputStream,
 								dataInput,
 								ambiguousKeyPossible);
-							if (dataInput.available() == namespaceBytesLength) {
-								nextKey = value;
-							}
+							nextKey = value;
 						}
 					}
 					iterator.next();
