@@ -82,6 +82,26 @@ prefix that is checked against the fully qualified class name. By default, this 
 If you want to change this setting you have to make sure to also include the default patterns in
 your list of patterns if you want to keep that default behaviour.
 
+## Configuring Flink with Hadoop Classpaths
+
+Flink will use the environment variable `HADOOP_CLASSPATH` to augment the
+classpath that is used when starting Flink components such as the Client,
+JobManager, or TaskManager. Most Hadoop distributions and cloud environments
+will not set this variable by default so if the Hadoop classpath should be
+picked up by Flink the environment variable should be exported on all machines
+that are running Flink components.
+
+When running on YARN, this is usually not a problem because the components
+running inside YARN will be started with the Hadoop classpaths anyways but it
+can happen that the Hadoop dependencies must be in the classpath when submitting
+a job to YARN. For this, it's usually enough to do a
+
+```
+export HADOOP_CLASSPATH=`hadoop classpath`
+```
+
+in the shell.
+
 ## Advanced Options
 
 ### Compute
