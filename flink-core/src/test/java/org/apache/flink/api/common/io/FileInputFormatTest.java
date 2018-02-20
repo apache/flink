@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.types.IntValue;
@@ -362,13 +363,22 @@ public class FileInputFormatTest {
 	@Test
 	public void testGetStatisticsMultipleFilesWithCachedVersion() {
 		try {
+			FileSystem fs = FileSystem.getLocalFileSystem();
+
 			final long SIZE1 = 2077;
 			final long SIZE2 = 31909;
 			final long SIZE3 = 10;
 			final long TOTAL = SIZE1 + SIZE2 + SIZE3;
 			final long FAKE_SIZE = 10065;
 			
-			String tempDir = TestFileUtils.createTempFileDir(SIZE1, SIZE2, SIZE3);
+			File tempDirFile = temporaryFolder.newFolder();
+			String tempDir = tempDirFile.getAbsolutePath();
+			String f1 = TestFileUtils.createTempFileInDirectory(tempDir, SIZE1);
+			long modTime1 = fs.getFileStatus(new Path(f1)).getModificationTime();
+			String f2 = TestFileUtils.createTempFileInDirectory(tempDir, SIZE2);
+			long modTime2 = fs.getFileStatus(new Path(f2)).getModificationTime();
+			String f3 = TestFileUtils.createTempFileInDirectory(tempDir, SIZE3);
+			long modTime3 = fs.getFileStatus(new Path(f3)).getModificationTime();
 			
 			DummyFileInputFormat format = new DummyFileInputFormat();
 			format.setFilePath(tempDir);
@@ -398,7 +408,7 @@ public class FileInputFormatTest {
 			format.setFilePath(tempDir);
 			format.configure(new Configuration());
 			
-			FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime() - 1, FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+			FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(Math.min(Math.min(modTime1, modTime2), modTime3) - 1, FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 			BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
 			Assert.assertEquals("The file size from the statistics is wrong.", TOTAL, reGathered.getTotalInputSize());
 			
@@ -463,12 +473,16 @@ public class FileInputFormatTest {
 	
 	@Test
 	public void testGetStatisticsMultipleOneFileWithCachedVersion() throws IOException {
+		FileSystem fs = FileSystem.getLocalFileSystem();
+
 		final long size1 = 50873;
 		final long fakeSize = 10065;
 		String tempFile1 = TestFileUtils.createTempFile(size1);
+		final long lastModTime1 = fs.getFileStatus(new Path(tempFile1)).getModificationTime();
 
 		final long size2 = 52573;
 		String tempFile2 = TestFileUtils.createTempFile(size2);
+		final long lastModTime2 = fs.getFileStatus(new Path(tempFile2)).getModificationTime();
 
 		final long sizeTotal = size1 + size2;
 		
@@ -500,7 +514,7 @@ public class FileInputFormatTest {
 		format.setFilePaths(tempFile1, tempFile2);
 		format.configure(new Configuration());
 		
-		FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime() - 1, fakeSize, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+		FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(Math.min(lastModTime1, lastModTime2) - 1, fakeSize, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 		BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
 		Assert.assertEquals("The file size from the statistics is wrong.", sizeTotal, reGathered.getTotalInputSize());
 	}
