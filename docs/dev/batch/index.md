@@ -809,9 +809,9 @@ shortcut methods on the *ExecutionEnvironment*.
 
 File-based:
 
-- `readTextFile(path)` / `TextInputFormat` - Reads files line wise and returns them as Strings.
+- `readTextFile(path, charsetName)` / `TextInputFormat` - Reads files line wise and returns them as Strings.
 
-- `readTextFileWithValue(path)` / `TextValueInputFormat` - Reads files line wise and returns them as
+- `readTextFileWithValue(path, charsetName)` / `TextValueInputFormat` - Reads files line wise and returns them as
   StringValues. StringValues are mutable strings.
 
 - `readCsvFile(path)` / `CsvInputFormat` - Parses files of comma (or another char) delimited fields.
@@ -860,10 +860,10 @@ Generic:
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 // read text file from local files system
-DataSet<String> localLines = env.readTextFile("file:///path/to/my/textfile");
+DataSet<String> localLines = env.readTextFile("file:///path/to/my/textfile", "utf-8");
 
 // read text file from a HDFS running at nnHost:nnPort
-DataSet<String> hdfsLines = env.readTextFile("hdfs://nnHost:nnPort/path/to/my/textfile");
+DataSet<String> hdfsLines = env.readTextFile("hdfs://nnHost:nnPort/path/to/my/textfile", "utf-8");
 
 // read a CSV file with three fields
 DataSet<Tuple3<Integer, String, Double>> csvInput = env.readCsvFile("hdfs:///the/CSV/file")
@@ -946,7 +946,7 @@ Configuration parameters = new Configuration();
 parameters.setBoolean("recursive.file.enumeration", true);
 
 // pass the configuration to the data source
-DataSet<String> logs = env.readTextFile("file:///path/with.nested/files")
+DataSet<String> logs = env.readTextFile("file:///path/with.nested/files", "utf-8")
 			  .withParameters(parameters);
 {% endhighlight %}
 
@@ -962,9 +962,9 @@ shortcut methods on the *ExecutionEnvironment*.
 
 File-based:
 
-- `readTextFile(path)` / `TextInputFormat` - Reads files line wise and returns them as Strings.
+- `readTextFile(path, charsetName)` / `TextInputFormat` - Reads files line wise and returns them as Strings.
 
-- `readTextFileWithValue(path)` / `TextValueInputFormat` - Reads files line wise and returns them as
+- `readTextFileWithValue(path, charsetName)` / `TextValueInputFormat` - Reads files line wise and returns them as
   StringValues. StringValues are mutable strings.
 
 - `readCsvFile(path)` / `CsvInputFormat` - Parses files of comma (or another char) delimited fields.
@@ -1009,10 +1009,10 @@ Generic:
 val env  = ExecutionEnvironment.getExecutionEnvironment
 
 // read text file from local files system
-val localLines = env.readTextFile("file:///path/to/my/textfile")
+val localLines = env.readTextFile("file:///path/to/my/textfile", "utf-8")
 
 // read text file from a HDFS running at nnHost:nnPort
-val hdfsLines = env.readTextFile("hdfs://nnHost:nnPort/path/to/my/textfile")
+val hdfsLines = env.readTextFile("hdfs://nnHost:nnPort/path/to/my/textfile", "utf-8")
 
 // read a CSV file with three fields
 val csvInput = env.readCsvFile[(Int, String, Double)]("hdfs:///the/CSV/file")
@@ -1084,7 +1084,7 @@ val parameters = new Configuration
 parameters.setBoolean("recursive.file.enumeration", true)
 
 // pass the configuration to the data source
-env.readTextFile("file:///path/with.nested/files").withParameters(parameters)
+env.readTextFile("file:///path/with.nested/files", "utf-8").withParameters(parameters)
 {% endhighlight %}
 
 </div>
@@ -1679,7 +1679,7 @@ A LocalEnvironment is created and used as follows:
 {% highlight java %}
 final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 
-DataSet<String> lines = env.readTextFile(pathToTextFile);
+DataSet<String> lines = env.readTextFile(pathToTextFile, charsetName);
 // build your program
 
 env.execute();
@@ -1690,7 +1690,7 @@ env.execute();
 {% highlight scala %}
 val env = ExecutionEnvironment.createLocalEnvironment()
 
-val lines = env.readTextFile(pathToTextFile)
+val lines = env.readTextFile(pathToTextFile, charsetName)
 // build your program
 
 env.execute()

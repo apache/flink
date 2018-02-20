@@ -153,7 +153,7 @@ There are several predefined stream sources accessible from the `StreamExecution
 
 File-based:
 
-- `readTextFile(path)` - Reads text files, i.e. files that respect the `TextInputFormat` specification, line-by-line and returns them as Strings.
+- `readTextFile(path, charsetName)` - Reads text files, i.e. files that respect the `TextInputFormat` specification, line-by-line and returns them as Strings.
 
 - `readFile(fileInputFormat, path)` - Reads (once) files as dictated by the specified file input format.
 
@@ -211,7 +211,7 @@ There are several predefined stream sources accessible from the `StreamExecution
 
 File-based:
 
-- `readTextFile(path)` - Reads text files, i.e. files that respect the `TextInputFormat` specification, line-by-line and returns them as Strings.
+- `readTextFile(path, charsetName)` - Reads text files, i.e. files that respect the `TextInputFormat` specification, line-by-line and returns them as Strings.
 
 - `readFile(fileInputFormat, path)` - Reads (once) files as dictated by the specified file input format.
 

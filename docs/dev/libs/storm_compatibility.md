@@ -147,7 +147,7 @@ The generic type declarations `IN` and `OUT` specify the type of the operator's 
 <div data-lang="java" markdown="1">
 ~~~java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-DataStream<String> text = env.readTextFile(localFilePath);
+DataStream<String> text = env.readTextFile(localFilePath, "utf-8");
 
 DataStream<Tuple2<String, Integer>> counts = text.transform(
 	"tokenizer", // operator name
