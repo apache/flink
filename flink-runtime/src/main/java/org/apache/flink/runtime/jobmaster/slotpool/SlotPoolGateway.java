@@ -38,7 +38,7 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The gateway for calls on the {@link SlotPool}. 
+ * The gateway for calls on the {@link SlotPool}.
  */
 public interface SlotPoolGateway extends AllocatedSlotActions, RpcGateway {
 
@@ -55,7 +55,7 @@ public interface SlotPoolGateway extends AllocatedSlotActions, RpcGateway {
 	/**
 	 * Connects the SlotPool to the given ResourceManager. After this method is called, the
 	 * SlotPool will be able to request resources from the given ResourceManager.
-	 * 
+	 *
 	 * @param resourceManagerGateway  The RPC gateway for the resource manager.
 	 */
 	void connectToResourceManager(ResourceManagerGateway resourceManagerGateway);
@@ -64,7 +64,7 @@ public interface SlotPoolGateway extends AllocatedSlotActions, RpcGateway {
 	 * Disconnects the slot pool from its current Resource Manager. After this call, the pool will not
 	 * be able to request further slots from the Resource Manager, and all currently pending requests
 	 * to the resource manager will be canceled.
-	 * 
+	 *
 	 * <p>The slot pool will still be able to serve slots from its internal pool.
 	 */
 	void disconnectResourceManager();
@@ -147,7 +147,7 @@ public interface SlotPoolGateway extends AllocatedSlotActions, RpcGateway {
 	 * @param locationPreferences which define where the allocated slot should be placed, this can also be empty
 	 * @param allowQueuedScheduling true if the slot request can be queued (e.g. the returned future must not be completed)
 	 * @param timeout for the operation
-	 * @return
+	 * @return Future which is completed with the allocated {@link LogicalSlot}
 	 */
 	CompletableFuture<LogicalSlot> allocateSlot(
 			SlotRequestId slotRequestId,
