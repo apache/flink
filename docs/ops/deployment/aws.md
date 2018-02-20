@@ -78,7 +78,7 @@ The endpoint can either be a single file or a directory, for example:
 
 ```java
 // Read from S3 bucket
-env.readTextFile("s3://<bucket>/<endpoint>", "utf-8");
+env.readTextFile("s3://<bucket>/<endpoint>", StandardCharsets.UTF_8.name());
 
 // Write to S3 bucket
 stream.writeAsText("s3://<bucket>/<endpoint>");

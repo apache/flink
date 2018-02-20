@@ -860,10 +860,10 @@ Generic:
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 // read text file from local files system
-DataSet<String> localLines = env.readTextFile("file:///path/to/my/textfile", "utf-8");
+DataSet<String> localLines = env.readTextFile("file:///path/to/my/textfile", StandardCharsets.UTF_8.name());
 
 // read text file from a HDFS running at nnHost:nnPort
-DataSet<String> hdfsLines = env.readTextFile("hdfs://nnHost:nnPort/path/to/my/textfile", "utf-8");
+DataSet<String> hdfsLines = env.readTextFile("hdfs://nnHost:nnPort/path/to/my/textfile", StandardCharsets.UTF_8.name());
 
 // read a CSV file with three fields
 DataSet<Tuple3<Integer, String, Double>> csvInput = env.readCsvFile("hdfs:///the/CSV/file")
@@ -946,7 +946,7 @@ Configuration parameters = new Configuration();
 parameters.setBoolean("recursive.file.enumeration", true);
 
 // pass the configuration to the data source
-DataSet<String> logs = env.readTextFile("file:///path/with.nested/files", "utf-8")
+DataSet<String> logs = env.readTextFile("file:///path/with.nested/files", StandardCharsets.UTF_8.name())
 			  .withParameters(parameters);
 {% endhighlight %}
 
@@ -1009,10 +1009,10 @@ Generic:
 val env  = ExecutionEnvironment.getExecutionEnvironment
 
 // read text file from local files system
-val localLines = env.readTextFile("file:///path/to/my/textfile", "utf-8")
+val localLines = env.readTextFile("file:///path/to/my/textfile", StandardCharsets.UTF_8.name())
 
 // read text file from a HDFS running at nnHost:nnPort
-val hdfsLines = env.readTextFile("hdfs://nnHost:nnPort/path/to/my/textfile", "utf-8")
+val hdfsLines = env.readTextFile("hdfs://nnHost:nnPort/path/to/my/textfile", StandardCharsets.UTF_8.name())
 
 // read a CSV file with three fields
 val csvInput = env.readCsvFile[(Int, String, Double)]("hdfs:///the/CSV/file")
@@ -1084,7 +1084,7 @@ val parameters = new Configuration
 parameters.setBoolean("recursive.file.enumeration", true)
 
 // pass the configuration to the data source
-env.readTextFile("file:///path/with.nested/files", "utf-8").withParameters(parameters)
+env.readTextFile("file:///path/with.nested/files", StandardCharsets.UTF_8.name()).withParameters(parameters)
 {% endhighlight %}
 
 </div>

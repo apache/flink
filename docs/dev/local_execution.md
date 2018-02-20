@@ -63,7 +63,7 @@ In most cases, calling `ExecutionEnvironment.getExecutionEnvironment()` is the e
 public static void main(String[] args) throws Exception {
     ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 
-    DataSet<String> data = env.readTextFile("file:///path/to/file", "utf-8");
+    DataSet<String> data = env.readTextFile("file:///path/to/file", StandardCharsets.UTF_8.name());
 
     data
         .filter(new FilterFunction<String>() {

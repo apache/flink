@@ -64,7 +64,7 @@ public static void main(String[] args) throws Exception {
     ExecutionEnvironment env = ExecutionEnvironment
         .createRemoteEnvironment("flink-master", 6123, "/home/user/udfs.jar");
 
-    DataSet<String> data = env.readTextFile("hdfs://path/to/file", "utf-8");
+    DataSet<String> data = env.readTextFile("hdfs://path/to/file", StandardCharsets.UTF_8.name());
 
     data
         .filter(new FilterFunction<String>() {

@@ -68,7 +68,7 @@ WordCount is the "Hello World" of Big Data processing systems. It computes the f
 ~~~java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-DataSet<String> text = env.readTextFile("/path/to/file", "utf-8");
+DataSet<String> text = env.readTextFile("/path/to/file", StandardCharsets.UTF_8.name());
 
 DataSet<Tuple2<String, Integer>> counts =
         // split up the lines in pairs (2-tuples) containing: (word,1)
@@ -106,7 +106,7 @@ The {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/fli
 val env = ExecutionEnvironment.getExecutionEnvironment
 
 // get input data
-val text = env.readTextFile("/path/to/file", "utf-8")
+val text = env.readTextFile("/path/to/file", StandardCharsets.UTF_8.name())
 
 val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
   .map { (_, 1) }

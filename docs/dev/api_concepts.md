@@ -112,7 +112,7 @@ a text file as a sequence of lines, you can use:
 {% highlight java %}
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-DataStream<String> text = env.readTextFile("file:///path/to/file", "utf-8");
+DataStream<String> text = env.readTextFile("file:///path/to/file", StandardCharsets.UTF_8.name());
 {% endhighlight %}
 
 This will give you a DataStream on which you can then apply transformations to create new
@@ -181,7 +181,7 @@ a text file as a sequence of lines, you can use:
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 
-val text: DataStream[String] = env.readTextFile("file:///path/to/file", "utf-8")
+val text: DataStream[String] = env.readTextFile("file:///path/to/file", StandardCharsets.UTF_8.name())
 {% endhighlight %}
 
 This will give you a DataStream on which you can then apply transformations to create new
