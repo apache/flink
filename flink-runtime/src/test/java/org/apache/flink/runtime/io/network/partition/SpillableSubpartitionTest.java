@@ -227,7 +227,6 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertTrue(read.buffer().isBuffer());
 		assertEquals(2, partition.getBuffersInBacklog());
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
-		assertNotSame(bufferConsumer, read);
 		assertFalse(read.buffer().isRecycled());
 		read.buffer().recycleBuffer();
 		assertTrue(read.buffer().isRecycled());
@@ -239,7 +238,6 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertTrue(read.buffer().isBuffer());
 		assertEquals(1, partition.getBuffersInBacklog());
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
-		assertNotSame(bufferConsumer, read);
 		assertFalse(read.buffer().isRecycled());
 		read.buffer().recycleBuffer();
 		assertTrue(read.buffer().isRecycled());

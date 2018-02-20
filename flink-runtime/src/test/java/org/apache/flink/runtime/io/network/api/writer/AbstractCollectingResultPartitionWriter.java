@@ -76,7 +76,7 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 			Buffer buffer = bufferConsumer.build();
 			try {
 				deserializeBuffer(buffer);
-				if (!bufferConsumers.peek().isFinished()) {
+				if (!bufferConsumer.isFinished()) {
 					break;
 				}
 				bufferConsumers.pop().close();
