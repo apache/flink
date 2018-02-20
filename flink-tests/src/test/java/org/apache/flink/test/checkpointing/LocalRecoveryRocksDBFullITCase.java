@@ -18,33 +18,16 @@
 
 package org.apache.flink.test.checkpointing;
 
+import static org.apache.flink.runtime.state.LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED;
+import static org.apache.flink.test.checkpointing.AbstractEventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_FULLY_ASYNC;
+
 /**
- * Integration tests for incremental RocksDB backend.
+ * Tests file-based local recovery with the RocksDB state-backend.
  */
-public class IncrementalRocksDbBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
-
-	@Override
-	protected StateBackendEnum getStateBackend() {
-		return StateBackendEnum.ROCKSDB_INCREMENTAL;
-	}
-
-	@Override
-	protected int numElementsPerKey() {
-		return 3000;
-	}
-
-	@Override
-	protected int windowSize() {
-		return 1000;
-	}
-
-	@Override
-	protected int windowSlide() {
-		return 100;
-	}
-
-	@Override
-	protected int numKeys() {
-		return 100;
+public class LocalRecoveryRocksDBFullITCase extends AbstractLocalRecoveryITCase {
+	public LocalRecoveryRocksDBFullITCase() {
+		super(
+			ROCKSDB_FULLY_ASYNC,
+			ENABLE_FILE_BASED);
 	}
 }

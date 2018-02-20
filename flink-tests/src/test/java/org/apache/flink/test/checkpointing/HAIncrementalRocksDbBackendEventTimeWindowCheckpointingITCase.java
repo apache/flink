@@ -23,8 +23,9 @@ package org.apache.flink.test.checkpointing;
  */
 public class HAIncrementalRocksDbBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
 
-	public HAIncrementalRocksDbBackendEventTimeWindowCheckpointingITCase() {
-		super(StateBackendEnum.ROCKSDB_INCREMENTAL_ZK);
+	@Override
+	protected StateBackendEnum getStateBackend() {
+		return StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
 	}
 
 	@Override
