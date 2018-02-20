@@ -16,28 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.savepoints;
+package org.apache.flink.util.function;
 
-import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
-
-import static org.junit.Assert.fail;
+import java.util.function.BiConsumer;
 
 /**
- * Tests for {@link SavepointInfo}.
+ * A checked extension of the {@link BiConsumer} interface.
+ *
+ * @param <T> type of the first argument
+ * @param <U> type of the second argument
+ * @param <E> type of the thrown exception
  */
-public class SavepointInfoTest extends TestLogger {
+@FunctionalInterface
+public interface BiConsumerWithException<T, U, E extends Throwable> extends BiConsumer<T, U> {
 
-	@Test
-	public void testSetBothLocationAndFailureCause()  {
+	/**
+	 * Performs this operation on the given arguments.
+	 *
+	 * @param t the first input argument
+	 * @param u the second input argument
+	 * @throws E in case of an error
+	 */
+	void acceptWithException(T t, U u) throws E;
+
+	@Override
+	default void accept(T t, U u) {
 		try {
-			new SavepointInfo(
-				"/tmp",
-				new SerializedThrowable(new RuntimeException()));
-			fail("Expected exception not thrown");
-		} catch (IllegalArgumentException e) {
+			acceptWithException(t, u);
+		} catch (Throwable e) {
+			throw new RuntimeException(e);
 		}
 	}
 }

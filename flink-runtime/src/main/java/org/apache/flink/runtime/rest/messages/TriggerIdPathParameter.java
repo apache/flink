@@ -16,28 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.savepoints;
-
-import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
-
-import static org.junit.Assert.fail;
+package org.apache.flink.runtime.rest.messages;
 
 /**
- * Tests for {@link SavepointInfo}.
+ * {@link MessagePathParameter} for the trigger id of an asynchronous operation.
  */
-public class SavepointInfoTest extends TestLogger {
+public class TriggerIdPathParameter extends MessagePathParameter<TriggerId> {
 
-	@Test
-	public void testSetBothLocationAndFailureCause()  {
-		try {
-			new SavepointInfo(
-				"/tmp",
-				new SerializedThrowable(new RuntimeException()));
-			fail("Expected exception not thrown");
-		} catch (IllegalArgumentException e) {
-		}
+	public static final String KEY = "triggerid";
+
+	public TriggerIdPathParameter() {
+		super(KEY);
+	}
+
+	@Override
+	protected TriggerId convertFromString(String value) throws ConversionException {
+		return TriggerId.fromHexString(value);
+	}
+
+	@Override
+	protected String convertToString(TriggerId value) {
+		return value.toString();
 	}
 }

@@ -16,28 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.savepoints;
+package org.apache.flink.runtime.rest.handler.job;
 
-import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.runtime.rest.messages.JobMessageParameters;
+import org.apache.flink.runtime.rest.messages.MessagePathParameter;
+import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 
-import org.junit.Test;
-
-import static org.junit.Assert.fail;
+import java.util.Arrays;
+import java.util.Collection;
 
 /**
- * Tests for {@link SavepointInfo}.
+ * Message headers for the {@link RescalingHandlers.RescalingStatusHandler}.
  */
-public class SavepointInfoTest extends TestLogger {
+public class RescalingStatusMessageParameters extends JobMessageParameters {
 
-	@Test
-	public void testSetBothLocationAndFailureCause()  {
-		try {
-			new SavepointInfo(
-				"/tmp",
-				new SerializedThrowable(new RuntimeException()));
-			fail("Expected exception not thrown");
-		} catch (IllegalArgumentException e) {
-		}
+	public final TriggerIdPathParameter triggerIdPathParameter = new TriggerIdPathParameter();
+
+	@Override
+	public Collection<MessagePathParameter<?>> getPathParameters() {
+		return Arrays.asList(jobPathParameter, triggerIdPathParameter);
 	}
 }

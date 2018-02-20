@@ -16,28 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.savepoints;
+package org.apache.flink.runtime.jobmaster.exceptions;
 
-import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
-
-import static org.junit.Assert.fail;
+import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.util.FlinkException;
 
 /**
- * Tests for {@link SavepointInfo}.
+ * Base class for all {@link JobMaster} related exceptions.
  */
-public class SavepointInfoTest extends TestLogger {
+public class JobMasterException extends FlinkException {
+	private static final long serialVersionUID = 2941885469739200908L;
 
-	@Test
-	public void testSetBothLocationAndFailureCause()  {
-		try {
-			new SavepointInfo(
-				"/tmp",
-				new SerializedThrowable(new RuntimeException()));
-			fail("Expected exception not thrown");
-		} catch (IllegalArgumentException e) {
-		}
+	public JobMasterException(String message) {
+		super(message);
+	}
+
+	public JobMasterException(Throwable cause) {
+		super(cause);
+	}
+
+	public JobMasterException(String message, Throwable cause) {
+		super(message, cause);
 	}
 }

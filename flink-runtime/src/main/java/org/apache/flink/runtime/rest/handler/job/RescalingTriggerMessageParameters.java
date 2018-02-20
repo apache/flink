@@ -16,28 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.handler.job;
 
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerId;
+import org.apache.flink.runtime.rest.messages.JobMessageParameters;
+import org.apache.flink.runtime.rest.messages.MessageParameters;
+import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+import org.apache.flink.runtime.rest.messages.RescalingParallelismQueryParameter;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * Path parameter identifying savepoint trigger requests.
+ * {@link MessageParameters} for triggering the rescaling of a job.
  */
-public class SavepointTriggerIdPathParameter extends MessagePathParameter<SavepointTriggerId> {
+public class RescalingTriggerMessageParameters extends JobMessageParameters {
 
-	public static final String KEY = "savepointtriggerid";
-
-	public SavepointTriggerIdPathParameter() {
-		super(KEY);
-	}
+	public final RescalingParallelismQueryParameter rescalingParallelismQueryParameter = new RescalingParallelismQueryParameter();
 
 	@Override
-	protected SavepointTriggerId convertFromString(String value) {
-		return SavepointTriggerId.fromHexString(value);
-	}
-
-	@Override
-	protected String convertToString(SavepointTriggerId value) {
-		return value.toString();
+	public Collection<MessageQueryParameter<?>> getQueryParameters() {
+		return Collections.singleton(rescalingParallelismQueryParameter);
 	}
 }

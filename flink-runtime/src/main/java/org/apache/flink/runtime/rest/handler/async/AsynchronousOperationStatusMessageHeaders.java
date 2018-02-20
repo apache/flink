@@ -16,35 +16,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.savepoints;
+package org.apache.flink.runtime.rest.handler.async;
 
-import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
-import org.apache.flink.runtime.rest.messages.MessagePathParameter;
-import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
-import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
 /**
- * The parameters for triggering a savepoint.
+ * Message headers for the status polling of an asynchronous operation.
+ *
+ * @param <V> type of the operation result
+ * @param <M> type of the message parameters
  */
-public class SavepointStatusMessageParameters extends MessageParameters {
+public abstract class AsynchronousOperationStatusMessageHeaders<V, M extends MessageParameters> implements MessageHeaders<EmptyRequestBody, AsynchronousOperationResult<V>, M> {
 
-	public final JobIDPathParameter jobIdPathParameter = new JobIDPathParameter();
-
-	public final TriggerIdPathParameter triggerIdPathParameter = new TriggerIdPathParameter();
+	/**
+	 * Returns the class of the value wrapped in the {@link AsynchronousOperationResult}.
+	 *
+	 * @return value class
+	 */
+	protected abstract Class<V> getValueClass();
 
 	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.unmodifiableCollection(
-			Arrays.asList(jobIdPathParameter, triggerIdPathParameter));
+	public Class<AsynchronousOperationResult<V>> getResponseClass() {
+		return (Class<AsynchronousOperationResult<V>>) (Class<?>) AsynchronousOperationResult.class;
 	}
 
 	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptyList();
+	public Collection<Class<?>> getResponseTypeParameters() {
+		return Collections.singleton(getValueClass());
 	}
 }
