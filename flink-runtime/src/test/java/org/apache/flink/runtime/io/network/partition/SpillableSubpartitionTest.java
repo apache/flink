@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsyncWithNoOpBufferFileWriter;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
@@ -40,12 +41,14 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -698,6 +701,24 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(createView ? 3 : 2, partition.getTotalNumberOfBuffers());
 		//TODO: re-enable this?
 //		assertEquals((createView ? 4 : 0) + 2 * BUFFER_DATA_SIZE, partition.getTotalNumberOfBytes());
+	}
+
+	/**
+	 * Tests {@link SpillableSubpartition#spillFinishedBufferConsumers()} spilled bytes counting.
+	 */
+	@Test
+	public void testSpillFinishedBufferConsumers() throws Exception {
+		SpillableSubpartition partition = createSubpartition();
+		BufferBuilder bufferBuilder = createBufferBuilder(BUFFER_DATA_SIZE);
+
+		try (BufferConsumer buffer = bufferBuilder.createBufferConsumer()) {
+			partition.add(buffer);
+			assertEquals(0, partition.releaseMemory());
+			// finally fill the buffer with some bytes
+			bufferBuilder.appendAndCommit(ByteBuffer.allocate(BUFFER_DATA_SIZE));
+			bufferBuilder.finish(); // so that this buffer can be removed from the queue
+			assertEquals(BUFFER_DATA_SIZE, partition.spillFinishedBufferConsumers());
+		}
 	}
 
 	/**
