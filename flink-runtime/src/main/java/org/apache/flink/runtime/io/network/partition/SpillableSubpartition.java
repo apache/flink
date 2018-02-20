@@ -247,6 +247,7 @@ class SpillableSubpartition extends ResultSubpartition {
 			BufferConsumer bufferConsumer = buffers.peek();
 			Buffer buffer = bufferConsumer.build();
 			updateStatistics(buffer);
+			spilledBytes += buffer.getSize();
 			spillWriter.writeBlock(buffer);
 
 			if (bufferConsumer.isFinished()) {
