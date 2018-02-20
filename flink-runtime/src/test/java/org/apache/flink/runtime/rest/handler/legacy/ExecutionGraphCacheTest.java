@@ -248,7 +248,7 @@ public class ExecutionGraphCacheTest extends TestLogger {
 
 	/**
 	 * Tests that a cache entry is invalidated if the retrieved {@link AccessExecutionGraph} is in
-	 * state {@link JobStatus#SUSPENDED}.
+	 * state {@link JobStatus#SUSPENDING} or {@link JobStatus#SUSPENDED}.
 	 *
 	 * <p>This test can be removed once we no longer request the actual {@link ExecutionGraph} from the
 	 * {@link JobManager}.
@@ -259,9 +259,11 @@ public class ExecutionGraphCacheTest extends TestLogger {
 		final Time timeToLive = Time.hours(1L);
 		final JobID expectedJobId = new JobID();
 
+		final ArchivedExecutionGraph suspendingExecutionGraph = new ArchivedExecutionGraphBuilder().setState(JobStatus.SUSPENDING).build();
 		final ArchivedExecutionGraph suspendedExecutionGraph = new ArchivedExecutionGraphBuilder().setState(JobStatus.SUSPENDED).build();
 		final ConcurrentLinkedQueue<CompletableFuture<? extends AccessExecutionGraph>> requestJobAnswers = new ConcurrentLinkedQueue<>();
 
+		requestJobAnswers.offer(CompletableFuture.completedFuture(suspendingExecutionGraph));
 		requestJobAnswers.offer(CompletableFuture.completedFuture(suspendedExecutionGraph));
 		requestJobAnswers.offer(CompletableFuture.completedFuture(expectedExecutionGraph));
 
@@ -278,17 +280,21 @@ public class ExecutionGraphCacheTest extends TestLogger {
 		try (ExecutionGraphCache executionGraphCache = new ExecutionGraphCache(timeout, timeToLive)) {
 			CompletableFuture<AccessExecutionGraph> executionGraphFuture = executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
 
+			assertEquals(suspendingExecutionGraph, executionGraphFuture.get());
+
+			executionGraphFuture = executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
+
 			assertEquals(suspendedExecutionGraph, executionGraphFuture.get());
 
-			CompletableFuture<AccessExecutionGraph> executionGraphFuture2 = executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
+			executionGraphFuture = executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
 
-			assertEquals(expectedExecutionGraph, executionGraphFuture2.get());
+			assertEquals(expectedExecutionGraph, executionGraphFuture.get());
 		}
 	}
 
 	/**
 	 * Tests that a cache entry is invalidated if the retrieved {@link AccessExecutionGraph} changes its
-	 * state to {@link JobStatus#SUSPENDED}.
+	 * state to {@link JobStatus#SUSPENDING} or {@link JobStatus#SUSPENDED}.
 	 *
 	 * <p>This test can be removed once we no longer request the actual {@link ExecutionGraph} from the
 	 * {@link JobManager}.
@@ -299,30 +305,39 @@ public class ExecutionGraphCacheTest extends TestLogger {
 		final Time timeToLive = Time.hours(1L);
 		final JobID expectedJobId = new JobID();
 
+		final SuspendableAccessExecutionGraph toBeSuspendingExecutionGraph = new SuspendableAccessExecutionGraph(expectedJobId);
 		final SuspendableAccessExecutionGraph toBeSuspendedExecutionGraph = new SuspendableAccessExecutionGraph(expectedJobId);
 
 		final CountingRestfulGateway restfulGateway = createCountingRestfulGateway(
 			expectedJobId,
+			CompletableFuture.completedFuture(toBeSuspendingExecutionGraph),
 			CompletableFuture.completedFuture(toBeSuspendedExecutionGraph),
 			CompletableFuture.completedFuture(expectedExecutionGraph));
 
 		try (ExecutionGraphCache executionGraphCache = new ExecutionGraphCache(timeout, timeToLive)) {
 			CompletableFuture<AccessExecutionGraph> executionGraphFuture = executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
 
+			assertEquals(toBeSuspendingExecutionGraph, executionGraphFuture.get());
+
+			toBeSuspendingExecutionGraph.setJobStatus(JobStatus.SUSPENDING);
+
+			// retrieve the same job from the cache again --> this should return it and invalidate the cache entry
+			executionGraphFuture = executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
+
 			assertEquals(toBeSuspendedExecutionGraph, executionGraphFuture.get());
 
 			toBeSuspendedExecutionGraph.setJobStatus(JobStatus.SUSPENDED);
 
 			// retrieve the same job from the cache again --> this should return it and invalidate the cache entry
-			CompletableFuture<AccessExecutionGraph> executionGraphFuture2 = executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
+			executionGraphFuture = executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
 
-			assertEquals(expectedExecutionGraph, executionGraphFuture2.get());
+			assertEquals(expectedExecutionGraph, executionGraphFuture.get());
 
-			CompletableFuture<AccessExecutionGraph> executionGraphFuture3 = executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
+			executionGraphFuture = executionGraphCache.getExecutionGraph(expectedJobId, restfulGateway);
 
-			assertEquals(expectedExecutionGraph, executionGraphFuture3.get());
+			assertEquals(expectedExecutionGraph, executionGraphFuture.get());
 
-			assertThat(restfulGateway.getNumRequestJobCalls(), Matchers.equalTo(2));
+			assertThat(restfulGateway.getNumRequestJobCalls(), Matchers.equalTo(3));
 		}
 	}
 
