@@ -16,71 +16,53 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.handlers;
+package org.apache.flink.runtime.rest.handler.util;
 
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.MessageParameters;
+import org.apache.flink.runtime.rest.messages.MessagePathParameter;
+import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for {@link JarRunHandler}.
+ * Tests for {@link HandlerRequestUtils}.
  */
-public class JarRunHandlerTest extends TestLogger {
-
-	@Test
-	public void testTokenizeNonQuoted() {
-		final List<String> arguments = JarRunHandler.tokenizeArguments("--foo bar");
-		assertThat(arguments.get(0), equalTo("--foo"));
-		assertThat(arguments.get(1), equalTo("bar"));
-	}
-
-	@Test
-	public void testTokenizeSingleQuoted() {
-		final List<String> arguments = JarRunHandler.tokenizeArguments("--foo 'bar baz '");
-		assertThat(arguments.get(0), equalTo("--foo"));
-		assertThat(arguments.get(1), equalTo("bar baz "));
-	}
-
-	@Test
-	public void testTokenizeDoubleQuoted() {
-		final List<String> arguments = JarRunHandler.tokenizeArguments("--name \"K. Bote \"");
-		assertThat(arguments.get(0), equalTo("--name"));
-		assertThat(arguments.get(1), equalTo("K. Bote "));
-	}
+public class HandlerRequestUtilsTest extends TestLogger {
 
 	@Test
 	public void testGetQueryParameter() throws Exception {
-		final Boolean queryParameter = JarRunHandler.getQueryParameter(
+		final Boolean queryParameter = HandlerRequestUtils.getQueryParameter(
 			new HandlerRequest<>(
 				EmptyRequestBody.getInstance(),
-				new JarRunMessageParameters(),
+				new TestMessageParameters(),
 				Collections.emptyMap(),
-				Collections.singletonMap("allowNonRestoredState", Collections.singletonList("true"))),
-			AllowNonRestoredStateQueryParameter.class);
+				Collections.singletonMap("key", Collections.singletonList("true"))),
+			TestBooleanQueryParameter.class);
 		assertThat(queryParameter, equalTo(true));
 	}
 
 	@Test
 	public void testGetQueryParameterRepeated() throws Exception {
 		try {
-			JarRunHandler.getQueryParameter(
+			HandlerRequestUtils.getQueryParameter(
 				new HandlerRequest<>(
 					EmptyRequestBody.getInstance(),
-					new JarRunMessageParameters(),
+					new TestMessageParameters(),
 					Collections.emptyMap(),
-					Collections.singletonMap("allowNonRestoredState", Arrays.asList("true", "false"))),
-				AllowNonRestoredStateQueryParameter.class);
+					Collections.singletonMap("key", Arrays.asList("true", "false"))),
+				TestBooleanQueryParameter.class);
 		} catch (final RestHandlerException e) {
 			assertThat(e.getMessage(), containsString("Expected only one value"));
 		}
@@ -88,13 +70,46 @@ public class JarRunHandlerTest extends TestLogger {
 
 	@Test
 	public void testGetQueryParameterDefaultValue() throws Exception {
-		final Boolean allowNonRestoredState = JarRunHandler.getQueryParameter(
+		final Boolean allowNonRestoredState = HandlerRequestUtils.getQueryParameter(
 			new HandlerRequest<>(
 				EmptyRequestBody.getInstance(),
-				new JarRunMessageParameters(),
+				new TestMessageParameters(),
 				Collections.emptyMap(),
-				Collections.singletonMap("allowNonRestoredState", Collections.emptyList())),
-			AllowNonRestoredStateQueryParameter.class, true);
+				Collections.singletonMap("key", Collections.emptyList())),
+			TestBooleanQueryParameter.class, true);
 		assertThat(allowNonRestoredState, equalTo(true));
+	}
+
+	private static class TestMessageParameters extends MessageParameters {
+
+		private TestBooleanQueryParameter testBooleanQueryParameter;
+
+		@Override
+		public Collection<MessagePathParameter<?>> getPathParameters() {
+			return Collections.emptyList();
+		}
+
+		@Override
+		public Collection<MessageQueryParameter<?>> getQueryParameters() {
+			testBooleanQueryParameter = new TestBooleanQueryParameter();
+			return Collections.singletonList(testBooleanQueryParameter);
+		}
+	}
+
+	private static class TestBooleanQueryParameter extends MessageQueryParameter<Boolean> {
+
+		private TestBooleanQueryParameter() {
+			super("key", MessageParameterRequisiteness.OPTIONAL);
+		}
+
+		@Override
+		public Boolean convertValueFromString(final String value) {
+			return Boolean.parseBoolean(value);
+		}
+
+		@Override
+		public String convertStringToValue(final Boolean value) {
+			return value.toString();
+		}
 	}
 }
