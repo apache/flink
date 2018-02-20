@@ -372,7 +372,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 				break;
 
 				case CONNECTION_SUSPENDED: {
-					LOG.warn("ZooKeeper connection SUSPENDED. Changes to the submitted job " +
+					LOG.warn("ZooKeeper connection SUSPENDING. Changes to the submitted job " +
 						"graphs are not monitored (temporarily).");
 				}
 				break;
