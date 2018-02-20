@@ -19,16 +19,20 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
@@ -96,6 +100,29 @@ public class JobResult implements Serializable {
 	 */
 	public Optional<SerializedThrowable> getSerializedThrowable() {
 		return Optional.ofNullable(serializedThrowable);
+	}
+
+	/**
+	 * Converts the {@link JobResult} to a {@link JobExecutionResult}.
+	 *
+	 * @param classLoader to use for deserialization
+	 * @return JobExecutionResult
+	 * @throws WrappedJobException if the JobResult contains a serialized exception
+	 * @throws IOException if the accumulator could not be deserialized
+	 * @throws ClassNotFoundException if the accumulator could not deserialized
+	 */
+	public JobExecutionResult toJobExecutionResult(ClassLoader classLoader) throws WrappedJobException, IOException, ClassNotFoundException {
+		if (serializedThrowable != null) {
+			final Throwable throwable = serializedThrowable.deserializeError(classLoader);
+			throw new WrappedJobException(throwable);
+		}
+
+		return new JobExecutionResult(
+			jobId,
+			netRuntime,
+			AccumulatorHelper.deserializeAccumulators(
+				accumulatorResults,
+				classLoader));
 	}
 
 	/**
@@ -173,6 +200,18 @@ public class JobResult implements Serializable {
 		}
 
 		return builder.build();
+	}
+
+	/**
+	 * Exception which indicates that the job has finished with an {@link Exception}.
+	 */
+	public static final class WrappedJobException extends FlinkException {
+
+		private static final long serialVersionUID = 6535061898650156019L;
+
+		public WrappedJobException(Throwable cause) {
+			super(cause);
+		}
 	}
 
 }
