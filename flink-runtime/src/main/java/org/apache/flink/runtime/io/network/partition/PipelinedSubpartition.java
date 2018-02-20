@@ -265,6 +265,8 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	private int getNumberOfFinishedBuffers() {
+		assert Thread.holdsLock(buffers);
+
 		if (buffers.size() == 1 && buffers.peekLast().isFinished()) {
 			return 1;
 		}

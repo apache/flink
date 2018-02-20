@@ -241,6 +241,7 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	private long spillFinishedBufferConsumers() throws IOException {
+		assert Thread.holdsLock(buffers);
 		long spilledBytes = 0;
 
 		while (!buffers.isEmpty()) {
