@@ -968,9 +968,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 * Allocates a resource using the resource profile.
 	 *
 	 * @param resourceProfile The resource description
+	 * @throws ResourceManagerException if the starting a new worker failed
 	 */
 	@VisibleForTesting
-	public abstract void startNewWorker(ResourceProfile resourceProfile);
+	public abstract void startNewWorker(ResourceProfile resourceProfile) throws ResourceManagerException;
 
 	/**
 	 * Callback when a worker was started.

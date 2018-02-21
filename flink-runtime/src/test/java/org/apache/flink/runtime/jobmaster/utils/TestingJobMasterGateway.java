@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.Preconditions;
 
 import java.net.InetSocketAddress;
 import java.util.Collection;
@@ -55,6 +56,15 @@ import java.util.concurrent.CompletableFuture;
  * {@link JobMasterGateway} implementation for testing purposes.
  */
 public class TestingJobMasterGateway implements JobMasterGateway {
+
+	private final String address;
+
+	private final JobMasterId jobMasterId;
+
+	public TestingJobMasterGateway(String address, JobMasterId jobMasterId) {
+		this.address = Preconditions.checkNotNull(address);
+		this.jobMasterId = Preconditions.checkNotNull(jobMasterId);
+	}
 
 	@Override
 	public CompletableFuture<Acknowledge> cancel(Time timeout) {
@@ -163,7 +173,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
 	@Override
 	public JobMasterId getFencingToken() {
-		throw new UnsupportedOperationException();
+		return jobMasterId;
 	}
 
 	@Override
@@ -183,7 +193,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
 	@Override
 	public String getAddress() {
-		return null;
+		return address;
 	}
 
 	@Override
