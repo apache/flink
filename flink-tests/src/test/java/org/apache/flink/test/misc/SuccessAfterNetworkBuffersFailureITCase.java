@@ -25,7 +25,6 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.examples.java.clustering.KMeans;
@@ -34,9 +33,10 @@ import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-import org.apache.flink.test.util.TestEnvironment;
+import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
@@ -50,22 +50,27 @@ import static org.junit.Assert.fail;
 public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 
 	private static final int PARALLELISM = 16;
+
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			getConfiguration(),
+			2,
+			8));
+
+	private static Configuration getConfiguration() {
+		Configuration config = new Configuration();
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 80L);
+		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 1024);
+		return config;
+	}
+
 	@Test
 	public void testSuccessfulProgramAfterFailure() {
 		LocalFlinkMiniCluster cluster = null;
 
 		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 80L);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
-			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 1024);
-
-			cluster = new LocalFlinkMiniCluster(config, false);
-
-			cluster.start();
-
-			TestEnvironment env = new TestEnvironment(cluster, PARALLELISM, false);
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 			try {
 				runConnectedComponents(env);
@@ -94,11 +99,6 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-		finally {
-			if (cluster != null) {
-				cluster.stop();
-			}
 		}
 	}
 
