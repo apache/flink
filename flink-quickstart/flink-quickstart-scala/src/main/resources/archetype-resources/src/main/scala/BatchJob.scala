@@ -36,7 +36,7 @@ object BatchJob {
     // set up the batch execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    /**
+    /*
      * Here, you can start creating your execution plan for Flink.
      *
      * Start with getting some data from the environment, like
