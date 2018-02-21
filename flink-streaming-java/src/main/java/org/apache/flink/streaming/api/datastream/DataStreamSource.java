@@ -31,31 +31,32 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 @Public
 public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 
-	boolean isParallel;
-
-	public DataStreamSource(StreamExecutionEnvironment environment,
-			TypeInformation<T> outTypeInfo, StreamSource<T, ?> operator,
-			boolean isParallel, String sourceName) {
+	public DataStreamSource(
+			StreamExecutionEnvironment environment,
+			TypeInformation<T> outTypeInfo,
+			StreamSource<T, ?> operator,
+			boolean isParallel,
+			String sourceName) {
 		super(environment, new SourceTransformation<>(sourceName, operator, outTypeInfo, environment.getParallelism()));
 
-		this.isParallel = isParallel;
 		if (!isParallel) {
-			setParallelism(1);
+			forceNonParallel();
 		}
 	}
 
 	public DataStreamSource(SingleOutputStreamOperator<T> operator) {
 		super(operator.environment, operator.getTransformation());
-		this.isParallel = true;
 	}
 
 	@Override
-	public DataStreamSource<T> setParallelism(int parallelism) {
-		if (parallelism != 1 && !isParallel) {
-			throw new IllegalArgumentException("Source: " + transformation.getId() + " is not a parallel source");
-		} else {
-			super.setParallelism(parallelism);
-			return this;
-		}
+	public DataStreamSource<T> setParallelism(final int parallelism) {
+		super.setParallelism(parallelism);
+		return this;
+	}
+
+	@Override
+	public DataStreamSource<T> setMaxParallelism(final int maxParallelism) {
+		super.setMaxParallelism(maxParallelism);
+		return this;
 	}
 }
