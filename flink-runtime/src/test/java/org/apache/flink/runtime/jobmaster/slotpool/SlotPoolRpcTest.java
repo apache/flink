@@ -149,6 +149,8 @@ public class SlotPoolRpcTest extends TestLogger {
 			TestingUtils.infiniteTime());
 
 		try {
+			final CompletableFuture<SlotRequestId> timeoutFuture = new CompletableFuture<>();
+			pool.setTimeoutPendingSlotRequestConsumer(slotRequestId -> timeoutFuture.complete(slotRequestId));
 			pool.start(JobMasterId.generate(), "foobar");
 			SlotPoolGateway slotPoolGateway = pool.getSelfGateway(SlotPoolGateway.class);
 
@@ -167,6 +169,9 @@ public class SlotPoolRpcTest extends TestLogger {
 			} catch (ExecutionException e) {
 				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
 			}
+
+			// wait for the timeout of the pending slot request
+			timeoutFuture.get();
 
 			assertEquals(0L, (long) pool.getNumberOfWaitingForResourceRequests().get());
 		} finally {
@@ -334,6 +339,8 @@ public class SlotPoolRpcTest extends TestLogger {
 
 		private volatile Consumer<SlotRequestId> releaseSlotConsumer;
 
+		private volatile Consumer<SlotRequestId> timeoutPendingSlotRequestConsumer;
+
 		public TestingSlotPool(
 				RpcService rpcService,
 				JobID jobId,
@@ -348,10 +355,15 @@ public class SlotPoolRpcTest extends TestLogger {
 				idleSlotTimeout);
 
 			releaseSlotConsumer = null;
+			timeoutPendingSlotRequestConsumer = null;
 		}
 
 		public void setReleaseSlotConsumer(Consumer<SlotRequestId> releaseSlotConsumer) {
 			this.releaseSlotConsumer = Preconditions.checkNotNull(releaseSlotConsumer);
+		}
+
+		public void setTimeoutPendingSlotRequestConsumer(Consumer<SlotRequestId> timeoutPendingSlotRequestConsumer) {
+			this.timeoutPendingSlotRequestConsumer = Preconditions.checkNotNull(timeoutPendingSlotRequestConsumer);
 		}
 
 		@Override
@@ -368,6 +380,17 @@ public class SlotPoolRpcTest extends TestLogger {
 			}
 
 			return acknowledgeCompletableFuture;
+		}
+
+		@Override
+		protected void timeoutPendingSlotRequest(SlotRequestId slotRequestId) {
+			final Consumer<SlotRequestId> currentTimeoutPendingSlotRequestConsumer = timeoutPendingSlotRequestConsumer;
+
+			if (currentTimeoutPendingSlotRequestConsumer != null) {
+				currentTimeoutPendingSlotRequestConsumer.accept(slotRequestId);
+			}
+
+			super.timeoutPendingSlotRequest(slotRequestId);
 		}
 
 		CompletableFuture<Boolean> containsAllocatedSlot(AllocationID allocationId) {
