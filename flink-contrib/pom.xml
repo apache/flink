@@ -33,9 +33,6 @@ under the License.
 
 	<artifactId>flink-contrib</artifactId>
 	<name>flink-contrib</name>
-	<description>
-		flink-contrib module is meant to be a proving ground for new code with no guarantee of long-term maintenance.
-	</description>
 
 	<packaging>pom</packaging>
 
