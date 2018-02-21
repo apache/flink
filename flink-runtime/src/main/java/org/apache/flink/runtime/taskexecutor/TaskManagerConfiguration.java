@@ -241,9 +241,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		final String classLoaderResolveOrder =
 			configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
 
-		final String alwaysParentFirstLoaderString =
-			configuration.getString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER);
-		final String[] alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderString.split(";");
+		final String[] alwaysParentFirstLoaderPatterns = CoreOptions.getParentFirstLoaderPatterns(configuration);
 
 		final String taskManagerLogPath = configuration.getString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file"));
 		final String taskManagerStdoutPath;
