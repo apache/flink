@@ -351,6 +351,7 @@ public class TaskExecutorTest extends TestLogger {
 		private final CompletableFuture<RegistrationResponse> registerTaskManagerResponseFuture;
 
 		private SimpleJobMasterGateway(CompletableFuture<RegistrationResponse> registerTaskManagerResponseFuture) {
+			super(UUID.randomUUID().toString(), JobMasterId.generate());
 			this.registerTaskManagerResponseFuture = registerTaskManagerResponseFuture;
 		}
 

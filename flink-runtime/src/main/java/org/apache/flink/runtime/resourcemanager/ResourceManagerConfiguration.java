@@ -26,7 +26,7 @@ import org.apache.flink.util.Preconditions;
 import scala.concurrent.duration.Duration;
 
 /**
- * Resource manager configuration
+ * Resource manager configuration.
  */
 public class ResourceManagerConfiguration {
 

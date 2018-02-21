@@ -76,7 +76,8 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 	}
 
 	@Override
-	public void startNewWorker(ResourceProfile resourceProfile) {
+	public void startNewWorker(ResourceProfile resourceProfile) throws ResourceManagerException {
+		throw new ResourceManagerException("StandaloneResourceManager cannot start new TaskExecutors.");
 	}
 
 	@Override
