@@ -46,7 +46,7 @@ function start_cluster {
   # wait roughly 10 seconds
   for i in {1..10}; do
     # without the || true this would exit our script if the JobManager is not yet up
-    QUERY_RESULT=$(curl "http://localhost:8081/taskmanagers" || true)
+    QUERY_RESULT=$(curl "http://localhost:9065/taskmanagers" || true)
 
     if [[ "$QUERY_RESULT" == "" ]]; then
      echo "JobManager is not yet up"
