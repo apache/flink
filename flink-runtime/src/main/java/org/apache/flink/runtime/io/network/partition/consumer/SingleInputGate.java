@@ -144,7 +144,7 @@ public class SingleInputGate implements InputGate {
 	 * Field guaranteeing uniqueness for inputChannelsWithData queue. Both of those fields should be unified
 	 * onto one.
 	 */
-	private final BitSet enqueuedInputChannelsWithData = new BitSet();
+	private final BitSet enqueuedInputChannelsWithData;
 
 	private final BitSet channelsWithEndOfPartitionEvents;
 
@@ -205,6 +205,7 @@ public class SingleInputGate implements InputGate {
 
 		this.inputChannels = new HashMap<>(numberOfInputChannels);
 		this.channelsWithEndOfPartitionEvents = new BitSet(numberOfInputChannels);
+		this.enqueuedInputChannelsWithData = new BitSet(numberOfInputChannels);
 
 		this.taskActions = checkNotNull(taskActions);
 	}
