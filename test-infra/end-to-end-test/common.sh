@@ -42,19 +42,19 @@ echo "TEST_DATA_DIR: $TEST_DATA_DIR"
 function start_cluster {
   "$FLINK_DIR"/bin/start-cluster.sh
 
-  # wait for TaskManager to come up
-  # wait roughly 10 seconds
+  # wait at most 10 seconds until the dispatcher is up
   for i in {1..10}; do
     # without the || true this would exit our script if the JobManager is not yet up
-    QUERY_RESULT=$(curl "http://localhost:9065/taskmanagers" || true)
+    QUERY_RESULT=$(curl "http://localhost:9065/taskmanagers" 2> /dev/null || true)
 
     if [[ "$QUERY_RESULT" == "" ]]; then
-     echo "JobManager is not yet up"
+      echo "Dispatcher/TaskManagers are not yet up"
     elif [[ "$QUERY_RESULT" != "{\"taskmanagers\":[]}" ]]; then
+      echo "Dispatcher REST endpoint is up."
       break
     fi
 
-    echo "Waiting for cluster to come up..."
+    echo "Waiting for dispatcher REST endpoint to come up..."
     sleep 1
   done
 }
