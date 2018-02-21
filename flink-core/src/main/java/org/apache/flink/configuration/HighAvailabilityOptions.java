@@ -39,13 +39,14 @@ public class HighAvailabilityOptions {
 	 * Defines high-availability mode used for the cluster execution.
 	 * A value of "NONE" signals no highly available setup.
 	 * To enable high-availability, set this mode to "ZOOKEEPER".
+	 * Can also be set to FQN of HighAvailability factory class.
 	 */
 	public static final ConfigOption<String> HA_MODE =
 			key("high-availability")
 			.defaultValue("NONE")
 			.withDeprecatedKeys("recovery.mode")
 			.withDescription("Defines high-availability mode used for the cluster execution." +
-				" To enable high-availability, set this mode to \"ZOOKEEPER\".");
+				" To enable high-availability, set this mode to \"ZOOKEEPER\" or specify FQN of factory class.");
 
 	/**
 	 * The ID of the Flink cluster, used to separate multiple Flink clusters
@@ -66,15 +67,6 @@ public class HighAvailabilityOptions {
 			.noDefaultValue()
 			.withDeprecatedKeys("high-availability.zookeeper.storageDir", "recovery.zookeeper.storageDir")
 			.withDescription("File system path (URI) where Flink persists metadata in high-availability setups.");
-
-
-	/**
-	 * When HA_MODE=CUSTOM Flink uses this factory implementation to create HA services.
-	 */
-	public static final ConfigOption<String> HA_FACTORY_CLASS =
-		key("high-availability.factoryClass")
-			.noDefaultValue()
-			.withDescription("Custom high-availability factory class FQN.");
 
 	// ------------------------------------------------------------------------
 	//  Recovery Options

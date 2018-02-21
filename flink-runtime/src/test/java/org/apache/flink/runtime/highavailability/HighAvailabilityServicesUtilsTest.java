@@ -38,8 +38,7 @@ public class HighAvailabilityServicesUtilsTest {
 
 		Executor executor = Mockito.mock(Executor.class);
 
-		config.setString(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.CUSTOM.name().toLowerCase());
-		config.setString(HighAvailabilityOptions.HA_FACTORY_CLASS, TestHAFactory.class.getName());
+		config.setString(HighAvailabilityOptions.HA_MODE, TestHAFactory.class.getName());
 
 		// when
 		HighAvailabilityServices actualHaServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config, executor);

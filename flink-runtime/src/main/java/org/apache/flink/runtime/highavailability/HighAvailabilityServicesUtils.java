@@ -159,16 +159,15 @@ public class HighAvailabilityServicesUtils {
 		Class<HighAvailabilityServicesFactory> factoryClass;
 		try {
 			factoryClass = config.getClass(
-				HighAvailabilityOptions.HA_FACTORY_CLASS.key(), null, Thread.currentThread().getContextClassLoader());
+				HighAvailabilityOptions.HA_MODE.key(), null, Thread.currentThread().getContextClassLoader());
 		} catch (ClassNotFoundException e) {
 			throw new Exception("Custom HA FactoryClass not found");
 		}
 
-		if (factoryClass != null) {
+		if (factoryClass != null && HighAvailabilityServicesFactory.class.isAssignableFrom(factoryClass)) {
 			return factoryClass.newInstance().createHAServices(config, executor);
 		} else {
-			throw new Exception("Custom HA FactoryClass not configured. " +
-				"Check configuration property '" + HighAvailabilityOptions.HA_FACTORY_CLASS.key() + "'");
+			throw new Exception("Custom HA FactoryClass is not valid.");
 		}
 	}
 
