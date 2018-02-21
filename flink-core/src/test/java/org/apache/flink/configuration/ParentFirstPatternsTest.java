@@ -34,7 +34,7 @@ import static org.junit.Assert.assertTrue;
 public class ParentFirstPatternsTest extends TestLogger {
 
 	private static final HashSet<String> PARENT_FIRST_PACKAGES = new HashSet<>(
-			Arrays.asList(CoreOptions.ALWAYS_PARENT_FIRST_LOADER.defaultValue().split(";")));
+			Arrays.asList(CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS.defaultValue().split(";")));
 
 	/**
 	 * All java and Flink classes must be loaded parent first.

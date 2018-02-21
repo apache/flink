@@ -30,22 +30,22 @@ public class CoreOptionsTest {
 		Configuration config = new Configuration();
 
 		Assert.assertArrayEquals(
-			CoreOptions.ALWAYS_PARENT_FIRST_LOADER.defaultValue().split(";"),
+			CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS.defaultValue().split(";"),
 			CoreOptions.getParentFirstLoaderPatterns(config));
 
-		config.setString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER, "hello;world");
+		config.setString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS, "hello;world");
 
 		Assert.assertArrayEquals(
 			"hello;world".split(";"),
 			CoreOptions.getParentFirstLoaderPatterns(config));
 
-		config.setString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER_APPEND, "how;are;you");
+		config.setString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL, "how;are;you");
 
 		Assert.assertArrayEquals(
 			"hello;world;how;are;you".split(";"),
 			CoreOptions.getParentFirstLoaderPatterns(config));
 
-		config.setString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER, "");
+		config.setString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS, "");
 
 		Assert.assertArrayEquals(
 			"how;are;you".split(";"),

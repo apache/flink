@@ -73,7 +73,7 @@ public class AvroKryoClassloadingTest {
 		final ClassLoader userAppClassLoader = FlinkUserCodeClassLoaders.childFirst(
 				new URL[] { avroLocation, kryoLocation },
 				parentClassLoader,
-				CoreOptions.ALWAYS_PARENT_FIRST_LOADER.defaultValue().split(";"));
+				CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS.defaultValue().split(";"));
 
 		final Class<?> userLoadedAvroClass = Class.forName(avroClass.getName(), false, userAppClassLoader);
 		assertNotEquals(avroClass, userLoadedAvroClass);

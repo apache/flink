@@ -45,7 +45,7 @@ public class CoreOptions {
 	 * which means that user code jars can include and load different dependencies than
 	 * Flink uses (transitively).
 	 *
-	 * <p>Exceptions to the rules are defined via {@link #ALWAYS_PARENT_FIRST_LOADER}.
+	 * <p>Exceptions to the rules are defined via {@link #ALWAYS_PARENT_FIRST_LOADER_PATTERNS}.
 	 */
 	public static final ConfigOption<String> CLASSLOADER_RESOLVE_ORDER = ConfigOptions
 		.key("classloader.resolve-order")
@@ -85,25 +85,25 @@ public class CoreOptions {
 	 *         log bindings.</li>
 	 * </ul>
 	 */
-	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER = ConfigOptions
-		.key("classloader.parent-first-patterns.base")
+	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_PATTERNS = ConfigOptions
+		.key("classloader.parent-first-patterns.default")
 		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback")
 		.withDeprecatedKeys("classloader.parent-first-patterns")
 		.withDescription("A (semicolon-separated) list of patterns that specifies which classes should always be" +
 			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
 			" the fully qualified class name. This setting should generally not be modified. To add another pattern we" +
-			" recommend to use \"classloader.parent-first-patterns.append\" instead.");
+			" recommend to use \"classloader.parent-first-patterns.additional\" instead.");
 
-	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_APPEND = ConfigOptions
-		.key("classloader.parent-first-patterns.append")
+	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL = ConfigOptions
+		.key("classloader.parent-first-patterns.additional")
 		.defaultValue("")
 		.withDescription("A (semicolon-separated) list of patterns that specifies which classes should always be" +
 			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
-			" the fully qualified class name. These patterns are appended to \"" + ALWAYS_PARENT_FIRST_LOADER.key() + "\".");
+			" the fully qualified class name. These patterns are appended to \"" + ALWAYS_PARENT_FIRST_LOADER_PATTERNS.key() + "\".");
 
 	public static String[] getParentFirstLoaderPatterns(Configuration config) {
-		String base = config.getString(ALWAYS_PARENT_FIRST_LOADER);
-		String append = config.getString(ALWAYS_PARENT_FIRST_LOADER_APPEND);
+		String base = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
+		String append = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
 
 		String[] basePatterns = base.isEmpty()
 			? new String[0]
