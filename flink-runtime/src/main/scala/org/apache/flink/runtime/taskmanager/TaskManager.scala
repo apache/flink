@@ -474,7 +474,7 @@ class TaskManager(
             log.debug(s"Cannot find task to stop for execution ${executionID})")
             sender ! decorateMessage(Acknowledge.get())
           }
- 
+
         // cancels a task
         case CancelTask(executionID) =>
           val task = runningTasks.get(executionID)
@@ -556,7 +556,7 @@ class TaskManager(
               "TaskManager was triggered to register at JobManager, but is already registered")
           } else if (deadline.exists(_.isOverdue())) {
             // we failed to register in time. that means we should quit
-            log.error("Failed to register at the JobManager withing the defined maximum " +
+            log.error("Failed to register at the JobManager within the defined maximum " +
                         "connect time. Shutting down ...")
 
             // terminate ourselves (hasta la vista)
@@ -984,7 +984,7 @@ class TaskManager(
         log.error(message, e)
         throw new RuntimeException(message, e)
     }
-    
+
     // watch job manager to detect when it dies
     context.watch(jobManager)
 
@@ -1070,7 +1070,7 @@ class TaskManager(
       // clear the key-value location oracle
       proxy.updateKvStateLocationOracle(HighAvailabilityServices.DEFAULT_JOB_ID, null)
     }
-    
+
     // failsafe shutdown of the metrics registry
     try {
       taskManagerMetricGroup.close()
@@ -1247,7 +1247,7 @@ class TaskManager(
         runningTasks.put(execId, prevTask)
         throw new IllegalStateException("TaskManager already contains a task for id " + execId)
       }
-      
+
       // all good, we kick off the task, which performs its own initialization
       task.startTaskThread()
 
@@ -1580,7 +1580,7 @@ object TaskManager {
     } else {
       LOG.info("Cannot determine the maximum number of open file descriptors")
     }
-    
+
     // try to parse the command line arguments
     val configuration: Configuration = try {
       parseArgsAndLoadConfig(args)
@@ -1620,11 +1620,11 @@ object TaskManager {
    */
   @throws(classOf[Exception])
   def parseArgsAndLoadConfig(args: Array[String]): Configuration = {
-    
+
     // set up the command line parser
     val parser = new scopt.OptionParser[TaskManagerCliOptions]("TaskManager") {
       head("Flink TaskManager")
-      
+
       opt[String]("configDir") action { (param, conf) =>
         conf.setConfigDir(param)
         conf

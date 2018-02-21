@@ -274,7 +274,7 @@ def resolve_jira(title, merge_branches, comment):
     asf_jira.transition_issue(
         jira_id, resolve["id"], fixVersions=jira_fix_versions, comment=comment)
 
-    print "Succesfully resolved %s with fixVersions=%s!" % (jira_id, fix_versions)
+    print "Successfully resolved %s with fixVersions=%s!" % (jira_id, fix_versions)
 
 
 #branches = get_json("%s/branches" % GITHUB_API_BASE)
