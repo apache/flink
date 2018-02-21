@@ -95,7 +95,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 
 		this.keySerializationStream = new ByteArrayOutputStreamWithPos(128);
 		this.keySerializationDataOutputView = new DataOutputViewStreamWrapper(keySerializationStream);
-		this.ambiguousKeyPossible = isAmbiguousKeyPossible(backend.getKeySerializer(), namespaceSerializer);
+		this.ambiguousKeyPossible = AbstractRocksDBUtils.isAmbiguousKeyPossible(backend.getKeySerializer(), namespaceSerializer);
 	}
 
 	// ------------------------------------------------------------------------
@@ -157,59 +157,69 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		Preconditions.checkNotNull(key, "No key set. This method should not be called outside of a keyed context.");
 
 		keySerializationStream.reset();
-		writeKeyGroup(keyGroup, keySerializationDataOutputView);
-		writeKey(key, keySerializationStream, keySerializationDataOutputView);
-		writeNameSpace(namespace, namespaceSerializer, keySerializationStream, keySerializationDataOutputView, ambiguousKeyPossible);
+		AbstractRocksDBUtils.writeKeyGroup(keyGroup, backend.getKeyGroupPrefixBytes(), keySerializationDataOutputView);
+		AbstractRocksDBUtils.writeKey(key, backend.getKeySerializer(), keySerializationStream, keySerializationDataOutputView, ambiguousKeyPossible);
+		AbstractRocksDBUtils.writeNameSpace(namespace, namespaceSerializer, keySerializationStream, keySerializationDataOutputView, ambiguousKeyPossible);
 	}
 
-	private void writeKeyGroup(
-			int keyGroup,
-			DataOutputView keySerializationDateDataOutputView) throws IOException {
-		for (int i = backend.getKeyGroupPrefixBytes(); --i >= 0;) {
-			keySerializationDateDataOutputView.writeByte(keyGroup >>> (i << 3));
+	protected Tuple3<Integer, K, N> readKeyWithGroupAndNamespace(ByteArrayInputStreamWithPos inputStream, DataInputView inputView) throws IOException {
+		int keyGroup = AbstractRocksDBUtils.readKeyGroup(backend.getKeyGroupPrefixBytes(), inputView);
+		K key = AbstractRocksDBUtils.readKey(backend.getKeySerializer(), inputStream, inputView, ambiguousKeyPossible);
+		N namespace = AbstractRocksDBUtils.readNamespace(namespaceSerializer, inputStream, inputView, ambiguousKeyPossible);
+
+		return new Tuple3<>(keyGroup, key, namespace);
+	}
+
+	/**
+	 * Utils for RocksDB state serialization and deserialization
+ 	 */
+	static class AbstractRocksDBUtils {
+
+		public static int readKeyGroup(int keyGroupPrefixBytes, DataInputView inputView) throws IOException {
+			int keyGroup = 0;
+			for (int i = 0; i < keyGroupPrefixBytes; ++i) {
+				keyGroup <<= 8;
+				keyGroup |= (inputView.readByte() & 0xFF);
+			}
+			return keyGroup;
 		}
-	}
 
-	private void writeKey(
-			K key,
+		public static <RK> RK readKey(
+			TypeSerializer<RK> keySerializer,
+			ByteArrayInputStreamWithPos inputStream,
+			DataInputView inputView,
+			boolean ambiguousKeyPossible) throws IOException {
+			int beforeRead = inputStream.getPosition();
+			RK key = keySerializer.deserialize(inputView);
+			if (ambiguousKeyPossible) {
+				int length = inputStream.getPosition() - beforeRead;
+				readVariableIntBytes(inputView, length);
+			}
+			return key;
+		}
+
+		public static <RN> RN readNamespace(
+			TypeSerializer<RN> namespaceSerializer,
+			ByteArrayInputStreamWithPos inputStream,
+			DataInputView inputView,
+			boolean ambiguousKeyPossible) throws IOException {
+			int beforeRead = inputStream.getPosition();
+			RN namespace = namespaceSerializer.deserialize(inputView);
+			if (ambiguousKeyPossible) {
+				int length = inputStream.getPosition() - beforeRead;
+				readVariableIntBytes(inputView, length);
+			}
+			return namespace;
+		}
+
+		public static <WN> void writeNameSpace(
+			WN namespace,
+			TypeSerializer<WN> namespaceSerializer,
 			ByteArrayOutputStreamWithPos keySerializationStream,
-			DataOutputView keySerializationDataOutputView) throws IOException {
-		//write key
-		int beforeWrite = keySerializationStream.getPosition();
-		backend.getKeySerializer().serialize(key, keySerializationDataOutputView);
+			DataOutputView keySerializationDataOutputView,
+			boolean ambiguousKeyPossible) throws IOException {
 
-		if (ambiguousKeyPossible) {
-			//write size of key
-			writeLengthFrom(beforeWrite, keySerializationStream,
-				keySerializationDataOutputView);
-		}
-	}
-
-	static <WN> void writeNameSpace(
-		WN namespace,
-		TypeSerializer<WN> namespaceSerializer,
-		ByteArrayOutputStreamWithPos keySerializationStream,
-		DataOutputView keySerializationDataOutputView,
-		boolean ambiguousKeyPossible) throws IOException {
-
-		int beforeWrite = keySerializationStream.getPosition();
-		namespaceSerializer.serialize(namespace, keySerializationDataOutputView);
-
-		if (ambiguousKeyPossible) {
-			//write length of namespace
-			writeLengthFrom(beforeWrite, keySerializationStream,
-				keySerializationDataOutputView);
-		}
-	}
-
-	private static void writeLengthFrom(
-			int fromPosition,
-			ByteArrayOutputStreamWithPos keySerializationStream,
-			DataOutputView keySerializationDateDataOutputView) throws IOException {
-		int length = keySerializationStream.getPosition() - fromPosition;
-		writeVariableIntBytes(length, keySerializationDateDataOutputView);
-	}
-
+<<<<<<< HEAD
 	private static void writeVariableIntBytes(
 			int value,
 			DataOutputView keySerializationDateDataOutputView)
@@ -221,57 +231,72 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	}
 <<<<<<< HEAD
 =======
+=======
+			int beforeWrite = keySerializationStream.getPosition();
+			namespaceSerializer.serialize(namespace, keySerializationDataOutputView);
+>>>>>>> 56b67ffefb... Refactor AbstractRocksDBState.
 
-	static boolean isAmbiguousKeyPossible(TypeSerializer keySerializer, TypeSerializer namespaceSerializer) {
-		return (keySerializer.getLength() < 0) && (namespaceSerializer.getLength() < 0);
-	}
-
-	protected Tuple3<Integer, K, N> readKeyWithGroupAndNamespace(ByteArrayInputStreamWithPos inputStream, DataInputView inputView) throws IOException {
-		int keyGroup = readKeyGroup(inputView);
-		K key = readKey(backend.getKeySerializer(), inputStream, inputView, ambiguousKeyPossible);
-		N namespace = readNamespace(inputStream, inputView);
-
-		return new Tuple3<>(keyGroup, key, namespace);
-	}
-
-	private int readKeyGroup(DataInputView inputView) throws IOException {
-		int keyGroup = 0;
-		for (int i = 0; i < backend.getKeyGroupPrefixBytes(); ++i) {
-			keyGroup <<= 8;
-			keyGroup |= (inputView.readByte() & 0xFF);
+			if (ambiguousKeyPossible) {
+				//write length of namespace
+				writeLengthFrom(beforeWrite, keySerializationStream,
+					keySerializationDataOutputView);
+			}
 		}
-		return keyGroup;
-	}
 
-	static <RK> RK readKey(
-		TypeSerializer<RK> keySerializer,
-		ByteArrayInputStreamWithPos inputStream,
-		DataInputView inputView,
-		boolean ambiguousKeyPossible) throws IOException {
-		int beforeRead = inputStream.getPosition();
-		RK key = keySerializer.deserialize(inputView);
-		if (ambiguousKeyPossible) {
-			int length = inputStream.getPosition() - beforeRead;
-			readVariableIntBytes(inputView, length);
+		public static boolean isAmbiguousKeyPossible(TypeSerializer keySerializer, TypeSerializer namespaceSerializer) {
+			return (keySerializer.getLength() < 0) && (namespaceSerializer.getLength() < 0);
 		}
-		return key;
-	}
 
-	private N readNamespace(ByteArrayInputStreamWithPos inputStream, DataInputView inputView) throws IOException {
-		int beforeRead = inputStream.getPosition();
-		N namespace = namespaceSerializer.deserialize(inputView);
-		if (ambiguousKeyPossible) {
-			int length = inputStream.getPosition() - beforeRead;
-			readVariableIntBytes(inputView, length);
+		public static void writeKeyGroup(
+			int keyGroup,
+			int keyGroupPrefixBytes,
+			DataOutputView keySerializationDateDataOutputView) throws IOException {
+			for (int i = keyGroupPrefixBytes; --i >= 0;) {
+				keySerializationDateDataOutputView.writeByte(keyGroup >>> (i << 3));
+			}
 		}
-		return namespace;
-	}
 
-	private static void readVariableIntBytes(DataInputView inputView, int value) throws IOException {
-		do {
-			inputView.readByte();
-			value >>>= 8;
-		} while (value != 0);
+		public static <WK> void writeKey(
+			WK key,
+			TypeSerializer<WK> keySerializer,
+			ByteArrayOutputStreamWithPos keySerializationStream,
+			DataOutputView keySerializationDataOutputView,
+			boolean ambiguousKeyPossible) throws IOException {
+			//write key
+			int beforeWrite = keySerializationStream.getPosition();
+			keySerializer.serialize(key, keySerializationDataOutputView);
+
+			if (ambiguousKeyPossible) {
+				//write size of key
+				writeLengthFrom(beforeWrite, keySerializationStream,
+					keySerializationDataOutputView);
+			}
+		}
+
+		private static void readVariableIntBytes(DataInputView inputView, int value) throws IOException {
+			do {
+				inputView.readByte();
+				value >>>= 8;
+			} while (value != 0);
+		}
+
+		private static void writeLengthFrom(
+			int fromPosition,
+			ByteArrayOutputStreamWithPos keySerializationStream,
+			DataOutputView keySerializationDateDataOutputView) throws IOException {
+			int length = keySerializationStream.getPosition() - fromPosition;
+			writeVariableIntBytes(length, keySerializationDateDataOutputView);
+		}
+
+		private static void writeVariableIntBytes(
+			int value,
+			DataOutputView keySerializationDateDataOutputView)
+			throws IOException {
+			do {
+				keySerializationDateDataOutputView.writeByte(value);
+				value >>>= 8;
+			} while (value != 0);
+		}
 	}
 >>>>>>> 8bc857cf72... add unit test `RocksDBRocksIteratorWrapperTest` and fix the bug when ambiguousKeyPossible is true.
 }

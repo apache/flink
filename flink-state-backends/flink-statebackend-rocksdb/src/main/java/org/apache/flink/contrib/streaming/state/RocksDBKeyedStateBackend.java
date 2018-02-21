@@ -274,12 +274,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			iterator = db.newIterator(columnInfo.f0);
 			iterator.seekToFirst();
 
-			boolean ambiguousKeyPossible = AbstractRocksDBState.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
+			boolean ambiguousKeyPossible = AbstractRocksDBState.AbstractRocksDBUtils.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
 			final byte[] nameSpaceBytes;
 
 			try {
 				namespaceOutputStream.reset();
-				AbstractRocksDBState.writeNameSpace(
+				AbstractRocksDBState.AbstractRocksDBUtils.writeNameSpace(
 					namespace,
 					namespaceSerializer,
 					namespaceOutputStream,
@@ -2075,7 +2075,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							ByteArrayInputStreamWithPos inputStream =
 								new ByteArrayInputStreamWithPos(key, keyGroupPrefixBytes, key.length - keyGroupPrefixBytes);
 							DataInputViewStreamWrapper dataInput = new DataInputViewStreamWrapper(inputStream);
-							K value = AbstractRocksDBState.readKey(
+							K value = AbstractRocksDBState.AbstractRocksDBUtils.readKey(
 								keySerializer,
 								inputStream,
 								dataInput,

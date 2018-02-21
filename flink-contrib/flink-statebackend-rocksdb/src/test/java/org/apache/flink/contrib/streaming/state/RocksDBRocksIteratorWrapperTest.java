@@ -72,7 +72,7 @@ public class RocksDBRocksIteratorWrapperTest {
 		TypeSerializer<K> keySerializer,
 		TypeSerializer namespaceSerializer,
 		int maxKeyGroupNumber,
-		Function<Integer, K> insertData) throws Exception {
+		Function<Integer, K> getKeyFunc) throws Exception {
 
 		String testStateName = "aha";
 		String namespace = "ns";
@@ -102,7 +102,7 @@ public class RocksDBRocksIteratorWrapperTest {
 
 		// insert record
 		for (int i = 0; i < 1000; ++i) {
-			keyedStateBackend.setCurrentKey(insertData.apply(i));
+			keyedStateBackend.setCurrentKey(getKeyFunc.apply(i));
 			testState.update(String.valueOf(i));
 		}
 
@@ -112,8 +112,8 @@ public class RocksDBRocksIteratorWrapperTest {
 
 
 		ByteArrayOutputStreamWithPos outputStream = new ByteArrayOutputStreamWithPos(8);
-		boolean ambiguousKeyPossible = AbstractRocksDBState.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
-		AbstractRocksDBState.writeNameSpace(
+		boolean ambiguousKeyPossible = AbstractRocksDBState.AbstractRocksDBUtils.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
+		AbstractRocksDBState.AbstractRocksDBUtils.writeNameSpace(
 			namespace,
 			namespaceSerializer,
 			outputStream,
