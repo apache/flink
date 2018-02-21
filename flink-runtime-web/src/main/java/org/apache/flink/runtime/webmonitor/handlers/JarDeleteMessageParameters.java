@@ -16,12 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.minicluster;
+package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.runtime.rest.messages.MessageParameters;
+import org.apache.flink.runtime.rest.messages.MessagePathParameter;
+import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * Interface to control {@link JobExecutor}.
+ * Message parameters for {@link JarDeleteHandler}.
  */
-public interface JobExecutorService extends JobExecutor, AutoCloseableAsync {
+public class JarDeleteMessageParameters extends MessageParameters {
+
+	private JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
+
+	@Override
+	public Collection<MessagePathParameter<?>> getPathParameters() {
+		return Collections.singletonList(jarIdPathParameter);
+	}
+
+	@Override
+	public Collection<MessageQueryParameter<?>> getQueryParameters() {
+		return Collections.emptyList();
+	}
 }

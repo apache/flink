@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.handlers.ng;
+package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
-import org.apache.flink.runtime.webmonitor.handlers.JarListInfo;
 
 import java.util.ArrayList;
 import java.util.List;

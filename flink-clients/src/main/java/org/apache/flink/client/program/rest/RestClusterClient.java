@@ -19,10 +19,8 @@
 package org.apache.flink.client.program.rest;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -78,7 +76,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
@@ -219,20 +216,11 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 				throw new ProgramInvocationException("Could not retrieve the execution result.", ExceptionUtils.stripExecutionException(e));
 			}
 
-			if (jobResult.getSerializedThrowable().isPresent()) {
-				final SerializedThrowable serializedThrowable = jobResult.getSerializedThrowable().get();
-				final Throwable throwable = serializedThrowable.deserializeError(classLoader);
-				throw new ProgramInvocationException(throwable);
-			}
-
 			try {
-				this.lastJobExecutionResult = new JobExecutionResult(
-					jobResult.getJobId(),
-					jobResult.getNetRuntime(),
-					AccumulatorHelper.deserializeAccumulators(
-						jobResult.getAccumulatorResults(),
-						classLoader));
+				this.lastJobExecutionResult = jobResult.toJobExecutionResult(classLoader);
 				return lastJobExecutionResult;
+			} catch (JobResult.WrappedJobException we) {
+				throw new ProgramInvocationException(we.getCause());
 			} catch (IOException | ClassNotFoundException e) {
 				throw new ProgramInvocationException(e);
 			}

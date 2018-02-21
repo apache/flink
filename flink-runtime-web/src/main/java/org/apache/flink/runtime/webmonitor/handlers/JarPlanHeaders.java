@@ -19,24 +19,22 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
-import org.apache.flink.runtime.rest.messages.FileUpload;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * {@link MessageHeaders} for uploading jars.
+ * Message headers for {@link JarPlanHandler}.
  */
-public final class JarUploadMessageHeaders implements MessageHeaders<FileUpload, JarUploadResponseBody, EmptyMessageParameters> {
+public class JarPlanHeaders implements MessageHeaders<EmptyRequestBody, JobPlanInfo, JarPlanMessageParameters> {
 
-	private static final JarUploadMessageHeaders INSTANCE = new JarUploadMessageHeaders();
-
-	private JarUploadMessageHeaders() {}
+	private static final JarPlanHeaders INSTANCE = new JarPlanHeaders();
 
 	@Override
-	public Class<JarUploadResponseBody> getResponseClass() {
-		return JarUploadResponseBody.class;
+	public Class<JobPlanInfo> getResponseClass() {
+		return JobPlanInfo.class;
 	}
 
 	@Override
@@ -45,26 +43,26 @@ public final class JarUploadMessageHeaders implements MessageHeaders<FileUpload,
 	}
 
 	@Override
-	public Class<FileUpload> getRequestClass() {
-		return FileUpload.class;
+	public Class<EmptyRequestBody> getRequestClass() {
+		return EmptyRequestBody.class;
 	}
 
 	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
+	public JarPlanMessageParameters getUnresolvedMessageParameters() {
+		return new JarPlanMessageParameters();
 	}
 
 	@Override
 	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.POST;
+		return HttpMethodWrapper.GET;
 	}
 
 	@Override
 	public String getTargetRestEndpointURL() {
-		return "/jars/upload";
+		return "/jars/:" + JarIdPathParameter.KEY + "/plan";
 	}
 
-	public static JarUploadMessageHeaders getInstance() {
+	public static JarPlanHeaders getInstance() {
 		return INSTANCE;
 	}
 }

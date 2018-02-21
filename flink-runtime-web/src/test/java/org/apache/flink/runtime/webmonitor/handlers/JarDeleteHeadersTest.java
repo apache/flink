@@ -16,12 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.minicluster;
+package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.util.TestLogger;
+
+import org.junit.Test;
+
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
 
 /**
- * Interface to control {@link JobExecutor}.
+ * Tests for {@link JarDeleteHeaders}.
  */
-public interface JobExecutorService extends JobExecutor, AutoCloseableAsync {
+public class JarDeleteHeadersTest extends TestLogger {
+
+	@Test
+	public void testUrl() {
+		assertThat(JarDeleteHeaders.getInstance().getTargetRestEndpointURL(), equalTo("/jars/:" + JarIdPathParameter.KEY));
+	}
+
+	@Test
+	public void testHttpMethod() {
+		assertThat(JarDeleteHeaders.getInstance().getHttpMethod(), equalTo(HttpMethodWrapper.DELETE));
+	}
 }
