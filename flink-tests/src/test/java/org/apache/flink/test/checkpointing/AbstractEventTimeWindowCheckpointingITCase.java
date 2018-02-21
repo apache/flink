@@ -92,7 +92,6 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 	@Rule
 	public TestName name = new TestName();
 
-	private StateBackendEnum stateBackendEnum;
 	private AbstractStateBackend stateBackend;
 
 	@Rule
@@ -102,13 +101,11 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 			2,
 			PARALLELISM / 2));
 
-	AbstractEventTimeWindowCheckpointingITCase(StateBackendEnum stateBackendEnum) {
-		this.stateBackendEnum = stateBackendEnum;
-	}
-
 	enum StateBackendEnum {
 		MEM, FILE, ROCKSDB_FULLY_ASYNC, ROCKSDB_INCREMENTAL, ROCKSDB_INCREMENTAL_ZK, MEM_ASYNC, FILE_ASYNC
 	}
+
+	protected abstract StateBackendEnum getStateBackend();
 
 	private Configuration getConfigurationSafe() {
 		try {
@@ -126,6 +123,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 			"Starting " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
 
 		// Testing HA Scenario / ZKCompletedCheckpointStore with incremental checkpoints
+		StateBackendEnum stateBackendEnum = getStateBackend();
 		if (ROCKSDB_INCREMENTAL_ZK.equals(stateBackendEnum)) {
 			zkServer = new TestingServer();
 			zkServer.start();
