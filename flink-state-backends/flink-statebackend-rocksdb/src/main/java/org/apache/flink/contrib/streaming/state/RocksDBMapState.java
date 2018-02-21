@@ -39,8 +39,8 @@ import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -527,7 +527,7 @@ public class RocksDBMapState<K, N, UK, UV>
 				return false;
 			}
 
-			for (int i = keyPrefixBytes.length - 1; --i >= backend.getKeyGroupPrefixBytes(); ) {
+			for (int i = keyPrefixBytes.length; --i >= backend.getKeyGroupPrefixBytes(); ) {
 				if (rawKeyBytes[i] != keyPrefixBytes[i]) {
 					return false;
 				}
