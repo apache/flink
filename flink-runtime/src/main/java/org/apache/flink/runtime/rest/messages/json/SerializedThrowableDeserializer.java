@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.json;
 
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedThrowable;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -27,9 +28,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std
 
 import java.io.IOException;
 
-import static org.apache.flink.runtime.rest.messages.json.SerializedThrowableSerializer.FIELD_NAME_CLASS;
-import static org.apache.flink.runtime.rest.messages.json.SerializedThrowableSerializer.FIELD_NAME_SERIALIZED_EXCEPTION;
-import static org.apache.flink.runtime.rest.messages.json.SerializedThrowableSerializer.FIELD_NAME_STACK_TRACE;
+import static org.apache.flink.runtime.rest.messages.json.SerializedThrowableSerializer.FIELD_NAME_SERIALIZED_THROWABLE;
 
 /**
  * JSON deserializer for {@link SerializedThrowable}.
@@ -48,10 +47,12 @@ public class SerializedThrowableDeserializer extends StdDeserializer<SerializedT
 			final DeserializationContext ctxt) throws IOException {
 		final JsonNode root = p.readValueAsTree();
 
-		final String exceptionClassName = root.get(FIELD_NAME_CLASS).asText();
-		final String stackTrace = root.get(FIELD_NAME_STACK_TRACE).asText();
-		final byte[] serializedException = root.get(FIELD_NAME_SERIALIZED_EXCEPTION).binaryValue();
-		return new SerializedThrowable(serializedException, exceptionClassName, stackTrace);
+		final byte[] serializedException = root.get(FIELD_NAME_SERIALIZED_THROWABLE).binaryValue();
+		try {
+			return InstantiationUtil.deserializeObject(serializedException, ClassLoader.getSystemClassLoader());
+		} catch (ClassNotFoundException e) {
+			throw new IOException("Failed to deserialize " + SerializedThrowable.class.getCanonicalName(), e);
+		}
 	}
 
 }
