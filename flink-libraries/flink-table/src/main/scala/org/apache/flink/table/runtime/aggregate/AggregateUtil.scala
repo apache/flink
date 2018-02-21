@@ -1416,6 +1416,21 @@ object AggregateUtil {
             throw new TableException(s"Unsupported Function: '${unSupported.getName}'")
         }
       }
+
+      // create distinct accumulator delegate
+      if (aggregateCall.isDistinct) {
+        val currAgg = aggregates(index)
+        if (aggFieldIndexes(index).length != 1) {
+          throw new TableException(
+            s"Distinct Aggregate Function only support single argument at this time!")
+        }
+        val relDataType = aggregateInputType.getFieldList.get(aggFieldIndexes(index)(0)).getType
+        aggregates(index) = new DistinctAggDelegateFunction(
+          FlinkTypeFactory.toTypeInfo(relDataType),
+          currAgg
+        )
+        accTypes(index) = aggregates(index).getAccumulatorType
+      }
     }
 
     val accSpecs = new Array[Seq[DataViewSpec[_]]](aggregateCalls.size)
