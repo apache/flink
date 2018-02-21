@@ -304,7 +304,7 @@ public class ExecutionTest extends TestLogger {
 
 		ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];
 
-		assertTrue(executionVertex.scheduleForExecution(slotProvider, false, LocationPreferenceConstraint.ANY));
+		executionVertex.scheduleForExecution(slotProvider, false, LocationPreferenceConstraint.ANY).get();
 
 		Execution currentExecutionAttempt = executionVertex.getCurrentExecutionAttempt();
 

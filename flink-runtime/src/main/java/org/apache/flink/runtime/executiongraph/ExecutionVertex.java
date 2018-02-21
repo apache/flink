@@ -607,9 +607,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * @param slotProvider to allocate the slots from
 	 * @param queued if the allocation can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
-	 * @return
+	 * @return Future which is completed once the execution is deployed. The future
+	 * can also completed exceptionally.
 	 */
-	public boolean scheduleForExecution(
+	public CompletableFuture<Void> scheduleForExecution(
 			SlotProvider slotProvider,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint) {
