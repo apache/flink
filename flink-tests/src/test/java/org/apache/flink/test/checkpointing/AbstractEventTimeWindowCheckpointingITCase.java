@@ -51,6 +51,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -86,8 +87,8 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 	private static TestingServer zkServer;
 
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+	@ClassRule
+	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Rule
 	public TestName name = new TestName();
