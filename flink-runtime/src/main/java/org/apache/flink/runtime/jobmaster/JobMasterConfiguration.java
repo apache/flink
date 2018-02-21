@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -36,16 +37,20 @@ public class JobMasterConfiguration {
 
 	private final Time slotIdleTimeout;
 
+	private final String tmpDirectory;
+
 	private final Configuration configuration;
 
 	public JobMasterConfiguration(
 			Time rpcTimeout,
 			Time slotRequestTimeout,
 			Time slotIdleTimeout,
+			String tmpDirectory,
 			Configuration configuration) {
 		this.rpcTimeout = Preconditions.checkNotNull(rpcTimeout);
 		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
 		this.slotIdleTimeout = Preconditions.checkNotNull(slotIdleTimeout);
+		this.tmpDirectory = Preconditions.checkNotNull(tmpDirectory);
 		this.configuration = Preconditions.checkNotNull(configuration);
 	}
 
@@ -59,6 +64,10 @@ public class JobMasterConfiguration {
 
 	public Time getSlotIdleTimeout() {
 		return slotIdleTimeout;
+	}
+
+	public String getTmpDirectory() {
+		return tmpDirectory;
 	}
 
 	public Configuration getConfiguration() {
@@ -78,10 +87,13 @@ public class JobMasterConfiguration {
 		final Time slotRequestTimeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
 		final Time slotIdleTimeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_IDLE_TIMEOUT));
 
+		final String tmpDirectory = ConfigurationUtils.parseTempDirectories(configuration)[0];
+
 		return new JobMasterConfiguration(
 			rpcTimeout,
 			slotRequestTimeout,
 			slotIdleTimeout,
+			tmpDirectory,
 			configuration);
 	}
 }
