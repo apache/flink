@@ -86,11 +86,42 @@ public class CoreOptions {
 	 * </ul>
 	 */
 	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER = ConfigOptions
-		.key("classloader.parent-first-patterns")
+		.key("classloader.parent-first-patterns.base")
 		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback")
+		.withDeprecatedKeys("classloader.parent-first-patterns")
 		.withDescription("A (semicolon-separated) list of patterns that specifies which classes should always be" +
 			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
-			" the fully qualified class name.");
+			" the fully qualified class name. This setting should generally not be modified. To add another pattern we" +
+			" recommend to use \"classloader.parent-first-patterns.append\" instead.");
+
+	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_APPEND = ConfigOptions
+		.key("classloader.parent-first-patterns.append")
+		.defaultValue("")
+		.withDescription("A (semicolon-separated) list of patterns that specifies which classes should always be" +
+			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
+			" the fully qualified class name. These patterns are appended to \"" + ALWAYS_PARENT_FIRST_LOADER.key() + "\".");
+
+	private static final String[] EMPTY_STRING_ARRAY = new String[0];
+
+	public static String[] getParentFirstLoaderPatterns(Configuration config) {
+		String base = config.getString(ALWAYS_PARENT_FIRST_LOADER);
+		String append = config.getString(ALWAYS_PARENT_FIRST_LOADER_APPEND);
+
+		String[] basePatterns = base.isEmpty()
+			? EMPTY_STRING_ARRAY
+			: base.split(";");
+
+		if (append.isEmpty()) {
+			return basePatterns;
+		} else {
+			String[] appendPatterns = append.split(";");
+
+			String[] joinedPatterns = new String[basePatterns.length + appendPatterns.length];
+			System.arraycopy(basePatterns, 0, joinedPatterns, 0, basePatterns.length);
+			System.arraycopy(appendPatterns, 0, joinedPatterns, basePatterns.length, appendPatterns.length);
+			return joinedPatterns;
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//  process parameters
