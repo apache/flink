@@ -120,13 +120,14 @@ public class RocksDBRocksIteratorWrapperTest {
 			try (
 				ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
 				RocksIterator iterator = keyedStateBackend.db.newIterator(handle);
-				RocksDBKeyedStateBackend.RocksIteratorWrapper<K> iteratorWrapper = new RocksDBKeyedStateBackend.RocksIteratorWrapper(
-				iterator,
-				testStateName,
-				keySerializer,
-				keyedStateBackend.getKeyGroupPrefixBytes(),
-				ambiguousKeyPossible,
-				nameSpaceBytes)) {
+				RocksDBKeyedStateBackend.RocksIteratorForKeysWrapper<K> iteratorWrapper =
+					new RocksDBKeyedStateBackend.RocksIteratorForKeysWrapper<>(
+						iterator,
+						testStateName,
+						keySerializer,
+						keyedStateBackend.getKeyGroupPrefixBytes(),
+						ambiguousKeyPossible,
+						nameSpaceBytes)) {
 
 				iterator.seekToFirst();
 
