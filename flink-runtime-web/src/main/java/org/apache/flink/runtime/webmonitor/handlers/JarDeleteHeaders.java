@@ -19,24 +19,22 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
-import org.apache.flink.runtime.rest.messages.FileUpload;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * {@link MessageHeaders} for uploading jars.
+ * Message headers for {@link JarDeleteHandler}.
  */
-public final class JarUploadMessageHeaders implements MessageHeaders<FileUpload, JarUploadResponseBody, EmptyMessageParameters> {
+public class JarDeleteHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, JarDeleteMessageParameters> {
 
-	private static final JarUploadMessageHeaders INSTANCE = new JarUploadMessageHeaders();
-
-	private JarUploadMessageHeaders() {}
+	private static final JarDeleteHeaders INSTANCE = new JarDeleteHeaders();
 
 	@Override
-	public Class<JarUploadResponseBody> getResponseClass() {
-		return JarUploadResponseBody.class;
+	public Class<EmptyResponseBody> getResponseClass() {
+		return EmptyResponseBody.class;
 	}
 
 	@Override
@@ -45,26 +43,27 @@ public final class JarUploadMessageHeaders implements MessageHeaders<FileUpload,
 	}
 
 	@Override
-	public Class<FileUpload> getRequestClass() {
-		return FileUpload.class;
+	public Class<EmptyRequestBody> getRequestClass() {
+		return EmptyRequestBody.class;
 	}
 
 	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
+	public JarDeleteMessageParameters getUnresolvedMessageParameters() {
+		return new JarDeleteMessageParameters();
 	}
 
 	@Override
 	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.POST;
+		return HttpMethodWrapper.DELETE;
 	}
 
 	@Override
 	public String getTargetRestEndpointURL() {
-		return "/jars/upload";
+		return "/jars/:" + JarIdPathParameter.KEY;
 	}
 
-	public static JarUploadMessageHeaders getInstance() {
+	public static JarDeleteHeaders getInstance() {
 		return INSTANCE;
 	}
+
 }

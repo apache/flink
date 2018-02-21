@@ -23,12 +23,14 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.webmonitor.handlers.JarDeleteHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JarDeleteHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.JarListHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JarListHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.JarRunHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JarRunHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.JarUploadHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JarUploadMessageHeaders;
+import org.apache.flink.runtime.webmonitor.handlers.JarUploadHeaders;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
@@ -67,7 +69,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			leaderRetriever,
 			timeout,
 			responseHeaders,
-			JarUploadMessageHeaders.getInstance(),
+			JarUploadHeaders.getInstance(),
 			jarDir,
 			executor);
 
@@ -91,9 +93,19 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			executor,
 			restClusterClient);
 
-		webSubmissionHandlers.add(Tuple2.of(JarUploadMessageHeaders.getInstance(), jarUploadHandler));
+		final JarDeleteHandler jarDeleteHandler = new JarDeleteHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			JarDeleteHeaders.getInstance(),
+			jarDir,
+			executor);
+
+		webSubmissionHandlers.add(Tuple2.of(JarUploadHeaders.getInstance(), jarUploadHandler));
 		webSubmissionHandlers.add(Tuple2.of(JarListHeaders.getInstance(), jarListHandler));
 		webSubmissionHandlers.add(Tuple2.of(JarRunHeaders.getInstance(), jarRunHandler));
+		webSubmissionHandlers.add(Tuple2.of(JarDeleteHeaders.getInstance(), jarDeleteHandler));
 	}
 
 	@Override

@@ -18,34 +18,26 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.rest.messages.ConversionException;
-import org.apache.flink.runtime.rest.messages.MessagePathParameter;
+import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.util.TestLogger;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import org.junit.Test;
+
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
 
 /**
- * Path parameter to identify uploaded jar files.
+ * Tests for {@link JarDeleteHeaders}.
  */
-public class JarIdPathParameter extends MessagePathParameter<String> {
+public class JarDeleteHeadersTest extends TestLogger {
 
-	public static final String KEY = "jarid";
-
-	protected JarIdPathParameter() {
-		super(KEY);
+	@Test
+	public void testUrl() {
+		assertThat(JarDeleteHeaders.getInstance().getTargetRestEndpointURL(), equalTo("/jars/:" + JarIdPathParameter.KEY));
 	}
 
-	@Override
-	protected String convertFromString(final String value) throws ConversionException {
-		final Path path = Paths.get(value);
-		if (path.getParent() != null) {
-			throw new ConversionException(String.format("%s must be a filename only (%s)", KEY, path));
-		}
-		return value;
-	}
-
-	@Override
-	protected String convertToString(final String value) {
-		return value;
+	@Test
+	public void testHttpMethod() {
+		assertThat(JarDeleteHeaders.getInstance().getHttpMethod(), equalTo(HttpMethodWrapper.DELETE));
 	}
 }
