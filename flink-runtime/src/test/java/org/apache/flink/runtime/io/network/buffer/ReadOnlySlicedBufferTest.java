@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
@@ -50,8 +51,10 @@ public class ReadOnlySlicedBufferTest {
 	@Before
 	public void setUp() throws Exception {
 		final MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
-		buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, true, DATA_SIZE);
-		buffer.setSize(DATA_SIZE);
+		buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, true, 0);
+		for (int i = 0; i < DATA_SIZE; ++i) {
+			buffer.writeByte(i);
+		}
 	}
 
 	@Test
@@ -137,34 +140,64 @@ public class ReadOnlySlicedBufferTest {
 
 	@Test
 	public void testCreateSlice1() {
+		buffer.readByte(); // so that we do not start at position 0
 		ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice();
+		buffer.readByte(); // should not influence the second slice at all
 		ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice();
 		ByteBuf unwrap = slice2.unwrap();
 		assertSame(buffer, unwrap);
+		assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
+		assertEquals(1, slice1.getMemorySegmentOffset());
+		assertEquals(slice1.getMemorySegmentOffset(), slice2.getMemorySegmentOffset());
+
+		assertReadableBytes(slice1, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+		assertReadableBytes(slice2, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 	}
 
 	@Test
 	public void testCreateSlice2() {
+		buffer.readByte(); // so that we do not start at position 0
 		ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice();
+		buffer.readByte(); // should not influence the second slice at all
 		ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice(1, 2);
 		ByteBuf unwrap = slice2.unwrap();
 		assertSame(buffer, unwrap);
+		assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
+		assertEquals(1, slice1.getMemorySegmentOffset());
+		assertEquals(2, slice2.getMemorySegmentOffset());
+
+		assertReadableBytes(slice1, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+		assertReadableBytes(slice2, 2, 3);
 	}
 
 	@Test
 	public void testCreateSlice3() {
 		ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice(1, 2);
+		buffer.readByte(); // should not influence the second slice at all
 		ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice();
 		ByteBuf unwrap = slice2.unwrap();
 		assertSame(buffer, unwrap);
+		assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
+		assertEquals(1, slice1.getMemorySegmentOffset());
+		assertEquals(1, slice2.getMemorySegmentOffset());
+
+		assertReadableBytes(slice1, 1, 2);
+		assertReadableBytes(slice2, 1, 2);
 	}
 
 	@Test
 	public void testCreateSlice4() {
 		ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice(1, 5);
+		buffer.readByte(); // should not influence the second slice at all
 		ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice(1, 2);
 		ByteBuf unwrap = slice2.unwrap();
 		assertSame(buffer, unwrap);
+		assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
+		assertEquals(1, slice1.getMemorySegmentOffset());
+		assertEquals(2, slice2.getMemorySegmentOffset());
+
+		assertReadableBytes(slice1, 1, 2, 3, 4, 5);
+		assertReadableBytes(slice2, 2, 3);
 	}
 
 	@Test
@@ -322,5 +355,27 @@ public class ReadOnlySlicedBufferTest {
 		slice.setAllocator(allocator);
 		assertSame(buffer.alloc(), slice.alloc());
 		assertSame(allocator, slice.alloc());
+	}
+
+	private static void assertReadableBytes(Buffer actualBuffer, int... expectedBytes) {
+		ByteBuffer actualBytesBuffer = actualBuffer.getNioBufferReadable();
+		int[] actual = new int[actualBytesBuffer.limit()];
+		for (int i = 0; i < actual.length; ++i) {
+			actual[i] = actualBytesBuffer.get();
+		}
+		assertArrayEquals(expectedBytes, actual);
+
+		// verify absolutely positioned read method:
+		ByteBuf buffer = (ByteBuf) actualBuffer;
+		for (int i = 0; i < buffer.readableBytes(); ++i) {
+			actual[i] = buffer.getByte(buffer.readerIndex() + i);
+		}
+		assertArrayEquals(expectedBytes, actual);
+
+		// verify relatively positioned read method:
+		for (int i = 0; i < buffer.readableBytes(); ++i) {
+			actual[i] = buffer.readByte();
+		}
+		assertArrayEquals(expectedBytes, actual);
 	}
 }
