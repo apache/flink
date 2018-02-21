@@ -89,6 +89,10 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 			this);
 	}
 
+	public ResourceManagerGateway getResourceManageGateway() {
+		return resourceManager.getSelfGateway(ResourceManagerGateway.class);
+	}
+
 	//-------------------------------------------------------------------------------------
 	// Lifecycle management
 	//-------------------------------------------------------------------------------------

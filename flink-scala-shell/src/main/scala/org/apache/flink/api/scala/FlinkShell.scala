@@ -143,7 +143,7 @@ object FlinkShell {
   ): (String, Int, Option[Either[StandaloneMiniCluster, ClusterClient[_]]]) = {
     config.executionMode match {
       case ExecutionMode.LOCAL => // Local mode
-        val config = GlobalConfiguration.loadConfiguration()
+        val config = configuration
         config.setInteger(JobManagerOptions.PORT, 0)
 
         val miniCluster = new StandaloneMiniCluster(config)
@@ -195,7 +195,7 @@ object FlinkShell {
       val conf = cluster match {
         case Some(Left(miniCluster)) => miniCluster.getConfiguration
         case Some(Right(yarnCluster)) => yarnCluster.getFlinkConfiguration
-        case None => GlobalConfiguration.loadConfiguration()
+        case None => configuration
       }
 
       println(s"\nConnecting to Flink cluster (host: $host, port: $port).\n")
