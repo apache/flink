@@ -20,27 +20,28 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
-import org.apache.flink.runtime.rest.messages.FileUpload;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -48,87 +49,103 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 /**
- * Tests for {@link JarUploadHandler}.
+ * Unit tests for {@link JarDeleteHandler}.
  */
-public class JarUploadHandlerTest extends TestLogger {
+public class JarDeleteHandlerTest {
+
+	private static final String TEST_JAR_NAME = "test.jar";
+
+	private JarDeleteHandler jarDeleteHandler;
+
+	private RestfulGateway restfulGateway;
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-	private JarUploadHandler jarUploadHandler;
-
-	@Mock
-	private DispatcherGateway mockDispatcherGateway;
 
 	private Path jarDir;
 
 	@Before
 	public void setUp() throws Exception {
-		MockitoAnnotations.initMocks(this);
-
 		jarDir = temporaryFolder.newFolder().toPath();
-		jarUploadHandler = new JarUploadHandler(
+		restfulGateway = TestingRestfulGateway.newBuilder().build();
+		jarDeleteHandler = new JarDeleteHandler(
 			CompletableFuture.completedFuture("localhost:12345"),
-			() -> CompletableFuture.completedFuture(mockDispatcherGateway),
+			() -> CompletableFuture.completedFuture(restfulGateway),
 			Time.seconds(10),
 			Collections.emptyMap(),
-			JarUploadHeaders.getInstance(),
+			new JarDeleteHeaders(),
 			jarDir,
-			Executors.directExecutor());
+			Executors.directExecutor()
+		);
+
+		Files.createFile(jarDir.resolve(TEST_JAR_NAME));
 	}
 
 	@Test
-	public void testRejectNonJarFiles() throws Exception {
-		final Path uploadedFile = Files.createFile(jarDir.resolve("katrin.png"));
-		final HandlerRequest<FileUpload, EmptyMessageParameters> request = createRequest(uploadedFile);
+	public void testDeleteJarById() throws Exception {
+		assertThat(Files.exists(jarDir.resolve(TEST_JAR_NAME)), equalTo(true));
 
+		final HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> request = createRequest(TEST_JAR_NAME);
+		jarDeleteHandler.handleRequest(request, restfulGateway).get();
+
+		assertThat(Files.exists(jarDir.resolve(TEST_JAR_NAME)), equalTo(false));
+	}
+
+	@Test
+	public void testDeleteUnknownJar() throws Exception {
+		final HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> request = createRequest("doesnotexist.jar");
 		try {
-			jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
-			fail("Expected exception not thrown.");
+			jarDeleteHandler.handleRequest(request, restfulGateway).get();
 		} catch (final ExecutionException e) {
 			final Throwable throwable = ExceptionUtils.stripCompletionException(e.getCause());
 			assertThat(throwable, instanceOf(RestHandlerException.class));
+
 			final RestHandlerException restHandlerException = (RestHandlerException) throwable;
+			assertThat(restHandlerException.getMessage(), containsString("File doesnotexist.jar does not exist in"));
 			assertThat(restHandlerException.getHttpResponseStatus(), equalTo(HttpResponseStatus.BAD_REQUEST));
 		}
 	}
 
 	@Test
-	public void testUploadJar() throws Exception {
-		final Path uploadedFile = Files.createFile(jarDir.resolve("Kafka010Example.jar"));
-		final HandlerRequest<FileUpload, EmptyMessageParameters> request = createRequest(uploadedFile);
+	public void testFailedDelete() throws Exception {
+		makeJarDirReadOnly();
 
-		final JarUploadResponseBody jarUploadResponseBody = jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
-		assertThat(jarUploadResponseBody.getStatus(), equalTo(JarUploadResponseBody.UploadStatus.success));
-		assertThat(jarUploadResponseBody.getFilename(), equalTo(uploadedFile.normalize().toString()));
-	}
-
-	@Test
-	public void testFailedUpload() throws Exception {
-		final Path uploadedFile = jarDir.resolve("Kafka010Example.jar");
-		final HandlerRequest<FileUpload, EmptyMessageParameters> request = createRequest(uploadedFile);
-
+		final HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> request = createRequest(TEST_JAR_NAME);
 		try {
-			jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
-			fail("Expected exception not thrown.");
+			jarDeleteHandler.handleRequest(request, restfulGateway).get();
 		} catch (final ExecutionException e) {
 			final Throwable throwable = ExceptionUtils.stripCompletionException(e.getCause());
 			assertThat(throwable, instanceOf(RestHandlerException.class));
+
 			final RestHandlerException restHandlerException = (RestHandlerException) throwable;
-			assertThat(restHandlerException.getMessage(), containsString("Could not move uploaded jar file"));
+			assertThat(restHandlerException.getMessage(), containsString("Failed to delete jar"));
 			assertThat(restHandlerException.getHttpResponseStatus(), equalTo(HttpResponseStatus.INTERNAL_SERVER_ERROR));
 		}
 	}
 
-	private static HandlerRequest<FileUpload, EmptyMessageParameters> createRequest(
-			final Path uploadedFile) throws HandlerRequestException {
+	private static HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> createRequest(
+			final String jarFileName) throws HandlerRequestException {
 		return new HandlerRequest<>(
-			new FileUpload(uploadedFile),
-			EmptyMessageParameters.getInstance(),
-			Collections.emptyMap(),
+			EmptyRequestBody.getInstance(),
+			new JarDeleteMessageParameters(),
+			Collections.singletonMap(JarIdPathParameter.KEY, jarFileName),
 			Collections.emptyMap());
 	}
+
+	private void makeJarDirReadOnly() {
+		try {
+			Files.setPosixFilePermissions(jarDir, new HashSet<>(Arrays.asList(
+				PosixFilePermission.OTHERS_READ,
+				PosixFilePermission.GROUP_READ,
+				PosixFilePermission.OWNER_READ,
+				PosixFilePermission.OTHERS_EXECUTE,
+				PosixFilePermission.GROUP_EXECUTE,
+				PosixFilePermission.OWNER_EXECUTE)));
+		} catch (final Exception e) {
+			Assume.assumeNoException(e);
+		}
+	}
+
 }
