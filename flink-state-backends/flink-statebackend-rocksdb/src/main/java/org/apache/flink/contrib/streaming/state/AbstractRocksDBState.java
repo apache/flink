@@ -171,7 +171,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	}
 
 	/**
-	 * Utils for RocksDB state serialization and deserialization
+	 * Utils for RocksDB state serialization and deserialization.
  	 */
 	static class AbstractRocksDBUtils {
 
@@ -251,7 +251,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 			int keyGroup,
 			int keyGroupPrefixBytes,
 			DataOutputView keySerializationDateDataOutputView) throws IOException {
-			for (int i = keyGroupPrefixBytes; --i >= 0;) {
+			for (int i = keyGroupPrefixBytes; --i >= 0; ) {
 				keySerializationDateDataOutputView.writeByte(keyGroup >>> (i << 3));
 			}
 		}

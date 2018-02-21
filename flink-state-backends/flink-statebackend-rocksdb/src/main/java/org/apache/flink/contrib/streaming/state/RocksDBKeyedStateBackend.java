@@ -95,7 +95,6 @@ import org.rocksdb.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -290,13 +289,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				throw new FlinkRuntimeException("Failed to get keys from RocksDB state backend.", ex);
 			}
 
-			final RocksIteratorWrapper iterable = new RocksIteratorWrapper<>(iterator, state, keySerializer, keyGroupPrefixBytes,
+			final RocksIteratorWrapper<K> iteratorWrapper = new RocksIteratorWrapper<>(iterator, state, keySerializer, keyGroupPrefixBytes,
 				ambiguousKeyPossible, nameSpaceBytes);
 
-			Stream<K> targetStream = StreamSupport.stream(((Iterable) iterable).spliterator(), false);
+			Stream<K> targetStream = StreamSupport.stream(((Iterable<K>)()->iteratorWrapper).spliterator(), false);
 			return targetStream.onClose(() -> {
 				try {
-					iterable.close();
+					iteratorWrapper.close();
 				} catch (Exception ex) {
 					LOG.warn("Release RocksIteratorWrapper failed.", ex);
 				}

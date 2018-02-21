@@ -30,10 +30,12 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksIterator;
 
@@ -110,7 +112,6 @@ public class RocksDBRocksIteratorWrapperTest {
 		RocksIterator iterator = keyedStateBackend.db.newIterator(handle);
 		iterator.seekToFirst();
 
-
 		ByteArrayOutputStreamWithPos outputStream = new ByteArrayOutputStreamWithPos(8);
 		boolean ambiguousKeyPossible = AbstractRocksDBState.AbstractRocksDBUtils.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
 		AbstractRocksDBState.AbstractRocksDBUtils.writeNameSpace(
@@ -132,7 +133,7 @@ public class RocksDBRocksIteratorWrapperTest {
 
 		// valid record
 		List<Integer> fetchedKeys = new ArrayList<>(1000);
-		while(iteratorWrapper.hasNext()) {
+		while (iteratorWrapper.hasNext()) {
 			fetchedKeys.add(Integer.parseInt(iteratorWrapper.next().toString()));
 		}
 
