@@ -101,14 +101,12 @@ public class CoreOptions {
 			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
 			" the fully qualified class name. These patterns are appended to \"" + ALWAYS_PARENT_FIRST_LOADER.key() + "\".");
 
-	private static final String[] EMPTY_STRING_ARRAY = new String[0];
-
 	public static String[] getParentFirstLoaderPatterns(Configuration config) {
 		String base = config.getString(ALWAYS_PARENT_FIRST_LOADER);
 		String append = config.getString(ALWAYS_PARENT_FIRST_LOADER_APPEND);
 
 		String[] basePatterns = base.isEmpty()
-			? EMPTY_STRING_ARRAY
+			? new String[0]
 			: base.split(";");
 
 		if (append.isEmpty()) {
