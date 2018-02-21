@@ -666,15 +666,15 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
-    * Applies the given [[ProcessFunction]] on the input stream, thereby
-    * creating a transformed output stream.
-    *
-    * The function will be called for every element in the stream and can produce
-    * zero or more output.
-    *
-    * @param processFunction The [[ProcessFunction]] that is called for each element
-    *                   in the stream.
-    */
+   * Applies the given [[ProcessFunction]] on the input stream, thereby
+   * creating a transformed output stream.
+   *
+   * The function will be called for every element in the stream and can produce
+   * zero or more output.
+   *
+   * @param processFunction The [[ProcessFunction]] that is called for each element
+   *                   in the stream.
+   */
   @PublicEvolving
   def process[R: TypeInformation](
     processFunction: ProcessFunction[T, R]): DataStream[R] = {
@@ -687,15 +687,15 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
-    * Applies the given [[KeyedProcessFunction]] on the input stream, thereby
-    * creating a transformed output stream.
-    *
-    * The function will be called for every element in the stream and can produce
-    * zero or more output.
-    *
-    * @param keyedProcessFunction The [[KeyedProcessFunction]] that is called for each element
-    *                   in the stream.
-    */
+   * Applies the given [[KeyedProcessFunction]] on the input stream, thereby
+   * creating a transformed output stream.
+   *
+   * The function will be called for every element in the stream and can produce
+   * zero or more output.
+   *
+   * @param keyedProcessFunction The [[KeyedProcessFunction]] that is called for each element
+   *                   in the stream.
+   */
   @PublicEvolving
   def process[K, R: TypeInformation](
     keyedProcessFunction: KeyedProcessFunction[K, T, R]): DataStream[R] = {

@@ -54,20 +54,20 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   // ------------------------------------------------------------------------
 
   /**
-    * Applies the given [[ProcessFunction]] on the input stream, thereby
-    * creating a transformed output stream.
-    *
-    * The function will be called for every element in the stream and can produce
-    * zero or more output. The function can also query the time and set timers. When
-    * reacting to the firing of set timers the function can emit yet more elements.
-    *
-    * The function will be called for every element in the input streams and can produce zero
-    * or more output elements. Contrary to the [[DataStream#flatMap(FlatMapFunction)]]
-    * function, this function can also query the time and set timers. When reacting to the firing
-    * of set timers the function can directly emit elements and/or register yet more timers.
-    *
-    * @param processFunction The [[ProcessFunction]] that is called for each element in the stream.
-    */
+   * Applies the given [[ProcessFunction]] on the input stream, thereby
+   * creating a transformed output stream.
+   *
+   * The function will be called for every element in the stream and can produce
+   * zero or more output. The function can also query the time and set timers. When
+   * reacting to the firing of set timers the function can emit yet more elements.
+   *
+   * The function will be called for every element in the input streams and can produce zero
+   * or more output elements. Contrary to the [[DataStream#flatMap(FlatMapFunction)]]
+   * function, this function can also query the time and set timers. When reacting to the firing
+   * of set timers the function can directly emit elements and/or register yet more timers.
+   *
+   * @param processFunction The [[ProcessFunction]] that is called for each element in the stream.
+   */
   @PublicEvolving
   override def process[R: TypeInformation](
     processFunction: ProcessFunction[T, R]): DataStream[R] = {
@@ -80,21 +80,21 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   }
 
   /**
-    * Applies the given [[KeyedProcessFunction]] on the input stream, thereby
-    * creating a transformed output stream.
-    *
-    * The function will be called for every element in the stream and can produce
-    * zero or more output. The function can also query the time and set timers. When
-    * reacting to the firing of set timers the function can emit yet more elements.
-    *
-    * The function will be called for every element in the input streams and can produce zero
-    * or more output elements. Contrary to the [[DataStream#flatMap(FlatMapFunction)]]
-    * function, this function can also query the time and set timers. When reacting to the firing
-    * of set timers the function can directly emit elements and/or register yet more timers.
-    *
-    * @param keyedProcessFunction The [[KeyedProcessFunction]] that is called for each element
-    *                             in the stream.
-    */
+   * Applies the given [[KeyedProcessFunction]] on the input stream, thereby
+   * creating a transformed output stream.
+   *
+   * The function will be called for every element in the stream and can produce
+   * zero or more output. The function can also query the time and set timers. When
+   * reacting to the firing of set timers the function can emit yet more elements.
+   *
+   * The function will be called for every element in the input streams and can produce zero
+   * or more output elements. Contrary to the [[DataStream#flatMap(FlatMapFunction)]]
+   * function, this function can also query the time and set timers. When reacting to the firing
+   * of set timers the function can directly emit elements and/or register yet more timers.
+   *
+   * @param keyedProcessFunction The [[KeyedProcessFunction]] that is called for each element
+   *                             in the stream.
+   */
   @PublicEvolving
   override def process[K, R: TypeInformation](
     keyedProcessFunction: KeyedProcessFunction[K, T, R]): DataStream[R] = {

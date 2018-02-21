@@ -451,9 +451,9 @@ class DataStreamTest extends AbstractTestBase {
   }
 
   /**
-    * Verify that a [[KeyedStream.process(KeyedProcessFunction)]] call is correctly
-    * translated to an operator.
-    */
+   * Verify that a [[KeyedStream.process(KeyedProcessFunction)]] call is correctly
+   * translated to an operator.
+   */
   @Test
   def testKeyedStreamKeyedProcessTranslation(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -474,9 +474,9 @@ class DataStreamTest extends AbstractTestBase {
   }
 
   /**
-    * Verify that a [[DataStream.process(ProcessFunction)]] call is correctly
-    * translated to an operator.
-    */
+   * Verify that a [[DataStream.process(ProcessFunction)]] call is correctly
+   * translated to an operator.
+   */
   @Test
   def testProcessTranslation(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -497,9 +497,9 @@ class DataStreamTest extends AbstractTestBase {
   }
 
   /**
-    * Verify that a [[DataStream.process(KeyedProcessFunction)]] call is correctly
-    * translated to an operator.
-    */
+   * Verify that a [[DataStream.process(KeyedProcessFunction)]] call is correctly
+   * translated to an operator.
+   */
   @Test
   def testKeyedProcessTranslation(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
