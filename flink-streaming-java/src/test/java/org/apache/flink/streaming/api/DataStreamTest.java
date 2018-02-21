@@ -799,36 +799,6 @@ public class DataStreamTest extends TestLogger {
 	}
 
 	/**
-	 * Verify that a {@link DataStream#process(KeyedProcessFunction)} call is correctly translated to an operator.
-	 */
-	@Test
-	public void testKeyedProcessTranslation() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStreamSource<Long> src = env.generateSequence(0, 0);
-
-		KeyedProcessFunction<Long, Long, Integer> keyedProcessFunction = new KeyedProcessFunction<Long, Long, Integer>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public void processElement(Long value, Context ctx, Collector<Integer> out) throws Exception {
-				// Do nothing
-			}
-
-			@Override
-			public void onTimer(long timestamp, OnTimerContext<Long> ctx, Collector<Integer> out) throws Exception {
-				// Do nothing
-			}
-		};
-
-		DataStream<Integer> processed = src.process(keyedProcessFunction);
-
-		processed.addSink(new DiscardingSink<Integer>());
-
-		assertEquals(keyedProcessFunction, getFunctionForDataStream(processed));
-		assertTrue(getOperatorForDataStream(processed) instanceof KeyedProcessOperator);
-	}
-
-	/**
 	 * Tests that with a {@link KeyedStream} we have to provide a {@link KeyedBroadcastProcessFunction}.
 	 */
 	@Test

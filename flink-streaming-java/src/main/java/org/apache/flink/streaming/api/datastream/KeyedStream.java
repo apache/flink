@@ -355,7 +355,6 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 *
 	 * @return The transformed {@link DataStream}.
 	 */
-	@Override
 	@PublicEvolving
 	public <K, R> SingleOutputStreamOperator<R> process(KeyedProcessFunction<K, T, R> keyedProcessFunction) {
 
@@ -391,7 +390,6 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 *
 	 * @return The transformed {@link DataStream}.
 	 */
-	@Override
 	@Internal
 	public <K, R> SingleOutputStreamOperator<R> process(
 			KeyedProcessFunction<K, T, R> keyedProcessFunction,
