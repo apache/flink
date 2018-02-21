@@ -1818,6 +1818,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private Snapshot snapshot;
 		private ReadOptions readOptions;
+		private List<Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>> kvStateInformationCopy;
 		private List<Tuple2<RocksIterator, Integer>> kvStateIterators;
 
 		private CheckpointStreamWithResultProvider checkpointStreamWithResultProvider;
@@ -1841,7 +1842,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 */
 		public void takeDBSnapShot() {
 			Preconditions.checkArgument(snapshot == null, "Only one ongoing snapshot allowed!");
-			this.kvStateIterators = new ArrayList<>(stateBackend.kvStateInformation.size());
+			this.kvStateInformationCopy = new ArrayList<>(stateBackend.kvStateInformation.values());
 			this.snapshot = stateBackend.db.getSnapshot();
 		}
 
@@ -1928,20 +1929,22 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private void writeKVStateMetaData() throws IOException {
 
 			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> metaInfoSnapshots =
-				new ArrayList<>(stateBackend.kvStateInformation.size());
+				new ArrayList<>(kvStateInformationCopy.size());
+
+			this.kvStateIterators = new ArrayList<>(kvStateInformationCopy.size());
 
 			int kvStateId = 0;
-			for (Map.Entry<String, Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>> column :
-				stateBackend.kvStateInformation.entrySet()) {
+			for (Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> column :
+				kvStateInformationCopy) {
 
-				metaInfoSnapshots.add(column.getValue().f1.snapshot());
+				metaInfoSnapshots.add(column.f1.snapshot());
 
 				//retrieve iterator for this k/v states
 				readOptions = new ReadOptions();
 				readOptions.setSnapshot(snapshot);
 
 				kvStateIterators.add(
-					new Tuple2<>(stateBackend.db.newIterator(column.getValue().f0, readOptions), kvStateId));
+					new Tuple2<>(stateBackend.db.newIterator(column.f0, readOptions), kvStateId));
 
 				++kvStateId;
 			}
