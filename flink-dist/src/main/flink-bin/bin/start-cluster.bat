@@ -29,12 +29,12 @@ SET JVM_ARGS=-Xms1024m -Xmx1024m
 
 SET FLINK_CLASSPATH=%FLINK_LIB_DIR%\*
 
-SET logname_jm=flink-%username%-jobmanager-%computername%.log
-SET logname_tm=flink-%username%-taskmanager-%computername%.log
+SET logname_jm=flink-%username%-jobmanager.log
+SET logname_tm=flink-%username%-taskmanager.log
 SET log_jm=%FLINK_LOG_DIR%\%logname_jm%
 SET log_tm=%FLINK_LOG_DIR%\%logname_tm%
-SET outname_jm=flink-%username%-jobmanager-%computername%.out
-SET outname_tm=flink-%username%-taskmanager-%computername%.out
+SET outname_jm=flink-%username%-jobmanager.out
+SET outname_tm=flink-%username%-taskmanager.out
 SET out_jm=%FLINK_LOG_DIR%\%outname_jm%
 SET out_tm=%FLINK_LOG_DIR%\%outname_tm%
 
