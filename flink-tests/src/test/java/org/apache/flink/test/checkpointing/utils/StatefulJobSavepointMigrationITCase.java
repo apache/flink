@@ -122,25 +122,25 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		env.setMaxParallelism(4);
 
 		env
-			.addSource(new CheckpointedNonParallelSourceWithListState(NUM_SOURCE_ELEMENTS)).uid("CheckpointedSource1")
+			.addSource(new CheckpointingNonParallelSourceWithListState(NUM_SOURCE_ELEMENTS)).uid("CheckpointingSource1")
 			.keyBy(0)
-			.flatMap(new KeyedStateSettingFlatMap()).startNewChain().uid("KeyedStateSettingFlatMap1")
+			.flatMap(new CheckpointingKeyedStateFlatMap()).startNewChain().uid("CheckpointingKeyedStateFlatMap1")
 			.keyBy(0)
 			.transform(
 				"timely_stateful_operator",
 				new TypeHint<Tuple2<Long, Long>>() {}.getTypeInfo(),
-				new TimelyStatefulOperator()).uid("TimelyStatefulOperator1")
+				new CheckpointingTimelyStatefulOperator()).uid("CheckpointingTimelyStatefulOperator1")
 			.addSink(new AccumulatorCountingSink<>());
 
 		env
-			.addSource(new CheckpointedParallelSourceWithUnionListState(NUM_SOURCE_ELEMENTS)).uid("CheckpointedSource2")
+			.addSource(new CheckpointingParallelSourceWithUnionListState(NUM_SOURCE_ELEMENTS)).uid("CheckpointingSource2")
 			.keyBy(0)
-			.flatMap(new KeyedStateSettingFlatMap()).startNewChain().uid("KeyedStateSettingFlatMap2")
+			.flatMap(new CheckpointingKeyedStateFlatMap()).startNewChain().uid("CheckpointingKeyedStateFlatMap2")
 			.keyBy(0)
 			.transform(
 				"timely_stateful_operator",
 				new TypeHint<Tuple2<Long, Long>>() {}.getTypeInfo(),
-				new TimelyStatefulOperator()).uid("TimelyStatefulOperator2")
+				new CheckpointingTimelyStatefulOperator()).uid("CheckpointingTimelyStatefulOperator2")
 			.addSink(new AccumulatorCountingSink<>());
 
 		executeAndSavepoint(
@@ -174,31 +174,31 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		env.setMaxParallelism(parallelism);
 
 		env
-			.addSource(new CheckingRestoringNonParallelSourceWithListState(NUM_SOURCE_ELEMENTS)).uid("CheckpointedSource1")
+			.addSource(new CheckingNonParallelSourceWithListState(NUM_SOURCE_ELEMENTS)).uid("CheckpointingSource1")
 			.keyBy(0)
-			.flatMap(new CheckingKeyedStateFlatMap()).startNewChain().uid("KeyedStateSettingFlatMap1")
+			.flatMap(new CheckingKeyedStateFlatMap()).startNewChain().uid("CheckpointingKeyedStateFlatMap1")
 			.keyBy(0)
 			.transform(
 				"timely_stateful_operator",
 				new TypeHint<Tuple2<Long, Long>>() {}.getTypeInfo(),
-				new CheckingTimelyStatefulOperator()).uid("TimelyStatefulOperator1")
+				new CheckingTimelyStatefulOperator()).uid("CheckpointingTimelyStatefulOperator1")
 			.addSink(new AccumulatorCountingSink<>());
 
 		env
-			.addSource(new CheckingRestoringParallelSourceWithUnionListState(NUM_SOURCE_ELEMENTS)).uid("CheckpointedSource2")
+			.addSource(new CheckingRestoringParallelSourceWithUnionListState(NUM_SOURCE_ELEMENTS)).uid("CheckpointingSource2")
 			.keyBy(0)
-			.flatMap(new CheckingKeyedStateFlatMap()).startNewChain().uid("KeyedStateSettingFlatMap2")
+			.flatMap(new CheckingKeyedStateFlatMap()).startNewChain().uid("CheckpointingKeyedStateFlatMap2")
 			.keyBy(0)
 			.transform(
 				"timely_stateful_operator",
 				new TypeHint<Tuple2<Long, Long>>() {}.getTypeInfo(),
-				new CheckingTimelyStatefulOperator()).uid("TimelyStatefulOperator2")
+				new CheckingTimelyStatefulOperator()).uid("CheckpointingTimelyStatefulOperator2")
 			.addSink(new AccumulatorCountingSink<>());
 
 		restoreAndExecute(
 			env,
 			getResourceFilename(getSavepointPath(testMigrateVersion, testStateBackend)),
-			new Tuple2<>(CheckingRestoringNonParallelSourceWithListState.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, 1),
+			new Tuple2<>(CheckingNonParallelSourceWithListState.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, 1),
 			new Tuple2<>(CheckingRestoringParallelSourceWithUnionListState.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, parallelism),
 			new Tuple2<>(CheckingKeyedStateFlatMap.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
 			new Tuple2<>(CheckingTimelyStatefulOperator.SUCCESSFUL_PROCESS_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
@@ -218,16 +218,16 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class CheckpointedNonParallelSourceWithListState
+	private static class CheckpointingNonParallelSourceWithListState
 		implements SourceFunction<Tuple2<Long, Long>>, CheckpointedFunction {
 
-		final static ListStateDescriptor<String> stateDescriptor =
+		static final ListStateDescriptor<String> stateDescriptor =
 			new ListStateDescriptor<>("source-state", StringSerializer.INSTANCE);
 
-		final static String checkpointedString = "Here be dragons!";
-		final static String checkpointedString1 = "Here be more dragons!";
-		final static String checkpointedString2 = "Here be yet more dragons!";
-		final static String checkpointedString3 = "Here be the mostest dragons!";
+		static final String checkpointedString = "Here be dragons!";
+		static final String checkpointedString1 = "Here be more dragons!";
+		static final String checkpointedString2 = "Here be yet more dragons!";
+		static final String checkpointedString3 = "Here be the mostest dragons!";
 
 		private static final long serialVersionUID = 1L;
 
@@ -237,7 +237,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 
 		private transient ListState<String> unionListState;
 
-		public CheckpointedNonParallelSourceWithListState(int numElements) {
+		public CheckpointingNonParallelSourceWithListState(int numElements) {
 			this.numElements = numElements;
 		}
 
@@ -280,18 +280,18 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class CheckingRestoringNonParallelSourceWithListState
+	private static class CheckingNonParallelSourceWithListState
 		extends RichSourceFunction<Tuple2<Long, Long>> implements CheckpointedFunction {
 
 		private static final long serialVersionUID = 1L;
 
-		public static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR = CheckingRestoringNonParallelSourceWithListState.class + "_RESTORE_CHECK";
+		public static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR = CheckingNonParallelSourceWithListState.class + "_RESTORE_CHECK";
 
 		private volatile boolean isRunning = true;
 
 		private final int numElements;
 
-		public CheckingRestoringNonParallelSourceWithListState(int numElements) {
+		public CheckingNonParallelSourceWithListState(int numElements) {
 			this.numElements = numElements;
 		}
 
@@ -303,15 +303,15 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
 			ListState<String> unionListState = context.getOperatorStateStore().getListState(
-				CheckpointedNonParallelSourceWithListState.stateDescriptor);
+				CheckpointingNonParallelSourceWithListState.stateDescriptor);
 
 			if (context.isRestored()) {
 				assertThat(unionListState.get(),
 					containsInAnyOrder(
-						CheckpointedNonParallelSourceWithListState.checkpointedString,
-						CheckpointedNonParallelSourceWithListState.checkpointedString1,
-						CheckpointedNonParallelSourceWithListState.checkpointedString2,
-						CheckpointedNonParallelSourceWithListState.checkpointedString3));
+						CheckpointingNonParallelSourceWithListState.checkpointedString,
+						CheckpointingNonParallelSourceWithListState.checkpointedString1,
+						CheckpointingNonParallelSourceWithListState.checkpointedString2,
+						CheckpointingNonParallelSourceWithListState.checkpointedString3));
 
 				getRuntimeContext().addAccumulator(SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, new IntCounter());
 				getRuntimeContext().getAccumulator(SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR).add(1);
@@ -344,13 +344,13 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class CheckpointedParallelSourceWithUnionListState
+	private static class CheckpointingParallelSourceWithUnionListState
 		extends RichSourceFunction<Tuple2<Long, Long>> implements CheckpointedFunction {
 
-		final static ListStateDescriptor<String> stateDescriptor =
+		static final ListStateDescriptor<String> stateDescriptor =
 			new ListStateDescriptor<>("source-state", StringSerializer.INSTANCE);
 
-		final static String[] checkpointedStrings = {
+		static final String[] checkpointedStrings = {
 			"Here be dragons!",
 			"Here be more dragons!",
 			"Here be yet more dragons!",
@@ -364,7 +364,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 
 		private transient ListState<String> unionListState;
 
-		public CheckpointedParallelSourceWithUnionListState(int numElements) {
+		public CheckpointingParallelSourceWithUnionListState(int numElements) {
 			this.numElements = numElements;
 		}
 
@@ -434,11 +434,11 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
 			ListState<String> unionListState = context.getOperatorStateStore().getUnionListState(
-				CheckpointedNonParallelSourceWithListState.stateDescriptor);
+				CheckpointingNonParallelSourceWithListState.stateDescriptor);
 
 			if (context.isRestored()) {
 				assertThat(unionListState.get(),
-					containsInAnyOrder(CheckpointedParallelSourceWithUnionListState.checkpointedStrings));
+					containsInAnyOrder(CheckpointingParallelSourceWithUnionListState.checkpointedStrings));
 
 				getRuntimeContext().addAccumulator(SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, new IntCounter());
 				getRuntimeContext().getAccumulator(SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR).add(1);
@@ -473,7 +473,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class KeyedStateSettingFlatMap extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	private static class CheckpointingKeyedStateFlatMap extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -518,7 +518,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class TimelyStatefulOperator
+	private static class CheckpointingTimelyStatefulOperator
 		extends AbstractStreamOperator<Tuple2<Long, Long>>
 		implements OneInputStreamOperator<Tuple2<Long, Long>, Tuple2<Long, Long>>, Triggerable<Long, Long> {
 		private static final long serialVersionUID = 1L;
@@ -582,13 +582,12 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		private final ValueStateDescriptor<Long> stateDescriptor =
 			new ValueStateDescriptor<Long>("state-name", LongSerializer.INSTANCE);
 
-		private transient InternalTimerService<Long> timerService;
-
 		@Override
 		public void open() throws Exception {
 			super.open();
 
-			timerService = getInternalTimerService(
+			// have to re-register to ensure that our onEventTime() is called
+			getInternalTimerService(
 				"timer",
 				LongSerializer.INSTANCE,
 				this);
