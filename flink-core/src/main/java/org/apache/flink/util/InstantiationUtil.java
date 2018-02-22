@@ -113,7 +113,7 @@ public final class InstantiationUtil {
 	 *
 	 * <p>This can be removed once 1.2 is no longer supported.
 	 */
-	private static Set<String> scalaSerializerClassnames = new HashSet<>();
+	private static final Set<String> scalaSerializerClassnames = new HashSet<>();
 	static {
 		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.TraversableSerializer");
 		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.CaseClassSerializer");
@@ -121,8 +121,51 @@ public final class InstantiationUtil {
 		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.EnumValueSerializer");
 		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.OptionSerializer");
 		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.TrySerializer");
-		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.EitherSerializer");
 		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.UnitSerializer");
+	}
+
+	/**
+	 * The serialVersionUID might change between Scala versions and since those classes are
+	 * part of the tuple serializer config snapshots we need to ignore them.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-8451">FLINK-8451</a>
+	 */
+	private static final Set<String> scalaTypes = new HashSet<>();
+	static {
+		scalaTypes.add("scala.Tuple1");
+		scalaTypes.add("scala.Tuple2");
+		scalaTypes.add("scala.Tuple3");
+		scalaTypes.add("scala.Tuple4");
+		scalaTypes.add("scala.Tuple5");
+		scalaTypes.add("scala.Tuple6");
+		scalaTypes.add("scala.Tuple7");
+		scalaTypes.add("scala.Tuple8");
+		scalaTypes.add("scala.Tuple9");
+		scalaTypes.add("scala.Tuple10");
+		scalaTypes.add("scala.Tuple11");
+		scalaTypes.add("scala.Tuple12");
+		scalaTypes.add("scala.Tuple13");
+		scalaTypes.add("scala.Tuple14");
+		scalaTypes.add("scala.Tuple15");
+		scalaTypes.add("scala.Tuple16");
+		scalaTypes.add("scala.Tuple17");
+		scalaTypes.add("scala.Tuple18");
+		scalaTypes.add("scala.Tuple19");
+		scalaTypes.add("scala.Tuple20");
+		scalaTypes.add("scala.Tuple21");
+		scalaTypes.add("scala.Tuple22");
+		scalaTypes.add("scala.Tuple1$mcJ$sp");
+		scalaTypes.add("scala.Tuple1$mcI$sp");
+		scalaTypes.add("scala.Tuple1$mcD$sp");
+		scalaTypes.add("scala.Tuple2$mcJJ$sp");
+		scalaTypes.add("scala.Tuple2$mcJI$sp");
+		scalaTypes.add("scala.Tuple2$mcJD$sp");
+		scalaTypes.add("scala.Tuple2$mcIJ$sp");
+		scalaTypes.add("scala.Tuple2$mcII$sp");
+		scalaTypes.add("scala.Tuple2$mcID$sp");
+		scalaTypes.add("scala.Tuple2$mcDJ$sp");
+		scalaTypes.add("scala.Tuple2$mcDI$sp");
+		scalaTypes.add("scala.Tuple2$mcDD$sp");
 	}
 
 	/**
@@ -158,12 +201,13 @@ public final class InstantiationUtil {
 				}
 			}
 
-			Class localClass = resolveClass(streamClassDescriptor);
-			if (scalaSerializerClassnames.contains(localClass.getName()) || localClass.isAnonymousClass()
+			final Class localClass = resolveClass(streamClassDescriptor);
+			final String name = localClass.getName();
+			if (scalaSerializerClassnames.contains(name) || scalaTypes.contains(name) || localClass.isAnonymousClass()
 				// isAnonymousClass does not work for anonymous Scala classes; additionally check by classname
-				|| localClass.getName().contains("$anon$") || localClass.getName().contains("$anonfun")) {
+				|| name.contains("$anon$") || name.contains("$anonfun")) {
 
-				ObjectStreamClass localClassDescriptor = ObjectStreamClass.lookup(localClass);
+				final ObjectStreamClass localClassDescriptor = ObjectStreamClass.lookup(localClass);
 				if (localClassDescriptor != null
 					&& localClassDescriptor.getSerialVersionUID() != streamClassDescriptor.getSerialVersionUID()) {
 					LOG.warn("Ignoring serialVersionUID mismatch for anonymous class {}; was {}, now {}.",
