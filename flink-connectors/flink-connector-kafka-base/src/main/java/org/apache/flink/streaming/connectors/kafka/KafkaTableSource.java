@@ -42,6 +42,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 
 import scala.Option;
@@ -136,6 +137,35 @@ public abstract class KafkaTableSource
 	@Override
 	public String explainSource() {
 		return TableConnectorUtil.generateRuntimeName(this.getClass(), schema.getColumnNames());
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (!o.getClass().equals(this.getClass())) {
+			return false;
+		}
+		KafkaTableSource other = (KafkaTableSource) o;
+		return Objects.equals(topic, other.topic)
+				&& Objects.equals(schema, other.schema)
+				&& Objects.equals(properties, other.properties)
+				&& Objects.equals(proctimeAttribute, other.proctimeAttribute)
+				&& Objects.equals(returnType, other.returnType)
+				&& Objects.equals(rowtimeAttributeDescriptors, other.rowtimeAttributeDescriptors)
+				&& Objects.equals(specificStartupOffsets, other.specificStartupOffsets)
+				&& Objects.equals(startupMode, other.startupMode);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(
+				topic,
+				schema,
+				properties,
+				proctimeAttribute,
+				returnType,
+				rowtimeAttributeDescriptors,
+				specificStartupOffsets,
+				startupMode);
 	}
 
 	/**
