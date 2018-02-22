@@ -347,7 +347,7 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
-	public final OperatorSnapshotResult snapshotState(
+	public final OperatorSnapshotFutures snapshotState(
 			long checkpointId,
 			long timestamp,
 			CheckpointOptions checkpointOptions,
@@ -356,7 +356,7 @@ public abstract class AbstractStreamOperator<OUT>
 		KeyGroupRange keyGroupRange = null != keyedStateBackend ?
 				keyedStateBackend.getKeyGroupRange() : KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
 
-		OperatorSnapshotResult snapshotInProgress = new OperatorSnapshotResult();
+		OperatorSnapshotFutures snapshotInProgress = new OperatorSnapshotFutures();
 
 		try (StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
 				checkpointId,
