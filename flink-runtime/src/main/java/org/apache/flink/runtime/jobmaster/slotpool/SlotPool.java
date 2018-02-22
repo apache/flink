@@ -227,6 +227,14 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		validateRunsInMainThread();
 
+		// cancel all pending allocations --> we can request these slots
+		// again after we regained the leadership
+		Set<AllocationID> allocationIds = pendingRequests.keySetB();
+
+		for (AllocationID allocationId : allocationIds) {
+			resourceManagerGateway.cancelSlotRequest(allocationId);
+		}
+
 		// suspend this RPC endpoint
 		stop();
 
