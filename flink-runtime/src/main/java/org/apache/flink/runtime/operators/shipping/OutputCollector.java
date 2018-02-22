@@ -82,7 +82,7 @@ public class OutputCollector<T> implements Collector<T> {
 	public void close() {
 		for (RecordWriter<?> writer : writers) {
 			writer.clearBuffers();
-			writer.flush();
+			writer.flushAll();
 		}
 	}
 
