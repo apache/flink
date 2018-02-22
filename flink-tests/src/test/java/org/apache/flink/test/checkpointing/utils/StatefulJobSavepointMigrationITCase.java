@@ -52,7 +52,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.apache.flink.util.Collector;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -73,20 +72,25 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 
 	private static final int NUM_SOURCE_ELEMENTS = 4;
 
+	/**
+	 * This test runs in either of two modes: 1) we want to generate the binary savepoint, i.e.
+	 * we have to run the checkpointing functions 2) we want to verify restoring, so we have to run
+	 * the checking functions.
+	 */
+	public enum ExecutionMode {
+		PERFORM_SAVEPOINT,
+		VERIFY_SAVEPOINT
+	}
+
+	// TODO change this to PERFORM_SAVEPOINT to regenerate binary savepoints
+	private final ExecutionMode executionMode = ExecutionMode.VERIFY_SAVEPOINT;
+
 	@Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")
 	public static Collection<Tuple2<MigrationVersion, String>> parameters () {
 		return Arrays.asList(
 			Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
 			Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
 	}
-
-	/**
-	 * TODO to generate savepoints for a specific Flink version / backend type,
-	 * TODO change these values accordingly, e.g. to generate for 1.4 with RocksDB,
-	 * TODO set as (MigrationVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME)
-	 */
-	private final MigrationVersion flinkGenerateSavepointVersion = MigrationVersion.v1_4;
-	private final String flinkGenerateSavepointBackendType = StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME;
 
 	private final MigrationVersion testMigrateVersion;
 	private final String testStateBackend;
@@ -96,61 +100,8 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		this.testStateBackend = testMigrateVersionAndBackend.f1;
 	}
 
-	/**
-	 * Manually run this to write binary snapshot data.
-	 */
 	@Test
-	@Ignore
-	public void writeSavepoint() throws Exception {
-
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-
-		switch (flinkGenerateSavepointBackendType) {
-			case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME:
-				env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
-				break;
-			case StateBackendLoader.MEMORY_STATE_BACKEND_NAME:
-				env.setStateBackend(new MemoryStateBackend());
-				break;
-			default:
-				throw new UnsupportedOperationException();
-		}
-
-		env.enableCheckpointing(500);
-		env.setParallelism(4);
-		env.setMaxParallelism(4);
-
-		env
-			.addSource(new CheckpointingNonParallelSourceWithListState(NUM_SOURCE_ELEMENTS)).uid("CheckpointingSource1")
-			.keyBy(0)
-			.flatMap(new CheckpointingKeyedStateFlatMap()).startNewChain().uid("CheckpointingKeyedStateFlatMap1")
-			.keyBy(0)
-			.transform(
-				"timely_stateful_operator",
-				new TypeHint<Tuple2<Long, Long>>() {}.getTypeInfo(),
-				new CheckpointingTimelyStatefulOperator()).uid("CheckpointingTimelyStatefulOperator1")
-			.addSink(new AccumulatorCountingSink<>());
-
-		env
-			.addSource(new CheckpointingParallelSourceWithUnionListState(NUM_SOURCE_ELEMENTS)).uid("CheckpointingSource2")
-			.keyBy(0)
-			.flatMap(new CheckpointingKeyedStateFlatMap()).startNewChain().uid("CheckpointingKeyedStateFlatMap2")
-			.keyBy(0)
-			.transform(
-				"timely_stateful_operator",
-				new TypeHint<Tuple2<Long, Long>>() {}.getTypeInfo(),
-				new CheckpointingTimelyStatefulOperator()).uid("CheckpointingTimelyStatefulOperator2")
-			.addSink(new AccumulatorCountingSink<>());
-
-		executeAndSavepoint(
-			env,
-			"src/test/resources/" + getSavepointPath(flinkGenerateSavepointVersion, flinkGenerateSavepointBackendType),
-			new Tuple2<>(AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2));
-	}
-
-	@Test
-	public void testSavepointRestore() throws Exception {
+	public void testSavepoint() throws Exception {
 
 		final int parallelism = 4;
 
@@ -173,38 +124,66 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		env.setParallelism(parallelism);
 		env.setMaxParallelism(parallelism);
 
+		SourceFunction<Tuple2<Long, Long>> nonParallelSource;
+		SourceFunction<Tuple2<Long, Long>> parallelSource;
+		RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> flatMap;
+		OneInputStreamOperator<Tuple2<Long, Long>, Tuple2<Long, Long>> timelyOperator;
+
+		if (executionMode == ExecutionMode.PERFORM_SAVEPOINT) {
+			nonParallelSource = new CheckpointingNonParallelSourceWithListState(NUM_SOURCE_ELEMENTS);
+			parallelSource = new CheckpointingParallelSourceWithUnionListState(NUM_SOURCE_ELEMENTS);
+			flatMap = new CheckpointingKeyedStateFlatMap();
+			timelyOperator = new CheckpointingTimelyStatefulOperator();
+		} else if (executionMode == ExecutionMode.VERIFY_SAVEPOINT) {
+			nonParallelSource = new CheckingNonParallelSourceWithListState(NUM_SOURCE_ELEMENTS);
+			parallelSource = new CheckingParallelSourceWithUnionListState(NUM_SOURCE_ELEMENTS);
+			flatMap = new CheckingKeyedStateFlatMap();
+			timelyOperator = new CheckingTimelyStatefulOperator();
+		} else {
+			throw new IllegalStateException("Unknown ExecutionMode " + executionMode);
+		}
+
 		env
-			.addSource(new CheckingNonParallelSourceWithListState(NUM_SOURCE_ELEMENTS)).uid("CheckpointingSource1")
+			.addSource(nonParallelSource).uid("CheckpointingSource1")
 			.keyBy(0)
-			.flatMap(new CheckingKeyedStateFlatMap()).startNewChain().uid("CheckpointingKeyedStateFlatMap1")
+			.flatMap(flatMap).startNewChain().uid("CheckpointingKeyedStateFlatMap1")
 			.keyBy(0)
 			.transform(
 				"timely_stateful_operator",
 				new TypeHint<Tuple2<Long, Long>>() {}.getTypeInfo(),
-				new CheckingTimelyStatefulOperator()).uid("CheckpointingTimelyStatefulOperator1")
+				timelyOperator).uid("CheckpointingTimelyStatefulOperator1")
 			.addSink(new AccumulatorCountingSink<>());
 
 		env
-			.addSource(new CheckingRestoringParallelSourceWithUnionListState(NUM_SOURCE_ELEMENTS)).uid("CheckpointingSource2")
+			.addSource(parallelSource).uid("CheckpointingSource2")
 			.keyBy(0)
-			.flatMap(new CheckingKeyedStateFlatMap()).startNewChain().uid("CheckpointingKeyedStateFlatMap2")
+			.flatMap(flatMap).startNewChain().uid("CheckpointingKeyedStateFlatMap2")
 			.keyBy(0)
 			.transform(
 				"timely_stateful_operator",
 				new TypeHint<Tuple2<Long, Long>>() {}.getTypeInfo(),
-				new CheckingTimelyStatefulOperator()).uid("CheckpointingTimelyStatefulOperator2")
+				timelyOperator).uid("CheckpointingTimelyStatefulOperator2")
 			.addSink(new AccumulatorCountingSink<>());
 
-		restoreAndExecute(
-			env,
-			getResourceFilename(getSavepointPath(testMigrateVersion, testStateBackend)),
-			new Tuple2<>(CheckingNonParallelSourceWithListState.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, 1),
-			new Tuple2<>(CheckingRestoringParallelSourceWithUnionListState.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, parallelism),
-			new Tuple2<>(CheckingKeyedStateFlatMap.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
-			new Tuple2<>(CheckingTimelyStatefulOperator.SUCCESSFUL_PROCESS_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
-			new Tuple2<>(CheckingTimelyStatefulOperator.SUCCESSFUL_EVENT_TIME_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
-			new Tuple2<>(CheckingTimelyStatefulOperator.SUCCESSFUL_PROCESSING_TIME_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
-			new Tuple2<>(AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2));
+		if (executionMode == ExecutionMode.PERFORM_SAVEPOINT) {
+			executeAndSavepoint(
+				env,
+				"src/test/resources/" + getSavepointPath(testMigrateVersion, testStateBackend),
+				new Tuple2<>(AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2));
+		} else if (executionMode == ExecutionMode.VERIFY_SAVEPOINT) {
+			restoreAndExecute(
+				env,
+				getResourceFilename(getSavepointPath(testMigrateVersion, testStateBackend)),
+				new Tuple2<>(CheckingNonParallelSourceWithListState.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, 1),
+				new Tuple2<>(CheckingParallelSourceWithUnionListState.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, parallelism),
+				new Tuple2<>(CheckingKeyedStateFlatMap.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
+				new Tuple2<>(CheckingTimelyStatefulOperator.SUCCESSFUL_PROCESS_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
+				new Tuple2<>(CheckingTimelyStatefulOperator.SUCCESSFUL_EVENT_TIME_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
+				new Tuple2<>(CheckingTimelyStatefulOperator.SUCCESSFUL_PROCESSING_TIME_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
+				new Tuple2<>(AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2));
+		} else {
+			throw new IllegalStateException("Unknown ExecutionMode " + executionMode);
+		}
 	}
 
 	private String getSavepointPath(MigrationVersion savepointVersion, String backendType) {
@@ -411,18 +390,18 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 	}
 
-	private static class CheckingRestoringParallelSourceWithUnionListState
+	private static class CheckingParallelSourceWithUnionListState
 		extends RichParallelSourceFunction<Tuple2<Long, Long>> implements CheckpointedFunction {
 
 		private static final long serialVersionUID = 1L;
 
-		public static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR = CheckingRestoringParallelSourceWithUnionListState.class + "_RESTORE_CHECK";
+		public static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR = CheckingParallelSourceWithUnionListState.class + "_RESTORE_CHECK";
 
 		private volatile boolean isRunning = true;
 
 		private final int numElements;
 
-		public CheckingRestoringParallelSourceWithUnionListState(int numElements) {
+		public CheckingParallelSourceWithUnionListState(int numElements) {
 			this.numElements = numElements;
 		}
 
