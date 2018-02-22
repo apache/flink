@@ -123,7 +123,7 @@ public class RocksDBMapState<K, N, UK, UV>
 	public void remove(UK userKey) throws IOException, RocksDBException {
 		byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(userKey);
 
-		backend.db.remove(columnFamily, writeOptions, rawKeyBytes);
+		backend.db.delete(columnFamily, writeOptions, rawKeyBytes);
 	}
 
 	@Override
@@ -339,7 +339,7 @@ public class RocksDBMapState<K, N, UK, UV>
 			rawValueBytes = null;
 
 			try {
-				db.remove(columnFamily, writeOptions, rawKeyBytes);
+				db.delete(columnFamily, writeOptions, rawKeyBytes);
 			} catch (RocksDBException e) {
 				throw new RuntimeException("Error while removing data from RocksDB.", e);
 			}

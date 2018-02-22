@@ -102,7 +102,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
 			byte[] key = keySerializationStream.toByteArray();
-			backend.db.remove(columnFamily, writeOptions, key);
+			backend.db.delete(columnFamily, writeOptions, key);
 		} catch (IOException | RocksDBException e) {
 			throw new RuntimeException("Error while removing entry from RocksDB", e);
 		}
