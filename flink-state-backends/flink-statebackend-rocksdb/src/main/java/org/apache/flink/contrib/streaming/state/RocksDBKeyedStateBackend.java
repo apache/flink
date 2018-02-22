@@ -95,6 +95,8 @@ import org.rocksdb.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -114,6 +116,8 @@ import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -208,9 +212,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** Unique ID of this backend. */
 	private UUID backendUID;
 
-	/** The byte array for namespace serialization in getKeys(). */
-	private final ByteArrayOutputStreamWithPos namespaceOutputStream;
-
 	public RocksDBKeyedStateBackend(
 		String operatorIdentifier,
 		ClassLoader userCodeClassLoader,
@@ -257,55 +258,40 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.restoredKvStateMetaInfos = new HashMap<>();
 		this.materializedSstFiles = new TreeMap<>();
 		this.backendUID = UUID.randomUUID();
-		this.namespaceOutputStream = new ByteArrayOutputStreamWithPos(8);
 		LOG.debug("Setting initial keyed backend uid for operator {} to {}.", this.operatorIdentifier, this.backendUID);
 	}
 
 	@Override
-	public <N> Stream<K> getKeys(String state, N namespace, TypeSerializer<N> namespaceSerializer) {
-		Tuple2<ColumnFamilyHandle, ?> columnInfo = kvStateInformation.get(state);
+	public <N> Stream<K> getKeys(String state, N namespace) {
+		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> columnInfo = kvStateInformation.get(state);
 		if (columnInfo == null) {
 			return Stream.empty();
 		}
 
-		RocksIterator iterator = null;
+		final TypeSerializer<N> namespaceSerializer = (TypeSerializer<N>) columnInfo.f1.getNamespaceSerializer();
+		final ByteArrayOutputStreamWithPos namespaceOutputStream = new ByteArrayOutputStreamWithPos(8);
+		boolean ambiguousKeyPossible = RocksDBKeySerializationUtils.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
+		final byte[] nameSpaceBytes;
 		try {
-			iterator = db.newIterator(columnInfo.f0);
-			iterator.seekToFirst();
-
-			boolean ambiguousKeyPossible = AbstractRocksDBState.AbstractRocksDBUtils.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
-			final byte[] nameSpaceBytes;
-
-			try {
-				namespaceOutputStream.reset();
-				AbstractRocksDBState.AbstractRocksDBUtils.writeNameSpace(
-					namespace,
-					namespaceSerializer,
-					namespaceOutputStream,
-					new DataOutputViewStreamWrapper(namespaceOutputStream),
-					ambiguousKeyPossible);
-				nameSpaceBytes = namespaceOutputStream.toByteArray();
-			} catch (IOException ex) {
-				throw new FlinkRuntimeException("Failed to get keys from RocksDB state backend.", ex);
-			}
-
-			final RocksIteratorWrapper<K> iteratorWrapper = new RocksIteratorWrapper<>(iterator, state, keySerializer, keyGroupPrefixBytes,
-				ambiguousKeyPossible, nameSpaceBytes);
-
-			Stream<K> targetStream = StreamSupport.stream(((Iterable<K>)()->iteratorWrapper).spliterator(), false);
-			return targetStream.onClose(() -> {
-				try {
-					iteratorWrapper.close();
-				} catch (Exception ex) {
-					LOG.warn("Release RocksIteratorWrapper failed.", ex);
-				}
-			});
-		}  catch (Exception ex) {
-			if (iterator != null) {
-				iterator.close();
-			}
-			throw ex;
+			RocksDBKeySerializationUtils.writeNameSpace(
+				namespace,
+				namespaceSerializer,
+				namespaceOutputStream,
+				new DataOutputViewStreamWrapper(namespaceOutputStream),
+				ambiguousKeyPossible);
+			nameSpaceBytes = namespaceOutputStream.toByteArray();
+		} catch (IOException ex) {
+			throw new FlinkRuntimeException("Failed to get keys from RocksDB state backend.", ex);
 		}
+
+		RocksIterator iterator = db.newIterator(columnInfo.f0);
+		iterator.seekToFirst();
+
+		final RocksIteratorWrapper<K> iteratorWrapper = new RocksIteratorWrapper<>(iterator, state, keySerializer, keyGroupPrefixBytes,
+			ambiguousKeyPossible, nameSpaceBytes);
+
+		Stream<K> targetStream = StreamSupport.stream(Spliterators.spliteratorUnknownSize(iteratorWrapper, Spliterator.ORDERED), false);
+		return targetStream.onClose(iteratorWrapper::close);
 	}
 
 	@VisibleForTesting
@@ -2035,7 +2021,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	/**
-	 * This class is not thread safety.
+	 * This class is not thread safe.
 	 */
 	static class RocksIteratorWrapper<K> implements Iterator<K>, AutoCloseable {
 		private final RocksIterator iterator;
@@ -2064,23 +2050,19 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		@Override
 		public boolean hasNext() {
-			final int namespaceBytesLength = namespaceBytes.length;
-			final int basicLength = namespaceBytesLength + keyGroupPrefixBytes;
 			while (nextKey == null && iterator.isValid()) {
 				try {
 					byte[] key = iterator.key();
-					if (key.length >= basicLength) {
-						if (isMatchingNameSpace(key)) {
-							ByteArrayInputStreamWithPos inputStream =
-								new ByteArrayInputStreamWithPos(key, keyGroupPrefixBytes, key.length - keyGroupPrefixBytes);
-							DataInputViewStreamWrapper dataInput = new DataInputViewStreamWrapper(inputStream);
-							K value = AbstractRocksDBState.AbstractRocksDBUtils.readKey(
-								keySerializer,
-								inputStream,
-								dataInput,
-								ambiguousKeyPossible);
-							nextKey = value;
-						}
+					if (isMatchingNameSpace(key)) {
+						ByteArrayInputStreamWithPos inputStream =
+							new ByteArrayInputStreamWithPos(key, keyGroupPrefixBytes, key.length - keyGroupPrefixBytes);
+						DataInputViewStreamWrapper dataInput = new DataInputViewStreamWrapper(inputStream);
+						K value = RocksDBKeySerializationUtils.readKey(
+							keySerializer,
+							inputStream,
+							dataInput,
+							ambiguousKeyPossible);
+						nextKey = value;
 					}
 					iterator.next();
 				} catch (IOException e) {
@@ -2101,19 +2083,22 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			return tmpKey;
 		}
 
-		private boolean isMatchingNameSpace(byte[] key) {
-
+		private boolean isMatchingNameSpace(@Nonnull byte[] key) {
 			final int namespaceBytesLength = namespaceBytes.length;
-			for (int i = 1; i <= namespaceBytesLength; ++i) {
-				if (key[key.length - i] != namespaceBytes[namespaceBytesLength - i]) {
-					return false;
+			final int basicLength = namespaceBytesLength + keyGroupPrefixBytes;
+			if (key.length >= basicLength) {
+				for (int i = 1; i <= namespaceBytesLength; ++i) {
+					if (key[key.length - i] != namespaceBytes[namespaceBytesLength - i]) {
+						return false;
+					}
 				}
+				return true;
 			}
-			return true;
+			return false;
 		}
 
 		@Override
-		public void close() throws Exception {
+		public void close() {
 			iterator.close();
 		}
 	}

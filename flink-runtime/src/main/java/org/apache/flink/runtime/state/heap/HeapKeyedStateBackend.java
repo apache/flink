@@ -214,7 +214,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N> Stream<K> getKeys(String state, N namespace, TypeSerializer<N> namespaceSerializer) {
+	public <N> Stream<K> getKeys(String state, N namespace) {
 		if (!stateTables.containsKey(state)) {
 			return Stream.empty();
 		}

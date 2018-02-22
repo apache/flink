@@ -290,7 +290,7 @@ public abstract class AbstractKeyedStateBackend<K>
 			final StateDescriptor<S, T> stateDescriptor,
 			final KeyedStateFunction<K, S> function) throws Exception {
 
-		try (Stream<K> keyStream = getKeys(stateDescriptor.getName(), namespace, namespaceSerializer)) {
+		try (Stream<K> keyStream = getKeys(stateDescriptor.getName(), namespace)) {
 			keyStream.forEach((K key) -> {
 				setCurrentKey(key);
 				try {

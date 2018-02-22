@@ -35,7 +35,6 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksIterator;
 
@@ -85,7 +84,6 @@ public class RocksDBRocksIteratorWrapperTest {
 		backend.setDbStoragePath(dbPath);
 
 		Environment env = new DummyEnvironment("TestTask", 1, 0);
-
 		RocksDBKeyedStateBackend<K> keyedStateBackend = (RocksDBKeyedStateBackend<K>) backend.createKeyedStateBackend(
 			env,
 			new JobID(),
@@ -95,53 +93,60 @@ public class RocksDBRocksIteratorWrapperTest {
 			new KeyGroupRange(0, maxKeyGroupNumber - 1),
 			mock(TaskKvStateRegistry.class));
 
-		keyedStateBackend.restore(null);
+		try {
+			keyedStateBackend.restore(null);
+			ValueState<String> testState = keyedStateBackend.getPartitionedState(
+				namespace,
+				namespaceSerializer,
+				new ValueStateDescriptor<String>(testStateName, String.class));
 
-		ValueState<String> testState = keyedStateBackend.getPartitionedState(
-			namespace,
-			namespaceSerializer,
-			new ValueStateDescriptor<String>(testStateName, String.class));
+			// insert record
+			for (int i = 0; i < 1000; ++i) {
+				keyedStateBackend.setCurrentKey(getKeyFunc.apply(i));
+				testState.update(String.valueOf(i));
+			}
 
-		// insert record
-		for (int i = 0; i < 1000; ++i) {
-			keyedStateBackend.setCurrentKey(getKeyFunc.apply(i));
-			testState.update(String.valueOf(i));
-		}
+			ByteArrayOutputStreamWithPos outputStream = new ByteArrayOutputStreamWithPos(8);
+			boolean ambiguousKeyPossible = RocksDBKeySerializationUtils.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
+			RocksDBKeySerializationUtils.writeNameSpace(
+				namespace,
+				namespaceSerializer,
+				outputStream,
+				new DataOutputViewStreamWrapper(outputStream),
+				ambiguousKeyPossible);
 
-		ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
-		RocksIterator iterator = keyedStateBackend.db.newIterator(handle);
-		iterator.seekToFirst();
+			byte[] nameSpaceBytes = outputStream.toByteArray();
 
-		ByteArrayOutputStreamWithPos outputStream = new ByteArrayOutputStreamWithPos(8);
-		boolean ambiguousKeyPossible = AbstractRocksDBState.AbstractRocksDBUtils.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
-		AbstractRocksDBState.AbstractRocksDBUtils.writeNameSpace(
-			namespace,
-			namespaceSerializer,
-			outputStream,
-			new DataOutputViewStreamWrapper(outputStream),
-			ambiguousKeyPossible);
+			try (
+				ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
+				RocksIterator iterator = keyedStateBackend.db.newIterator(handle);
+				RocksDBKeyedStateBackend.RocksIteratorWrapper<K> iteratorWrapper = new RocksDBKeyedStateBackend.RocksIteratorWrapper(
+				iterator,
+				testStateName,
+				keySerializer,
+				keyedStateBackend.getKeyGroupPrefixBytes(),
+				ambiguousKeyPossible,
+				nameSpaceBytes)) {
 
-		byte[] nameSpaceBytes = outputStream.toByteArray();
+				iterator.seekToFirst();
 
-		RocksDBKeyedStateBackend.RocksIteratorWrapper<K> iteratorWrapper = new RocksDBKeyedStateBackend.RocksIteratorWrapper(
-			iterator,
-			testStateName,
-			keySerializer,
-			keyedStateBackend.getKeyGroupPrefixBytes(),
-			ambiguousKeyPossible,
-			nameSpaceBytes);
+				// valid record
+				List<Integer> fetchedKeys = new ArrayList<>(1000);
+				while (iteratorWrapper.hasNext()) {
+					fetchedKeys.add(Integer.parseInt(iteratorWrapper.next().toString()));
+				}
 
-		// valid record
-		List<Integer> fetchedKeys = new ArrayList<>(1000);
-		while (iteratorWrapper.hasNext()) {
-			fetchedKeys.add(Integer.parseInt(iteratorWrapper.next().toString()));
-		}
+				fetchedKeys.sort(Comparator.comparingInt(a -> a));
+				Assert.assertEquals(1000, fetchedKeys.size());
 
-		fetchedKeys.sort(Comparator.comparingInt(a -> a));
-		Assert.assertEquals(1000, fetchedKeys.size());
-
-		for (int i = 0; i < 1000; ++i) {
-			Assert.assertEquals(i, fetchedKeys.get(i).intValue());
+				for (int i = 0; i < 1000; ++i) {
+					Assert.assertEquals(i, fetchedKeys.get(i).intValue());
+				}
+			}
+		} finally {
+			if (keyedStateBackend != null) {
+				keyedStateBackend.dispose();
+			}
 		}
 	}
 }

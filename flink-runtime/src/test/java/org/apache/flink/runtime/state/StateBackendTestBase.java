@@ -241,7 +241,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			}
 
 			// valid for namespace1
-			try (Stream<Integer> keysStream = backend.getKeys(fieldName, ns1, StringSerializer.INSTANCE).sorted()) {
+			try (Stream<Integer> keysStream = backend.getKeys(fieldName, ns1).sorted()) {
 				PrimitiveIterator.OfInt actualIterator = keysStream.mapToInt(value -> value.intValue()).iterator();
 
 				for (int expectedKey = 0; expectedKey < namespace1ElementsNum; expectedKey++) {
@@ -253,7 +253,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			}
 
 			// valid for namespace2
-			try (Stream<Integer> keysStream = backend.getKeys(fieldName, ns2, StringSerializer.INSTANCE).sorted()) {
+			try (Stream<Integer> keysStream = backend.getKeys(fieldName, ns2).sorted()) {
 				PrimitiveIterator.OfInt actualIterator = keysStream.mapToInt(value -> value.intValue()).iterator();
 
 				for (int expectedKey = namespace1ElementsNum; expectedKey < namespace1ElementsNum + namespace2ElementsNum; expectedKey++) {
