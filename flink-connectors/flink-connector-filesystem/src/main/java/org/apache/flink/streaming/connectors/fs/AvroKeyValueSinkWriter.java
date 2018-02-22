@@ -158,9 +158,11 @@ public class AvroKeyValueSinkWriter<K, V> extends StreamWriterBase<Tuple2<K, V>>
 
 	@Override
 	public void close() throws IOException {
-		super.close(); //the order is important since super.close flushes inside
 		if (keyValueWriter != null) {
 			keyValueWriter.close();
+		} else {
+			// need to make sure we close this if we never created the Key/Value Writer.
+			super.close();
 		}
 	}
 
