@@ -418,9 +418,9 @@ public class SlotSharingManager {
 		private MultiTaskSlot(
 				SlotRequestId slotRequestId,
 				@Nullable AbstractID groupId,
-				MultiTaskSlot parent,
+				@Nullable MultiTaskSlot parent,
 				CompletableFuture<? extends SlotContext> slotContextFuture,
-				SlotRequestId allocatedSlotRequestId) {
+				@Nullable SlotRequestId allocatedSlotRequestId) {
 			super(slotRequestId, groupId);
 
 			this.parent = parent;

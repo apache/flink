@@ -292,11 +292,13 @@ public class SlotManager implements AutoCloseable {
 		PendingSlotRequest pendingSlotRequest = pendingSlotRequests.remove(allocationId);
 
 		if (null != pendingSlotRequest) {
+			LOG.debug("Cancel slot request {}.", allocationId);
+
 			cancelPendingSlotRequest(pendingSlotRequest);
 
 			return true;
 		} else {
-			LOG.debug("No pending slot request with allocation id {} found.", allocationId);
+			LOG.debug("No pending slot request with allocation id {} found. Ignoring unregistration request.", allocationId);
 
 			return false;
 		}

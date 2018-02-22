@@ -993,7 +993,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					} else {
 						resultThrowable = strippedThrowable;
 					}
-
+					
 					throw new CompletionException(resultThrowable);
 				});
 	}
