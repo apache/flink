@@ -16,23 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.async;
+package org.apache.flink.util.function;
 
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.MessageParameters;
-import org.apache.flink.runtime.rest.messages.RequestBody;
+import java.util.function.BiConsumer;
 
 /**
- * Message headers for the triggering of an asynchronous operation.
+ * A checked extension of the {@link BiConsumer} interface.
  *
- * @param <R> type of the request
- * @param <M> type of the message parameters
+ * @param <T> type of the first argument
+ * @param <U> type of the second argument
+ * @param <E> type of the thrown exception
  */
-public abstract class AsynchronousOperationTriggerMessageHeaders<R extends RequestBody, M extends MessageParameters>
-	implements MessageHeaders<R, TriggerResponse, M> {
+@FunctionalInterface
+public interface BiConsumerWithException<T, U, E extends Throwable> extends BiConsumer<T, U> {
+
+	/**
+	 * Performs this operation on the given arguments.
+	 *
+	 * @param t the first input argument
+	 * @param u the second input argument
+	 * @throws E in case of an error
+	 */
+	void acceptWithException(T t, U u) throws E;
 
 	@Override
-	public Class<TriggerResponse> getResponseClass() {
-		return TriggerResponse.class;
+	default void accept(T t, U u) {
+		try {
+			acceptWithException(t, u);
+		} catch (Throwable e) {
+			throw new RuntimeException(e);
+		}
 	}
 }

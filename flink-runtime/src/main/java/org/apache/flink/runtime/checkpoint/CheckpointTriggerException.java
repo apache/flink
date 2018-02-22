@@ -16,23 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.async;
+package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.MessageParameters;
-import org.apache.flink.runtime.rest.messages.RequestBody;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 /**
- * Message headers for the triggering of an asynchronous operation.
+ * Exceptions which indicate that a checkpoint triggering has failed.
  *
- * @param <R> type of the request
- * @param <M> type of the message parameters
  */
-public abstract class AsynchronousOperationTriggerMessageHeaders<R extends RequestBody, M extends MessageParameters>
-	implements MessageHeaders<R, TriggerResponse, M> {
+public class CheckpointTriggerException extends FlinkException {
 
-	@Override
-	public Class<TriggerResponse> getResponseClass() {
-		return TriggerResponse.class;
+	private static final long serialVersionUID = -3330160816161901752L;
+
+	private final CheckpointDeclineReason checkpointDeclineReason;
+
+	public CheckpointTriggerException(String message, CheckpointDeclineReason checkpointDeclineReason) {
+		super(message + " Decline reason: " + checkpointDeclineReason);
+		this.checkpointDeclineReason = Preconditions.checkNotNull(checkpointDeclineReason);
+	}
+
+	public CheckpointDeclineReason getCheckpointDeclineReason() {
+		return checkpointDeclineReason;
 	}
 }

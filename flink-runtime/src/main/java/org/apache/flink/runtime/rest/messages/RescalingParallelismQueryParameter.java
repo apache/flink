@@ -16,23 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.async;
-
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.MessageParameters;
-import org.apache.flink.runtime.rest.messages.RequestBody;
+package org.apache.flink.runtime.rest.messages;
 
 /**
- * Message headers for the triggering of an asynchronous operation.
- *
- * @param <R> type of the request
- * @param <M> type of the message parameters
+ * Parallelism for the rescaling of jobs specified as a {@link MessageQueryParameter}.
  */
-public abstract class AsynchronousOperationTriggerMessageHeaders<R extends RequestBody, M extends MessageParameters>
-	implements MessageHeaders<R, TriggerResponse, M> {
+public class RescalingParallelismQueryParameter extends MessageQueryParameter<Integer> {
+
+	public static final String KEY = "parallelism";
+
+	public RescalingParallelismQueryParameter() {
+		super(KEY, MessageParameterRequisiteness.MANDATORY);
+	}
 
 	@Override
-	public Class<TriggerResponse> getResponseClass() {
-		return TriggerResponse.class;
+	public Integer convertValueFromString(String value) {
+		return Integer.valueOf(value);
+	}
+
+	@Override
+	public String convertStringToValue(Integer value) {
+		return value.toString();
 	}
 }

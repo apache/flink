@@ -16,23 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.async;
-
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.MessageParameters;
-import org.apache.flink.runtime.rest.messages.RequestBody;
+package org.apache.flink.runtime.jobmaster.exceptions;
 
 /**
- * Message headers for the triggering of an asynchronous operation.
- *
- * @param <R> type of the request
- * @param <M> type of the message parameters
+ * Base class for all exception which originate from a failed job modification.
  */
-public abstract class AsynchronousOperationTriggerMessageHeaders<R extends RequestBody, M extends MessageParameters>
-	implements MessageHeaders<R, TriggerResponse, M> {
+public class JobModificationException extends JobMasterException {
 
-	@Override
-	public Class<TriggerResponse> getResponseClass() {
-		return TriggerResponse.class;
+	private static final long serialVersionUID = 2374146694058970746L;
+
+	public JobModificationException(String message) {
+		super(message);
+	}
+
+	public JobModificationException(Throwable cause) {
+		super(cause);
+	}
+
+	public JobModificationException(String message, Throwable cause) {
+		super(message, cause);
 	}
 }

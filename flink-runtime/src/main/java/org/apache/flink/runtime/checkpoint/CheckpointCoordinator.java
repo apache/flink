@@ -354,11 +354,10 @@ public class CheckpointCoordinator {
 	 * @throws IllegalStateException If no savepoint directory has been
 	 *                               specified and no default savepoint directory has been
 	 *                               configured
-	 * @throws Exception             Failures during triggering are forwarded
 	 */
 	public CompletableFuture<CompletedCheckpoint> triggerSavepoint(
 			long timestamp,
-			@Nullable String targetLocation) throws Exception {
+			@Nullable String targetLocation) {
 
 		CheckpointProperties props = CheckpointProperties.forSavepoint();
 
@@ -371,7 +370,7 @@ public class CheckpointCoordinator {
 		if (triggerResult.isSuccess()) {
 			return triggerResult.getPendingCheckpoint().getCompletionFuture();
 		} else {
-			Throwable cause = new Exception("Failed to trigger savepoint: " + triggerResult.getFailureReason().message());
+			Throwable cause = new CheckpointTriggerException("Failed to trigger savepoint.", triggerResult.getFailureReason());
 			return FutureUtils.completedExceptionally(cause);
 		}
 	}

@@ -984,4 +984,15 @@ public abstract class ClusterClient<T> {
 	protected abstract JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
 		throws ProgramInvocationException;
 
+	/**
+	 * Rescales the specified job such that it will have the new parallelism.
+	 *
+	 * @param jobId specifying the job to modify
+	 * @param newParallelism specifying the new parallelism of the rescaled job
+	 * @return Future which is completed once the rescaling has been completed
+	 */
+	public CompletableFuture<Acknowledge> rescaleJob(JobID jobId, int newParallelism) {
+		throw new UnsupportedOperationException("The " + getClass().getSimpleName() + " does not support rescaling.");
+	}
+
 }

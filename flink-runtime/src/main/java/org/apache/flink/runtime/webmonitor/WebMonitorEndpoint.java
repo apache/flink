@@ -61,6 +61,9 @@ import org.apache.flink.runtime.rest.handler.job.metrics.JobMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.JobVertexMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.SubtaskMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.TaskManagerMetricsHandler;
+import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingHandlers;
+import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingStatusHeaders;
+import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingTriggerHeaders;
 import org.apache.flink.runtime.rest.handler.job.savepoints.SavepointHandlers;
 import org.apache.flink.runtime.rest.handler.legacy.ConstantTextHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
@@ -448,8 +451,21 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			SubtaskCurrentAttemptDetailsHeaders.getInstance(),
 			executionGraphCache,
 			executor,
-			metricFetcher
-		);
+			metricFetcher);
+
+		final RescalingHandlers rescalingHandlers = new RescalingHandlers();
+
+		final RescalingHandlers.RescalingTriggerHandler rescalingTriggerHandler = rescalingHandlers.new RescalingTriggerHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders);
+
+		final RescalingHandlers.RescalingStatusHandler rescalingStatusHandler = rescalingHandlers.new RescalingStatusHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders);
 
 		JobVertexBackPressureHandler jobVertexBackPressureHandler = new JobVertexBackPressureHandler(
 			restAddressFuture,
@@ -532,6 +548,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		handlers.add(Tuple2.of(JobVertexBackPressureHeaders.getInstance(), jobVertexBackPressureHandler));
 		handlers.add(Tuple2.of(JobTerminationHeaders.getInstance(), jobCancelTerminationHandler));
 		handlers.add(Tuple2.of(JobVertexDetailsHeaders.getInstance(), jobVertexDetailsHandler));
+		handlers.add(Tuple2.of(RescalingTriggerHeaders.getInstance(), rescalingTriggerHandler));
+		handlers.add(Tuple2.of(RescalingStatusHeaders.getInstance(), rescalingStatusHandler));
 
 		// TODO: Remove once the Yarn proxy can forward all REST verbs
 		handlers.add(Tuple2.of(YarnCancelJobTerminationHeaders.getInstance(), jobCancelTerminationHandler));

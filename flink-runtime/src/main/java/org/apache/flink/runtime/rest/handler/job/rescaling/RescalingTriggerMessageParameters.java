@@ -16,23 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.async;
+package org.apache.flink.runtime.rest.handler.job.rescaling;
 
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
-import org.apache.flink.runtime.rest.messages.RequestBody;
+import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+import org.apache.flink.runtime.rest.messages.RescalingParallelismQueryParameter;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * Message headers for the triggering of an asynchronous operation.
- *
- * @param <R> type of the request
- * @param <M> type of the message parameters
+ * {@link MessageParameters} for triggering the rescaling of a job.
  */
-public abstract class AsynchronousOperationTriggerMessageHeaders<R extends RequestBody, M extends MessageParameters>
-	implements MessageHeaders<R, TriggerResponse, M> {
+public class RescalingTriggerMessageParameters extends JobMessageParameters {
+
+	public final RescalingParallelismQueryParameter rescalingParallelismQueryParameter = new RescalingParallelismQueryParameter();
 
 	@Override
-	public Class<TriggerResponse> getResponseClass() {
-		return TriggerResponse.class;
+	public Collection<MessageQueryParameter<?>> getQueryParameters() {
+		return Collections.singleton(rescalingParallelismQueryParameter);
 	}
 }
