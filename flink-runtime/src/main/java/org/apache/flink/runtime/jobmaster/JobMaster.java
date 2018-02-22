@@ -639,6 +639,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				if (executionGraph == currentExecutionGraph) {
 					executionGraph = restoredExecutionGraph;
 
+					// register self as job status change listener
+					executionGraph.registerJobStatusListener(new JobManagerJobStatusListener());
+
 					scheduleExecutionGraph();
 
 					return Acknowledge.get();
