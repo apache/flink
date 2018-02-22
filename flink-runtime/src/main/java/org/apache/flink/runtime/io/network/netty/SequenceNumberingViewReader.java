@@ -148,6 +148,7 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener, Network
 			"requestLock=" + requestLock +
 			", receiverId=" + receiverId +
 			", sequenceNumber=" + sequenceNumber +
+			", isRegisteredAsAvailable=" + isRegisteredAvailable +
 			'}';
 	}
 }
