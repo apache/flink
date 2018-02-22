@@ -96,7 +96,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    *                             in the stream.
    */
   @PublicEvolving
-  override def process[K, R: TypeInformation](
+  def process[K, R: TypeInformation](
     keyedProcessFunction: KeyedProcessFunction[K, T, R]): DataStream[R] = {
 
     if (keyedProcessFunction == null) {

@@ -687,28 +687,6 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
-   * Applies the given [[KeyedProcessFunction]] on the input stream, thereby
-   * creating a transformed output stream.
-   *
-   * The function will be called for every element in the stream and can produce
-   * zero or more output.
-   *
-   * @param keyedProcessFunction The [[KeyedProcessFunction]] that is called for each element
-   *                   in the stream.
-   */
-  @PublicEvolving
-  def process[K, R: TypeInformation](
-    keyedProcessFunction: KeyedProcessFunction[K, T, R]): DataStream[R] = {
-
-    if (keyedProcessFunction == null) {
-      throw new NullPointerException("ProcessFunction must not be null.")
-    }
-
-    asScalaStream(javaStream.process(keyedProcessFunction, implicitly[TypeInformation[R]]))
-  }
-
-
-  /**
    * Creates a new DataStream that contains only the elements satisfying the given filter predicate.
    */
   def filter(filter: FilterFunction[T]): DataStream[T] = {

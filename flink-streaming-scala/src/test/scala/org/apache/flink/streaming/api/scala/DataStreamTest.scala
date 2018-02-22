@@ -496,29 +496,6 @@ class DataStreamTest extends AbstractTestBase {
     assert(getOperatorForDataStream(flatMapped).isInstanceOf[ProcessOperator[_, _]])
   }
 
-  /**
-   * Verify that a [[DataStream.process(KeyedProcessFunction)]] call is correctly
-   * translated to an operator.
-   */
-  @Test
-  def testKeyedProcessTranslation(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-    val src = env.generateSequence(0, 0)
-
-    val keyedProcessFunction = new KeyedProcessFunction[Long, Long, Int] {
-      override def processElement(
-          value: Long,
-          ctx: KeyedProcessFunction[Long, Long, Int]#Context,
-          out: Collector[Int]): Unit = ???
-    }
-
-    val flatMapped = src.process(keyedProcessFunction)
-
-    assert(keyedProcessFunction == getFunctionForDataStream(flatMapped))
-    assert(getOperatorForDataStream(flatMapped).isInstanceOf[KeyedProcessOperator[_, _, _]])
-  }
-
   @Test def operatorTest() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
