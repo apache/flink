@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.savepoints;
+package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.util.AbstractID;
 
@@ -36,37 +36,37 @@ import java.io.IOException;
 /**
  * Identifies a savepoint trigger request.
  */
-@JsonSerialize(using = SavepointTriggerId.SavepointTriggerIdSerializer.class)
-@JsonDeserialize(using = SavepointTriggerId.SavepointTriggerIdDeserializer.class)
-public class SavepointTriggerId extends AbstractID {
+@JsonSerialize(using = TriggerId.TriggerIdSerializer.class)
+@JsonDeserialize(using = TriggerId.TriggerIdDeserializer.class)
+public final class TriggerId extends AbstractID {
 
 	private static final long serialVersionUID = 1L;
 
-	public SavepointTriggerId() {
+	public TriggerId() {
 	}
 
-	private SavepointTriggerId(final byte[] bytes) {
+	private TriggerId(final byte[] bytes) {
 		super(bytes);
 	}
 
-	public static SavepointTriggerId fromHexString(String hexString) {
-		return new SavepointTriggerId(DatatypeConverter.parseHexBinary(hexString));
+	public static TriggerId fromHexString(String hexString) {
+		return new TriggerId(DatatypeConverter.parseHexBinary(hexString));
 	}
 
 	/**
-	 * JSON serializer for {@link SavepointTriggerId}.
+	 * JSON serializer for {@link TriggerId}.
 	 */
-	public static class SavepointTriggerIdSerializer extends StdSerializer<SavepointTriggerId> {
+	public static class TriggerIdSerializer extends StdSerializer<TriggerId> {
 
 		private static final long serialVersionUID = 1L;
 
-		protected SavepointTriggerIdSerializer() {
-			super(SavepointTriggerId.class);
+		protected TriggerIdSerializer() {
+			super(TriggerId.class);
 		}
 
 		@Override
 		public void serialize(
-				final SavepointTriggerId value,
+				final TriggerId value,
 				final JsonGenerator gen,
 				final SerializerProvider provider) throws IOException {
 			gen.writeString(value.toString());
@@ -74,21 +74,21 @@ public class SavepointTriggerId extends AbstractID {
 	}
 
 	/**
-	 * JSON deserializer for {@link SavepointTriggerId}.
+	 * JSON deserializer for {@link TriggerId}.
 	 */
-	public static class SavepointTriggerIdDeserializer extends StdDeserializer<SavepointTriggerId> {
+	public static class TriggerIdDeserializer extends StdDeserializer<TriggerId> {
 
 		private static final long serialVersionUID = 1L;
 
-		protected SavepointTriggerIdDeserializer() {
-			super(SavepointTriggerId.class);
+		protected TriggerIdDeserializer() {
+			super(TriggerId.class);
 		}
 
 		@Override
-		public SavepointTriggerId deserialize(
+		public TriggerId deserialize(
 				final JsonParser p,
 				final DeserializationContext ctxt) throws IOException {
-			return SavepointTriggerId.fromHexString(p.getValueAsString());
+			return TriggerId.fromHexString(p.getValueAsString());
 		}
 	}
 }

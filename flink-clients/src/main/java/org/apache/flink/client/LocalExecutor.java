@@ -27,7 +27,7 @@ import org.apache.flink.api.common.Program;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
@@ -125,14 +125,11 @@ public class LocalExecutor extends PlanExecutor {
 	private JobExecutorService createJobExecutorService(Configuration configuration) throws Exception {
 		final JobExecutorService newJobExecutorService;
 		if (CoreOptions.FLIP6_MODE.equals(configuration.getString(CoreOptions.MODE))) {
+
+			configuration.setInteger(RestOptions.REST_PORT, 0);
+
 			final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
 				.setConfiguration(configuration)
-				.setNumJobManagers(
-					configuration.getInteger(
-						ConfigConstants.LOCAL_NUMBER_JOB_MANAGER,
-						ConfigConstants.DEFAULT_LOCAL_NUMBER_JOB_MANAGER))
-				.setNumResourceManagers(
-					configuration.getInteger(ResourceManagerOptions.LOCAL_NUMBER_RESOURCE_MANAGER))
 				.setNumTaskManagers(
 					configuration.getInteger(
 						ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
@@ -145,6 +142,8 @@ public class LocalExecutor extends PlanExecutor {
 
 			final MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration);
 			miniCluster.start();
+
+			configuration.setInteger(RestOptions.REST_PORT, miniCluster.getRestAddress().getPort());
 
 			newJobExecutorService = miniCluster;
 		} else {
@@ -161,7 +160,7 @@ public class LocalExecutor extends PlanExecutor {
 	public void stop() throws Exception {
 		synchronized (lock) {
 			if (jobExecutorService != null) {
-				jobExecutorService.terminate().get();
+				jobExecutorService.close();
 				jobExecutorService = null;
 			}
 		}

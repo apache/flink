@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.environment;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -83,6 +84,8 @@ public class Flip6LocalStreamEnvironment extends LocalStreamEnvironment {
 		// add (and override) the settings with what the user defined
 		configuration.addAll(this.conf);
 
+		configuration.setInteger(RestOptions.REST_PORT, 0);
+
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setConfiguration(configuration)
 			.setNumSlotsPerTaskManager(jobGraph.getMaximumParallelism())
@@ -96,6 +99,8 @@ public class Flip6LocalStreamEnvironment extends LocalStreamEnvironment {
 
 		try {
 			miniCluster.start();
+			configuration.setInteger(RestOptions.REST_PORT, miniCluster.getRestAddress().getPort());
+
 			return miniCluster.executeJobBlocking(jobGraph);
 		}
 		finally {
