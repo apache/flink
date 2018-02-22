@@ -27,9 +27,7 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
@@ -42,12 +40,16 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.minicluster.JobExecutor;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -58,6 +60,7 @@ import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,13 +113,19 @@ public class AccumulatorLiveITCase extends TestLogger {
 
 	private static final FiniteDuration TIMEOUT = new FiniteDuration(10, TimeUnit.SECONDS);
 
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			new Configuration(),
+			1,
+			1)
+	);
+
 	@Before
 	public void before() throws Exception {
 		system = AkkaUtils.createLocalActorSystem(new Configuration());
 
 		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 		config.setString(AkkaOptions.ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
 		TestingCluster testingCluster = new TestingCluster(config, false, true);
 		testingCluster.start();
@@ -141,8 +150,15 @@ public class AccumulatorLiveITCase extends TestLogger {
 	@Test
 	public void testBatch() throws Exception {
 
-		/** The program **/
-		ExecutionEnvironment env = new BatchPlanExtractor();
+		JobExecutor jobExecutor = TestBaseUtils.startCluster(
+			1,
+			1,
+			false,
+			false,
+			true
+		);
+
+		ExecutionEnvironment env = new BatchPlanExtractor(jobExecutor, 1, false, null);
 		env.setParallelism(1);
 
 		DataSet<String> input = env.fromCollection(inputData);
@@ -162,7 +178,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 	@Test
 	public void testStreaming() throws Exception {
 
-		StreamExecutionEnvironment env = new DummyStreamExecutionEnvironment();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 
 		DataStream<String> input = env.fromCollection(inputData);
@@ -356,31 +372,22 @@ public class AccumulatorLiveITCase extends TestLogger {
 		return jgg.compileJobGraph(op);
 	}
 
-	private static class BatchPlanExtractor extends LocalEnvironment {
+	private static class BatchPlanExtractor extends TestEnvironment {
 
 		private Plan plan = null;
+
+		public BatchPlanExtractor(JobExecutor executor,
+								  int parallelism,
+								  boolean isObjectReuseEnabled,
+								  Plan plan) {
+			super(executor, parallelism, isObjectReuseEnabled);
+			this.plan = plan;
+		}
 
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {
 			plan = createProgramPlan();
 			return new JobExecutionResult(new JobID(), -1, null);
-		}
-	}
-
-	/**
-	 * This is used to for creating the example topology. {@link #execute} is never called, we
-	 * only use this to call {@link #getStreamGraph()}.
-	 */
-	private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
-
-		@Override
-		public JobExecutionResult execute() throws Exception {
-			return execute("default");
-		}
-
-		@Override
-		public JobExecutionResult execute(String jobName) throws Exception {
-			throw new RuntimeException("This should not be called.");
 		}
 	}
 }
