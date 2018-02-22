@@ -537,9 +537,8 @@ public class SlotSharingManager {
 				if (parent != null) {
 					// we remove ourselves from our parent if we no longer have children
 					parent.releaseChild(getGroupId());
-				} else {
+				} else if (allTaskSlots.remove(getSlotRequestId()) != null) {
 					// we are the root node --> remove the root node from the list of task slots
-					allTaskSlots.remove(getSlotRequestId());
 
 					if (!slotContextFuture.isDone() || slotContextFuture.isCompletedExceptionally()) {
 						synchronized (lock) {
