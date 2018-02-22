@@ -1571,14 +1571,14 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		@Override
 		public CompletableFuture<LogicalSlot> allocateSlot(
+				SlotRequestId slotRequestId,
 				ScheduledUnit task,
 				boolean allowQueued,
 				Collection<TaskManagerLocation> preferredLocations,
 				Time timeout) {
 
-			final SlotRequestId requestId = new SlotRequestId();
 			CompletableFuture<LogicalSlot> slotFuture = gateway.allocateSlot(
-				requestId,
+				slotRequestId,
 				task,
 				ResourceProfile.UNKNOWN,
 				preferredLocations,
@@ -1589,13 +1589,21 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				(LogicalSlot slot, Throwable failure) -> {
 					if (failure != null) {
 						gateway.releaseSlot(
-							requestId,
+							slotRequestId,
 							task.getSlotSharingGroupId(),
 							failure);
 					}
 			});
 
 			return slotFuture;
+		}
+
+		@Override
+		public CompletableFuture<Acknowledge> cancelSlotRequest(
+				SlotRequestId slotRequestId,
+				@Nullable SlotSharingGroupId slotSharingGroupId,
+				Throwable cause) {
+			return gateway.releaseSlot(slotRequestId, slotSharingGroupId, cause);
 		}
 	}
 

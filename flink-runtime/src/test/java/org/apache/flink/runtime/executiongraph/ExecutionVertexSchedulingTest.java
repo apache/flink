@@ -30,10 +30,10 @@ import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.junit.Test;
-import org.mockito.Matchers;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -67,7 +67,7 @@ public class ExecutionVertexSchedulingTest {
 			Scheduler scheduler = mock(Scheduler.class);
 			CompletableFuture<LogicalSlot> future = new CompletableFuture<>();
 			future.complete(slot);
-			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean(), any(Collection.class), any(Time.class))).thenReturn(future);
+			when(scheduler.allocateSlot(any(SlotRequestId.class), any(ScheduledUnit.class), anyBoolean(), any(Collection.class), any(Time.class))).thenReturn(future);
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
@@ -99,7 +99,7 @@ public class ExecutionVertexSchedulingTest {
 			final CompletableFuture<LogicalSlot> future = new CompletableFuture<>();
 
 			Scheduler scheduler = mock(Scheduler.class);
-			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean(), any(Collection.class), any(Time.class))).thenReturn(future);
+			when(scheduler.allocateSlot(any(SlotRequestId.class), any(ScheduledUnit.class), anyBoolean(), any(Collection.class), any(Time.class))).thenReturn(future);
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
@@ -133,7 +133,7 @@ public class ExecutionVertexSchedulingTest {
 			Scheduler scheduler = mock(Scheduler.class);
 			CompletableFuture<LogicalSlot> future = new CompletableFuture<>();
 			future.complete(slot);
-			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean(), any(Collection.class), any(Time.class))).thenReturn(future);
+			when(scheduler.allocateSlot(any(SlotRequestId.class), any(ScheduledUnit.class), anyBoolean(), any(Collection.class), any(Time.class))).thenReturn(future);
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 

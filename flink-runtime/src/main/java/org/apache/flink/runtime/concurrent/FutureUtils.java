@@ -354,18 +354,7 @@ public class FutureUtils {
 	public static <T> ConjunctFuture<Collection<T>> combineAll(Collection<? extends CompletableFuture<? extends T>> futures) {
 		checkNotNull(futures, "futures");
 
-		final ResultConjunctFuture<T> conjunct = new ResultConjunctFuture<>(futures.size());
-
-		if (futures.isEmpty()) {
-			conjunct.complete(Collections.emptyList());
-		}
-		else {
-			for (CompletableFuture<? extends T> future : futures) {
-				future.whenComplete(conjunct::handleCompletedFuture);
-			}
-		}
-
-		return conjunct;
+		return new ResultConjunctFuture<>(futures);
 	}
 
 	/**
@@ -407,12 +396,30 @@ public class FutureUtils {
 		 * @return The number of Futures in the conjunction that are already complete
 		 */
 		public abstract int getNumFuturesCompleted();
+
+		/**
+		 * Gets the individual futures which make up the {@link ConjunctFuture}.
+		 *
+		 * @return Collection of futures which make up the {@link ConjunctFuture}
+		 */
+		protected abstract Collection<? extends CompletableFuture<?>> getConjunctFutures();
+
+		@Override
+		public boolean cancel(boolean mayInterruptIfRunning) {
+			for (CompletableFuture<?> completableFuture : getConjunctFutures()) {
+				completableFuture.cancel(mayInterruptIfRunning);
+			}
+
+			return super.cancel(mayInterruptIfRunning);
+		}
 	}
 
 	/**
 	 * The implementation of the {@link ConjunctFuture} which returns its Futures' result as a collection.
 	 */
 	private static class ResultConjunctFuture<T> extends ConjunctFuture<Collection<T>> {
+
+		private final Collection<? extends CompletableFuture<? extends T>> resultFutures;
 
 		/** The total number of futures in the conjunction. */
 		private final int numTotal;
@@ -429,7 +436,7 @@ public class FutureUtils {
 		/** The function that is attached to all futures in the conjunction. Once a future
 		 * is complete, this function tracks the completion or fails the conjunct.
 		 */
-		final void handleCompletedFuture(T value, Throwable throwable) {
+		private void handleCompletedFuture(T value, Throwable throwable) {
 			if (throwable != null) {
 				completeExceptionally(throwable);
 			} else {
@@ -444,9 +451,19 @@ public class FutureUtils {
 		}
 
 		@SuppressWarnings("unchecked")
-		ResultConjunctFuture(int numTotal) {
-			this.numTotal = numTotal;
+		ResultConjunctFuture(Collection<? extends CompletableFuture<? extends T>> resultFutures) {
+			this.resultFutures = checkNotNull(resultFutures);
+			this.numTotal = resultFutures.size();
 			results = (T[]) new Object[numTotal];
+
+			if (resultFutures.isEmpty()) {
+				complete(Collections.emptyList());
+			}
+			else {
+				for (CompletableFuture<? extends T> future : resultFutures) {
+					future.whenComplete(this::handleCompletedFuture);
+				}
+			}
 		}
 
 		@Override
@@ -458,6 +475,11 @@ public class FutureUtils {
 		public int getNumFuturesCompleted() {
 			return numCompleted.get();
 		}
+
+		@Override
+		protected Collection<? extends CompletableFuture<?>> getConjunctFutures() {
+			return resultFutures;
+		}
 	}
 
 	/**
@@ -465,6 +487,8 @@ public class FutureUtils {
 	 * of its futures and does not return their values.
 	 */
 	private static final class WaitingConjunctFuture extends ConjunctFuture<Void> {
+
+		private final Collection<? extends CompletableFuture<?>> futures;
 
 		/** Number of completed futures. */
 		private final AtomicInteger numCompleted = new AtomicInteger(0);
@@ -484,8 +508,7 @@ public class FutureUtils {
 		}
 
 		private WaitingConjunctFuture(Collection<? extends CompletableFuture<?>> futures) {
-			Preconditions.checkNotNull(futures, "Futures must not be null.");
-
+			this.futures = checkNotNull(futures);
 			this.numTotal = futures.size();
 
 			if (futures.isEmpty()) {
@@ -505,6 +528,11 @@ public class FutureUtils {
 		@Override
 		public int getNumFuturesCompleted() {
 			return numCompleted.get();
+		}
+
+		@Override
+		protected Collection<? extends CompletableFuture<?>> getConjunctFutures() {
+			return futures;
 		}
 	}
 
@@ -533,11 +561,14 @@ public class FutureUtils {
 
 		private final int numFuturesTotal;
 
+		private final Collection<? extends CompletableFuture<?>> futuresToComplete;
+
 		private int futuresCompleted;
 
 		private Throwable globalThrowable;
 
 		private CompletionConjunctFuture(Collection<? extends CompletableFuture<?>> futuresToComplete) {
+			this.futuresToComplete = checkNotNull(futuresToComplete);
 			numFuturesTotal = futuresToComplete.size();
 
 			futuresCompleted = 0;
@@ -581,6 +612,11 @@ public class FutureUtils {
 			synchronized (lock) {
 				return futuresCompleted;
 			}
+		}
+
+		@Override
+		protected Collection<? extends CompletableFuture<?>> getConjunctFutures() {
+			return futuresToComplete;
 		}
 	}
 

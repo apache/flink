@@ -34,8 +34,6 @@ import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
@@ -43,6 +41,9 @@ import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstrain
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -81,16 +82,16 @@ import static org.apache.flink.util.Preconditions.checkState;
  * A single execution of a vertex. While an {@link ExecutionVertex} can be executed multiple times
  * (for recovery, re-computation, re-configuration), this class tracks the state of a single execution
  * of that vertex and the resources.
- * 
+ *
  * <h2>Lock free state transitions</h2>
- * 
- * In several points of the code, we need to deal with possible concurrent state changes and actions.
+ *
+ * <p>In several points of the code, we need to deal with possible concurrent state changes and actions.
  * For example, while the call to deploy a task (send it to the TaskManager) happens, the task gets cancelled.
- * 
+ *
  * <p>We could lock the entire portion of the code (decision to deploy, deploy, set state to running) such that
  * it is guaranteed that any "cancel command" will only pick up after deployment is done and that the "cancel
  * command" call will never overtake the deploying call.
- * 
+ *
  * <p>This blocks the threads big time, because the remote calls may take long. Depending of their locking behavior, it
  * may even result in distributed deadlocks (unless carefully avoided). We therefore use atomic state updates and
  * occasional double-checking to ensure that the state after a completed call is as expected, and trigger correcting
@@ -117,10 +118,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	/** The executor which is used to execute futures. */
 	private final Executor executor;
 
-	/** The execution vertex whose task this execution executes */ 
+	/** The execution vertex whose task this execution executes. */
 	private final ExecutionVertex vertex;
 
-	/** The unique ID marking the specific execution instant of the task */
+	/** The unique ID marking the specific execution instant of the task. */
 	private final ExecutionAttemptID attemptId;
 
 	/** Gets the global modification version of the execution graph when this execution was created.
@@ -128,7 +129,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * to resolve conflicts between concurrent modification by global and local failover actions. */
 	private final long globalModVersion;
 
-	/** The timestamps when state transitions occurred, indexed by {@link ExecutionState#ordinal()} */ 
+	/** The timestamps when state transitions occurred, indexed by {@link ExecutionState#ordinal()}. */
 	private final long[] stateTimestamps;
 
 	private final int attemptNumber;
@@ -137,7 +138,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private final ConcurrentLinkedQueue<PartialInputChannelDeploymentDescriptor> partialInputChannelDeploymentDescriptors;
 
-	/** A future that completes once the Execution reaches a terminal ExecutionState */
+	/** A future that completes once the Execution reaches a terminal ExecutionState. */
 	private final CompletableFuture<ExecutionState> terminalStateFuture;
 
 	private final CompletableFuture<?> releaseFuture;
@@ -150,14 +151,14 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private volatile Throwable failureCause;          // once assigned, never changes
 
-	/** Information to restore the task on recovery, such as checkpoint id and task state snapshot */
+	/** Information to restore the task on recovery, such as checkpoint id and task state snapshot. */
 	@Nullable
 	private volatile JobManagerTaskRestore taskRestore;
 
 	// ------------------------ Accumulators & Metrics ------------------------
 
 	/** Lock for updating the accumulators atomically.
-	 * Prevents final accumulators to be overwritten by partial accumulators on a late heartbeat */
+	 * Prevents final accumulators to be overwritten by partial accumulators on a late heartbeat. */
 	private final Object accumulatorLock = new Object();
 
 	/* Continuously updated map of user-defined accumulators */
@@ -460,25 +461,40 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			// calculate the preferred locations
 			final CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture = calculatePreferredLocations(locationPreferenceConstraint);
 
-			return preferredLocationsFuture
+			final SlotRequestId slotRequestId = new SlotRequestId();
+
+			final CompletableFuture<LogicalSlot> logicalSlotFuture = preferredLocationsFuture
 				.thenCompose(
 					(Collection<TaskManagerLocation> preferredLocations) ->
 						slotProvider.allocateSlot(
+							slotRequestId,
 							toSchedule,
 							queued,
 							preferredLocations,
-							allocationTimeout))
-				.thenApply(
-					(LogicalSlot logicalSlot) -> {
-						if (tryAssignResource(logicalSlot)) {
-							return this;
-						} else {
-							// release the slot
-							logicalSlot.releaseSlot(new FlinkException("Could not assign logical slot to execution " + this + '.'));
+							allocationTimeout));
 
-							throw new CompletionException(new FlinkException("Could not assign slot " + logicalSlot + " to execution " + this + " because it has already been assigned "));
-						}
-					});
+			// register call back to cancel slot request in case that the execution gets canceled
+			releaseFuture.whenComplete(
+				(Object ignored, Throwable throwable) -> {
+					if (logicalSlotFuture.cancel(false)) {
+						slotProvider.cancelSlotRequest(
+							slotRequestId,
+							slotSharingGroupId,
+							new FlinkException("Execution " + this + " was released."));
+					}
+				});
+
+			return logicalSlotFuture.thenApply(
+				(LogicalSlot logicalSlot) -> {
+					if (tryAssignResource(logicalSlot)) {
+						return this;
+					} else {
+						// release the slot
+						logicalSlot.releaseSlot(new FlinkException("Could not assign logical slot to execution " + this + '.'));
+
+						throw new CompletionException(new FlinkException("Could not assign slot " + logicalSlot + " to execution " + this + " because it has already been assigned "));
+					}
+				});
 		}
 		else {
 			// call race, already deployed, or already done
