@@ -348,9 +348,9 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 				}
 
 			} catch (FileNotFoundException e) {
-
-				getContainingTask().handleAsyncException("Could not found split: " + currentSplit, e);
-
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Input split " + this.currentSplit.getPath() + " doesn't exist, skip and continue");
+				}
 			} catch (Throwable e) {
 
 				getContainingTask().handleAsyncException("Caught exception when processing split: " + currentSplit, e);
