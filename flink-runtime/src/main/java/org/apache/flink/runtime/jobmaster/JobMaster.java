@@ -30,7 +30,9 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointDeclineReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointTriggerException;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -209,6 +211,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	/** The execution graph of this job. */
 	private ExecutionGraph executionGraph;
 
+	@Nullable
+	private String lastInternalSavepoint;
+
 	// ------------------------------------------------------------------------
 
 	public JobMaster(
@@ -314,15 +319,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				false)) {
 
 				// check whether we can restore from a savepoint
-				final SavepointRestoreSettings savepointRestoreSettings = jobGraph.getSavepointRestoreSettings();
-
-				if (savepointRestoreSettings.restoreSavepoint()) {
-					checkpointCoordinator.restoreSavepoint(
-						savepointRestoreSettings.getRestorePath(),
-						savepointRestoreSettings.allowNonRestoredState(),
-						executionGraph.getAllVertices(),
-						userCodeLoader);
-				}
+				tryRestoreExecutionGraphFromSavepoint(executionGraph, jobGraph.getSavepointRestoreSettings());
 			}
 		}
 
@@ -337,6 +334,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		this.metricQueryServicePath = metricQueryServicePath;
 		this.backPressureStatsTracker = checkNotNull(jobManagerSharedServices.getBackPressureStatsTracker());
+		this.lastInternalSavepoint = null;
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -416,6 +414,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			terminationFuture.get(rpcTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 		} catch (Exception e) {
 			exception = e;
+		}
+
+		if (lastInternalSavepoint != null) {
+			CompletableFuture.runAsync(() -> disposeSavepoint(lastInternalSavepoint));
 		}
 
 		try {
@@ -529,41 +531,93 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		// 4. take a savepoint
 		final CompletableFuture<String> savepointFuture = triggerSavepoint(
 			jobMasterConfiguration.getTmpDirectory(),
-			timeout);
+			timeout)
+			.handleAsync(
+				(String savepointPath, Throwable throwable) -> {
+					if (throwable != null) {
+						final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+						if (strippedThrowable instanceof CheckpointTriggerException) {
+							final CheckpointTriggerException checkpointTriggerException = (CheckpointTriggerException) strippedThrowable;
+
+							if (checkpointTriggerException.getCheckpointDeclineReason() == CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING) {
+								return lastInternalSavepoint;
+							} else {
+								throw new CompletionException(checkpointTriggerException);
+							}
+						} else {
+							throw new CompletionException(strippedThrowable);
+						}
+					} else {
+						final String savepointToDispose = lastInternalSavepoint;
+						lastInternalSavepoint = savepointPath;
+
+						// dispose the old savepoint asynchronously
+						CompletableFuture.runAsync(
+							() -> disposeSavepoint(savepointToDispose),
+							scheduledExecutorService);
+
+						return lastInternalSavepoint;
+					}
+				},
+				getMainThreadExecutor());
 
 		final CompletableFuture<ExecutionGraph> executionGraphFuture = savepointFuture
 			.thenApplyAsync(
-				(String savepointPath) -> {
-					try {
-						newExecutionGraph.getCheckpointCoordinator().restoreSavepoint(
-							savepointPath,
-							false,
-							newExecutionGraph.getAllVertices(),
-							userCodeLoader);
-					} catch (Exception e) {
-						disposeSavepoint(savepointPath);
+				(@Nullable String savepointPath) -> {
+					if (savepointPath != null) {
+						try {
+							tryRestoreExecutionGraphFromSavepoint(newExecutionGraph, SavepointRestoreSettings.forPath(savepointPath, false));
+						} catch (Exception e) {
+							final String message = String.format("Could not restore from temporary rescaling savepoint. This might indicate " +
+									"that the savepoint %s got corrupted. Deleting this savepoint as a precaution.",
+								savepointPath);
 
-						throw new CompletionException(new JobModificationException("Could not restore from temporary rescaling savepoint.", e));
+							log.info(message);
+
+							CompletableFuture
+								.runAsync(
+									() -> {
+										if (savepointPath.equals(lastInternalSavepoint)) {
+											lastInternalSavepoint = null;
+										}
+									},
+									getMainThreadExecutor())
+								.thenRunAsync(
+									() -> disposeSavepoint(savepointPath),
+									scheduledExecutorService);
+
+							throw new CompletionException(new JobModificationException(message, e));
+						}
+					} else {
+						try {
+							tryRestoreExecutionGraphFromSavepoint(newExecutionGraph, jobGraph.getSavepointRestoreSettings());
+						} catch (Exception e) {
+							final String message = String.format("Could not restore from initial savepoint. This might indicate " +
+								"that the savepoint %s got corrupted.", jobGraph.getSavepointRestoreSettings().getRestorePath());
+
+							log.info(message);
+
+							throw new CompletionException(new JobModificationException(message, e));
+						}
 					}
-
-					// delete the savepoint file once we reach a terminal state
-					newExecutionGraph.getTerminationFuture()
-						.whenCompleteAsync(
-							(JobStatus jobStatus, Throwable throwable) -> disposeSavepoint(savepointPath),
-							scheduledExecutorService);
 
 					return newExecutionGraph;
 				}, scheduledExecutorService)
-			.exceptionally(
-				(Throwable failure) -> {
-					// in case that we couldn't take a savepoint or restore from it, let's restart the checkpoint
-					// coordinator and abort the rescaling operation
-					if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
-						checkpointCoordinator.startCheckpointScheduler();
-					}
+			.handleAsync(
+				(ExecutionGraph executionGraph, Throwable failure) -> {
+					if (failure != null) {
+						// in case that we couldn't take a savepoint or restore from it, let's restart the checkpoint
+						// coordinator and abort the rescaling operation
+						if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
+							checkpointCoordinator.startCheckpointScheduler();
+						}
 
-					throw new CompletionException(failure);
-				});
+						throw new CompletionException(ExceptionUtils.stripCompletionException(failure));
+					} else {
+						return executionGraph;
+					}
+				},
+				getMainThreadExecutor());
 
 		// 5. suspend the current job
 		final CompletableFuture<JobStatus> terminationFuture = executionGraphFuture.thenComposeAsync(
@@ -1147,6 +1201,26 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				log);
 		} catch (FlinkException | IOException de) {
 			log.info("Could not dispose temporary rescaling savepoint under {}.", savepointPath, de);
+		}
+	}
+
+	/**
+	 * Tries to restore the given {@link ExecutionGraph} from the provided {@link SavepointRestoreSettings}.
+	 *
+	 * @param executionGraphToRestore {@link ExecutionGraph} which is supposed to be restored
+	 * @param savepointRestoreSettings {@link SavepointRestoreSettings} containing information about the savepoint to restore from
+	 * @throws Exception if the {@link ExecutionGraph} could not be restored
+	 */
+	private void tryRestoreExecutionGraphFromSavepoint(ExecutionGraph executionGraphToRestore, SavepointRestoreSettings savepointRestoreSettings) throws Exception {
+		if (savepointRestoreSettings.restoreSavepoint()) {
+			final CheckpointCoordinator checkpointCoordinator = executionGraphToRestore.getCheckpointCoordinator();
+			if (checkpointCoordinator != null) {
+				checkpointCoordinator.restoreSavepoint(
+					savepointRestoreSettings.getRestorePath(),
+					savepointRestoreSettings.allowNonRestoredState(),
+					executionGraphToRestore.getAllVertices(),
+					userCodeLoader);
+			}
 		}
 	}
 
