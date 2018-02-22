@@ -39,6 +39,8 @@ import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -71,6 +73,9 @@ public class RocksDBMapState<K, N, UK, UV>
 	 * because JNI segfaults for some reason if they are.
 	 */
 	private final WriteOptions writeOptions;
+
+	/** The offset of User Key offset in raw key bytes. */
+	private int userKeyOffset;
 
 	/**
 	 * Creates a new {@code RocksDBMapState}.
@@ -262,12 +267,13 @@ public class RocksDBMapState<K, N, UK, UV>
 
 	private byte[] serializeCurrentKeyAndNamespace() throws IOException {
 		writeCurrentKeyWithGroupAndNamespace();
+		userKeyOffset = keySerializationStream.getPosition();
 
 		return keySerializationStream.toByteArray();
 	}
 
 	private byte[] serializeUserKeyWithCurrentKeyAndNamespace(UK userKey) throws IOException {
-		writeCurrentKeyWithGroupAndNamespace();
+		serializeCurrentKeyAndNamespace();
 		userKeySerializer.serialize(userKey, keySerializationDataOutputView);
 
 		return keySerializationStream.toByteArray();
@@ -290,7 +296,7 @@ public class RocksDBMapState<K, N, UK, UV>
 		ByteArrayInputStreamWithPos bais = new ByteArrayInputStreamWithPos(rawKeyBytes);
 		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
 
-		readKeyWithGroupAndNamespace(bais, in);
+		in.skipBytes(userKeyOffset);
 
 		return userKeySerializer.deserialize(in);
 	}
@@ -327,7 +333,10 @@ public class RocksDBMapState<K, N, UK, UV>
 		private UK userKey = null;
 		private UV userValue = null;
 
-		RocksDBMapEntry(final RocksDB db, final byte[] rawKeyBytes, final byte[] rawValueBytes) {
+		RocksDBMapEntry(
+			@Nonnull final RocksDB db,
+			@Nonnull final byte[] rawKeyBytes,
+			@Nonnull final byte[] rawValueBytes) {
 			this.db = db;
 
 			this.rawKeyBytes = rawKeyBytes;
@@ -400,7 +409,6 @@ public class RocksDBMapState<K, N, UK, UV>
 	/** An auxiliary utility to scan all entries under the given key. */
 	private abstract class RocksDBMapIterator<T> implements Iterator<T> {
 
-		static final int CACHE_SIZE_BASE = 1;
 		static final int CACHE_SIZE_LIMIT = 128;
 
 		/** The db where data resides. */
@@ -481,7 +489,6 @@ public class RocksDBMapState<K, N, UK, UV>
  			 */
 			RocksDBMapEntry lastEntry = cacheEntries.size() == 0 ? null : cacheEntries.get(cacheEntries.size() - 1);
 			byte[] startBytes = (lastEntry == null ? keyPrefixBytes : lastEntry.rawKeyBytes);
-			int numEntries = (lastEntry == null ? CACHE_SIZE_BASE : Math.min(cacheEntries.size() * 2, CACHE_SIZE_LIMIT));
 
 			cacheEntries.clear();
 			cacheIndex = 0;
@@ -502,7 +509,7 @@ public class RocksDBMapState<K, N, UK, UV>
 					break;
 				}
 
-				if (cacheEntries.size() >= numEntries) {
+				if (cacheEntries.size() >= CACHE_SIZE_LIMIT) {
 					break;
 				}
 
@@ -520,7 +527,7 @@ public class RocksDBMapState<K, N, UK, UV>
 				return false;
 			}
 
-			for (int i = 0; i < keyPrefixBytes.length; ++i) {
+			for (int i = keyPrefixBytes.length; --i >= backend.getKeyGroupPrefixBytes(); ) {
 				if (rawKeyBytes[i] != keyPrefixBytes[i]) {
 					return false;
 				}
