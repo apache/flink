@@ -77,6 +77,8 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -90,6 +92,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
@@ -270,6 +273,12 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * strong reference to any user-defined classes.*/
 	private volatile ErrorInfo failureInfo;
 
+	/**
+	 * Future for an ongoing or completed scheduling action.
+	 */
+	@Nullable
+	private volatile CompletableFuture<Void> schedulingFuture;
+
 	// ------ Fields that are relevant to the execution and need to be cleared before archiving  -------
 
 	/** The coordinator for checkpoints, if snapshot checkpoints are enabled */
@@ -409,6 +418,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		// the failover strategy must be instantiated last, so that the execution graph
 		// is ready by the time the failover strategy sees it
 		this.failoverStrategy = checkNotNull(failoverStrategyFactory.create(this), "null failover strategy");
+
+		this.schedulingFuture = null;
 		LOG.info("Job recovers via failover strategy: {}", failoverStrategy.getStrategyName());
 	}
 
@@ -857,20 +868,36 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	public void scheduleForExecution() throws JobException {
 
+		final long currentGlobalModVersion = globalModVersion;
+
 		if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
+
+			final CompletableFuture<Void> newSchedulingFuture;
 
 			switch (scheduleMode) {
 
 				case LAZY_FROM_SOURCES:
-					scheduleLazy(slotProvider);
+					newSchedulingFuture = scheduleLazy(slotProvider);
 					break;
 
 				case EAGER:
-					scheduleEager(slotProvider, allocationTimeout);
+					newSchedulingFuture = scheduleEager(slotProvider, allocationTimeout);
 					break;
 
 				default:
 					throw new JobException("Schedule mode is invalid.");
+			}
+
+			if (state == JobStatus.RUNNING && currentGlobalModVersion == globalModVersion) {
+				schedulingFuture = newSchedulingFuture.whenCompleteAsync(
+					(Void ignored, Throwable throwable) -> {
+						if (throwable != null) {
+							failGlobal(ExceptionUtils.stripCompletionException(throwable));
+						}
+					},
+					futureExecutor);
+			} else {
+				newSchedulingFuture.cancel(false);
 			}
 		}
 		else {
@@ -878,16 +905,23 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 	}
 
-	private void scheduleLazy(SlotProvider slotProvider) {
+	private CompletableFuture<Void> scheduleLazy(SlotProvider slotProvider) {
+
+		final ArrayList<CompletableFuture<Void>> schedulingFutures = new ArrayList<>(numVerticesTotal);
+
 		// simply take the vertices without inputs.
 		for (ExecutionJobVertex ejv : verticesInCreationOrder) {
 			if (ejv.getJobVertex().isInputVertex()) {
-				ejv.scheduleAll(
+				final CompletableFuture<Void> schedulingJobVertexFuture = ejv.scheduleAll(
 					slotProvider,
 					allowQueuedScheduling,
 					LocationPreferenceConstraint.ALL); // since it is an input vertex, the input based location preferences should be empty
+
+				schedulingFutures.add(schedulingJobVertexFuture);
 			}
 		}
+
+		return FutureUtils.waitForAll(schedulingFutures);
 	}
 
 	/**
@@ -896,8 +930,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * @param slotProvider  The resource provider from which the slots are allocated
 	 * @param timeout       The maximum time that the deployment may take, before a
 	 *                      TimeoutException is thrown.
+	 * @returns Future which is completed once the {@link ExecutionGraph} has been scheduled.
+	 * The future can also be completed exceptionally if an error happened.
 	 */
-	private void scheduleEager(SlotProvider slotProvider, final Time timeout) {
+	private CompletableFuture<Void> scheduleEager(SlotProvider slotProvider, final Time timeout) {
 		checkState(state == JobStatus.RUNNING, "job is not running currently");
 
 		// Important: reserve all the space we need up front.
@@ -925,9 +961,23 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		// the future fails once one slot future fails.
 		final ConjunctFuture<Collection<Execution>> allAllocationsFuture = FutureUtils.combineAll(allAllocationFutures);
 
-		allAllocationsFuture.whenCompleteAsync(
-			(Collection<Execution> allAllocations, Throwable throwable) -> {
-				if (throwable != null) {
+		return allAllocationsFuture
+			.thenAccept(
+				(Collection<Execution> executionsToDeploy) -> {
+					for (Execution execution : executionsToDeploy) {
+						try {
+							execution.deploy();
+						} catch (Throwable t) {
+							throw new CompletionException(
+								new FlinkException(
+									String.format("Could not deploy execution %s.", execution),
+									t));
+						}
+					}
+			})
+			// Generate a more specific failure message for the eager scheduling
+			.exceptionally(
+				(Throwable throwable) -> {
 					final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
 					final Throwable resultThrowable;
 
@@ -942,18 +992,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 						resultThrowable = strippedThrowable;
 					}
 
-					failGlobal(resultThrowable);
-				} else {
-					try {
-						// successfully obtained all slots, now deploy
-						for (Execution execution : allAllocations) {
-							execution.deploy();
-						}
-					} catch (Throwable t) {
-						failGlobal(new FlinkException("Could not deploy executions.", t));
-					}
-				}
-			}, futureExecutor);
+					throw new CompletionException(resultThrowable);
+				});
 	}
 
 	public void cancel() {
@@ -965,6 +1005,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 					// make sure no concurrent local actions interfere with the cancellation
 					final long globalVersionForRestart = incrementGlobalModVersion();
+
+					final CompletableFuture<Void> ongoingSchedulingFuture = schedulingFuture;
+
+					// cancel ongoing scheduling action
+					if (ongoingSchedulingFuture != null) {
+						ongoingSchedulingFuture.cancel(false);
+					}
 
 					final ArrayList<CompletableFuture<?>> futures = new ArrayList<>(verticesInCreationOrder.size());
 
@@ -1057,6 +1104,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				// make sure no concurrent local actions interfere with the cancellation
 				incrementGlobalModVersion();
 
+				final CompletableFuture<Void> ongoingSchedulingFuture = schedulingFuture;
+
+				// cancel ongoing scheduling action
+				if (ongoingSchedulingFuture != null) {
+					ongoingSchedulingFuture.cancel(false);
+				}
+
 				for (ExecutionJobVertex ejv: verticesInCreationOrder) {
 					ejv.cancel();
 				}
@@ -1107,6 +1161,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 				// make sure no concurrent local or global actions interfere with the failover
 				final long globalVersionForRestart = incrementGlobalModVersion();
+
+				final CompletableFuture<Void> ongoingSchedulingFuture = schedulingFuture;
+
+				// cancel ongoing scheduling action
+				if (ongoingSchedulingFuture != null) {
+					ongoingSchedulingFuture.cancel(false);
+				}
 
 				// we build a future that is complete once all vertices have reached a terminal state
 				final ArrayList<CompletableFuture<?>> futures = new ArrayList<>(verticesInCreationOrder.size());

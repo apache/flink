@@ -34,6 +34,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -472,18 +473,23 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * @param slotProvider to allocate the slots from
 	 * @param queued if the allocations can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @return Future which is completed once all {@link Execution} could be deployed
 	 */
-	public void scheduleAll(
+	public CompletableFuture<Void> scheduleAll(
 			SlotProvider slotProvider,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint) {
 		
 		final ExecutionVertex[] vertices = this.taskVertices;
 
+		final ArrayList<CompletableFuture<Void>> scheduleFutures = new ArrayList<>(vertices.length);
+
 		// kick off the tasks
 		for (ExecutionVertex ev : vertices) {
-			ev.scheduleForExecution(slotProvider, queued, locationPreferenceConstraint);
+			scheduleFutures.add(ev.scheduleForExecution(slotProvider, queued, locationPreferenceConstraint));
 		}
+
+		return FutureUtils.waitForAll(scheduleFutures);
 	}
 
 	/**
