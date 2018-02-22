@@ -170,7 +170,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 				env,
 				"src/test/resources/" + getSavepointPath(testMigrateVersion, testStateBackend),
 				new Tuple2<>(AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2));
-		} else if (executionMode == ExecutionMode.VERIFY_SAVEPOINT) {
+		} else {
 			restoreAndExecute(
 				env,
 				getResourceFilename(getSavepointPath(testMigrateVersion, testStateBackend)),
@@ -181,8 +181,6 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 				new Tuple2<>(CheckingTimelyStatefulOperator.SUCCESSFUL_EVENT_TIME_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
 				new Tuple2<>(CheckingTimelyStatefulOperator.SUCCESSFUL_PROCESSING_TIME_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
 				new Tuple2<>(AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2));
-		} else {
-			throw new IllegalStateException("Unknown ExecutionMode " + executionMode);
 		}
 	}
 
@@ -216,7 +214,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 
 		private transient ListState<String> unionListState;
 
-		public CheckpointingNonParallelSourceWithListState(int numElements) {
+		CheckpointingNonParallelSourceWithListState(int numElements) {
 			this.numElements = numElements;
 		}
 
@@ -264,13 +262,13 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 
 		private static final long serialVersionUID = 1L;
 
-		public static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR = CheckingNonParallelSourceWithListState.class + "_RESTORE_CHECK";
+		static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR = CheckingNonParallelSourceWithListState.class + "_RESTORE_CHECK";
 
 		private volatile boolean isRunning = true;
 
 		private final int numElements;
 
-		public CheckingNonParallelSourceWithListState(int numElements) {
+		CheckingNonParallelSourceWithListState(int numElements) {
 			this.numElements = numElements;
 		}
 
@@ -343,7 +341,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 
 		private transient ListState<String> unionListState;
 
-		public CheckpointingParallelSourceWithUnionListState(int numElements) {
+		CheckpointingParallelSourceWithUnionListState(int numElements) {
 			this.numElements = numElements;
 		}
 
@@ -395,13 +393,13 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 
 		private static final long serialVersionUID = 1L;
 
-		public static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR = CheckingParallelSourceWithUnionListState.class + "_RESTORE_CHECK";
+		static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR = CheckingParallelSourceWithUnionListState.class + "_RESTORE_CHECK";
 
 		private volatile boolean isRunning = true;
 
 		private final int numElements;
 
-		public CheckingParallelSourceWithUnionListState(int numElements) {
+		CheckingParallelSourceWithUnionListState(int numElements) {
 			this.numElements = numElements;
 		}
 
@@ -457,7 +455,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		private static final long serialVersionUID = 1L;
 
 		private final ValueStateDescriptor<Long> stateDescriptor =
-			new ValueStateDescriptor<Long>("state-name", LongSerializer.INSTANCE);
+			new ValueStateDescriptor<>("state-name", LongSerializer.INSTANCE);
 
 		@Override
 		public void flatMap(Tuple2<Long, Long> value, Collector<Tuple2<Long, Long>> out) throws Exception {
@@ -471,10 +469,10 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 
 		private static final long serialVersionUID = 1L;
 
-		public static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR = CheckingKeyedStateFlatMap.class + "_RESTORE_CHECK";
+		static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR = CheckingKeyedStateFlatMap.class + "_RESTORE_CHECK";
 
 		private final ValueStateDescriptor<Long> stateDescriptor =
-			new ValueStateDescriptor<Long>("state-name", LongSerializer.INSTANCE);
+			new ValueStateDescriptor<>("state-name", LongSerializer.INSTANCE);
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
@@ -503,7 +501,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		private static final long serialVersionUID = 1L;
 
 		private final ValueStateDescriptor<Long> stateDescriptor =
-			new ValueStateDescriptor<Long>("state-name", LongSerializer.INSTANCE);
+			new ValueStateDescriptor<>("state-name", LongSerializer.INSTANCE);
 
 		private transient InternalTimerService<Long> timerService;
 
@@ -534,17 +532,17 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 
 		@Override
-		public void onEventTime(InternalTimer<Long, Long> timer) throws Exception {
+		public void onEventTime(InternalTimer<Long, Long> timer) {
 
 		}
 
 		@Override
-		public void onProcessingTime(InternalTimer<Long, Long> timer) throws Exception {
+		public void onProcessingTime(InternalTimer<Long, Long> timer) {
 
 		}
 
 		@Override
-		public void processWatermark(Watermark mark) throws Exception {
+		public void processWatermark(Watermark mark) {
 			output.emitWatermark(mark);
 		}
 	}
@@ -554,12 +552,12 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		implements OneInputStreamOperator<Tuple2<Long, Long>, Tuple2<Long, Long>>, Triggerable<Long, Long> {
 		private static final long serialVersionUID = 1L;
 
-		public static final String SUCCESSFUL_PROCESS_CHECK_ACCUMULATOR = CheckingTimelyStatefulOperator.class + "_PROCESS_CHECKS";
-		public static final String SUCCESSFUL_EVENT_TIME_CHECK_ACCUMULATOR = CheckingTimelyStatefulOperator.class + "_ET_CHECKS";
-		public static final String SUCCESSFUL_PROCESSING_TIME_CHECK_ACCUMULATOR = CheckingTimelyStatefulOperator.class + "_PT_CHECKS";
+		static final String SUCCESSFUL_PROCESS_CHECK_ACCUMULATOR = CheckingTimelyStatefulOperator.class + "_PROCESS_CHECKS";
+		static final String SUCCESSFUL_EVENT_TIME_CHECK_ACCUMULATOR = CheckingTimelyStatefulOperator.class + "_ET_CHECKS";
+		static final String SUCCESSFUL_PROCESSING_TIME_CHECK_ACCUMULATOR = CheckingTimelyStatefulOperator.class + "_PT_CHECKS";
 
 		private final ValueStateDescriptor<Long> stateDescriptor =
-			new ValueStateDescriptor<Long>("state-name", LongSerializer.INSTANCE);
+			new ValueStateDescriptor<>("state-name", LongSerializer.INSTANCE);
 
 		@Override
 		public void open() throws Exception {
@@ -615,7 +613,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 	private static class AccumulatorCountingSink<T> extends RichSinkFunction<T> {
 		private static final long serialVersionUID = 1L;
 
-		public static final String NUM_ELEMENTS_ACCUMULATOR = AccumulatorCountingSink.class + "_NUM_ELEMENTS";
+		static final String NUM_ELEMENTS_ACCUMULATOR = AccumulatorCountingSink.class + "_NUM_ELEMENTS";
 
 		int count = 0;
 
@@ -627,7 +625,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 
 		@Override
-		public void invoke(T value) throws Exception {
+		public void invoke(T value, Context context) throws Exception {
 			count++;
 			getRuntimeContext().getAccumulator(NUM_ELEMENTS_ACCUMULATOR).add(1);
 		}
