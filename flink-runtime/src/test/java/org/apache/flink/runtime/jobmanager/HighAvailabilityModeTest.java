@@ -47,9 +47,9 @@ public class HighAvailabilityModeTest {
 		config.setString(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
 		assertEquals(HighAvailabilityMode.ZOOKEEPER, HighAvailabilityMode.fromConfig(config));
 
-		// Check custom
-		config.setString(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.CUSTOM.name().toLowerCase());
-		assertEquals(HighAvailabilityMode.CUSTOM, HighAvailabilityMode.fromConfig(config));
+		// Check factory class
+		config.setString(HighAvailabilityOptions.HA_MODE, "factory.class.FQN");
+		assertEquals(HighAvailabilityMode.FACTORY_CLASS, HighAvailabilityMode.fromConfig(config));
 	}
 
 	/**
@@ -89,8 +89,8 @@ public class HighAvailabilityModeTest {
 		config.setString("high-availability", HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
 		assertTrue(HighAvailabilityMode.isHighAvailabilityModeActivated(config));
 
-		// check CUSTOM
-		config.setString("high-availability", HighAvailabilityMode.CUSTOM.name().toLowerCase());
+		// check FACTORY_CLASS
+		config.setString("high-availability", HighAvailabilityMode.FACTORY_CLASS.name().toLowerCase());
 		assertTrue(HighAvailabilityMode.isHighAvailabilityModeActivated(config));
 	}
 

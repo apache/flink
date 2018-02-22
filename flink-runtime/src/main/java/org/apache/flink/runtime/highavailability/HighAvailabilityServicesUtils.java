@@ -63,7 +63,7 @@ public class HighAvailabilityServicesUtils {
 					config,
 					blobStoreService);
 
-			case CUSTOM:
+			case FACTORY_CLASS:
 				return createCustomHAServices(config, executor);
 
 			default:
@@ -120,7 +120,7 @@ public class HighAvailabilityServicesUtils {
 					configuration,
 					blobStoreService);
 
-			case CUSTOM:
+			case FACTORY_CLASS:
 				return createCustomHAServices(configuration, executor);
 
 			default:
