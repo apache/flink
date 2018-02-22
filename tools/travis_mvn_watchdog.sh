@@ -580,7 +580,7 @@ case $TEST in
 				printf "\n==============================================================================\n"
 				printf "Running Wordcount end-to-end test\n"
 				printf "==============================================================================\n"
-				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_batch_wordcount.sh
+				FLINK_DIR=build-target test-infra/end-to-end-test/test_batch_wordcount.sh
 				EXIT_CODE=$?
 			fi
 
@@ -588,7 +588,7 @@ case $TEST in
 				printf "\n==============================================================================\n"
 				printf "Running Kafka end-to-end test\n"
 				printf "==============================================================================\n"
-				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_streaming_kafka010.sh
+				FLINK_DIR=build-target test-infra/end-to-end-test/test_streaming_kafka010.sh
 				EXIT_CODE=$?
 			fi
 
@@ -596,7 +596,7 @@ case $TEST in
 				printf "\n==============================================================================\n"
 				printf "Running class loading end-to-end test\n"
 				printf "==============================================================================\n"
-				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_streaming_classloader.sh
+				FLINK_DIR=build-target test-infra/end-to-end-test/test_streaming_classloader.sh
 				EXIT_CODE=$?
 			fi
 
@@ -604,7 +604,7 @@ case $TEST in
 				printf "\n==============================================================================\n"
 				printf "Running Shaded Hadoop S3A end-to-end test\n"
 				printf "==============================================================================\n"
-				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_shaded_hadoop_s3a.sh
+				FLINK_DIR=build-target test-infra/end-to-end-test/test_shaded_hadoop_s3a.sh
 				EXIT_CODE=$?
 			fi
 
@@ -612,7 +612,7 @@ case $TEST in
 				printf "\n==============================================================================\n"
 				printf "Running Shaded Presto S3 end-to-end test\n"
 				printf "==============================================================================\n"
-				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_shaded_presto_s3.sh
+				FLINK_DIR=build-target test-infra/end-to-end-test/test_shaded_presto_s3.sh
 				EXIT_CODE=$?
 			fi
 
@@ -620,7 +620,7 @@ case $TEST in
 				printf "\n==============================================================================\n"
 				printf "Running Streaming Python Wordcount end-to-end test\n"
 				printf "==============================================================================\n"
-				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_streaming_python_wordcount.sh
+				FLINK_DIR=build-target test-infra/end-to-end-test/test_streaming_python_wordcount.sh
 				EXIT_CODE=$?
 			fi
 		else

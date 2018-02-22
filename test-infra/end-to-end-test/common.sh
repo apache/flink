@@ -23,10 +23,6 @@ if [[ -z $FLINK_DIR ]]; then
     echo "FLINK_DIR needs to point to a Flink distribution directory"
     exit 1
 fi
-if [[ -z $CLUSTER_MODE ]]; then
-    echo "CLUSTER_MODE needs to be one of local or cluster."
-    exit 1
-fi
 
 export PASS=1
 
@@ -44,38 +40,27 @@ export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
 echo "TEST_DATA_DIR: $TEST_DATA_DIR"
 
 function start_cluster {
-  if [[ "$CLUSTER_MODE" == "local" ]]; then
-    $FLINK_DIR/bin/start-local.sh
-  elif [[ "$CLUSTER_MODE" == "cluster" ]]; then
-    $FLINK_DIR/bin/start-cluster.sh
-  else
-    echo "Unrecognized cluster mode: $CLUSTER_MODE"
-    exit
-  fi
+  "$FLINK_DIR"/bin/start-cluster.sh
 
-  # wait for TaskManager to come up
-  # wait roughly 10 seconds
+  # wait at most 10 seconds until the dispatcher is up
   for i in {1..10}; do
     # without the || true this would exit our script if the JobManager is not yet up
-    QUERY_RESULT=$(curl "http://localhost:8081/taskmanagers" || true)
+    QUERY_RESULT=$(curl "http://localhost:9065/taskmanagers" 2> /dev/null || true)
 
     if [[ "$QUERY_RESULT" == "" ]]; then
-     echo "JobManager is not yet up"
+      echo "Dispatcher/TaskManagers are not yet up"
     elif [[ "$QUERY_RESULT" != "{\"taskmanagers\":[]}" ]]; then
+      echo "Dispatcher REST endpoint is up."
       break
     fi
 
-    echo "Waiting for cluster to come up..."
+    echo "Waiting for dispatcher REST endpoint to come up..."
     sleep 1
   done
 }
 
 function stop_cluster {
-  if [[ "$CLUSTER_MODE" == "local" ]]; then
-    $FLINK_DIR/bin/stop-local.sh
-  elif [[ "$CLUSTER_MODE" == "cluster" ]]; then
-    $FLINK_DIR/bin/stop-cluster.sh
-  fi
+  "$FLINK_DIR"/bin/stop-cluster.sh
 
   if grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
       | grep -v "RetriableCommitFailedException" \

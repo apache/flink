@@ -21,6 +21,9 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.runtime.rest.messages.ConversionException;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 /**
  * Path parameter to identify uploaded jar files.
  */
@@ -34,6 +37,10 @@ public class JarIdPathParameter extends MessagePathParameter<String> {
 
 	@Override
 	protected String convertFromString(final String value) throws ConversionException {
+		final Path path = Paths.get(value);
+		if (path.getParent() != null) {
+			throw new ConversionException(String.format("%s must be a filename only (%s)", KEY, path));
+		}
 		return value;
 	}
 

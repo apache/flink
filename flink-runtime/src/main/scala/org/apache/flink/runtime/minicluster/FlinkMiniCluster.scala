@@ -714,7 +714,7 @@ abstract class FlinkMiniCluster(
     submitJobAndWait(jobGraph, false)
   }
 
-  override def terminate() = {
+  override def closeAsync() = {
     try {
       stop()
       CompletableFuture.completedFuture(null)

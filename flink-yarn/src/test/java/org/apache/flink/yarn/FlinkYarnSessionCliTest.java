@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -91,32 +90,6 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		assertEquals(2, dynProperties.size());
 		assertEquals("5 min", dynProperties.get("akka.ask.timeout"));
 		assertEquals("-DappName=foobar", dynProperties.get("env.java.opts"));
-	}
-
-	@Test
-	public void testNotEnoughTaskSlots() throws Exception {
-		String[] params =
-			new String[] {"-yn", "2", "-ys", "3", "-p", "7"};
-
-		FlinkYarnSessionCli yarnCLI = new FlinkYarnSessionCli(
-			new Configuration(),
-			tmp.getRoot().getAbsolutePath(),
-			"y",
-			"yarn");
-
-		Options options = new Options();
-		// TODO: Nasty workaround: We should get rid of the YarnCLI and run options coupling
-		options.addOption(CliFrontendParser.PARALLELISM_OPTION);
-		yarnCLI.addGeneralOptions(options);
-		yarnCLI.addRunOptions(options);
-
-		final CommandLine commandLine = CliFrontendParser.parse(options, params, true);
-
-		ClusterSpecification clusterSpecification = yarnCLI.getClusterSpecification(commandLine);
-
-		// each task manager has 3 slots but the parallelism is 7. Thus the slots should be increased.
-		assertEquals(4, clusterSpecification.getSlotsPerTaskManager());
-		assertEquals(2, clusterSpecification.getNumberTaskManagers());
 	}
 
 	@Test

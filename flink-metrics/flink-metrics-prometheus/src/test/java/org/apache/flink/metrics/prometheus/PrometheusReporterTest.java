@@ -44,6 +44,8 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 import static org.apache.flink.metrics.prometheus.PrometheusReporter.ARG_PORT;
 import static org.hamcrest.Matchers.containsString;
@@ -65,6 +67,8 @@ public class PrometheusReporterTest extends TestLogger {
 	private static final String DEFAULT_LABELS = "{" + DIMENSIONS + ",}";
 	private static final String SCOPE_PREFIX = "flink_taskmanager_";
 
+	private static final PortRangeProvider portRangeProvider = new PortRangeProvider();
+
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
@@ -74,7 +78,7 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Before
 	public void setupReporter() {
-		registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9400-9500")));
+		registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", portRangeProvider.next())));
 		metricGroup = new FrontMetricGroup<>(0, new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER));
 		reporter = (PrometheusReporter) registry.getReporters().get(0);
 	}
@@ -156,15 +160,6 @@ public class PrometheusReporterTest extends TestLogger {
 	}
 
 	@Test
-	public void endpointIsUnavailableAfterReporterIsClosed() throws UnirestException {
-		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9400-9500")));
-		PrometheusReporter reporter = (PrometheusReporter) registry.getReporters().get(0);
-		reporter.close();
-		thrown.expect(UnirestException.class);
-		pollMetrics(reporter.getPort());
-	}
-
-	@Test
 	public void invalidCharactersAreReplacedWithUnderscore() {
 		assertThat(PrometheusReporter.replaceInvalidChars(""), equalTo(""));
 		assertThat(PrometheusReporter.replaceInvalidChars("abc"), equalTo("abc"));
@@ -243,7 +238,7 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void cannotStartTwoReportersOnSamePort() {
-		final MetricRegistryImpl fixedPort1 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9400-9500")));
+		final MetricRegistryImpl fixedPort1 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", portRangeProvider.next())));
 		assertThat(fixedPort1.getReporters(), hasSize(1));
 
 		PrometheusReporter firstReporter = (PrometheusReporter) fixedPort1.getReporters().get(0);
@@ -257,8 +252,9 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void canStartTwoReportersWhenUsingPortRange() {
-		final MetricRegistryImpl portRange1 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9200-9300")));
-		final MetricRegistryImpl portRange2 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", "9200-9300")));
+		String portRange = portRangeProvider.next();
+		final MetricRegistryImpl portRange1 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", portRange)));
+		final MetricRegistryImpl portRange2 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", portRange)));
 
 		assertThat(portRange1.getReporters(), hasSize(1));
 		assertThat(portRange2.getReporters(), hasSize(1));
@@ -286,5 +282,33 @@ public class PrometheusReporterTest extends TestLogger {
 	@After
 	public void closeReporterAndShutdownRegistry() {
 		registry.shutdown();
+	}
+
+	/**
+	 * Utility class providing distinct port ranges.
+	 */
+	private static class PortRangeProvider implements Iterator<String> {
+
+		private int base = 9000;
+
+		@Override
+		public boolean hasNext() {
+			return base < 14000; // arbitrary limit that should be sufficient for test purposes
+		}
+
+		/**
+		 * Returns the next port range containing exactly 100 ports.
+		 *
+		 * @return next port range
+		 */
+		public String next() {
+			if (!hasNext()) {
+				throw new NoSuchElementException();
+			}
+			int lowEnd = base;
+			int highEnd = base + 99;
+			base += 100;
+			return String.valueOf(lowEnd) + "-" + String.valueOf(highEnd);
+		}
 	}
 }

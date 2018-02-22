@@ -50,7 +50,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.runtime.util.clock.SystemClock;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -658,25 +657,24 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			slotRequestId,
 			resourceProfile);
 
+		// register request timeout
+		FutureUtils
+			.orTimeout(pendingRequest.getAllocatedSlotFuture(), allocationTimeout.toMilliseconds(), TimeUnit.MILLISECONDS)
+			.whenCompleteAsync(
+				(AllocatedSlot ignored, Throwable throwable) -> {
+					if (throwable != null) {
+						timeoutPendingSlotRequest(slotRequestId);
+					}
+				},
+				getMainThreadExecutor());
+
 		if (resourceManagerGateway == null) {
 			stashRequestWaitingForResourceManager(pendingRequest);
 		} else {
 			requestSlotFromResourceManager(resourceManagerGateway, pendingRequest);
 		}
 
-		// register request timeout
-		return FutureUtils
-			.orTimeout(pendingRequest.getAllocatedSlotFuture(), allocationTimeout.toMilliseconds(), TimeUnit.MILLISECONDS)
-			.handleAsync(
-				(AllocatedSlot allocatedSlot, Throwable throwable) -> {
-					if (throwable != null) {
-						removePendingRequest(slotRequestId);
-						throw new CompletionException(ExceptionUtils.stripCompletionException(throwable));
-					} else {
-						return allocatedSlot;
-					}
-				},
-				getMainThreadExecutor());
+		return pendingRequest.getAllocatedSlotFuture();
 	}
 
 	private void requestSlotFromResourceManager(
@@ -1066,6 +1064,12 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	// ------------------------------------------------------------------------
 	//  Internal methods
 	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	protected void timeoutPendingSlotRequest(SlotRequestId slotRequestId) {
+		log.info("Pending slot request {} timed out.", slotRequestId);
+		removePendingRequest(slotRequestId);
+	}
 
 	private void releaseTaskManagerInternal(final ResourceID resourceId) {
 		final FlinkException cause = new FlinkException("Releasing TaskManager " + resourceId + '.');

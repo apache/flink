@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
@@ -32,7 +32,6 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
@@ -43,17 +42,15 @@ import javax.annotation.Nullable;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.getQueryParameter;
+import static org.apache.flink.runtime.webmonitor.handlers.utils.JarHandlerUtils.tokenizeArguments;
 import static org.apache.flink.shaded.guava18.com.google.common.base.Strings.emptyToNull;
 
 /**
@@ -61,8 +58,6 @@ import static org.apache.flink.shaded.guava18.com.google.common.base.Strings.emp
  */
 public class JarRunHandler extends
 		AbstractRestHandler<RestfulGateway, EmptyRequestBody, JarRunResponseBody, JarRunMessageParameters> {
-
-	private static final Pattern ARGUMENTS_TOKENIZE_PATTERN = Pattern.compile("([^\"\']\\S*|\".+?\"|\'.+?\')\\s*");
 
 	private final Path jarDir;
 
@@ -100,7 +95,7 @@ public class JarRunHandler extends
 
 		final String entryClass = emptyToNull(getQueryParameter(request, EntryClassQueryParameter.class));
 		final List<String> programArgs = tokenizeArguments(getQueryParameter(request, ProgramArgsQueryParameter.class));
-		final int parallelism = getQueryParameter(request, ParallelismQueryParameter.class, -1);
+		final int parallelism = getQueryParameter(request, ParallelismQueryParameter.class, ExecutionConfig.PARALLELISM_DEFAULT);
 		final SavepointRestoreSettings savepointRestoreSettings = getSavepointRestoreSettings(request);
 
 		final CompletableFuture<JobGraph> jobGraphFuture = getJobGraphAsync(
@@ -164,63 +159,5 @@ public class JarRunHandler extends
 			jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 			return jobGraph;
 		}, executor);
-	}
-
-	/**
-	 * Takes program arguments as a single string, and splits them into a list of string.
-	 *
-	 * <pre>
-	 * tokenizeArguments("--foo bar")            = ["--foo" "bar"]
-	 * tokenizeArguments("--foo \"bar baz\"")    = ["--foo" "bar baz"]
-	 * tokenizeArguments("--foo 'bar baz'")      = ["--foo" "bar baz"]
-	 * </pre>
-	 *
-	 * <strong>WARNING: </strong>This method does not respect escaped quotes.
-	 */
-	@VisibleForTesting
-	static List<String> tokenizeArguments(@Nullable final String args) {
-		if (args == null) {
-			return Collections.emptyList();
-		}
-		final Matcher matcher = ARGUMENTS_TOKENIZE_PATTERN.matcher(args);
-		final List<String> tokens = new ArrayList<>();
-		while (matcher.find()) {
-			tokens.add(matcher.group()
-				.trim()
-				.replace("\"", "")
-				.replace("\'", ""));
-		}
-		return tokens;
-	}
-
-	/**
-	 * Returns the value of a query parameter, or {@code null} if the query parameter is not set.
-	 * @throws RestHandlerException If the query parameter is repeated.
-	 */
-	@VisibleForTesting
-	static <X, P extends MessageQueryParameter<X>> X getQueryParameter(
-			final HandlerRequest<EmptyRequestBody, JarRunMessageParameters> request,
-			final Class<P> queryParameterClass) throws RestHandlerException {
-		return getQueryParameter(request, queryParameterClass, null);
-	}
-
-	@VisibleForTesting
-	static <X, P extends MessageQueryParameter<X>> X getQueryParameter(
-			final HandlerRequest<EmptyRequestBody, JarRunMessageParameters> request,
-			final Class<P> queryParameterClass,
-			final X defaultValue) throws RestHandlerException {
-
-		final List<X> values = request.getQueryParameter(queryParameterClass);
-		final X value;
-		if (values.size() > 1) {
-			throw new RestHandlerException(
-				String.format("Expected only one value %s.", values),
-				HttpResponseStatus.BAD_REQUEST);
-		} else if (values.size() == 1) {
-			value = values.get(0);
-		} else {
-			value = defaultValue;
-		}
-		return value;
 	}
 }

@@ -20,26 +20,29 @@ package org.apache.flink.test.recovery;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.test.util.MiniClusterResource;
 
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 
 /**
  * Test cluster configuration with failure-rate recovery.
  */
 public class SimpleRecoveryFailureRateStrategyITBase extends SimpleRecoveryITCaseBase {
-	@BeforeClass
-	public static void setupCluster() {
+
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			getConfiguration(),
+			2,
+			2));
+
+	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
 		config.setString(ConfigConstants.RESTART_STRATEGY, "failure-rate");
 		config.setInteger(ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL, 1);
 		config.setString(ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL, "1 second");
 		config.setString(ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_DELAY, "100 ms");
 
-		cluster = new LocalFlinkMiniCluster(config, false);
-
-		cluster.start();
+		return config;
 	}
 }

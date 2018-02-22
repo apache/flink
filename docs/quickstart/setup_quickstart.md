@@ -91,7 +91,7 @@ $ cd build-target               # this is where Flink is installed to
 ### Start a Local Flink Cluster
 
 ~~~bash
-$ ./bin/start-local.sh  # Start Flink
+$ ./bin/start-cluster.sh  # Start Flink
 ~~~
 
 Check the __JobManager's web frontend__ at [http://localhost:8081](http://localhost:8081) and make sure everything is up and running. The web frontend should report a single available TaskManager instance.

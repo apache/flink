@@ -35,9 +35,9 @@ if [[ $HIGH_AVAILABILITY == "zookeeper" ]]; then
         webuiport=${WEBUIPORTS[i]}
 
         if [ ${MASTERS_ALL_LOCALHOST} = true ] ; then
-            "${FLINK_BIN_DIR}"/jobmanager.sh start cluster "${master}" "${webuiport}"
+            "${FLINK_BIN_DIR}"/jobmanager.sh start "${master}" "${webuiport}"
         else
-            ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/jobmanager.sh\" start cluster ${master} ${webuiport} &"
+            ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/jobmanager.sh\" start ${master} ${webuiport} &"
         fi
     done
 
@@ -45,7 +45,7 @@ else
     echo "Starting cluster."
 
     # Start single JobManager on this machine
-    "$FLINK_BIN_DIR"/jobmanager.sh start cluster
+    "$FLINK_BIN_DIR"/jobmanager.sh start
 fi
 shopt -u nocasematch
 

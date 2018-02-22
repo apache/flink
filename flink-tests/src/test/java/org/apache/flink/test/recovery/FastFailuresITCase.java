@@ -21,14 +21,12 @@ package org.apache.flink.test.recovery;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
 
@@ -40,7 +38,7 @@ import static org.junit.Assert.fail;
  * Test program with very fast failure rate.
  */
 @SuppressWarnings("serial")
-public class FastFailuresITCase extends TestLogger {
+public class FastFailuresITCase extends AbstractTestBase {
 
 	static final AtomicInteger FAILURES_SO_FAR = new AtomicInteger();
 	static final int NUM_FAILURES = 200;
@@ -49,14 +47,7 @@ public class FastFailuresITCase extends TestLogger {
 	public void testThis() {
 		final int parallelism = 4;
 
-		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
-
-		LocalFlinkMiniCluster cluster = new LocalFlinkMiniCluster(config, false);
-		cluster.start();
-
-		TestStreamEnvironment env = new TestStreamEnvironment(cluster, parallelism);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.getConfig().disableSysoutLogging();
 		env.setParallelism(parallelism);
@@ -99,8 +90,6 @@ public class FastFailuresITCase extends TestLogger {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		} finally {
-			cluster.stop();
 		}
 	}
 }

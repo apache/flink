@@ -18,26 +18,24 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerId;
-
 /**
- * Path parameter identifying savepoint trigger requests.
+ * {@link MessagePathParameter} for the trigger id of an asynchronous operation.
  */
-public class SavepointTriggerIdPathParameter extends MessagePathParameter<SavepointTriggerId> {
+public class TriggerIdPathParameter extends MessagePathParameter<TriggerId> {
 
-	public static final String KEY = "savepointtriggerid";
+	public static final String KEY = "triggerid";
 
-	public SavepointTriggerIdPathParameter() {
+	public TriggerIdPathParameter() {
 		super(KEY);
 	}
 
 	@Override
-	protected SavepointTriggerId convertFromString(String value) {
-		return SavepointTriggerId.fromHexString(value);
+	protected TriggerId convertFromString(String value) throws ConversionException {
+		return TriggerId.fromHexString(value);
 	}
 
 	@Override
-	protected String convertToString(SavepointTriggerId value) {
+	protected String convertToString(TriggerId value) {
 		return value.toString();
 	}
 }
