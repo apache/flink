@@ -135,7 +135,8 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 			bufferBuilder.appendAndCommit(ByteBuffer.allocate(1024));
 			subpartition.add(bufferBuilder.createBufferConsumer());
 
-			assertNextBuffer(readView, 1024, false, 1);
+			// note that since the buffer builder is not finished, there is still a retained instance!
+			assertNextBuffer(readView, 1024, false, 1, false, false);
 			assertEquals(1, subpartition.getBuffersInBacklog());
 		} finally {
 			readView.releaseAllResources();
@@ -157,7 +158,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 			subpartition.add(createFilledBufferConsumer(1025)); // finished
 			subpartition.add(createFilledBufferBuilder(1024).createBufferConsumer()); // not finished
 
-			assertNextBuffer(readView, 1025, false, 1);
+			assertNextBuffer(readView, 1025, false, 1, false, true);
 		} finally {
 			subpartition.release();
 		}
@@ -178,8 +179,8 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 			subpartition.add(createFilledBufferBuilder(1024).createBufferConsumer()); // not finished
 			subpartition.flush();
 
-			assertNextBuffer(readView, 1025, true, 1);
-			assertNextBuffer(readView, 1024, false, 1);
+			assertNextBuffer(readView, 1025, true, 1, false, true);
+			assertNextBuffer(readView, 1024, false, 1, false, false);
 		} finally {
 			subpartition.release();
 		}
@@ -208,7 +209,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 			subpartition.add(createFilledBufferConsumer(1024));
 			assertEquals(2, availablityListener.getNumNotifications());
 
-			assertNextBuffer(readView, 1024, false, 0);
+			assertNextBuffer(readView, 1024, false, 0, false, true);
 		} finally {
 			readView.releaseAllResources();
 			subpartition.release();
