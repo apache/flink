@@ -18,20 +18,17 @@
 package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
-import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.junit.experimental.categories.Category;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -43,39 +40,26 @@ import static org.junit.Assert.assertEquals;
 /**
  * Integration test that verifies that a user program with a big(ger) payload is successfully
  * submitted and run.
+ *
+ * <p>This test fails for non-flip6 cluster due to job submission payload being too large, see [FLINK-7285].
  */
-@Ignore("Fails on job submission payload being too large - [FLINK-7285]")
+@Category(Flip6.class)
 public class BigUserProgramJobSubmitITCase extends TestLogger {
 
 	// ------------------------------------------------------------------------
 	//  The mini cluster that is shared across tests
 	// ------------------------------------------------------------------------
 
-	private static final int DEFAULT_PARALLELISM = 1;
-
-	private static LocalFlinkMiniCluster cluster;
-
-	private static final Logger LOG = LoggerFactory.getLogger(BigUserProgramJobSubmitITCase.class);
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			new Configuration(),
+			1,
+			1));
 
 	// ------------------------------------------------------------------------
 	//  Cluster setup & teardown
 	// ------------------------------------------------------------------------
-
-	@BeforeClass
-	public static void setup() throws Exception {
-		// make sure we do not use a singleActorSystem for the tests
-		// (therefore, we cannot simply inherit from StreamingMultipleProgramsTestBase)
-		LOG.info("Starting FlinkMiniCluster");
-		cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM, false, false, false);
-		TestStreamEnvironment.setAsContext(cluster, DEFAULT_PARALLELISM);
-	}
-
-	@AfterClass
-	public static void teardown() throws Exception {
-		LOG.info("Closing FlinkMiniCluster");
-		TestStreamEnvironment.unsetAsContext();
-		TestBaseUtils.stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
-	}
 
 	private final Random rnd = new Random();
 
