@@ -18,29 +18,31 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * Test implementation of {@link BufferAvailabilityListener}.
  */
 class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {
 
-	private long numNotifications;
+	private final AtomicLong numNotifications = new AtomicLong();
 
 	@Override
 	public void notifyDataAvailable() {
-		++numNotifications;
+		numNotifications.getAndIncrement();
 	}
 
 	public long getNumNotifications() {
-		return numNotifications;
+		return numNotifications.get();
 	}
 
 	public void resetNotificationCounters() {
-		numNotifications = 0;
+		numNotifications.set(0L);
 	}
 
 	void awaitNotifications(long awaitedNumNotifications, long timeoutMillis) throws InterruptedException {
 		long deadline = System.currentTimeMillis() + timeoutMillis;
-		while (numNotifications < awaitedNumNotifications && System.currentTimeMillis() < deadline) {
+		while (numNotifications.get() < awaitedNumNotifications && System.currentTimeMillis() < deadline) {
 			Thread.sleep(1);
 		}
 	}
