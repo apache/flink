@@ -44,9 +44,11 @@ import static org.junit.Assert.assertTrue;
  */
 public class NettyMessageSerializationTest {
 
+	public static final boolean RESTORE_OLD_NETTY_BEHAVIOUR = false;
+
 	private final EmbeddedChannel channel = new EmbeddedChannel(
 			new NettyMessage.NettyMessageEncoder(), // outbound messages
-			new NettyMessage.NettyMessageDecoder()); // inbound messages
+			new NettyMessage.NettyMessageDecoder(RESTORE_OLD_NETTY_BEHAVIOUR)); // inbound messages
 
 	private final Random random = new Random();
 

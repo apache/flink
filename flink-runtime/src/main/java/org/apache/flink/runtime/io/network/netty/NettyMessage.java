@@ -202,12 +202,18 @@ public abstract class NettyMessage {
 	 * </pre>
 	 */
 	static class NettyMessageDecoder extends LengthFieldBasedFrameDecoder {
+		private final boolean restoreOldNettyBehaviour;
 
 		/**
 		 * Creates a new message decoded with the required frame properties.
+		 *
+		 * @param restoreOldNettyBehaviour
+		 * 		restore Netty 4.0.27 code in {@link LengthFieldBasedFrameDecoder#extractFrame} to
+		 * 		copy instead of slicing the buffer
 		 */
-		NettyMessageDecoder() {
+		NettyMessageDecoder(boolean restoreOldNettyBehaviour) {
 			super(Integer.MAX_VALUE, 0, 4, -4, 4);
+			this.restoreOldNettyBehaviour = restoreOldNettyBehaviour;
 		}
 
 		@Override
@@ -260,6 +266,29 @@ public abstract class NettyMessage {
 				// ByteToMessageDecoder cleanup (only the BufferResponse holds on to the decoded
 				// msg but already retain()s the buffer once)
 				msg.release();
+			}
+		}
+
+		@Override
+		protected ByteBuf extractFrame(ChannelHandlerContext ctx, ByteBuf buffer, int index, int length) {
+			if (restoreOldNettyBehaviour) {
+				/*
+				 * For non-credit based code paths with Netty >= 4.0.28.Final:
+				 * These versions contain an improvement by Netty, which slices a Netty buffer
+				 * instead of doing a memory copy [1] in the
+				 * LengthFieldBasedFrameDecoder. In some situations, this
+				 * interacts badly with our Netty pipeline leading to OutOfMemory
+				 * errors.
+				 *
+				 * [1] https://github.com/netty/netty/issues/3704
+				 *
+				 * TODO: remove along with the non-credit based fallback protocol
+				 */
+				ByteBuf frame = ctx.alloc().buffer(length);
+				frame.writeBytes(buffer, index, length);
+				return frame;
+			} else {
+				return super.extractFrame(ctx, buffer, index, length);
 			}
 		}
 	}
