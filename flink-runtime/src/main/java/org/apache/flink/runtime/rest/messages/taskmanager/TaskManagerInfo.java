@@ -31,12 +31,13 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * Base class containing information for a {@link TaskExecutor}.
  */
-public class TaskManagerInfo implements ResponseBody {
+public class TaskManagerInfo implements ResponseBody, Serializable {
 
 	public static final String FIELD_NAME_RESOURCE_ID = "id";
 
@@ -51,6 +52,8 @@ public class TaskManagerInfo implements ResponseBody {
 	public static final String FIELD_NAME_NUMBER_AVAILABLE_SLOTS = "freeSlots";
 
 	public static final String FIELD_NAME_HARDWARE = "hardware";
+
+	private static final long serialVersionUID = 1L;
 
 	@JsonProperty(FIELD_NAME_RESOURCE_ID)
 	@JsonSerialize(using = ResourceIDSerializer.class)
