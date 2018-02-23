@@ -338,7 +338,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	}
 
 	@VisibleForTesting
-	public boolean isWaitingForFloatingBuffers() {
+	boolean isWaitingForFloatingBuffers() {
 		return isWaitingForFloatingBuffers;
 	}
 
