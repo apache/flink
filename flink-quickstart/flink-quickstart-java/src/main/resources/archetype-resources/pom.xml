@@ -31,7 +31,7 @@ under the License.
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<flink.version>@project.version@</flink.version>
-		<scala.binary.version>@scala.binary.version@</scala.binary.version>
+		<scala.binary.version>2.11</scala.binary.version>
 	</properties>
 
 	<repositories>
