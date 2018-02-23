@@ -77,14 +77,7 @@ public class SingleInputGateTest {
 	@Test(timeout = 120 * 1000)
 	public void testBasicGetNextLogic() throws Exception {
 		// Setup
-		final SingleInputGate inputGate = new SingleInputGate(
-			"Test Task Name", new JobID(),
-			new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
-			0, 2,
-			mock(TaskActions.class),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
-
-		assertEquals(ResultPartitionType.PIPELINED, inputGate.getConsumedPartitionType());
+		final SingleInputGate inputGate = createInputGate();
 
 		final TestInputChannel[] inputChannels = new TestInputChannel[]{
 			new TestInputChannel(inputGate, 0),
@@ -135,14 +128,8 @@ public class SingleInputGateTest {
 			any(BufferAvailabilityListener.class))).thenReturn(iterator);
 
 		// Setup reader with one local and one unknown input channel
-		final IntermediateDataSetID resultId = new IntermediateDataSetID();
 
-		final SingleInputGate inputGate = new SingleInputGate(
-				"Test Task Name", new JobID(),
-				resultId, ResultPartitionType.PIPELINED,
-				0, 2,
-				mock(TaskActions.class),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+		final SingleInputGate inputGate = createInputGate();
 		final BufferPool bufferPool = mock(BufferPool.class);
 		when(bufferPool.getNumberOfRequiredMemorySegments()).thenReturn(2);
 
@@ -190,14 +177,7 @@ public class SingleInputGateTest {
 	 */
 	@Test
 	public void testUpdateChannelBeforeRequest() throws Exception {
-		SingleInputGate inputGate = new SingleInputGate(
-			"t1",
-			new JobID(),
-			new IntermediateDataSetID(),
-			ResultPartitionType.PIPELINED,
-			0,
-			1,
-			mock(TaskActions.class), UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+		SingleInputGate inputGate = createInputGate(1);
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 
@@ -230,15 +210,7 @@ public class SingleInputGateTest {
 		final AtomicReference<Exception> asyncException = new AtomicReference<>();
 
 		// Setup the input gate with a single channel that does nothing
-		final SingleInputGate inputGate = new SingleInputGate(
-			"InputGate",
-			new JobID(),
-			new IntermediateDataSetID(),
-			ResultPartitionType.PIPELINED,
-			0,
-			1,
-			mock(TaskActions.class),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+		final SingleInputGate inputGate = createInputGate(1);
 
 		InputChannel unknown = new UnknownInputChannel(
 			inputGate,
@@ -410,15 +382,7 @@ public class SingleInputGateTest {
 	 */
 	@Test
 	public void testRequestBuffersWithUnknownInputChannel() throws Exception {
-		final SingleInputGate inputGate = new SingleInputGate(
-			"t1",
-			new JobID(),
-			new IntermediateDataSetID(),
-			ResultPartitionType.PIPELINED_BOUNDED,
-			0,
-			1,
-			mock(TaskActions.class),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+		final SingleInputGate inputGate = createInputGate(1);
 
 		UnknownInputChannel unknown = mock(UnknownInputChannel.class);
 		final ResultPartitionID resultPartitionId = new ResultPartitionID();
@@ -442,6 +406,26 @@ public class SingleInputGateTest {
 	}
 
 	// ---------------------------------------------------------------------------------------------
+
+	private static SingleInputGate createInputGate() {
+		return createInputGate(2);
+	}
+
+	private static SingleInputGate createInputGate(int numberOfInputChannels) {
+		SingleInputGate inputGate = new SingleInputGate(
+			"Test Task Name",
+			new JobID(),
+			new IntermediateDataSetID(),
+			ResultPartitionType.PIPELINED,
+			0,
+			numberOfInputChannels,
+			mock(TaskActions.class),
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+
+		assertEquals(ResultPartitionType.PIPELINED, inputGate.getConsumedPartitionType());
+
+		return inputGate;
+	}
 
 	static void verifyBufferOrEvent(
 		InputGate inputGate,
