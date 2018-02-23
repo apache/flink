@@ -84,6 +84,7 @@ import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ShutdownHookUtil;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
@@ -382,20 +383,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			webRootDir));
 
 		// add shutdown hook for deleting the directories and remaining temp files on shutdown
-		try {
-			Runtime.getRuntime().addShutdownHook(new Thread() {
-				@Override
-				public void run() {
-					cleanup();
-				}
-			});
-		} catch (IllegalStateException e) {
-			// race, JVM is in shutdown already, we can safely ignore this
-			LOG.debug("Unable to add shutdown hook, shutdown already in progress", e);
-		} catch (Throwable t) {
-			// these errors usually happen when the shutdown is already in progress
-			LOG.warn("Error while adding shutdown hook", t);
-		}
+		ShutdownHookUtil.addShutdownHook(this::cleanup, getClass().getSimpleName(), LOG);
 
 		this.netty = new WebFrontendBootstrap(router, LOG, uploadDir, serverSSLContext, configuredAddress, configuredPort, config);
 

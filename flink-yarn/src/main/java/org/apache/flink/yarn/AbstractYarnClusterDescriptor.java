@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -1036,11 +1037,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					"temporary files of the YARN session in the home directoy will not be removed.");
 		}
 		// since deployment was successful, remove the hook
-		try {
-			Runtime.getRuntime().removeShutdownHook(deploymentFailureHook);
-		} catch (IllegalStateException e) {
-			// we're already in the shut down hook.
-		}
+		ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
 		return report;
 	}
 
