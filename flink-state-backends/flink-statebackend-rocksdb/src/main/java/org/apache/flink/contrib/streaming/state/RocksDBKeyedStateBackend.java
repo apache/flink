@@ -40,6 +40,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
@@ -94,6 +95,8 @@ import org.rocksdb.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -113,6 +116,8 @@ import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -258,17 +263,41 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	@Override
 	public <N> Stream<K> getKeys(String state, N namespace) {
-		Tuple2<ColumnFamilyHandle, ?> columnInfo = kvStateInformation.get(state);
+		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> columnInfo = kvStateInformation.get(state);
 		if (columnInfo == null) {
 			return Stream.empty();
+		}
+
+		final TypeSerializer<N> namespaceSerializer = (TypeSerializer<N>) columnInfo.f1.getNamespaceSerializer();
+		final ByteArrayOutputStreamWithPos namespaceOutputStream = new ByteArrayOutputStreamWithPos(8);
+		boolean ambiguousKeyPossible = RocksDBKeySerializationUtils.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
+		final byte[] nameSpaceBytes;
+		try {
+			RocksDBKeySerializationUtils.writeNameSpace(
+				namespace,
+				namespaceSerializer,
+				namespaceOutputStream,
+				new DataOutputViewStreamWrapper(namespaceOutputStream),
+				ambiguousKeyPossible);
+			nameSpaceBytes = namespaceOutputStream.toByteArray();
+		} catch (IOException ex) {
+			throw new FlinkRuntimeException("Failed to get keys from RocksDB state backend.", ex);
 		}
 
 		RocksIterator iterator = db.newIterator(columnInfo.f0);
 		iterator.seekToFirst();
 
-		Iterable<K> iterable = () -> new RocksIteratorWrapper<>(iterator, state, keySerializer, keyGroupPrefixBytes);
-		Stream<K> targetStream = StreamSupport.stream(iterable.spliterator(), false);
-		return targetStream.onClose(iterator::close);
+		final RocksIteratorWrapper<K> iteratorWrapper = new RocksIteratorWrapper<>(iterator, state, keySerializer, keyGroupPrefixBytes,
+			ambiguousKeyPossible, nameSpaceBytes);
+
+		Stream<K> targetStream = StreamSupport.stream(Spliterators.spliteratorUnknownSize(iteratorWrapper, Spliterator.ORDERED), false);
+		return targetStream.onClose(iteratorWrapper::close);
+	}
+
+	@VisibleForTesting
+	ColumnFamilyHandle getColumnFamilyHandle(String state) {
+		Tuple2<ColumnFamilyHandle, ?> columnInfo = kvStateInformation.get(state);
+		return columnInfo != null ? columnInfo.f0 : null;
 	}
 
 	/**
@@ -1991,26 +2020,56 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return count;
 	}
 
-	private static class RocksIteratorWrapper<K> implements Iterator<K> {
+	/**
+	 * This class is not thread safe.
+	 */
+	static class RocksIteratorWrapper<K> implements Iterator<K>, AutoCloseable {
 		private final RocksIterator iterator;
 		private final String state;
 		private final TypeSerializer<K> keySerializer;
 		private final int keyGroupPrefixBytes;
+		private final byte[] namespaceBytes;
+		private final boolean ambiguousKeyPossible;
+		private K nextKey;
 
 		public RocksIteratorWrapper(
 				RocksIterator iterator,
 				String state,
 				TypeSerializer<K> keySerializer,
-				int keyGroupPrefixBytes) {
+				int keyGroupPrefixBytes,
+				boolean ambiguousKeyPossible,
+				byte[] namespaceBytes) {
 			this.iterator = Preconditions.checkNotNull(iterator);
 			this.state = Preconditions.checkNotNull(state);
 			this.keySerializer = Preconditions.checkNotNull(keySerializer);
 			this.keyGroupPrefixBytes = Preconditions.checkNotNull(keyGroupPrefixBytes);
+			this.namespaceBytes = Preconditions.checkNotNull(namespaceBytes);
+			this.nextKey = null;
+			this.ambiguousKeyPossible = ambiguousKeyPossible;
 		}
 
 		@Override
 		public boolean hasNext() {
-			return iterator.isValid();
+			while (nextKey == null && iterator.isValid()) {
+				try {
+					byte[] key = iterator.key();
+					if (isMatchingNameSpace(key)) {
+						ByteArrayInputStreamWithPos inputStream =
+							new ByteArrayInputStreamWithPos(key, keyGroupPrefixBytes, key.length - keyGroupPrefixBytes);
+						DataInputViewStreamWrapper dataInput = new DataInputViewStreamWrapper(inputStream);
+						K value = RocksDBKeySerializationUtils.readKey(
+							keySerializer,
+							inputStream,
+							dataInput,
+							ambiguousKeyPossible);
+						nextKey = value;
+					}
+					iterator.next();
+				} catch (IOException e) {
+					throw new FlinkRuntimeException("Failed to access state [" + state + "]", e);
+				}
+			}
+			return nextKey != null;
 		}
 
 		@Override
@@ -2018,16 +2077,29 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			if (!hasNext()) {
 				throw new NoSuchElementException("Failed to access state [" + state + "]");
 			}
-			try {
-				byte[] key = iterator.key();
-					DataInputViewStreamWrapper dataInput = new DataInputViewStreamWrapper(
-					new ByteArrayInputStreamWithPos(key, keyGroupPrefixBytes, key.length - keyGroupPrefixBytes));
-				K value = keySerializer.deserialize(dataInput);
-				iterator.next();
-				return value;
-			} catch (IOException e) {
-				throw new FlinkRuntimeException("Failed to access state [" + state + "]", e);
+
+			K tmpKey = nextKey;
+			nextKey = null;
+			return tmpKey;
+		}
+
+		private boolean isMatchingNameSpace(@Nonnull byte[] key) {
+			final int namespaceBytesLength = namespaceBytes.length;
+			final int basicLength = namespaceBytesLength + keyGroupPrefixBytes;
+			if (key.length >= basicLength) {
+				for (int i = 1; i <= namespaceBytesLength; ++i) {
+					if (key[key.length - i] != namespaceBytes[namespaceBytesLength - i]) {
+						return false;
+					}
+				}
+				return true;
 			}
+			return false;
+		}
+
+		@Override
+		public void close() {
+			iterator.close();
 		}
 	}
 }
