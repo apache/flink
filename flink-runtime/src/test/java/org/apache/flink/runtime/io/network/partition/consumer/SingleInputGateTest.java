@@ -100,15 +100,40 @@ public class SingleInputGateTest {
 		inputGate.notifyChannelNonEmpty(inputChannels[0].getInputChannel());
 		inputGate.notifyChannelNonEmpty(inputChannels[1].getInputChannel());
 
-		verifyBufferOrEvent(inputGate, true, 0);
-		verifyBufferOrEvent(inputGate, true, 1);
-		verifyBufferOrEvent(inputGate, true, 0);
-		verifyBufferOrEvent(inputGate, false, 1);
-		verifyBufferOrEvent(inputGate, false, 0);
+		verifyBufferOrEvent(inputGate, true, 0, true);
+		verifyBufferOrEvent(inputGate, true, 1, true);
+		verifyBufferOrEvent(inputGate, true, 0, true);
+		verifyBufferOrEvent(inputGate, false, 1, true);
+		verifyBufferOrEvent(inputGate, false, 0, false);
 
 		// Return null when the input gate has received all end-of-partition events
 		assertTrue(inputGate.isFinished());
-		assertFalse(inputGate.getNextBufferOrEvent().isPresent());
+	}
+
+	@Test(timeout = 120 * 1000)
+	public void testIsMoreAvailableReadingFromSingleInputChannel() throws Exception {
+		// Setup
+		final SingleInputGate inputGate = createInputGate();
+
+		final TestInputChannel[] inputChannels = new TestInputChannel[]{
+			new TestInputChannel(inputGate, 0),
+			new TestInputChannel(inputGate, 1)
+		};
+
+		inputGate.setInputChannel(
+			new IntermediateResultPartitionID(), inputChannels[0].getInputChannel());
+
+		inputGate.setInputChannel(
+			new IntermediateResultPartitionID(), inputChannels[1].getInputChannel());
+
+		// Test
+		inputChannels[0].readBuffer();
+		inputChannels[0].readBuffer(false);
+
+		inputGate.notifyChannelNonEmpty(inputChannels[0].getInputChannel());
+
+		verifyBufferOrEvent(inputGate, true, 0, true);
+		verifyBufferOrEvent(inputGate, true, 0, false);
 	}
 
 	@Test
@@ -428,13 +453,28 @@ public class SingleInputGateTest {
 	}
 
 	static void verifyBufferOrEvent(
-		InputGate inputGate,
-		boolean isBuffer,
-		int channelIndex) throws IOException, InterruptedException {
+			InputGate inputGate,
+			boolean expectedIsBuffer,
+			int expectedChannelIndex,
+			boolean expectedMoreAvailable) throws IOException, InterruptedException {
 
 		final Optional<BufferOrEvent> bufferOrEvent = inputGate.getNextBufferOrEvent();
 		assertTrue(bufferOrEvent.isPresent());
-		assertEquals(isBuffer, bufferOrEvent.get().isBuffer());
-		assertEquals(channelIndex, bufferOrEvent.get().getChannelIndex());
+		assertEquals(expectedIsBuffer, bufferOrEvent.get().isBuffer());
+		assertEquals(expectedChannelIndex, bufferOrEvent.get().getChannelIndex());
+		assertEquals(expectedMoreAvailable, bufferOrEvent.get().moreAvailable());
+		if (!expectedMoreAvailable) {
+			try {
+				assertFalse(inputGate.pollNextBufferOrEvent().isPresent());
+			}
+			catch (UnsupportedOperationException ex) {
+				/**
+				 * {@link UnionInputGate#pollNextBufferOrEvent()} is unsupported at the moment.
+				 */
+				if (!(inputGate instanceof UnionInputGate)) {
+					throw ex;
+				}
+			}
+		}
 	}
 }
