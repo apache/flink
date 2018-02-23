@@ -70,12 +70,12 @@ $FLINK_DIR/bin/flink run -d build-target/examples/streaming/Kafka010Example.jar 
   --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --group.id myconsumer --auto.offset.reset earliest
 
 # send some data to Kafka
-echo -e "hello\nwhats\nup" | $KAFKA_DIR/bin/kafka-console-producer.sh --broker-list localhost:9092 --topic test-input
+echo -e "hello,45218\nwhats,46213\nup,51348" | $KAFKA_DIR/bin/kafka-console-producer.sh --broker-list localhost:9092 --topic test-input
 
 DATA_FROM_KAFKA=$($KAFKA_DIR/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test-output --from-beginning --max-messages 3 2> /dev/null)
 
 # make sure we have actual newlines in the string, not "\n"
-EXPECTED=$(printf "PREFIX:hello\nPREFIX:whats\nPREFIX:up")
+EXPECTED=$(printf "PREFIX:hello,45218\nPREFIX:whats,46213\nPREFIX:up,51348")
 if [[ "$DATA_FROM_KAFKA" != "$EXPECTED" ]]; then
   echo "Output from Flink program does not match expected output."
   echo -e "EXPECTED: --$EXPECTED--"

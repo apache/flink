@@ -93,7 +93,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 				watermarksPunctuated,
 				processingTimeProvider,
 				autoWatermarkInterval,
-				userCodeClassLoader.getParent(),
+				userCodeClassLoader,
 				consumerMetricGroup,
 				useMetrics);
 
