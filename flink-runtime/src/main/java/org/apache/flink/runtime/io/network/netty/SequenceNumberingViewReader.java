@@ -29,7 +29,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Simple wrapper for the subpartition view used in the old network mode.
@@ -42,8 +41,6 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener, Network
 	private final Object requestLock = new Object();
 
 	private final InputChannelID receiverId;
-
-	private final AtomicBoolean buffersAvailable = new AtomicBoolean();
 
 	private final PartitionRequestQueue requestQueue;
 
@@ -96,7 +93,7 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener, Network
 
 	@Override
 	public boolean isAvailable() {
-		return buffersAvailable.get();
+		return subpartitionView.isAvailable();
 	}
 
 	@Override
@@ -113,7 +110,6 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener, Network
 	public BufferAndAvailability getNextBuffer() throws IOException, InterruptedException {
 		BufferAndBacklog next = subpartitionView.getNextBuffer();
 		if (next != null) {
-			buffersAvailable.set(next.isMoreAvailable());
 			sequenceNumber++;
 			return new BufferAndAvailability(next.buffer(), next.isMoreAvailable(), next.buffersInBacklog());
 		} else {
@@ -143,7 +139,6 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener, Network
 
 	@Override
 	public void notifyDataAvailable() {
-		buffersAvailable.set(true);
 		requestQueue.notifyReaderNonEmpty(this);
 	}
 

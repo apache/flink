@@ -53,7 +53,6 @@ import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -319,7 +318,8 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(2, partition.getBuffersInBacklog());
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		read.buffer().recycleBuffer();
-		assertEquals(2, listener.getNumNotifications());
+		assertTrue(read.isMoreAvailable());
+		assertEquals(1, listener.getNumNotifications()); // since isMoreAvailable is set to true, no need for notification
 		assertFalse(bufferConsumer.isRecycled());
 		assertFalse(read.nextBufferIsEvent());
 
@@ -332,8 +332,9 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		// only updated when getting/spilling the buffers but without the nextBuffer (kept in memory)
 		assertEquals(BUFFER_DATA_SIZE * 3 + 4, partition.getTotalNumberOfBytes());
 
-		listener.awaitNotifications(3, 30_000);
-		assertEquals(3, listener.getNumNotifications());
+		listener.awaitNotifications(2, 30_000);
+		// Spiller finished
+		assertEquals(2, listener.getNumNotifications());
 
 		assertFalse(reader.nextBufferIsEvent()); // second buffer (retained in SpillableSubpartition#nextBuffer)
 		read = reader.getNextBuffer();
