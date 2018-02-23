@@ -177,13 +177,6 @@ public class UnionInputGate implements InputGate, InputGateListener {
 			}
 		}
 
-		if (bufferOrEvent.moreAvailable()) {
-			// this buffer or event was now removed from the non-empty gates queue
-			// we re-add it in case it has more data, because in that case no "non-empty" notification
-			// will come for that gate
-			queueInputGate(inputGate);
-		}
-
 		// Set the channel index to identify the input channel (across all unioned input gates)
 		final int channelIndexOffset = inputGateToIndexOffsetMap.get(inputGate);
 
