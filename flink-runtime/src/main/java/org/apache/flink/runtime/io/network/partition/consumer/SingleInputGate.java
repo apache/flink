@@ -540,6 +540,7 @@ public class SingleInputGate implements InputGate {
 		// will come for that channel
 		if (result.get().moreAvailable()) {
 			queueChannel(currentChannel);
+			moreAvailable = true;
 		}
 
 		final Buffer buffer = result.get().buffer();
