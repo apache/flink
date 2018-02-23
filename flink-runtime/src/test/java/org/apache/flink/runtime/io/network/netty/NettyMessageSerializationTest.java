@@ -46,7 +46,6 @@ public class NettyMessageSerializationTest {
 
 	private final EmbeddedChannel channel = new EmbeddedChannel(
 			new NettyMessage.NettyMessageEncoder(), // outbound messages
-			NettyMessage.NettyMessageEncoder.createFrameLengthDecoder(), // inbound messages
 			new NettyMessage.NettyMessageDecoder()); // inbound messages
 
 	private final Random random = new Random();
