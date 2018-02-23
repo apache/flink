@@ -127,3 +127,4 @@ before_install:
 # We run mvn and monitor its output. If there is no output for the specified number of seconds, we
 # print the stack traces of all running Java processes.
 script: "./tools/travis_mvn_watchdog.sh 300"
+
