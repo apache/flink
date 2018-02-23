@@ -22,9 +22,9 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
@@ -87,7 +87,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			testHarness1.setup();
 			testHarness1.open();
 			testHarness1.processElement(42, 0);
-			OperatorStateHandles snapshot = testHarness1.snapshot(0, 0);
+			OperatorSubtaskState snapshot = testHarness1.snapshot(0, 0);
 			testHarness1.processElement(43, 0);
 			testHarness1.notifyOfCompletedCheckpoint(0);
 			try {
@@ -134,7 +134,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		testHarness.processElement(42, 0);
 		testHarness.snapshot(0, 1);
 		testHarness.processElement(43, 2);
-		OperatorStateHandles snapshot = testHarness.snapshot(1, 3);
+		OperatorSubtaskState snapshot = testHarness.snapshot(1, 3);
 
 		int leaderId = kafkaServer.getLeaderToShutDown(topic);
 		failBroker(leaderId);
@@ -188,7 +188,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		testHarness1.snapshot(0, 1);
 		testHarness1.processElement(43, 2);
 		int transactionCoordinatorId = kafkaProducer.getTransactionCoordinatorId();
-		OperatorStateHandles snapshot = testHarness1.snapshot(1, 3);
+		OperatorSubtaskState snapshot = testHarness1.snapshot(1, 3);
 
 		failBroker(transactionCoordinatorId);
 
@@ -231,7 +231,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		testHarness.processElement(42, 0);
 		testHarness.snapshot(0, 1);
 		testHarness.processElement(43, 2);
-		OperatorStateHandles snapshot1 = testHarness.snapshot(1, 3);
+		OperatorSubtaskState snapshot1 = testHarness.snapshot(1, 3);
 
 		testHarness.processElement(44, 4);
 		testHarness.snapshot(2, 5);
@@ -266,7 +266,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 	public void testFailAndRecoverSameCheckpointTwice() throws Exception {
 		String topic = "flink-kafka-producer-fail-and-recover-same-checkpoint-twice";
 
-		OperatorStateHandles snapshot1;
+		OperatorSubtaskState snapshot1;
 		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic)) {
 			testHarness.setup();
 			testHarness.open();
@@ -447,18 +447,17 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 
 			testHarness.setup();
 
-			testHarness.initializeState(new OperatorStateHandles(
-				0,
-				Collections.emptyList(),
-				Collections.emptyList(),
+			testHarness.initializeState(new OperatorSubtaskState(
 				inputStates,
+				Collections.emptyList(),
+				Collections.emptyList(),
 				Collections.emptyList()));
 			testHarness.open();
 
 			if (inputData.hasNext()) {
 				int nextValue = inputData.next();
 				testHarness.processElement(nextValue, 0);
-				OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+				OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
 				outputStates.addAll(snapshot.getManagedOperatorState());
 				checkState(snapshot.getRawOperatorState() == null, "Unexpected raw operator state");
@@ -488,7 +487,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		testHarness.setup();
 		testHarness.open(); // producerA - start transaction (txn) 0
 		testHarness.processElement(42, 0); // producerA - write 42 in txn 0
-		OperatorStateHandles checkpoint0 = testHarness.snapshot(0, 1); // producerA - pre commit txn 0, producerB - start txn 1
+		OperatorSubtaskState checkpoint0 = testHarness.snapshot(0, 1); // producerA - pre commit txn 0, producerB - start txn 1
 		testHarness.processElement(43, 2); // producerB - write 43 in txn 1
 		testHarness.notifyOfCompletedCheckpoint(0); // producerA - commit txn 0 and return to the pool
 		testHarness.snapshot(1, 3); // producerB - pre txn 1,  producerA - start txn 2

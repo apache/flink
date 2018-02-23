@@ -25,6 +25,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -37,7 +38,6 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -194,7 +194,7 @@ public class AbstractStreamOperatorTest {
 
 		testHarness.processElement(new Tuple2<>(0, "SET_PROC_TIME_TIMER:10"), 0);
 
-		OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+		OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
 		TestOperator testOperator1 = new TestOperator();
 
@@ -303,7 +303,7 @@ public class AbstractStreamOperatorTest {
 
 		assertTrue(extractResult(testHarness).isEmpty());
 
-		OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+		OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
 		// now, restore in two operators, first operator 1
 
@@ -445,7 +445,7 @@ public class AbstractStreamOperatorTest {
 		// take a snapshot from each one of the "parallel" instances of the operator
 		// and combine them into one so that we can scale down
 
-		OperatorStateHandles repackagedState =
+		OperatorSubtaskState repackagedState =
 			AbstractStreamOperatorTestHarness.repackageState(
 				testHarness1.snapshot(0, 0),
 				testHarness2.snapshot(0, 0)

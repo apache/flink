@@ -57,7 +57,6 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -320,7 +319,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	 * in the local key-group range and the operator states that would be assigned to the local
 	 * subtask.
 	 */
-	public void initializeState(OperatorStateHandles operatorStateHandles) throws Exception {
+	public void initializeState(OperatorSubtaskState operatorStateHandles) throws Exception {
 		if (!setupCalled) {
 			setup();
 		}
@@ -391,12 +390,12 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	}
 
 	/**
-	 * Takes the different {@link OperatorStateHandles} created by calling {@link #snapshot(long, long)}
+	 * Takes the different {@link OperatorSubtaskState} created by calling {@link #snapshot(long, long)}
 	 * on different instances of {@link AbstractStreamOperatorTestHarness} (each one representing one subtask)
-	 * and repacks them into a single {@link OperatorStateHandles} so that the parallelism of the test
+	 * and repacks them into a single {@link OperatorSubtaskState} so that the parallelism of the test
 	 * can change arbitrarily (i.e. be able to scale both up and down).
 	 *
-	 * <p>After repacking the partial states, use {@link #initializeState(OperatorStateHandles)} to initialize
+	 * <p>After repacking the partial states, use {@link #initializeState(OperatorSubtaskState)} to initialize
 	 * a new instance with the resulting state. Bear in mind that for parallelism greater than one, you
 	 * have to use the constructor {@link #AbstractStreamOperatorTestHarness(StreamOperator, int, int, int)}.
 	 *
@@ -409,7 +408,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	 * @param handles the different states to be merged.
 	 * @return the resulting state, or {@code null} if no partial states are specified.
 	 */
-	public static OperatorStateHandles repackageState(OperatorStateHandles... handles) throws Exception {
+	public static OperatorSubtaskState repackageState(OperatorSubtaskState... handles) throws Exception {
 
 		if (handles.length < 1) {
 			return null;
@@ -423,7 +422,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		List<KeyedStateHandle> mergedManagedKeyedState = new ArrayList<>(handles.length);
 		List<KeyedStateHandle> mergedRawKeyedState = new ArrayList<>(handles.length);
 
-		for (OperatorStateHandles handle: handles) {
+		for (OperatorSubtaskState handle: handles) {
 
 			Collection<OperatorStateHandle> managedOperatorState = handle.getManagedOperatorState();
 			Collection<OperatorStateHandle> rawOperatorState = handle.getRawOperatorState();
@@ -447,12 +446,11 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			}
 		}
 
-		return new OperatorStateHandles(
-			0,
-			mergedManagedKeyedState,
-			mergedRawKeyedState,
+		return new OperatorSubtaskState(
 			mergedManagedOperatorState,
-			mergedRawOperatorState);
+			mergedRawOperatorState,
+			mergedManagedKeyedState,
+			mergedRawKeyedState);
 	}
 
 	/**
@@ -470,7 +468,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	/**
 	 * Calls {@link StreamOperator#snapshotState(long, long, CheckpointOptions, org.apache.flink.runtime.state.CheckpointStreamFactory)}.
 	 */
-	public OperatorStateHandles snapshot(long checkpointId, long timestamp) throws Exception {
+	public OperatorSubtaskState snapshot(long checkpointId, long timestamp) throws Exception {
 
 		OperatorSnapshotResult operatorStateResult = operator.snapshotState(
 			checkpointId,
@@ -484,12 +482,11 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		OperatorStateHandle opManaged = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateManagedFuture());
 		OperatorStateHandle opRaw = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateRawFuture());
 
-		return new OperatorStateHandles(
-			0,
-			keyedManaged != null ? Collections.singletonList(keyedManaged) : null,
-			keyedRaw != null ? Collections.singletonList(keyedRaw) : null,
-			opManaged != null ? Collections.singletonList(opManaged) : null,
-			opRaw != null ? Collections.singletonList(opRaw) : null);
+		return new OperatorSubtaskState(
+			opManaged != null ? Collections.singletonList(opManaged) : Collections.emptyList(),
+			opRaw != null ? Collections.singletonList(opRaw) : Collections.emptyList(),
+			keyedManaged != null ? Collections.singletonList(keyedManaged) : Collections.emptyList(),
+			keyedRaw != null ? Collections.singletonList(keyedRaw) : Collections.emptyList());
 	}
 
 	/**

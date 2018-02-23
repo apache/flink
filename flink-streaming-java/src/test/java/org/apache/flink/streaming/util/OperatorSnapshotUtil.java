@@ -18,10 +18,10 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1Serializer;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -34,7 +34,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Util for writing/reading {@link org.apache.flink.streaming.runtime.tasks.OperatorStateHandles},
+ * Util for writing/reading {@link OperatorSubtaskState},
  * for use in tests.
  */
 public class OperatorSnapshotUtil {
@@ -45,12 +45,13 @@ public class OperatorSnapshotUtil {
 		return resource.getFile();
 	}
 
-	public static void writeStateHandle(OperatorStateHandles state, String path) throws IOException {
+	public static void writeStateHandle(OperatorSubtaskState state, String path) throws IOException {
 		FileOutputStream out = new FileOutputStream(path);
 
 		try (DataOutputStream dos = new DataOutputStream(out)) {
 
-			dos.writeInt(state.getOperatorChainIndex());
+			// must be here for compatibility
+			dos.writeInt(0);
 
 			// still required for compatibility
 			SavepointV1Serializer.serializeStreamStateHandle(null, dos);
@@ -103,18 +104,19 @@ public class OperatorSnapshotUtil {
 		}
 	}
 
-	public static OperatorStateHandles readStateHandle(String path) throws IOException, ClassNotFoundException {
+	public static OperatorSubtaskState readStateHandle(String path) throws IOException, ClassNotFoundException {
 		FileInputStream in = new FileInputStream(path);
 		try (DataInputStream dis = new DataInputStream(in)) {
-			int index = dis.readInt();
+
+			// ignored
+			dis.readInt();
 
 			// still required for compatibility to consume the bytes.
 			SavepointV1Serializer.deserializeStreamStateHandle(dis);
 
-			List<OperatorStateHandle> rawOperatorState = null;
+			List<OperatorStateHandle> rawOperatorState = new ArrayList<>();
 			int numRawOperatorStates = dis.readInt();
 			if (numRawOperatorStates >= 0) {
-				rawOperatorState = new ArrayList<>();
 				for (int i = 0; i < numRawOperatorStates; i++) {
 					OperatorStateHandle operatorState = SavepointV1Serializer.deserializeOperatorStateHandle(
 						dis);
@@ -122,10 +124,9 @@ public class OperatorSnapshotUtil {
 				}
 			}
 
-			List<OperatorStateHandle> managedOperatorState = null;
+			List<OperatorStateHandle> managedOperatorState = new ArrayList<>();
 			int numManagedOperatorStates = dis.readInt();
 			if (numManagedOperatorStates >= 0) {
-				managedOperatorState = new ArrayList<>();
 				for (int i = 0; i < numManagedOperatorStates; i++) {
 					OperatorStateHandle operatorState = SavepointV1Serializer.deserializeOperatorStateHandle(
 						dis);
@@ -133,10 +134,9 @@ public class OperatorSnapshotUtil {
 				}
 			}
 
-			List<KeyedStateHandle> rawKeyedState = null;
+			List<KeyedStateHandle> rawKeyedState = new ArrayList<>();
 			int numRawKeyedStates = dis.readInt();
 			if (numRawKeyedStates >= 0) {
-				rawKeyedState = new ArrayList<>();
 				for (int i = 0; i < numRawKeyedStates; i++) {
 					KeyedStateHandle keyedState = SavepointV1Serializer.deserializeKeyedStateHandle(
 						dis);
@@ -144,10 +144,9 @@ public class OperatorSnapshotUtil {
 				}
 			}
 
-			List<KeyedStateHandle> managedKeyedState = null;
+			List<KeyedStateHandle> managedKeyedState = new ArrayList<>();
 			int numManagedKeyedStates = dis.readInt();
 			if (numManagedKeyedStates >= 0) {
-				managedKeyedState = new ArrayList<>();
 				for (int i = 0; i < numManagedKeyedStates; i++) {
 					KeyedStateHandle keyedState = SavepointV1Serializer.deserializeKeyedStateHandle(
 						dis);
@@ -155,12 +154,11 @@ public class OperatorSnapshotUtil {
 				}
 			}
 
-			return new OperatorStateHandles(
-				index,
-				managedKeyedState,
-				rawKeyedState,
+			return new OperatorSubtaskState(
 				managedOperatorState,
-				rawOperatorState);
+				rawOperatorState,
+				managedKeyedState,
+				rawKeyedState);
 		}
 	}
 }
