@@ -38,7 +38,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOutboundHandlerAdapter;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.MessageToMessageDecoder;
 
 import javax.annotation.Nullable;
 
@@ -47,7 +46,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ProtocolException;
 import java.nio.ByteBuffer;
-import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -188,58 +186,81 @@ public abstract class NettyMessage {
 				ctx.write(msg, promise);
 			}
 		}
-
-		// Create the frame length decoder here as it depends on the encoder
-		//
-		// +------------------+------------------+--------++----------------+
-		// | FRAME LENGTH (4) | MAGIC NUMBER (4) | ID (1) || CUSTOM MESSAGE |
-		// +------------------+------------------+--------++----------------+
-		static LengthFieldBasedFrameDecoder createFrameLengthDecoder() {
-			return new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, -4, 4);
-		}
 	}
 
-	@ChannelHandler.Sharable
-	static class NettyMessageDecoder extends MessageToMessageDecoder<ByteBuf> {
+	/**
+	 * Message decoder based on netty's {@link LengthFieldBasedFrameDecoder} but avoiding the
+	 * additional memory copy inside {@link #extractFrame(ChannelHandlerContext, ByteBuf, int, int)}
+	 * since we completely decode the {@link ByteBuf} inside {@link #decode(ChannelHandlerContext,
+	 * ByteBuf)} and will not re-use it afterwards.
+	 *
+	 * <p>The frame-length encoder will be based on this transmission scheme created by {@link NettyMessage#allocateBuffer(ByteBufAllocator, byte, int)}:
+	 * <pre>
+	 * +------------------+------------------+--------++----------------+
+	 * | FRAME LENGTH (4) | MAGIC NUMBER (4) | ID (1) || CUSTOM MESSAGE |
+	 * +------------------+------------------+--------++----------------+
+	 * </pre>
+	 */
+	static class NettyMessageDecoder extends LengthFieldBasedFrameDecoder {
+
+		/**
+		 * Creates a new message decoded with the required frame properties.
+		 */
+		NettyMessageDecoder() {
+			super(Integer.MAX_VALUE, 0, 4, -4, 4);
+		}
 
 		@Override
-		protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
-			int magicNumber = msg.readInt();
-
-			if (magicNumber != MAGIC_NUMBER) {
-				throw new IllegalStateException("Network stream corrupted: received incorrect magic number.");
+		protected Object decode(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
+			ByteBuf msg = (ByteBuf) super.decode(ctx, in);
+			if (msg == null) {
+				return null;
 			}
 
-			byte msgId = msg.readByte();
+			try {
+				int magicNumber = msg.readInt();
 
-			final NettyMessage decodedMsg;
-			switch (msgId) {
-				case BufferResponse.ID:
-					decodedMsg = BufferResponse.readFrom(msg);
-					break;
-				case PartitionRequest.ID:
-					decodedMsg = PartitionRequest.readFrom(msg);
-					break;
-				case TaskEventRequest.ID:
-					decodedMsg = TaskEventRequest.readFrom(msg, getClass().getClassLoader());
-					break;
-				case ErrorResponse.ID:
-					decodedMsg = ErrorResponse.readFrom(msg);
-					break;
-				case CancelPartitionRequest.ID:
-					decodedMsg = CancelPartitionRequest.readFrom(msg);
-					break;
-				case CloseRequest.ID:
-					decodedMsg = CloseRequest.readFrom(msg);
-					break;
-				case AddCredit.ID:
-					decodedMsg = AddCredit.readFrom(msg);
-					break;
-				default:
-					throw new ProtocolException("Received unknown message from producer: " + msg);
+				if (magicNumber != MAGIC_NUMBER) {
+					throw new IllegalStateException(
+						"Network stream corrupted: received incorrect magic number.");
+				}
+
+				byte msgId = msg.readByte();
+
+				final NettyMessage decodedMsg;
+				switch (msgId) {
+					case BufferResponse.ID:
+						decodedMsg = BufferResponse.readFrom(msg);
+						break;
+					case PartitionRequest.ID:
+						decodedMsg = PartitionRequest.readFrom(msg);
+						break;
+					case TaskEventRequest.ID:
+						decodedMsg = TaskEventRequest.readFrom(msg, getClass().getClassLoader());
+						break;
+					case ErrorResponse.ID:
+						decodedMsg = ErrorResponse.readFrom(msg);
+						break;
+					case CancelPartitionRequest.ID:
+						decodedMsg = CancelPartitionRequest.readFrom(msg);
+						break;
+					case CloseRequest.ID:
+						decodedMsg = CloseRequest.readFrom(msg);
+						break;
+					case AddCredit.ID:
+						decodedMsg = AddCredit.readFrom(msg);
+						break;
+					default:
+						throw new ProtocolException(
+							"Received unknown message from producer: " + msg);
+				}
+
+				return decodedMsg;
+			} finally {
+				// ByteToMessageDecoder cleanup (only the BufferResponse holds on to the decoded
+				// msg but already retain()s the buffer once)
+				msg.release();
 			}
-
-			out.add(decodedMsg);
 		}
 	}
 
