@@ -30,6 +30,7 @@ import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
@@ -142,5 +143,9 @@ public abstract class SubpartitionTestBase extends TestLogger {
 		assertEquals(expectedReadableBufferSize, bufferAndBacklog.buffer().readableBytes());
 		assertEquals(expectedIsMoreAvailable, bufferAndBacklog.isMoreAvailable());
 		assertEquals(expectedBuffersInBacklog, bufferAndBacklog.buffersInBacklog());
+	}
+
+	protected void assertNoNextBuffer(ResultSubpartitionView readView) throws IOException, InterruptedException {
+		assertNull(readView.getNextBuffer());
 	}
 }

@@ -43,6 +43,7 @@ import java.util.concurrent.Future;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createEventBufferConsumer;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferBuilder;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.BUFFER_SIZE;
 import static org.apache.flink.util.FutureUtil.waitForAll;
@@ -142,6 +143,48 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		}
 	}
 
+	/**
+	 * Normally moreAvailable flag from InputChannel should ignore non finished BufferConsumers, otherwise we would
+	 * busy loop on the unfinished BufferConsumers.
+	 */
+	@Test
+	public void testUnfinishedBufferBehindFinished() throws Exception {
+		final ResultSubpartition subpartition = createSubpartition();
+		AwaitableBufferAvailablityListener availablityListener = new AwaitableBufferAvailablityListener();
+		ResultSubpartitionView readView = subpartition.createReadView(availablityListener);
+
+		try {
+			subpartition.add(createFilledBufferConsumer(1025)); // finished
+			subpartition.add(createFilledBufferBuilder(1024).createBufferConsumer()); // not finished
+
+			assertNextBuffer(readView, 1025, false, 1);
+		} finally {
+			subpartition.release();
+		}
+	}
+
+	/**
+	 * After flush call unfinished BufferConsumers should be reported as available, otherwise we might not flush some
+	 * of the data.
+	 */
+	@Test
+	public void testFlushWithUnfinishedBufferBehindFinished() throws Exception {
+		final ResultSubpartition subpartition = createSubpartition();
+		AwaitableBufferAvailablityListener availablityListener = new AwaitableBufferAvailablityListener();
+		ResultSubpartitionView readView = subpartition.createReadView(availablityListener);
+
+		try {
+			subpartition.add(createFilledBufferConsumer(1025)); // finished
+			subpartition.add(createFilledBufferBuilder(1024).createBufferConsumer()); // not finished
+			subpartition.flush();
+
+			assertNextBuffer(readView, 1025, true, 1);
+			assertNextBuffer(readView, 1024, false, 1);
+		} finally {
+			subpartition.release();
+		}
+	}
+
 	@Test
 	public void testMultipleEmptyBuffers() throws Exception {
 		final ResultSubpartition subpartition = createSubpartition();
@@ -185,6 +228,16 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 			fail("Did not throw expected exception after duplicate notifyNonEmpty view request.");
 		} catch (IllegalStateException expected) {
 		}
+	}
+
+	@Test
+	public void testEmptyFlush() throws Exception {
+		final PipelinedSubpartition subpartition = createSubpartition();
+
+		AwaitableBufferAvailablityListener listener = new AwaitableBufferAvailablityListener();
+		subpartition.createReadView(listener);
+		subpartition.flush();
+		assertEquals(0, listener.getNumNotifications());
 	}
 
 	@Test

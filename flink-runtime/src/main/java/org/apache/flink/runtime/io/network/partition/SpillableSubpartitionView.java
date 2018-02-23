@@ -153,18 +153,16 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 				return null;
 			} else if (nextBuffer != null) {
 				current = nextBuffer.build();
+				checkState(nextBuffer.isFinished(),
+					"We can only read from SpillableSubpartition after it was finished");
 
-				if (nextBuffer.isFinished()) {
-					newBacklog = parent.decreaseBuffersInBacklogUnsafe(nextBuffer.isBuffer());
-					nextBuffer.close();
-					nextBuffer = buffers.poll();
-				}
+				newBacklog = parent.decreaseBuffersInBacklogUnsafe(nextBuffer.isBuffer());
+				nextBuffer.close();
+				nextBuffer = buffers.poll();
 
-				isMoreAvailable = buffers.size() > 0;
 				if (nextBuffer != null) {
-					isMoreAvailable = true;
-					listener.notifyDataAvailable();
 					nextBufferIsEvent = !nextBuffer.isBuffer();
+					isMoreAvailable = true;
 				}
 
 				parent.updateStatistics(current);
@@ -243,6 +241,20 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		checkState(spilledView != null, "No in-memory buffers available, but also nothing spilled.");
 
 		return spilledView.nextBufferIsEvent();
+	}
+
+	@Override
+	public boolean isAvailable() {
+		synchronized (buffers) {
+			if (nextBuffer != null) {
+				return true;
+			}
+			else if (spilledView == null) {
+				return false;
+			}
+		} // else: spilled
+
+		return spilledView.isAvailable();
 	}
 
 	@Override
