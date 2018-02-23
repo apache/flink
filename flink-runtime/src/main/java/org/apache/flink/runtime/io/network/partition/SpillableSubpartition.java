@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -240,7 +241,8 @@ class SpillableSubpartition extends ResultSubpartition {
 		return 0;
 	}
 
-	private long spillFinishedBufferConsumers() throws IOException {
+	@VisibleForTesting
+	protected long spillFinishedBufferConsumers() throws IOException {
 		long spilledBytes = 0;
 
 		while (!buffers.isEmpty()) {
