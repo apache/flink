@@ -31,8 +31,6 @@ under the License.
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<flink.version>@project.version@</flink.version>
-		<slf4j.version>@slf4j.version@</slf4j.version>
-		<log4j.version>@log4j.version@</log4j.version>
 		<scala.binary.version>@scala.binary.version@</scala.binary.version>
 	</properties>
 
@@ -82,13 +80,13 @@ under the License.
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-log4j12</artifactId>
-			<version>${slf4j.version}</version>
+			<version>1.7.7</version>
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
-			<version>${log4j.version}</version>
+			<version>1.2.17</version>
 			<scope>runtime</scope>
 		</dependency>
 	</dependencies>
