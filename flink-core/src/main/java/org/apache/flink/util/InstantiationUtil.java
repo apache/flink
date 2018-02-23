@@ -113,7 +113,7 @@ public final class InstantiationUtil {
 	 *
 	 * <p>This can be removed once 1.2 is no longer supported.
 	 */
-	private static Set<String> scalaSerializerClassnames = new HashSet<>();
+	private final static Set<String> scalaSerializerClassnames = new HashSet<>();
 	static {
 		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.TraversableSerializer");
 		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.CaseClassSerializer");
@@ -128,9 +128,9 @@ public final class InstantiationUtil {
 	 * The serialVersionUID might change between Scala versions and since those classes are
 	 * part of the tuple serializer config snapshots we need to ignore them.
 	 *
-	 * See also FLINK-8451.
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-8451">FLINK-8451</a>
 	 */
-	private static Set<String> scalaTypes = new HashSet<>();
+	private final static Set<String> scalaTypes = new HashSet<>();
 	static {
 		scalaTypes.add("scala.Tuple1");
 		scalaTypes.add("scala.Tuple2");
@@ -203,7 +203,7 @@ public final class InstantiationUtil {
 
 			final Class localClass = resolveClass(streamClassDescriptor);
 			final String name = localClass.getName();
-			if (scalaSerializerClassnames.contains(name) || scalaTypes.contains(name)|| localClass.isAnonymousClass()
+			if (scalaSerializerClassnames.contains(name) || scalaTypes.contains(name) || localClass.isAnonymousClass()
 				// isAnonymousClass does not work for anonymous Scala classes; additionally check by classname
 				|| name.contains("$anon$") || name.contains("$anonfun")) {
 
