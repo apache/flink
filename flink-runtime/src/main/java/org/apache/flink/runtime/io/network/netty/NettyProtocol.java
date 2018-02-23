@@ -83,7 +83,7 @@ public class NettyProtocol {
 
 		return new ChannelHandler[] {
 			messageEncoder,
-			new NettyMessage.NettyMessageDecoder(),
+			new NettyMessage.NettyMessageDecoder(!creditBasedEnabled),
 			serverHandler,
 			queueOfPartitionQueues
 		};
@@ -127,7 +127,7 @@ public class NettyProtocol {
 				new PartitionRequestClientHandler();
 		return new ChannelHandler[] {
 			messageEncoder,
-			new NettyMessage.NettyMessageDecoder(),
+			new NettyMessage.NettyMessageDecoder(!creditBasedEnabled),
 			networkClientHandler};
 	}
 
