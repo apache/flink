@@ -522,7 +522,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		// 4. take a savepoint
 		final CompletableFuture<String> savepointFuture = triggerSavepoint(
-			jobMasterConfiguration.getTmpDirectory(),
+			null,
 			timeout)
 			.handleAsync(
 				(String savepointPath, Throwable throwable) -> {
@@ -1055,7 +1055,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	@Override
 	public CompletableFuture<String> triggerSavepoint(
-		final String targetDirectory,
+		@Nullable final String targetDirectory,
 		final Time timeout) {
 		try {
 			return executionGraph.getCheckpointCoordinator()
