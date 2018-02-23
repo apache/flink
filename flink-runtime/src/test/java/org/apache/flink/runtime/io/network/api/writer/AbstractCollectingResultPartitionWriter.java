@@ -88,12 +88,17 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 	}
 
 	@Override
-	public synchronized void flush() {
+	public synchronized void flushAll() {
 		try {
 			processBufferConsumers();
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	@Override
+	public void flush(int subpartitionIndex) {
+		flushAll();
 	}
 
 	protected abstract void deserializeBuffer(Buffer buffer) throws IOException;

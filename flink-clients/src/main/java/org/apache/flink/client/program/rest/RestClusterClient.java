@@ -38,8 +38,14 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.RestClient;
+import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationInfo;
 import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
+import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingStatusHeaders;
+import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingStatusMessageParameters;
+import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingTriggerHeaders;
+import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.BlobServerPortHeaders;
 import org.apache.flink.runtime.rest.messages.BlobServerPortResponseBody;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
@@ -399,6 +405,49 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		return LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
 			highAvailabilityServices.getDispatcherLeaderRetriever(),
 			timeout);
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> rescaleJob(JobID jobId, int newParallelism) {
+
+		final RescalingTriggerHeaders rescalingTriggerHeaders = RescalingTriggerHeaders.getInstance();
+		final RescalingTriggerMessageParameters rescalingTriggerMessageParameters = rescalingTriggerHeaders.getUnresolvedMessageParameters();
+		rescalingTriggerMessageParameters.jobPathParameter.resolve(jobId);
+		rescalingTriggerMessageParameters.rescalingParallelismQueryParameter.resolve(Collections.singletonList(newParallelism));
+
+		final CompletableFuture<TriggerResponse> rescalingTriggerResponseFuture = sendRequest(
+			rescalingTriggerHeaders,
+			rescalingTriggerMessageParameters,
+			EmptyRequestBody.getInstance());
+
+		final CompletableFuture<AsynchronousOperationInfo> rescalingOperationFuture = rescalingTriggerResponseFuture.thenCompose(
+			(TriggerResponse triggerResponse) -> {
+				final TriggerId triggerId = triggerResponse.getTriggerId();
+
+				return pollResourceAsync(
+					() -> {
+						final RescalingStatusHeaders rescalingStatusHeaders = RescalingStatusHeaders.getInstance();
+						final RescalingStatusMessageParameters rescalingStatusMessageParameters = rescalingStatusHeaders.getUnresolvedMessageParameters();
+
+						rescalingStatusMessageParameters.jobPathParameter.resolve(jobId);
+						rescalingStatusMessageParameters.triggerIdPathParameter.resolve(triggerId);
+						return sendRetryableRequest(
+							rescalingStatusHeaders,
+							rescalingStatusMessageParameters,
+							EmptyRequestBody.getInstance(),
+							isConnectionProblemException());
+					}
+				);
+			});
+
+		return rescalingOperationFuture.thenApply(
+			(AsynchronousOperationInfo asynchronousOperationInfo) -> {
+				if (asynchronousOperationInfo.getFailureCause() == null) {
+					return Acknowledge.get();
+				} else {
+					throw new CompletionException(asynchronousOperationInfo.getFailureCause());
+				}
+			});
 	}
 
 	/**

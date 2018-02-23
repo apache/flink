@@ -55,7 +55,7 @@ public class StreamNetworkPointToPointBenchmark {
 		value.setValue(records);
 		recordWriter.broadcastEmit(value);
 		if (flushAfterLastEmit) {
-			recordWriter.flush();
+			recordWriter.flushAll();
 		}
 
 		recordsReceived.get(RECEIVER_TIMEOUT, TimeUnit.MILLISECONDS);

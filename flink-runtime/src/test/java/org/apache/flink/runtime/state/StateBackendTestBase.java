@@ -211,24 +211,52 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 	@Test
 	public void testGetKeys() throws Exception {
-		final int elementsToTest = 1000;
+		final int namespace1ElementsNum = 1000;
+		final int namespace2ElementsNum = 1000;
 		String fieldName = "get-keys-test";
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 		try {
-			ValueState<Integer> keyedState = backend.getOrCreateKeyedState(
-				VoidNamespaceSerializer.INSTANCE,
-				new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE));
-			((InternalValueState<VoidNamespace, Integer>) keyedState).setCurrentNamespace(VoidNamespace.INSTANCE);
+			final String ns1 = "ns1";
+			ValueState<Integer> keyedState1 = backend.getPartitionedState(
+				ns1,
+				StringSerializer.INSTANCE,
+				new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE)
+			);
 
-			for (int key = 0; key < elementsToTest; key++) {
+			for (int key = 0; key < namespace1ElementsNum; key++) {
 				backend.setCurrentKey(key);
-				keyedState.update(key * 2);
+				keyedState1.update(key * 2);
 			}
 
-			try (Stream<Integer> keysStream = backend.getKeys(fieldName, VoidNamespace.INSTANCE).sorted()) {
+			final String ns2 = "ns2";
+			ValueState<Integer> keyedState2 = backend.getPartitionedState(
+				ns2,
+				StringSerializer.INSTANCE,
+				new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE)
+			);
+
+			for (int key = namespace1ElementsNum; key < namespace1ElementsNum + namespace2ElementsNum; key++) {
+				backend.setCurrentKey(key);
+				keyedState2.update(key * 2);
+			}
+
+			// valid for namespace1
+			try (Stream<Integer> keysStream = backend.getKeys(fieldName, ns1).sorted()) {
 				PrimitiveIterator.OfInt actualIterator = keysStream.mapToInt(value -> value.intValue()).iterator();
 
-				for (int expectedKey = 0; expectedKey < elementsToTest; expectedKey++) {
+				for (int expectedKey = 0; expectedKey < namespace1ElementsNum; expectedKey++) {
+					assertTrue(actualIterator.hasNext());
+					assertEquals(expectedKey, actualIterator.nextInt());
+				}
+
+				assertFalse(actualIterator.hasNext());
+			}
+
+			// valid for namespace2
+			try (Stream<Integer> keysStream = backend.getKeys(fieldName, ns2).sorted()) {
+				PrimitiveIterator.OfInt actualIterator = keysStream.mapToInt(value -> value.intValue()).iterator();
+
+				for (int expectedKey = namespace1ElementsNum; expectedKey < namespace1ElementsNum + namespace2ElementsNum; expectedKey++) {
 					assertTrue(actualIterator.hasNext());
 					assertEquals(expectedKey, actualIterator.nextInt());
 				}

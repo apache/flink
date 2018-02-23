@@ -43,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>The RecordWriter wraps the runtime's {@link ResultPartitionWriter} and takes care of
  * serializing records into buffers.
  *
- * <p><strong>Important</strong>: it is necessary to call {@link #flush()} after
+ * <p><strong>Important</strong>: it is necessary to call {@link #flushAll()} after
  * all records have been written with {@link #emit(IOReadableWritable)}. This
  * ensures that all produced records are written to the output stream (incl.
  * partially filled ones).
@@ -58,12 +58,16 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	private final int numChannels;
 
-	/** {@link RecordSerializer} per outgoing channel. */
+	/**
+	 * {@link RecordSerializer} per outgoing channel.
+	 */
 	private final RecordSerializer<T>[] serializers;
 
 	private final Optional<BufferBuilder>[] bufferBuilders;
 
 	private final Random rng = new XORShiftRandom();
+
+	private final boolean flushAlways;
 
 	private Counter numBytesOut = new SimpleCounter();
 
@@ -73,6 +77,11 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	@SuppressWarnings("unchecked")
 	public RecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector) {
+		this(writer, channelSelector, false);
+	}
+
+	public RecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector, boolean flushAlways) {
+		this.flushAlways = flushAlways;
 		this.targetPartition = writer;
 		this.channelSelector = channelSelector;
 
@@ -135,9 +144,13 @@ public class RecordWriter<T extends IOReadableWritable> {
 			result = serializer.continueWritingWithNextBufferBuilder(bufferBuilder);
 		}
 		checkState(!serializer.hasSerializedData(), "All data should be written at once");
+
+		if (flushAlways) {
+			targetPartition.flush(targetChannel);
+		}
 	}
 
-	public BufferConsumer broadcastEvent(AbstractEvent event) throws IOException, InterruptedException {
+	public BufferConsumer broadcastEvent(AbstractEvent event) throws IOException {
 		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event)) {
 			for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
 				RecordSerializer<T> serializer = serializers[targetChannel];
@@ -147,12 +160,16 @@ public class RecordWriter<T extends IOReadableWritable> {
 				// retain the buffer so that it can be recycled by each channel of targetPartition
 				targetPartition.addBufferConsumer(eventBufferConsumer.copy(), targetChannel);
 			}
+
+			if (flushAlways) {
+				flushAll();
+			}
 			return eventBufferConsumer;
 		}
 	}
 
-	public void flush() {
-		targetPartition.flush();
+	public void flushAll() {
+		targetPartition.flushAll();
 	}
 
 	public void clearBuffers() {

@@ -93,7 +93,7 @@ public class LongRecordWriterThread extends CheckedThread {
 		}
 		value.setValue(records);
 		recordWriter.broadcastEmit(value);
-		recordWriter.flush();
+		recordWriter.flushAll();
 
 		finishSendingRecords();
 	}

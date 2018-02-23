@@ -358,7 +358,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	//  Actions
 	// --------------------------------------------------------------------------------------------
 
-	public boolean scheduleForExecution() {
+	public CompletableFuture<Void> scheduleForExecution() {
 		final ExecutionGraph executionGraph = getVertex().getExecutionGraph();
 		final SlotProvider resourceProvider = executionGraph.getSlotProvider();
 		final boolean allowQueued = executionGraph.isQueuedSchedulingAllowed();
@@ -377,14 +377,14 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param queued Flag to indicate whether the scheduler may queue this task if it cannot
 	 *               immediately deploy it.
 	 * @param locationPreferenceConstraint constraint for the location preferences
-	 * @throws IllegalStateException Thrown, if the vertex is not in CREATED state, which is the only state that permits scheduling.
+	 * @return Future which is completed once the Execution has been deployed
 	 */
-	public boolean scheduleForExecution(
+	public CompletableFuture<Void> scheduleForExecution(
 			SlotProvider slotProvider,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint) {
+		final Time allocationTimeout = vertex.getExecutionGraph().getAllocationTimeout();
 		try {
-			final Time allocationTimeout = vertex.getExecutionGraph().getAllocationTimeout();
 			final CompletableFuture<Execution> allocationFuture = allocateAndAssignSlotForExecution(
 				slotProvider,
 				queued,
@@ -395,11 +395,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			// that we directly deploy the tasks if the slot allocation future is completed. This is
 			// necessary for immediate deployment.
 			final CompletableFuture<Void> deploymentFuture = allocationFuture.handle(
-				(Execution ignored, Throwable throwable) ->  {
+				(Execution ignored, Throwable throwable) -> {
 					if (throwable != null) {
 						markFailed(ExceptionUtils.stripCompletionException(throwable));
-					}
-					else {
+					} else {
 						try {
 							deploy();
 						} catch (Throwable t) {
@@ -415,10 +414,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				allocationFuture.completeExceptionally(new IllegalArgumentException("The slot allocation future has not been completed yet."));
 			}
 
-			return true;
-		}
-		catch (IllegalExecutionStateException e) {
-			return false;
+			return deploymentFuture;
+		} catch (IllegalExecutionStateException e) {
+			return FutureUtils.completedExceptionally(e);
 		}
 	}
 
