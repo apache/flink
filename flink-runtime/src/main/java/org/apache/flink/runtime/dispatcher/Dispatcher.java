@@ -65,13 +65,16 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * Base class for the Dispatcher component. The Dispatcher component is responsible
@@ -108,6 +111,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Nullable
 	protected final String restAddress;
+
+	private CompletableFuture<Void> orphanedJobManagerRunnersTerminationFuture = CompletableFuture.completedFuture(null);
 
 	public Dispatcher(
 			RpcService rpcService,
@@ -158,38 +163,39 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	@Override
 	public CompletableFuture<Void> postStop() {
 		log.info("Stopping dispatcher {}.", getAddress());
-		Exception exception = null;
 
-		try {
-			clearState();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
+		final CompletableFuture<Void> jobManagerRunnersTerminationFuture = terminateJobManagerRunners();
 
-		try {
-			jobManagerSharedServices.shutdown();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
+		final CompletableFuture<Void> allJobManagerRunnersTerminationFuture = FutureUtils.completeAll(Arrays.asList(
+			jobManagerRunnersTerminationFuture,
+			orphanedJobManagerRunnersTerminationFuture));
 
-		try {
-			submittedJobGraphStore.stop();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
+		return FutureUtils.runAfterwards(
+			allJobManagerRunnersTerminationFuture,
+			() -> {
+				Exception exception = null;
+				try {
+					jobManagerSharedServices.shutdown();
+				} catch (Exception e) {
+					exception = ExceptionUtils.firstOrSuppressed(e, exception);
+				}
 
-		try {
-			leaderElectionService.stop();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
+				try {
+					submittedJobGraphStore.stop();
+				} catch (Exception e) {
+					exception = ExceptionUtils.firstOrSuppressed(e, exception);
+				}
 
-		if (exception != null) {
-			return FutureUtils.completedExceptionally(
-				new FlinkException("Could not properly terminate the Dispatcher.", exception));
-		} else {
-			return CompletableFuture.completedFuture(null);
-		}
+				try {
+					leaderElectionService.stop();
+				} catch (Exception e) {
+					exception = ExceptionUtils.firstOrSuppressed(e, exception);
+				}
+
+				if (exception != null) {
+					throw exception;
+				}
+			});
 	}
 
 	@Override
@@ -491,7 +497,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		JobManagerRunner jobManagerRunner = jobManagerRunners.remove(jobId);
 
 		if (jobManagerRunner != null) {
-			jobManagerRunner.shutdown();
+			final CompletableFuture<Void> jobManagerRunnerTerminationFuture = jobManagerRunner.closeAsync();
+			registerOrphanedJobManagerTerminationFuture(jobManagerRunnerTerminationFuture);
 		}
 
 		if (cleanupHA) {
@@ -502,28 +509,17 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	/**
-	 * Clears the state of the dispatcher.
+	 * Terminate all currently running {@link JobManagerRunner}.
 	 *
-	 * <p>The state are all currently running jobs.
+	 * @return Future which is completed once all {@link JobManagerRunner} have terminated
 	 */
-	private void clearState() throws Exception {
-		Exception exception = null;
-
+	private CompletableFuture<Void> terminateJobManagerRunners() {
 		log.info("Stopping all currently running jobs of dispatcher {}.", getAddress());
-		// stop all currently running JobManager since they run in the same process
-		for (JobManagerRunner jobManagerRunner : jobManagerRunners.values()) {
-			try {
-				jobManagerRunner.shutdown();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-		}
+		final List<CompletableFuture<Void>> terminationFutures = jobManagerRunners.values().stream()
+			.map(JobManagerRunner::closeAsync)
+			.collect(Collectors.toList());
 
-		jobManagerRunners.clear();
-
-		if (exception != null) {
-			throw exception;
-		}
+		return FutureUtils.completeAll(terminationFutures);
 	}
 
 	/**
@@ -600,6 +596,12 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		}
 	}
 
+	private void registerOrphanedJobManagerTerminationFuture(CompletableFuture<Void> jobManagerRunnerTerminationFuture) {
+		orphanedJobManagerRunnersTerminationFuture = FutureUtils.completeAll(Arrays.asList(
+			orphanedJobManagerRunnersTerminationFuture,
+			jobManagerRunnerTerminationFuture));
+	}
+
 	//------------------------------------------------------
 	// Leader contender
 	//------------------------------------------------------
@@ -619,11 +621,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 				// clear the state if we've been the leader before
 				if (getFencingToken() != null) {
-					try {
-						clearState();
-					} catch (Exception e) {
-						log.warn("Could not properly clear the Dispatcher state while granting leadership.", e);
-					}
+					final CompletableFuture<Void> jobManagerRunnersTerminationFuture = terminateJobManagerRunners();
+					registerOrphanedJobManagerTerminationFuture(jobManagerRunnersTerminationFuture);
+					jobManagerRunners.clear();
 				}
 
 				setFencingToken(dispatcherId);
@@ -644,11 +644,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		runAsyncWithoutFencing(
 			() -> {
 				log.info("Dispatcher {} was revoked leadership.", getAddress());
-				try {
-					clearState();
-				} catch (Exception e) {
-					log.warn("Could not properly clear the Dispatcher state while revoking leadership.", e);
-				}
+
+				final CompletableFuture<Void> jobManagerRunnersTerminationFuture = terminateJobManagerRunners();
+				registerOrphanedJobManagerTerminationFuture(jobManagerRunnersTerminationFuture);
+				jobManagerRunners.clear();
 
 				// clear the fencing token indicating that we don't have the leadership right now
 				setFencingToken(null);

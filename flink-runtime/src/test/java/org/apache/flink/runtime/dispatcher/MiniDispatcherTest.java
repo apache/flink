@@ -289,6 +289,7 @@ public class MiniDispatcherTest extends TestLogger {
 
 			final JobManagerRunner mock = mock(JobManagerRunner.class);
 			when(mock.getResultFuture()).thenReturn(resultFuture);
+			when(mock.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
 
 			return mock;
 		}

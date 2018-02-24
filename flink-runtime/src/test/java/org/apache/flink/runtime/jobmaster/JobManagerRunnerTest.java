@@ -152,7 +152,7 @@ public class JobManagerRunnerTest extends TestLogger {
 
 			assertThat(resultFuture.get(), is(archivedExecutionGraph));
 		} finally {
-			jobManagerRunner.shutdown();
+			jobManagerRunner.close();
 		}
 	}
 
@@ -176,7 +176,7 @@ public class JobManagerRunnerTest extends TestLogger {
 				assertThat(ExceptionUtils.stripExecutionException(ee), instanceOf(JobNotFinishedException.class));
 			}
 		} finally {
-			jobManagerRunner.shutdown();
+			jobManagerRunner.close();
 		}
 	}
 
@@ -191,7 +191,7 @@ public class JobManagerRunnerTest extends TestLogger {
 
 			assertThat(resultFuture.isDone(), is(false));
 
-			jobManagerRunner.shutdown();
+			jobManagerRunner.closeAsync();
 
 			try {
 				resultFuture.get();
@@ -200,7 +200,7 @@ public class JobManagerRunnerTest extends TestLogger {
 				assertThat(ExceptionUtils.stripExecutionException(ee), instanceOf(JobNotFinishedException.class));
 			}
 		} finally {
-			jobManagerRunner.shutdown();
+			jobManagerRunner.close();
 		}
 	}
 
