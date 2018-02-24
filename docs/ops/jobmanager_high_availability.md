@@ -46,8 +46,6 @@ To enable JobManager High Availability you have to set the **high-availability m
 
 Flink leverages **[ZooKeeper](http://zookeeper.apache.org)** for *distributed coordination* between all running JobManager instances. ZooKeeper is a separate service from Flink, which provides highly reliable distributed coordination via leader election and light-weight consistent state storage. Check out [ZooKeeper's Getting Started Guide](http://zookeeper.apache.org/doc/trunk/zookeeperStarted.html) for more information about ZooKeeper. Flink includes scripts to [bootstrap a simple ZooKeeper](#bootstrap-zookeeper) installation.
 
-Alternative High Availability implementation can be configured using *custom* mode.
-
 #### Masters File (masters)
 
 In order to start an HA-cluster configure the *masters* file in `conf/masters`:
@@ -70,12 +68,6 @@ In order to start an HA-cluster add the following configuration keys to `conf/fl
 Alternatively this option can be set to FQN of factory class Flink should use to create HighAvailabilityServices instance. 
 
   <pre>high-availability: zookeeper</pre>
-
-- **high-availability factoryClass** (required for custom mode): FQN of factory class 
-Flink should use to create HighAvailabilityServices instance. HA implementation jar must be
-added to `lib/` directory    
-
-  <pre>high-availability.factoryClass: &lt;className&gt;</pre>
 
 - **ZooKeeper quorum** (required): A *ZooKeeper quorum* is a replicated group of ZooKeeper servers, which provide the distributed coordination service.
 
