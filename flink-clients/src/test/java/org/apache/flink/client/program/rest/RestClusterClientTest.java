@@ -47,11 +47,15 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationResult;
 import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
+import org.apache.flink.runtime.rest.messages.AccumulatorsIncludeSerializedValueQueryParameter;
 import org.apache.flink.runtime.rest.messages.BlobServerPortHeaders;
 import org.apache.flink.runtime.rest.messages.BlobServerPortResponseBody;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsHeaders;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsInfo;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
 import org.apache.flink.runtime.rest.messages.JobTerminationMessageParameters;
@@ -102,8 +106,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -118,6 +124,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -539,6 +546,67 @@ public class RestClusterClientTest extends TestLogger {
 				JobStatusMessage job2 = jobDetailsIterator.next();
 				Assert.assertNotEquals("The job status should not be equal.", job1.getJobState(), job2.getJobState());
 			}
+		}
+	}
+
+	@Test
+	public void testGetAccumulators() throws Exception {
+		TestAccumulatorHandler accumulatorHandler = new TestAccumulatorHandler();
+
+		try (TestRestServerEndpoint ignored = createRestServerEndpoint(accumulatorHandler)){
+
+			JobID id = new JobID();
+
+			{
+				Map<String, Object> accumulators = restClusterClient.getAccumulators(id);
+				assertNotNull(accumulators);
+				assertEquals(1, accumulators.size());
+
+				assertEquals(true, accumulators.containsKey("testKey"));
+				assertEquals("testValue", accumulators.get("testKey").toString());
+			}
+		}
+	}
+
+	private class TestAccumulatorHandler extends TestHandler<EmptyRequestBody, JobAccumulatorsInfo, JobAccumulatorsMessageParameters> {
+
+		public TestAccumulatorHandler() {
+			super(JobAccumulatorsHeaders.getInstance());
+		}
+
+		@Override
+		protected CompletableFuture<JobAccumulatorsInfo> handleRequest(
+			@Nonnull HandlerRequest<EmptyRequestBody,
+				JobAccumulatorsMessageParameters> request,
+			@Nonnull DispatcherGateway gateway) throws RestHandlerException {
+			JobAccumulatorsInfo accumulatorsInfo;
+			List<Boolean> queryParams = request.getQueryParameter(AccumulatorsIncludeSerializedValueQueryParameter.class);
+
+			final boolean includeSerializedValue;
+			if (!queryParams.isEmpty()) {
+				includeSerializedValue = queryParams.get(0);
+			} else {
+				includeSerializedValue = false;
+			}
+
+			List<JobAccumulatorsInfo.UserTaskAccumulator> userTaskAccumulators = new ArrayList<>(1);
+
+			userTaskAccumulators.add(new JobAccumulatorsInfo.UserTaskAccumulator("testName", "testType", "testValue"));
+
+			if (includeSerializedValue) {
+				Map<String, SerializedValue<Object>> serializedUserTaskAccumulators = new HashMap<>(1);
+				try {
+					serializedUserTaskAccumulators.put("testKey", new SerializedValue<>("testValue"));
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+
+				accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), userTaskAccumulators, serializedUserTaskAccumulators);
+			} else {
+				accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), userTaskAccumulators, Collections.emptyMap());
+			}
+
+			return CompletableFuture.completedFuture(accumulatorsInfo);
 		}
 	}
 
