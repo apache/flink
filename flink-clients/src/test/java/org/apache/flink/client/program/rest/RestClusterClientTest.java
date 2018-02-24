@@ -575,7 +575,8 @@ public class RestClusterClientTest extends TestLogger {
 			}
 
 			@Override
-			protected CompletableFuture<JobAccumulatorsInfo> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, JobMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
+			protected CompletableFuture<JobAccumulatorsInfo> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody,
+				JobMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
 				List<JobAccumulatorsInfo.JobAccumulator> jobAccumulators = Collections.emptyList();
 				List<JobAccumulatorsInfo.UserTaskAccumulator> userTaskAccumulators = new ArrayList<JobAccumulatorsInfo.UserTaskAccumulator>() {{
 					this.add(new JobAccumulatorsInfo.UserTaskAccumulator("testName", "testType", "testValue"));
