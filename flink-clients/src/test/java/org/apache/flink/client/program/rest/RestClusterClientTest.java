@@ -555,7 +555,7 @@ public class RestClusterClientTest extends TestLogger {
 				assertNotNull(accumulators);
 				assertEquals(2, accumulators.size());
 
-				List<JobAccumulatorsInfo.JobAccumulator> jobAccumulators = (List)accumulators.get(JobAccumulatorsInfo.FIELD_NAME_JOB_ACCUMULATORS);
+				List<JobAccumulatorsInfo.JobAccumulator> jobAccumulators = (List) accumulators.get(JobAccumulatorsInfo.FIELD_NAME_JOB_ACCUMULATORS);
 
 				assertEquals(0, jobAccumulators.size());
 
