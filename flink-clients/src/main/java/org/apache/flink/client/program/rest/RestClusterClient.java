@@ -21,6 +21,7 @@ package org.apache.flink.client.program.rest;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -52,6 +53,9 @@ import org.apache.flink.runtime.rest.messages.BlobServerPortResponseBody;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsHeaders;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsInfo;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
 import org.apache.flink.runtime.rest.messages.JobTerminationMessageParameters;
@@ -101,6 +105,7 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -403,6 +408,40 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		});
 	}
 
+	@Override
+	public Map<String, Object> getAccumulators(final JobID jobID, ClassLoader loader) throws Exception {
+		final JobAccumulatorsHeaders accumulatorsHeaders = JobAccumulatorsHeaders.getInstance();
+		final JobAccumulatorsMessageParameters accMsgParams = accumulatorsHeaders.getUnresolvedMessageParameters();
+		accMsgParams.jobPathParameter.resolve(jobID);
+		accMsgParams.includeSerializedAccumulatorsParameter.resolve(Collections.singletonList(true));
+
+		CompletableFuture<JobAccumulatorsInfo> responseFuture = sendRequest(
+			accumulatorsHeaders,
+			accMsgParams
+		);
+
+		Map<String, Object> result = Collections.emptyMap();
+
+		try {
+			result = responseFuture.thenApply((JobAccumulatorsInfo accumulatorsInfo) -> {
+				try {
+					return AccumulatorHelper.deserializeAccumulators(
+						accumulatorsInfo.getSerializedUserAccumulators(),
+						loader);
+				} catch (Exception e) {
+					throw new CompletionException(
+						new FlinkException(
+							String.format("Deserialization of accumulators for job %s failed.", jobID),
+							e));
+				}
+			}).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+		} catch (ExecutionException ee) {
+			ExceptionUtils.rethrowException(ExceptionUtils.stripExecutionException(ee));
+		}
+
+		return result;
+	}
+
 	private CompletableFuture<SavepointInfo> pollSavepointAsync(
 			final JobID jobId,
 			final TriggerId triggerID) {
@@ -661,7 +700,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 				TimeUnit.MILLISECONDS)
 			.thenApplyAsync(leaderAddressSessionId -> {
 				final String address = leaderAddressSessionId.f0;
-				final Optional<String> host = ScalaUtils.toJava(AddressFromURIString.parse(address).host());
+				final Optional<String> host = ScalaUtils.<String>toJava(AddressFromURIString.parse(address).host());
 
 				return host.orElseGet(() -> {
 					// if the dispatcher address does not contain a host part, then assume it's running
