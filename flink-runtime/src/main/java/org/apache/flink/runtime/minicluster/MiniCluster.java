@@ -437,7 +437,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 		if (resourceManagerRunner != null) {
 			try {
-				resourceManagerRunner.shutDown();
+				resourceManagerRunner.close();
 			} catch (Throwable t) {
 				exception = ExceptionUtils.firstOrSuppressed(t, exception);
 			}
