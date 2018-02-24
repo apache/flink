@@ -52,6 +52,8 @@ import org.apache.flink.runtime.rest.messages.BlobServerPortResponseBody;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsHeaders;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsInfo;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
 import org.apache.flink.runtime.rest.messages.JobTerminationMessageParameters;
@@ -104,6 +106,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -118,6 +121,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -535,6 +539,53 @@ public class RestClusterClientTest extends TestLogger {
 				Assert.assertNotEquals("The job status should not be equal.", job1.getJobState(), job2.getJobState());
 			}
 		}
+	}
+
+	@Test
+	public void testGetAccumulators() throws Exception {
+		TestAccumulatorHandlers accumulatorHandlers = new TestAccumulatorHandlers();
+		TestAccumulatorHandlers.TestAccumulatorHandler accumulatorHandler = accumulatorHandlers.new TestAccumulatorHandler();
+
+		try (TestRestServerEndpoint ignored = createRestServerEndpoint(accumulatorHandler)){
+
+			JobID id = new JobID();
+
+			{
+				Map<String, Object> accumulators = restClusterClient.getAccumulators(id);
+				assertNotNull(accumulators);
+				assertEquals(2, accumulators.size());
+
+				List<JobAccumulatorsInfo.JobAccumulator> jobAccumulators = (List)accumulators.get(JobAccumulatorsInfo.FIELD_NAME_JOB_ACCUMULATORS);
+
+				assertEquals(0, jobAccumulators.size());
+
+				List<JobAccumulatorsInfo.UserTaskAccumulator> userTaskAccumulators = (List) accumulators.get(JobAccumulatorsInfo.FIELD_NAME_USER_TASK_ACCUMULATORS);
+
+				assertEquals(1, userTaskAccumulators.size());
+			}
+		}
+	}
+
+	private class TestAccumulatorHandlers  {
+
+		private class TestAccumulatorHandler extends TestHandler<EmptyRequestBody, JobAccumulatorsInfo, JobMessageParameters> {
+
+			public TestAccumulatorHandler() {
+				super(JobAccumulatorsHeaders.getInstance());
+			}
+
+			@Override
+			protected CompletableFuture<JobAccumulatorsInfo> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, JobMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
+				List<JobAccumulatorsInfo.JobAccumulator> jobAccumulators = Collections.emptyList();
+				List<JobAccumulatorsInfo.UserTaskAccumulator> userTaskAccumulators = new ArrayList<JobAccumulatorsInfo.UserTaskAccumulator>() {{
+					this.add(new JobAccumulatorsInfo.UserTaskAccumulator("testName", "testType", "testValue"));
+				}};
+				JobAccumulatorsInfo accumulatorsInfo = new JobAccumulatorsInfo(jobAccumulators, userTaskAccumulators);
+
+				return CompletableFuture.completedFuture(accumulatorsInfo);
+			}
+		}
+
 	}
 
 	private class TestListJobsHandler extends TestHandler<EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters> {

@@ -51,6 +51,8 @@ import org.apache.flink.runtime.rest.messages.BlobServerPortResponseBody;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsInfo;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
 import org.apache.flink.runtime.rest.messages.JobTerminationMessageParameters;
@@ -78,6 +80,7 @@ import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
@@ -97,6 +100,7 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
@@ -361,6 +365,27 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			}
 			return savepointInfo.getLocation();
 		});
+	}
+
+	@Override
+	public Map<String, Object> getAccumulators(final JobID jobID) throws Exception {
+		final JobAccumulatorsHeaders accumulatorsHeaders = JobAccumulatorsHeaders.getInstance();
+		final JobMessageParameters  params = new JobMessageParameters();
+		params.jobPathParameter.resolve(jobID);
+
+		CompletableFuture<JobAccumulatorsInfo> responseFuture = sendRequest(
+			accumulatorsHeaders,
+			params
+		);
+
+		return responseFuture.thenApply((accumulatorsInfo) -> {
+			if (accumulatorsInfo != null) {
+				ObjectMapper objectMapper = new ObjectMapper();
+				return objectMapper.convertValue(accumulatorsInfo, Map.class);
+			}
+
+			return Collections.emptyMap();
+		}).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	private CompletableFuture<SavepointInfo> pollSavepointAsync(
