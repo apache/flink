@@ -19,16 +19,21 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
+import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * The slot provider is responsible for preparing slots for ready-to-run tasks.
- * 
+ *
  * <p>It supports two allocating modes:
  * <ul>
  *     <li>Immediate allocating: A request for a task slot immediately gets satisfied, we can call
@@ -49,8 +54,44 @@ public interface SlotProvider {
 	 * @return The future of the allocation
 	 */
 	CompletableFuture<LogicalSlot> allocateSlot(
+		SlotRequestId slotRequestId,
 		ScheduledUnit task,
 		boolean allowQueued,
 		Collection<TaskManagerLocation> preferredLocations,
 		Time timeout);
+
+	/**
+	 * Allocating slot with specific requirement.
+	 *
+	 * @param task The task to allocate the slot for
+	 * @param allowQueued Whether allow the task be queued if we do not have enough resource
+	 * @param preferredLocations preferred locations for the slot allocation
+	 * @param timeout after which the allocation fails with a timeout exception
+	 * @return The future of the allocation
+	 */
+	default CompletableFuture<LogicalSlot> allocateSlot(
+		ScheduledUnit task,
+		boolean allowQueued,
+		Collection<TaskManagerLocation> preferredLocations,
+		Time timeout) {
+		return allocateSlot(
+			new SlotRequestId(),
+			task,
+			allowQueued,
+			preferredLocations,
+			timeout);
+	}
+
+	/**
+	 * Cancels the slot request with the given {@link SlotRequestId} and {@link SlotSharingGroupId}.
+	 *
+	 * @param slotRequestId identifying the slot request to cancel
+	 * @param slotSharingGroupId identifying the slot request to cancel
+	 * @param cause of the cancellation
+	 * @return Future which is completed once the slot request has been cancelled
+	 */
+	CompletableFuture<Acknowledge> cancelSlotRequest(
+		SlotRequestId slotRequestId,
+		@Nullable SlotSharingGroupId slotSharingGroupId,
+		Throwable cause);
 }

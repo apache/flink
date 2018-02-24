@@ -84,9 +84,9 @@ public class PrometheusReporterTest extends TestLogger {
 	}
 
 	@After
-	public void shutdownRegistry() {
+	public void shutdownRegistry() throws Exception {
 		if (registry != null) {
-			registry.shutdown();
+			registry.shutdown().get();
 		}
 	}
 
@@ -237,7 +237,7 @@ public class PrometheusReporterTest extends TestLogger {
 	}
 
 	@Test
-	public void cannotStartTwoReportersOnSamePort() {
+	public void cannotStartTwoReportersOnSamePort() throws Exception {
 		final MetricRegistryImpl fixedPort1 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", portRangeProvider.next())));
 		assertThat(fixedPort1.getReporters(), hasSize(1));
 
@@ -246,12 +246,12 @@ public class PrometheusReporterTest extends TestLogger {
 		final MetricRegistryImpl fixedPort2 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", String.valueOf(firstReporter.getPort()))));
 		assertThat(fixedPort2.getReporters(), hasSize(0));
 
-		fixedPort1.shutdown();
-		fixedPort2.shutdown();
+		fixedPort1.shutdown().get();
+		fixedPort2.shutdown().get();
 	}
 
 	@Test
-	public void canStartTwoReportersWhenUsingPortRange() {
+	public void canStartTwoReportersWhenUsingPortRange() throws Exception {
 		String portRange = portRangeProvider.next();
 		final MetricRegistryImpl portRange1 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", portRange)));
 		final MetricRegistryImpl portRange2 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", portRange)));
@@ -259,8 +259,8 @@ public class PrometheusReporterTest extends TestLogger {
 		assertThat(portRange1.getReporters(), hasSize(1));
 		assertThat(portRange2.getReporters(), hasSize(1));
 
-		portRange1.shutdown();
-		portRange2.shutdown();
+		portRange1.shutdown().get();
+		portRange2.shutdown().get();
 	}
 
 	private String addMetricAndPollResponse(Metric metric, String metricName) throws UnirestException {
@@ -280,8 +280,8 @@ public class PrometheusReporterTest extends TestLogger {
 	}
 
 	@After
-	public void closeReporterAndShutdownRegistry() {
-		registry.shutdown();
+	public void closeReporterAndShutdownRegistry() throws Exception {
+		registry.shutdown().get();
 	}
 
 	/**

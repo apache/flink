@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
@@ -90,12 +91,11 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 		mainThreadValidator.enterMainThread();
 
 		try {
-			Throwable shutdownThrowable = null;
-
+			CompletableFuture<Void> postStopFuture;
 			try {
-				rpcEndpoint.postStop();
+				postStopFuture = rpcEndpoint.postStop();
 			} catch (Throwable throwable) {
-				shutdownThrowable = throwable;
+				postStopFuture = FutureUtils.completedExceptionally(throwable);
 			}
 
 			super.postStop();
@@ -105,11 +105,14 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 			// future.
 			// Complete the termination future so that others know that we've stopped.
 
-			if (shutdownThrowable != null) {
-				terminationFuture.completeExceptionally(shutdownThrowable);
-			} else {
-				terminationFuture.complete(null);
-			}
+			postStopFuture.whenComplete(
+				(Void value, Throwable throwable) -> {
+					if (throwable != null) {
+						terminationFuture.completeExceptionally(throwable);
+					} else {
+						terminationFuture.complete(null);
+					}
+				});
 		} finally {
 			mainThreadValidator.exitMainThread();
 		}

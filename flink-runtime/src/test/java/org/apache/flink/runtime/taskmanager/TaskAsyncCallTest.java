@@ -56,6 +56,7 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -78,7 +79,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class TaskAsyncCallTest {
+public class TaskAsyncCallTest extends TestLogger {
 
 	/** Number of expected checkpoints. */
 	private static int numCalls;
@@ -289,7 +290,7 @@ public class TaskAsyncCallTest {
 
 			// wait forever (until canceled)
 			synchronized (this) {
-				while (error == null && lastCheckpointId < numCalls) {
+				while (error == null) {
 					wait();
 				}
 			}

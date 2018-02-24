@@ -53,6 +53,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -578,7 +579,7 @@ public class ResourceManagerTest extends TestLogger {
 			verify(taskExecutorGateway, Mockito.timeout(timeout.toMilliseconds())).disconnectResourceManager(any(TimeoutException.class));
 
 		} finally {
-			rpcService.stopService();
+			RpcUtils.terminateRpcService(rpcService, timeout);
 		}
 	}
 
@@ -680,7 +681,7 @@ public class ResourceManagerTest extends TestLogger {
 			verify(jobMasterGateway, Mockito.timeout(timeout.toMilliseconds())).disconnectResourceManager(eq(rmLeaderId), any(TimeoutException.class));
 
 		} finally {
-			rpcService.stopService();
+			RpcUtils.terminateRpcService(rpcService, timeout);
 		}
 	}
 }

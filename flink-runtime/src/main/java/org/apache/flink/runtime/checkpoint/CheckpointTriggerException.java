@@ -16,19 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc;
+package org.apache.flink.runtime.checkpoint;
 
-import java.util.concurrent.CompletableFuture;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 /**
- * Interface for self gateways.
+ * Exceptions which indicate that a checkpoint triggering has failed.
+ *
  */
-public interface RpcServer extends StartStoppable, MainThreadExecutable, RpcGateway {
+public class CheckpointTriggerException extends FlinkException {
 
-	/**
-	 * Return a future which is completed when the rpc endpoint has been terminated.
-	 *
-	 * @return Future indicating when the rpc endpoint has been terminated
-	 */
-	CompletableFuture<Void> getTerminationFuture();
+	private static final long serialVersionUID = -3330160816161901752L;
+
+	private final CheckpointDeclineReason checkpointDeclineReason;
+
+	public CheckpointTriggerException(String message, CheckpointDeclineReason checkpointDeclineReason) {
+		super(message + " Decline reason: " + checkpointDeclineReason.message());
+		this.checkpointDeclineReason = Preconditions.checkNotNull(checkpointDeclineReason);
+	}
+
+	public CheckpointDeclineReason getCheckpointDeclineReason() {
+		return checkpointDeclineReason;
+	}
 }

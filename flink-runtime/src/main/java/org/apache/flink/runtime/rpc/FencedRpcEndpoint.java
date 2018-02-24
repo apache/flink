@@ -35,7 +35,7 @@ import java.util.concurrent.CompletableFuture;
  *
  * @param <F> type of the fencing token
  */
-public class FencedRpcEndpoint<F extends Serializable> extends RpcEndpoint {
+public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpoint {
 
 	private volatile F fencingToken;
 	private volatile MainThreadExecutor fencedMainThreadExecutor;

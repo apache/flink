@@ -162,7 +162,7 @@ public class TaskManagerMetricsTest extends TestLogger {
 				highAvailabilityServices.closeAndCleanupAllData();
 			}
 
-			metricRegistry.shutdown();
+			metricRegistry.shutdown().get();
 		}
 	}
 }

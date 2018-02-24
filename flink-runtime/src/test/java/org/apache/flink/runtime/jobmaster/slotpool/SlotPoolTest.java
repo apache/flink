@@ -104,7 +104,7 @@ public class SlotPoolTest extends TestLogger {
 
 	@After
 	public void tearDown() throws Exception {
-		rpcService.stopService();
+		RpcUtils.terminateRpcService(rpcService, timeout);
 	}
 
 	@Test

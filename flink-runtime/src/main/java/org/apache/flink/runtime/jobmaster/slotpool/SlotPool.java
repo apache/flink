@@ -199,7 +199,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	}
 
 	@Override
-	public void postStop() throws Exception {
+	public CompletableFuture<Void> postStop() {
+		log.info("Stopping SlotPool.");
 		// cancel all pending allocations
 		Set<AllocationID> allocationIds = pendingRequests.keySetB();
 
@@ -214,7 +215,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		clear();
 
-		super.postStop();
+		return CompletableFuture.completedFuture(null);
 	}
 
 	/**
@@ -222,7 +223,17 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	 */
 	@Override
 	public void suspend() {
+		log.info("Suspending SlotPool.");
+
 		validateRunsInMainThread();
+
+		// cancel all pending allocations --> we can request these slots
+		// again after we regained the leadership
+		Set<AllocationID> allocationIds = pendingRequests.keySetB();
+
+		for (AllocationID allocationId : allocationIds) {
+			resourceManagerGateway.cancelSlotRequest(allocationId);
+		}
 
 		// suspend this RPC endpoint
 		stop();
@@ -338,7 +349,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 						allocationTimeout);
 				} else {
 					multiTaskSlotLocality = allocateMultiTaskSlot(
-						task.getJobVertexId(), multiTaskSlotManager,
+						task.getJobVertexId(),
+						multiTaskSlotManager,
 						resourceProfile,
 						locationPreferences,
 						allowQueuedScheduling,
@@ -691,8 +703,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		pendingRequests.put(pendingRequest.getSlotRequestId(), allocationId, pendingRequest);
 
 		pendingRequest.getAllocatedSlotFuture().whenComplete(
-			(value, throwable) -> {
-				if (throwable != null) {
+			(AllocatedSlot allocatedSlot, Throwable throwable) -> {
+				if (throwable != null || allocationId.equals(allocatedSlot.getAllocationId())) {
+					// cancel the slot request if there is a failure or if the pending request has
+					// been completed with another allocated slot
 					resourceManagerGateway.cancelSlotRequest(allocationId);
 				}
 			});
@@ -747,6 +761,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 	@Override
 	public CompletableFuture<Acknowledge> releaseSlot(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
+		log.debug("Releasing slot with slot request id {}.", slotRequestId, cause);
 
 		if (slotSharingGroupId != null) {
 			final SlotSharingManager multiTaskSlotManager = slotSharingManagers.get(slotSharingGroupId);
@@ -757,10 +772,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				if (taskSlot != null) {
 					taskSlot.release(cause);
 				} else {
-					log.debug("Could not find slot {} in slot sharing group {}. Ignoring release slot request.", slotRequestId, slotSharingGroupId, cause);
+					log.debug("Could not find slot {} in slot sharing group {}. Ignoring release slot request.", slotRequestId, slotSharingGroupId);
 				}
 			} else {
-				log.debug("Could not find slot sharing group {}. Ignoring release slot request.", slotSharingGroupId, cause);
+				log.debug("Could not find slot sharing group {}. Ignoring release slot request.", slotSharingGroupId);
 			}
 		} else {
 			final PendingRequest pendingRequest = removePendingRequest(slotRequestId);
@@ -776,7 +791,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 						tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
 					}
 				} else {
-					log.debug("There is no allocated slot with allocation id {}. Ignoring the release slot request.", slotRequestId, cause);
+					log.debug("There is no allocated slot with slot request id {}. Ignoring the release slot request.", slotRequestId);
 				}
 			}
 		}
@@ -785,7 +800,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	}
 
 	/**
-	 * Checks whether there exists a pending request with the given allocation id and removes it
+	 * Checks whether there exists a pending request with the given slot request id and removes it
 	 * from the internal data structures.
 	 *
 	 * @param requestId identifying the pending request
@@ -1556,14 +1571,14 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		@Override
 		public CompletableFuture<LogicalSlot> allocateSlot(
+				SlotRequestId slotRequestId,
 				ScheduledUnit task,
 				boolean allowQueued,
 				Collection<TaskManagerLocation> preferredLocations,
 				Time timeout) {
 
-			final SlotRequestId requestId = new SlotRequestId();
 			CompletableFuture<LogicalSlot> slotFuture = gateway.allocateSlot(
-				requestId,
+				slotRequestId,
 				task,
 				ResourceProfile.UNKNOWN,
 				preferredLocations,
@@ -1574,13 +1589,21 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				(LogicalSlot slot, Throwable failure) -> {
 					if (failure != null) {
 						gateway.releaseSlot(
-							requestId,
+							slotRequestId,
 							task.getSlotSharingGroupId(),
 							failure);
 					}
 			});
 
 			return slotFuture;
+		}
+
+		@Override
+		public CompletableFuture<Acknowledge> cancelSlotRequest(
+				SlotRequestId slotRequestId,
+				@Nullable SlotSharingGroupId slotSharingGroupId,
+				Throwable cause) {
+			return gateway.releaseSlot(slotRequestId, slotSharingGroupId, cause);
 		}
 	}
 

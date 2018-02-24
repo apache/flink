@@ -23,6 +23,7 @@ import akka.actor.ActorSystem;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
@@ -30,10 +31,12 @@ import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
+import akka.actor.Terminated;
 import org.junit.AfterClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -60,9 +63,13 @@ public class AsyncCallsTest extends TestLogger {
 			new AkkaRpcService(actorSystem, Time.milliseconds(10000L));
 
 	@AfterClass
-	public static void shutdown() {
-		akkaRpcService.stopService();
-		actorSystem.shutdown();
+	public static void shutdown() throws InterruptedException, ExecutionException, TimeoutException {
+		final CompletableFuture<Void> rpcTerminationFuture = akkaRpcService.stopService();
+		final CompletableFuture<Terminated> actorSystemTerminationFuture = FutureUtils.toJava(actorSystem.terminate());
+
+		FutureUtils
+			.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
+			.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
 
@@ -333,6 +340,11 @@ public class AsyncCallsTest extends TestLogger {
 		public boolean hasConcurrentAccess() {
 			return concurrentAccess;
 		}
+
+		@Override
+		public CompletableFuture<Void> postStop() {
+			return CompletableFuture.completedFuture(null);
+		}
 	}
 
 	public interface FencedTestGateway extends FencedRpcGateway<UUID> {
@@ -376,6 +388,11 @@ public class AsyncCallsTest extends TestLogger {
 			setFencingToken(fencingToken);
 
 			return CompletableFuture.completedFuture(Acknowledge.get());
+		}
+
+		@Override
+		public CompletableFuture<Void> postStop() {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 }

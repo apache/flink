@@ -189,7 +189,7 @@ public class TaskExecutorTest extends TestLogger {
 	@After
 	public void teardown() throws Exception {
 		if (rpc != null) {
-			rpc.stopService();
+			RpcUtils.terminateRpcService(rpc, timeout);
 			rpc = null;
 		}
 

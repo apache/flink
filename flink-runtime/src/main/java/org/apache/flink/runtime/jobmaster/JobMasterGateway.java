@@ -44,6 +44,8 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
@@ -254,12 +256,13 @@ public interface JobMasterGateway extends
 	/**
 	 * Triggers taking a savepoint of the executed job.
 	 *
-	 * @param targetDirectory to which to write the savepoint data
+	 * @param targetDirectory to which to write the savepoint data or null if the
+	 *                           default savepoint directory should be used
 	 * @param timeout for the rpc call
 	 * @return Future which is completed with the savepoint path once completed
 	 */
 	CompletableFuture<String> triggerSavepoint(
-		final String targetDirectory,
+		@Nullable final String targetDirectory,
 		final Time timeout);
 
 	/**

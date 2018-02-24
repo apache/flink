@@ -42,7 +42,6 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.leaderelection.LeaderAddressAndId;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -66,6 +65,7 @@ import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 
 import akka.actor.ActorSystem;
+import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -508,52 +508,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
-	public void waitUntilTaskManagerRegistrationsComplete() throws Exception {
-		LeaderRetrievalService rmMasterListener = null;
-		CompletableFuture<LeaderAddressAndId> addressAndIdFuture;
-
-		try {
-			synchronized (lock) {
-				checkState(running, "FlinkMiniCluster is not running");
-
-				OneTimeLeaderListenerFuture listenerFuture = new OneTimeLeaderListenerFuture();
-				rmMasterListener = haServices.getResourceManagerLeaderRetriever();
-				rmMasterListener.start(listenerFuture);
-				addressAndIdFuture = listenerFuture.future();
-			}
-
-			final LeaderAddressAndId addressAndId = addressAndIdFuture.get();
-
-			final ResourceManagerGateway resourceManager = commonRpcService
-				.connect(
-					addressAndId.leaderAddress(),
-					new ResourceManagerId(addressAndId.leaderId()),
-					ResourceManagerGateway.class)
-				.get();
-
-			final int numTaskManagersToWaitFor = taskManagers.length;
-
-			// poll and wait until enough TaskManagers are available
-			while (true) {
-				int numTaskManagersAvailable = resourceManager.getNumberOfRegisteredTaskManagers().get();
-
-				if (numTaskManagersAvailable >= numTaskManagersToWaitFor) {
-					break;
-				}
-				Thread.sleep(2);
-			}
-		}
-		finally {
-			try {
-				if (rmMasterListener != null) {
-					rmMasterListener.stop();
-				}
-			} catch (Exception e) {
-				LOG.warn("Error shutting down leader listener for ResourceManager");
-			}
-		}
-	}
-
 	// ------------------------------------------------------------------------
 	//  running jobs
 	// ------------------------------------------------------------------------
@@ -681,12 +635,17 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			boolean remoteEnabled,
 			String bindAddress) {
 
-		ActorSystem actorSystem;
+		final Config akkaConfig;
+
 		if (remoteEnabled) {
-			actorSystem = AkkaUtils.createActorSystem(configuration, bindAddress, 0);
+			akkaConfig = AkkaUtils.getAkkaConfig(configuration, bindAddress, 0);
 		} else {
-			actorSystem = AkkaUtils.createLocalActorSystem(configuration);
+			akkaConfig = AkkaUtils.getAkkaConfig(configuration);
 		}
+
+		final Config effectiveAkkaConfig = AkkaUtils.testDispatcherConfig().withFallback(akkaConfig);
+
+		final ActorSystem actorSystem = AkkaUtils.createActorSystem(effectiveAkkaConfig);
 
 		return new AkkaRpcService(actorSystem, askTimeout);
 	}
@@ -756,7 +715,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	private static Throwable shutDownRpc(RpcService rpcService, Throwable priorException) {
 		if (rpcService != null) {
 			try {
-				rpcService.stopService();
+				rpcService.stopService().get();
 			}
 			catch (Throwable t) {
 				return ExceptionUtils.firstOrSuppressed(t, priorException);
@@ -773,7 +732,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			for (RpcService service : rpcServices) {
 				try {
 					if (service != null) {
-						service.stopService();
+						service.stopService().get();
 					}
 				}
 				catch (Throwable t) {

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.util.TestLogger;
 
@@ -58,9 +59,7 @@ public class RpcGatewayRetrieverTest extends TestLogger {
 	@AfterClass
 	public static void teardown() throws InterruptedException, ExecutionException, TimeoutException {
 		if (rpcService != null) {
-			rpcService.stopService();
-			rpcService.getTerminationFuture().get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
-
+			RpcUtils.terminateRpcService(rpcService, TIMEOUT);
 			rpcService = null;
 		}
 	}
@@ -138,6 +137,11 @@ public class RpcGatewayRetrieverTest extends TestLogger {
 		@Override
 		public UUID getFencingToken() {
 			return HighAvailabilityServices.DEFAULT_LEADER_ID;
+		}
+
+		@Override
+		public CompletableFuture<Void> postStop() {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 }
