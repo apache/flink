@@ -254,16 +254,22 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 				jobManagerRunner.getResultFuture().whenCompleteAsync(
 					(ArchivedExecutionGraph archivedExecutionGraph, Throwable throwable) -> {
-						if (archivedExecutionGraph != null) {
-							jobReachedGloballyTerminalState(archivedExecutionGraph);
-						} else {
-							final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
-
-							if (strippedThrowable instanceof JobNotFinishedException) {
-								jobNotFinished(jobId);
+						// check if we are still the active JobManagerRunner by checking the identity
+						//noinspection ObjectEquality
+						if (jobManagerRunner == jobManagerRunners.get(jobId)) {
+							if (archivedExecutionGraph != null) {
+								jobReachedGloballyTerminalState(archivedExecutionGraph);
 							} else {
-								onFatalError(new FlinkException("JobManagerRunner for job " + jobId + " failed.", strippedThrowable));
+								final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+
+								if (strippedThrowable instanceof JobNotFinishedException) {
+									jobNotFinished(jobId);
+								} else {
+									onFatalError(new FlinkException("JobManagerRunner for job " + jobId + " failed.", strippedThrowable));
+								}
 							}
+						} else {
+							log.debug("There is a newer JobManagerRunner for the job {}.", jobId);
 						}
 					}, getMainThreadExecutor());
 
@@ -294,6 +300,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public CompletableFuture<Collection<JobID>> listJobs(Time timeout) {
+		if (jobManagerRunners.isEmpty()) {
+			System.out.println("empty");
+		}
 		return CompletableFuture.completedFuture(
 			Collections.unmodifiableSet(new HashSet<>(jobManagerRunners.keySet())));
 	}

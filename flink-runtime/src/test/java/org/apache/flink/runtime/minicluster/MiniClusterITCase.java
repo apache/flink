@@ -67,7 +67,7 @@ public class MiniClusterITCase extends TestLogger {
 			executeJob(miniCluster);
 		}
 		finally {
-			miniCluster.shutdown();
+			miniCluster.close();
 		}
 	}
 
@@ -84,7 +84,7 @@ public class MiniClusterITCase extends TestLogger {
 			executeJob(miniCluster);
 		}
 		finally {
-			miniCluster.shutdown();
+			miniCluster.close();
 		}
 	}
 
