@@ -74,7 +74,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			"WebSubmissionHandlers",
 			settableLeaderRetrievalService);
 
-		webSubmissionHandlers = new ArrayList<>(3);
+		webSubmissionHandlers = new ArrayList<>(5);
 
 		final JarUploadHandler jarUploadHandler = new JarUploadHandler(
 			restAddressFuture,
