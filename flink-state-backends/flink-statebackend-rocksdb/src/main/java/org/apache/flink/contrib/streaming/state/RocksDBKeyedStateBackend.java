@@ -1082,7 +1082,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	@Override
 	public void notifyCheckpointComplete(long completedCheckpointId) {
+
+		if (!enableIncrementalCheckpointing) {
+			return;
+		}
+
 		synchronized (materializedSstFiles) {
+
 			if (completedCheckpointId < lastCompletedCheckpointId) {
 				return;
 			}
