@@ -16,36 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.leaderelection;
+package org.apache.flink.runtime.leaderretrieval;
 
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.Preconditions;
 
 import java.util.UUID;
 
 /**
- * Test {@link LeaderRetrievalService} implementation which directly forwards calls of
+ * {@link LeaderRetrievalService} implementation which directly forwards calls of
  * notifyListener to the listener.
  */
-public class TestingLeaderRetrievalService implements LeaderRetrievalService {
+public class SettableLeaderRetrievalService implements LeaderRetrievalService {
 
-	private volatile String leaderAddress;
-	private volatile UUID leaderSessionID;
+	private String leaderAddress;
+	private UUID leaderSessionID;
 
-	private volatile LeaderRetrievalListener listener;
+	private LeaderRetrievalListener listener;
 
-	public TestingLeaderRetrievalService() {
+	public SettableLeaderRetrievalService() {
 		this(null, null);
 	}
 
-	public TestingLeaderRetrievalService(String leaderAddress, UUID leaderSessionID) {
+	public SettableLeaderRetrievalService(String leaderAddress, UUID leaderSessionID) {
 		this.leaderAddress = leaderAddress;
 		this.leaderSessionID = leaderSessionID;
 	}
 
 	@Override
-	public void start(LeaderRetrievalListener listener) throws Exception {
+	public synchronized void start(LeaderRetrievalListener listener) throws Exception {
 		this.listener = Preconditions.checkNotNull(listener);
 
 		if (leaderSessionID != null && leaderAddress != null) {
@@ -58,7 +56,7 @@ public class TestingLeaderRetrievalService implements LeaderRetrievalService {
 
 	}
 
-	public void notifyListener(String address, UUID leaderSessionID) {
+	public synchronized void notifyListener(String address, UUID leaderSessionID) {
 		this.leaderAddress = address;
 		this.leaderSessionID = leaderSessionID;
 

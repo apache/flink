@@ -58,7 +58,7 @@ import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -157,9 +157,9 @@ public class TaskExecutorTest extends TestLogger {
 
 	private TestingHighAvailabilityServices haServices;
 
-	private TestingLeaderRetrievalService resourceManagerLeaderRetriever;
+	private SettableLeaderRetrievalService resourceManagerLeaderRetriever;
 
-	private TestingLeaderRetrievalService jobManagerLeaderRetriever;
+	private SettableLeaderRetrievalService jobManagerLeaderRetriever;
 
 	@Before
 	public void setup() throws IOException {
@@ -180,8 +180,8 @@ public class TaskExecutorTest extends TestLogger {
 		testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		haServices = new TestingHighAvailabilityServices();
-		resourceManagerLeaderRetriever = new TestingLeaderRetrievalService();
-		jobManagerLeaderRetriever = new TestingLeaderRetrievalService();
+		resourceManagerLeaderRetriever = new SettableLeaderRetrievalService();
+		jobManagerLeaderRetriever = new SettableLeaderRetrievalService();
 		haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
 		haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
 	}

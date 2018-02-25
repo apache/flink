@@ -22,6 +22,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.webmonitor.handlers.JarDeleteHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JarDeleteHeaders;
@@ -62,7 +64,15 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			Executor executor,
 			Time timeout) throws Exception {
 
-		restClusterClient = new RestClusterClient<>(configuration, "WebSubmissionHandlers");
+		final SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService();
+		restAddressFuture.thenAccept(restAddress -> settableLeaderRetrievalService.notifyListener(
+			restAddress,
+			HighAvailabilityServices.DEFAULT_LEADER_ID));
+
+		restClusterClient = new RestClusterClient<>(
+			configuration,
+			"WebSubmissionHandlers",
+			settableLeaderRetrievalService);
 
 		webSubmissionHandlers = new ArrayList<>(3);
 
