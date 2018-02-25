@@ -40,6 +40,7 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -59,7 +60,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The runner for the job manager. It deals with job level leader election and make underlying job manager
  * properly reacted.
  */
-public class JobManagerRunner implements LeaderContender, OnCompletionActions, FatalErrorHandler {
+public class JobManagerRunner implements LeaderContender, OnCompletionActions, FatalErrorHandler, AutoCloseableAsync {
 
 	private static final Logger log = LoggerFactory.getLogger(JobManagerRunner.class);
 
@@ -97,9 +98,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	/**
 	 * Exceptions that occur while creating the JobManager or JobManagerRunner are directly
 	 * thrown and not reported to the given {@code FatalErrorHandler}.
-	 *
-	 * <p>This JobManagerRunner assumes that it owns the given {@code JobManagerSharedServices}.
-	 * It will shut them down on error and on calls to {@link #shutdown()}.
 	 *
 	 * @throws Exception Thrown if the runner cannot be set up, because either one of the
 	 *                   required services could not be started, ot the Job could not be initialized.
@@ -214,11 +212,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 		}
 	}
 
-	public void shutdown() throws Exception {
-		shutdownInternally().get();
-	}
-
-	private CompletableFuture<Void> shutdownInternally() {
+	@Override
+	public CompletableFuture<Void> closeAsync() {
 		synchronized (lock) {
 			if (!shutdown) {
 				shutdown = true;
