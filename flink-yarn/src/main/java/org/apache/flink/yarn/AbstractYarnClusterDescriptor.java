@@ -33,6 +33,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -163,7 +164,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		yarnClient.init(yarnConfiguration);
 		yarnClient.start();
 
-		this.flinkConfiguration = Preconditions.checkNotNull(flinkConfiguration);
+		this.flinkConfiguration = new UnmodifiableConfiguration(flinkConfiguration);
 		userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
 
 		this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
@@ -186,7 +187,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	protected abstract String getYarnJobClusterEntrypoint();
 
 	public Configuration getFlinkConfiguration() {
-		return flinkConfiguration;
+		return new UnmodifiableConfiguration(flinkConfiguration);
 	}
 
 	public void setQueue(String queue) {
@@ -362,18 +363,15 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			LOG.info("Found application JobManager host name '{}' and port '{}' from supplied application id '{}'",
 				host, rpcPort, applicationId);
 
-			flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
-			flinkConfiguration.setInteger(JobManagerOptions.PORT, rpcPort);
-
-			flinkConfiguration.setString(RestOptions.REST_ADDRESS, host);
-			flinkConfiguration.setInteger(RestOptions.REST_PORT, rpcPort);
+			final Configuration effectiveConfiguration = new Configuration(flinkConfiguration);
+			setApplicationHostPortInConfig(effectiveConfiguration, appReport);
 
 			return createYarnClusterClient(
 				this,
 				-1, // we don't know the number of task managers of a started Flink cluster
 				-1, // we don't know how many slots each task manager has for a started Flink cluster
 				appReport,
-				flinkConfiguration,
+				effectiveConfiguration,
 				false);
 		} catch (Exception e) {
 			throw new ClusterRetrieveException("Couldn't retrieve Yarn cluster", e);
@@ -437,10 +435,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		checkYarnQueues(yarnClient);
 
+		final Configuration effectiveConfiguration = new Configuration(flinkConfiguration);
+
 		// ------------------ Add dynamic properties to local flinkConfiguraton ------
 		Map<String, String> dynProperties = getDynamicProperties(dynamicPropertiesEncoded);
 		for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
-			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
+			effectiveConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
 		}
 
 		// ------------------ Check if the YARN ClusterClient has the requested resources --------------
@@ -479,25 +479,17 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			ClusterEntrypoint.ExecutionMode.DETACHED
 			: ClusterEntrypoint.ExecutionMode.NORMAL;
 
-		flinkConfiguration.setString(ClusterEntrypoint.EXECUTION_MODE, executionMode.toString());
+		effectiveConfiguration.setString(ClusterEntrypoint.EXECUTION_MODE, executionMode.toString());
 
 		ApplicationReport report = startAppMaster(
-			new Configuration(flinkConfiguration),
+			effectiveConfiguration,
 			yarnClusterEntrypoint,
 			jobGraph,
 			yarnClient,
 			yarnApplication,
 			clusterSpecification);
 
-		String host = report.getHost();
-		int port = report.getRpcPort();
-
-		// Correctly initialize the Flink config
-		flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
-		flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
-
-		flinkConfiguration.setString(RestOptions.REST_ADDRESS, host);
-		flinkConfiguration.setInteger(RestOptions.REST_PORT, port);
+		setApplicationHostPortInConfig(effectiveConfiguration, report);
 
 		// the Flink cluster is deployed in YARN. Represent cluster
 		return createYarnClusterClient(
@@ -505,8 +497,19 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			clusterSpecification.getNumberTaskManagers(),
 			clusterSpecification.getSlotsPerTaskManager(),
 			report,
-			flinkConfiguration,
+			effectiveConfiguration,
 			true);
+	}
+
+	private void setApplicationHostPortInConfig(final Configuration configuration, final ApplicationReport report) {
+		final String host = report.getHost();
+		final int port = report.getRpcPort();
+
+		configuration.setString(JobManagerOptions.ADDRESS, host);
+		configuration.setInteger(JobManagerOptions.PORT, port);
+
+		configuration.setString(RestOptions.REST_ADDRESS, host);
+		configuration.setInteger(RestOptions.REST_PORT, port);
 	}
 
 	protected ClusterSpecification validateClusterResources(
