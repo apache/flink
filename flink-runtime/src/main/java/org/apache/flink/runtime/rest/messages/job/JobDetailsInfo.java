@@ -165,6 +165,54 @@ public class JobDetailsInfo implements ResponseBody {
 		return Objects.hash(jobId, name, isStoppable, jobStatus, startTime, endTime, duration, now, timestamps, jobVertexInfos, jobVerticesPerState, jsonPlan);
 	}
 
+	public JobID getJobId() {
+		return jobId;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public boolean isStoppable() {
+		return isStoppable;
+	}
+
+	public JobStatus getJobStatus() {
+		return jobStatus;
+	}
+
+	public long getStartTime() {
+		return startTime;
+	}
+
+	public long getEndTime() {
+		return endTime;
+	}
+
+	public long getDuration() {
+		return duration;
+	}
+
+	public long getNow() {
+		return now;
+	}
+
+	public Map<JobStatus, Long> getTimestamps() {
+		return timestamps;
+	}
+
+	public Collection<JobVertexDetailsInfo> getJobVertexInfos() {
+		return jobVertexInfos;
+	}
+
+	public Map<ExecutionState, Integer> getJobVerticesPerState() {
+		return jobVerticesPerState;
+	}
+
+	public String getJsonPlan() {
+		return jsonPlan;
+	}
+
 	// ---------------------------------------------------
 	// Static inner classes
 	// ---------------------------------------------------
