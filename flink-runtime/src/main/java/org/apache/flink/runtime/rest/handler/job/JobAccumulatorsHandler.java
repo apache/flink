@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -30,10 +29,9 @@ import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.SerializedValue;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -63,17 +61,10 @@ public class JobAccumulatorsHandler extends AbstractExecutionGraphHandler<JobAcc
 
 	@Override
 	protected JobAccumulatorsInfo handleRequest(HandlerRequest<EmptyRequestBody, JobMessageParameters> request, AccessExecutionGraph graph) throws RestHandlerException {
-		StringifiedAccumulatorResult[] accs = graph.getAccumulatorResultsStringified();
-		List<JobAccumulatorsInfo.UserTaskAccumulator> userTaskAccumulators = new ArrayList<>(accs.length);
+		Map<String, SerializedValue<Object>> serializedAccs = graph.getAccumulatorsSerialized();
 
-		for (StringifiedAccumulatorResult acc : accs) {
-			userTaskAccumulators.add(
-				new JobAccumulatorsInfo.UserTaskAccumulator(
-					acc.getName(),
-					acc.getType(),
-					acc.getValue()));
-		}
+		JobAccumulatorsInfo accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), Collections.emptyList(), serializedAccs);
 
-		return new JobAccumulatorsInfo(Collections.emptyList(), userTaskAccumulators);
+		return accumulatorsInfo;
 	}
 }

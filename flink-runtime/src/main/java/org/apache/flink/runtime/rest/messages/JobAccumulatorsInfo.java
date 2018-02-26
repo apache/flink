@@ -19,12 +19,18 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler;
+import org.apache.flink.runtime.rest.messages.json.SerializedValueDeserializer;
+import org.apache.flink.runtime.rest.messages.json.SerializedValueSerializer;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -33,6 +39,7 @@ import java.util.Objects;
 public class JobAccumulatorsInfo implements ResponseBody {
 	public static final String FIELD_NAME_JOB_ACCUMULATORS = "job-accumulators";
 	public static final String FIELD_NAME_USER_TASK_ACCUMULATORS = "user-task-accumulators";
+	public static final String FIELD_NAME_SERIALIZED_USER_TASK_ACCUMULATORS = "serialized-user-task-accumulators";
 
 	@JsonProperty(FIELD_NAME_JOB_ACCUMULATORS)
 	private List<JobAccumulator> jobAccumulators;
@@ -40,12 +47,22 @@ public class JobAccumulatorsInfo implements ResponseBody {
 	@JsonProperty(FIELD_NAME_USER_TASK_ACCUMULATORS)
 	private List<UserTaskAccumulator> userAccumulators;
 
+	@JsonProperty(FIELD_NAME_SERIALIZED_USER_TASK_ACCUMULATORS)
+	@JsonSerialize(contentUsing = SerializedValueSerializer.class)
+	private Map<String, SerializedValue<Object>> serializedUserAccumulators;
+
 	@JsonCreator
 	public JobAccumulatorsInfo(
 			@JsonProperty(FIELD_NAME_JOB_ACCUMULATORS) List<JobAccumulator> jobAccumulators,
-			@JsonProperty(FIELD_NAME_USER_TASK_ACCUMULATORS) List<UserTaskAccumulator> userAccumulators) {
+			@JsonProperty(FIELD_NAME_USER_TASK_ACCUMULATORS) List<UserTaskAccumulator> userAccumulators,
+			@JsonDeserialize(contentUsing = SerializedValueDeserializer.class) @JsonProperty(FIELD_NAME_SERIALIZED_USER_TASK_ACCUMULATORS) Map<String, SerializedValue<Object>> serializedUserAccumulators) {
 		this.jobAccumulators = Preconditions.checkNotNull(jobAccumulators);
 		this.userAccumulators = Preconditions.checkNotNull(userAccumulators);
+		this.serializedUserAccumulators = Preconditions.checkNotNull(serializedUserAccumulators);
+	}
+
+	public Map<String, SerializedValue<Object>> getSerializedUserAccumulators() {
+		return serializedUserAccumulators;
 	}
 
 	@Override

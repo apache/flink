@@ -788,6 +788,33 @@ public abstract class ClusterClient<T> {
 		}
 	}
 
+	/**
+	 * Requests and returns the serialized accumulators for the given job identifier. Accumulators can be
+	 * requested while a is running or after it has finished.
+	 * @param jobID The job identifier of a job.
+	 * @return A Map containing the accumulator's key and its serialized value.
+	 */
+	public Map<String, SerializedValue<Object>> getSerializedAccumulators(final JobID jobID) throws Exception {
+		ActorGateway jobManagerGateway = getJobManagerGateway();
+
+		Future<Object> response;
+		try {
+			response = jobManagerGateway.ask(new RequestAccumulatorResults(jobID), timeout);
+		} catch (Exception e) {
+			throw new Exception("Failed to query the job manager gateway for accumulators.", e);
+		}
+
+		Object result = Await.result(response, timeout);
+
+		if (result instanceof AccumulatorResultsFound) {
+				return ((AccumulatorResultsFound) result).result();
+		} else if (result instanceof AccumulatorResultsErroneous) {
+			throw ((AccumulatorResultsErroneous) result).cause();
+		} else {
+			throw new Exception("Failed to fetch accumulators for the job " + jobID + ".");
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Sessions
 	// ------------------------------------------------------------------------

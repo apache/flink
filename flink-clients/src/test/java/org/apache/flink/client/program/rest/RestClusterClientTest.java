@@ -104,6 +104,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -542,7 +543,7 @@ public class RestClusterClientTest extends TestLogger {
 	}
 
 	@Test
-	public void testGetAccumulators() throws Exception {
+	public void testGetSerializedAccumulators() throws Exception {
 		TestAccumulatorHandlers accumulatorHandlers = new TestAccumulatorHandlers();
 		TestAccumulatorHandlers.TestAccumulatorHandler accumulatorHandler = accumulatorHandlers.new TestAccumulatorHandler();
 
@@ -551,17 +552,15 @@ public class RestClusterClientTest extends TestLogger {
 			JobID id = new JobID();
 
 			{
-				Map<String, Object> accumulators = restClusterClient.getAccumulators(id);
-				assertNotNull(accumulators);
-				assertEquals(2, accumulators.size());
+				Map<String, SerializedValue<Object>> serializedUserTaskAccumulators = restClusterClient.getSerializedAccumulators(id);
+				assertNotNull(serializedUserTaskAccumulators);
+				assertEquals(1, serializedUserTaskAccumulators.size());
 
-				List<JobAccumulatorsInfo.JobAccumulator> jobAccumulators = (List) accumulators.get(JobAccumulatorsInfo.FIELD_NAME_JOB_ACCUMULATORS);
-
-				assertEquals(0, jobAccumulators.size());
-
-				List<JobAccumulatorsInfo.UserTaskAccumulator> userTaskAccumulators = (List) accumulators.get(JobAccumulatorsInfo.FIELD_NAME_USER_TASK_ACCUMULATORS);
-
-				assertEquals(1, userTaskAccumulators.size());
+				assertEquals(true, serializedUserTaskAccumulators.containsKey("testKey"));
+				assertEquals(
+					"testValue",
+					serializedUserTaskAccumulators.get("testKey").deserializeValue(Thread.currentThread().getContextClassLoader()).toString()
+				);
 			}
 		}
 	}
@@ -578,10 +577,13 @@ public class RestClusterClientTest extends TestLogger {
 			protected CompletableFuture<JobAccumulatorsInfo> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody,
 				JobMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
 				List<JobAccumulatorsInfo.JobAccumulator> jobAccumulators = Collections.emptyList();
-				List<JobAccumulatorsInfo.UserTaskAccumulator> userTaskAccumulators = new ArrayList<JobAccumulatorsInfo.UserTaskAccumulator>() {{
-					this.add(new JobAccumulatorsInfo.UserTaskAccumulator("testName", "testType", "testValue"));
-				}};
-				JobAccumulatorsInfo accumulatorsInfo = new JobAccumulatorsInfo(jobAccumulators, userTaskAccumulators);
+				Map<String, SerializedValue<Object>> serializedUserTaskAccumulators = new HashMap<>(1);
+				try {
+					serializedUserTaskAccumulators.put("testKey", new SerializedValue<>("testValue"));
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+				JobAccumulatorsInfo accumulatorsInfo = new JobAccumulatorsInfo(jobAccumulators, Collections.emptyList(), serializedUserTaskAccumulators);
 
 				return CompletableFuture.completedFuture(accumulatorsInfo);
 			}

@@ -84,9 +84,9 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.CheckedSupplier;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 
 import akka.actor.AddressFromURIString;
@@ -368,7 +368,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	}
 
 	@Override
-	public Map<String, Object> getAccumulators(final JobID jobID) throws Exception {
+	public Map<String, SerializedValue<Object>> getSerializedAccumulators(final JobID jobID) throws Exception {
 		final JobAccumulatorsHeaders accumulatorsHeaders = JobAccumulatorsHeaders.getInstance();
 		final JobMessageParameters  params = new JobMessageParameters();
 		params.jobPathParameter.resolve(jobID);
@@ -378,13 +378,12 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			params
 		);
 
-		return responseFuture.thenApply((accumulatorsInfo) -> {
+		return responseFuture.thenApply((JobAccumulatorsInfo accumulatorsInfo) -> {
 			if (accumulatorsInfo != null) {
-				ObjectMapper objectMapper = new ObjectMapper();
-				return objectMapper.convertValue(accumulatorsInfo, Map.class);
+				return accumulatorsInfo.getSerializedUserAccumulators();
 			}
 
-			return Collections.emptyMap();
+			return Collections.EMPTY_MAP;
 		}).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
