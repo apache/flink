@@ -51,6 +51,7 @@ function kafka_cleanup {
   # make sure to run regular cleanup as well
   cleanup
 }
+trap kafka_cleanup INT
 trap kafka_cleanup EXIT
 
 # zookeeper outputs the "Node does not exist" bit to stderr
