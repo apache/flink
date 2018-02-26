@@ -53,7 +53,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.Tasks;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.RegistrationMessages;
@@ -1529,7 +1529,7 @@ public class TaskManagerTest extends TestLogger {
 	public void testTerminationOnFatalError() {
 		highAvailabilityServices.setJobMasterLeaderRetriever(
 			HighAvailabilityServices.DEFAULT_JOB_ID,
-			new TestingLeaderRetrievalService());
+			new SettableLeaderRetrievalService());
 
 		new JavaTestKit(system){{
 

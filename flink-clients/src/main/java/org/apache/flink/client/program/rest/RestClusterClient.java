@@ -142,11 +142,29 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			config,
 			null,
 			clusterId,
-			new ExponentialWaitStrategy(10L, 2000L));
+			new ExponentialWaitStrategy(10L, 2000L),
+			null);
+	}
+
+	public RestClusterClient(
+			Configuration config,
+			T clusterId,
+			LeaderRetrievalService webMonitorRetrievalService) throws Exception {
+		this(
+			config,
+			null,
+			clusterId,
+			new ExponentialWaitStrategy(10L, 2000L),
+			webMonitorRetrievalService);
 	}
 
 	@VisibleForTesting
-	RestClusterClient(Configuration configuration, @Nullable RestClient restClient, T clusterId, WaitStrategy waitStrategy) throws Exception {
+	RestClusterClient(
+			Configuration configuration,
+			@Nullable RestClient restClient,
+			T clusterId,
+			WaitStrategy waitStrategy,
+			@Nullable LeaderRetrievalService webMonitorRetrievalService) throws Exception {
 		super(configuration);
 		this.restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(configuration);
 
@@ -159,7 +177,11 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		this.waitStrategy = Preconditions.checkNotNull(waitStrategy);
 		this.clusterId = Preconditions.checkNotNull(clusterId);
 
-		this.webMonitorRetrievalService = highAvailabilityServices.getWebMonitorLeaderRetriever();
+		if (webMonitorRetrievalService == null) {
+			this.webMonitorRetrievalService = highAvailabilityServices.getWebMonitorLeaderRetriever();
+		} else {
+			this.webMonitorRetrievalService = webMonitorRetrievalService;
+		}
 		this.dispatcherRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
 		this.retryExecutorService = Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("Flink-RestClusterClient-Retry"));
 		startLeaderRetrievers();

@@ -45,7 +45,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -113,7 +113,7 @@ public class JobMasterTest extends TestLogger {
 
 	private TestingHighAvailabilityServices haServices;
 
-	private TestingLeaderRetrievalService rmLeaderRetrievalService;
+	private SettableLeaderRetrievalService rmLeaderRetrievalService;
 
 	private TestingFatalErrorHandler testingFatalErrorHandler;
 
@@ -135,7 +135,7 @@ public class JobMasterTest extends TestLogger {
 
 		haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
 
-		rmLeaderRetrievalService = new TestingLeaderRetrievalService(
+		rmLeaderRetrievalService = new SettableLeaderRetrievalService(
 			null,
 			null);
 		haServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);

@@ -50,8 +50,8 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -213,7 +213,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 
 				highAvailabilityServices.setJobMasterLeaderRetriever(
 					HighAvailabilityServices.DEFAULT_JOB_ID,
-					new TestingLeaderRetrievalService(
+					new SettableLeaderRetrievalService(
 						jobManager.path(),
 						HighAvailabilityServices.DEFAULT_LEADER_ID));
 
