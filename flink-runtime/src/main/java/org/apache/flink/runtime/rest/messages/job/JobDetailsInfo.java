@@ -50,7 +50,7 @@ public class JobDetailsInfo implements ResponseBody {
 
 	public static final String FIELD_NAME_JOB_NAME = "name";
 
-	public static final String FIELD_NAME_IS_STOPPABLE = "isStoppable";
+	public static final String FIELD_NAME_IS_STOPPABLE = "stoppable";
 
 	public static final String FIELD_NAME_JOB_STATUS = "state";
 
