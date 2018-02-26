@@ -987,7 +987,7 @@ public abstract class ClusterClient<T> {
 	 * @param jobGraph The JobGraph to be submitted
 	 * @return JobSubmissionResult
 	 */
-	protected abstract JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
+	public abstract JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
 		throws ProgramInvocationException;
 
 	/**
