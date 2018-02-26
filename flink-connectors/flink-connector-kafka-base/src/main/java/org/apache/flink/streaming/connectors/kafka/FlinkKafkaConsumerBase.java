@@ -506,7 +506,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			switch (startupMode) {
 				case SPECIFIC_OFFSETS:
 					if (specificStartupOffsets == null) {
-						throw new IllegalArgumentException(
+						throw new IllegalStateException(
 							"Startup mode for the consumer set to " + StartupMode.SPECIFIC_OFFSETS +
 								", but no specific offsets were specified.");
 					}
@@ -527,7 +527,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					break;
 				case TIMESTAMP:
 					if (startupOffsetsTimestamp == null) {
-						throw new IllegalArgumentException(
+						throw new IllegalStateException(
 							"Startup mode for the consumer set to " + StartupMode.TIMESTAMP +
 								", but no startup timestamp was specified.");
 					}
@@ -798,7 +798,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			oldRoundRobinListState.clear();
 
 			if (restoredFromOldState && discoveryIntervalMillis != PARTITION_DISCOVERY_DISABLED) {
-				throw new IllegalArgumentException(
+				throw new IllegalStateException(
 					"Topic / partition discovery cannot be enabled if the job is restored from a savepoint from Flink 1.2.x.");
 			}
 
