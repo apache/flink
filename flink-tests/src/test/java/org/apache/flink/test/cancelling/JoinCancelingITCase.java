@@ -34,15 +34,10 @@ import org.apache.flink.test.util.UniformIntTupleGeneratorInputFormat;
  * Test job cancellation from within a JoinFunction.
  */
 public class JoinCancelingITCase extends CancelingTestBase {
-	private static final int parallelism = 4;
-
-	public JoinCancelingITCase() {
-		setTaskManagerNumSlots(parallelism);
-	}
 
 	// --------------- Test Sort Matches that are canceled while still reading / sorting -----------------
 	private void executeTask(JoinFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> joiner, boolean slow) throws Exception {
-		executeTask(joiner, slow, parallelism);
+		executeTask(joiner, slow, PARALLELISM);
 	}
 
 	private void executeTask(JoinFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> joiner, boolean slow, int parallelism) throws Exception {
@@ -90,7 +85,7 @@ public class JoinCancelingITCase extends CancelingTestBase {
 				.with(joiner)
 				.output(new DiscardingOutputFormat<Tuple2<Integer, Integer>>());
 
-		env.setParallelism(parallelism);
+		env.setParallelism(PARALLELISM);
 
 		runAndCancelJob(env.createProgramPlan(), msecsTillCanceling, maxTimeTillCanceled);
 	}
