@@ -95,7 +95,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 	private final MigrationVersion testMigrateVersion;
 	private final String testStateBackend;
 
-	public StatefulJobSavepointMigrationITCase(Tuple2<MigrationVersion, String> testMigrateVersionAndBackend) {
+	public StatefulJobSavepointMigrationITCase(Tuple2<MigrationVersion, String> testMigrateVersionAndBackend) throws Exception {
 		this.testMigrateVersion = testMigrateVersionAndBackend.f0;
 		this.testStateBackend = testMigrateVersionAndBackend.f1;
 	}
