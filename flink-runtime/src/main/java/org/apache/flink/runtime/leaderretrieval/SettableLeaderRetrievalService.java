@@ -20,6 +20,8 @@ package org.apache.flink.runtime.leaderretrieval;
 
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.UUID;
 
 /**
@@ -37,7 +39,9 @@ public class SettableLeaderRetrievalService implements LeaderRetrievalService {
 		this(null, null);
 	}
 
-	public SettableLeaderRetrievalService(String leaderAddress, UUID leaderSessionID) {
+	public SettableLeaderRetrievalService(
+			@Nullable String leaderAddress,
+			@Nullable UUID leaderSessionID) {
 		this.leaderAddress = leaderAddress;
 		this.leaderSessionID = leaderSessionID;
 	}
@@ -56,7 +60,9 @@ public class SettableLeaderRetrievalService implements LeaderRetrievalService {
 
 	}
 
-	public synchronized void notifyListener(String address, UUID leaderSessionID) {
+	public synchronized void notifyListener(
+			@Nullable String address,
+			@Nullable UUID leaderSessionID) {
 		this.leaderAddress = address;
 		this.leaderSessionID = leaderSessionID;
 

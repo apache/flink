@@ -20,6 +20,7 @@ package org.apache.flink.runtime.leaderretrieval;
 
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingListener;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -30,7 +31,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link SettableLeaderRetrievalService}.
  */
-public class SettableLeaderRetrievalServiceTest {
+public class SettableLeaderRetrievalServiceTest extends TestLogger {
 
 	private SettableLeaderRetrievalService settableLeaderRetrievalService;
 
