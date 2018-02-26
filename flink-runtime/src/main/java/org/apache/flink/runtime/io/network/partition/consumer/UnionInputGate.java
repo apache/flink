@@ -38,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * Input gate wrapper to union the input from multiple input gates.
  *
- * <p> Each input gate has input channels attached from which it reads data. At each input gate, the
+ * <p>Each input gate has input channels attached from which it reads data. At each input gate, the
  * input channels have unique IDs from 0 (inclusive) to the number of input channels (exclusive).
  *
  * <pre>
@@ -49,7 +49,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * +--------------+--------------+
  * </pre>
  *
- * The union input gate maps these IDs from 0 to the *total* number of input channels across all
+ * <p>The union input gate maps these IDs from 0 to the *total* number of input channels across all
  * unioned input gates, e.g. the channels of input gate 0 keep their original indexes and the
  * channel indexes of input gate 1 are set off by 2 to 2--4.
  *
@@ -183,11 +183,11 @@ public class UnionInputGate implements InputGate, InputGateListener {
 		bufferOrEvent.setChannelIndex(channelIndexOffset + bufferOrEvent.getChannelIndex());
 		bufferOrEvent.setMoreAvailable(bufferOrEvent.moreAvailable() || inputGateWithData.moreInputGatesAvailable);
 
-		return Optional.ofNullable(bufferOrEvent);
+		return Optional.of(bufferOrEvent);
 	}
 
 	@Override
-	public Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException {
+	public Optional<BufferOrEvent> pollNextBufferOrEvent() throws UnsupportedOperationException {
 		throw new UnsupportedOperationException();
 	}
 
@@ -217,7 +217,7 @@ public class UnionInputGate implements InputGate, InputGateListener {
 		private final BufferOrEvent bufferOrEvent;
 		private final boolean moreInputGatesAvailable;
 
-		public InputGateWithData(InputGate inputGate, BufferOrEvent bufferOrEvent, boolean moreInputGatesAvailable) {
+		InputGateWithData(InputGate inputGate, BufferOrEvent bufferOrEvent, boolean moreInputGatesAvailable) {
 			this.inputGate = checkNotNull(inputGate);
 			this.bufferOrEvent = checkNotNull(bufferOrEvent);
 			this.moreInputGatesAvailable = moreInputGatesAvailable;
