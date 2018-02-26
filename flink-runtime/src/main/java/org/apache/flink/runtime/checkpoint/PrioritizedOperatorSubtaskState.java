@@ -27,7 +27,6 @@ import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.function.BiFunction;
 
@@ -79,39 +78,39 @@ public class PrioritizedOperatorSubtaskState {
 	// -----------------------------------------------------------------------------------------------------------------
 
 	/**
-	 * Returns an iterator over all alternative snapshots to restore the managed operator state, in the order in which
-	 * we should attempt to restore.
+	 * Returns an immutable list with all alternative snapshots to restore the managed operator state, in the order in
+	 * which we should attempt to restore.
 	 */
 	@Nonnull
-	public Iterator<StateObjectCollection<OperatorStateHandle>> getPrioritizedManagedOperatorState() {
-		return prioritizedManagedOperatorState.iterator();
+	public List<StateObjectCollection<OperatorStateHandle>> getPrioritizedManagedOperatorState() {
+		return prioritizedManagedOperatorState;
 	}
 
 	/**
-	 * Returns an iterator over all alternative snapshots to restore the raw operator state, in the order in which we
-	 * should attempt to restore.
+	 * Returns an immutable list with all alternative snapshots to restore the raw operator state, in the order in
+	 * which we should attempt to restore.
 	 */
 	@Nonnull
-	public Iterator<StateObjectCollection<OperatorStateHandle>> getPrioritizedRawOperatorState() {
-		return prioritizedRawOperatorState.iterator();
+	public List<StateObjectCollection<OperatorStateHandle>> getPrioritizedRawOperatorState() {
+		return prioritizedRawOperatorState;
 	}
 
 	/**
-	 * Returns an iterator over all alternative snapshots to restore the managed keyed state, in the order in which we
-	 * should attempt to restore.
+	 * Returns an immutable list with all alternative snapshots to restore the managed keyed state, in the order in
+	 * which we should attempt to restore.
 	 */
 	@Nonnull
-	public Iterator<StateObjectCollection<KeyedStateHandle>> getPrioritizedManagedKeyedState() {
-		return prioritizedManagedKeyedState.iterator();
+	public List<StateObjectCollection<KeyedStateHandle>> getPrioritizedManagedKeyedState() {
+		return prioritizedManagedKeyedState;
 	}
 
 	/**
-	 * Returns an iterator over all alternative snapshots to restore the raw keyed state, in the order in which we
+	 * Returns an immutable list with all alternative snapshots to restore the raw keyed state, in the order in which we
 	 * should attempt to restore.
 	 */
 	@Nonnull
-	public Iterator<StateObjectCollection<KeyedStateHandle>> getPrioritizedRawKeyedState() {
-		return prioritizedRawKeyedState.iterator();
+	public List<StateObjectCollection<KeyedStateHandle>> getPrioritizedRawKeyedState() {
+		return prioritizedRawKeyedState;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------

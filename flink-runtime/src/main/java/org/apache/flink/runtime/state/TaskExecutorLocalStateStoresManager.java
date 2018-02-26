@@ -110,37 +110,67 @@ public class TaskExecutorLocalStateStoresManager {
 					"register a new TaskLocalStateStore.");
 			}
 
-			final Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl> taskStateManagers =
-				this.taskStateStoresByAllocationID.computeIfAbsent(allocationID, k -> new HashMap<>());
+			Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl> taskStateManagers =
+				this.taskStateStoresByAllocationID.get(allocationID);
+
+			if (taskStateManagers == null) {
+				taskStateManagers = new HashMap<>();
+				this.taskStateStoresByAllocationID.put(allocationID, taskStateManagers);
+
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Registered new allocation id {} for local state stores for job {}.",
+						allocationID, jobId);
+				}
+			}
 
 			final JobVertexSubtaskKey taskKey = new JobVertexSubtaskKey(jobVertexID, subtaskIndex);
 
-			// create the allocation base dirs, one inside each root dir.
-			File[] allocationBaseDirectories = allocationBaseDirectories(allocationID);
+			TaskLocalStateStoreImpl taskLocalStateStore = taskStateManagers.get(taskKey);
 
-			LocalRecoveryDirectoryProviderImpl directoryProvider = new LocalRecoveryDirectoryProviderImpl(
-				allocationBaseDirectories,
-				jobId,
-				jobVertexID,
-				subtaskIndex);
+			if (taskLocalStateStore == null) {
 
-			LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(
-				localRecoveryMode,
-				directoryProvider);
+				// create the allocation base dirs, one inside each root dir.
+				File[] allocationBaseDirectories = allocationBaseDirectories(allocationID);
 
-			return taskStateManagers.computeIfAbsent(
-				taskKey,
-				k -> new TaskLocalStateStoreImpl(
+				LocalRecoveryDirectoryProviderImpl directoryProvider = new LocalRecoveryDirectoryProviderImpl(
+					allocationBaseDirectories,
+					jobId,
+					jobVertexID,
+					subtaskIndex);
+
+				LocalRecoveryConfig localRecoveryConfig =
+					new LocalRecoveryConfig(localRecoveryMode, directoryProvider);
+
+				taskLocalStateStore = new TaskLocalStateStoreImpl(
 					jobId,
 					allocationID,
 					jobVertexID,
 					subtaskIndex,
 					localRecoveryConfig,
-					discardExecutor));
+					discardExecutor);
+
+				taskStateManagers.put(taskKey, taskLocalStateStore);
+
+				if (LOG.isTraceEnabled()) {
+					LOG.trace("Registered new local state store with configuration {} for {} - {} - {} under allocation id {}.",
+						localRecoveryConfig, jobId, jobVertexID, subtaskIndex, allocationID);
+				}
+			} else {
+				if (LOG.isTraceEnabled()) {
+					LOG.trace("Found existing local state store for {} - {} - {} under allocation id {}.",
+						jobId, jobVertexID, subtaskIndex, allocationID);
+				}
+			}
+
+			return taskLocalStateStore;
 		}
 	}
 
 	public void releaseLocalStateForAllocationId(@Nonnull AllocationID allocationID) {
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Releasing local state under allocation id {}.", allocationID);
+		}
 
 		Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl> cleanupLocalStores;
 
@@ -175,7 +205,7 @@ public class TaskExecutorLocalStateStoresManager {
 
 		ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 
-		LOG.debug("Shutting down TaskExecutorLocalStateStoresManager.");
+		LOG.info("Shutting down TaskExecutorLocalStateStoresManager.");
 
 		for (Map.Entry<AllocationID, Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl>> entry :
 			toRelease.entrySet()) {
@@ -217,7 +247,7 @@ public class TaskExecutorLocalStateStoresManager {
 				try {
 					stateStore.dispose();
 				} catch (Exception disposeEx) {
-					LOG.warn("Exception while disposing local state store " + stateStore, disposeEx);
+					LOG.warn("Exception while disposing local state store {}.", stateStore, disposeEx);
 				}
 			}
 		}
@@ -233,7 +263,7 @@ public class TaskExecutorLocalStateStoresManager {
 			try {
 				FileUtils.deleteFileOrDirectory(directory);
 			} catch (IOException e) {
-				LOG.warn("Exception while deleting local state directory for allocation " + allocationID, e);
+				LOG.warn("Exception while deleting local state directory for allocation id {}.", allocationID, e);
 			}
 		}
 	}

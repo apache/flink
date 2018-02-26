@@ -142,7 +142,7 @@ public class TaskStateManagerImplTest extends TestLogger {
 
 		// checks for operator 1.
 		Iterator<StateObjectCollection<KeyedStateHandle>> prioritizedManagedKeyedState_1 =
-			prioritized_1.getPrioritizedManagedKeyedState();
+			prioritized_1.getPrioritizedManagedKeyedState().iterator();
 
 		Assert.assertTrue(prioritizedManagedKeyedState_1.hasNext());
 		StateObjectCollection<KeyedStateHandle> current = prioritizedManagedKeyedState_1.next();
@@ -158,7 +158,7 @@ public class TaskStateManagerImplTest extends TestLogger {
 
 		// checks for operator 2.
 		Iterator<StateObjectCollection<KeyedStateHandle>> prioritizedRawKeyedState_2 =
-			prioritized_2.getPrioritizedRawKeyedState();
+			prioritized_2.getPrioritizedRawKeyedState().iterator();
 
 		Assert.assertTrue(prioritizedRawKeyedState_2.hasNext());
 		current = prioritizedRawKeyedState_2.next();
