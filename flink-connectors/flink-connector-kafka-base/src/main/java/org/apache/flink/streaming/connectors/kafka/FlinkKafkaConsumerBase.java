@@ -339,7 +339,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * Specifies the consumer to start reading from the earliest offset for all partitions.
 	 * This lets the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
 	 *
-	 * <p>This method does not effect where partitions are read from when the consumer is restored
+	 * <p>This method does not affect where partitions are read from when the consumer is restored
 	 * from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
 	 * savepoint, only the offsets in the restored state will be used.
 	 *
@@ -356,7 +356,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * Specifies the consumer to start reading from the latest offset for all partitions.
 	 * This lets the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
 	 *
-	 * <p>This method does not effect where partitions are read from when the consumer is restored
+	 * <p>This method does not affect where partitions are read from when the consumer is restored
 	 * from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
 	 * savepoint, only the offsets in the restored state will be used.
 	 *
@@ -378,9 +378,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * to the specific timestamp from Kafka. If there's no such offset, the consumer will use the
 	 * latest offset to read data from kafka.
 	 *
-	 * <p>This method does not effect where partitions are read from when the consumer is restored
+	 * <p>This method does not affect where partitions are read from when the consumer is restored
 	 * from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
 	 * savepoint, only the offsets in the restored state will be used.
+	 *
+	 * @param startupOffsetsTimestamp timestamp for the startup offsets, as milliseconds from epoch.
 	 *
 	 * @return The consumer object, to allow function chaining.
 	 */
@@ -389,11 +391,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	// However, it is not publicly exposed since only newer Kafka versions support the functionality.
 	// Version-specific subclasses which can expose the functionality should override and allow public access.
 	protected FlinkKafkaConsumerBase<T> setStartFromTimestamp(long startupOffsetsTimestamp) {
-		checkNotNull(startupOffsetsTimestamp, "startupOffsetsTimestamp");
+		checkArgument(startupOffsetsTimestamp >= 0, "The provided value for the startup offsets timestamp is invalid.");
 
 		long currentTimestamp = System.currentTimeMillis();
 		checkArgument(startupOffsetsTimestamp <= currentTimestamp,
-			"Startup time[" + startupOffsetsTimestamp + "] must be before current time[" + currentTimestamp + "].");
+			"Startup time[%s] must be before current time[%s].", startupOffsetsTimestamp, currentTimestamp);
 
 		this.startupMode = StartupMode.TIMESTAMP;
 		this.startupOffsetsTimestamp = startupOffsetsTimestamp;
@@ -407,7 +409,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * properties. If no offset can be found for a partition, the behaviour in "auto.offset.reset"
 	 * set in the configuration properties will be used for the partition.
 	 *
-	 * <p>This method does not effect where partitions are read from when the consumer is restored
+	 * <p>This method does not affect where partitions are read from when the consumer is restored
 	 * from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
 	 * savepoint, only the offsets in the restored state will be used.
 	 *
@@ -434,7 +436,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * offsets but still no group offset could be found for it, then the "auto.offset.reset" behaviour set in the
 	 * configuration properties will be used for the partition
 	 *
-	 * <p>This method does not effect where partitions are read from when the consumer is restored
+	 * <p>This method does not affect where partitions are read from when the consumer is restored
 	 * from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
 	 * savepoint, only the offsets in the restored state will be used.
 	 *
