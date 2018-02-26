@@ -150,10 +150,20 @@ public class AvroKeyValueSinkWriter<K, V> extends StreamWriterBase<Tuple2<K, V>>
 	public void open(FileSystem fs, Path path) throws IOException {
 		super.open(fs, path);
 
-		CodecFactory compressionCodec = getCompressionCodec(properties);
-		Schema keySchema = Schema.parse(properties.get(CONF_OUTPUT_KEY_SCHEMA));
-		Schema valueSchema = Schema.parse(properties.get(CONF_OUTPUT_VALUE_SCHEMA));
-		keyValueWriter = new AvroKeyValueWriter<K, V>(keySchema, valueSchema, compressionCodec, getStream());
+		try {
+			CodecFactory compressionCodec = getCompressionCodec(properties);
+			Schema keySchema = Schema.parse(properties.get(CONF_OUTPUT_KEY_SCHEMA));
+			Schema valueSchema = Schema.parse(properties.get(CONF_OUTPUT_VALUE_SCHEMA));
+			keyValueWriter = new AvroKeyValueWriter<K, V>(
+				keySchema,
+				valueSchema,
+				compressionCodec,
+				getStream());
+		} finally {
+			if (keyValueWriter == null) {
+				close();
+			}
+		}
 	}
 
 	@Override
