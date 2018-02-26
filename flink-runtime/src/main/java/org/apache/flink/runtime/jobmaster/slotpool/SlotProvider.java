@@ -19,16 +19,15 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import javax.annotation.Nullable;
 
-import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -57,7 +56,7 @@ public interface SlotProvider {
 		SlotRequestId slotRequestId,
 		ScheduledUnit task,
 		boolean allowQueued,
-		Collection<TaskManagerLocation> preferredLocations,
+		SlotProfile slotProfile,
 		Time timeout);
 
 	/**
@@ -65,20 +64,20 @@ public interface SlotProvider {
 	 *
 	 * @param task The task to allocate the slot for
 	 * @param allowQueued Whether allow the task be queued if we do not have enough resource
-	 * @param preferredLocations preferred locations for the slot allocation
+	 * @param slotProfile profile of the requested slot
 	 * @param timeout after which the allocation fails with a timeout exception
 	 * @return The future of the allocation
 	 */
 	default CompletableFuture<LogicalSlot> allocateSlot(
 		ScheduledUnit task,
 		boolean allowQueued,
-		Collection<TaskManagerLocation> preferredLocations,
+		SlotProfile slotProfile,
 		Time timeout) {
 		return allocateSlot(
 			new SlotRequestId(),
 			task,
 			allowQueued,
-			preferredLocations,
+			slotProfile,
 			timeout);
 	}
 
