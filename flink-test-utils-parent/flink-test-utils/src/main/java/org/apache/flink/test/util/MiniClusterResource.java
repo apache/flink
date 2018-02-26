@@ -19,11 +19,16 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.StandaloneClusterClient;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.minicluster.JobExecutorService;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
@@ -62,6 +67,8 @@ public class MiniClusterResource extends ExternalResource {
 
 	private TestEnvironment executionEnvironment;
 
+	private ClusterClient<?> clusterClient;
+
 	public MiniClusterResource(final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
 		this(
 			miniClusterResourceConfiguration,
@@ -75,6 +82,10 @@ public class MiniClusterResource extends ExternalResource {
 		this.miniClusterType = Preconditions.checkNotNull(miniClusterType);
 	}
 
+	public ClusterClient getClusterClient() {
+		return clusterClient;
+	}
+
 	public int getNumberSlots() {
 		return numberSlots;
 	}
@@ -86,7 +97,7 @@ public class MiniClusterResource extends ExternalResource {
 	@Override
 	public void before() throws Exception {
 
-		jobExecutorService = startJobExecutorService(miniClusterType);
+		startJobExecutorService(miniClusterType);
 
 		numberSlots = miniClusterResourceConfiguration.getNumberSlotsPerTaskManager() * miniClusterResourceConfiguration.getNumberTaskManagers();
 
@@ -112,36 +123,46 @@ public class MiniClusterResource extends ExternalResource {
 		}
 
 		jobExecutorService = null;
+
+		try {
+			clusterClient.shutdown();
+		} catch (Exception e) {
+			throw new RuntimeException("Could not shutdown Cluster Client.", e);
+		}
+
+		clusterClient = null;
 	}
 
-	private JobExecutorService startJobExecutorService(MiniClusterType miniClusterType) throws Exception {
-		final JobExecutorService jobExecutorService;
+	private void startJobExecutorService(MiniClusterType miniClusterType) throws Exception {
 		switch (miniClusterType) {
 			case OLD:
-				jobExecutorService = startOldMiniCluster();
+				startOldMiniCluster();
 				break;
 			case FLIP6:
-				jobExecutorService = startFlip6MiniCluster();
+				startFlip6MiniCluster();
 				break;
 			default:
 				throw new FlinkRuntimeException("Unknown MiniClusterType "  + miniClusterType + '.');
 		}
-
-		return jobExecutorService;
 	}
 
-	private JobExecutorService startOldMiniCluster() throws Exception {
+	private void startOldMiniCluster() throws Exception {
 		final Configuration configuration = new Configuration(miniClusterResourceConfiguration.getConfiguration());
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, miniClusterResourceConfiguration.getNumberTaskManagers());
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, miniClusterResourceConfiguration.getNumberSlotsPerTaskManager());
 
-		return TestBaseUtils.startCluster(
+		LocalFlinkMiniCluster localFlinkMiniCluster = TestBaseUtils.startCluster(
 			configuration,
-			true);
+			false);
+
+		jobExecutorService = localFlinkMiniCluster;
+
+		clusterClient = new StandaloneClusterClient(
+			localFlinkMiniCluster.configuration(), localFlinkMiniCluster.highAvailabilityServices());
 	}
 
 	@Nonnull
-	private JobExecutorService startFlip6MiniCluster() throws Exception {
+	private void startFlip6MiniCluster() throws Exception {
 		final Configuration configuration = miniClusterResourceConfiguration.getConfiguration();
 
 		// set rest port to 0 to avoid clashes with concurrent MiniClusters
@@ -160,7 +181,11 @@ public class MiniClusterResource extends ExternalResource {
 		// update the port of the rest endpoint
 		configuration.setInteger(RestOptions.REST_PORT, miniCluster.getRestAddress().getPort());
 
-		return miniCluster;
+		jobExecutorService = miniCluster;
+
+		configuration.setString(JobManagerOptions.ADDRESS, miniClusterConfiguration.getJobManagerBindAddress());
+
+		clusterClient = new RestClusterClient<>(configuration, "Testing Mini Cluster");
 	}
 
 	/**
