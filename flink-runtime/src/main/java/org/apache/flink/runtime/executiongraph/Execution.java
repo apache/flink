@@ -28,6 +28,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
@@ -468,8 +470,16 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					new ScheduledUnit(this, slotSharingGroupId) :
 					new ScheduledUnit(this, slotSharingGroupId, locationConstraint);
 
+			// try to extract previous allocation ids, if applicable, so that we can reschedule to the same slot
+			ExecutionVertex executionVertex = getVertex();
+			AllocationID lastAllocation = executionVertex.getLatestPriorAllocation();
+
+			Collection<AllocationID> previousAllocationIDs =
+				lastAllocation != null ? Collections.singletonList(lastAllocation) : Collections.emptyList();
+
 			// calculate the preferred locations
-			final CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture = calculatePreferredLocations(locationPreferenceConstraint);
+			final CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture =
+				calculatePreferredLocations(locationPreferenceConstraint);
 
 			final SlotRequestId slotRequestId = new SlotRequestId();
 
@@ -480,7 +490,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 							slotRequestId,
 							toSchedule,
 							queued,
-							preferredLocations,
+							new SlotProfile(
+								ResourceProfile.UNKNOWN,
+								preferredLocations,
+								previousAllocationIDs),
 							allocationTimeout));
 
 			// register call back to cancel slot request in case that the execution gets canceled

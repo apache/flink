@@ -28,9 +28,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
@@ -1401,16 +1399,23 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			}
 
 			SlotProfile.ProfileToSlotContextMatcher matcher = slotProfile.matcher();
+			Collection<SlotAndTimestamp> slotAndTimestamps = availableSlots.values();
 
-			return matcher.findMatchWithLocality(
-				availableSlots.values().stream(),
+			SlotAndLocality matchingSlotAndLocality = matcher.findMatchWithLocality(
+				slotAndTimestamps.stream(),
 				SlotAndTimestamp::slot,
-				(slot) -> slot.slot().getResourceProfile().isMatching(slotProfile.getResourceProfile()),
-				((slotAndTimestamp, locality) -> {
+				(SlotAndTimestamp slot) -> slot.slot().getResourceProfile().isMatching(slotProfile.getResourceProfile()),
+				(SlotAndTimestamp slotAndTimestamp, Locality locality) -> {
 					AllocatedSlot slot = slotAndTimestamp.slot();
-					remove(slot.getAllocationId());
 					return new SlotAndLocality(slot, locality);
-				}));
+				});
+
+			if (matchingSlotAndLocality != null) {
+				AllocatedSlot slot = matchingSlotAndLocality.getSlot();
+				remove(slot.getAllocationId());
+			}
+
+			return matchingSlotAndLocality;
 		}
 
 		/**
@@ -1524,25 +1529,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				SlotRequestId slotRequestId,
 				ScheduledUnit task,
 				boolean allowQueued,
-				Collection<TaskManagerLocation> preferredLocations,
+				SlotProfile slotProfile,
 				Time timeout) {
-
-			Collection<AllocationID> previousAllocationIDs = Collections.emptyList();
-
-			// try to extract previous allocation ids, if applicable, so that we can reschedule to the same slot
-			Execution execution = task.getTaskToExecute();
-			if (execution != null) {
-				ExecutionVertex executionVertex = execution.getVertex();
-				AllocationID lastAllocation = executionVertex.getLatestPriorAllocation();
-				if (lastAllocation != null) {
-					previousAllocationIDs = Collections.singletonList(lastAllocation);
-				}
-			}
-
-			SlotProfile slotProfile = new SlotProfile(
-				ResourceProfile.UNKNOWN,
-				preferredLocations,
-				previousAllocationIDs);
 
 			CompletableFuture<LogicalSlot> slotFuture = gateway.allocateSlot(
 				slotRequestId,

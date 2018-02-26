@@ -176,17 +176,20 @@ public class SlotSharingManager {
 	 * preferred locations is checked.
 	 *
 	 * @param groupId which the returned slot must not contain
-	 * @param matcher TODO
+	 * @param matcher slot profile matcher to match slot with the profile requirements
 	 * @return the resolved root slot and its locality wrt to the specified location preferences
 	 * 		or null if there was no root slot which did not contain the given groupId
 	 */
 	@Nullable
 	MultiTaskSlotLocality getResolvedRootSlot(AbstractID groupId, SlotProfile.ProfileToSlotContextMatcher matcher) {
-		return matcher.findMatchWithLocality(
-			resolvedRootSlots.values().stream().flatMap(Collection::stream),
-			multiTaskSlot -> multiTaskSlot.getSlotContextFuture().join(),
-			multiTaskSlot -> !multiTaskSlot.contains(groupId),
-			MultiTaskSlotLocality::of);
+		synchronized (lock) {
+			Collection<Set<MultiTaskSlot>> resolvedRootSlotsValues = this.resolvedRootSlots.values();
+			return matcher.findMatchWithLocality(
+				resolvedRootSlotsValues.stream().flatMap(Collection::stream),
+				(MultiTaskSlot multiTaskSlot) -> multiTaskSlot.getSlotContextFuture().join(),
+				(MultiTaskSlot multiTaskSlot) -> !multiTaskSlot.contains(groupId),
+				MultiTaskSlotLocality::of);
+		}
 	}
 
 	/**

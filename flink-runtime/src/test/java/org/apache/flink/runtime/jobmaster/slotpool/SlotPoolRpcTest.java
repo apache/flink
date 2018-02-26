@@ -59,7 +59,6 @@ import org.junit.experimental.categories.Category;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -310,7 +309,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			CompletableFuture<LogicalSlot> future = pool.getSlotProvider().allocateSlot(
 				new DummyScheduledUnit(),
 				true,
-				Collections.emptyList(),
+				SlotProfile.noRequirements(),
 				fastTimeout);
 
 			try {

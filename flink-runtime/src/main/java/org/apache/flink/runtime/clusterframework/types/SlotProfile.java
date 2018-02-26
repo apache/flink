@@ -27,6 +27,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -63,6 +64,7 @@ public class SlotProfile {
 		@Nonnull ResourceProfile resourceProfile,
 		@Nonnull Collection<TaskManagerLocation> preferredLocations,
 		@Nonnull Collection<AllocationID> priorAllocations) {
+
 		this.resourceProfile = resourceProfile;
 		this.preferredLocations = preferredLocations;
 		this.priorAllocations = priorAllocations;
@@ -92,6 +94,9 @@ public class SlotProfile {
 		return priorAllocations;
 	}
 
+	/**
+	 * Returns the matcher for this profile that helps to find slots that fit the profile.
+	 */
 	public ProfileToSlotContextMatcher matcher() {
 		if (priorAllocations.isEmpty()) {
 			return new LocalityAwareRequirementsToSlotMatcher(preferredLocations);
@@ -108,6 +113,9 @@ public class SlotProfile {
 	public interface ProfileToSlotContextMatcher {
 
 		/**
+		 * This method takes the candidate slots, extracts slot contexts from them, filters them by the profile
+		 * requirements and potentially by additional requirements, and produces a result from a match.
+		 *
 		 * @param candidates                   stream of candidates to match against.
 		 * @param contextExtractor             function to extract the {@link SlotContext} from the candidates.
 		 * @param additionalRequirementsFilter predicate to specify additional requirements for each candidate.
@@ -140,7 +148,7 @@ public class SlotProfile {
 		private final HashSet<AllocationID> priorAllocations;
 
 		@VisibleForTesting
-		PreviousAllocationProfileToSlotContextMatcher(Collection<AllocationID> priorAllocations) {
+		PreviousAllocationProfileToSlotContextMatcher(@Nonnull Collection<AllocationID> priorAllocations) {
 			this.priorAllocations = new HashSet<>(priorAllocations);
 			Preconditions.checkState(
 				this.priorAllocations.size() > 0,
@@ -174,8 +182,8 @@ public class SlotProfile {
 		private final Collection<TaskManagerLocation> locationPreferences;
 
 		@VisibleForTesting
-		public LocalityAwareRequirementsToSlotMatcher(Collection<TaskManagerLocation> locationPreferences) {
-			this.locationPreferences = locationPreferences;
+		public LocalityAwareRequirementsToSlotMatcher(@Nonnull Collection<TaskManagerLocation> locationPreferences) {
+			this.locationPreferences = new ArrayList<>(locationPreferences);
 		}
 
 		@Override
