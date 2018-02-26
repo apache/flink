@@ -24,6 +24,8 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.function.LongPredicate;
+
 /**
  * Classes  that implement this interface serve as a task-manager-level local storage for local checkpointed state.
  * The purpose is to provide  access to a state that is stored locally for a faster recovery compared to the state that
@@ -62,4 +64,10 @@ public interface TaskLocalStateStore {
 	 * and removes all local states with a checkpoint id that is smaller than the newly confirmed checkpoint id.
 	 */
 	void confirmCheckpoint(long confirmedCheckpointId);
+
+	/**
+	 * Remove all checkpoints from the store that match the given predicate.
+	 * @param matcher the predicate that selects the checkpoints for pruning.
+	 */
+	void pruneMatchingCheckpoints(LongPredicate matcher);
 }

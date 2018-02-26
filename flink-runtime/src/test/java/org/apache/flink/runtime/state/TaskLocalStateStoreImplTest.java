@@ -36,28 +36,30 @@ import org.mockito.Mockito;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import static org.powermock.api.mockito.PowerMockito.spy;
 
 public class TaskLocalStateStoreImplTest {
 
+	private SortedMap<Long, TaskStateSnapshot> internalSnapshotMap;
+	private Object internalLock;
 	private TemporaryFolder temporaryFolder;
-	private JobID jobID;
-	private AllocationID allocationID;
-	private JobVertexID jobVertexID;
-	private int subtaskIdx;
 	private File[] allocationBaseDirs;
 	private TaskLocalStateStoreImpl taskLocalStateStore;
 
 	@Before
 	public void before() throws Exception {
+		JobID jobID = new JobID();
+		AllocationID allocationID = new AllocationID();
+		JobVertexID jobVertexID = new JobVertexID();
+		int subtaskIdx = 0;
 		this.temporaryFolder = new TemporaryFolder();
 		this.temporaryFolder.create();
-		this.jobID = new JobID();
-		this.allocationID = new AllocationID();
-		this.jobVertexID = new JobVertexID();
-		this.subtaskIdx = 0;
 		this.allocationBaseDirs = new File[]{temporaryFolder.newFolder(), temporaryFolder.newFolder()};
+		this.internalSnapshotMap = new TreeMap<>();
+		this.internalLock = new Object();
 
 		LocalRecoveryDirectoryProviderImpl directoryProvider =
 			new LocalRecoveryDirectoryProviderImpl(allocationBaseDirs, jobID, jobVertexID, subtaskIdx);
@@ -71,7 +73,9 @@ public class TaskLocalStateStoreImplTest {
 			jobVertexID,
 			subtaskIdx,
 			localRecoveryConfig,
-			Executors.directExecutor());
+			Executors.directExecutor(),
+			internalSnapshotMap,
+			internalLock);
 	}
 
 	@After
@@ -114,6 +118,26 @@ public class TaskLocalStateStoreImplTest {
 		checkStoredAsExpected(taskStateSnapshots, 0, chkCount);
 
 		Assert.assertNull(taskLocalStateStore.retrieveLocalState(chkCount + 1));
+	}
+
+	/**
+	 * Test checkpoint pruning.
+	 */
+	@Test
+	public void pruneCheckpoints() throws Exception {
+
+		final int chkCount = 3;
+
+		List<TaskStateSnapshot> taskStateSnapshots = storeStates(chkCount);
+
+		// test retrieve with pruning
+		taskLocalStateStore.pruneMatchingCheckpoints((long chk) -> chk != chkCount - 1);
+
+		for (int i = 0; i < chkCount - 1; ++i) {
+			Assert.assertNull(taskLocalStateStore.retrieveLocalState(i));
+		}
+
+		checkStoredAsExpected(taskStateSnapshots, chkCount - 1, chkCount);
 	}
 
 	/**

@@ -119,8 +119,12 @@ public class TaskStateManagerImpl implements TaskStateManager {
 			return PrioritizedOperatorSubtaskState.emptyNotRestored();
 		}
 
+		long restoreCheckpointId = jobManagerTaskRestore.getRestoreCheckpointId();
+
 		TaskStateSnapshot localStateSnapshot =
-			localStateStore.retrieveLocalState(jobManagerTaskRestore.getRestoreCheckpointId());
+			localStateStore.retrieveLocalState(restoreCheckpointId);
+
+		localStateStore.pruneMatchingCheckpoints((long checkpointId) -> checkpointId != restoreCheckpointId);
 
 		List<OperatorSubtaskState> alternativesByPriority = Collections.emptyList();
 
