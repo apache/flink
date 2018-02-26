@@ -28,6 +28,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.function.LongPredicate;
 
 /**
  * Test implementation of a {@link TaskLocalStateStore}.
@@ -101,6 +102,11 @@ public class TestTaskLocalStateStore implements TaskLocalStateStore {
 				break;
 			}
 		}
+	}
+
+	@Override
+	public void pruneMatchingCheckpoints(LongPredicate matcher) {
+		taskStateSnapshotsByCheckpointID.keySet().removeIf(matcher::test);
 	}
 
 	public boolean isDisposed() {
