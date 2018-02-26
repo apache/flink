@@ -165,6 +165,66 @@ public class JobDetailsInfo implements ResponseBody {
 		return Objects.hash(jobId, name, isStoppable, jobStatus, startTime, endTime, duration, now, timestamps, jobVertexInfos, jobVerticesPerState, jsonPlan);
 	}
 
+	@JsonProperty(FIELD_NAME_JOB_ID)
+	public JobID getJobId() {
+		return jobId;
+	}
+
+	@JsonProperty(FIELD_NAME_JOB_NAME)
+	public String getName() {
+		return name;
+	}
+
+	@JsonProperty(FIELD_NAME_IS_STOPPABLE)
+	public boolean isStoppable() {
+		return isStoppable;
+	}
+
+	@JsonProperty(FIELD_NAME_JOB_STATUS)
+	public JobStatus getJobStatus() {
+		return jobStatus;
+	}
+
+	@JsonProperty(FIELD_NAME_START_TIME)
+	public long getStartTime() {
+		return startTime;
+	}
+
+	@JsonProperty(FIELD_NAME_END_TIME)
+	public long getEndTime() {
+		return endTime;
+	}
+
+	@JsonProperty(FIELD_NAME_DURATION)
+	public long getDuration() {
+		return duration;
+	}
+
+	@JsonProperty(FIELD_NAME_NOW)
+	public long getNow() {
+		return now;
+	}
+
+	@JsonProperty(FIELD_NAME_TIMESTAMPS)
+	public Map<JobStatus, Long> getTimestamps() {
+		return timestamps;
+	}
+
+	@JsonProperty(FIELD_NAME_JOB_VERTEX_INFOS)
+	public Collection<JobVertexDetailsInfo> getJobVertexInfos() {
+		return jobVertexInfos;
+	}
+
+	@JsonProperty(FIELD_NAME_JOB_VERTICES_PER_STATE)
+	public Map<ExecutionState, Integer> getJobVerticesPerState() {
+		return jobVerticesPerState;
+	}
+
+	@JsonProperty(FIELD_NAME_JSON_PLAN)
+	public String getJsonPlan() {
+		return jsonPlan;
+	}
+
 	// ---------------------------------------------------
 	// Static inner classes
 	// ---------------------------------------------------
@@ -242,38 +302,47 @@ public class JobDetailsInfo implements ResponseBody {
 			this.jobVertexMetrics = Preconditions.checkNotNull(jobVertexMetrics);
 		}
 
+		@JsonProperty(FIELD_NAME_JOB_VERTEX_ID)
 		public JobVertexID getJobVertexID() {
 			return jobVertexID;
 		}
 
+		@JsonProperty(FIELD_NAME_JOB_VERTEX_NAME)
 		public String getName() {
 			return name;
 		}
 
+		@JsonProperty(FIELD_NAME_PARALLELISM)
 		public int getParallelism() {
 			return parallelism;
 		}
 
+		@JsonProperty(FIELD_NAME_JOB_VERTEX_STATE)
 		public ExecutionState getExecutionState() {
 			return executionState;
 		}
 
+		@JsonProperty(FIELD_NAME_JOB_VERTEX_START_TIME)
 		public long getStartTime() {
 			return startTime;
 		}
 
+		@JsonProperty(FIELD_NAME_JOB_VERTEX_END_TIME)
 		public long getEndTime() {
 			return endTime;
 		}
 
+		@JsonProperty(FIELD_NAME_DURATION)
 		public long getDuration() {
 			return duration;
 		}
 
+		@JsonProperty(FIELD_NAME_TASKS_PER_STATE)
 		public Map<ExecutionState, Integer> getTasksPerState() {
 			return tasksPerState;
 		}
 
+		@JsonProperty(FIELD_NAME_JOB_VERTEX_METRICS)
 		public IOMetricsInfo getJobVertexMetrics() {
 			return jobVertexMetrics;
 		}
