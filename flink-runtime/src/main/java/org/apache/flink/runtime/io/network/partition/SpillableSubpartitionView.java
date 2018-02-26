@@ -177,7 +177,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		SpilledSubpartitionView spilled = spilledView;
 		if (spilled != null) {
 			if (current != null) {
-				return new BufferAndBacklog(current, isMoreAvailable, newBacklog, spilled.nextBufferIsEvent());
+				return new BufferAndBacklog(current, spilled.isAvailable(), newBacklog, spilled.nextBufferIsEvent());
 			} else {
 				return spilled.getNextBuffer();
 			}
