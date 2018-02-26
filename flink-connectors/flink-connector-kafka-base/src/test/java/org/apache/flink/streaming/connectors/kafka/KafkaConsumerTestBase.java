@@ -2072,7 +2072,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 				@Override
 				public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
-					System.out.println(count);
 					if (++count == totalCount) {
 						throw new SuccessException();
 					} else {
