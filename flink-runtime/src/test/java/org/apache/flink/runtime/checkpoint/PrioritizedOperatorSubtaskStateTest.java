@@ -216,7 +216,7 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 
 	private <T extends StateObject> boolean checkResultAsExpected(
 		Function<OperatorSubtaskState, StateObjectCollection<T>> extractor,
-		Function<PrioritizedOperatorSubtaskState, Iterator<StateObjectCollection<T>>> extractor2,
+		Function<PrioritizedOperatorSubtaskState, List<StateObjectCollection<T>>> extractor2,
 		PrioritizedOperatorSubtaskState prioritizedResult,
 		OperatorSubtaskState... expectedOrdered) {
 
@@ -226,7 +226,7 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 		}
 
 		return checkRepresentSameOrder(
-			extractor2.apply(prioritizedResult),
+			extractor2.apply(prioritizedResult).iterator(),
 			collector.toArray(new StateObjectCollection[collector.size()]));
 	}
 

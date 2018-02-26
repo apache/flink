@@ -29,10 +29,14 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.List;
 
 /**
  * This class is the default implementation of {@link TaskStateManager} and collaborates with the job manager
@@ -40,12 +44,13 @@ import java.util.Collections;
  * not have to deal with the differences between remote or local state on recovery because this class handles both
  * cases transparently.
  *
- * Reported state is tagged by clients so that this class can properly forward to the right receiver for the
+ * <p>Reported state is tagged by clients so that this class can properly forward to the right receiver for the
  * checkpointed state.
- *
- * TODO: all interaction with local state store must still be implemented! It is currently just a placeholder.
  */
 public class TaskStateManagerImpl implements TaskStateManager {
+
+	/** The logger for this class. */
+	private static final Logger LOG = LoggerFactory.getLogger(TaskStateManagerImpl.class);
 
 	/** The id of the job for which this manager was created, can report, and recover. */
 	private final JobID jobId;
@@ -117,21 +122,27 @@ public class TaskStateManagerImpl implements TaskStateManager {
 		TaskStateSnapshot localStateSnapshot =
 			localStateStore.retrieveLocalState(jobManagerTaskRestore.getRestoreCheckpointId());
 
+		List<OperatorSubtaskState> alternativesByPriority = Collections.emptyList();
+
 		if (localStateSnapshot != null) {
 			OperatorSubtaskState localSubtaskState = localStateSnapshot.getSubtaskStateByOperatorID(operatorID);
 
 			if (localSubtaskState != null) {
-				PrioritizedOperatorSubtaskState.Builder builder = new PrioritizedOperatorSubtaskState.Builder(
-					jobManagerSubtaskState,
-					Collections.singletonList(localSubtaskState));
-				return builder.build();
+				alternativesByPriority = Collections.singletonList(localSubtaskState);
 			}
+		}
+
+		if (LOG.isTraceEnabled()) {
+			LOG.trace("Operator {} has remote state {} from job manager and local state alternatives {} from local " +
+					"state store {}.",
+				operatorID, jobManagerSubtaskState, alternativesByPriority, localStateStore);
 		}
 
 		PrioritizedOperatorSubtaskState.Builder builder = new PrioritizedOperatorSubtaskState.Builder(
 			jobManagerSubtaskState,
-			Collections.emptyList(),
+			alternativesByPriority,
 			true);
+
 		return builder.build();
 	}
 

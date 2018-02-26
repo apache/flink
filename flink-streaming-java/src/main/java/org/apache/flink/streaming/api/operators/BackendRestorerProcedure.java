@@ -36,7 +36,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
+import java.util.List;
 
 /**
  * This class implements the logic that creates (and potentially restores) a state backend. The restore logic
@@ -62,6 +62,9 @@ public class BackendRestorerProcedure<
 	/** This registry is used so that recovery can participate in the task lifecycle, i.e. can be canceled. */
 	private final CloseableRegistry backendCloseableRegistry;
 
+	/** Description of this instance for logging. */
+	private final String logDescription;
+
 	/**
 	 * Creates a new backend restorer using the given backend supplier and the closeable registry.
 	 *
@@ -70,43 +73,63 @@ public class BackendRestorerProcedure<
 	 */
 	public BackendRestorerProcedure(
 		@Nonnull SupplierWithException<T, Exception> instanceSupplier,
-		@Nonnull CloseableRegistry backendCloseableRegistry) {
+		@Nonnull CloseableRegistry backendCloseableRegistry,
+		@Nonnull String logDescription) {
 
 		this.instanceSupplier = Preconditions.checkNotNull(instanceSupplier);
 		this.backendCloseableRegistry = Preconditions.checkNotNull(backendCloseableRegistry);
+		this.logDescription = logDescription;
 	}
 
 	/**
 	 * Creates a new state backend and restores it from the provided set of state snapshot alternatives.
 	 *
-	 * @param restoreOptions iterator over a prioritized set of state snapshot alternatives for recovery.
+	 * @param restoreOptions list of prioritized state snapshot alternatives for recovery.
 	 * @return the created (and restored) state backend.
 	 * @throws Exception if the backend could not be created or restored.
 	 */
-	public @Nonnull
-	T createAndRestore(@Nonnull Iterator<? extends Collection<S>> restoreOptions) throws Exception {
+	@Nonnull
+	public T createAndRestore(@Nonnull List<? extends Collection<S>> restoreOptions) throws Exception {
 
-		// This ensures that we always call the restore method even if there is no previous state
-		// (required by some backends).
-		Collection<S> attemptState = restoreOptions.hasNext() ?
-			restoreOptions.next() :
-			Collections.emptyList();
+		if (restoreOptions.isEmpty()) {
+			restoreOptions = Collections.singletonList(Collections.emptyList());
+		}
 
-		while (true) {
-			try {
-				return attemptCreateAndRestore(attemptState);
-			} catch (Exception ex) {
-				// more attempts?
-				if (restoreOptions.hasNext()) {
+		int alternativeIdx = 0;
 
-					attemptState = restoreOptions.next();
-					LOG.warn("Exception while restoring backend, will retry with another snapshot replica.", ex);
+		Exception collectedException = null;
+
+		while (alternativeIdx < restoreOptions.size()) {
+
+			Collection<S> restoreState = restoreOptions.get(alternativeIdx);
+
+			++alternativeIdx;
+
+			if (restoreState.isEmpty()) {
+				LOG.debug("Creating {} with empty state.", logDescription);
+			} else {
+				if (LOG.isTraceEnabled()) {
+					LOG.trace("Creating {} and restoring with state {} from alternative ({}/{}).",
+						logDescription, restoreState, alternativeIdx, restoreOptions.size());
 				} else {
-
-					throw new FlinkException("Could not restore from any of the provided restore options.", ex);
+					LOG.debug("Creating {} and restoring with state from alternative ({}/{}).",
+						logDescription, alternativeIdx, restoreOptions.size());
 				}
 			}
+
+			try {
+				return attemptCreateAndRestore(restoreState);
+			} catch (Exception ex) {
+
+				collectedException = ExceptionUtils.firstOrSuppressed(ex, collectedException);
+
+				LOG.warn("Exception while restoring {} from alternative ({}/{}), will retry while more " +
+					"alternatives are available.", logDescription, alternativeIdx, restoreOptions.size(), ex);
+			}
 		}
+
+		throw new FlinkException("Could not restore " + logDescription + " from any of the " + restoreOptions.size() +
+			" provided restore options.", collectedException);
 	}
 
 	private T attemptCreateAndRestore(Collection<S> restoreState) throws Exception {

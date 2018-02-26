@@ -143,11 +143,11 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 			// -------------- Raw State Streams --------------
 			rawKeyedStateInputs = rawKeyedStateInputs(
-				prioritizedOperatorSubtaskStates.getPrioritizedRawKeyedState());
+				prioritizedOperatorSubtaskStates.getPrioritizedRawKeyedState().iterator());
 			streamTaskCloseableRegistry.registerCloseable(rawKeyedStateInputs);
 
 			rawOperatorStateInputs = rawOperatorStateInputs(
-				prioritizedOperatorSubtaskStates.getPrioritizedRawOperatorState());
+				prioritizedOperatorSubtaskStates.getPrioritizedRawOperatorState().iterator());
 			streamTaskCloseableRegistry.registerCloseable(rawOperatorStateInputs);
 
 			// -------------- Internal Timer Service Manager --------------
@@ -226,12 +226,16 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates,
 		CloseableRegistry backendCloseableRegistry) throws Exception {
 
+		String logDescription = "operator state backend for " + operatorIdentifierText;
+
 		BackendRestorerProcedure<OperatorStateBackend, OperatorStateHandle> backendRestorer =
 			new BackendRestorerProcedure<>(
 				() -> stateBackend.createOperatorStateBackend(environment, operatorIdentifierText),
-				backendCloseableRegistry);
+				backendCloseableRegistry,
+				logDescription);
 
-		return backendRestorer.createAndRestore(prioritizedOperatorSubtaskStates.getPrioritizedManagedOperatorState());
+		return backendRestorer.createAndRestore(
+			prioritizedOperatorSubtaskStates.getPrioritizedManagedOperatorState());
 	}
 
 	protected <K> AbstractKeyedStateBackend<K> keyedStatedBackend(
@@ -243,6 +247,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		if (keySerializer == null) {
 			return null;
 		}
+
+		String logDescription = "keyed state backend for " + operatorIdentifierText;
 
 		TaskInfo taskInfo = environment.getTaskInfo();
 
@@ -261,9 +267,11 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 					taskInfo.getMaxNumberOfParallelSubtasks(),
 					keyGroupRange,
 					environment.getTaskKvStateRegistry()),
-					backendCloseableRegistry);
+				backendCloseableRegistry,
+				logDescription);
 
-		return backendRestorer.createAndRestore(prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState());
+		return backendRestorer.createAndRestore(
+			prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState());
 	}
 
 	protected CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs(

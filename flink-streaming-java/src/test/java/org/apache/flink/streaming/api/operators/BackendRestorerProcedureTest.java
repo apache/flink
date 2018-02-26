@@ -104,21 +104,17 @@ public class BackendRestorerProcedureTest extends TestLogger {
 			new StateObjectCollection<>(Collections.singletonList(firstFailHandle)),
 			new StateObjectCollection<>(Collections.singletonList(secondSuccessHandle)),
 			new StateObjectCollection<>(Collections.singletonList(thirdNotUsedHandle)));
-		Iterator<StateObjectCollection<OperatorStateHandle>> iterator = sortedRestoreOptions.iterator();
 
 		BackendRestorerProcedure<OperatorStateBackend, OperatorStateHandle> restorerProcedure =
-			new BackendRestorerProcedure<>(backendSupplier, closeableRegistry);
+			new BackendRestorerProcedure<>(backendSupplier, closeableRegistry, "test op state backend");
 
-		OperatorStateBackend restoredBackend = restorerProcedure.createAndRestore(iterator);
+		OperatorStateBackend restoredBackend = restorerProcedure.createAndRestore(sortedRestoreOptions);
 		Assert.assertNotNull(restoredBackend);
 
 		try {
-			Assert.assertTrue(iterator.hasNext());
-			Assert.assertTrue(thirdNotUsedHandle == iterator.next().iterator().next());
 			verify(firstFailHandle).openInputStream();
 			verify(secondSuccessHandle).openInputStream();
 			verifyZeroInteractions(thirdNotUsedHandle);
-			Assert.assertFalse(iterator.hasNext());
 
 			ListState<Integer> listState = restoredBackend.getListState(stateDescriptor);
 
@@ -151,13 +147,12 @@ public class BackendRestorerProcedureTest extends TestLogger {
 			new StateObjectCollection<>(Collections.singletonList(firstFailHandle)),
 			new StateObjectCollection<>(Collections.singletonList(secondFailHandle)),
 			new StateObjectCollection<>(Collections.singletonList(thirdFailHandle)));
-		Iterator<StateObjectCollection<OperatorStateHandle>> iterator = sortedRestoreOptions.iterator();
 
 		BackendRestorerProcedure<OperatorStateBackend, OperatorStateHandle> restorerProcedure =
-			new BackendRestorerProcedure<>(backendSupplier, closeableRegistry);
+			new BackendRestorerProcedure<>(backendSupplier, closeableRegistry, "test op state backend");
 
 		try {
-			restorerProcedure.createAndRestore(iterator);
+			restorerProcedure.createAndRestore(sortedRestoreOptions);
 			Assert.fail();
 		} catch (Exception ignore) {
 		}
@@ -165,7 +160,6 @@ public class BackendRestorerProcedureTest extends TestLogger {
 		verify(firstFailHandle).openInputStream();
 		verify(secondFailHandle).openInputStream();
 		verify(thirdFailHandle).openInputStream();
-		Assert.assertFalse(iterator.hasNext());
 	}
 
 	/**
@@ -183,12 +177,12 @@ public class BackendRestorerProcedureTest extends TestLogger {
 			Collections.singletonList(new StateObjectCollection<>(Collections.singletonList(blockingRestoreHandle)));
 
 		BackendRestorerProcedure<OperatorStateBackend, OperatorStateHandle> restorerProcedure =
-			new BackendRestorerProcedure<>(backendSupplier, closeableRegistry);
+			new BackendRestorerProcedure<>(backendSupplier, closeableRegistry, "test op state backend");
 
 		AtomicReference<Exception> exceptionReference = new AtomicReference<>(null);
 		Thread restoreThread = new Thread(() -> {
 			try {
-				restorerProcedure.createAndRestore(sortedRestoreOptions.iterator());
+				restorerProcedure.createAndRestore(sortedRestoreOptions);
 			} catch (Exception e) {
 				exceptionReference.set(e);
 			}
