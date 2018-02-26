@@ -138,4 +138,12 @@ public class RocksDBKeySerializationUtils {
 			value >>>= 8;
 		} while (value != 0);
 	}
+
+	public static byte[] serializeKeyGroup(int keyGroup, int keyGroupPrefixBytes) {
+		byte[] startKeyGroupPrefixBytes = new byte[keyGroupPrefixBytes];
+		for (int j = 0; j < keyGroupPrefixBytes; ++j) {
+			startKeyGroupPrefixBytes[j] = (byte) (keyGroup >>> ((keyGroupPrefixBytes - j - 1) * Byte.SIZE));
+		}
+		return startKeyGroupPrefixBytes;
+	}
 }
