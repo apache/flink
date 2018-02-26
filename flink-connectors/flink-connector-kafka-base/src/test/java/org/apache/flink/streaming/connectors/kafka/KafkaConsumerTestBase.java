@@ -643,11 +643,32 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final int initialRecordsInEachPartition = 50;
 		final int appendRecordsInEachPartition = 30;
 
-		long firstTimestamp = System.currentTimeMillis();
-		String topic = writeSequence("runStartFromTimestamp", initialRecordsInEachPartition, parallelism, 1);
+		long firstTimestamp = 0;
+		long secondTimestamp = 0;
+		String topic = "";
 
-		long secondTimestamp = System.currentTimeMillis();
-		writeAppendSequence(topic, initialRecordsInEachPartition, appendRecordsInEachPartition, parallelism);
+		// attempt to create an appended test sequence, where the timestamp of writing the appended sequence
+		// is assured to be larger than the timestamp of the original sequence.
+		final int maxRetries = 3;
+		int attempt = 0;
+		while (attempt != maxRetries) {
+			firstTimestamp = System.currentTimeMillis();
+			topic = writeSequence("runStartFromTimestamp", initialRecordsInEachPartition, parallelism, 1);
+
+			secondTimestamp = System.currentTimeMillis();
+			writeAppendSequence(topic, initialRecordsInEachPartition, appendRecordsInEachPartition, parallelism);
+
+			if (secondTimestamp > firstTimestamp) {
+				break;
+			} else {
+				attempt++;
+				deleteTestTopic(topic);
+			}
+		}
+
+		if (attempt >= maxRetries) {
+			fail("Could not successfully write an appended sequence for testing.");
+		}
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
