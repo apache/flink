@@ -120,6 +120,7 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 		throw new UnsupportedOperationException("MiniClusterClient does not yet support this operation.");
 	}
 
+	@Override
 	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
 		return miniCluster.getJobStatus(jobId);
 	}
