@@ -64,7 +64,7 @@ $KAFKA_DIR/bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication
 $KAFKA_DIR/bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic test-output
 
 # run the Flink job (detached mode)
-$FLINK_DIR/bin/flink run -d build-target/examples/streaming/Kafka010Example.jar \
+$FLINK_DIR/bin/flink run -d $FLINK_DIR/examples/streaming/Kafka010Example.jar \
   --input-topic test-input --output-topic test-output \
   --prefix=PREFIX \
   --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --group.id myconsumer --auto.offset.reset earliest
