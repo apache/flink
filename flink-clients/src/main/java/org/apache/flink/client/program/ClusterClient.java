@@ -49,6 +49,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -575,6 +576,34 @@ public abstract class ClusterClient<T> {
 			highAvailabilityServices,
 			timeout,
 			printStatusDuringExecution);
+	}
+
+	/**
+	 * Requests the {@link JobStatus} of the job with the given {@link JobID}.
+	 */
+	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
+		final ActorGateway jobManager;
+		try {
+			jobManager = getJobManagerGateway();
+		} catch (FlinkException e) {
+			throw new RuntimeException("Could not retrieve JobManage gateway.", e);
+		}
+
+		Future<Object> response = jobManager.ask(JobManagerMessages.getRequestJobStatus(jobId), timeout);
+
+		CompletableFuture<Object> javaFuture = FutureUtils.toJava(response);
+
+		return javaFuture.thenApply((responseMessage) -> {
+			if (responseMessage instanceof JobManagerMessages.CurrentJobStatus) {
+				return ((JobManagerMessages.CurrentJobStatus) responseMessage).status();
+			} else if (responseMessage instanceof JobManagerMessages.JobNotFound) {
+				throw new CompletionException(
+					new IllegalStateException("Could not find job with JobId " + jobId));
+			} else {
+				throw new CompletionException(
+					new IllegalStateException("Unknown JobManager response of type " + responseMessage.getClass()));
+			}
+		});
 	}
 
 	/**
