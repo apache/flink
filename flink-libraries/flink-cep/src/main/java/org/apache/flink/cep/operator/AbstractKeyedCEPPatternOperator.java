@@ -31,6 +31,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.EventComparator;
 import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
+import org.apache.flink.cep.nfa.NFAState;
+import org.apache.flink.cep.nfa.NFAStateSerializer;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -78,12 +80,14 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	private static final String NFA_OPERATOR_STATE_NAME = "nfaOperatorStateName";
 	private static final String EVENT_QUEUE_STATE_NAME = "eventQueuesStateName";
 
-	private transient ValueState<NFA<IN>> nfaOperatorState;
+	private transient ValueState<NFAState<IN>> nfaValueState;
 	private transient MapState<Long, List<IN>> elementQueueState;
 
 	private final NFACompiler.NFAFactory<IN> nfaFactory;
 
 	private transient InternalTimerService<VoidNamespace> timerService;
+
+	private transient NFA<IN> nfa;
 
 	/**
 	 * The last seen watermark. This will be used to
@@ -120,11 +124,11 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	public void initializeState(StateInitializationContext context) throws Exception {
 		super.initializeState(context);
 
-		if (nfaOperatorState == null) {
-			nfaOperatorState = getRuntimeContext().getState(
+		if (nfaValueState == null) {
+			nfaValueState = getRuntimeContext().getState(
 				new ValueStateDescriptor<>(
 						NFA_OPERATOR_STATE_NAME,
-						new NFA.NFASerializer<>(inputSerializer)));
+						new NFAStateSerializer<>(inputSerializer)));
 		}
 
 		if (elementQueueState == null) {
@@ -146,6 +150,8 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 				"watermark-callbacks",
 				VoidNamespaceSerializer.INSTANCE,
 				this);
+
+		this.nfa = nfaFactory.createNFA();
 	}
 
 	@Override
@@ -153,9 +159,9 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		if (isProcessingTime) {
 			if (comparator == null) {
 				// there can be no out of order elements in processing time
-				NFA<IN> nfa = getNFA();
-				processEvent(nfa, element.getValue(), getProcessingTimeService().getCurrentProcessingTime());
-				updateNFA(nfa);
+				NFAState<IN> nfaState = getNFAState();
+				processEvent(nfaState, element.getValue(), getProcessingTimeService().getCurrentProcessingTime());
+				updateNFA(nfaState);
 			} else {
 				long currentTime = timerService.currentProcessingTime();
 				bufferEvent(element.getValue(), currentTime);
@@ -226,27 +232,27 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 
 		// STEP 1
 		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
-		NFA<IN> nfa = getNFA();
+		NFAState<IN> nfaState = getNFAState();
 
 		// STEP 2
 		while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= timerService.currentWatermark()) {
 			long timestamp = sortedTimestamps.poll();
 			sort(elementQueueState.get(timestamp)).forEachOrdered(
-				event -> processEvent(nfa, event, timestamp)
+				event -> processEvent(nfaState, event, timestamp)
 			);
 			elementQueueState.remove(timestamp);
 		}
 
 		// STEP 3
-		advanceTime(nfa, timerService.currentWatermark());
+		advanceTime(nfaState, timerService.currentWatermark());
 
 		// STEP 4
 		if (sortedTimestamps.isEmpty()) {
 			elementQueueState.clear();
 		}
-		updateNFA(nfa);
+		updateNFA(nfaState);
 
-		if (!sortedTimestamps.isEmpty() || !nfa.isEmpty()) {
+		if (!sortedTimestamps.isEmpty() || !nfaState.isEmpty()) {
 			saveRegisterWatermarkTimer();
 		}
 
@@ -264,7 +270,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 
 		// STEP 1
 		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
-		NFA<IN> nfa = getNFA();
+		NFAState<IN> nfa = getNFAState();
 
 		// STEP 2
 		while (!sortedTimestamps.isEmpty()) {
@@ -295,18 +301,18 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		this.lastWatermark = timestamp;
 	}
 
-	private NFA<IN> getNFA() throws IOException {
-		NFA<IN> nfa = nfaOperatorState.value();
-		return nfa != null ? nfa : nfaFactory.createNFA();
+	private NFAState<IN> getNFAState() throws IOException {
+		NFAState<IN> nfaState = nfaValueState.value();
+		return nfaState != null ? nfaState : nfa.createNFAState();
 	}
 
-	private void updateNFA(NFA<IN> nfa) throws IOException {
-		if (nfa.isNFAChanged()) {
-			if (nfa.isEmpty()) {
-				nfaOperatorState.clear();
+	private void updateNFA(NFAState<IN> nfaState) throws IOException {
+		if (nfaState.isStateChanged()) {
+			if (nfaState.isEmpty()) {
+				nfaValueState.clear();
 			} else {
-				nfa.resetNFAChanged();
-				nfaOperatorState.update(nfa);
+				nfaState.resetStateChanged();
+				nfaValueState.update(nfaState);
 			}
 		}
 	}
@@ -323,13 +329,13 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	 * Process the given event by giving it to the NFA and outputting the produced set of matched
 	 * event sequences.
 	 *
-	 * @param nfa NFA to be used for the event detection
+	 * @param nfaState Our NFAState object
 	 * @param event The current event to be processed
 	 * @param timestamp The timestamp of the event
 	 */
-	private void processEvent(NFA<IN> nfa, IN event, long timestamp)  {
+	private void processEvent(NFAState<IN> nfaState, IN event, long timestamp)  {
 		Tuple2<Collection<Map<String, List<IN>>>, Collection<Tuple2<Map<String, List<IN>>, Long>>> patterns =
-			nfa.process(event, timestamp, afterMatchSkipStrategy);
+			nfa.process(nfaState, event, timestamp, afterMatchSkipStrategy);
 
 		try {
 			processMatchedSequences(patterns.f0, timestamp);
@@ -343,12 +349,9 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	/**
 	 * Advances the time for the given NFA to the given timestamp. This can lead to pruning and
 	 * timeouts.
-	 *
-	 * @param nfa to advance the time for
-	 * @param timestamp to advance the time to
 	 */
-	private void advanceTime(NFA<IN> nfa, long timestamp) throws Exception {
-		processEvent(nfa, null, timestamp);
+	private void advanceTime(NFAState<IN> nfaState, long timestamp) throws Exception {
+		processEvent(nfaState, null, timestamp);
 	}
 
 	protected abstract void processMatchedSequences(Iterable<Map<String, List<IN>>> matchingSequences, long timestamp) throws Exception;
@@ -361,9 +364,9 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	//////////////////////			Testing Methods			//////////////////////
 
 	@VisibleForTesting
-	public boolean hasNonEmptyNFA(KEY key) throws IOException {
+	public boolean hasNonEmptyNFAState(KEY key) throws IOException {
 		setCurrentKey(key);
-		return nfaOperatorState.value() != null;
+		return nfaValueState.value() != null;
 	}
 
 	@VisibleForTesting

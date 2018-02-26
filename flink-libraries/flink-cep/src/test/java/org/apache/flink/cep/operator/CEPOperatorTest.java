@@ -461,9 +461,9 @@ public class CEPOperatorTest extends TestLogger {
 		try {
 			harness.open();
 
-			final ValueState nfaOperatorState = (ValueState) Whitebox.<ValueState>getInternalState(operator, "nfaOperatorState");
+			final ValueState nfaOperatorState = (ValueState) Whitebox.<ValueState>getInternalState(operator, "nfaValueState");
 			final ValueState nfaOperatorStateSpy = Mockito.spy(nfaOperatorState);
-			Whitebox.setInternalState(operator, "nfaOperatorState", nfaOperatorStateSpy);
+			Whitebox.setInternalState(operator, "nfaValueState", nfaOperatorStateSpy);
 
 			Event startEvent = new Event(42, "c", 1.0);
 			SubEvent middleEvent = new SubEvent(42, "a", 1.0, 10.0);
@@ -506,9 +506,9 @@ public class CEPOperatorTest extends TestLogger {
 
 			harness.open();
 
-			final ValueState nfaOperatorState = (ValueState) Whitebox.<ValueState>getInternalState(operator, "nfaOperatorState");
+			final ValueState nfaOperatorState = (ValueState) Whitebox.<ValueState>getInternalState(operator, "nfaValueState");
 			final ValueState nfaOperatorStateSpy = Mockito.spy(nfaOperatorState);
-			Whitebox.setInternalState(operator, "nfaOperatorState", nfaOperatorStateSpy);
+			Whitebox.setInternalState(operator, "nfaValueState", nfaOperatorStateSpy);
 
 			Event startEvent = new Event(42, "c", 1.0);
 			SubEvent middleEvent = new SubEvent(42, "a", 1.0, 10.0);
@@ -567,8 +567,8 @@ public class CEPOperatorTest extends TestLogger {
 			assertEquals(2L, harness.numEventTimeTimers());
 			assertEquals(4L, operator.getPQSize(42));
 			assertEquals(1L, operator.getPQSize(43));
-			assertTrue(!operator.hasNonEmptyNFA(42));
-			assertTrue(!operator.hasNonEmptyNFA(43));
+			assertTrue(!operator.hasNonEmptyNFAState(42));
+			assertTrue(!operator.hasNonEmptyNFAState(43));
 
 			harness.processWatermark(new Watermark(2L));
 
@@ -580,9 +580,9 @@ public class CEPOperatorTest extends TestLogger {
 			// for 43 the element entered the NFA and the PQ is empty
 
 			assertEquals(2L, harness.numEventTimeTimers());
-			assertTrue(operator.hasNonEmptyNFA(42));
+			assertTrue(operator.hasNonEmptyNFAState(42));
 			assertEquals(1L, operator.getPQSize(42));
-			assertTrue(operator.hasNonEmptyNFA(43));
+			assertTrue(operator.hasNonEmptyNFAState(43));
 			assertTrue(!operator.hasNonEmptyPQ(43));
 
 			harness.processElement(new StreamRecord<>(startEvent2, 4L));
@@ -604,9 +604,9 @@ public class CEPOperatorTest extends TestLogger {
 			// now we have 1 key because the 43 expired and was removed.
 			// 42 is still there due to startEvent2
 			assertEquals(1L, harness.numEventTimeTimers());
-			assertTrue(operator2.hasNonEmptyNFA(42));
+			assertTrue(operator2.hasNonEmptyNFAState(42));
 			assertTrue(!operator2.hasNonEmptyPQ(42));
-			assertTrue(!operator2.hasNonEmptyNFA(43));
+			assertTrue(!operator2.hasNonEmptyNFAState(43));
 			assertTrue(!operator2.hasNonEmptyPQ(43));
 
 			verifyPattern(harness.getOutput().poll(), startEvent1, middleEvent1, endEvent1);
@@ -621,7 +621,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processWatermark(20L);
 			harness.processWatermark(21L);
 
-			assertTrue(!operator2.hasNonEmptyNFA(42));
+			assertTrue(!operator2.hasNonEmptyNFAState(42));
 			assertTrue(!operator2.hasNonEmptyPQ(42));
 			assertEquals(0L, harness.numEventTimeTimers());
 
@@ -664,7 +664,7 @@ public class CEPOperatorTest extends TestLogger {
 
 			assertEquals(1L, harness.numEventTimeTimers());
 			assertEquals(7L, operator.getPQSize(41));
-			assertTrue(!operator.hasNonEmptyNFA(41));
+			assertTrue(!operator.hasNonEmptyNFAState(41));
 
 			harness.processWatermark(new Watermark(2L));
 
@@ -673,7 +673,7 @@ public class CEPOperatorTest extends TestLogger {
 
 			assertEquals(1L, harness.numEventTimeTimers());
 			assertEquals(6L, operator.getPQSize(41));
-			assertTrue(operator.hasNonEmptyNFA(41)); // processed the first element
+			assertTrue(operator.hasNonEmptyNFAState(41)); // processed the first element
 
 			harness.processWatermark(new Watermark(8L));
 
@@ -713,12 +713,12 @@ public class CEPOperatorTest extends TestLogger {
 
 			assertEquals(1L, harness.numEventTimeTimers());
 			assertEquals(0L, operator.getPQSize(41));
-			assertTrue(operator.hasNonEmptyNFA(41));
+			assertTrue(operator.hasNonEmptyNFAState(41));
 
 			harness.processWatermark(new Watermark(17L));
 			verifyWatermark(harness.getOutput().poll(), 17L);
 
-			assertTrue(!operator.hasNonEmptyNFA(41));
+			assertTrue(!operator.hasNonEmptyNFAState(41));
 			assertTrue(!operator.hasNonEmptyPQ(41));
 			assertEquals(0L, harness.numEventTimeTimers());
 		} finally {
@@ -756,8 +756,8 @@ public class CEPOperatorTest extends TestLogger {
 
 			assertTrue(!operator.hasNonEmptyPQ(42));
 			assertTrue(!operator.hasNonEmptyPQ(43));
-			assertTrue(operator.hasNonEmptyNFA(42));
-			assertTrue(operator.hasNonEmptyNFA(43));
+			assertTrue(operator.hasNonEmptyNFAState(42));
+			assertTrue(operator.hasNonEmptyNFAState(43));
 
 			harness.setProcessingTime(3L);
 
@@ -790,10 +790,10 @@ public class CEPOperatorTest extends TestLogger {
 
 			harness.setProcessingTime(21L);
 
-			assertTrue(operator2.hasNonEmptyNFA(42));
+			assertTrue(operator2.hasNonEmptyNFAState(42));
 
 			harness.processElement(new StreamRecord<>(startEvent1, 21L));
-			assertTrue(operator2.hasNonEmptyNFA(42));
+			assertTrue(operator2.hasNonEmptyNFAState(42));
 
 			harness.setProcessingTime(49L);
 
@@ -801,7 +801,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<>(new Event(42, "foobar", 1.0), 2L));
 
 			// the pattern expired
-			assertTrue(!operator2.hasNonEmptyNFA(42));
+			assertTrue(!operator2.hasNonEmptyNFAState(42));
 
 			assertEquals(0L, harness.numEventTimeTimers());
 			assertTrue(!operator2.hasNonEmptyPQ(42));
@@ -944,12 +944,12 @@ public class CEPOperatorTest extends TestLogger {
 			harness
 				.processElement(new StreamRecord<>(new SubEvent(42, "barfoo", 1.0, 5.0), 0L));
 
-			assertTrue(!operator.hasNonEmptyNFA(42));
-			assertTrue(!operator.hasNonEmptyNFA(43));
+			assertTrue(!operator.hasNonEmptyNFAState(42));
+			assertTrue(!operator.hasNonEmptyNFAState(43));
 
 			harness.setProcessingTime(3L);
-			assertTrue(operator.hasNonEmptyNFA(42));
-			assertTrue(operator.hasNonEmptyNFA(43));
+			assertTrue(operator.hasNonEmptyNFAState(42));
+			assertTrue(operator.hasNonEmptyNFAState(43));
 
 			harness.processElement(new StreamRecord<>(middleEvent2, 3L));
 			harness.processElement(new StreamRecord<>(middleEvent1, 3L));
@@ -1003,14 +1003,14 @@ public class CEPOperatorTest extends TestLogger {
 
 			assertTrue(operator.hasNonEmptyPQ(42));
 			assertTrue(operator.hasNonEmptyPQ(43));
-			assertTrue(!operator.hasNonEmptyNFA(42));
-			assertTrue(!operator.hasNonEmptyNFA(43));
+			assertTrue(!operator.hasNonEmptyNFAState(42));
+			assertTrue(!operator.hasNonEmptyNFAState(43));
 
 			harness.processWatermark(3L);
 			assertTrue(!operator.hasNonEmptyPQ(42));
 			assertTrue(!operator.hasNonEmptyPQ(43));
-			assertTrue(operator.hasNonEmptyNFA(42));
-			assertTrue(operator.hasNonEmptyNFA(43));
+			assertTrue(operator.hasNonEmptyNFAState(42));
+			assertTrue(operator.hasNonEmptyNFAState(43));
 
 			harness.processElement(new StreamRecord<>(startEvent2, 4L));
 			harness.processElement(new StreamRecord<Event>(middleEvent2, 5L));

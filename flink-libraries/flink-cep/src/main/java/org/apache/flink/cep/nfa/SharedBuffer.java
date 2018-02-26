@@ -36,7 +36,6 @@ import org.apache.commons.lang3.StringUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -67,11 +66,9 @@ import java.util.Stack;
  * @param <K> Type of the keys
  * @param <V> Type of the values
  */
-public class SharedBuffer<K extends Serializable, V> implements Serializable {
+public class SharedBuffer<K, V> {
 
-	private static final long serialVersionUID = 9213251042562206495L;
-
-	private transient Map<K, SharedBufferPage<K, V>> pages;
+	private Map<K, SharedBufferPage<K, V>> pages;
 
 	public SharedBuffer() {
 		this.pages = new HashMap<>(4);
@@ -807,7 +804,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	/**
 	 * A {@link TypeSerializer} for the {@link SharedBuffer}.
 	 */
-	public static class SharedBufferSerializer<K extends Serializable, V> extends TypeSerializer<SharedBuffer<K, V>> {
+	public static class SharedBufferSerializer<K, V> extends TypeSerializer<SharedBuffer<K, V>> {
 
 		private static final long serialVersionUID = -3254176794680331560L;
 
