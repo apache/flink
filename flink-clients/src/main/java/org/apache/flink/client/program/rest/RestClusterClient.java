@@ -220,7 +220,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	}
 
 	@Override
-	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
+	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
 		log.info("Submitting job {}.", jobGraph.getJobID());
 
 		final CompletableFuture<JobSubmitResponseBody> jobSubmissionFuture = submitJob(jobGraph);
