@@ -72,6 +72,8 @@ public class TaskLocalStateStoreImplTest {
 			subtaskIdx,
 			localRecoveryConfig,
 			Executors.directExecutor());
+
+		this.taskLocalStateStore.setRetrieveWithDiscard(false);
 	}
 
 	@After

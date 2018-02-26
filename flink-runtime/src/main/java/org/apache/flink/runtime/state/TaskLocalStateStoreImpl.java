@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -91,6 +92,10 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 	@GuardedBy("lock")
 	private boolean disposed;
 
+	/** Whether to discard the useless state when retrieve local checkpoint state. */
+	@Nonnull
+	private boolean retrieveWithDiscard;
+
 	/** Maps checkpoint ids to local TaskStateSnapshots. */
 	@Nonnull
 	@GuardedBy("lock")
@@ -112,7 +117,11 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 		this.subtaskIndex = subtaskIndex;
 		this.discardExecutor = discardExecutor;
 		this.localRecoveryConfig = localRecoveryConfig;
+<<<<<<< HEAD
 		this.disposed = false;
+=======
+		this.retrieveWithDiscard = true;
+>>>>>>> b4a3ea2c2b... Fix build.
 	}
 
 	@Override
@@ -163,6 +172,28 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 		synchronized (lock) {
 			snapshot = storedTaskStateByCheckpointID.get(checkpointID);
 		}
+=======
+			Iterator<Map.Entry<Long, TaskStateSnapshot>> entryIterator =
+				storedTaskStateByCheckpointID.entrySet().iterator();
+
+			if (retrieveWithDiscard) {
+				// Only the TaskStateSnapshot.checkpointID == checkpointID is useful, we remove the others
+				final List<Map.Entry<Long, TaskStateSnapshot>> toRemove = new ArrayList<>();
+
+				while (entryIterator.hasNext()) {
+
+					Map.Entry<Long, TaskStateSnapshot> snapshotEntry = entryIterator.next();
+					long entryCheckpointId = snapshotEntry.getKey();
+
+					if (entryCheckpointId != checkpointID) {
+						toRemove.add(snapshotEntry);
+						entryIterator.remove();
+					}
+				}
+
+				asyncDiscardLocalStateForCollection(toRemove);
+			}
+>>>>>>> b4a3ea2c2b... Fix build.
 
 		if (LOG.isTraceEnabled()) {
 			LOG.trace("Found entry for local state for checkpoint {} in subtask ({} - {} - {}) : {}",
@@ -312,5 +343,10 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 			", subtaskIndex=" + subtaskIndex +
 			", localRecoveryConfig=" + localRecoveryConfig +
 			'}';
+	}
+
+	@VisibleForTesting
+	void setRetrieveWithDiscard(@Nonnull boolean retrieveWithDiscard) {
+		this.retrieveWithDiscard = retrieveWithDiscard;
 	}
 }
