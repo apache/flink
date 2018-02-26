@@ -35,9 +35,10 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -133,23 +134,25 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 				checkpointId, jobID, jobVertexID, subtaskIndex);
 		}
 
-		Map<Long, TaskStateSnapshot> toDiscard = new HashMap<>(16);
+		Map.Entry<Long, TaskStateSnapshot> toDiscard = null;
 
 		synchronized (lock) {
 			if (disposed) {
 				// we ignore late stores and simply discard the state.
-				toDiscard.put(checkpointId, localState);
+				toDiscard = new AbstractMap.SimpleEntry<Long, TaskStateSnapshot>(checkpointId, localState);
 			} else {
 				TaskStateSnapshot previous =
 					storedTaskStateByCheckpointID.put(checkpointId, localState);
 
 				if (previous != null) {
-					toDiscard.put(checkpointId, previous);
+					toDiscard = new AbstractMap.SimpleEntry<Long, TaskStateSnapshot>(checkpointId, previous);
 				}
 			}
 		}
 
-		asyncDiscardLocalStateForCollection(toDiscard.entrySet());
+		if (toDiscard != null) {
+			asyncDiscardLocalStateForCollection(Collections.singletonList(toDiscard));
+		}
 	}
 
 	@Override
