@@ -616,7 +616,15 @@ case $TEST in
 				EXIT_CODE=$?
 			fi
 
-			if [ $EXIT_CODE == 0]; then
+			if [ $EXIT_CODE == 0 ]; then
+				printf "\n==============================================================================\n"
+				printf "Running Hadoop-free Wordcount end-to-end test\n"
+				printf "==============================================================================\n"
+				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_hadoop_free.sh
+				EXIT_CODE=$?
+			fi
+
+			if [ $EXIT_CODE == 0 ]; then
 				printf "\n==============================================================================\n"
 				printf "Running Streaming Python Wordcount end-to-end test\n"
 				printf "==============================================================================\n"
