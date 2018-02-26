@@ -61,7 +61,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * +--------------------+
  * </pre>
  *
- * It is possible to recursively union union input gates.
+ * <strong>It is NOT possible to recursively union union input gates.</strong>
  */
 public class UnionInputGate implements InputGate, InputGateListener {
 
@@ -103,6 +103,11 @@ public class UnionInputGate implements InputGate, InputGateListener {
 		int currentNumberOfInputChannels = 0;
 
 		for (InputGate inputGate : inputGates) {
+			if (inputGate instanceof UnionInputGate) {
+				// if we want to add support for this, we need to implement pollNextBufferOrEvent()
+				throw new UnsupportedOperationException("Cannot union a union of input gates.");
+			}
+
 			// The offset to use for buffer or event instances received from this input gate.
 			inputGateToIndexOffsetMap.put(checkNotNull(inputGate), currentNumberOfInputChannels);
 			inputGatesWithRemainingData.add(inputGate);
