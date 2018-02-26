@@ -37,6 +37,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Lightweight configuration object which stores key/value pairs.
  */
@@ -76,6 +78,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 * @param other The configuration to copy the entries from.
 	 */
 	public Configuration(Configuration other) {
+		requireNonNull(other, "configuration must not be null");
 		this.confData = new HashMap<>(other.confData);
 	}
 
