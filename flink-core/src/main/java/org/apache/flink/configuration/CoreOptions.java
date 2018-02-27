@@ -137,17 +137,32 @@ public class CoreOptions {
 		.key("env.java.opts.taskmanager")
 		.defaultValue("");
 
+	/**
+	 * This options is here only for documentation generation, it is only
+	 * evaluated in the shell scripts.
+	 */
+	@SuppressWarnings("unused")
 	public static final ConfigOption<String> FLINK_LOG_DIR = ConfigOptions
 		.key("env.log.dir")
 		.noDefaultValue()
 		.withDescription("Defines the directory where the Flink logs are saved. It has to be an absolute path." +
 			" (Defaults to the log directory under Flink’s home)");
 
+	/**
+	 * This options is here only for documentation generation, it is only
+	 * evaluated in the shell scripts.
+	 */
+	@SuppressWarnings("unused")
 	public static final ConfigOption<Integer> FLINK_LOG_MAX = ConfigOptions
 		.key("env.log.max")
 		.defaultValue(5)
 		.withDescription("The maximum number of old log files to keep.");
 
+	/**
+	 * This options is here only for documentation generation, it is only
+	 * evaluated in the shell scripts.
+	 */
+	@SuppressWarnings("unused")
 	public static final ConfigOption<String> FLINK_SSH_OPTIONS = ConfigOptions
 		.key("env.ssh.opts")
 		.noDefaultValue()
