@@ -58,10 +58,15 @@ abstract class DescriptorTestBase {
   def verifyProperties(descriptor: Descriptor, expected: Map[String, String]): Unit = {
     val normProps = new DescriptorProperties
     descriptor.addProperties(normProps)
-    assertEquals(expected, normProps.asScalaMap)
+
+    // test produced properties
+    assertEquals(expected, normProps.asMap.asScala.toMap)
+
+    // test validation logic
+    validator().validate(normProps)
   }
 
-  def verifyInvalidProperty(
+  def addPropertyAndVerify(
       descriptor: Descriptor,
       property: String,
       invalidValue: String): Unit = {
@@ -71,7 +76,7 @@ abstract class DescriptorTestBase {
     validator().validate(properties)
   }
 
-  def verifyMissingProperty(descriptor: Descriptor, removeProperty: String): Unit = {
+  def removePropertyAndVerify(descriptor: Descriptor, removeProperty: String): Unit = {
     val properties = new DescriptorProperties
     descriptor.addProperties(properties)
     properties.unsafeRemove(removeProperty)
@@ -80,7 +85,9 @@ abstract class DescriptorTestBase {
 }
 
 class TestTableSourceDescriptor(connector: ConnectorDescriptor)
-  extends TableSourceDescriptor(connector) {
+  extends TableSourceDescriptor {
+
+  this.connectorDescriptor = Some(connector)
 
   def addFormat(format: FormatDescriptor): TestTableSourceDescriptor = {
     this.formatDescriptor = Some(format)
@@ -90,13 +97,5 @@ class TestTableSourceDescriptor(connector: ConnectorDescriptor)
   def addSchema(schema: Schema): TestTableSourceDescriptor = {
     this.schemaDescriptor = Some(schema)
     this
-  }
-
-  def getPropertyMap: java.util.Map[String, String] = {
-    val props = new DescriptorProperties()
-    connectorDescriptor.addProperties(props)
-    formatDescriptor.foreach(f => f.addProperties(props))
-    schemaDescriptor.foreach(s => s.addProperties(props))
-    props.asScalaMap.asJava
   }
 }

@@ -19,7 +19,8 @@
 package org.apache.flink.table.descriptors
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.descriptors.StatisticsValidator.{STATISTICS_COLUMNS, STATISTICS_ROW_COUNT, STATISTICS_PROPERTY_VERSION, validateColumnStats}
+import org.apache.flink.table.descriptors.DescriptorProperties.toScala
+import org.apache.flink.table.descriptors.StatisticsValidator.{STATISTICS_COLUMNS, STATISTICS_PROPERTY_VERSION, STATISTICS_ROW_COUNT, validateColumnStats}
 import org.apache.flink.table.plan.stats.ColumnStats
 
 import scala.collection.mutable
@@ -99,16 +100,16 @@ object StatisticsValidator {
     val columnCount = properties.getIndexedProperty(key, NAME).size
 
     val stats = for (i <- 0 until columnCount) yield {
-      val name = properties.getString(s"$key.$i.$NAME").getOrElse(
+      val name = toScala(properties.getOptionalString(s"$key.$i.$NAME")).getOrElse(
         throw new ValidationException(s"Could not find name of property '$key.$i.$NAME'."))
 
       val stats = ColumnStats(
-        properties.getLong(s"$key.$i.$DISTINCT_COUNT").map(v => Long.box(v)).orNull,
-        properties.getLong(s"$key.$i.$NULL_COUNT").map(v => Long.box(v)).orNull,
-        properties.getDouble(s"$key.$i.$AVG_LENGTH").map(v => Double.box(v)).orNull,
-        properties.getInt(s"$key.$i.$MAX_LENGTH").map(v => Int.box(v)).orNull,
-        properties.getDouble(s"$key.$i.$MAX_VALUE").map(v => Double.box(v)).orNull,
-        properties.getDouble(s"$key.$i.$MIN_VALUE").map(v => Double.box(v)).orNull
+        properties.getOptionalLong(s"$key.$i.$DISTINCT_COUNT").orElse(null),
+        properties.getOptionalLong(s"$key.$i.$NULL_COUNT").orElse(null),
+        properties.getOptionalDouble(s"$key.$i.$AVG_LENGTH").orElse(null),
+        properties.getOptionalInt(s"$key.$i.$MAX_LENGTH").orElse(null),
+        properties.getOptionalDouble(s"$key.$i.$MAX_VALUE").orElse(null),
+        properties.getOptionalDouble(s"$key.$i.$MIN_VALUE").orElse(null)
       )
 
       name -> stats

@@ -33,15 +33,20 @@ public class JsonValidator extends FormatDescriptorValidator {
 	@Override
 	public void validate(DescriptorProperties properties) {
 		super.validate(properties);
+		properties.validateBoolean(FORMAT_DERIVE_SCHEMA(), true);
+		final boolean deriveSchema = properties.getOptionalBoolean(FORMAT_DERIVE_SCHEMA()).orElse(false);
 		final boolean hasSchema = properties.containsKey(FORMAT_SCHEMA);
 		final boolean hasSchemaString = properties.containsKey(FORMAT_JSON_SCHEMA);
-		if (hasSchema && hasSchemaString) {
+		if (deriveSchema && (hasSchema || hasSchemaString)) {
+			throw new ValidationException(
+				"Format cannot define a schema and derive from the table's schema at the same time.");
+		} else if (!deriveSchema && hasSchema && hasSchemaString) {
 			throw new ValidationException("A definition of both a schema and JSON schema is not allowed.");
-		} else if (!hasSchema && !hasSchemaString) {
-			throw new ValidationException("A definition of a schema and JSON schema is required.");
+		} else if (!deriveSchema && !hasSchema && !hasSchemaString) {
+			throw new ValidationException("A definition of a schema or JSON schema is required.");
 		} else if (hasSchema) {
 			properties.validateType(FORMAT_SCHEMA, false);
-		} else {
+		} else if (hasSchemaString) {
 			properties.validateString(FORMAT_JSON_SCHEMA, false, 1);
 		}
 

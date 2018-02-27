@@ -30,12 +30,12 @@ class StatisticsTest extends DescriptorTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testInvalidRowCount(): Unit = {
-    verifyInvalidProperty(descriptors().get(0), "statistics.row-count", "abx")
+    addPropertyAndVerify(descriptors().get(0), "statistics.row-count", "abx")
   }
 
   @Test(expected = classOf[ValidationException])
   def testMissingName(): Unit = {
-    verifyMissingProperty(descriptors().get(0), "statistics.columns.0.name")
+    removePropertyAndVerify(descriptors().get(0), "statistics.columns.0.name")
   }
 
   // ----------------------------------------------------------------------------------------------

@@ -18,11 +18,15 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.api.{TableSchema, Types, ValidationException}
+import java.util.Optional
+
+import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.sources.tsextractors.StreamRecordTimestamp
 import org.apache.flink.table.sources.wmstrategies.PreserveWatermarks
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
+
+import scala.collection.JavaConverters._
 
 /**
   * Tests for [[SchemaValidator]].
@@ -33,6 +37,7 @@ class SchemaValidatorTest {
   def testSchema(): Unit = {
      val desc1 = Schema()
       .field("otherField", Types.STRING).from("csvField")
+      .field("abcField", Types.STRING)
       .field("p", Types.SQL_TIMESTAMP).proctime()
       .field("r", Types.SQL_TIMESTAMP).rowtime(
         Rowtime().timestampsFromSource().watermarksFromSource())
@@ -45,17 +50,8 @@ class SchemaValidatorTest {
       .field("myField", Types.BOOLEAN)
       .build()
 
-    val expected = TableSchema.builder()
-      .field("otherField", Types.STRING)
-      .field("p", Types.SQL_TIMESTAMP)
-      .field("r", Types.SQL_TIMESTAMP)
-      .build()
-
-    // test schema
-    assertEquals(expected, SchemaValidator.deriveSchema(props, Some(inputSchema)))
-
     // test proctime
-    assertEquals(Some("p"), SchemaValidator.deriveProctimeAttribute(props))
+    assertEquals(Optional.of("p"), SchemaValidator.deriveProctimeAttribute(props))
 
     // test rowtime
     val rowtime = SchemaValidator.deriveRowtimeAttributes(props).get(0)
@@ -64,128 +60,17 @@ class SchemaValidatorTest {
     assertTrue(rowtime.getWatermarkStrategy.isInstanceOf[PreserveWatermarks])
 
     // test field mapping
-    val expectedMapping = Map("otherField" -> "csvField")
-    assertEquals(expectedMapping, SchemaValidator.deriveFieldMapping(props, Some(inputSchema)))
-  }
+    val expectedMapping = Map("otherField" -> "csvField", "abcField" -> "abcField").asJava
+    assertEquals(
+      expectedMapping,
+      SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema)))
 
-  @Test
-  def testSchemaAlphabetically(): Unit = {
-     val desc1 = Schema()
-      .deriveFieldsAlphabetically()
-      .field("otherField", Types.STRING).from("csvField")
-      .field("p", Types.SQL_TIMESTAMP).proctime()
-      .field("r", Types.SQL_TIMESTAMP).rowtime(
-        Rowtime().timestampsFromSource().watermarksFromSource())
-    val props = new DescriptorProperties()
-    desc1.addProperties(props)
-
-    val inputSchema = TableSchema.builder()
-      .field("csvField", Types.STRING)
+    // test field format
+    val formatSchema = SchemaValidator.deriveFormatFields(props)
+    val expectedFormatSchema = TableSchema.builder()
+      .field("csvField", Types.STRING) // aliased
       .field("abcField", Types.STRING)
-      .field("myField", Types.BOOLEAN)
       .build()
-
-    val expected = TableSchema.builder()
-      .field("abcField", Types.STRING) // field is here
-      .field("csvField", Types.STRING)
-      .field("myField", Types.BOOLEAN)
-      .field("otherField", Types.STRING)
-      .field("p", Types.SQL_TIMESTAMP)
-      .field("r", Types.SQL_TIMESTAMP)
-      .build()
-
-    // test schema
-    assertEquals(expected, SchemaValidator.deriveSchema(props, Some(inputSchema)))
-
-    // test proctime
-    assertEquals(Some("p"), SchemaValidator.deriveProctimeAttribute(props))
-
-    // test rowtime
-    val rowtime = SchemaValidator.deriveRowtimeAttributes(props).get(0)
-    assertEquals("r", rowtime.getAttributeName)
-    assertTrue(rowtime.getTimestampExtractor.isInstanceOf[StreamRecordTimestamp])
-    assertTrue(rowtime.getWatermarkStrategy.isInstanceOf[PreserveWatermarks])
-
-    // test field mapping
-    val expectedMapping = Map(
-      "csvField" -> "csvField",
-      "abcField" -> "abcField",
-      "myField" -> "myField",
-      "otherField" -> "csvField")
-    assertEquals(expectedMapping, SchemaValidator.deriveFieldMapping(props, Some(inputSchema)))
-  }
-
-  @Test
-  def testSchemaSequentially(): Unit = {
-     val desc1 = Schema()
-      .deriveFieldsSequentially()
-      .field("otherField", Types.STRING).from("csvField")
-      .field("p", Types.SQL_TIMESTAMP).proctime()
-      .field("r", Types.SQL_TIMESTAMP).rowtime(
-      Rowtime().timestampsFromSource().watermarksFromSource())
-    val props = new DescriptorProperties()
-    desc1.addProperties(props)
-
-    val inputSchema = TableSchema.builder()
-      .field("csvField", Types.STRING)
-      .field("abcField", Types.STRING)
-      .field("myField", Types.BOOLEAN)
-      .build()
-
-    val expected = TableSchema.builder()
-      .field("csvField", Types.STRING)
-      .field("abcField", Types.STRING) // field is here
-      .field("myField", Types.BOOLEAN)
-      .field("otherField", Types.STRING)
-      .field("p", Types.SQL_TIMESTAMP)
-      .field("r", Types.SQL_TIMESTAMP)
-      .build()
-
-    // test schema
-    assertEquals(expected, SchemaValidator.deriveSchema(props, Some(inputSchema)))
-
-    // test proctime
-    assertEquals(Some("p"), SchemaValidator.deriveProctimeAttribute(props))
-
-    // test rowtime
-    val rowtime = SchemaValidator.deriveRowtimeAttributes(props).get(0)
-    assertEquals("r", rowtime.getAttributeName)
-    assertTrue(rowtime.getTimestampExtractor.isInstanceOf[StreamRecordTimestamp])
-    assertTrue(rowtime.getWatermarkStrategy.isInstanceOf[PreserveWatermarks])
-
-    // test field mapping
-    val expectedMapping = Map(
-      "csvField" -> "csvField",
-      "abcField" -> "abcField",
-      "myField" -> "myField",
-      "otherField" -> "csvField")
-    assertEquals(expectedMapping, SchemaValidator.deriveFieldMapping(props, Some(inputSchema)))
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testDeriveSchemaWithFieldOverwriting(): Unit = {
-     val desc1 = Schema()
-      .deriveFieldsAlphabetically()
-      .field("myField", Types.BOOLEAN)  // we do not allow this
-      .field("otherField", Types.STRING).from("csvField")
-      .field("p", Types.SQL_TIMESTAMP).proctime()
-      .field("r", Types.SQL_TIMESTAMP).rowtime(
-      Rowtime().timestampsFromSource().watermarksFromSource())
-    val props = new DescriptorProperties()
-    desc1.addProperties(props)
-
-    val inputSchema = TableSchema.builder()
-      .field("csvField", Types.STRING)
-      .field("myField", Types.BOOLEAN)
-      .build()
-
-    val expected = TableSchema.builder()
-      .field("myField", Types.BOOLEAN)
-      .field("otherField", Types.STRING)
-      .field("p", Types.SQL_TIMESTAMP)
-      .field("r", Types.SQL_TIMESTAMP)
-      .build()
-
-    assertEquals(expected, SchemaValidator.deriveSchema(props, Some(inputSchema)))
+    assertEquals(expectedFormatSchema, formatSchema)
   }
 }

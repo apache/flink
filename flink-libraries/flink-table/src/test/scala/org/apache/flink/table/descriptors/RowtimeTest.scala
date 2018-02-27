@@ -33,12 +33,12 @@ class RowtimeTest extends DescriptorTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testInvalidWatermarkType(): Unit = {
-    verifyInvalidProperty(descriptors().get(0), "rowtime.watermarks.type", "xxx")
+    addPropertyAndVerify(descriptors().get(0), "rowtime.watermarks.type", "xxx")
   }
 
   @Test(expected = classOf[ValidationException])
   def testMissingWatermarkClass(): Unit = {
-    verifyMissingProperty(descriptors().get(1), "rowtime.watermarks.class")
+    removePropertyAndVerify(descriptors().get(1), "rowtime.watermarks.class")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -63,7 +63,7 @@ class RowtimeTest extends DescriptorTestBase {
     val props1 = Map(
       "rowtime.timestamps.type" -> "from-field",
       "rowtime.timestamps.from" -> "otherField",
-      "rowtime.watermarks.type" -> "periodic-bounding",
+      "rowtime.watermarks.type" -> "periodic-bounded",
       "rowtime.watermarks.delay" -> "1000"
     )
 

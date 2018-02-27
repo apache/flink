@@ -22,14 +22,13 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.formats.json.JsonSchemaConverter;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.Json;
 import org.apache.flink.table.descriptors.Kafka;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.descriptors.TestTableSourceDescriptor;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceFactory;
 import org.apache.flink.table.sources.TableSourceFactoryService;
-import org.apache.flink.types.Row;
 
 import org.junit.Test;
 
@@ -68,11 +67,25 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 
 	protected abstract KafkaJsonTableSource.Builder builder();
 
-	protected abstract KafkaJsonTableSourceFactory factory();
+	@Test
+	public void testTableSourceFromJsonSchema() {
+		testTableSource(
+			new Json()
+				.jsonSchema(JSON_SCHEMA)
+				.failOnMissingField(true)
+		);
+	}
 
 	@Test
-	public void testResultingTableSource() {
+	public void testTableSourceDerivedSchema() {
+		testTableSource(
+			new Json()
+				.deriveSchema()
+				.failOnMissingField(true)
+		);
+	}
 
+	private void testTableSource(FormatDescriptor format) {
 		// construct table source using a builder
 
 		final Map<String, String> tableJsonMapping = new HashMap<>();
@@ -98,8 +111,8 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 				.withSchema(
 					TableSchema.builder()
 						.field("fruit-name", Types.STRING)
-						.field("count", Types.INT)
-						.field("event-time", Types.LONG)
+						.field("count", Types.BIG_INT)
+						.field("event-time", Types.BIG_DEC)
 						.field("proc-time", Types.SQL_TIMESTAMP)
 						.build())
 				.withProctimeAttribute("proc-time")
@@ -117,19 +130,15 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 					.topic(TOPIC)
 					.properties(props)
 					.startFromSpecificOffsets(offsets))
-			.addFormat(
-				new Json()
-						.jsonSchema(JSON_SCHEMA)
-						.failOnMissingField(true))
+			.addFormat(format)
 			.addSchema(
 				new Schema()
 						.field("fruit-name", Types.STRING).from("name")
-						.field("count", Types.INT) // no from so it must match with the input
-						.field("event-time", Types.LONG).from("time")
+						.field("count", Types.BIG_INT) // no from so it must match with the input
+						.field("event-time", Types.BIG_DEC).from("time")
 						.field("proc-time", Types.SQL_TIMESTAMP).proctime());
-		final TableSourceFactory<Row> factory = factory();
 
-		final TableSource<?> factorySource = TableSourceFactoryService.findTableSourceFactory(testDesc);
+		final TableSource<?> factorySource = TableSourceFactoryService.findAndCreateTableSource(testDesc);
 
 		assertEquals(builderSource, factorySource);
 	}

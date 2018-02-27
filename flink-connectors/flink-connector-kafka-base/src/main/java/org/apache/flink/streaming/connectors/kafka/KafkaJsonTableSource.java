@@ -109,7 +109,7 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource implements D
 		return Objects.hash(super.hashCode(), jsonSchema, fieldMapping, failOnMissingField);
 	}
 
-//////// SETTERS FOR OPTIONAL PARAMETERS
+	//////// SETTERS FOR OPTIONAL PARAMETERS
 
 	/**
 	 * Sets the flag that specifies the behavior in case of missing fields.

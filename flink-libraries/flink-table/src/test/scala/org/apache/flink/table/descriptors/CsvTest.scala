@@ -31,17 +31,17 @@ class CsvTest extends DescriptorTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testInvalidType(): Unit = {
-    verifyInvalidProperty(descriptors().get(0), "format.fields.0.type", "WHATEVER")
+    addPropertyAndVerify(descriptors().get(0), "format.fields.0.type", "WHATEVER")
   }
 
   @Test(expected = classOf[ValidationException])
   def testInvalidField(): Unit = {
-    verifyInvalidProperty(descriptors().get(0), "format.fields.10.name", "WHATEVER")
+    addPropertyAndVerify(descriptors().get(0), "format.fields.10.name", "WHATEVER")
   }
 
   @Test(expected = classOf[ValidationException])
   def testInvalidQuoteCharacter(): Unit = {
-    verifyInvalidProperty(descriptors().get(0), "format.quote-character", "qq")
+    addPropertyAndVerify(descriptors().get(0), "format.quote-character", "qq")
   }
 
   // ----------------------------------------------------------------------------------------------

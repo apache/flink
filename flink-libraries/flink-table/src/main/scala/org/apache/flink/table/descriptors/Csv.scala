@@ -23,6 +23,7 @@ import org.apache.flink.table.api.{TableSchema, ValidationException}
 import org.apache.flink.table.descriptors.CsvValidator._
 
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 
 /**
   * Format descriptor for comma-separated values (CSV).
@@ -145,7 +146,9 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
   override protected def addFormatProperties(properties: DescriptorProperties): Unit = {
     fieldDelim.foreach(properties.putString(FORMAT_FIELD_DELIMITER, _))
     lineDelim.foreach(properties.putString(FORMAT_LINE_DELIMITER, _))
-    properties.putTableSchema(FORMAT_FIELDS, schema.toIndexedSeq)
+    properties.putTableSchema(
+      FORMAT_FIELDS,
+      schema.toIndexedSeq.map(DescriptorProperties.toJava[String, String]).asJava)
     quoteCharacter.foreach(properties.putCharacter(FORMAT_QUOTE_CHARACTER, _))
     commentPrefix.foreach(properties.putString(FORMAT_COMMENT_PREFIX, _))
     isIgnoreFirstLine.foreach(properties.putBoolean(FORMAT_IGNORE_FIRST_LINE, _))

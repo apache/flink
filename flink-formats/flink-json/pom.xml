@@ -65,14 +65,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<!-- use a dedicated Scala version to not depend on it -->
 			<artifactId>flink-table_2.11</artifactId>
 			<version>${project.version}</version>
@@ -87,5 +79,4 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
-
 </project>

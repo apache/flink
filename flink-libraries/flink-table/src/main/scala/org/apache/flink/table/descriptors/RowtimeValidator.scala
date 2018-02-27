@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.descriptors.DescriptorProperties.serialize
+import org.apache.flink.table.descriptors.DescriptorProperties.{serialize, toJava}
 import org.apache.flink.table.descriptors.RowtimeValidator._
 import org.apache.flink.table.sources.tsextractors.{ExistingField, StreamRecordTimestamp, TimestampExtractor}
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, BoundedOutOfOrderTimestamps, PreserveWatermarks, WatermarkStrategy}
+
+import scala.collection.JavaConverters._
 
 /**
   * Validator for [[Rowtime]].
@@ -29,32 +31,38 @@ import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, Bounded
 class RowtimeValidator(val prefix: String = "") extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
-    val timestampExistingField = (props: DescriptorProperties) => {
-      props.validateString(prefix + ROWTIME_TIMESTAMPS_FROM, isOptional = false, minLen = 1)
+    val timestampExistingField = (_: String) => {
+      properties.validateString(
+        prefix + ROWTIME_TIMESTAMPS_FROM, isOptional = false, minLen = 1)
     }
 
-    val timestampCustom = (props: DescriptorProperties) => {
-      props.validateString(prefix + ROWTIME_TIMESTAMPS_CLASS, isOptional = false, minLen = 1)
-      props.validateString(prefix + ROWTIME_TIMESTAMPS_SERIALIZED, isOptional = false, minLen = 1)
+    val timestampCustom = (_: String) => {
+      properties.validateString(
+        prefix + ROWTIME_TIMESTAMPS_CLASS, isOptional = false, minLen = 1)
+      properties.validateString(
+        prefix + ROWTIME_TIMESTAMPS_SERIALIZED, isOptional = false, minLen = 1)
     }
 
     properties.validateEnum(
       prefix + ROWTIME_TIMESTAMPS_TYPE,
       isOptional = false,
       Map(
-        ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD -> timestampExistingField,
+        ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD -> toJava(timestampExistingField),
         ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE -> properties.noValidation(),
-        ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM -> timestampCustom
-      )
+        ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM -> toJava(timestampCustom)
+      ).asJava
     )
 
-    val watermarkPeriodicBounding = (props: DescriptorProperties) => {
-      props.validateLong(prefix + ROWTIME_WATERMARKS_DELAY, isOptional = false, min = 0)
+    val watermarkPeriodicBounded = (_: String) => {
+      properties.validateLong(
+        prefix + ROWTIME_WATERMARKS_DELAY, isOptional = false, min = 0)
     }
 
-    val watermarkCustom = (props: DescriptorProperties) => {
-      props.validateString(prefix + ROWTIME_WATERMARKS_CLASS, isOptional = false, minLen = 1)
-      props.validateString(prefix + ROWTIME_WATERMARKS_SERIALIZED, isOptional = false, minLen = 1)
+    val watermarkCustom = (_: String) => {
+      properties.validateString(
+        prefix + ROWTIME_WATERMARKS_CLASS, isOptional = false, minLen = 1)
+      properties.validateString(
+        prefix + ROWTIME_WATERMARKS_SERIALIZED, isOptional = false, minLen = 1)
     }
 
     properties.validateEnum(
@@ -62,10 +70,10 @@ class RowtimeValidator(val prefix: String = "") extends DescriptorValidator {
       isOptional = false,
       Map(
         ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING -> properties.noValidation(),
-        ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDING -> watermarkPeriodicBounding,
+        ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED -> toJava(watermarkPeriodicBounded),
         ROWTIME_WATERMARKS_TYPE_VALUE_FROM_SOURCE -> properties.noValidation(),
-        ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM -> watermarkCustom
-      )
+        ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM -> toJava(watermarkCustom)
+      ).asJava
     )
   }
 }
@@ -83,7 +91,7 @@ object RowtimeValidator {
 
   val ROWTIME_WATERMARKS_TYPE = "rowtime.watermarks.type"
   val ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING = "periodic-ascending"
-  val ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDING = "periodic-bounding"
+  val ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED = "periodic-bounded"
   val ROWTIME_WATERMARKS_TYPE_VALUE_FROM_SOURCE = "from-source"
   val ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM = "custom"
   val ROWTIME_WATERMARKS_CLASS = "rowtime.watermarks.class"
@@ -116,10 +124,10 @@ object RowtimeValidator {
       case _: AscendingTimestamps =>
         Map(ROWTIME_WATERMARKS_TYPE -> ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING)
 
-      case bounding: BoundedOutOfOrderTimestamps =>
+      case bounded: BoundedOutOfOrderTimestamps =>
         Map(
-          ROWTIME_WATERMARKS_TYPE -> ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDING,
-          ROWTIME_WATERMARKS_DELAY -> bounding.delay.toString)
+          ROWTIME_WATERMARKS_TYPE -> ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED,
+          ROWTIME_WATERMARKS_DELAY -> bounded.delay.toString)
 
       case _: PreserveWatermarks =>
         Map(ROWTIME_WATERMARKS_TYPE -> ROWTIME_WATERMARKS_TYPE_VALUE_FROM_SOURCE)
@@ -135,14 +143,14 @@ object RowtimeValidator {
     : Option[(TimestampExtractor, WatermarkStrategy)] = {
 
     // create timestamp extractor
-    val t = properties.getString(prefix + ROWTIME_TIMESTAMPS_TYPE)
-    if (t.isEmpty) {
+    val t = properties.getOptionalString(prefix + ROWTIME_TIMESTAMPS_TYPE)
+    if (!t.isPresent) {
       return None
     }
-    val extractor: TimestampExtractor = t.get match {
+    val extractor: TimestampExtractor = t.get() match {
 
       case ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD =>
-        val field = properties.getString(prefix + ROWTIME_TIMESTAMPS_FROM).get
+        val field = properties.getString(prefix + ROWTIME_TIMESTAMPS_FROM)
         new ExistingField(field)
 
       case ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE =>
@@ -153,19 +161,19 @@ object RowtimeValidator {
           ROWTIME_TIMESTAMPS_CLASS,
           classOf[TimestampExtractor])
         DescriptorProperties.deserialize(
-          properties.getString(prefix + ROWTIME_TIMESTAMPS_SERIALIZED).get,
-          clazz.get)
+          properties.getString(prefix + ROWTIME_TIMESTAMPS_SERIALIZED),
+          clazz)
     }
 
     // create watermark strategy
-    val s = properties.getString(prefix + ROWTIME_WATERMARKS_TYPE).get
+    val s = properties.getString(prefix + ROWTIME_WATERMARKS_TYPE)
     val strategy: WatermarkStrategy = s match {
 
       case ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING =>
         new AscendingTimestamps()
 
-      case ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDING =>
-        val delay = properties.getLong(prefix + ROWTIME_WATERMARKS_DELAY).get
+      case ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED =>
+        val delay = properties.getLong(prefix + ROWTIME_WATERMARKS_DELAY)
         new BoundedOutOfOrderTimestamps(delay)
 
       case ROWTIME_WATERMARKS_TYPE_VALUE_FROM_SOURCE =>
@@ -176,8 +184,8 @@ object RowtimeValidator {
           prefix + ROWTIME_WATERMARKS_CLASS,
           classOf[WatermarkStrategy])
         DescriptorProperties.deserialize(
-          properties.getString(prefix + ROWTIME_WATERMARKS_SERIALIZED).get,
-          clazz.get)
+          properties.getString(prefix + ROWTIME_WATERMARKS_SERIALIZED),
+          clazz)
     }
 
     Some((extractor, strategy))

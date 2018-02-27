@@ -29,7 +29,7 @@ class MetadataTest extends DescriptorTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testInvalidCreationTime(): Unit = {
-    verifyInvalidProperty(descriptors().get(0), "metadata.creation-time", "dfghj")
+    addPropertyAndVerify(descriptors().get(0), "metadata.creation-time", "dfghj")
   }
 
   // ----------------------------------------------------------------------------------------------

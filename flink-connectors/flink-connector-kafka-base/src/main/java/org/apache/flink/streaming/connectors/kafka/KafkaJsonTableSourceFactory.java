@@ -33,6 +33,7 @@ import org.apache.flink.table.sources.TableSourceFactory;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +43,7 @@ import java.util.Properties;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
+import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD;
@@ -65,13 +67,11 @@ import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERM
 import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_DELAY;
 import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_SERIALIZED;
 import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_TYPE;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_DERIVE_FIELDS;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FIELDS;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FIELDS_FROM;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FIELDS_NAME;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FIELDS_PROCTIME;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FIELDS_TYPE;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_PROPERTY_VERSION;
+import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA;
+import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FROM;
+import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_NAME;
+import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_PROCTIME;
+import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 
 /**
  * Factory for creating configured instances of {@link KafkaJsonTableSource}.
@@ -88,7 +88,6 @@ public abstract class KafkaJsonTableSourceFactory implements TableSourceFactory<
 
 		context.put(CONNECTOR_PROPERTY_VERSION(), "1"); // backwards compatibility
 		context.put(FORMAT_PROPERTY_VERSION(), "1");
-		context.put(SCHEMA_PROPERTY_VERSION(), "1");
 
 		return context;
 	}
@@ -110,23 +109,23 @@ public abstract class KafkaJsonTableSourceFactory implements TableSourceFactory<
 		properties.add(FORMAT_JSON_SCHEMA);
 		properties.add(FORMAT_SCHEMA);
 		properties.add(FORMAT_FAIL_ON_MISSING_FIELD);
+		properties.add(FORMAT_DERIVE_SCHEMA());
 
 		// schema
-		properties.add(SCHEMA_DERIVE_FIELDS());
-		properties.add(SCHEMA_FIELDS() + ".#." + SCHEMA_FIELDS_TYPE());
-		properties.add(SCHEMA_FIELDS() + ".#." + SCHEMA_FIELDS_NAME());
-		properties.add(SCHEMA_FIELDS() + ".#." + SCHEMA_FIELDS_FROM());
+		properties.add(SCHEMA() + ".#." + SCHEMA_TYPE());
+		properties.add(SCHEMA() + ".#." + SCHEMA_NAME());
+		properties.add(SCHEMA() + ".#." + SCHEMA_FROM());
 
 		// time attributes
-		properties.add(SCHEMA_FIELDS() + ".#." + SCHEMA_FIELDS_PROCTIME());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_TIMESTAMPS_TYPE());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_TIMESTAMPS_FROM());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_TIMESTAMPS_CLASS());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_TIMESTAMPS_SERIALIZED());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_WATERMARKS_TYPE());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_WATERMARKS_CLASS());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_WATERMARKS_SERIALIZED());
-		properties.add(SCHEMA_FIELDS() + ".#." + ROWTIME_WATERMARKS_DELAY());
+		properties.add(SCHEMA() + ".#." + SCHEMA_PROCTIME());
+		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_TYPE());
+		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_FROM());
+		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_CLASS());
+		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_SERIALIZED());
+		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_TYPE());
+		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_CLASS());
+		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_SERIALIZED());
+		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_DELAY());
 
 		return properties;
 	}
@@ -137,31 +136,26 @@ public abstract class KafkaJsonTableSourceFactory implements TableSourceFactory<
 		params.putProperties(properties);
 
 		// validate
+		new SchemaValidator(true).validate(params);
 		new KafkaValidator().validate(params);
 		new JsonValidator().validate(params);
-		new SchemaValidator(true).validate(params);
 
 		// build
 		final KafkaJsonTableSource.Builder builder = createBuilder();
 
 		// topic
-		final String topic = params
-			.getOptionalString(CONNECTOR_TOPIC)
-			.orElseThrow(params.errorSupplier());
+		final String topic = params.getString(CONNECTOR_TOPIC);
 		builder.forTopic(topic);
 
 		// properties
 		final Properties props = new Properties();
-		final int count = params.getIndexedPropertyMap(CONNECTOR_PROPERTIES, CONNECTOR_PROPERTIES_KEY).size();
-		for (int i = 0; i < count; i++) {
-			final String key = params
-				.getOptionalString(CONNECTOR_PROPERTIES + '.' + i + '.' + CONNECTOR_PROPERTIES_KEY)
-				.orElseThrow(params.errorSupplier());
-			final String value = params
-				.getOptionalString(CONNECTOR_PROPERTIES + '.' + i + '.' + CONNECTOR_PROPERTIES_VALUE)
-				.orElseThrow(params.errorSupplier());
-			props.put(key, value);
-		}
+		final List<Map<String, String>> propsList = params.getFixedIndexedProperties(
+			CONNECTOR_PROPERTIES,
+			Arrays.asList(CONNECTOR_PROPERTIES_KEY, CONNECTOR_PROPERTIES_VALUE));
+		propsList.forEach(kv -> props.put(
+			params.getString(kv.get(CONNECTOR_PROPERTIES_KEY)),
+			params.getString(kv.get(CONNECTOR_PROPERTIES_VALUE))
+		));
 		builder.withKafkaProperties(props);
 
 		// startup mode
@@ -183,25 +177,17 @@ public abstract class KafkaJsonTableSourceFactory implements TableSourceFactory<
 					break;
 
 				case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS:
-					final Map<String, String> partitions = params.getIndexedPropertyMap(
-						CONNECTOR_SPECIFIC_OFFSETS,
-						CONNECTOR_SPECIFIC_OFFSETS_PARTITION);
-
 					final Map<KafkaTopicPartition, Long> offsetMap = new HashMap<>();
-					for (int i = 0; i < partitions.size(); i++) {
 
-						final int partition = params
-							.getOptionalInt(CONNECTOR_SPECIFIC_OFFSETS + '.' + i + '.' + CONNECTOR_SPECIFIC_OFFSETS_PARTITION)
-							.orElseThrow(params.errorSupplier());
-
+					final List<Map<String, String>> offsetList = params.getFixedIndexedProperties(
+						CONNECTOR_SPECIFIC_OFFSETS,
+						Arrays.asList(CONNECTOR_SPECIFIC_OFFSETS_PARTITION, CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
+					offsetList.forEach(kv -> {
+						final int partition = params.getInt(kv.get(CONNECTOR_SPECIFIC_OFFSETS_PARTITION));
+						final long offset = params.getLong(kv.get(CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
 						final KafkaTopicPartition topicPartition = new KafkaTopicPartition(topic, partition);
-
-						final long offset = params
-							.getOptionalLong(CONNECTOR_SPECIFIC_OFFSETS + "." + i + "." + CONNECTOR_SPECIFIC_OFFSETS_OFFSET)
-							.orElseThrow(params.errorSupplier());
-
 						offsetMap.put(topicPartition, offset);
-					}
+					});
 					builder.fromSpecificOffsets(offsetMap);
 					break;
 				}
@@ -213,27 +199,22 @@ public abstract class KafkaJsonTableSourceFactory implements TableSourceFactory<
 		// json schema
 		final TableSchema formatSchema;
 		if (params.containsKey(FORMAT_SCHEMA)) {
-			final TypeInformation<?> info = params
-				.getOptionalType(FORMAT_SCHEMA)
-				.orElseThrow(params.errorSupplier());
+			final TypeInformation<?> info = params.getType(FORMAT_SCHEMA);
+			formatSchema = TableSchema.fromTypeInfo(info);
+		} else if (params.containsKey(FORMAT_JSON_SCHEMA)) {
+			final TypeInformation<?> info = JsonSchemaConverter.convert(params.getString(FORMAT_JSON_SCHEMA));
 			formatSchema = TableSchema.fromTypeInfo(info);
 		} else {
-			final TypeInformation<?> info = JsonSchemaConverter.convert(
-				params
-					.getOptionalString(FORMAT_JSON_SCHEMA)
-					.orElseThrow(params.errorSupplier())
-			);
-			formatSchema = TableSchema.fromTypeInfo(info);
+			formatSchema = SchemaValidator.deriveFormatFields(params);
 		}
 		builder.forJsonSchema(formatSchema);
 
 		// schema
-		final TableSchema schema = SchemaValidator.deriveSchema(params, Optional.of(formatSchema));
+		final TableSchema schema = params.getTableSchema(SCHEMA());
 		builder.withSchema(schema);
 
 		// proctime
-		SchemaValidator.deriveProctimeOptional(params)
-			.ifPresent(builder::withProctimeAttribute);
+		SchemaValidator.deriveProctimeAttribute(params).ifPresent(builder::withProctimeAttribute);
 
 		// rowtime
 		final List<RowtimeAttributeDescriptor> descriptors = SchemaValidator.deriveRowtimeAttributes(params);

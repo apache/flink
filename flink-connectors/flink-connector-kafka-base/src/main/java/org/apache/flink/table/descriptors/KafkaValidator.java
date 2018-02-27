@@ -19,7 +19,6 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
-import org.apache.flink.table.api.ValidationException;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -63,46 +62,39 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 		properties.validateEnumValues(CONNECTOR_VERSION(), false, versions);
 		properties.validateString(CONNECTOR_TOPIC, false, 1, Integer.MAX_VALUE);
 
-		Consumer<DescriptorProperties> specificOffsetsValidator =  (props) -> {
-				final Map<String, String> partitions = properties.getIndexedPropertyMap(
-					CONNECTOR_SPECIFIC_OFFSETS,
-					CONNECTOR_SPECIFIC_OFFSETS_PARTITION);
+		final Map<String, Consumer<String>> specificOffsetValidators = new HashMap<>();
+		specificOffsetValidators.put(
+			CONNECTOR_SPECIFIC_OFFSETS_PARTITION,
+			(prefix) -> properties.validateInt(
+				prefix + CONNECTOR_SPECIFIC_OFFSETS_PARTITION,
+				false,
+				0,
+				Integer.MAX_VALUE));
+		specificOffsetValidators.put(
+			CONNECTOR_SPECIFIC_OFFSETS_OFFSET,
+			(prefix) -> properties.validateLong(
+				prefix + CONNECTOR_SPECIFIC_OFFSETS_OFFSET,
+				false,
+				0,
+				Long.MAX_VALUE));
 
-				final Map<String, String> offsets = properties.getIndexedPropertyMap(
-					CONNECTOR_SPECIFIC_OFFSETS,
-					CONNECTOR_SPECIFIC_OFFSETS_OFFSET);
-
-				if (partitions.isEmpty() || offsets.isEmpty()) {
-					throw new ValidationException(
-						"Partition and offsets must be set for 'specific-offsets' mode.");
-				}
-
-				for (int i = 0; i < partitions.size(); ++i) {
-					properties.validateInt(
-							CONNECTOR_SPECIFIC_OFFSETS + "." + i + "." + CONNECTOR_SPECIFIC_OFFSETS_PARTITION,
-							false,
-							0,
-							Integer.MAX_VALUE);
-					properties.validateLong(
-							CONNECTOR_SPECIFIC_OFFSETS + "." + i + "." + CONNECTOR_SPECIFIC_OFFSETS_OFFSET,
-							false,
-							0,
-							Long.MAX_VALUE);
-				}
-			};
-
-		final Map<String, Consumer<DescriptorProperties>> startupModeValidation = new HashMap<>();
-		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_GROUP_OFFSETS, properties.noValidationConsumer());
-		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_EARLIEST, properties.noValidationConsumer());
-		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_LATEST, properties.noValidationConsumer());
-		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS, specificOffsetsValidator);
+		final Map<String, Consumer<String>> startupModeValidation = new HashMap<>();
+		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_GROUP_OFFSETS, properties.noValidation());
+		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_EARLIEST, properties.noValidation());
+		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_LATEST, properties.noValidation());
+		startupModeValidation.put(
+			CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS,
+			prefix -> properties.validateFixedIndexedProperties(CONNECTOR_SPECIFIC_OFFSETS, false, specificOffsetValidators));
 		properties.validateEnum(CONNECTOR_STARTUP_MODE, true, startupModeValidation);
 
-		final int kafkaProperties = properties.getIndexedPropertyMap(CONNECTOR_PROPERTIES, CONNECTOR_PROPERTIES_KEY).size();
-		for (int i = 0; i < kafkaProperties; i++) {
-			properties.validateString(CONNECTOR_PROPERTIES + '.' + i + '.' + CONNECTOR_PROPERTIES_KEY, false, 1, Integer.MAX_VALUE);
-			properties.validateString(CONNECTOR_PROPERTIES + '.' + i + '.' + CONNECTOR_PROPERTIES_VALUE, false, 0, Integer.MAX_VALUE);
-		}
+		final Map<String, Consumer<String>> propertyValidators = new HashMap<>();
+		propertyValidators.put(
+			CONNECTOR_PROPERTIES_KEY,
+			prefix -> properties.validateString(prefix + CONNECTOR_PROPERTIES_KEY, false, 1, Integer.MAX_VALUE));
+		propertyValidators.put(
+			CONNECTOR_PROPERTIES_VALUE,
+			prefix -> properties.validateString(prefix + CONNECTOR_PROPERTIES_VALUE, false, 0, Integer.MAX_VALUE));
+		properties.validateFixedIndexedProperties(CONNECTOR_PROPERTIES, true, propertyValidators);
 	}
 
 	// utilities

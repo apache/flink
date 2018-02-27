@@ -34,9 +34,4 @@ public class Kafka09JsonTableSourceFactoryTest extends KafkaJsonTableSourceFacto
 	protected KafkaJsonTableSource.Builder builder() {
 		return Kafka09JsonTableSource.builder();
 	}
-
-	@Override
-	protected KafkaJsonTableSourceFactory factory() {
-		return new Kafka09JsonTableSourceFactory();
-	}
 }

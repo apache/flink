@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.descriptors
 
+import org.apache.flink.table.descriptors.DescriptorProperties.toScala
 import org.apache.flink.table.descriptors.StatisticsValidator.{STATISTICS_COLUMNS, STATISTICS_ROW_COUNT, readColumnStats}
 import org.apache.flink.table.plan.stats.TableStats
 
@@ -50,7 +51,7 @@ abstract class TableSourceDescriptor extends Descriptor {
   protected def getTableStats: Option[TableStats] = {
       val normalizedProps = new DescriptorProperties()
       addProperties(normalizedProps)
-      val rowCount = normalizedProps.getLong(STATISTICS_ROW_COUNT).map(v => Long.box(v))
+      val rowCount = toScala(normalizedProps.getOptionalLong(STATISTICS_ROW_COUNT))
       rowCount match {
         case Some(cnt) =>
           val columnStats = readColumnStats(normalizedProps, STATISTICS_COLUMNS)

@@ -29,12 +29,12 @@ class FileSystemTest extends DescriptorTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testInvalidPath(): Unit = {
-    verifyInvalidProperty(descriptors().get(0), "connector.path", "")
+    addPropertyAndVerify(descriptors().get(0), "connector.path", "")
   }
 
   @Test(expected = classOf[ValidationException])
   def testMissingPath(): Unit = {
-    verifyMissingProperty(descriptors().get(0), "connector.path")
+    removePropertyAndVerify(descriptors().get(0), "connector.path")
   }
 
   // ----------------------------------------------------------------------------------------------

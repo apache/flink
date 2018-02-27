@@ -34,9 +34,4 @@ public class Kafka011JsonTableSourceFactoryTest extends KafkaJsonTableSourceFact
 	protected KafkaJsonTableSource.Builder builder() {
 		return Kafka011JsonTableSource.builder();
 	}
-
-	@Override
-	protected KafkaJsonTableSourceFactory factory() {
-		return new Kafka011JsonTableSourceFactory();
-	}
 }

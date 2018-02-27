@@ -24,7 +24,6 @@ import org.apache.flink.table.api.{AmbiguousTableSourceException, NoMatchingTabl
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION
 import org.apache.flink.table.descriptors.MetadataValidator.METADATA_PROPERTY_VERSION
-import org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_PROPERTY_VERSION
 import org.apache.flink.table.descriptors.StatisticsValidator.STATISTICS_PROPERTY_VERSION
 import org.apache.flink.table.descriptors._
 import org.apache.flink.table.util.Logging
@@ -39,13 +38,13 @@ object TableSourceFactoryService extends Logging {
 
   private lazy val loader = ServiceLoader.load(classOf[TableSourceFactory[_]])
 
-  def findTableSourceFactory(descriptor: TableSourceDescriptor): TableSource[_] = {
+  def findAndCreateTableSource(descriptor: TableSourceDescriptor): TableSource[_] = {
     val properties = new DescriptorProperties()
     descriptor.addProperties(properties)
-    findTableSourceFactory(properties.asScalaMap)
+    findAndCreateTableSource(properties.asMap.asScala.toMap)
   }
 
-  def findTableSourceFactory(properties: Map[String, String]): TableSource[_] = {
+  def findAndCreateTableSource(properties: Map[String, String]): TableSource[_] = {
     var matchingFactory: Option[(TableSourceFactory[_], Seq[String])] = None
     try {
       val iter = loader.iterator()
@@ -74,7 +73,6 @@ object TableSourceFactoryService extends Logging {
         // with the version we can provide mappings in case the format changes
         plainContext.remove(CONNECTOR_PROPERTY_VERSION)
         plainContext.remove(FORMAT_PROPERTY_VERSION)
-        plainContext.remove(SCHEMA_PROPERTY_VERSION)
         plainContext.remove(METADATA_PROPERTY_VERSION)
         plainContext.remove(STATISTICS_PROPERTY_VERSION)
 

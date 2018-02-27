@@ -139,8 +139,8 @@ class Statistics extends Descriptor {
     rowCount.foreach(rc => properties.putLong(STATISTICS_ROW_COUNT, rc))
     val namedStats = columnStats.map { case (name, stats) =>
       // name should not be part of the properties key
-      (stats + (NAME -> name)).toMap
-    }.toSeq
+      (stats + (NAME -> name)).toMap.asJava
+    }.toList.asJava
     properties.putIndexedVariableProperties(STATISTICS_COLUMNS, namedStats)
   }
 }

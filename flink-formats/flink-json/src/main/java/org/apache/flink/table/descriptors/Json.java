@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.typeutils.TypeStringUtils;
 import org.apache.flink.util.Preconditions;
 
+import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_JSON_SCHEMA;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_SCHEMA;
@@ -33,6 +34,7 @@ import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_TYPE_VALUE
 public class Json extends FormatDescriptor {
 
 	private Boolean failOnMissingField;
+	private Boolean deriveSchema;
 	private String jsonSchema;
 	private String schema;
 
@@ -56,7 +58,7 @@ public class Json extends FormatDescriptor {
 
 	/**
 	 * Sets the JSON schema string with field names and the types according to the JSON schema
-	 * specification [[http://json-schema.org/specification.html]]. Required.
+	 * specification [[http://json-schema.org/specification.html]].
 	 *
 	 * <p>The schema might be nested.
 	 *
@@ -66,11 +68,12 @@ public class Json extends FormatDescriptor {
 		Preconditions.checkNotNull(jsonSchema);
 		this.jsonSchema = jsonSchema;
 		this.schema = null;
+		this.deriveSchema = null;
 		return this;
 	}
 
 	/**
-	 * Sets the schema using type information. Required.
+	 * Sets the schema using type information.
 	 *
 	 * <p>JSON objects are represented as ROW types.
 	 *
@@ -82,6 +85,23 @@ public class Json extends FormatDescriptor {
 		Preconditions.checkNotNull(schemaType);
 		this.schema = TypeStringUtils.writeTypeInfo(schemaType);
 		this.jsonSchema = null;
+		this.deriveSchema = null;
+		return this;
+	}
+
+	/**
+	 * Derives the format schema from the table's schema described using {@link Schema}.
+	 *
+	 * <p>This allows for defining schema information only once.
+	 *
+	 * <p>The names, types, and field order of the format are determined by the table's
+	 * schema. Time attributes are ignored. A "from" definition is interpreted as a field renaming
+	 * in the format.
+	 */
+	public Json deriveSchema() {
+		this.deriveSchema = true;
+		this.schema = null;
+		this.jsonSchema = null;
 		return this;
 	}
 
@@ -90,6 +110,10 @@ public class Json extends FormatDescriptor {
 	 */
 	@Override
 	public void addFormatProperties(DescriptorProperties properties) {
+		if (deriveSchema != null) {
+			properties.putBoolean(FORMAT_DERIVE_SCHEMA(), deriveSchema);
+		}
+
 		if (jsonSchema != null) {
 			properties.putString(FORMAT_JSON_SCHEMA, jsonSchema);
 		}

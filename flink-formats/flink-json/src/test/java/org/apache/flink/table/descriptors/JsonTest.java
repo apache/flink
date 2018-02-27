@@ -56,18 +56,18 @@ public class JsonTest extends DescriptorTestBase {
 
 	@Test(expected = ValidationException.class)
 	public void testInvalidMissingField() {
-		verifyInvalidProperty(descriptors().get(0), "format.fail-on-missing-field", "DDD");
+		addPropertyAndVerify(descriptors().get(0), "format.fail-on-missing-field", "DDD");
 	}
 
 	@Test(expected = ValidationException.class)
 	public void testMissingSchema() {
-		verifyMissingProperty(descriptors().get(0), "format.json-schema");
+		removePropertyAndVerify(descriptors().get(0), "format.json-schema");
 	}
 
 	@Test(expected = ValidationException.class)
 	public void testDuplicateSchema() {
 		// we add an additional non-json schema
-		verifyInvalidProperty(descriptors().get(0), "format.schema", "DDD");
+		addPropertyAndVerify(descriptors().get(0), "format.schema", "DDD");
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -85,7 +85,9 @@ public class JsonTest extends DescriptorTestBase {
 					new TypeInformation[]{Types.STRING(), Types.SQL_TIMESTAMP()}))
 			.failOnMissingField(true);
 
-		return Arrays.asList(desc1, desc2, desc3);
+		final Descriptor desc4 = new Json().deriveSchema();
+
+		return Arrays.asList(desc1, desc2, desc3, desc4);
 	}
 
 	@Override
@@ -107,7 +109,12 @@ public class JsonTest extends DescriptorTestBase {
 		props3.put("format.schema", "ROW(test1 VARCHAR, test2 TIMESTAMP)");
 		props3.put("format.fail-on-missing-field", "true");
 
-		return Arrays.asList(props1, props2, props3);
+		final Map<String, String> props4 = new HashMap<>();
+		props4.put("format.type", "json");
+		props4.put("format.property-version", "1");
+		props4.put("format.derive-schema", "true");
+
+		return Arrays.asList(props1, props2, props3, props4);
 	}
 
 	@Override

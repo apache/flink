@@ -39,8 +39,8 @@ object ConnectorDescriptorValidator {
   val CONNECTOR_TYPE = "connector.type"
 
   /**
-    *  Key for describing the property version. This property can be used for backwards
-    *  compatibility in case the property format changes.
+    * Key for describing the property version. This property can be used for backwards
+    * compatibility in case the property format changes.
     */
   val CONNECTOR_PROPERTY_VERSION = "connector.property-version"
 

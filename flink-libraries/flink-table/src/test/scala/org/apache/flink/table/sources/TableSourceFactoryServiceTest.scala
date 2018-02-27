@@ -31,14 +31,14 @@ class TableSourceFactoryServiceTest {
   @Test
   def testValidProperties(): Unit = {
     val props = properties()
-    assertTrue(TableSourceFactoryService.findTableSourceFactory(props.toMap) != null)
+    assertTrue(TableSourceFactoryService.findAndCreateTableSource(props.toMap) != null)
   }
 
   @Test(expected = classOf[NoMatchingTableSourceException])
   def testInvalidContext(): Unit = {
     val props = properties()
     props.put(CONNECTOR_TYPE, "FAIL")
-    TableSourceFactoryService.findTableSourceFactory(props.toMap)
+    TableSourceFactoryService.findAndCreateTableSource(props.toMap)
   }
 
   @Test
@@ -46,21 +46,21 @@ class TableSourceFactoryServiceTest {
     val props = properties()
     props.put(CONNECTOR_PROPERTY_VERSION, "2")
     // the table source should still be found
-    assertTrue(TableSourceFactoryService.findTableSourceFactory(props.toMap) != null)
+    assertTrue(TableSourceFactoryService.findAndCreateTableSource(props.toMap) != null)
   }
 
   @Test(expected = classOf[ValidationException])
   def testUnsupportedProperty(): Unit = {
     val props = properties()
     props.put("format.path_new", "/new/path")
-    TableSourceFactoryService.findTableSourceFactory(props.toMap)
+    TableSourceFactoryService.findAndCreateTableSource(props.toMap)
   }
 
   @Test(expected = classOf[TableException])
   def testFailingFactory(): Unit = {
     val props = properties()
     props.put("failing", "true")
-    TableSourceFactoryService.findTableSourceFactory(props.toMap)
+    TableSourceFactoryService.findAndCreateTableSource(props.toMap)
   }
 
   private def properties(): mutable.Map[String, String] = {

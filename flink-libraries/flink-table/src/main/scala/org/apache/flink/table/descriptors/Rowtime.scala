@@ -24,6 +24,7 @@ import org.apache.flink.table.sources.tsextractors.{ExistingField, StreamRecordT
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, BoundedOutOfOrderTimestamps, PreserveWatermarks, WatermarkStrategy}
 
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 
 /**
   * Rowtime descriptor for describing an event time attribute in the schema.
@@ -113,7 +114,7 @@ class Rowtime extends Descriptor {
     val props = mutable.HashMap[String, String]()
     timestampExtractor.foreach(normalizeTimestampExtractor(_).foreach(e => props.put(e._1, e._2)))
     watermarkStrategy.foreach(normalizeWatermarkStrategy(_).foreach(e => props.put(e._1, e._2)))
-    properties.putProperties(props.toMap)
+    properties.putProperties(props.toMap.asJava)
   }
 }
 

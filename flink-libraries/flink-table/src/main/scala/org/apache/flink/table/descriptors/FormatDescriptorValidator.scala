@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_TYPE, FORMAT_PROPERTY_VERSION}
+import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
 
 /**
   * Validator for [[FormatDescriptor]].
@@ -49,5 +49,10 @@ object FormatDescriptorValidator {
     * format versions (e.g. Avro 1.8.2 or Avro 2.0).
     */
   val FORMAT_VERSION = "format.version"
+
+  /**
+    * Key for deriving the schema of the format from the table's schema.
+    */
+  val FORMAT_DERIVE_SCHEMA = "format.derive-schema"
 
 }
