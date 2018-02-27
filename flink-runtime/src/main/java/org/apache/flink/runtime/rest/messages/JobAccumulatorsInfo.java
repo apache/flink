@@ -61,6 +61,14 @@ public class JobAccumulatorsInfo implements ResponseBody {
 		this.serializedUserAccumulators = Preconditions.checkNotNull(serializedUserAccumulators);
 	}
 
+	public List<JobAccumulator> getJobAccumulators() {
+		return jobAccumulators;
+	}
+
+	public List<UserTaskAccumulator> getUserAccumulators() {
+		return userAccumulators;
+	}
+
 	public Map<String, SerializedValue<Object>> getSerializedUserAccumulators() {
 		return serializedUserAccumulators;
 	}
@@ -119,6 +127,18 @@ public class JobAccumulatorsInfo implements ResponseBody {
 			this.name = Preconditions.checkNotNull(name);
 			this.type = Preconditions.checkNotNull(type);
 			this.value = Preconditions.checkNotNull(value);
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public String getType() {
+			return type;
+		}
+
+		public String getValue() {
+			return value;
 		}
 
 		@Override

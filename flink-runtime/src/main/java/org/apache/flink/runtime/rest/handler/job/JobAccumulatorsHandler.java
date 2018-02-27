@@ -19,19 +19,23 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsInfo;
-import org.apache.flink.runtime.rest.messages.JobMessageParameters;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsMessageParameters;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsQueryParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.SerializedValue;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -39,14 +43,14 @@ import java.util.concurrent.Executor;
 /**
  * Request handler that returns the aggregated accumulators of a job.
  */
-public class JobAccumulatorsHandler extends AbstractExecutionGraphHandler<JobAccumulatorsInfo, JobMessageParameters> {
+public class JobAccumulatorsHandler extends AbstractExecutionGraphHandler<JobAccumulatorsInfo, JobAccumulatorsMessageParameters> {
 
 	public JobAccumulatorsHandler(
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, JobAccumulatorsInfo, JobMessageParameters> messageHeaders,
+			MessageHeaders<EmptyRequestBody, JobAccumulatorsInfo, JobAccumulatorsMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor) {
 		super(
@@ -60,10 +64,32 @@ public class JobAccumulatorsHandler extends AbstractExecutionGraphHandler<JobAcc
 	}
 
 	@Override
-	protected JobAccumulatorsInfo handleRequest(HandlerRequest<EmptyRequestBody, JobMessageParameters> request, AccessExecutionGraph graph) throws RestHandlerException {
-		Map<String, SerializedValue<Object>> serializedAccs = graph.getAccumulatorsSerialized();
+	protected JobAccumulatorsInfo handleRequest(HandlerRequest<EmptyRequestBody, JobAccumulatorsMessageParameters> request, AccessExecutionGraph graph) throws RestHandlerException {
+		JobAccumulatorsInfo accumulatorsInfo;
+		List<String> queryParams = request.getQueryParameter(JobAccumulatorsQueryParameter.class);
 
-		JobAccumulatorsInfo accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), Collections.emptyList(), serializedAccs);
+		boolean includeSerializedValue = false;
+		if (!queryParams.isEmpty()) {
+			includeSerializedValue = Boolean.valueOf(queryParams.get(0));
+		}
+
+		StringifiedAccumulatorResult[] stringifiedAccs = graph.getAccumulatorResultsStringified();
+		List<JobAccumulatorsInfo.UserTaskAccumulator> userTaskAccumulators = new ArrayList<>(stringifiedAccs.length);
+
+		for (StringifiedAccumulatorResult acc : stringifiedAccs) {
+			userTaskAccumulators.add(
+				new JobAccumulatorsInfo.UserTaskAccumulator(
+					acc.getName(),
+					acc.getType(),
+					acc.getValue()));
+		}
+
+		if (includeSerializedValue) {
+			Map<String, SerializedValue<Object>> serializedUserTaskAccumulators = graph.getAccumulatorsSerialized();
+			accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), userTaskAccumulators, serializedUserTaskAccumulators);
+		} else {
+			accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), userTaskAccumulators, Collections.emptyMap());
+		}
 
 		return accumulatorsInfo;
 	}

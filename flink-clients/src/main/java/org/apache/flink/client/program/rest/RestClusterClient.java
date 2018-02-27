@@ -53,6 +53,7 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsInfo;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
 import org.apache.flink.runtime.rest.messages.JobTerminationMessageParameters;
@@ -84,7 +85,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
@@ -99,6 +99,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -368,19 +369,26 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	}
 
 	@Override
-	public Map<String, SerializedValue<Object>> getSerializedAccumulators(final JobID jobID) throws Exception {
+	public Map<String, Object> getAccumulators(final JobID jobID) throws Exception {
 		final JobAccumulatorsHeaders accumulatorsHeaders = JobAccumulatorsHeaders.getInstance();
-		final JobMessageParameters  params = new JobMessageParameters();
-		params.jobPathParameter.resolve(jobID);
+		final JobAccumulatorsMessageParameters accMsgParams = accumulatorsHeaders.getUnresolvedMessageParameters();
+		accMsgParams.jobPathParameter.resolve(jobID);
+		accMsgParams.queryParameter.resolve(Collections.singletonList("true"));
 
 		CompletableFuture<JobAccumulatorsInfo> responseFuture = sendRequest(
 			accumulatorsHeaders,
-			params
+			accMsgParams
 		);
 
 		return responseFuture.thenApply((JobAccumulatorsInfo accumulatorsInfo) -> {
 			if (accumulatorsInfo != null) {
-				return accumulatorsInfo.getSerializedUserAccumulators();
+				Map<String, Object> result = new HashMap<>(3);
+
+				result.put(JobAccumulatorsInfo.FIELD_NAME_JOB_ACCUMULATORS, accumulatorsInfo.getJobAccumulators());
+				result.put(JobAccumulatorsInfo.FIELD_NAME_USER_TASK_ACCUMULATORS, accumulatorsInfo.getUserAccumulators());
+				result.put(JobAccumulatorsInfo.FIELD_NAME_SERIALIZED_USER_TASK_ACCUMULATORS, accumulatorsInfo.getSerializedUserAccumulators());
+
+				return result;
 			}
 
 			return Collections.EMPTY_MAP;
