@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.util;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.util.RestConstants;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -149,7 +150,7 @@ public class HandlerUtils {
 			@Nonnull Map<String, String> headers) {
 		HttpResponse response = new DefaultHttpResponse(HTTP_1_1, statusCode);
 
-		response.headers().set(CONTENT_TYPE, "application/json");
+		response.headers().set(CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
 
 		for (Map.Entry<String, String> headerEntry : headers.entrySet()) {
 			response.headers().set(headerEntry.getKey(), headerEntry.getValue());
