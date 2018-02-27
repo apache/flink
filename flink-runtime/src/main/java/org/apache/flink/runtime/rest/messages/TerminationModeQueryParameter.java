@@ -37,7 +37,7 @@ public class TerminationModeQueryParameter extends MessageQueryParameter<Termina
 	}
 
 	@Override
-	public String convertStringToValue(TerminationMode value) {
+	public String convertValueToString(TerminationMode value) {
 		return value.name().toLowerCase();
 	}
 

@@ -481,7 +481,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 
 		@Override
-		public String convertStringToValue(JobID value) {
+		public String convertValueToString(JobID value) {
 			return value.toString();
 		}
 	}
