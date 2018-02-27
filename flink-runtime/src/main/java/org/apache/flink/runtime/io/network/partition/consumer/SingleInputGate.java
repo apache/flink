@@ -554,6 +554,12 @@ public class SingleInputGate implements InputGate {
 				channelsWithEndOfPartitionEvents.set(currentChannel.getChannelIndex());
 
 				if (channelsWithEndOfPartitionEvents.cardinality() == numberOfInputChannels) {
+					// Because of race condition between:
+					// 1. releasing inputChannelsWithData lock in this method and reaching this place
+					// 2. empty data notification that re-enqueues a channel
+					// we can end up with moreAvailable flag set to true, while we expect no more data.
+					checkState(!moreAvailable || !pollNextBufferOrEvent().isPresent());
+					moreAvailable = false;
 					hasReceivedAllEndOfPartitionEvents = true;
 				}
 
