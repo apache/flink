@@ -41,6 +41,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -200,13 +201,23 @@ public class YarnFileStageTest extends TestLogger {
 			while (targetFilesIterator.hasNext()) {
 				LocatedFileStatus targetFile = targetFilesIterator.next();
 
-				try (FSDataInputStream in = targetFileSystem.open(targetFile.getPath())) {
-					String absolutePathString = targetFile.getPath().toString();
-					String relativePath = absolutePathString.substring(workDirPrefixLength);
-					targetFiles.put(relativePath, in.readUTF());
+				int retries = 5;
+				do {
+					try (FSDataInputStream in = targetFileSystem.open(targetFile.getPath())) {
+						String absolutePathString = targetFile.getPath().toString();
+						String relativePath = absolutePathString.substring(workDirPrefixLength);
+						targetFiles.put(relativePath, in.readUTF());
 
-					assertEquals("extraneous data in file " + relativePath, -1, in.read());
-				}
+						assertEquals("extraneous data in file " + relativePath, -1, in.read());
+						break;
+					} catch (FileNotFoundException e) {
+						// For S3, read-after-write may be eventually consistent, i.e. when trying
+						// to access the object before writing it; see
+						// https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel
+						// -> try again a bit later
+						Thread.sleep(50);
+					}
+				} while ((retries--) > 0);
 			}
 
 			assertThat(targetFiles, equalTo(srcFiles));
