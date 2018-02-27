@@ -80,14 +80,14 @@ public class CoreOptions {
 	 *         and formats (flink-avro, etc) are loaded parent-first as well if they are in the
 	 *         core classpath.</li>
 	 *     <li>Java annotations and loggers, defined by the following list:
-	 *         javax.annotation;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback.
+	 *         javax.annotation;org.slf4j;org.apache.log4j;org.apache.logging;org.apache.commons.logging;ch.qos.logback.
 	 *         This is done for convenience, to avoid duplication of annotations and multiple
 	 *         log bindings.</li>
 	 * </ul>
 	 */
 	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_PATTERNS = ConfigOptions
 		.key("classloader.parent-first-patterns.default")
-		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback")
+		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging;org.apache.commons.logging;ch.qos.logback")
 		.withDeprecatedKeys("classloader.parent-first-patterns")
 		.withDescription("A (semicolon-separated) list of patterns that specifies which classes should always be" +
 			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
