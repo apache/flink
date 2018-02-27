@@ -482,7 +482,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		flinkConfiguration.setString(ClusterEntrypoint.EXECUTION_MODE, executionMode.toString());
 
 		ApplicationReport report = startAppMaster(
-			new Configuration(flinkConfiguration),
+			flinkConfiguration,
 			yarnClusterEntrypoint,
 			jobGraph,
 			yarnClient,
