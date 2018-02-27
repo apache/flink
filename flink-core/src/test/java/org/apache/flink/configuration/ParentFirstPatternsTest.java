@@ -54,7 +54,8 @@ public class ParentFirstPatternsTest extends TestLogger {
 	public void testLoggersParentFirst() {
 		assertTrue(PARENT_FIRST_PACKAGES.contains("org.slf4j"));
 		assertTrue(PARENT_FIRST_PACKAGES.contains("org.apache.log4j"));
-		assertTrue(PARENT_FIRST_PACKAGES.contains("org.apache.logging.log4j"));
+		assertTrue(PARENT_FIRST_PACKAGES.contains("org.apache.logging"));
+		assertTrue(PARENT_FIRST_PACKAGES.contains("org.apache.commons.logging"));
 		assertTrue(PARENT_FIRST_PACKAGES.contains("ch.qos.logback"));
 	}
 
