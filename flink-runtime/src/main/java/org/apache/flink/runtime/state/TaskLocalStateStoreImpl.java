@@ -116,14 +116,7 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 		this.subtaskIndex = subtaskIndex;
 		this.discardExecutor = discardExecutor;
 		this.localRecoveryConfig = localRecoveryConfig;
-<<<<<<< HEAD
-<<<<<<< HEAD
 		this.disposed = false;
-=======
-		this.retrieveWithDiscard = true;
->>>>>>> b4a3ea2c2b... Fix build.
-=======
->>>>>>> 12071658ee... Stefan comments.
 	}
 
 	@Override
@@ -170,22 +163,15 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 	@Nullable
 	public TaskStateSnapshot retrieveLocalState(long checkpointID) {
 
-<<<<<<< HEAD
 		TaskStateSnapshot snapshot;
 		synchronized (lock) {
 			snapshot = storedTaskStateByCheckpointID.get(checkpointID);
-		}
-=======
-			Iterator<Map.Entry<Long, TaskStateSnapshot>> entryIterator =
-				storedTaskStateByCheckpointID.entrySet().iterator();
 
-=======
->>>>>>> 12071658ee... Stefan comments.
 			if (retrieveWithDiscard) {
 				// Only the TaskStateSnapshot.checkpointID == checkpointID is useful, we remove the others
 				pruneCheckpoints(checkpointID, false);
 			}
->>>>>>> b4a3ea2c2b... Fix build.
+		}
 
 		if (LOG.isTraceEnabled()) {
 			LOG.trace("Found entry for local state for checkpoint {} in subtask ({} - {} - {}) : {}",
