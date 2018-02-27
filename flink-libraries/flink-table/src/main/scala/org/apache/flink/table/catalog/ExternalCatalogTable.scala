@@ -23,6 +23,7 @@ import java.util.{HashMap => JHashMap, Map => JMap}
 
 import org.apache.flink.table.api.{TableException, TableSchema}
 import org.apache.flink.table.catalog.ExternalCatalogTable._
+import org.apache.flink.table.descriptors.DescriptorProperties.toScala
 import org.apache.flink.table.descriptors.MetadataValidator.{METADATA_COMMENT, METADATA_CREATION_TIME, METADATA_LAST_ACCESS_TIME}
 import org.apache.flink.table.descriptors._
 import org.apache.flink.table.plan.stats.TableStats
@@ -73,8 +74,7 @@ class ExternalCatalogTable(
   lazy val tableType: String = {
     val props = new DescriptorProperties()
     connectorDesc.addProperties(props)
-    props
-      .getString(CONNECTOR_LEGACY_TYPE)
+    toScala(props.getOptionalString(CONNECTOR_LEGACY_TYPE))
       .getOrElse(throw new TableException("Could not find a legacy table type to return."))
   }
 
@@ -88,8 +88,7 @@ class ExternalCatalogTable(
   lazy val schema: TableSchema = {
     val props = new DescriptorProperties()
     connectorDesc.addProperties(props)
-    props
-      .getTableSchema(CONNECTOR_LEGACY_SCHEMA)
+    toScala(props.getOptionalTableSchema(CONNECTOR_LEGACY_SCHEMA))
       .getOrElse(throw new TableException("Could not find a legacy schema to return."))
   }
 
@@ -105,7 +104,7 @@ class ExternalCatalogTable(
     val props = new DescriptorProperties(normalizeKeys = false)
     val legacyProps = new JHashMap[String, String]()
     connectorDesc.addProperties(props)
-    props.asMap.flatMap { case (k, v) =>
+    props.asMap.asScala.flatMap { case (k, v) =>
       if (k.startsWith(CONNECTOR_LEGACY_PROPERTY)) {
         // remove "connector.legacy-property-"
         Some(legacyProps.put(k.substring(CONNECTOR_LEGACY_PROPERTY.length + 1), v))
@@ -138,7 +137,7 @@ class ExternalCatalogTable(
     metadataDesc match {
       case Some(meta) =>
         meta.addProperties(normalizedProps)
-        normalizedProps.getString(METADATA_COMMENT).orNull
+        normalizedProps.getOptionalString(METADATA_COMMENT).orElse(null)
       case None =>
         null
     }
@@ -157,7 +156,7 @@ class ExternalCatalogTable(
     metadataDesc match {
       case Some(meta) =>
         meta.addProperties(normalizedProps)
-        normalizedProps.getLong(METADATA_CREATION_TIME).map(v => Long.box(v)).orNull
+        normalizedProps.getOptionalLong(METADATA_CREATION_TIME).orElse(null)
       case None =>
         null
     }
@@ -176,7 +175,7 @@ class ExternalCatalogTable(
     metadataDesc match {
       case Some(meta) =>
         meta.addProperties(normalizedProps)
-        normalizedProps.getLong(METADATA_LAST_ACCESS_TIME).map(v => Long.box(v)).orNull
+        normalizedProps.getOptionalLong(METADATA_LAST_ACCESS_TIME).orElse(null)
       case None =>
         null
     }
@@ -267,7 +266,7 @@ object ExternalCatalogTable {
       tableType: String,
       schema: TableSchema,
       legacyProperties: JMap[String, String])
-    extends ConnectorDescriptor(CONNECTOR_TYPE_VALUE, version = 1) {
+    extends ConnectorDescriptor(CONNECTOR_TYPE_VALUE, version = 1, formatNeeded = false) {
 
     override protected def addConnectorProperties(properties: DescriptorProperties): Unit = {
       properties.putString(CONNECTOR_LEGACY_TYPE, tableType)
@@ -276,8 +275,6 @@ object ExternalCatalogTable {
           properties.putString(s"$CONNECTOR_LEGACY_PROPERTY-$k", v)
       }
     }
-
-    override private[flink] def needsFormat() = false
   }
 
   def toConnectorDescriptor(

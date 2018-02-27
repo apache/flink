@@ -50,6 +50,33 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
-	</dependencies>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<!-- use a dedicated Scala version to not depend on it -->
+			<artifactId>flink-table_2.11</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<!-- Projects depending on this project, won't depend on flink-table. -->
+			<optional>true</optional>
+		</dependency>
+
+		<!-- test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<!-- use a dedicated Scala version to not depend on it -->
+			<artifactId>flink-table_2.11</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- flink-table needs Scala -->
+		<dependency>
+			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-compiler</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
 </project>

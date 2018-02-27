@@ -41,10 +41,10 @@ trait TableSourceFactory[T] {
     *   - connector.type
     *   - format.type
     *
-    * Specified versions allow the framework to provide backwards compatible properties in case of
-    * string format changes:
-    *   - connector.version
-    *   - format.version
+    * Specified property versions allow the framework to provide backwards compatible properties
+    * in case of string format changes:
+    *   - connector.property-version
+    *   - format.property-version
     *
     * An empty context means that the factory matches for all requests.
     */
@@ -61,7 +61,8 @@ trait TableSourceFactory[T] {
     *   - format.fields.#.type
     *   - format.fields.#.name
     *
-    * Note: Use "#" to denote an array of values where "#" represents one or more digits.
+    * Note: Use "#" to denote an array of values where "#" represents one or more digits. Property
+    * versions like "format.property-version" must not be part of the supported properties.
     */
   def supportedProperties(): util.List[String]
 

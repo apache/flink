@@ -18,9 +18,17 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME
+import java.util
+import java.util.Optional
+
+import org.apache.flink.table.api.{TableSchema, ValidationException}
+import org.apache.flink.table.descriptors.DescriptorProperties.{toJava, toScala}
+import org.apache.flink.table.descriptors.RowtimeValidator.{ROWTIME, ROWTIME_TIMESTAMPS_TYPE}
 import org.apache.flink.table.descriptors.SchemaValidator._
+import org.apache.flink.table.sources.RowtimeAttributeDescriptor
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
   * Validator for [[Schema]].
@@ -28,29 +36,39 @@ import org.apache.flink.table.descriptors.SchemaValidator._
 class SchemaValidator(isStreamEnvironment: Boolean = true) extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
-    properties.validateInt(SCHEMA_VERSION, isOptional = true, 0, Integer.MAX_VALUE)
-
-    val names = properties.getIndexedProperty(SCHEMA, NAME)
-    val types = properties.getIndexedProperty(SCHEMA, TYPE)
+    val names = properties.getIndexedProperty(SCHEMA, SCHEMA_NAME)
+    val types = properties.getIndexedProperty(SCHEMA, SCHEMA_TYPE)
 
     if (names.isEmpty && types.isEmpty) {
-      throw new ValidationException(s"Could not find the required schema for property '$SCHEMA'.")
+      throw new ValidationException(
+        s"Could not find the required schema in property '$SCHEMA'.")
     }
 
+    var proctimeFound = false
+
     for (i <- 0 until Math.max(names.size, types.size)) {
-      properties.validateString(s"$SCHEMA.$i.$NAME", isOptional = false, minLen = 1)
-      properties.validateType(s"$SCHEMA.$i.$TYPE", isOptional = false)
-      properties.validateString(s"$SCHEMA.$i.$FROM", isOptional = true, minLen = 1)
+      properties
+        .validateString(s"$SCHEMA.$i.$SCHEMA_NAME", isOptional = false, minLen = 1)
+      properties
+        .validateType(s"$SCHEMA.$i.$SCHEMA_TYPE", isOptional = false)
+      properties
+        .validateString(s"$SCHEMA.$i.$SCHEMA_FROM", isOptional = true, minLen = 1)
       // either proctime or rowtime
-      val proctime = s"$SCHEMA.$i.$PROCTIME"
+      val proctime = s"$SCHEMA.$i.$SCHEMA_PROCTIME"
       val rowtime = s"$SCHEMA.$i.$ROWTIME"
-      if (properties.contains(proctime)) {
+      if (properties.containsKey(proctime)) {
+        // check the environment
         if (!isStreamEnvironment) {
           throw new ValidationException(
             s"Property '$proctime' is not allowed in a batch environment.")
         }
+        // check for only one proctime attribute
+        else if (proctimeFound) {
+          throw new ValidationException("A proctime attribute must only be defined once.")
+        }
         // check proctime
         properties.validateBoolean(proctime, isOptional = false)
+        proctimeFound = properties.getBoolean(proctime)
         // no rowtime
         properties.validatePrefixExclusion(rowtime)
       } else if (properties.hasPrefix(rowtime)) {
@@ -67,14 +85,129 @@ class SchemaValidator(isStreamEnvironment: Boolean = true) extends DescriptorVal
 object SchemaValidator {
 
   val SCHEMA = "schema"
-  val SCHEMA_VERSION = "schema.version"
+  val SCHEMA_NAME = "name"
+  val SCHEMA_TYPE = "type"
+  val SCHEMA_PROCTIME = "proctime"
+  val SCHEMA_FROM = "from"
 
-  // per column properties
+  // utilities
 
-  val NAME = "name"
-  val TYPE = "type"
-  val PROCTIME = "proctime"
-  val PROCTIME_VALUE_TRUE = "true"
-  val FROM = "from"
+  /**
+    * Finds the proctime attribute if defined.
+    */
+  def deriveProctimeAttribute(properties: DescriptorProperties): Optional[String] = {
+    val names = properties.getIndexedProperty(SCHEMA, SCHEMA_NAME)
 
+    for (i <- 0 until names.size) {
+      val isProctime = toScala(
+        properties.getOptionalBoolean(s"$SCHEMA.$i.$SCHEMA_PROCTIME"))
+      isProctime.foreach { isSet =>
+        if (isSet) {
+          return toJava(names.asScala.get(s"$SCHEMA.$i.$SCHEMA_NAME"))
+        }
+      }
+    }
+    toJava(None)
+  }
+
+  /**
+    * Finds the rowtime attributes if defined.
+    */
+  def deriveRowtimeAttributes(properties: DescriptorProperties)
+    : util.List[RowtimeAttributeDescriptor] = {
+
+    val names = properties.getIndexedProperty(SCHEMA, SCHEMA_NAME)
+
+    var attributes = new mutable.ArrayBuffer[RowtimeAttributeDescriptor]()
+
+    // check for rowtime in every field
+    for (i <- 0 until names.size) {
+      RowtimeValidator
+        .getRowtimeComponents(properties, s"$SCHEMA.$i.")
+        .foreach { case (extractor, strategy) =>
+          // create descriptor
+          attributes += new RowtimeAttributeDescriptor(
+            properties.getString(s"$SCHEMA.$i.$SCHEMA_NAME"),
+            extractor,
+            strategy)
+        }
+    }
+
+    attributes.asJava
+  }
+
+  /**
+    * Finds a table source field mapping.
+    */
+  def deriveFieldMapping(
+      properties: DescriptorProperties,
+      sourceSchema: Optional[TableSchema])
+    : util.Map[String, String] = {
+
+    val mapping = mutable.Map[String, String]()
+
+    val schema = properties.getTableSchema(SCHEMA)
+
+    // add all schema fields first for implicit mappings
+    schema.getColumnNames.foreach { name =>
+      mapping.put(name, name)
+    }
+
+    val names = properties.getIndexedProperty(SCHEMA, SCHEMA_NAME)
+
+    for (i <- 0 until names.size) {
+      val name = properties.getString(s"$SCHEMA.$i.$SCHEMA_NAME")
+      toScala(properties.getOptionalString(s"$SCHEMA.$i.$SCHEMA_FROM")) match {
+
+        // add explicit mapping
+        case Some(source) =>
+          mapping.put(name, source)
+
+        // implicit mapping or time
+        case None =>
+          val isProctime = properties
+            .getOptionalBoolean(s"$SCHEMA.$i.$SCHEMA_PROCTIME")
+            .orElse(false)
+          val isRowtime = properties
+            .containsKey(s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_TYPE")
+          // remove proctime/rowtime from mapping
+          if (isProctime || isRowtime) {
+            mapping.remove(name)
+          }
+          // check for invalid fields
+          else if (toScala(sourceSchema).forall(s => !s.getColumnNames.contains(name))) {
+            throw new ValidationException(s"Could not map the schema field '$name' to a field " +
+              s"from source. Please specify the source field from which it can be derived.")
+          }
+      }
+    }
+
+    mapping.toMap.asJava
+  }
+
+  /**
+    * Finds the fields that can be used for a format schema (without time attributes).
+    */
+  def deriveFormatFields(properties: DescriptorProperties): TableSchema = {
+
+    val builder = TableSchema.builder()
+
+    val schema = properties.getTableSchema(SCHEMA)
+
+    schema.getColumnNames.zip(schema.getTypes).zipWithIndex.foreach { case ((n, t), i) =>
+      val isProctime = properties
+        .getOptionalBoolean(s"$SCHEMA.$i.$SCHEMA_PROCTIME")
+        .orElse(false)
+      val isRowtime = properties
+        .containsKey(s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_TYPE")
+      if (!isProctime && !isRowtime) {
+        // check for a aliasing
+        val fieldName = properties.getOptionalString(s"$SCHEMA.$i.$SCHEMA_FROM")
+          .orElse(n)
+        builder.field(fieldName, t)
+      }
+    }
+
+    builder.build()
+  }
 }

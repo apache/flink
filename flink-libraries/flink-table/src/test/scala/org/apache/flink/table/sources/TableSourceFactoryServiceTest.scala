@@ -19,8 +19,8 @@
 package org.apache.flink.table.sources
 
 import org.apache.flink.table.api.{NoMatchingTableSourceException, TableException, ValidationException}
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_TYPE, CONNECTOR_VERSION}
-import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_TYPE, FORMAT_VERSION}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_TYPE, CONNECTOR_PROPERTY_VERSION}
+import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_TYPE, FORMAT_PROPERTY_VERSION}
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -31,44 +31,44 @@ class TableSourceFactoryServiceTest {
   @Test
   def testValidProperties(): Unit = {
     val props = properties()
-    assertTrue(TableSourceFactoryService.findTableSourceFactory(props.toMap) != null)
+    assertTrue(TableSourceFactoryService.findAndCreateTableSource(props.toMap) != null)
   }
 
   @Test(expected = classOf[NoMatchingTableSourceException])
   def testInvalidContext(): Unit = {
     val props = properties()
     props.put(CONNECTOR_TYPE, "FAIL")
-    TableSourceFactoryService.findTableSourceFactory(props.toMap)
+    TableSourceFactoryService.findAndCreateTableSource(props.toMap)
   }
 
   @Test
   def testDifferentContextVersion(): Unit = {
     val props = properties()
-    props.put(CONNECTOR_VERSION, "2")
+    props.put(CONNECTOR_PROPERTY_VERSION, "2")
     // the table source should still be found
-    assertTrue(TableSourceFactoryService.findTableSourceFactory(props.toMap) != null)
+    assertTrue(TableSourceFactoryService.findAndCreateTableSource(props.toMap) != null)
   }
 
   @Test(expected = classOf[ValidationException])
   def testUnsupportedProperty(): Unit = {
     val props = properties()
     props.put("format.path_new", "/new/path")
-    TableSourceFactoryService.findTableSourceFactory(props.toMap)
+    TableSourceFactoryService.findAndCreateTableSource(props.toMap)
   }
 
   @Test(expected = classOf[TableException])
   def testFailingFactory(): Unit = {
     val props = properties()
     props.put("failing", "true")
-    TableSourceFactoryService.findTableSourceFactory(props.toMap)
+    TableSourceFactoryService.findAndCreateTableSource(props.toMap)
   }
 
   private def properties(): mutable.Map[String, String] = {
     val properties = mutable.Map[String, String]()
     properties.put(CONNECTOR_TYPE, "test")
     properties.put(FORMAT_TYPE, "test")
-    properties.put(CONNECTOR_VERSION, "1")
-    properties.put(FORMAT_VERSION, "1")
+    properties.put(CONNECTOR_PROPERTY_VERSION, "1")
+    properties.put(FORMAT_PROPERTY_VERSION, "1")
     properties.put("format.path", "/path/to/target")
     properties.put("schema.0.name", "a")
     properties.put("schema.1.name", "b")
