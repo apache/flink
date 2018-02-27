@@ -93,8 +93,7 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 	private boolean disposed;
 
 	/** Whether to discard the useless state when retrieve local checkpoint state. */
-	@Nonnull
-	private boolean retrieveWithDiscard;
+	private boolean retrieveWithDiscard = true;
 
 	/** Maps checkpoint ids to local TaskStateSnapshots. */
 	@Nonnull
@@ -118,10 +117,13 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 		this.discardExecutor = discardExecutor;
 		this.localRecoveryConfig = localRecoveryConfig;
 <<<<<<< HEAD
+<<<<<<< HEAD
 		this.disposed = false;
 =======
 		this.retrieveWithDiscard = true;
 >>>>>>> b4a3ea2c2b... Fix build.
+=======
+>>>>>>> 12071658ee... Stefan comments.
 	}
 
 	@Override
@@ -168,6 +170,7 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 	@Nullable
 	public TaskStateSnapshot retrieveLocalState(long checkpointID) {
 
+<<<<<<< HEAD
 		TaskStateSnapshot snapshot;
 		synchronized (lock) {
 			snapshot = storedTaskStateByCheckpointID.get(checkpointID);
@@ -176,22 +179,11 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 			Iterator<Map.Entry<Long, TaskStateSnapshot>> entryIterator =
 				storedTaskStateByCheckpointID.entrySet().iterator();
 
+=======
+>>>>>>> 12071658ee... Stefan comments.
 			if (retrieveWithDiscard) {
 				// Only the TaskStateSnapshot.checkpointID == checkpointID is useful, we remove the others
-				final List<Map.Entry<Long, TaskStateSnapshot>> toRemove = new ArrayList<>();
-
-				while (entryIterator.hasNext()) {
-
-					Map.Entry<Long, TaskStateSnapshot> snapshotEntry = entryIterator.next();
-					long entryCheckpointId = snapshotEntry.getKey();
-
-					if (entryCheckpointId != checkpointID) {
-						toRemove.add(snapshotEntry);
-						entryIterator.remove();
-					}
-				}
-
-				asyncDiscardLocalStateForCollection(toRemove);
+				pruneCheckpoints(checkpointID, false);
 			}
 >>>>>>> b4a3ea2c2b... Fix build.
 
@@ -218,30 +210,9 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 		LOG.debug("Received confirmation for checkpoint {} in subtask ({} - {} - {}). Starting to prune history.",
 			confirmedCheckpointId, jobID, jobVertexID, subtaskIndex);
 
-		final List<Map.Entry<Long, TaskStateSnapshot>> toRemove = new ArrayList<>();
-
 		synchronized (lock) {
-
-			Iterator<Map.Entry<Long, TaskStateSnapshot>> entryIterator =
-				storedTaskStateByCheckpointID.entrySet().iterator();
-
-			// remove entries for outdated checkpoints and discard their state.
-			while (entryIterator.hasNext()) {
-
-				Map.Entry<Long, TaskStateSnapshot> snapshotEntry = entryIterator.next();
-				long entryCheckpointId = snapshotEntry.getKey();
-
-				if (entryCheckpointId < confirmedCheckpointId) {
-					toRemove.add(snapshotEntry);
-					entryIterator.remove();
-				} else {
-					// we can stop because the map is sorted.
-					break;
-				}
-			}
+			pruneCheckpoints(confirmedCheckpointId, true);
 		}
-
-		asyncDiscardLocalStateForCollection(toRemove);
 	}
 
 	/**
@@ -334,6 +305,32 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 		}
 	}
 
+	/**
+	 * Pruning the useless checkpoints.
+	 */
+	private void pruneCheckpoints(long checkpointID, boolean breakTheIteration) {
+
+		Iterator<Map.Entry<Long, TaskStateSnapshot>> entryIterator =
+			storedTaskStateByCheckpointID.entrySet().iterator();
+
+		final List<Map.Entry<Long, TaskStateSnapshot>> toRemove = new ArrayList<>();
+
+		while (entryIterator.hasNext()) {
+
+			Map.Entry<Long, TaskStateSnapshot> snapshotEntry = entryIterator.next();
+			long entryCheckpointId = snapshotEntry.getKey();
+
+			if (entryCheckpointId != checkpointID) {
+				toRemove.add(snapshotEntry);
+				entryIterator.remove();
+			} else if (breakTheIteration) {
+				break;
+			}
+		}
+
+		asyncDiscardLocalStateForCollection(toRemove);
+	}
+
 	@Override
 	public String toString() {
 		return "TaskLocalStateStore{" +
@@ -346,7 +343,7 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 	}
 
 	@VisibleForTesting
-	void setRetrieveWithDiscard(@Nonnull boolean retrieveWithDiscard) {
+	void setRetrieveWithDiscard(boolean retrieveWithDiscard) {
 		this.retrieveWithDiscard = retrieveWithDiscard;
 	}
 }
