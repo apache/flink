@@ -35,7 +35,7 @@ public class RescalingParallelismQueryParameter extends MessageQueryParameter<In
 	}
 
 	@Override
-	public String convertStringToValue(Integer value) {
+	public String convertValueToString(Integer value) {
 		return value.toString();
 	}
 }

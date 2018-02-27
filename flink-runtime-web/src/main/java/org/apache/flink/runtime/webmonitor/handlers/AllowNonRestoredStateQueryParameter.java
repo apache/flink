@@ -39,7 +39,7 @@ public class AllowNonRestoredStateQueryParameter extends MessageQueryParameter<B
 	}
 
 	@Override
-	public String convertStringToValue(final Boolean value) {
+	public String convertValueToString(final Boolean value) {
 		return value.toString();
 	}
 }

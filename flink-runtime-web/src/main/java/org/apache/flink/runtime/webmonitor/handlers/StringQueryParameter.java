@@ -35,7 +35,7 @@ public abstract class StringQueryParameter extends MessageQueryParameter<String>
 	}
 
 	@Override
-	public final String convertStringToValue(final String value) {
+	public final String convertValueToString(final String value) {
 		return value;
 	}
 
