@@ -33,6 +33,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -163,7 +164,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		yarnClient.init(yarnConfiguration);
 		yarnClient.start();
 
-		this.flinkConfiguration = Preconditions.checkNotNull(flinkConfiguration);
+		this.flinkConfiguration = new UnmodifiableConfiguration(flinkConfiguration);
 		userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
 
 		this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
@@ -362,18 +363,15 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			LOG.info("Found application JobManager host name '{}' and port '{}' from supplied application id '{}'",
 				host, rpcPort, applicationId);
 
-			flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
-			flinkConfiguration.setInteger(JobManagerOptions.PORT, rpcPort);
-
-			flinkConfiguration.setString(RestOptions.REST_ADDRESS, host);
-			flinkConfiguration.setInteger(RestOptions.REST_PORT, rpcPort);
+			final Configuration effectiveConfiguration = new Configuration(flinkConfiguration);
+			setApplicationHostPortInConfig(effectiveConfiguration, appReport);
 
 			return createYarnClusterClient(
 				this,
 				-1, // we don't know the number of task managers of a started Flink cluster
 				-1, // we don't know how many slots each task manager has for a started Flink cluster
 				appReport,
-				flinkConfiguration,
+				effectiveConfiguration,
 				false);
 		} catch (Exception e) {
 			throw new ClusterRetrieveException("Couldn't retrieve Yarn cluster", e);
@@ -437,10 +435,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		checkYarnQueues(yarnClient);
 
+		final Configuration effectiveConfiguration = new Configuration(flinkConfiguration);
+
 		// ------------------ Add dynamic properties to local flinkConfiguraton ------
 		Map<String, String> dynProperties = getDynamicProperties(dynamicPropertiesEncoded);
 		for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
-			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
+			effectiveConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
 		}
 
 		// ------------------ Check if the YARN ClusterClient has the requested resources --------------
@@ -479,25 +479,38 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			ClusterEntrypoint.ExecutionMode.DETACHED
 			: ClusterEntrypoint.ExecutionMode.NORMAL;
 
-		flinkConfiguration.setString(ClusterEntrypoint.EXECUTION_MODE, executionMode.toString());
+		effectiveConfiguration.setString(ClusterEntrypoint.EXECUTION_MODE, executionMode.toString());
 
-		ApplicationReport report = startAppMaster(
-			new Configuration(flinkConfiguration),
+		final ApplicationId appId = yarnApplication.getApplicationSubmissionContext().getApplicationId();
+
+		// --------- Add Zookeeper namespace to effectiveConfiguration ---------
+		String zkNamespace = getZookeeperNamespace();
+		// no user specified cli argument for namespace?
+		if (zkNamespace == null || zkNamespace.isEmpty()) {
+			// namespace defined in config? else use applicationId as default.
+			zkNamespace = flinkConfiguration.getString(HighAvailabilityOptions.HA_CLUSTER_ID, appId.toString());
+			setZookeeperNamespace(zkNamespace);
+		}
+		effectiveConfiguration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
+
+		effectiveConfiguration.setInteger(
+			ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
+			clusterSpecification.getSlotsPerTaskManager());
+
+		// write out configuration file so that it can be uploaded
+		File tmpConfigurationFile = File.createTempFile(appId + "-flink-conf.yaml", null);
+		tmpConfigurationFile.deleteOnExit();
+		BootstrapTools.writeConfiguration(effectiveConfiguration, tmpConfigurationFile);
+
+		final ApplicationReport report = startAppMaster(
+			tmpConfigurationFile,
 			yarnClusterEntrypoint,
 			jobGraph,
 			yarnClient,
 			yarnApplication,
 			clusterSpecification);
 
-		String host = report.getHost();
-		int port = report.getRpcPort();
-
-		// Correctly initialize the Flink config
-		flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
-		flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
-
-		flinkConfiguration.setString(RestOptions.REST_ADDRESS, host);
-		flinkConfiguration.setInteger(RestOptions.REST_PORT, port);
+		setApplicationHostPortInConfig(effectiveConfiguration, report);
 
 		// the Flink cluster is deployed in YARN. Represent cluster
 		return createYarnClusterClient(
@@ -505,8 +518,19 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			clusterSpecification.getNumberTaskManagers(),
 			clusterSpecification.getSlotsPerTaskManager(),
 			report,
-			flinkConfiguration,
+			effectiveConfiguration,
 			true);
+	}
+
+	private void setApplicationHostPortInConfig(final Configuration configuration, final ApplicationReport report) {
+		final String host = report.getHost();
+		final int port = report.getRpcPort();
+
+		configuration.setString(JobManagerOptions.ADDRESS, host);
+		configuration.setInteger(JobManagerOptions.PORT, port);
+
+		configuration.setString(RestOptions.REST_ADDRESS, host);
+		configuration.setInteger(RestOptions.REST_PORT, port);
 	}
 
 	protected ClusterSpecification validateClusterResources(
@@ -635,7 +659,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	public ApplicationReport startAppMaster(
-			Configuration configuration,
+			File tmpConfigurationFile,
 			String yarnClusterEntrypoint,
 			JobGraph jobGraph,
 			YarnClient yarnClient,
@@ -645,7 +669,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// ------------------ Initialize the file systems -------------------------
 
 		try {
-			org.apache.flink.core.fs.FileSystem.initialize(configuration);
+			org.apache.flink.core.fs.FileSystem.initialize(flinkConfiguration);
 		} catch (IOException e) {
 			throw new IOException("Error while setting the default " +
 					"filesystem scheme from configuration.", e);
@@ -695,21 +719,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		final ApplicationId appId = appContext.getApplicationId();
 
-		// ------------------ Add Zookeeper namespace to local flinkConfiguraton ------
-		String zkNamespace = getZookeeperNamespace();
-		// no user specified cli argument for namespace?
-		if (zkNamespace == null || zkNamespace.isEmpty()) {
-			// namespace defined in config? else use applicationId as default.
-			zkNamespace = configuration.getString(HighAvailabilityOptions.HA_CLUSTER_ID, String.valueOf(appId));
-			setZookeeperNamespace(zkNamespace);
-		}
-
-		configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
-
-		if (HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)) {
+		if (HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfiguration)) {
 			// activate re-execution of failed applications
 			appContext.setMaxAppAttempts(
-				configuration.getInteger(
+				flinkConfiguration.getInteger(
 					YarnConfigOptions.APPLICATION_ATTEMPTS.key(),
 					YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS));
 
@@ -717,7 +730,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		} else {
 			// set number of application retries to 1 in the default case
 			appContext.setMaxAppAttempts(
-				configuration.getInteger(
+				flinkConfiguration.getInteger(
 					YarnConfigOptions.APPLICATION_ATTEMPTS.key(),
 					1));
 		}
@@ -793,17 +806,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			localResources,
 			homeDir,
 			"");
-
-		configuration.setInteger(
-			ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
-			clusterSpecification.getSlotsPerTaskManager());
+		paths.add(remotePathJar);
+		classPathBuilder.append("flink.jar").append(File.pathSeparator);
 
 		// Upload the flink configuration
-		// write out configuration file
-		File tmpConfigurationFile = File.createTempFile(appId + "-flink-conf.yaml", null);
-		tmpConfigurationFile.deleteOnExit();
-		BootstrapTools.writeConfiguration(configuration, tmpConfigurationFile);
-
 		Path remotePathConf = setupSingleLocalResource(
 			"flink-conf.yaml",
 			fs,
@@ -812,9 +818,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			localResources,
 			homeDir,
 			"");
-
-		paths.add(remotePathJar);
-		classPathBuilder.append("flink.jar").append(File.pathSeparator);
 		paths.add(remotePathConf);
 		classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
 
@@ -889,7 +892,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		// setup security tokens
 		Path remotePathKeytab = null;
-		String keytab = configuration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
+		String keytab = flinkConfiguration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
 		if (keytab != null) {
 			LOG.info("Adding keytab {} to the AM container local resource bucket", keytab);
 			remotePathKeytab = setupSingleLocalResource(
@@ -921,7 +924,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// Setup CLASSPATH and environment variables for ApplicationMaster
 		final Map<String, String> appMasterEnv = new HashMap<>();
 		// set user specified app master environment variables
-		appMasterEnv.putAll(Utils.getEnvironmentVariables(ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX, configuration));
+		appMasterEnv.putAll(Utils.getEnvironmentVariables(ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX, flinkConfiguration));
 		// set Flink app class path
 		appMasterEnv.put(YarnConfigKeys.ENV_FLINK_CLASSPATH, classPathBuilder.toString());
 
@@ -942,7 +945,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		if (remotePathKeytab != null) {
 			appMasterEnv.put(YarnConfigKeys.KEYTAB_PATH, remotePathKeytab.toString());
-			String principal = configuration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
+			String principal = flinkConfiguration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
 			appMasterEnv.put(YarnConfigKeys.KEYTAB_PRINCIPAL, principal);
 		}
 

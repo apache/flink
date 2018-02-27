@@ -25,6 +25,7 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
@@ -160,7 +161,7 @@ public abstract class ClusterClient<T> {
 	 * @param highAvailabilityServices HighAvailabilityServices to use for leader retrieval
 	 */
 	public ClusterClient(Configuration flinkConfig, HighAvailabilityServices highAvailabilityServices) {
-		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
+		this.flinkConfig = new UnmodifiableConfiguration(flinkConfig);
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), flinkConfig);
 
 		this.timeout = AkkaUtils.getClientTimeout(flinkConfig);
