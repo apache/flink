@@ -161,7 +161,7 @@ public abstract class ClusterClient<T> {
 	 * @param highAvailabilityServices HighAvailabilityServices to use for leader retrieval
 	 */
 	public ClusterClient(Configuration flinkConfig, HighAvailabilityServices highAvailabilityServices) {
-		this.flinkConfig = new UnmodifiableConfiguration(Preconditions.checkNotNull(flinkConfig));
+		this.flinkConfig = new UnmodifiableConfiguration(flinkConfig);
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), flinkConfig);
 
 		this.timeout = AkkaUtils.getClientTimeout(flinkConfig);
