@@ -32,7 +32,6 @@ import org.apache.flink.examples.java.clustering.util.KMeansData;
 import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.util.TestLogger;
 
@@ -67,8 +66,6 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 
 	@Test
 	public void testSuccessfulProgramAfterFailure() {
-		LocalFlinkMiniCluster cluster = null;
-
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
