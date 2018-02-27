@@ -41,7 +41,7 @@ public class MetricsFilterParameter extends MessageQueryParameter<String> {
 	}
 
 	@Override
-	public String convertStringToValue(String value) {
+	public String convertValueToString(String value) {
 		return value;
 	}
 
