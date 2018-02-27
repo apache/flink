@@ -322,5 +322,13 @@ public class RestClient {
 		public HttpResponseStatus getHttpResponseStatus() {
 			return httpResponseStatus;
 		}
+
+		@Override
+		public String toString() {
+			return "JsonResponse{" +
+				"json=" + json +
+				", httpResponseStatus=" + httpResponseStatus +
+				'}';
+		}
 	}
 }
