@@ -106,14 +106,24 @@ public class TaskLocalStateStoreImplTest {
 		final int chkCount = 3;
 
 		for (int i = 0; i < chkCount; ++i) {
-			Assert.assertNull(taskLocalStateStore.retrieveLocalState(i));
+			Assert.assertNull(taskLocalStateStore.retrieveLocalStateWithoutPruning(i));
 		}
 
 		List<TaskStateSnapshot> taskStateSnapshots = storeStates(chkCount);
 
+		// test retrieve without pruning
 		checkStoredAsExpected(taskStateSnapshots, 0, chkCount);
 
-		Assert.assertNull(taskLocalStateStore.retrieveLocalState(chkCount + 1));
+		Assert.assertNull(taskLocalStateStore.retrieveLocalStateWithoutPruning(chkCount + 1));
+
+		// test retrieve with pruning
+		taskLocalStateStore.retrieveLocalState(chkCount - 1);
+
+		for (int i = 0; i < chkCount - 1; ++i) {
+			Assert.assertNull(taskLocalStateStore.retrieveLocalStateWithoutPruning(i));
+		}
+
+		checkStoredAsExpected(taskStateSnapshots, chkCount - 1, chkCount);
 	}
 
 	/**
@@ -147,14 +157,14 @@ public class TaskLocalStateStoreImplTest {
 	private void checkStoredAsExpected(List<TaskStateSnapshot> history, int off, int len) throws Exception {
 		for (int i = off; i < len; ++i) {
 			TaskStateSnapshot expected = history.get(i);
-			Assert.assertTrue(expected == taskLocalStateStore.retrieveLocalState(i));
+			Assert.assertTrue(expected == taskLocalStateStore.retrieveLocalStateWithoutPruning(i));
 			Mockito.verify(expected, Mockito.never()).discardState();
 		}
 	}
 
 	private void checkPrunedAndDiscarded(List<TaskStateSnapshot> history, int off, int len) throws Exception {
 		for (int i = off; i < len; ++i) {
-			Assert.assertNull(taskLocalStateStore.retrieveLocalState(i));
+			Assert.assertNull(taskLocalStateStore.retrieveLocalStateWithoutPruning(i));
 			Mockito.verify(history.get(i)).discardState();
 		}
 	}
