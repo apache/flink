@@ -102,7 +102,7 @@ public abstract class YarnTestBase extends TestLogger {
 			"Started SelectChannelConnector@0.0.0.0:8081" // Jetty should start on a random port in YARN mode.
 	};
 
-	/** These strings are white-listed, overriding teh prohibited strings. */
+	/** These strings are white-listed, overriding the prohibited strings. */
 	protected static final String[] WHITELISTED_STRINGS = {
 		"akka.remote.RemoteTransportExceptionNoStackTrace",
 		// workaround for annoying InterruptedException logging:

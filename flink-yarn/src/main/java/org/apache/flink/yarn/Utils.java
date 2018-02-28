@@ -320,7 +320,7 @@ public final class Utils {
 	 *
 	 * @return The launch context for the TaskManager processes.
 	 *
-	 * @throws Exception Thrown if teh launch context could not be created, for example if
+	 * @throws Exception Thrown if the launch context could not be created, for example if
 	 *				   the resources could not be copied.
 	 */
 	static ContainerLaunchContext createTaskExecutorContext(
