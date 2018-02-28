@@ -396,10 +396,14 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		String tempDir = env.getTaskManagerInfo().getTmpDirectories()[0];
 		ensureRocksDBIsLoaded(tempDir);
 
-		lazyInitializeForJob(env, operatorIdentifier);
+		// replace all characters that are not legal for filenames with underscore
+		String fileCompatibleIdentifier = operatorIdentifier.replaceAll("[^a-zA-Z0-9\\-]", "_");
 
-		File instanceBasePath =
-				new File(getNextStoragePath(), "job-" + jobId + "_op-" + operatorIdentifier + "_uuid-" + UUID.randomUUID());
+		lazyInitializeForJob(env, fileCompatibleIdentifier);
+
+		File instanceBasePath = new File(
+			getNextStoragePath(),
+			"job_" + jobId + "_op_" + fileCompatibleIdentifier + "_uuid_" + UUID.randomUUID());
 
 		LocalRecoveryConfig localRecoveryConfig =
 			env.getTaskStateManager().createLocalRecoveryConfig();
