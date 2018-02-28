@@ -32,7 +32,7 @@ public class TerminationModeQueryParameter extends MessageQueryParameter<Termina
 	}
 
 	@Override
-	public TerminationMode convertValueFromString(String value) {
+	public TerminationMode convertStringToValue(String value) {
 		return TerminationMode.valueOf(value.toUpperCase());
 	}
 

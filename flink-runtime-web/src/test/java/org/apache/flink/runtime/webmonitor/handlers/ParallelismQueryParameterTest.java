@@ -38,7 +38,7 @@ public class ParallelismQueryParameterTest extends TestLogger {
 
 	@Test
 	public void testConvertValueFromString() {
-		assertEquals(42, (int) parallelismQueryParameter.convertValueFromString("42"));
+		assertEquals(42, (int) parallelismQueryParameter.convertStringToValue("42"));
 	}
 
 }
