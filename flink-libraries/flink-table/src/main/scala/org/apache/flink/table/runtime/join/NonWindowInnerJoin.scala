@@ -67,8 +67,8 @@ class NonWindowInnerJoin(
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow],
       timerState: ValueState[Long],
-      currentSideState: MapState[Row, JTuple2[Int, Long]],
-      otherSideState: MapState[Row, JTuple2[Int, Long]],
+      currentSideState: MapState[Row, JTuple2[Long, Long]],
+      otherSideState: MapState[Row, JTuple2[Long, Long]],
       isLeft: Boolean): Unit = {
 
     val inputRow = value.row
@@ -78,7 +78,7 @@ class NonWindowInnerJoin(
     val curProcessTime = ctx.timerService.currentProcessingTime
     val oldCntAndExpiredTime = currentSideState.get(inputRow)
     val cntAndExpiredTime = if (null == oldCntAndExpiredTime) {
-      JTuple2.of(0, -1L)
+      JTuple2.of(0L, -1L)
     } else {
       oldCntAndExpiredTime
     }
@@ -107,16 +107,16 @@ class NonWindowInnerJoin(
     while (otherSideIterator.hasNext) {
       val otherSideEntry = otherSideIterator.next()
       val otherSideRow = otherSideEntry.getKey
-      val cntAndExpiredTime = otherSideEntry.getValue
+      val otherSideCntAndExpiredTime = otherSideEntry.getValue
       // join
-      cRowWrapper.setTimes(cntAndExpiredTime.f0)
+      cRowWrapper.setTimes(otherSideCntAndExpiredTime.f0)
       if (isLeft) {
         joinFunction.join(inputRow, otherSideRow, cRowWrapper)
       } else {
         joinFunction.join(otherSideRow, inputRow, cRowWrapper)
       }
       // clear expired data. Note: clear after join to keep closer to the original semantics
-      if (stateCleaningEnabled && curProcessTime >= cntAndExpiredTime.f1) {
+      if (stateCleaningEnabled && curProcessTime >= otherSideCntAndExpiredTime.f1) {
         otherSideIterator.remove()
       }
     }

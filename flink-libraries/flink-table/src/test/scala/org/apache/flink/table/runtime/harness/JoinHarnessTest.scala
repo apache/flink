@@ -1019,7 +1019,7 @@ class JoinHarnessTest extends HarnessTestBase {
   }
 
   @Test
-  def testNonWindowLeftJoinWithOutNonEqualPred() {
+  def testNonWindowLeftJoinWithoutNonEqualPred() {
 
     val joinReturnType = CRowTypeInfo(new RowTypeInfo(
       Array[TypeInformation[_]](

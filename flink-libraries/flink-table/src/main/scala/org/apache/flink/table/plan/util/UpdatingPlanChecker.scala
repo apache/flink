@@ -148,13 +148,13 @@ object UpdatingPlanChecker {
           }
 
         case j: DataStreamJoin =>
-          // get key(s) for inner join
+          // get key(s) for join
           val lInKeys = visit(j.getLeft)
           val rInKeys = visit(j.getRight)
           if (lInKeys.isEmpty || rInKeys.isEmpty) {
             None
           } else {
-            // Output of inner join must have keys if left and right both contain key(s).
+            // Output of join must have keys if left and right both contain key(s).
             // Key groups from both side will be merged by join equi-predicates
             val lInNames: Seq[String] = j.getLeft.getRowType.getFieldNames
             val rInNames: Seq[String] = j.getRight.getRowType.getFieldNames

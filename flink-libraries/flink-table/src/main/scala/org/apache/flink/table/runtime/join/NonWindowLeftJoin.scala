@@ -71,8 +71,8 @@ class NonWindowLeftJoin(
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow],
       timerState: ValueState[Long],
-      currentSideState: MapState[Row, JTuple2[Int, Long]],
-      otherSideState: MapState[Row, JTuple2[Int, Long]],
+      currentSideState: MapState[Row, JTuple2[Long, Long]],
+      otherSideState: MapState[Row, JTuple2[Long, Long]],
       isLeft: Boolean): Unit = {
 
     val inputRow = value.row
@@ -83,7 +83,7 @@ class NonWindowLeftJoin(
     val curProcessTime = ctx.timerService.currentProcessingTime
     val oldCntAndExpiredTime = currentSideState.get(inputRow)
     val cntAndExpiredTime = if (null == oldCntAndExpiredTime) {
-      JTuple2.of(0, -1L)
+      JTuple2.of(0L, -1L)
     } else {
       oldCntAndExpiredTime
     }
@@ -114,12 +114,12 @@ class NonWindowLeftJoin(
       while (otherSideIterator.hasNext) {
         val otherSideEntry = otherSideIterator.next()
         val otherSideRow = otherSideEntry.getKey
-        val cntAndExpiredTime = otherSideEntry.getValue
+        val otherSideCntAndExpiredTime = otherSideEntry.getValue
         // join
-        cRowWrapper.setTimes(cntAndExpiredTime.f0)
+        cRowWrapper.setTimes(otherSideCntAndExpiredTime.f0)
         joinFunction.join(inputRow, otherSideRow, cRowWrapper)
         // clear expired data. Note: clear after join to keep closer to the original semantics
-        if (stateCleaningEnabled && curProcessTime >= cntAndExpiredTime.f1) {
+        if (stateCleaningEnabled && curProcessTime >= otherSideCntAndExpiredTime.f1) {
           otherSideIterator.remove()
         }
       }
@@ -132,22 +132,17 @@ class NonWindowLeftJoin(
 
       // number of right keys, here we only check whether key number equals to 0 or 1.
       val rigthKeyNum = getRightKeysNumber
-      // whether retract null right output for current input
-      var retractFlag = false
-      // whether emit null right output for current input
-      var hasReEmittedNullRight = false
 
       while (otherSideIterator.hasNext) {
         val otherSideEntry = otherSideIterator.next()
         val otherSideRow = otherSideEntry.getKey
-        val cntAndExpiredTime = otherSideEntry.getValue
-        cRowWrapper.setTimes(cntAndExpiredTime.f0)
+        val otherSideCntAndExpiredTime = otherSideEntry.getValue
+        cRowWrapper.setTimes(otherSideCntAndExpiredTime.f0)
 
         // retract previous record with null right
         if (rigthKeyNum == 1 && value.change) {
           cRowWrapper.setChange(false)
           collectWithNullRight(otherSideRow, resultRow, cRowWrapper)
-          retractFlag = true
           cRowWrapper.setChange(true)
         }
         // do normal join
@@ -156,7 +151,6 @@ class NonWindowLeftJoin(
         if (!value.change && rigthKeyNum == 0) {
           cRowWrapper.setChange(true)
           collectWithNullRight(otherSideRow, resultRow, cRowWrapper)
-          hasReEmittedNullRight = true
           cRowWrapper.setChange(false)
         }
       }

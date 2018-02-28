@@ -81,8 +81,8 @@ class NonWindowLeftJoinWithNonEquiPredicates(
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow],
       timerState: ValueState[Long],
-      currentSideState: MapState[Row, JTuple2[Int, Long]],
-      otherSideState: MapState[Row, JTuple2[Int, Long]],
+      currentSideState: MapState[Row, JTuple2[Long, Long]],
+      otherSideState: MapState[Row, JTuple2[Long, Long]],
       isLeft: Boolean): Unit = {
 
     val inputRow = value.row
@@ -93,7 +93,7 @@ class NonWindowLeftJoinWithNonEquiPredicates(
     val curProcessTime = ctx.timerService.currentProcessingTime
     val oldCntAndExpiredTime = currentSideState.get(inputRow)
     val cntAndExpiredTime = if (null == oldCntAndExpiredTime) {
-      JTuple2.of(0, -1L)
+      JTuple2.of(0L, -1L)
     } else {
       oldCntAndExpiredTime
     }
@@ -126,18 +126,18 @@ class NonWindowLeftJoinWithNonEquiPredicates(
       while (otherSideIterator.hasNext) {
         val otherSideEntry = otherSideIterator.next()
         val otherSideRow = otherSideEntry.getKey
-        val cntAndExpiredTimeOfOtherSide = otherSideEntry.getValue
+        val otherSideCntAndExpiredTime = otherSideEntry.getValue
         // join
-        cRowWrapper.setTimes(cntAndExpiredTimeOfOtherSide.f0)
+        cRowWrapper.setTimes(otherSideCntAndExpiredTime.f0)
         joinFunction.join(inputRow, otherSideRow, cRowWrapper)
         // clear expired data. Note: clear after join to keep closer to the original semantics
-        if (stateCleaningEnabled && curProcessTime >= cntAndExpiredTimeOfOtherSide.f1) {
+        if (stateCleaningEnabled && curProcessTime >= otherSideCntAndExpiredTime.f1) {
           otherSideIterator.remove()
         }
       }
       // update matched cnt only when left row cnt is changed from 0 to 1. Each time encountered a
       // new record from right, leftJoinCnt will also be updated.
-      if (cntAndExpiredTime.f0 == 1) {
+      if (cntAndExpiredTime.f0 == 1 && value.change) {
         leftJoinCnt.put(inputRow, cRowWrapper.getEmitCnt)
       }
       // The result is NULL from the right side, if there is no match.
@@ -150,7 +150,7 @@ class NonWindowLeftJoinWithNonEquiPredicates(
       while (otherSideIterator.hasNext) {
         val otherSideEntry = otherSideIterator.next()
         val otherSideRow = otherSideEntry.getKey
-        val cntAndExpiredTimeOfOtherSide = otherSideEntry.getValue
+        val otherSideCntAndExpiredTime = otherSideEntry.getValue
 
         cRowWrapper.setLazyOutput(true)
         cRowWrapper.setRow(null)
@@ -159,7 +159,7 @@ class NonWindowLeftJoinWithNonEquiPredicates(
 
         if (outputRow != null) {
           cRowWrapper.setLazyOutput(false)
-          cRowWrapper.setTimes(cntAndExpiredTimeOfOtherSide.f0)
+          cRowWrapper.setTimes(otherSideCntAndExpiredTime.f0)
           val joinCnt = leftJoinCnt.get(otherSideRow)
           if (value.change) {
             leftJoinCnt.put(otherSideRow, joinCnt + 1L)
@@ -194,7 +194,7 @@ class NonWindowLeftJoinWithNonEquiPredicates(
     */
   override def expireOutTimeRowForLeft(
     curTime: Long,
-    rowMapState: MapState[Row, JTuple2[Int, Long]],
+    rowMapState: MapState[Row, JTuple2[Long, Long]],
     timerState: ValueState[Long],
     ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext): Unit = {
 

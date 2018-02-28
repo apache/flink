@@ -58,9 +58,9 @@ abstract class NonWindowJoin(
   validateEqualsHashCode("join", rightType)
 
   // state to hold left stream element
-  protected var leftState: MapState[Row, JTuple2[Int, Long]] = _
+  protected var leftState: MapState[Row, JTuple2[Long, Long]] = _
   // state to hold right stream element
-  protected var rightState: MapState[Row, JTuple2[Int, Long]] = _
+  protected var rightState: MapState[Row, JTuple2[Long, Long]] = _
   protected var cRowWrapper: CRowWrappingMultiOutputCollector = _
 
   protected val minRetentionTime: Long = queryConfig.getMinIdleStateRetentionTime
@@ -87,10 +87,10 @@ abstract class NonWindowJoin(
 
     // initialize left and right state, the first element of tuple2 indicates how many rows of
     // this row, while the second element represents the expired time of this row.
-    val tupleTypeInfo = new TupleTypeInfo[JTuple2[Int, Long]](Types.INT, Types.LONG)
-    val leftStateDescriptor = new MapStateDescriptor[Row, JTuple2[Int, Long]](
+    val tupleTypeInfo = new TupleTypeInfo[JTuple2[Long, Long]](Types.LONG, Types.LONG)
+    val leftStateDescriptor = new MapStateDescriptor[Row, JTuple2[Long, Long]](
       "left", leftType, tupleTypeInfo)
-    val rightStateDescriptor = new MapStateDescriptor[Row, JTuple2[Int, Long]](
+    val rightStateDescriptor = new MapStateDescriptor[Row, JTuple2[Long, Long]](
       "right", rightType, tupleTypeInfo)
     leftState = getRuntimeContext.getMapState(leftStateDescriptor)
     rightState = getRuntimeContext.getMapState(rightStateDescriptor)
@@ -172,7 +172,7 @@ abstract class NonWindowJoin(
     * Removes records which are expired from left state.
     */
   def expireOutTimeRowForLeft(curTime: Long,
-      rowMapState: MapState[Row, JTuple2[Int, Long]],
+      rowMapState: MapState[Row, JTuple2[Long, Long]],
       timerState: ValueState[Long],
       ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext): Unit = {
 
@@ -183,7 +183,7 @@ abstract class NonWindowJoin(
     * Removes records which are expired from right state.
     */
   def expireOutTimeRowForRight(curTime: Long,
-      rowMapState: MapState[Row, JTuple2[Int, Long]],
+      rowMapState: MapState[Row, JTuple2[Long, Long]],
       timerState: ValueState[Long],
       ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext): Unit = {
 
@@ -208,7 +208,7 @@ abstract class NonWindowJoin(
     */
   def expireOutTimeRow(
       curTime: Long,
-      rowMapState: MapState[Row, JTuple2[Int, Long]],
+      rowMapState: MapState[Row, JTuple2[Long, Long]],
       timerState: ValueState[Long],
       ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext): Unit = {
 
@@ -265,7 +265,7 @@ abstract class NonWindowJoin(
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow],
       timerState: ValueState[Long],
-      currentSideState: MapState[Row, JTuple2[Int, Long]],
-      otherSideState: MapState[Row, JTuple2[Int, Long]],
+      currentSideState: MapState[Row, JTuple2[Long, Long]],
+      otherSideState: MapState[Row, JTuple2[Long, Long]],
       isLeft: Boolean): Unit
 }
