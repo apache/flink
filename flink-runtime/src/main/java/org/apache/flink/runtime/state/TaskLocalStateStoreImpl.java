@@ -93,9 +93,6 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 	@GuardedBy("lock")
 	private boolean disposed;
 
-	/** Whether to discard the useless state when retrieve local checkpoint state. */
-	private boolean retrieveWithDiscard = true;
-
 	/** Maps checkpoint ids to local TaskStateSnapshots. */
 	@Nonnull
 	@GuardedBy("lock")
@@ -164,15 +161,27 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 	@Nullable
 	public TaskStateSnapshot retrieveLocalState(long checkpointID) {
 
+		// do the cleanup first
+		synchronized (lock) {
+			pruneCheckpoints(
+				(snapshotCheckpointId) -> snapshotCheckpointId != checkpointID,
+				false);
+		}
+
+		// pure retrieval/logging
+		return retrieveLocalStateWithoutPruning(checkpointID);
+	}
+
+	/**
+	 * This method simply retrieve the TaskStateSnapshot without pruning.
+	 */
+	@VisibleForTesting
+	TaskStateSnapshot retrieveLocalStateWithoutPruning(long checkpointID) {
+
 		TaskStateSnapshot snapshot;
+
 		synchronized (lock) {
 			snapshot = storedTaskStateByCheckpointID.get(checkpointID);
-
-			if (retrieveWithDiscard) {
-				pruneCheckpoints(
-					(snapshotCheckpointId) -> snapshotCheckpointId != checkpointID,
-					false);
-			}
 		}
 
 		if (LOG.isTraceEnabled()) {
@@ -332,10 +341,5 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 			", subtaskIndex=" + subtaskIndex +
 			", localRecoveryConfig=" + localRecoveryConfig +
 			'}';
-	}
-
-	@VisibleForTesting
-	void setRetrieveWithDiscard(boolean retrieveWithDiscard) {
-		this.retrieveWithDiscard = retrieveWithDiscard;
 	}
 }
