@@ -540,7 +540,9 @@ public class DataStream<T> {
 	 * iteration head. If no data received in the set time, the stream
 	 * terminates.
 	 *
-	 * @param maxWaitTimeMillis Number of milliseconds to wait between inputs before shutting down
+	 * @param maxWaitTimeMillis
+	 *            Number of milliseconds to wait between inputs before shutting
+	 *            down
 	 *
 	 * @return The iterative data stream created.
 	 */
@@ -556,10 +558,11 @@ public class DataStream<T> {
 	 * {@link RichMapFunction} to gain access to other features provided by the
 	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 *
-	 * @param mapper The MapFunction that is called for each element of the DataStream.
-	 *
-	 * @param <R> output type
-	 *
+	 * @param mapper
+	 *            The MapFunction that is called for each element of the
+	 *            DataStream.
+	 * @param <R>
+	 *            output type
 	 * @return The transformed {@link DataStream}.
 	 */
 	public <R> SingleOutputStreamOperator<R> map(MapFunction<T, R> mapper) {
@@ -578,10 +581,12 @@ public class DataStream<T> {
 	 * gain access to other features provided by the
 	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 *
-	 * @param flatMapper The FlatMapFunction that is called for each element of the DataStream
+	 * @param flatMapper
+	 *            The FlatMapFunction that is called for each element of the
+	 *            DataStream
 	 *
-	 * @param <R> output type
-	 *
+	 * @param <R>
+	 *            output type
 	 * @return The transformed {@link DataStream}.
 	 */
 	public <R> SingleOutputStreamOperator<R> flatMap(FlatMapFunction<T, R> flatMapper) {
@@ -594,12 +599,14 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Applies the given {@link ProcessFunction} on the input stream, thereby creating a transformed output stream.
+	 * Applies the given {@link ProcessFunction} on the input stream, thereby
+	 * creating a transformed output stream.
 	 *
 	 * <p>The function will be called for every element in the input streams and can produce zero
 	 * or more output elements.
 	 *
-	 * @param processFunction The {@link ProcessFunction} that is called for each element in the stream.
+	 * @param processFunction The {@link ProcessFunction} that is called for each element
+	 *                      in the stream.
 	 *
 	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
 	 *
@@ -623,13 +630,14 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Applies the given {@link ProcessFunction} on the input stream, thereby creating a transformed output stream.
+	 * Applies the given {@link ProcessFunction} on the input stream, thereby
+	 * creating a transformed output stream.
 	 *
 	 * <p>The function will be called for every element in the input streams and can produce zero
 	 * or more output elements.
 	 *
-	 * @param processFunction The {@link ProcessFunction} that is called for each element in the stream.
-	 *
+	 * @param processFunction The {@link ProcessFunction} that is called for each element
+	 *                      in the stream.
 	 * @param outputType {@link TypeInformation} for the result type of the function.
 	 *
 	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
