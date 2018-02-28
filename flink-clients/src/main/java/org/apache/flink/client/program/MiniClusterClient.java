@@ -26,6 +26,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -57,7 +58,7 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	}
 
 	@Override
-	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
+	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
 		if (isDetached()) {
 			try {
 				miniCluster.runDetached(jobGraph);
@@ -117,6 +118,10 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	@Override
 	public Map<String, Object> getAccumulators(JobID jobID, ClassLoader loader) throws Exception {
 		throw new UnsupportedOperationException("MiniClusterClient does not yet support this operation.");
+	}
+
+	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
+		return miniCluster.getJobStatus(jobId);
 	}
 
 	@Override
