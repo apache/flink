@@ -416,7 +416,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 * Test a fire-and-forget job submission to a YARN cluster.
 	 */
 	@Test(timeout = 60000)
-	public void testDetachedPerJobYarnCluster() throws IOException {
+	public void testDetachedPerJobYarnCluster() throws Exception {
 		LOG.info("Starting testDetachedPerJobYarnCluster()");
 
 		File exampleJarLocation = new File("target/programs/BatchWordCount.jar");
@@ -432,7 +432,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 * Test a fire-and-forget job submission to a YARN cluster.
 	 */
 	@Test(timeout = 60000)
-	public void testDetachedPerJobYarnClusterWithStreamingJob() throws IOException {
+	public void testDetachedPerJobYarnClusterWithStreamingJob() throws Exception {
 		LOG.info("Starting testDetachedPerJobYarnClusterWithStreamingJob()");
 
 		File exampleJarLocation = new File("target/programs/StreamingWordCount.jar");
@@ -444,7 +444,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		LOG.info("Finished testDetachedPerJobYarnClusterWithStreamingJob()");
 	}
 
-	private void testDetachedPerJobYarnClusterInternal(String job) throws IOException {
+	private void testDetachedPerJobYarnClusterInternal(String job) throws Exception {
 		YarnClient yc = YarnClient.createYarnClient();
 		yc.init(YARN_CONFIGURATION);
 		yc.start();
@@ -575,9 +575,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			} while (rep.getYarnApplicationState() == YarnApplicationState.RUNNING);
 
 			verifyApplicationTags(rep);
-		} catch (Throwable t) {
-			LOG.warn("Error while detached yarn session was running", t);
-			Assert.fail(t.getMessage());
 		} finally {
 
 			//cleanup the yarn-properties file
@@ -625,7 +622,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		@SuppressWarnings("unchecked")
 		Set<String> applicationTags = (Set<String>) applicationTagsMethod.invoke(report);
 
-		Assert.assertEquals(applicationTags, Collections.singleton("test-tag"));
+		Assert.assertEquals(Collections.singleton("test-tag"), applicationTags);
 	}
 
 	@After
