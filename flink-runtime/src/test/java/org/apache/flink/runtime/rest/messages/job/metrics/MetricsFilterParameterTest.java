@@ -50,7 +50,7 @@ public class MetricsFilterParameterTest extends TestLogger {
 	@Test
 	public void testConversions() {
 		assertThat(metricsFilterParameter.convertValueToString("test"), equalTo("test"));
-		assertThat(metricsFilterParameter.convertValueFromString("test"), equalTo("test"));
+		assertThat(metricsFilterParameter.convertStringToValue("test"), equalTo("test"));
 	}
 
 }
