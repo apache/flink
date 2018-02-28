@@ -113,7 +113,7 @@ public final class InstantiationUtil {
 	 *
 	 * <p>This can be removed once 1.2 is no longer supported.
 	 */
-	private final static Set<String> scalaSerializerClassnames = new HashSet<>();
+	private static final Set<String> scalaSerializerClassnames = new HashSet<>();
 	static {
 		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.TraversableSerializer");
 		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.CaseClassSerializer");
@@ -130,7 +130,7 @@ public final class InstantiationUtil {
 	 *
 	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-8451">FLINK-8451</a>
 	 */
-	private final static Set<String> scalaTypes = new HashSet<>();
+	private static final Set<String> scalaTypes = new HashSet<>();
 	static {
 		scalaTypes.add("scala.Tuple1");
 		scalaTypes.add("scala.Tuple2");
