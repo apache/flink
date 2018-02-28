@@ -37,12 +37,15 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.StandaloneClusterClient;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
 import org.apache.flink.queryablestate.client.VoidNamespace;
@@ -51,14 +54,14 @@ import org.apache.flink.queryablestate.exceptions.UnknownKeyOrNamespaceException
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
-import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.QueryableStateStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -118,27 +121,22 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	protected AbstractStateBackend stateBackend;
 
 	/**
-	 * Shared between all the test. Make sure to have at least NUM_SLOTS
-	 * available after your test finishes, e.g. cancel the job you submitted.
-	 */
-	protected static FlinkMiniCluster cluster;
-
-	/**
 	 * Client shared between all the test.
 	 */
 	protected static QueryableStateClient client;
+
+	protected static ClusterClient<?> clusterClient;
 
 	protected static int maxParallelism;
 
 	@Before
 	public void setUp() throws Exception {
-		// NOTE: do not use a shared instance for all tests as the tests may brake
+		// NOTE: do not use a shared instance for all tests as the tests may break
 		this.stateBackend = createStateBackend();
 
-		Assert.assertNotNull(cluster);
+		Assert.assertNotNull(clusterClient);
 
-		maxParallelism = cluster.configuration().getInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1) *
-				cluster.configuration().getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+		maxParallelism = 4;
 	}
 
 	/**
@@ -188,12 +186,13 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			}
 		}).asQueryableState(queryName, reducingState);
 
-		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(deadline, clusterClient, env)) {
 
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			cluster.submitJobDetached(jobGraph);
+			clusterClient.setDetached(true);
+			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
 
 			final AtomicLongArray counts = new AtomicLongArray(numKeys);
 
@@ -259,6 +258,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 */
 	@Test
 	public void testDuplicateRegistrationFailsJob() throws Exception {
+
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final int numKeys = 256;
 
@@ -304,47 +304,39 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 		final JobID jobId = jobGraph.getJobID();
 
-		final CompletableFuture<TestingJobManagerMessages.JobStatusIs> failedFuture =
-				notifyWhenJobStatusIs(jobId, JobStatus.FAILED, deadline);
+		clusterClient.setDetached(true);
+		clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
 
-		final CompletableFuture<TestingJobManagerMessages.JobStatusIs> cancellationFuture =
-				notifyWhenJobStatusIs(jobId, JobStatus.CANCELED, deadline);
+		CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccesfulWithDelay(
+			() -> clusterClient.getJobStatus(jobGraph.getJobID()),
+			deadline.timeLeft().toMillis() / 50,
+			Time.milliseconds(50),
+			(jobStatus) -> jobStatus.equals(JobStatus.FAILED),
+			TestingUtils.defaultScheduledExecutor());
 
-		cluster.submitJobDetached(jobGraph);
+		assertEquals(JobStatus.FAILED, jobStatusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 
-		try {
-			final TestingJobManagerMessages.JobStatusIs jobStatus =
-					failedFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+		String failureCause = null;
+		if (clusterClient instanceof StandaloneClusterClient) {
+			// we are in legacy mode
+			ActorGateway jobManagerGateway = clusterClient.getJobManagerGateway();
 
-			assertEquals(JobStatus.FAILED, jobStatus.state());
-		} catch (Exception e) {
-
-			// if the assertion fails, it means that the job was (falsely) not cancelled.
-			// in this case, and given that the mini-cluster is shared with other tests,
-			// we cancel the job and wait for the cancellation so that the resources are freed.
-
-			if (jobId != null) {
-				cluster.getLeaderGateway(deadline.timeLeft())
-						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
-
-				cancellationFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-			}
-
-			// and we re-throw the exception.
-			throw e;
-		}
-
-		// Get the job and check the cause
-		JobManagerMessages.JobFound jobFound = FutureUtils.toJava(
-				cluster.getLeaderGateway(deadline.timeLeft())
-						.ask(new JobManagerMessages.RequestJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<JobManagerMessages.JobFound>apply(JobManagerMessages.JobFound.class)))
+			// Get the job and check the cause
+			JobManagerMessages.JobFound jobFound = FutureUtils.toJava(
+				jobManagerGateway
+					.ask(new JobManagerMessages.RequestJob(jobId), deadline.timeLeft())
+					.mapTo(ClassTag$.MODULE$.<JobManagerMessages.JobFound>apply(JobManagerMessages.JobFound.class)))
 				.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
-		String failureCause = jobFound.executionGraph().getFailureInfo().getExceptionAsString();
+			failureCause = jobFound.executionGraph().getFailureInfo().getExceptionAsString();
+		} else if (clusterClient instanceof RestClusterClient) {
+			JobResult jobResult =
+				((RestClusterClient<?>) clusterClient).requestJobResult(jobId).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			failureCause = jobResult.getSerializedThrowable().get().getFullStringifiedStackTrace();
+		} else {
+			fail("Unknown ClusterClient implementation: " + clusterClient.getClass());
+		}
 
-		assertEquals(JobStatus.FAILED, jobFound.executionGraph().getState());
 		assertTrue("Not instance of SuppressRestartsException", failureCause.startsWith("org.apache.flink.runtime.execution.SuppressRestartsException"));
 		int causedByIndex = failureCause.indexOf("Caused by: ");
 		String subFailureCause = failureCause.substring(causedByIndex + "Caused by: ".length());
@@ -386,12 +378,13 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			}
 		}).asQueryableState("hakuna", valueState);
 
-		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(deadline, clusterClient, env)) {
 
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			cluster.submitJobDetached(jobGraph);
+			clusterClient.setDetached(true);
+			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
 
 			executeValueQuery(deadline, client, jobId, "hakuna", valueState, numElements);
 		}
@@ -425,18 +418,23 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			}
 		}).asQueryableState("hakuna", valueState);
 
-		try (AutoCancellableJob closableJobGraph = new AutoCancellableJob(cluster, env, deadline)) {
+		try (AutoCancellableJob closableJobGraph = new AutoCancellableJob(deadline, clusterClient, env)) {
 
-			// register to be notified when the job is running.
-			CompletableFuture<TestingJobManagerMessages.JobStatusIs> runningFuture =
-					notifyWhenJobStatusIs(closableJobGraph.getJobId(), JobStatus.RUNNING, deadline);
+			clusterClient.setDetached(true);
+			clusterClient.submitJob(
+				closableJobGraph.getJobGraph(), AbstractQueryableStateTestBase.class.getClassLoader());
 
-			cluster.submitJobDetached(closableJobGraph.getJobGraph());
 
-			// expect for the job to be running
-			TestingJobManagerMessages.JobStatusIs jobStatus =
-					runningFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-			assertEquals(JobStatus.RUNNING, jobStatus.state());
+			CompletableFuture<JobStatus> jobStatusFuture =
+				clusterClient.getJobStatus(closableJobGraph.getJobId());
+
+			while (deadline.hasTimeLeft() && !jobStatusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).equals(JobStatus.RUNNING)) {
+				Thread.sleep(50);
+				jobStatusFuture =
+					clusterClient.getJobStatus(closableJobGraph.getJobId());
+			}
+
+			assertEquals(JobStatus.RUNNING, jobStatusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 
 			final JobID wrongJobId = new JobID();
 
@@ -491,7 +489,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStateBackend(stateBackend);
 		env.setParallelism(maxParallelism);
-		// Very important, because cluster is shared between tests and we
+		// Very important, because clusterClient is shared between tests and we
 		// don't explicitly check that all slots are available before
 		// submitting.
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
@@ -512,7 +510,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 					}
 				}).asQueryableState("hakuna", valueState);
 
-		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(deadline, clusterClient, env)) {
 
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
@@ -527,7 +525,8 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 					BasicTypeInfo.INT_TYPE_INFO,
 					valueState);
 
-			cluster.submitJobDetached(jobGraph);
+			clusterClient.setDetached(true);
+			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
 
 			executeValueQuery(deadline, client, jobId, "hakuna", valueState, expected);
 		}
@@ -571,12 +570,13 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 					}
 				}).asQueryableState("hakuna", valueState);
 
-		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(deadline, clusterClient, env)) {
 
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			cluster.submitJobDetached(jobGraph);
+			clusterClient.setDetached(true);
+			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
 
 			// Now query
 			int key = 0;
@@ -639,12 +639,14 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		final ValueStateDescriptor<Tuple2<Integer, Long>> stateDesc =
 				(ValueStateDescriptor<Tuple2<Integer, Long>>) queryableState.getStateDescriptor();
 
-		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(deadline, clusterClient, env)) {
 
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			cluster.submitJobDetached(jobGraph);
+			clusterClient.setDetached(true);
+			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
+
 			executeValueQuery(deadline, client, jobId, "matata", stateDesc, numElements);
 		}
 	}
@@ -684,12 +686,13 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			}
 		}).asQueryableState("pumba", foldingState);
 
-		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(deadline, clusterClient, env)) {
 
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			cluster.submitJobDetached(jobGraph);
+			clusterClient.setDetached(true);
+			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
 
 			final String expected = Integer.toString(numElements * (numElements + 1) / 2);
 
@@ -757,12 +760,13 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			}
 		}).asQueryableState("jungle", reducingState);
 
-		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(deadline, clusterClient, env)) {
 
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			cluster.submitJobDetached(jobGraph);
+			clusterClient.setDetached(true);
+			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
 
 			final long expected = numElements * (numElements + 1L) / 2L;
 
@@ -850,12 +854,13 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			}
 		});
 
-		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(deadline, clusterClient, env)) {
 
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			cluster.submitJobDetached(jobGraph);
+			clusterClient.setDetached(true);
+			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
 
 			final long expected = numElements * (numElements + 1L) / 2L;
 
@@ -939,12 +944,13 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			}
 		});
 
-		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(deadline, clusterClient, env)) {
 
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			cluster.submitJobDetached(jobGraph);
+			clusterClient.setDetached(true);
+			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
 
 			final Map<Integer, Set<Long>> results = new HashMap<>();
 
@@ -1025,12 +1031,13 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 				new AggregatingTestOperator(aggrStateDescriptor)
 		);
 
-		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(deadline, clusterClient, env)) {
 
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			cluster.submitJobDetached(jobGraph);
+			clusterClient.setDetached(true);
+			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
 
 			for (int key = 0; key < maxParallelism; key++) {
 				boolean success = false;
@@ -1277,22 +1284,22 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 */
 	private static class AutoCancellableJob implements AutoCloseable {
 
-		private final FlinkMiniCluster cluster;
-		private final Deadline deadline;
+		private final ClusterClient<?> clusterClient;
 		private final JobGraph jobGraph;
 
 		private final JobID jobId;
-		private final CompletableFuture<TestingJobManagerMessages.JobStatusIs> cancellationFuture;
 
-		AutoCancellableJob(final FlinkMiniCluster cluster, final StreamExecutionEnvironment env, final Deadline deadline) {
+		private final Deadline deadline;
+
+		AutoCancellableJob(Deadline deadline, final ClusterClient<?> clusterClient, final StreamExecutionEnvironment env) {
 			Preconditions.checkNotNull(env);
 
-			this.cluster = Preconditions.checkNotNull(cluster);
+			this.clusterClient = Preconditions.checkNotNull(clusterClient);
 			this.jobGraph = env.getStreamGraph().getJobGraph();
-			this.deadline = Preconditions.checkNotNull(deadline);
 
-			this.jobId = jobGraph.getJobID();
-			this.cancellationFuture = notifyWhenJobStatusIs(jobId, JobStatus.CANCELED, deadline);
+			this.jobId = Preconditions.checkNotNull(jobGraph.getJobID());
+
+			this.deadline = deadline;
 		}
 
 		JobGraph getJobGraph() {
@@ -1306,23 +1313,17 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		@Override
 		public void close() throws Exception {
 			// Free cluster resources
-			if (jobId != null) {
-				cluster.getLeaderGateway(deadline.timeLeft())
-						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
+			clusterClient.cancel(jobId);
+			// cancel() is non-blocking so do this to make sure the job finished
+			CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccesfulWithDelay(
+				() -> clusterClient.getJobStatus(jobId),
+				deadline.timeLeft().toMillis() / 50,
+				Time.milliseconds(50),
+				(jobStatus) -> jobStatus.equals(JobStatus.CANCELED),
+				TestingUtils.defaultScheduledExecutor());
 
-				cancellationFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-			}
+			assertEquals(JobStatus.CANCELED, jobStatusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 		}
-	}
-
-	private static CompletableFuture<TestingJobManagerMessages.JobStatusIs> notifyWhenJobStatusIs(
-			final JobID jobId, final JobStatus status, final Deadline deadline) {
-
-		return FutureUtils.toJava(
-				cluster.getLeaderGateway(deadline.timeLeft())
-						.ask(new TestingJobManagerMessages.NotifyWhenJobStatus(jobId, status), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<TestingJobManagerMessages.JobStatusIs>apply(TestingJobManagerMessages.JobStatusIs.class)));
 	}
 
 	private static <K, S extends State, V> CompletableFuture<S> getKvState(
