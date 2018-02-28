@@ -34,8 +34,8 @@ public class AllowNonRestoredStateQueryParameterTest extends TestLogger {
 
 	@Test
 	public void testConvertStringToValue() {
-		assertEquals("false", allowNonRestoredStateQueryParameter.convertStringToValue(false));
-		assertEquals("true", allowNonRestoredStateQueryParameter.convertStringToValue(true));
+		assertEquals("false", allowNonRestoredStateQueryParameter.convertValueToString(false));
+		assertEquals("true", allowNonRestoredStateQueryParameter.convertValueToString(true));
 	}
 
 	@Test

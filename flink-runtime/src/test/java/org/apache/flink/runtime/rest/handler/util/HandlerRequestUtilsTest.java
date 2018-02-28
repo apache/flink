@@ -108,7 +108,7 @@ public class HandlerRequestUtilsTest extends TestLogger {
 		}
 
 		@Override
-		public String convertStringToValue(final Boolean value) {
+		public String convertValueToString(final Boolean value) {
 			return value.toString();
 		}
 	}
