@@ -181,7 +181,7 @@ public class BroadcastStateITCase {
 		}
 
 		@Override
-		public void onTimer(long timestamp, OnTimerContext<Long> ctx, Collector<String> out) throws Exception {
+		public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
 			assertEquals(timerToExpectedKey.get(timestamp), ctx.getCurrentKey());
 
 			Map<Long, String> map = new HashMap<>();
