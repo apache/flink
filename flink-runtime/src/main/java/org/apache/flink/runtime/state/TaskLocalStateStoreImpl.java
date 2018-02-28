@@ -48,7 +48,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
-import java.util.function.Predicate;
+import java.util.function.LongPredicate;
 
 /**
  * Main implementation of a {@link TaskLocalStateStore}.
@@ -298,7 +298,7 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 	/**
 	 * Pruning the useless checkpoints, it should be called only when holding the {@link #lock}.
 	 */
-	private void pruneCheckpoints(Predicate<Long> pruningChecker, boolean breakOnceCheckerFalse) {
+	private void pruneCheckpoints(LongPredicate pruningChecker, boolean breakOnceCheckerFalse) {
 
 		assert Thread.holdsLock(lock);
 
