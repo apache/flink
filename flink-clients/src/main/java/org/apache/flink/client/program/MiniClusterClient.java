@@ -82,7 +82,7 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 	@Override
 	public void cancel(JobID jobId) throws Exception {
-		throw new UnsupportedOperationException("MiniClusterClient does not yet support this operation.");
+		miniCluster.cancelJob(jobId);
 	}
 
 	@Override
