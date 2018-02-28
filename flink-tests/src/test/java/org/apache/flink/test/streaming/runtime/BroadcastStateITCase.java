@@ -90,7 +90,7 @@ public class BroadcastStateITCase {
 
 		// the timestamp should be high enough to trigger the timer after all the elements arrive.
 		final DataStream<String> output = srcOne.connect(broadcast).process(
-				new TestBroadcastProcessFunction(1000L, expected));
+				new TestBroadcastProcessFunction(100000L, expected));
 
 		output
 				.addSink(new TestSink(expected.size()))
