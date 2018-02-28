@@ -1345,6 +1345,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		private final Method applicationTagsMethod;
 		private final Method attemptFailuresValidityIntervalMethod;
 		private final Method keepContainersMethod;
+		@Nullable
 		private final Method nodeLabelExpressionMethod;
 
 		private ApplicationSubmissionContextReflector(Class<ApplicationSubmissionContext> clazz) {
