@@ -77,6 +77,7 @@ import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.runtime.util.ScalaUtils;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -97,6 +98,7 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
@@ -106,10 +108,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
-import scala.Option;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A {@link ClusterClient} implementation that communicates via HTTP REST requests.
@@ -636,9 +634,17 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 				TimeUnit.MILLISECONDS)
 			.thenApplyAsync(leaderAddressSessionId -> {
 				final String address = leaderAddressSessionId.f0;
-				final Option<String> host = AddressFromURIString.parse(address).host();
-				checkArgument(host.isDefined(), "Could not parse host from %s", address);
-				return host.get();
+				final Optional<String> host = ScalaUtils.toJava(AddressFromURIString.parse(address).host());
+
+				return host.orElseGet(() -> {
+					// if the dispatcher address does not contain a host part, then assume it's running
+					// on the same machine as the client
+					log.info("The dispatcher seems to run without remoting enabled. This indicates that we are " +
+						"in a test. This can only work if the RestClusterClient runs on the same machine. " +
+						"Assuming, therefore, 'localhost' as the host.");
+
+					return "localhost";
+				});
 			}, executorService);
 	}
 
