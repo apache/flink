@@ -757,7 +757,7 @@ public class DataStreamTest extends TestLogger {
 		};
 
 		DataStream<Integer> processed = src
-						.process(processFunction);
+				.process(processFunction);
 
 		processed.addSink(new DiscardingSink<Integer>());
 
