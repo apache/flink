@@ -746,7 +746,7 @@ public class DataStreamTest extends TestLogger {
 			}
 
 			@Override
-			public void onTimer(long timestamp, OnTimerContext<Long> ctx, Collector<Integer> out) throws Exception {
+			public void onTimer(long timestamp, OnTimerContext ctx, Collector<Integer> out) throws Exception {
 				// Do nothing
 			}
 		};

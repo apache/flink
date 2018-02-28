@@ -82,7 +82,7 @@ public abstract class KeyedProcessFunction<K, I, O> extends AbstractRichFunction
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
 	 *                   to fail and may trigger recovery.
 	 */
-	public void onTimer(long timestamp, OnTimerContext<K> ctx, Collector<O> out) throws Exception {}
+	public void onTimer(long timestamp, OnTimerContext ctx, Collector<O> out) throws Exception {}
 
 	/**
 	 * Information available in an invocation of {@link #processElement(Object, Context, Collector)}
@@ -115,7 +115,7 @@ public abstract class KeyedProcessFunction<K, I, O> extends AbstractRichFunction
 	/**
 	 * Information available in an invocation of {@link #onTimer(long, OnTimerContext, Collector)}.
 	 */
-	public abstract class OnTimerContext<K> extends Context {
+	public abstract class OnTimerContext extends Context {
 		/**
 		 * The {@link TimeDomain} of the firing timer.
 		 */

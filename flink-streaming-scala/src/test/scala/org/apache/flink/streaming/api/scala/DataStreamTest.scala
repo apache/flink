@@ -485,9 +485,9 @@ class DataStreamTest extends AbstractTestBase {
 
     val processFunction = new ProcessFunction[Long, Int] {
       override def processElement(
-                                   value: Long,
-                                   ctx: ProcessFunction[Long, Int]#Context,
-                                   out: Collector[Int]): Unit = ???
+          value: Long,
+          ctx: ProcessFunction[Long, Int]#Context,
+          out: Collector[Int]): Unit = ???
     }
 
     val flatMapped = src.process(processFunction)

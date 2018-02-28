@@ -54,20 +54,21 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   // ------------------------------------------------------------------------
 
   /**
-   * Applies the given [[ProcessFunction]] on the input stream, thereby
-   * creating a transformed output stream.
-   *
-   * The function will be called for every element in the stream and can produce
-   * zero or more output. The function can also query the time and set timers. When
-   * reacting to the firing of set timers the function can emit yet more elements.
-   *
-   * The function will be called for every element in the input streams and can produce zero
-   * or more output elements. Contrary to the [[DataStream#flatMap(FlatMapFunction)]]
-   * function, this function can also query the time and set timers. When reacting to the firing
-   * of set timers the function can directly emit elements and/or register yet more timers.
-   *
-   * @param processFunction The [[ProcessFunction]] that is called for each element in the stream.
-   */
+    * Applies the given [[ProcessFunction]] on the input stream, thereby
+    * creating a transformed output stream.
+    *
+    * The function will be called for every element in the stream and can produce
+    * zero or more output. The function can also query the time and set timers. When
+    * reacting to the firing of set timers the function can emit yet more elements.
+    *
+    * The function will be called for every element in the input streams and can produce zero
+    * or more output elements. Contrary to the [[DataStream#flatMap(FlatMapFunction)]]
+    * function, this function can also query the time and set timers. When reacting to the firing
+    * of set timers the function can directly emit elements and/or register yet more timers.
+    *
+    * @param processFunction The [[ProcessFunction]] that is called for each element in the stream.
+    */
+  @Deprecated
   @PublicEvolving
   override def process[R: TypeInformation](
     processFunction: ProcessFunction[T, R]): DataStream[R] = {
@@ -96,11 +97,11 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    *                             in the stream.
    */
   @PublicEvolving
-  def process[K, R: TypeInformation](
+  def process[R: TypeInformation](
     keyedProcessFunction: KeyedProcessFunction[K, T, R]): DataStream[R] = {
 
     if (keyedProcessFunction == null) {
-      throw new NullPointerException("ProcessFunction must not be null.")
+      throw new NullPointerException("KeyedProcessFunction must not be null.")
     }
 
     asScalaStream(javaStream.process(keyedProcessFunction, implicitly[TypeInformation[R]]))

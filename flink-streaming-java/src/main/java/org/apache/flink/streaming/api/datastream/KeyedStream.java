@@ -86,18 +86,18 @@ import java.util.UUID;
  * elements that have the same key.
  *
  * @param <T> The type of the elements in the Keyed Stream.
- * @param <K> The type of the key in the Keyed Stream.
+ * @param <KEY> The type of the key in the Keyed Stream.
  */
 @Public
-public class KeyedStream<T, K> extends DataStream<T> {
+public class KeyedStream<T, KEY> extends DataStream<T> {
 
 	/**
 	 * The key selector that can get the key by which the stream if partitioned from the elements.
 	 */
-	private final KeySelector<T, K> keySelector;
+	private final KeySelector<T, KEY> keySelector;
 
 	/** The type of the key by which the stream is partitioned. */
-	private final TypeInformation<K> keyType;
+	private final TypeInformation<KEY> keyType;
 
 	/**
 	 * Creates a new {@link KeyedStream} using the given {@link KeySelector}
@@ -108,7 +108,7 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 * @param keySelector
 	 *            Function for determining state partitions
 	 */
-	public KeyedStream(DataStream<T> dataStream, KeySelector<T, K> keySelector) {
+	public KeyedStream(DataStream<T> dataStream, KeySelector<T, KEY> keySelector) {
 		this(dataStream, keySelector, TypeExtractor.getKeySelectorTypes(keySelector, dataStream.getType()));
 	}
 
@@ -121,7 +121,7 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 * @param keySelector
 	 *            Function for determining state partitions
 	 */
-	public KeyedStream(DataStream<T> dataStream, KeySelector<T, K> keySelector, TypeInformation<K> keyType) {
+	public KeyedStream(DataStream<T> dataStream, KeySelector<T, KEY> keySelector, TypeInformation<KEY> keyType) {
 		this(
 			dataStream,
 			new PartitionTransformation<>(
@@ -148,8 +148,8 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	KeyedStream(
 		DataStream<T> stream,
 		PartitionTransformation<T> partitionTransformation,
-		KeySelector<T, K> keySelector,
-		TypeInformation<K> keyType) {
+		KeySelector<T, KEY> keySelector,
+		TypeInformation<KEY> keyType) {
 
 		super(stream.getExecutionEnvironment(), partitionTransformation);
 		this.keySelector = clean(keySelector);
@@ -164,7 +164,7 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 *
 	 * @param keyType The {@link TypeInformation} of the key.
 	 */
-	private TypeInformation<K> validateKeyType(TypeInformation<K> keyType) {
+	private TypeInformation<KEY> validateKeyType(TypeInformation<KEY> keyType) {
 		Stack<TypeInformation<?>> stack = new Stack<>();
 		stack.push(keyType);
 
@@ -228,7 +228,7 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 * @return The key selector for the key.
 	 */
 	@Internal
-	public KeySelector<T, K> getKeySelector() {
+	public KeySelector<T, KEY> getKeySelector() {
 		return this.keySelector;
 	}
 
@@ -237,7 +237,7 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 * @return The type of the key by which the stream is partitioned.
 	 */
 	@Internal
-	public TypeInformation<K> getKeyType() {
+	public TypeInformation<KEY> getKeyType() {
 		return keyType;
 	}
 
@@ -334,7 +334,7 @@ public class KeyedStream<T, K> extends DataStream<T> {
 			ProcessFunction<T, R> processFunction,
 			TypeInformation<R> outputType) {
 
-		LegacyKeyedProcessOperator<K, T, R> operator = new LegacyKeyedProcessOperator<>(clean(processFunction));
+		LegacyKeyedProcessOperator<KEY, T, R> operator = new LegacyKeyedProcessOperator<>(clean(processFunction));
 
 		return transform("Process", outputType, operator);
 	}
@@ -349,20 +349,18 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 *
 	 * @param keyedProcessFunction The {@link KeyedProcessFunction} that is called for each element in the stream.
 	 *
-	 * @param <K> The type of key in {@code KeyedProcessFunction}.
-	 *
 	 * @param <R> The type of elements emitted by the {@code KeyedProcessFunction}.
 	 *
 	 * @return The transformed {@link DataStream}.
 	 */
 	@PublicEvolving
-	public <K, R> SingleOutputStreamOperator<R> process(KeyedProcessFunction<K, T, R> keyedProcessFunction) {
+	public <R> SingleOutputStreamOperator<R> process(KeyedProcessFunction<KEY, T, R> keyedProcessFunction) {
 
 		TypeInformation<R> outType = TypeExtractor.getUnaryOperatorReturnType(
 				keyedProcessFunction,
 				KeyedProcessFunction.class,
-				0,
 				1,
+				2,
 				TypeExtractor.NO_INDEX,
 				TypeExtractor.NO_INDEX,
 				getType(),
@@ -384,19 +382,17 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 *
 	 * @param outputType {@link TypeInformation} for the result type of the function.
 	 *
-	 * @param <K> The type of key in {@code KeyedProcessFunction}.
-	 *
 	 * @param <R> The type of elements emitted by the {@code KeyedProcessFunction}.
 	 *
 	 * @return The transformed {@link DataStream}.
 	 */
 	@Internal
-	public <K, R> SingleOutputStreamOperator<R> process(
-			KeyedProcessFunction<K, T, R> keyedProcessFunction,
+	public <R> SingleOutputStreamOperator<R> process(
+			KeyedProcessFunction<KEY, T, R> keyedProcessFunction,
 			TypeInformation<R> outputType) {
 
-		KeyedProcessOperator<K, T, R> operator = new KeyedProcessOperator<>(clean(keyedProcessFunction));
-		return transform("Process", outputType, operator);
+		KeyedProcessOperator<KEY, T, R> operator = new KeyedProcessOperator<>(clean(keyedProcessFunction));
+		return transform("KeyedProcess", outputType, operator);
 	}
 
 	// ------------------------------------------------------------------------
@@ -413,7 +409,7 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 *
 	 * @param size The size of the window.
 	 */
-	public WindowedStream<T, K, TimeWindow> timeWindow(Time size) {
+	public WindowedStream<T, KEY, TimeWindow> timeWindow(Time size) {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return window(TumblingProcessingTimeWindows.of(size));
 		} else {
@@ -431,7 +427,7 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 *
 	 * @param size The size of the window.
 	 */
-	public WindowedStream<T, K, TimeWindow> timeWindow(Time size, Time slide) {
+	public WindowedStream<T, KEY, TimeWindow> timeWindow(Time size, Time slide) {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return window(SlidingProcessingTimeWindows.of(size, slide));
 		} else {
@@ -444,7 +440,7 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 *
 	 * @param size The size of the windows in number of elements.
 	 */
-	public WindowedStream<T, K, GlobalWindow> countWindow(long size) {
+	public WindowedStream<T, KEY, GlobalWindow> countWindow(long size) {
 		return window(GlobalWindows.create()).trigger(PurgingTrigger.of(CountTrigger.of(size)));
 	}
 
@@ -454,7 +450,7 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 * @param size The size of the windows in number of elements.
 	 * @param slide The slide interval in number of elements.
 	 */
-	public WindowedStream<T, K, GlobalWindow> countWindow(long size, long slide) {
+	public WindowedStream<T, KEY, GlobalWindow> countWindow(long size, long slide) {
 		return window(GlobalWindows.create())
 				.evictor(CountEvictor.of(size))
 				.trigger(CountTrigger.of(slide));
@@ -473,7 +469,7 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 * @return The trigger windows data stream.
 	 */
 	@PublicEvolving
-	public <W extends Window> WindowedStream<T, K, W> window(WindowAssigner<? super T, W> assigner) {
+	public <W extends Window> WindowedStream<T, KEY, W> window(WindowAssigner<? super T, W> assigner) {
 		return new WindowedStream<>(this, assigner);
 	}
 
@@ -806,7 +802,7 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 * @return Queryable state instance
 	 */
 	@PublicEvolving
-	public QueryableStateStream<K, T> asQueryableState(String queryableStateName) {
+	public QueryableStateStream<KEY, T> asQueryableState(String queryableStateName) {
 		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<T>(
 				UUID.randomUUID().toString(),
 				getType());
@@ -822,7 +818,7 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 * @return Queryable state instance
 	 */
 	@PublicEvolving
-	public QueryableStateStream<K, T> asQueryableState(
+	public QueryableStateStream<KEY, T> asQueryableState(
 			String queryableStateName,
 			ValueStateDescriptor<T> stateDescriptor) {
 
@@ -849,7 +845,7 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 */
 	@PublicEvolving
 	@Deprecated
-	public <ACC> QueryableStateStream<K, ACC> asQueryableState(
+	public <ACC> QueryableStateStream<KEY, ACC> asQueryableState(
 			String queryableStateName,
 			FoldingStateDescriptor<T, ACC> stateDescriptor) {
 
@@ -873,7 +869,7 @@ public class KeyedStream<T, K> extends DataStream<T> {
 	 * @return Queryable state instance
 	 */
 	@PublicEvolving
-	public QueryableStateStream<K, T> asQueryableState(
+	public QueryableStateStream<KEY, T> asQueryableState(
 			String queryableStateName,
 			ReducingStateDescriptor<T> stateDescriptor) {
 

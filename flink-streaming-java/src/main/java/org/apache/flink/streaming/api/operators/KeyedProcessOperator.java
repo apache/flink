@@ -139,7 +139,7 @@ public class KeyedProcessOperator<K, IN, OUT>
 		}
 	}
 
-	private class OnTimerContextImpl extends KeyedProcessFunction<K, IN, OUT>.OnTimerContext<K> {
+	private class OnTimerContextImpl extends KeyedProcessFunction<K, IN, OUT>.OnTimerContext {
 
 		private final TimerService timerService;
 
