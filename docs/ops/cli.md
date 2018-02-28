@@ -262,6 +262,8 @@ Action "run" compiles and runs a program.
      -z,--zookeeperNamespace <zookeeperNamespace>   Namespace to create the
                                                     Zookeeper sub-paths for high
                                                     availability mode
+     -nl,--nodeLabel <nodeLabelExpression>          Specify YARN node label for 
+                                                    the YARN application
 
   Options for yarn-cluster mode:
      -yD <arg>                            Dynamic properties
@@ -285,6 +287,8 @@ Action "run" compiles and runs a program.
                                           MB]
      -yz,--yarnzookeeperNamespace <arg>   Namespace to create the Zookeeper
                                           sub-paths for high availability mode
+     -ynl,--yarnnodeLabel <arg>           Specify YARN node label for 
+                                          the YARN application 
 
 
 

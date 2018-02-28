@@ -128,6 +128,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	private final Option slots;
 	private final Option detached;
 	private final Option zookeeperNamespace;
+	private final Option nodeLabel;
 	private final Option help;
 
 	/**
@@ -203,6 +204,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		streaming = new Option(shortPrefix + "st", longPrefix + "streaming", false, "Start Flink in streaming mode");
 		name = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
 		zookeeperNamespace = new Option(shortPrefix + "z", longPrefix + "zookeeperNamespace", true, "Namespace to create the Zookeeper sub-paths for high availability mode");
+		nodeLabel = new Option(shortPrefix + "nl", longPrefix + "nodeLabel", true, "Specify YARN node label for the YARN application");
 		help = new Option(shortPrefix + "h", longPrefix + "help", false, "Help for the Yarn session CLI.");
 
 		allOptions = new Options();
@@ -220,6 +222,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		allOptions.addOption(name);
 		allOptions.addOption(applicationId);
 		allOptions.addOption(zookeeperNamespace);
+		allOptions.addOption(nodeLabel);
 		allOptions.addOption(help);
 
 		// try loading a potential yarn properties file
@@ -359,6 +362,11 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		if (cmd.hasOption(zookeeperNamespace.getOpt())) {
 			String zookeeperNamespaceValue = cmd.getOptionValue(this.zookeeperNamespace.getOpt());
 			yarnClusterDescriptor.setZookeeperNamespace(zookeeperNamespaceValue);
+		}
+
+		if (cmd.hasOption(nodeLabel.getOpt())) {
+			String nodeLabelValue = cmd.getOptionValue(this.nodeLabel.getOpt());
+			yarnClusterDescriptor.setNodeLabel(nodeLabelValue);
 		}
 
 		return yarnClusterDescriptor;

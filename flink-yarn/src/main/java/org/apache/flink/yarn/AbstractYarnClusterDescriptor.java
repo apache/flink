@@ -136,6 +136,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	private String zookeeperNamespace;
 
+	private String nodeLabel;
+
 	/** Optional Jar file to include in the system class loader of all application nodes
 	 * (for per-job submission). */
 	private final Set<File> userJarFiles = new HashSet<>();
@@ -319,6 +321,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	public void setZookeeperNamespace(String zookeeperNamespace) {
 		this.zookeeperNamespace = zookeeperNamespace;
+	}
+
+	public String getNodeLabel() {
+		return nodeLabel;
+	}
+
+	public void setNodeLabel(String nodeLabel) {
+		this.nodeLabel = nodeLabel;
 	}
 
 	// -------------------------------------------------------------
@@ -979,6 +989,16 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		appContext.setApplicationType("Apache Flink");
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
+
+		if (nodeLabel != null) {
+			try {
+				Method method = appContext.getClass().getMethod("setNodeLabelExpression", String.class);
+				method.invoke(appContext, nodeLabel);
+			} catch (NoSuchMethodException e) {
+				LOG.warn("Ignoring node label setting because the version of YARN does not support it");
+			}
+		}
+
 		if (yarnQueue != null) {
 			appContext.setQueue(yarnQueue);
 		}
