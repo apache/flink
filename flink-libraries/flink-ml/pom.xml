@@ -24,7 +24,7 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-libraries</artifactId>
-		<version>1.4-SNAPSHOT</version>
+		<version>1.4.2</version>
 		<relativePath>..</relativePath>
 	</parent>
 
