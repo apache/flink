@@ -467,7 +467,18 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		} catch (LeaderRetrievalException | InterruptedException e) {
 			return FutureUtils.completedExceptionally(
 				new FlinkException(
-					String.format("Could not retrieve job status for job %s", jobId),
+					String.format("Could not retrieve job status for job %s.", jobId),
+					e));
+		}
+	}
+
+	public CompletableFuture<Acknowledge> cancelJob(JobID jobId) {
+		try {
+			return getDispatcherGateway().cancelJob(jobId, rpcTimeout);
+		} catch (LeaderRetrievalException | InterruptedException e) {
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					String.format("Could not cancel job %s.", jobId),
 					e));
 		}
 	}
