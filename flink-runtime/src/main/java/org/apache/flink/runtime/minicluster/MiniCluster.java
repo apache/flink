@@ -178,6 +178,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
+	public HighAvailabilityServices getHighAvailabilityServices() {
+		synchronized (lock) {
+			checkState(running, "MiniCluster is not yet running.");
+			return haServices;
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  life cycle
 	// ------------------------------------------------------------------------
