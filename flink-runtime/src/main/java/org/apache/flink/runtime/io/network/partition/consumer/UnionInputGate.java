@@ -177,17 +177,11 @@ public class UnionInputGate implements InputGate, InputGateListener {
 			}
 		}
 
-		if (bufferOrEvent.moreAvailable()) {
-			// this buffer or event was now removed from the non-empty gates queue
-			// we re-add it in case it has more data, because in that case no "non-empty" notification
-			// will come for that gate
-			queueInputGate(inputGate);
-		}
-
 		// Set the channel index to identify the input channel (across all unioned input gates)
 		final int channelIndexOffset = inputGateToIndexOffsetMap.get(inputGate);
 
 		bufferOrEvent.setChannelIndex(channelIndexOffset + bufferOrEvent.getChannelIndex());
+		bufferOrEvent.setMoreAvailable(bufferOrEvent.moreAvailable() || inputGateWithData.moreInputGatesAvailable);
 
 		return Optional.ofNullable(bufferOrEvent);
 	}
@@ -200,18 +194,20 @@ public class UnionInputGate implements InputGate, InputGateListener {
 	private InputGateWithData waitAndGetNextInputGate() throws IOException, InterruptedException {
 		while (true) {
 			InputGate inputGate;
+			boolean moreInputGatesAvailable;
 			synchronized (inputGatesWithData) {
 				while (inputGatesWithData.size() == 0) {
 					inputGatesWithData.wait();
 				}
 				inputGate = inputGatesWithData.remove();
 				enqueuedInputGatesWithData.remove(inputGate);
+				moreInputGatesAvailable = enqueuedInputGatesWithData.size() > 0;
 			}
 
 			// In case of inputGatesWithData being inaccurate do not block on an empty inputGate, but just poll the data.
 			Optional<BufferOrEvent> bufferOrEvent = inputGate.pollNextBufferOrEvent();
 			if (bufferOrEvent.isPresent()) {
-				return new InputGateWithData(inputGate, bufferOrEvent.get());
+				return new InputGateWithData(inputGate, bufferOrEvent.get(), moreInputGatesAvailable);
 			}
 		}
 	}
@@ -219,10 +215,12 @@ public class UnionInputGate implements InputGate, InputGateListener {
 	private static class InputGateWithData {
 		private final InputGate inputGate;
 		private final BufferOrEvent bufferOrEvent;
+		private final boolean moreInputGatesAvailable;
 
-		public InputGateWithData(InputGate inputGate, BufferOrEvent bufferOrEvent) {
+		public InputGateWithData(InputGate inputGate, BufferOrEvent bufferOrEvent, boolean moreInputGatesAvailable) {
 			this.inputGate = checkNotNull(inputGate);
 			this.bufferOrEvent = checkNotNull(bufferOrEvent);
+			this.moreInputGatesAvailable = moreInputGatesAvailable;
 		}
 	}
 

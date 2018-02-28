@@ -220,6 +220,14 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	}
 
 	@Override
+	public synchronized boolean isAvailable() {
+		if (nextBuffer != null) {
+			return true;
+		}
+		return !fileReader.hasReachedEndOfFile();
+	}
+
+	@Override
 	public Throwable getFailureCause() {
 		return parent.getFailureCause();
 	}
