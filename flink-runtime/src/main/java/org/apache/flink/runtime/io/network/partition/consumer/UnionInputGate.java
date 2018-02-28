@@ -38,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * Input gate wrapper to union the input from multiple input gates.
  *
- * <p> Each input gate has input channels attached from which it reads data. At each input gate, the
+ * <p>Each input gate has input channels attached from which it reads data. At each input gate, the
  * input channels have unique IDs from 0 (inclusive) to the number of input channels (exclusive).
  *
  * <pre>
@@ -49,7 +49,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * +--------------+--------------+
  * </pre>
  *
- * The union input gate maps these IDs from 0 to the *total* number of input channels across all
+ * <p>The union input gate maps these IDs from 0 to the *total* number of input channels across all
  * unioned input gates, e.g. the channels of input gate 0 keep their original indexes and the
  * channel indexes of input gate 1 are set off by 2 to 2--4.
  *
@@ -61,7 +61,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * +--------------------+
  * </pre>
  *
- * It is possible to recursively union union input gates.
+ * <strong>It is NOT possible to recursively union union input gates.</strong>
  */
 public class UnionInputGate implements InputGate, InputGateListener {
 
@@ -103,6 +103,11 @@ public class UnionInputGate implements InputGate, InputGateListener {
 		int currentNumberOfInputChannels = 0;
 
 		for (InputGate inputGate : inputGates) {
+			if (inputGate instanceof UnionInputGate) {
+				// if we want to add support for this, we need to implement pollNextBufferOrEvent()
+				throw new UnsupportedOperationException("Cannot union a union of input gates.");
+			}
+
 			// The offset to use for buffer or event instances received from this input gate.
 			inputGateToIndexOffsetMap.put(checkNotNull(inputGate), currentNumberOfInputChannels);
 			inputGatesWithRemainingData.add(inputGate);
@@ -189,11 +194,11 @@ public class UnionInputGate implements InputGate, InputGateListener {
 
 		bufferOrEvent.setChannelIndex(channelIndexOffset + bufferOrEvent.getChannelIndex());
 
-		return Optional.ofNullable(bufferOrEvent);
+		return Optional.of(bufferOrEvent);
 	}
 
 	@Override
-	public Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException {
+	public Optional<BufferOrEvent> pollNextBufferOrEvent() throws UnsupportedOperationException {
 		throw new UnsupportedOperationException();
 	}
 
@@ -220,7 +225,7 @@ public class UnionInputGate implements InputGate, InputGateListener {
 		private final InputGate inputGate;
 		private final BufferOrEvent bufferOrEvent;
 
-		public InputGateWithData(InputGate inputGate, BufferOrEvent bufferOrEvent) {
+		InputGateWithData(InputGate inputGate, BufferOrEvent bufferOrEvent) {
 			this.inputGate = checkNotNull(inputGate);
 			this.bufferOrEvent = checkNotNull(bufferOrEvent);
 		}
