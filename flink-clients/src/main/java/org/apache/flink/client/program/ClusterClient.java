@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.CompilerException;
@@ -172,7 +173,9 @@ public abstract class ClusterClient<T> {
 			flinkConfig,
 			log);
 
-		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
+	this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
+	this.detachedJobSubmission = flinkConfig.getBoolean(ConfigConstants.FLINK_DETACHED_JOB_SUBMISSION,
+		ConfigConstants.DEFAULT_FLINK_DETACHED_JOB_SUBMISSION);
 	}
 
 	// ------------------------------------------------------------------------
