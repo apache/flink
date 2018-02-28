@@ -63,23 +63,9 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-netty</artifactId>
 		</dependency>
-
 		<dependency>
-			<!-- We use standard jackson since jackson-module-jsonSchema isn't part of flink-shaded-jackson -->
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-core</artifactId>
-			<version>${jackson.version}</version>
-		</dependency>
-		<dependency>
-			<!-- We use standard jackson since jackson-module-jsonSchema isn't part of flink-shaded-jackson -->
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>${jackson.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.fasterxml.jackson.module</groupId>
-			<artifactId>jackson-module-jsonSchema</artifactId>
-			<version>${jackson.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-jackson-module-jsonSchema</artifactId>
 		</dependency>
 
 		<dependency>
