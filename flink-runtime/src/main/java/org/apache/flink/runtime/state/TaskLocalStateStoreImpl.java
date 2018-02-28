@@ -48,6 +48,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.function.Predicate;
 
 /**
  * Main implementation of a {@link TaskLocalStateStore}.
@@ -168,8 +169,9 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 			snapshot = storedTaskStateByCheckpointID.get(checkpointID);
 
 			if (retrieveWithDiscard) {
-				// Only the TaskStateSnapshot.checkpointID == checkpointID is useful, we remove the others
-				pruneCheckpoints(checkpointID, false);
+				pruneCheckpoints(
+					(snapshotCheckpointId) -> snapshotCheckpointId != checkpointID,
+					false);
 			}
 		}
 
@@ -197,7 +199,9 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 			confirmedCheckpointId, jobID, jobVertexID, subtaskIndex);
 
 		synchronized (lock) {
-			pruneCheckpoints(confirmedCheckpointId, true);
+			pruneCheckpoints(
+				(snapshotCheckpointId) -> snapshotCheckpointId < confirmedCheckpointId,
+				true);
 		}
 	}
 
@@ -292,9 +296,11 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 	}
 
 	/**
-	 * Pruning the useless checkpoints.
+	 * Pruning the useless checkpoints, it should be called only when holding the {@link #lock}.
 	 */
-	private void pruneCheckpoints(long checkpointID, boolean breakTheIteration) {
+	private void pruneCheckpoints(Predicate<Long> pruningChecker, boolean breakOnceCheckerFalse) {
+
+		assert Thread.holdsLock(lock);
 
 		Iterator<Map.Entry<Long, TaskStateSnapshot>> entryIterator =
 			storedTaskStateByCheckpointID.entrySet().iterator();
@@ -306,10 +312,10 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 			Map.Entry<Long, TaskStateSnapshot> snapshotEntry = entryIterator.next();
 			long entryCheckpointId = snapshotEntry.getKey();
 
-			if (entryCheckpointId != checkpointID) {
+			if (pruningChecker.test(entryCheckpointId)) {
 				toRemove.add(snapshotEntry);
 				entryIterator.remove();
-			} else if (breakTheIteration) {
+			} else if (breakOnceCheckerFalse) {
 				break;
 			}
 		}
