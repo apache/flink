@@ -227,7 +227,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 
 		@Override
-		public void onTimer(long timestamp, OnTimerContext<String> ctx, Collector<String> out) throws Exception {
+		public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
 			assertEquals(expectedKey, ctx.getCurrentKey());
 			out.collect("TIMER:" + timestamp);
 		}
@@ -405,7 +405,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 
 		@Override
-		public void onTimer(long timestamp, OnTimerContext<String> ctx, Collector<String> out) throws Exception {
+		public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
 			final Iterator<Map.Entry<String, Integer>> iter = ctx.getBroadcastState(STATE_DESCRIPTOR).immutableEntries().iterator();
 
 			final List<Map.Entry<String, Integer>> map = new ArrayList<>();

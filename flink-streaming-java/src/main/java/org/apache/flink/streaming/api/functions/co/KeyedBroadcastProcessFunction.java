@@ -166,7 +166,8 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> extends B
 	public abstract class OnTimerContext extends KeyedReadOnlyContext {
 
 		/**
-		 * The {@link TimeDomain} of the firing timer, i.e. if it is event or processing time timer.
+		 * The {@link TimeDomain} of the firing timer, i.e. if it is
+		 * event or processing time timer.
 		 */
 		public abstract TimeDomain timeDomain();
 

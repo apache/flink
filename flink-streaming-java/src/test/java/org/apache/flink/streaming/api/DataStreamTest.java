@@ -740,12 +740,18 @@ public class DataStreamTest extends TestLogger {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public void processElement(Long value, Context ctx, Collector<Integer> out) throws Exception {
+			public void processElement(
+					Long value,
+					Context ctx,
+					Collector<Integer> out) throws Exception {
 				// Do nothing
 			}
 
 			@Override
-			public void onTimer(long timestamp, OnTimerContext ctx, Collector<Integer> out) throws Exception {
+			public void onTimer(
+					long timestamp,
+					OnTimerContext ctx,
+					Collector<Integer> out) throws Exception {
 				// Do nothing
 			}
 		};

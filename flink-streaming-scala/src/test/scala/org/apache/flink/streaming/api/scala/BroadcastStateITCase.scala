@@ -125,7 +125,7 @@ class TestBroadcastProcessFunction(
   @throws[Exception]
   override def onTimer(
       timestamp: Long,
-      ctx: KeyedBroadcastProcessFunction[Long, Long, String, String]#OnTimerContext[Long],
+      ctx: KeyedBroadcastProcessFunction[Long, Long, String, String]#OnTimerContext,
       out: Collector[String]): Unit = {
 
     var map = Map[Long, String]()
