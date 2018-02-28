@@ -62,14 +62,11 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 		if (timeout == -1) {
 			outputFlusher = null;
 		}
-		else if (timeout == 0) {
-			outputFlusher = null;
-		}
 		else {
 			String threadName = taskName == null ?
 				DEFAULT_OUTPUT_FLUSH_THREAD_NAME : "Output Timeout Flusher - " + taskName;
 
-			outputFlusher = new OutputFlusher(threadName, timeout);
+			outputFlusher = new OutputFlusher(threadName, Math.max(1, timeout));
 			outputFlusher.start();
 		}
 	}
