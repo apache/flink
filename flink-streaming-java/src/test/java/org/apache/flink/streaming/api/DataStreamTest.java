@@ -701,12 +701,18 @@ public class DataStreamTest extends TestLogger {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public void processElement(Long value, Context ctx, Collector<Integer> out) throws Exception {
+			public void processElement(
+					Long value,
+					Context ctx,
+					Collector<Integer> out) throws Exception {
 				// Do nothing
 			}
 
 			@Override
-			public void onTimer(long timestamp, OnTimerContext ctx, Collector<Integer> out) throws Exception {
+			public void onTimer(
+					long timestamp,
+					OnTimerContext ctx,
+					Collector<Integer> out) throws Exception {
 				// Do nothing
 			}
 		};
@@ -744,7 +750,8 @@ public class DataStreamTest extends TestLogger {
 			}
 		};
 
-		DataStream<Integer> processed = src.process(processFunction);
+		DataStream<Integer> processed = src
+						.process(processFunction);
 
 		processed.addSink(new DiscardingSink<Integer>());
 
@@ -788,12 +795,12 @@ public class DataStreamTest extends TestLogger {
 				new BroadcastProcessFunction<Long, String, String>() {
 					@Override
 					public void processBroadcastElement(String value, Context ctx, Collector<String> out) throws Exception {
-						// Do nothing
+						// do nothing
 					}
 
 					@Override
 					public void processElement(Long value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
-						// Do nothing
+						// do nothing
 					}
 				});
 	}
@@ -834,12 +841,12 @@ public class DataStreamTest extends TestLogger {
 				new KeyedBroadcastProcessFunction<String, Long, String, String>() {
 					@Override
 					public void processBroadcastElement(String value, KeyedContext ctx, Collector<String> out) throws Exception {
-						// Do nothing
+						// do nothing
 					}
 
 					@Override
 					public void processElement(Long value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
-						// Do nothing
+						// do nothing
 					}
 				});
 	}

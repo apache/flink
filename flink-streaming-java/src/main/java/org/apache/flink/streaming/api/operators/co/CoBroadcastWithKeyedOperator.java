@@ -288,7 +288,7 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		}
 	}
 
-	private class OnTimerContextImpl<KS> extends KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>.OnTimerContext<KS> {
+	private class OnTimerContextImpl extends KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>.OnTimerContext {
 
 		private final ExecutionConfig config;
 
