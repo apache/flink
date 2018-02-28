@@ -21,6 +21,7 @@ package org.apache.flink.test.util;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.minicluster.JobExecutorService;
@@ -143,6 +144,10 @@ public class MiniClusterResource extends ExternalResource {
 	@Nonnull
 	private JobExecutorService startFlip6MiniCluster() throws Exception {
 		final Configuration configuration = miniClusterResourceConfiguration.getConfiguration();
+
+		// we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
+		// enabled this by default
+		configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
 
 		// set rest port to 0 to avoid clashes with concurrent MiniClusters
 		configuration.setInteger(RestOptions.REST_PORT, 0);
