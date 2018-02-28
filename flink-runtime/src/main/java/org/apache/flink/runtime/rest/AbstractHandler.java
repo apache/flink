@@ -84,8 +84,8 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 
 	@Override
 	protected void respondAsLeader(ChannelHandlerContext ctx, Routed routed, T gateway) throws Exception {
-		if (log.isDebugEnabled()) {
-			log.debug("Received request " + routed.request().getUri() + '.');
+		if (log.isTraceEnabled()) {
+			log.trace("Received request " + routed.request().getUri() + '.');
 		}
 
 		final HttpRequest httpRequest = routed.request();
