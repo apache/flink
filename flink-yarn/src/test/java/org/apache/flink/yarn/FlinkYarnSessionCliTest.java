@@ -156,6 +156,25 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		assertEquals(zkNamespaceCliInput, descriptor.getZookeeperNamespace());
 	}
 
+	@Test
+	public void testNodeLabelProperty() throws Exception {
+		String nodeLabelCliInput = "flink_test_nodelabel";
+
+		String[] params = new String[] { "-yn", "2", "-ynl", nodeLabelCliInput };
+
+		FlinkYarnSessionCli yarnCLI = new FlinkYarnSessionCli(
+			new Configuration(),
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+
+		CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
+
+		AbstractYarnClusterDescriptor descriptor = yarnCLI.createClusterDescriptor(commandLine);
+
+		assertEquals(nodeLabelCliInput, descriptor.getNodeLabel());
+	}
+
 	/**
 	 * Test that the CliFrontend is able to pick up the .yarn-properties file from a specified location.
 	 */

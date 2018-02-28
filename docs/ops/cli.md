@@ -285,6 +285,8 @@ Action "run" compiles and runs a program.
                                           MB]
      -yz,--yarnzookeeperNamespace <arg>   Namespace to create the Zookeeper
                                           sub-paths for high availability mode
+     -ynl,--yarnnodeLabel <arg>           Specify YARN node label for 
+                                          the YARN application 
 
 
 
