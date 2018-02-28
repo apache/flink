@@ -506,13 +506,6 @@ under the License.
 									<exclude>log4j:log4j</exclude>
 								</excludes>
 							</artifactSet>
-							<relocations>
-								<relocation>
-									<!-- relocate jackson services, which isn't done by flink-shaded-jackson -->
-									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml.jackson</shadedPattern>
-								</relocation>
-							</relocations>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
 									<resource>reference.conf</resource>
