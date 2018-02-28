@@ -41,6 +41,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
+import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
@@ -192,9 +193,22 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			restPort = -1;
 		}
 
-		resourceManagerClient.registerApplicationMaster(hostPort.f0, restPort, webInterfaceUrl);
+		final RegisterApplicationMasterResponse registerApplicationMasterResponse =
+			resourceManagerClient.registerApplicationMaster(hostPort.f0, restPort, webInterfaceUrl);
+		getContainersFromPreviousAttempts(registerApplicationMasterResponse);
 
 		return resourceManagerClient;
+	}
+
+	private void getContainersFromPreviousAttempts(final RegisterApplicationMasterResponse registerApplicationMasterResponse) {
+		final List<Container> containersFromPreviousAttempts =
+			new RegisterApplicationMasterResponseReflector(log).getContainersFromPreviousAttempts(registerApplicationMasterResponse);
+
+		log.info("Recovered {} containers from previous attempts ({}).", containersFromPreviousAttempts.size(), containersFromPreviousAttempts);
+
+		for (final Container container : containersFromPreviousAttempts) {
+			workerNodeMap.put(new ResourceID(container.getId().toString()), new YarnWorkerNode(container));
+		}
 	}
 
 	protected NMClient createAndStartNodeManagerClient(YarnConfiguration yarnConfiguration) {
@@ -315,6 +329,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 				closeTaskManagerConnection(new ResourceID(
 					container.getContainerId().toString()), new Exception(container.getDiagnostics()));
 			}
+			workerNodeMap.remove(new ResourceID(container.getContainerId().toString()));
 		}
 	}
 
