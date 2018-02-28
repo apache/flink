@@ -401,7 +401,10 @@ public class KeyedProcessOperatorTest extends TestLogger {
 		}
 
 		@Override
-		public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
+		public void onTimer(
+				long timestamp,
+				OnTimerContext ctx,
+				Collector<String> out) throws Exception {
 			// Do nothing
 		}
 	}
@@ -429,7 +432,10 @@ public class KeyedProcessOperatorTest extends TestLogger {
 		}
 
 		@Override
-		public void onTimer(long timestamp, OnTimerContext ctx, Collector<Integer> out) throws Exception {
+		public void onTimer(
+				long timestamp,
+				OnTimerContext ctx,
+				Collector<Integer> out) throws Exception {
 			assertEquals(expectedKey, ctx.getCurrentKey());
 			assertEquals(expectedTimeDomain, ctx.timeDomain());
 			out.collect(1777);
@@ -461,7 +467,10 @@ public class KeyedProcessOperatorTest extends TestLogger {
 		}
 
 		@Override
-		public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
+		public void onTimer(
+				long timestamp,
+				OnTimerContext ctx,
+				Collector<String> out) throws Exception {
 			assertEquals(expectedTimeDomain, ctx.timeDomain());
 			out.collect("STATE:" + getRuntimeContext().getState(state).value());
 		}
@@ -484,7 +493,10 @@ public class KeyedProcessOperatorTest extends TestLogger {
 		}
 
 		@Override
-		public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
+		public void onTimer(
+				long timestamp,
+				OnTimerContext ctx,
+				Collector<String> out) throws Exception {
 			assertEquals(expectedKey, ctx.getCurrentKey());
 
 			if (TimeDomain.EVENT_TIME.equals(ctx.timeDomain())) {
