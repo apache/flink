@@ -78,20 +78,20 @@ public abstract class AbstractLocalRecoveryITCase extends TestLogger {
 	private void executeTest(AbstractEventTimeWindowCheckpointingITCase delegate) throws Exception {
 		delegate.name = testName;
 		try {
-			delegate.miniClusterResource.before();
+			delegate.setupTestCluster();
 			try {
 				delegate.testTumblingTimeWindow();
-				delegate.miniClusterResource.after();
+				delegate.stopTestCluster();
 			} catch (Exception e) {
-				delegate.miniClusterResource.after();
+				delegate.stopTestCluster();
 			}
 
-			delegate.miniClusterResource.before();
+			delegate.setupTestCluster();
 			try {
 				delegate.testSlidingTimeWindow();
-				delegate.miniClusterResource.after();
+				delegate.stopTestCluster();
 			} catch (Exception e) {
-				delegate.miniClusterResource.after();
+				delegate.stopTestCluster();
 			}
 		} finally {
 			delegate.tempFolder.delete();

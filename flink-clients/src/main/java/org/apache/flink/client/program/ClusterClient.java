@@ -117,6 +117,8 @@ public abstract class ClusterClient<T> {
 	/** Service factory for high available. */
 	protected final HighAvailabilityServices highAvailabilityServices;
 
+	private final boolean sharedHaServices;
+
 	/** Flag indicating whether to sysout print execution updates. */
 	private boolean printStatusDuringExecution = true;
 
@@ -144,11 +146,13 @@ public abstract class ClusterClient<T> {
 	 * @throws Exception we cannot create the high availability services
 	 */
 	public ClusterClient(Configuration flinkConfig) throws Exception {
-		this(flinkConfig,
+		this(
+			flinkConfig,
 			HighAvailabilityServicesUtils.createHighAvailabilityServices(
 				flinkConfig,
 				Executors.directExecutor(),
-				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION));
+				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION),
+			false);
 	}
 
 	/**
@@ -158,8 +162,9 @@ public abstract class ClusterClient<T> {
 	 *
 	 * @param flinkConfig The config used to obtain the job-manager's address, and used to configure the optimizer.
 	 * @param highAvailabilityServices HighAvailabilityServices to use for leader retrieval
+	 * @param sharedHaServices true if the HighAvailabilityServices are shared and must not be shut down
 	 */
-	public ClusterClient(Configuration flinkConfig, HighAvailabilityServices highAvailabilityServices) {
+	public ClusterClient(Configuration flinkConfig, HighAvailabilityServices highAvailabilityServices, boolean sharedHaServices) {
 		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), flinkConfig);
 
@@ -173,6 +178,7 @@ public abstract class ClusterClient<T> {
 			log);
 
 		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
+		this.sharedHaServices = sharedHaServices;
 	}
 
 	// ------------------------------------------------------------------------
@@ -265,7 +271,7 @@ public abstract class ClusterClient<T> {
 		synchronized (this) {
 			actorSystemLoader.shutdown();
 
-			if (highAvailabilityServices != null) {
+			if (!sharedHaServices && highAvailabilityServices != null) {
 				highAvailabilityServices.close();
 			}
 		}
