@@ -913,13 +913,25 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		if (resourceManagerConnection != null) {
 
 			if (resourceManagerConnection.isConnected()) {
-				log.info("Close ResourceManager connection {}.", resourceManagerConnection.getResourceManagerId(), cause);
+				if (log.isDebugEnabled()) {
+					log.debug("Close ResourceManager connection {}.",
+						resourceManagerConnection.getResourceManagerId(), cause);
+				} else {
+					log.info("Close ResourceManager connection {}.",
+						resourceManagerConnection.getResourceManagerId());
+				}
 				resourceManagerHeartbeatManager.unmonitorTarget(resourceManagerConnection.getResourceManagerId());
 
 				ResourceManagerGateway resourceManagerGateway = resourceManagerConnection.getTargetGateway();
 				resourceManagerGateway.disconnectTaskManager(getResourceID(), cause);
 			} else {
-				log.info("Terminating registration attempts towards ResourceManager {}.", resourceManagerConnection.getTargetAddress(), cause);
+				if (log.isDebugEnabled()) {
+					log.debug("Terminating registration attempts towards ResourceManager {}.",
+						resourceManagerConnection.getTargetAddress(), cause);
+				} else {
+					log.info("Terminating registration attempts towards ResourceManager {}.",
+						resourceManagerConnection.getTargetAddress());
+				}
 			}
 
 			resourceManagerConnection.close();
