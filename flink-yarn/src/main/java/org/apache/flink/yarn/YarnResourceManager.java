@@ -342,7 +342,6 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 				numPendingContainerRequests);
 
 			if (numPendingContainerRequests > 0) {
-				numPendingContainerRequests--;
 
 				final String containerIdStr = container.getId().toString();
 
@@ -356,6 +355,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 						container.getNodeId().getHost());
 
 					nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
+					numPendingContainerRequests--;
 				} catch (Throwable t) {
 					log.error("Could not start TaskManager in container {}.", container.getId(), t);
 
