@@ -33,7 +33,8 @@ object DateTimeFunctions {
   private val DATETIME_FORMAT = 3
 
   private val timeCharacters = Seq('f', 'H', 'h', 'I', 'i', 'l', 'r', 'S', 's', 'p', 'T')
-  private val dateCharacters = Seq('a', 'b', 'c', 'd', 'e', 'j', 'k', 'M', 'm', 'v', 'x', 'W', 'Y', 'y')
+  private val dateCharacters = Seq('a', 'b', 'c', 'd', 'e', 'j', 'k', 'M',
+                                   'm', 'v', 'x', 'W', 'Y', 'y')
 
   def dateFormat(ts: Long, formatString: String): String = {
     val formatter = DATETIME_FORMATTER_CACHE.get(formatString)
@@ -141,8 +142,10 @@ object DateTimeFunctions {
         else if (dateCharacters.contains(char)) ONLY_DATE_FORMAT
         else 0
       }
-      case (ONLY_TIME_FORMAT, char) => if (dateCharacters.contains(char)) DATETIME_FORMAT else ONLY_TIME_FORMAT
-      case (ONLY_DATE_FORMAT, char) => if (timeCharacters.contains(char)) DATETIME_FORMAT else ONLY_DATE_FORMAT
+      case (ONLY_TIME_FORMAT, char) => if (dateCharacters.contains(char)) DATETIME_FORMAT
+                                       else ONLY_TIME_FORMAT
+      case (ONLY_DATE_FORMAT, char) => if (timeCharacters.contains(char)) DATETIME_FORMAT
+                                       else ONLY_DATE_FORMAT
       case (DATETIME_FORMAT, _) => DATETIME_FORMAT
     }
   }
