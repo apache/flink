@@ -679,14 +679,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			SlotReport slotReport,
 			int dataPort,
 			HardwareDescription hardwareDescription) {
-		WorkerRegistration<WorkerType> oldRegistration = taskExecutors.remove(taskExecutorResourceId);
-		if (oldRegistration != null) {
-			// TODO :: suggest old taskExecutor to stop itself
-			log.info("Replacing old instance of worker for ResourceID {}", taskExecutorResourceId);
-
-			// remove old task manager registration from slot manager
-			slotManager.unregisterTaskManager(oldRegistration.getInstanceID());
-		}
 
 		final WorkerType newWorker = workerStarted(taskExecutorResourceId);
 
@@ -695,6 +687,16 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				"not recognize it", taskExecutorResourceId, taskExecutorAddress);
 			return new RegistrationResponse.Decline("unrecognized TaskExecutor");
 		} else {
+
+			WorkerRegistration<WorkerType> oldRegistration = taskExecutors.remove(taskExecutorResourceId);
+			if (oldRegistration != null) {
+				// TODO :: suggest old taskExecutor to stop itself
+				log.info("Replacing old instance of worker for ResourceID {}", taskExecutorResourceId);
+
+				// remove old task manager registration from slot manager
+				slotManager.unregisterTaskManager(oldRegistration.getInstanceID());
+			}
+
 			WorkerRegistration<WorkerType> registration =
 				new WorkerRegistration<>(taskExecutorGateway, newWorker, dataPort, hardwareDescription);
 
