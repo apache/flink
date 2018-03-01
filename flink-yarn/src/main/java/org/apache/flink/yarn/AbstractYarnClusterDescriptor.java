@@ -33,6 +33,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -800,9 +801,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			homeDir,
 			"");
 
+		// set the right configuration values for the TaskManager
 		configuration.setInteger(
-			ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
+			TaskManagerOptions.NUM_TASK_SLOTS,
 			clusterSpecification.getSlotsPerTaskManager());
+
+		configuration.setInteger(
+			TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY,
+			clusterSpecification.getTaskManagerMemoryMB());
 
 		// Upload the flink configuration
 		// write out configuration file

@@ -378,6 +378,14 @@ under the License.
 							<overWrite>true</overWrite>
 							<destFileName>StreamingWordCount.jar</destFileName>
 						</artifactItem>
+						<artifactItem>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
+							<type>jar</type>
+							<classifier>WindowJoin</classifier>
+							<overWrite>true</overWrite>
+							<destFileName>WindowJoin.jar</destFileName>
+						</artifactItem>
 					</artifactItems>
 					<outputDirectory>${project.build.directory}/programs</outputDirectory>
 					<overWriteReleases>false</overWriteReleases>
