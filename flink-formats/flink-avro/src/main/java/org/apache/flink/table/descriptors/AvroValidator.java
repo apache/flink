@@ -16,22 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka;
-
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_VERSION_VALUE_08;
+package org.apache.flink.table.descriptors;
 
 /**
- * Factory for creating configured instances of {@link Kafka08JsonTableSource}.
+ * Validator for {@link Avro}.
  */
-public class Kafka08JsonTableSourceFactory extends KafkaJsonTableSourceFactory {
+public class AvroValidator extends FormatDescriptorValidator {
+
+	public static final String FORMAT_TYPE_VALUE = "avro";
+	public static final String FORMAT_RECORD_CLASS = "format.record-class";
 
 	@Override
-	protected KafkaJsonTableSource.Builder createKafkaJsonBuilder() {
-		return new Kafka08JsonTableSource.Builder();
-	}
-
-	@Override
-	protected String kafkaVersion() {
-		return CONNECTOR_VERSION_VALUE_08;
+	public void validate(DescriptorProperties properties) {
+		super.validate(properties);
+		properties.validateString(FORMAT_RECORD_CLASS, false, 1);
 	}
 }

@@ -18,27 +18,28 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.formats.json.JsonSchemaConverter;
+import org.apache.flink.formats.avro.typeutils.AvroRecordClassConverter;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.descriptors.AvroValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
-import org.apache.flink.table.descriptors.JsonValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 
-import java.util.Arrays;
+import org.apache.avro.specific.SpecificRecordBase;
+
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * Factory for creating configured instances of {@link KafkaJsonTableSource}.
+ * Factory for creating configured instances of {@link KafkaAvroTableSource}.
  */
-public abstract class KafkaJsonTableSourceFactory extends KafkaTableSourceFactory {
+public abstract class KafkaAvroTableSourceFactory extends KafkaTableSourceFactory {
 
 	@Override
 	protected String formatType() {
-		return JsonValidator.FORMAT_TYPE_VALUE;
+		return AvroValidator.FORMAT_TYPE_VALUE;
 	}
 
 	@Override
@@ -48,49 +49,33 @@ public abstract class KafkaJsonTableSourceFactory extends KafkaTableSourceFactor
 
 	@Override
 	protected List<String> formatProperties() {
-		return Arrays.asList(
-			JsonValidator.FORMAT_JSON_SCHEMA,
-			JsonValidator.FORMAT_SCHEMA,
-			JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD,
-			FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA());
+		return Collections.singletonList(AvroValidator.FORMAT_RECORD_CLASS);
 	}
 
 	@Override
 	protected FormatDescriptorValidator formatValidator() {
-		return new JsonValidator();
+		return new AvroValidator();
 	}
 
 	@Override
 	protected KafkaTableSource.Builder createBuilderWithFormat(DescriptorProperties params) {
-		final KafkaJsonTableSource.Builder builder = createKafkaJsonBuilder();
+		KafkaAvroTableSource.Builder builder = createKafkaAvroBuilder();
 
-		// missing field
-		params.getOptionalBoolean(JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD)
-				.ifPresent(builder::failOnMissingField);
-
-		// json schema
-		final TableSchema formatSchema;
-		if (params.containsKey(JsonValidator.FORMAT_SCHEMA)) {
-			final TypeInformation<?> info = params.getType(JsonValidator.FORMAT_SCHEMA);
-			formatSchema = TableSchema.fromTypeInfo(info);
-		} else if (params.containsKey(JsonValidator.FORMAT_JSON_SCHEMA)) {
-			final TypeInformation<?> info = JsonSchemaConverter.convert(params.getString(JsonValidator.FORMAT_JSON_SCHEMA));
-			formatSchema = TableSchema.fromTypeInfo(info);
-		} else {
-			formatSchema = SchemaValidator.deriveFormatFields(params);
-		}
-		builder.forJsonSchema(formatSchema);
+		// Avro format schema
+		final Class<? extends SpecificRecordBase> avroRecordClass =
+				params.getClass(AvroValidator.FORMAT_RECORD_CLASS, SpecificRecordBase.class);
+		builder.forAvroRecordClass(avroRecordClass);
+		final TableSchema formatSchema = TableSchema.fromTypeInfo(AvroRecordClassConverter.convert(avroRecordClass));
 
 		// field mapping
 		final Map<String, String> mapping = SchemaValidator.deriveFieldMapping(params, Optional.of(formatSchema));
-		builder.withTableToJsonMapping(mapping);
+		builder.withTableToAvroMapping(mapping);
 
 		return builder;
 	}
 
 	/**
-	 * Creates a version specific {@link KafkaJsonTableSource.Builder}.
+	 * Creates a version specific {@link KafkaAvroTableSource.Builder}.
 	 */
-	protected abstract KafkaJsonTableSource.Builder createKafkaJsonBuilder();
-
+	protected abstract KafkaAvroTableSource.Builder createKafkaAvroBuilder();
 }
