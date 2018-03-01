@@ -192,13 +192,6 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 	@Override
 	public void shutdown() {
-		try {
-			// we only call this for legacy reasons to shutdown components that are started in the ClusterClient constructor
-			super.shutdown();
-		} catch (Exception e) {
-			log.error("An error occurred during the client shutdown.", e);
-		}
-
 		ExecutorUtils.gracefulShutdown(restClusterClientConfiguration.getRetryDelay(), TimeUnit.MILLISECONDS, retryExecutorService);
 
 		this.restClient.shutdown(Time.seconds(5));
@@ -214,6 +207,13 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			dispatcherRetrievalService.stop();
 		} catch (Exception e) {
 			log.error("An error occurred during stopping the dispatcherLeaderRetriever", e);
+		}
+
+		try {
+			// we only call this for legacy reasons to shutdown components that are started in the ClusterClient constructor
+			super.shutdown();
+		} catch (Exception e) {
+			log.error("An error occurred during the client shutdown.", e);
 		}
 	}
 
