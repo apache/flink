@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -35,9 +36,10 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +48,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.function.LongPredicate;
 
 /**
  * Main implementation of a {@link TaskLocalStateStore}.
@@ -56,7 +59,8 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 	private static final Logger LOG = LoggerFactory.getLogger(TaskLocalStateStoreImpl.class);
 
 	/** Dummy value to use instead of null to satisfy {@link ConcurrentHashMap}. */
-	private static final TaskStateSnapshot NULL_DUMMY = new TaskStateSnapshot(0);
+	@VisibleForTesting
+	static final TaskStateSnapshot NULL_DUMMY = new TaskStateSnapshot(0);
 
 	/** JobID from the owning subtask. */
 	@Nonnull
@@ -103,14 +107,36 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 		@Nonnull LocalRecoveryConfig localRecoveryConfig,
 		@Nonnull Executor discardExecutor) {
 
-		this.lock = new Object();
-		this.storedTaskStateByCheckpointID = new TreeMap<>();
+		this(
+			jobID,
+			allocationID,
+			jobVertexID,
+			subtaskIndex,
+			localRecoveryConfig,
+			discardExecutor,
+			new TreeMap<>(),
+			new Object());
+	}
+
+	@VisibleForTesting
+	TaskLocalStateStoreImpl(
+		@Nonnull JobID jobID,
+		@Nonnull AllocationID allocationID,
+		@Nonnull JobVertexID jobVertexID,
+		@Nonnegative int subtaskIndex,
+		@Nonnull LocalRecoveryConfig localRecoveryConfig,
+		@Nonnull Executor discardExecutor,
+		@Nonnull SortedMap<Long, TaskStateSnapshot> storedTaskStateByCheckpointID,
+		@Nonnull Object lock) {
+
 		this.jobID = jobID;
 		this.allocationID = allocationID;
 		this.jobVertexID = jobVertexID;
 		this.subtaskIndex = subtaskIndex;
 		this.discardExecutor = discardExecutor;
 		this.localRecoveryConfig = localRecoveryConfig;
+		this.storedTaskStateByCheckpointID = storedTaskStateByCheckpointID;
+		this.lock = lock;
 		this.disposed = false;
 	}
 
@@ -133,23 +159,25 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 				checkpointId, jobID, jobVertexID, subtaskIndex);
 		}
 
-		Map<Long, TaskStateSnapshot> toDiscard = new HashMap<>(16);
+		Map.Entry<Long, TaskStateSnapshot> toDiscard = null;
 
 		synchronized (lock) {
 			if (disposed) {
 				// we ignore late stores and simply discard the state.
-				toDiscard.put(checkpointId, localState);
+				toDiscard = new AbstractMap.SimpleEntry<>(checkpointId, localState);
 			} else {
 				TaskStateSnapshot previous =
 					storedTaskStateByCheckpointID.put(checkpointId, localState);
 
 				if (previous != null) {
-					toDiscard.put(checkpointId, previous);
+					toDiscard = new AbstractMap.SimpleEntry<>(checkpointId, previous);
 				}
 			}
 		}
 
-		asyncDiscardLocalStateForCollection(toDiscard.entrySet());
+		if (toDiscard != null) {
+			asyncDiscardLocalStateForCollection(Collections.singletonList(toDiscard));
+		}
 	}
 
 	@Override
@@ -157,9 +185,12 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 	public TaskStateSnapshot retrieveLocalState(long checkpointID) {
 
 		TaskStateSnapshot snapshot;
+
 		synchronized (lock) {
 			snapshot = storedTaskStateByCheckpointID.get(checkpointID);
 		}
+
+		snapshot = (snapshot != NULL_DUMMY) ? snapshot : null;
 
 		if (LOG.isTraceEnabled()) {
 			LOG.trace("Found entry for local state for checkpoint {} in subtask ({} - {} - {}) : {}",
@@ -169,7 +200,7 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 				checkpointID, jobID, jobVertexID, subtaskIndex);
 		}
 
-		return snapshot != NULL_DUMMY ? snapshot : null;
+		return snapshot;
 	}
 
 	@Override
@@ -184,30 +215,18 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 		LOG.debug("Received confirmation for checkpoint {} in subtask ({} - {} - {}). Starting to prune history.",
 			confirmedCheckpointId, jobID, jobVertexID, subtaskIndex);
 
-		final List<Map.Entry<Long, TaskStateSnapshot>> toRemove = new ArrayList<>();
+		pruneCheckpoints(
+			(snapshotCheckpointId) -> snapshotCheckpointId < confirmedCheckpointId,
+			true);
 
-		synchronized (lock) {
+	}
 
-			Iterator<Map.Entry<Long, TaskStateSnapshot>> entryIterator =
-				storedTaskStateByCheckpointID.entrySet().iterator();
+	@Override
+	public void pruneMatchingCheckpoints(@Nonnull LongPredicate matcher) {
 
-			// remove entries for outdated checkpoints and discard their state.
-			while (entryIterator.hasNext()) {
-
-				Map.Entry<Long, TaskStateSnapshot> snapshotEntry = entryIterator.next();
-				long entryCheckpointId = snapshotEntry.getKey();
-
-				if (entryCheckpointId < confirmedCheckpointId) {
-					toRemove.add(snapshotEntry);
-					entryIterator.remove();
-				} else {
-					// we can stop because the map is sorted.
-					break;
-				}
-			}
-		}
-
-		asyncDiscardLocalStateForCollection(toRemove);
+		pruneCheckpoints(
+			matcher,
+			false);
 	}
 
 	/**
@@ -298,6 +317,35 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 		if (fileSystem.exists(path)) {
 			fileSystem.delete(path, true);
 		}
+	}
+
+	/**
+	 * Pruning the useless checkpoints, it should be called only when holding the {@link #lock}.
+	 */
+	private void pruneCheckpoints(LongPredicate pruningChecker, boolean breakOnceCheckerFalse) {
+
+		final List<Map.Entry<Long, TaskStateSnapshot>> toRemove = new ArrayList<>();
+
+		synchronized (lock) {
+
+			Iterator<Map.Entry<Long, TaskStateSnapshot>> entryIterator =
+				storedTaskStateByCheckpointID.entrySet().iterator();
+
+			while (entryIterator.hasNext()) {
+
+				Map.Entry<Long, TaskStateSnapshot> snapshotEntry = entryIterator.next();
+				long entryCheckpointId = snapshotEntry.getKey();
+
+				if (pruningChecker.test(entryCheckpointId)) {
+					toRemove.add(snapshotEntry);
+					entryIterator.remove();
+				} else if (breakOnceCheckerFalse) {
+					break;
+				}
+			}
+		}
+
+		asyncDiscardLocalStateForCollection(toRemove);
 	}
 
 	@Override

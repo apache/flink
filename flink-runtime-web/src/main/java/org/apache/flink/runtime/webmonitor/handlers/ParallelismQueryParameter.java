@@ -33,12 +33,12 @@ public class ParallelismQueryParameter extends MessageQueryParameter<Integer> {
 	}
 
 	@Override
-	public Integer convertValueFromString(final String value) {
+	public Integer convertStringToValue(final String value) {
 		return Integer.valueOf(value);
 	}
 
 	@Override
-	public String convertStringToValue(final Integer value) {
+	public String convertValueToString(final Integer value) {
 		return value.toString();
 	}
 }

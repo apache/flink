@@ -35,13 +35,10 @@ public class JsonNodeDeserializationSchema extends AbstractDeserializationSchema
 
 	private static final long serialVersionUID = -1699854177598621044L;
 
-	private ObjectMapper mapper;
+	private final ObjectMapper mapper = new ObjectMapper();
 
 	@Override
 	public ObjectNode deserialize(byte[] message) throws IOException {
-		if (mapper == null) {
-			mapper = new ObjectMapper();
-		}
 		return mapper.readValue(message, ObjectNode.class);
 	}
 }

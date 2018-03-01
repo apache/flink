@@ -66,7 +66,7 @@ public class PartitionRequestQueueTest {
 		CreditBasedSequenceNumberingViewReader reader1 = new CreditBasedSequenceNumberingViewReader(new InputChannelID(0, 0), 10, queue);
 		CreditBasedSequenceNumberingViewReader reader2 = new CreditBasedSequenceNumberingViewReader(new InputChannelID(1, 1), 10, queue);
 
-		reader1.requestSubpartitionView((partitionId, index, availabilityListener) -> new NotReleasedResultSubpartitionView(), new ResultPartitionID(), 0);
+		reader1.requestSubpartitionView((partitionId, index, availabilityListener) -> new EmptyAlwaysAvailableResultSubpartitionView(), new ResultPartitionID(), 0);
 		reader1.notifyDataAvailable();
 		assertTrue(reader1.isAvailable());
 		assertFalse(reader1.isRegisteredAsAvailable());
@@ -178,6 +178,11 @@ public class PartitionRequestQueueTest {
 				buffers,
 				false);
 		}
+
+		@Override
+		public boolean isAvailable() {
+			return buffersInBacklog.get() > 0;
+		}
 	}
 
 	private static class ReadOnlyBufferResultSubpartitionView extends DefaultBufferResultSubpartitionView {
@@ -197,14 +202,19 @@ public class PartitionRequestQueueTest {
 		}
 	}
 
-	private static class NotReleasedResultSubpartitionView extends NoOpResultSubpartitionView {
+	private static class EmptyAlwaysAvailableResultSubpartitionView extends NoOpResultSubpartitionView {
 		@Override
 		public boolean isReleased() {
 			return false;
 		}
+
+		@Override
+		public boolean isAvailable() {
+			return true;
+		}
 	}
 
-	private static class ReleasedResultSubpartitionView extends NoOpResultSubpartitionView {
+	private static class ReleasedResultSubpartitionView extends EmptyAlwaysAvailableResultSubpartitionView {
 		@Override
 		public boolean isReleased() {
 			return true;
@@ -261,6 +271,11 @@ public class PartitionRequestQueueTest {
 	private static class NextIsEventResultSubpartitionView extends NoOpResultSubpartitionView {
 		@Override
 		public boolean nextBufferIsEvent() {
+			return true;
+		}
+
+		@Override
+		public boolean isAvailable() {
 			return true;
 		}
 	}
@@ -385,6 +400,11 @@ public class PartitionRequestQueueTest {
 
 		@Override
 		public boolean nextBufferIsEvent() {
+			return false;
+		}
+
+		@Override
+		public boolean isAvailable() {
 			return false;
 		}
 	}

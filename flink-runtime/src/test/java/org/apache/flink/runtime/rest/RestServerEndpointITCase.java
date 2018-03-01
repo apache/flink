@@ -476,12 +476,12 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 
 		@Override
-		public JobID convertValueFromString(String value) {
+		public JobID convertStringToValue(String value) {
 			return JobID.fromHexString(value);
 		}
 
 		@Override
-		public String convertStringToValue(JobID value) {
+		public String convertValueToString(JobID value) {
 			return value.toString();
 		}
 	}

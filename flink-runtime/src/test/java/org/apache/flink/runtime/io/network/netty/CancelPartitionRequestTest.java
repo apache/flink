@@ -220,6 +220,11 @@ public class CancelPartitionRequestTest {
 		}
 
 		@Override
+		public boolean isAvailable() {
+			return true;
+		}
+
+		@Override
 		public Throwable getFailureCause() {
 			return null;
 		}
