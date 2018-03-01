@@ -717,9 +717,8 @@ public class DataStream<T> {
 	 * {@code .window(TumblingProcessingTimeWindows.of(size))} depending on the time characteristic
 	 * set using
 	 *
-	 * <p>Note: This operation can be inherently non-parallel since all elements have to pass through
-	 * the same operator instance. (Only for special cases, such as aligned time windows is
-	 * it possible to perform this operation in parallel).
+	 * <p>Note: This operation is inherently non-parallel since all elements have to pass through
+	 * the same operator instance.
 	 *
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
 	 *
@@ -741,9 +740,8 @@ public class DataStream<T> {
 	 * set using
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
 	 *
-	 * <p>Note: This operation can be inherently non-parallel since all elements have to pass through
-	 * the same operator instance. (Only for special cases, such as aligned time windows is
-	 * it possible to perform this operation in parallel).
+	 * <p>Note: This operation is inherently non-parallel since all elements have to pass through
+	 * the same operator instance.
 	 *
 	 * @param size The size of the window.
 	 */
@@ -758,9 +756,8 @@ public class DataStream<T> {
 	/**
 	 * Windows this {@code DataStream} into tumbling count windows.
 	 *
-	 * <p>Note: This operation can be inherently non-parallel since all elements have to pass through
-	 * the same operator instance. (Only for special cases, such as aligned time windows is
-	 * it possible to perform this operation in parallel).
+	 * <p>Note: This operation is inherently non-parallel since all elements have to pass through
+	 * the same operator instance.
 	 *
 	 * @param size The size of the windows in number of elements.
 	 */
@@ -771,9 +768,8 @@ public class DataStream<T> {
 	/**
 	 * Windows this {@code DataStream} into sliding count windows.
 	 *
-	 * <p>Note: This operation can be inherently non-parallel since all elements have to pass through
-	 * the same operator instance. (Only for special cases, such as aligned time windows is
-	 * it possible to perform this operation in parallel).
+	 * <p>Note: This operation is inherently non-parallel since all elements have to pass through
+	 * the same operator instance.
 	 *
 	 * @param size The size of the windows in number of elements.
 	 * @param slide The slide interval in number of elements.
@@ -794,9 +790,8 @@ public class DataStream<T> {
 	 * when windows are evaluated. However, {@code WindowAssigners} have a default {@code Trigger}
 	 * that is used if a {@code Trigger} is not specified.
 	 *
-	 * <p>Note: This operation can be inherently non-parallel since all elements have to pass through
-	 * the same operator instance. (Only for special cases, such as aligned time windows is
-	 * it possible to perform this operation in parallel).
+	 * <p>Note: This operation is inherently non-parallel since all elements have to pass through
+	 * the same operator instance.
 	 *
 	 * @param assigner The {@code WindowAssigner} that assigns elements to windows.
 	 * @return The trigger windows data stream.
