@@ -283,7 +283,9 @@ public class TaskManagerOptions {
 			.withDescription("Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate)." +
 				" In credit-based flow control mode, this indicates how many floating credits are shared among all the input channels." +
 				" The floating buffers are distributed based on backlog (real-time output buffers in the subpartition) feedback, and can" +
-				" help relieve back-pressure caused by unbalanced data distribution among the subpartitions.");
+				" help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be" +
+				" increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");
+
 
 	/**
 	 * Minimum backoff for partition requests of input channels.
