@@ -161,7 +161,7 @@ public class MiniClusterResource extends ExternalResource {
 			true);
 
 		jobExecutorService = flinkMiniCluster;
-		clusterClient = new StandaloneClusterClient(configuration, flinkMiniCluster.highAvailabilityServices());
+		clusterClient = new StandaloneClusterClient(configuration, flinkMiniCluster.highAvailabilityServices(), true);
 	}
 
 	private void startFlip6MiniCluster() throws Exception {

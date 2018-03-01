@@ -121,7 +121,7 @@ public class CliFrontendModifyTest extends TestLogger {
 		private final CompletableFuture<Tuple2<JobID, Integer>> rescaleJobFuture;
 
 		public TestingClusterClient(CompletableFuture<Tuple2<JobID, Integer>> rescaleJobFuture) throws Exception {
-			super(new Configuration(), new TestingHighAvailabilityServices());
+			super(new Configuration(), new TestingHighAvailabilityServices(), false);
 
 			this.rescaleJobFuture = rescaleJobFuture;
 		}

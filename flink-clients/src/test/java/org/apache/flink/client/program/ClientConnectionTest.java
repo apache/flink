@@ -140,7 +140,7 @@ public class ClientConnectionTest extends TestLogger {
 
 			highAvailabilityServices.setJobMasterLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID, settableLeaderRetrievalService);
 
-			StandaloneClusterClient client = new StandaloneClusterClient(configuration, highAvailabilityServices);
+			StandaloneClusterClient client = new StandaloneClusterClient(configuration, highAvailabilityServices, true);
 
 			ActorGateway gateway = client.getJobManagerGateway();
 
