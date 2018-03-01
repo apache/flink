@@ -401,13 +401,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					final int numComponents = 2 + miniClusterConfiguration.getNumTaskManagers();
 					final Collection<CompletableFuture<Void>> componentTerminationFutures = new ArrayList<>(numComponents);
 
-					componentTerminationFutures.add(shutDownDispatcher());
-
-					if (resourceManagerRunner != null) {
-						componentTerminationFutures.add(resourceManagerRunner.closeAsync());
-						resourceManagerRunner = null;
-					}
-
 					if (taskManagers != null) {
 						for (TaskExecutor tm : taskManagers) {
 							if (tm != null) {
@@ -416,6 +409,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 							}
 						}
 						taskManagers = null;
+					}
+
+					componentTerminationFutures.add(shutDownDispatcher());
+
+					if (resourceManagerRunner != null) {
+						componentTerminationFutures.add(resourceManagerRunner.closeAsync());
+						resourceManagerRunner = null;
 					}
 
 					final FutureUtils.ConjunctFuture<Void> componentsTerminationFuture = FutureUtils.completeAll(componentTerminationFutures);
