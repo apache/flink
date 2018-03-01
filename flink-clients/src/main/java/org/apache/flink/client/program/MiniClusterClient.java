@@ -52,7 +52,7 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	private final MiniCluster miniCluster;
 
 	public MiniClusterClient(@Nonnull Configuration configuration, @Nonnull MiniCluster miniCluster) throws Exception {
-		super(configuration, miniCluster.getHighAvailabilityServices());
+		super(configuration, miniCluster.getHighAvailabilityServices(), true);
 
 		this.miniCluster = miniCluster;
 	}
