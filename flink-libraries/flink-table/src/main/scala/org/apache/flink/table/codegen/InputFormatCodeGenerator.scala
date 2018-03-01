@@ -71,12 +71,16 @@ class InputFormatCodeGenerator(
         }
 
         @Override
-        public Object nextRecord(Object reuse) {
+        public Object nextRecord(Object reuse) throws java.io.IOException {
           switch (nextIdx) {
             ${records.zipWithIndex.map { case (r, i) =>
               s"""
                  |case $i:
+                 |try {
                  |  $r
+                 |} catch (Exception e) {
+                 |  throw new java.io.IOException(e);
+                 |}
                  |break;
                        """.stripMargin
             }.mkString("\n")}
