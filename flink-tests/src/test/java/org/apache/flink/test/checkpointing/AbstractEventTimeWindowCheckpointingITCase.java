@@ -51,6 +51,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -87,6 +88,8 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 	private TestingServer zkServer;
 
+	public MiniClusterResource miniClusterResource;
+
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -94,9 +97,6 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 	public TestName name = new TestName();
 
 	private AbstractStateBackend stateBackend;
-
-	@Rule
-	public final MiniClusterResource miniClusterResource = getMiniClusterResource();
 
 	enum StateBackendEnum {
 		MEM, FILE, ROCKSDB_FULLY_ASYNC, ROCKSDB_INCREMENTAL, ROCKSDB_INCREMENTAL_ZK, MEM_ASYNC, FILE_ASYNC
@@ -201,8 +201,19 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		return config;
 	}
 
+	@Before
+	public void setupTestCluster() throws Exception {
+		miniClusterResource = getMiniClusterResource();
+		miniClusterResource.before();
+	}
+
 	@After
 	public void stopTestCluster() throws IOException {
+		if (miniClusterResource != null) {
+			miniClusterResource.after();
+			miniClusterResource = null;
+		}
+
 		if (zkServer != null) {
 			zkServer.stop();
 			zkServer = null;

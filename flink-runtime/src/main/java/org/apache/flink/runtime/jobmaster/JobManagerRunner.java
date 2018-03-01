@@ -265,8 +265,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	@Override
 	public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
 		// complete the result future with the terminal execution graph
-		resultFuture.complete(executionGraph);
 		unregisterJobFromHighAvailability();
+		resultFuture.complete(executionGraph);
 	}
 
 	/**

@@ -194,6 +194,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 				if (exception != null) {
 					throw exception;
+				} else {
+					log.info("Stopped dispatcher {}.", getAddress());
 				}
 			});
 	}

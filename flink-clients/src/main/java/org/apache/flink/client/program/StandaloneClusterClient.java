@@ -47,8 +47,8 @@ public class StandaloneClusterClient extends ClusterClient<StandaloneClusterId> 
 		super(config);
 	}
 
-	public StandaloneClusterClient(Configuration config, HighAvailabilityServices highAvailabilityServices) {
-		super(config, highAvailabilityServices);
+	public StandaloneClusterClient(Configuration config, HighAvailabilityServices highAvailabilityServices, boolean sharedHaServices) {
+		super(config, highAvailabilityServices, sharedHaServices);
 	}
 
 	@Override

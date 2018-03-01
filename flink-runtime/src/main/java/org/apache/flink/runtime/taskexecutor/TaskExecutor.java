@@ -56,6 +56,7 @@ import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -176,6 +177,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private final JobLeaderService jobLeaderService;
 
+	private final LeaderRetrievalService resourceManagerLeaderRetriever;
+
 	// ------------------------------------------------------------------------
 
 	private final HardwareDescription hardwareDescription;
@@ -207,6 +210,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.taskManagerLocation = taskExecutorServices.getTaskManagerLocation();
 		this.localStateStoresManager = taskExecutorServices.getTaskManagerStateStore();
 		this.networkEnvironment = taskExecutorServices.getNetworkEnvironment();
+		this.resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
 
 		this.jobManagerConnections = new HashMap<>(4);
 
@@ -238,7 +242,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		// start by connecting to the ResourceManager
 		try {
-			haServices.getResourceManagerLeaderRetriever().start(new ResourceManagerLeaderListener());
+			resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
 		} catch (Exception e) {
 			onFatalError(e);
 		}
@@ -255,7 +259,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	 */
 	@Override
 	public CompletableFuture<Void> postStop() {
-		log.info("Stopping TaskManager {}.", getAddress());
+		log.info("Stopping TaskExecutor {}.", getAddress());
 
 		Throwable throwable = null;
 
@@ -276,6 +280,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		resourceManagerHeartbeatManager.stop();
 
 		try {
+			resourceManagerLeaderRetriever.stop();
+		} catch (Exception e) {
+			throwable = ExceptionUtils.firstOrSuppressed(e, throwable);
+		}
+
+		try {
 			taskExecutorServices.shutDown();
 		} catch (Throwable t) {
 			throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
@@ -284,6 +294,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		if (throwable != null) {
 			return FutureUtils.completedExceptionally(new FlinkException("Error while shutting the TaskExecutor down.", throwable));
 		} else {
+			log.info("Stopped TaskExecutor {}.", getAddress());
 			return CompletableFuture.completedFuture(null);
 		}
 	}
@@ -1323,7 +1334,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	 */
 	void onFatalError(final Throwable t) {
 		try {
-			log.error("Fatal error occurred in TaskExecutor.", t);
+			log.error("Fatal error occurred in TaskExecutor {}.", getAddress(), t);
 		} catch (Throwable ignored) {}
 
 		// The fatal error handler implementation should make sure that this call is non-blocking
