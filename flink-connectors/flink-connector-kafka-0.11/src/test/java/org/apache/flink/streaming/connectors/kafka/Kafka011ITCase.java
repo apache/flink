@@ -163,6 +163,11 @@ public class Kafka011ITCase extends KafkaConsumerTestBase {
 		runStartFromSpecificOffsets();
 	}
 
+	@Test(timeout = 60000)
+	public void testStartFromTimestamp() throws Exception {
+		runStartFromTimestamp();
+	}
+
 	// --- offset committing ---
 
 	@Test(timeout = 60000)
