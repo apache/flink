@@ -971,14 +971,20 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	@Override
 	public CompletableFuture<String> triggerSavepoint(
-		@Nullable final String targetDirectory,
-		final Time timeout) {
-		try {
-			return executionGraph.getCheckpointCoordinator()
+			@Nullable final String targetDirectory,
+			final Time timeout) {
+		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+
+		if (checkpointCoordinator != null) {
+			return checkpointCoordinator
 				.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
 				.thenApply(CompletedCheckpoint::getExternalPointer);
-		} catch (Exception e) {
-			return FutureUtils.completedExceptionally(e);
+		} else {
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					String.format(
+						"Cannot trigger a savepoint because the job %s is not a streaming job.",
+						jobGraph.getJobID())));
 		}
 	}
 
