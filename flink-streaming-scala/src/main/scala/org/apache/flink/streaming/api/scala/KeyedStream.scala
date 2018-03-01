@@ -67,8 +67,10 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     * of set timers the function can directly emit elements and/or register yet more timers.
     *
     * @param processFunction The [[ProcessFunction]] that is called for each element in the stream.
+    *
+    * @deprecated Use [[KeyedStream#process(KeyedProcessFunction)]]
     */
-  @Deprecated
+  @deprecated("will be removed in a future version")
   @PublicEvolving
   override def process[R: TypeInformation](
     processFunction: ProcessFunction[T, R]): DataStream[R] = {
