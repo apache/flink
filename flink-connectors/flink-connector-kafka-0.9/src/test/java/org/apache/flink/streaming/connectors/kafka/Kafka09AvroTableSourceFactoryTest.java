@@ -18,20 +18,20 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_VERSION_VALUE_08;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_VERSION_VALUE_09;
 
 /**
- * Factory for creating configured instances of {@link Kafka08JsonTableSource}.
+ * Tests for {@link Kafka09AvroTableSourceFactory}.
  */
-public class Kafka08JsonTableSourceFactory extends KafkaJsonTableSourceFactory {
+public class Kafka09AvroTableSourceFactoryTest extends KafkaAvroTableSourceFactoryTestBase {
 
 	@Override
-	protected KafkaJsonTableSource.Builder createKafkaJsonBuilder() {
-		return new Kafka08JsonTableSource.Builder();
+	protected String version() {
+		return CONNECTOR_VERSION_VALUE_09;
 	}
 
 	@Override
-	protected String kafkaVersion() {
-		return CONNECTOR_VERSION_VALUE_08;
+	protected KafkaAvroTableSource.Builder builder() {
+		return Kafka09AvroTableSource.builder();
 	}
 }
