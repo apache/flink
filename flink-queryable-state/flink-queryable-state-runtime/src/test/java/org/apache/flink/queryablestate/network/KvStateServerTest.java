@@ -79,7 +79,8 @@ public class KvStateServerTest {
 	@AfterClass
 	public static void tearDown() throws Exception {
 		if (NIO_GROUP != null) {
-			NIO_GROUP.shutdownGracefully();
+			// note: no "quiet period" to not trigger Netty#4357
+			NIO_GROUP.shutdownGracefully(0, 10, TimeUnit.SECONDS);
 		}
 	}
 
@@ -191,7 +192,8 @@ public class KvStateServerTest {
 			if (bootstrap != null) {
 				EventLoopGroup group = bootstrap.group();
 				if (group != null) {
-					group.shutdownGracefully();
+					// note: no "quiet period" to not trigger Netty#4357
+					group.shutdownGracefully(0, 10, TimeUnit.SECONDS);
 				}
 			}
 		}
