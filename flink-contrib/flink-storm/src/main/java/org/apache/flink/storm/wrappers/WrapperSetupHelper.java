@@ -129,7 +129,7 @@ class WrapperSetupHelper {
 		final Map<String, Object> userResources = new HashMap<String, Object>();
 		final Map<String, Object> executorData = new HashMap<String, Object>();
 		final Map registeredMetrics = new HashMap();
-		Atom openOrPrepareWasCalled = null;
+		Atom openOrPrepareWasCalled = new Atom(new Boolean(true));
 
 		if (stormTopology == null) {
 			// embedded mode
@@ -196,7 +196,7 @@ class WrapperSetupHelper {
 			stormConfig.put(Config.TOPOLOGY_MESSAGE_TIMEOUT_SECS, 30); // Storm default value
 		}
 
-		return new FlinkTopologyContext(stormTopology, stormConfig, taskToComponents,
+		return new FlinkTopologyContext(context, stormTopology, stormConfig, taskToComponents,
 				componentToSortedTasks, componentToStreamToFields, stormId, codeDir, pidDir,
 				taskId, workerPort, workerTasks, defaultResources, userResources, executorData,
 				registeredMetrics, openOrPrepareWasCalled);

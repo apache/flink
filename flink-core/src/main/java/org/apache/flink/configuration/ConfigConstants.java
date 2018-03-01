@@ -1032,6 +1032,8 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String FLINK_JVM_OPTIONS = "env.java.opts";
 
+	public static final String FLINK_DETACHED_JOB_SUBMISSION = "flink.detached.job.submission";
+
 	// --------------------------- High Availability --------------------------
 
 	/** @deprecated Deprecated in favour of {@link HighAvailabilityOptions#HA_MODE} */
@@ -1991,6 +1993,9 @@ public final class ConfigConstants {
 	/** @deprecated Use {@link MetricOptions#LATENCY_HISTORY_SIZE} instead. */
 	@Deprecated
 	public static final int DEFAULT_METRICS_LATENCY_HISTORY_SIZE = 128;
+
+	// ----------------------------- Misc ----------------------------
+	public static final boolean DEFAULT_FLINK_DETACHED_JOB_SUBMISSION = true;
 
 	// ----------------------------- Environment Variables ----------------------------
 

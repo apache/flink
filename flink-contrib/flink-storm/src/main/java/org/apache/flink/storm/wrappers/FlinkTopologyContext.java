@@ -17,13 +17,20 @@
 
 package org.apache.flink.storm.wrappers;
 
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.storm.metric.CounterMetricAdapter;
+import org.apache.flink.storm.metric.MultiCountMetricAdapter;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+
 import clojure.lang.Atom;
 import org.apache.storm.generated.StormTopology;
 import org.apache.storm.hooks.ITaskHook;
 import org.apache.storm.metric.api.CombinedMetric;
+import org.apache.storm.metric.api.CountMetric;
 import org.apache.storm.metric.api.ICombiner;
 import org.apache.storm.metric.api.IMetric;
 import org.apache.storm.metric.api.IReducer;
+import org.apache.storm.metric.api.MultiCountMetric;
 import org.apache.storm.metric.api.ReducedMetric;
 import org.apache.storm.state.ISubscribedState;
 import org.apache.storm.task.TopologyContext;
@@ -39,11 +46,14 @@ import java.util.Map;
  */
 final class FlinkTopologyContext extends TopologyContext {
 
+	private final StreamingRuntimeContext context;
+
 	/**
 	 * Instantiates a new {@link FlinkTopologyContext} for a given Storm topology. The context object is instantiated
 	 * for each parallel task
 	 */
-	FlinkTopologyContext(final StormTopology topology,
+	@SuppressWarnings("unchecked")
+	FlinkTopologyContext(StreamingRuntimeContext context, final StormTopology topology,
 			@SuppressWarnings("rawtypes") final Map stormConf,
 			final Map<Integer, String> taskToComponent, final Map<String, List<Integer>> componentToSortedTasks,
 			final Map<String, Map<String, Fields>> componentToStreamToFields, final String stormId, final String codeDir,
@@ -54,6 +64,7 @@ final class FlinkTopologyContext extends TopologyContext {
 		super(topology, stormConf, taskToComponent, componentToSortedTasks, componentToStreamToFields, stormId,
 				codeDir, pidDir, taskId, workerPort, workerTasks, defaultResources, userResources, executorData,
 				registeredMetrics, openOrPrepareWasCalled);
+		this.context = context;
 	}
 
 	/**
@@ -86,8 +97,7 @@ final class FlinkTopologyContext extends TopologyContext {
 	 */
 	@Override
 	public IMetric getRegisteredMetricByName(final String name) {
-		throw new UnsupportedOperationException("Metrics are not supported by Flink");
-
+		return super.getRegisteredMetricByName(name);
 	}
 
 	/**
@@ -115,14 +125,21 @@ final class FlinkTopologyContext extends TopologyContext {
 	}
 
 	/**
-	 * Not supported by Flink.
-	 *
-	 * @throws UnsupportedOperationException
-	 * 		at every invocation
+	 * @return - null when storm metric not supported by flink
 	 */
+	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends IMetric> T registerMetric(final String name, final T metric, final int timeBucketSizeInSecs) {
-		throw new UnsupportedOperationException("Metrics are not supported by Flink");
+		IMetric stormMetric = null;
+		if (metric instanceof CountMetric) {
+			Counter flinkc = context.getMetricGroup().counter(name);
+			stormMetric = new CounterMetricAdapter(flinkc);
+		} else if (metric instanceof MultiCountMetric) {
+			stormMetric = new MultiCountMetricAdapter(context);
+		} else {
+			throw new UnsupportedOperationException("Metrics are not supported by Flink");
+		}
+		return super.registerMetric(name, (T) stormMetric, timeBucketSizeInSecs);
 	}
 
 	/**

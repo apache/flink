@@ -187,11 +187,6 @@ public class WrapperSetupInLocalClusterTest extends AbstractTest {
 				topologyContext.getHooks();
 				Assert.fail();
 			} catch (UnsupportedOperationException e) { /* expected */ }
-
-			try {
-				topologyContext.getRegisteredMetricByName(null);
-				Assert.fail();
-			} catch (UnsupportedOperationException e) { /* expected */ }
 		}
 	}
 
