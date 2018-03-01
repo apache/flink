@@ -259,7 +259,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	 */
 	@Override
 	public CompletableFuture<Void> postStop() {
-		log.info("Stopping TaskManager {}.", getAddress());
+		log.info("Stopping TaskExecutor {}.", getAddress());
 
 		Throwable throwable = null;
 
@@ -294,6 +294,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		if (throwable != null) {
 			return FutureUtils.completedExceptionally(new FlinkException("Error while shutting the TaskExecutor down.", throwable));
 		} else {
+			log.info("Stopped TaskExecutor {}.", getAddress());
 			return CompletableFuture.completedFuture(null);
 		}
 	}
@@ -1333,7 +1334,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	 */
 	void onFatalError(final Throwable t) {
 		try {
-			log.error("Fatal error occurred in TaskExecutor.", t);
+			log.error("Fatal error occurred in TaskExecutor {}.", getAddress(), t);
 		} catch (Throwable ignored) {}
 
 		// The fatal error handler implementation should make sure that this call is non-blocking
