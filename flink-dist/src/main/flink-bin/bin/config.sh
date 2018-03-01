@@ -396,7 +396,7 @@ rotateLogFilesWithPrefix() {
     while read -r log ; do
         rotateLogFile "$log"
     # find distinct set of log file names, ignoring the rotation number (trailing dot and digit)
-    done < <(find "$dir" ! -type d -path "${prefix}*" | sed -E s/\.[0-9]+$// | sort | uniq)
+    done < <(find "$dir" ! -type d -path "${prefix}*" | sed -r s/\.[0-9]+$// | sort | uniq)
 }
 
 rotateLogFile() {
@@ -485,7 +485,7 @@ TMSlaves() {
         done
     else
         # non-local setup
-        # Stop TaskManager instance(s) using pdsh (Parallel Distributed Shell) when available
+        # starts or stops TaskManager instance(s) using pdsh (Parallel Distributed Shell) when available
         command -v pdsh >/dev/null 2>&1
         if [[ $? -ne 0 ]]; then
             for slave in ${SLAVES[@]}; do
