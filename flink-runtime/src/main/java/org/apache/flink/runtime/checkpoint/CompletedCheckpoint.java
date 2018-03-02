@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -37,7 +38,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -282,6 +285,29 @@ public class CompletedCheckpoint implements Serializable {
 	// ------------------------------------------------------------------------
 	//  Miscellaneous
 	// ------------------------------------------------------------------------
+
+	public static boolean checkpointsMatch(
+		Collection<CompletedCheckpoint> first,
+		Collection<CompletedCheckpoint> second) {
+
+		Set<Tuple2<Long, JobID>> firstInterestingFields =
+			new HashSet<>();
+
+		for (CompletedCheckpoint checkpoint : first) {
+			firstInterestingFields.add(
+				new Tuple2<>(checkpoint.getCheckpointID(), checkpoint.getJobId()));
+		}
+
+		Set<Tuple2<Long, JobID>> secondInterestingFields =
+			new HashSet<>();
+
+		for (CompletedCheckpoint checkpoint : second) {
+			secondInterestingFields.add(
+				new Tuple2<>(checkpoint.getCheckpointID(), checkpoint.getJobId()));
+		}
+
+		return firstInterestingFields.equals(secondInterestingFields);
+	}
 
 	/**
 	 * Sets the callback for tracking when this checkpoint is discarded.
