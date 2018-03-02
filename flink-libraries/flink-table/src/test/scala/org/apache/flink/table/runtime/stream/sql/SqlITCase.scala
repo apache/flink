@@ -480,7 +480,6 @@ class SqlITCase extends StreamingWithStateTestBase {
 
   @Test
   def testUnnestPrimitiveArrayFromTable(): Unit = {
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
@@ -512,7 +511,6 @@ class SqlITCase extends StreamingWithStateTestBase {
 
   @Test
   def testUnnestArrayOfArrayFromTable(): Unit = {
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
@@ -542,7 +540,6 @@ class SqlITCase extends StreamingWithStateTestBase {
 
   @Test
   def testUnnestObjectArrayFromTableWithFilter(): Unit = {
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
@@ -565,6 +562,108 @@ class SqlITCase extends StreamingWithStateTestBase {
       "2,[(13,41.6), (14,45.2136)],14,45.2136",
       "3,[(18,42.6)],18,42.6")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testUnnestMultiSetFromCollectResult(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val sqlQuery = "SELECT b, COLLECT(a) as `set` FROM MyTable GROUP BY b"
+
+    val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+
+    val view1 = tEnv.sqlQuery(sqlQuery)
+    tEnv.registerTable("view1", view1)
+
+    val sqlQuery1 = "SELECT b, s FROM view1 t1, UNNEST(t1.`set`) AS A (s) where t1.b < 3"
+
+    val result = tEnv.sqlQuery(sqlQuery1).toRetractStream[Row]
+    result.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      "1,1",
+      "2,2",
+      "2,3"
+    )
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testUnnestObjectMultiSetFromUnboundedGroupByCollectResult(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setStateBackend(getStateBackend)
+    StreamITCase.clear
+
+    val sqlQuery = "SELECT b, COLLECT(c) as `set` FROM MyTable GROUP BY b"
+    val data = List(
+      (1, 1, (12, "45.6")),
+      (2, 2, (12, "45.612")),
+      (3, 2, (13, "41.6")),
+      (4, 3, (14, "45.2136")),
+      (5, 3, (18, "42.6")))
+    tEnv.registerTable("MyTable", env.fromCollection(data).toTable(tEnv).as('a, 'b, 'c))
+
+    val view1 = tEnv.sqlQuery(sqlQuery)
+    tEnv.registerTable("v1", view1)
+
+    val sqlQuery1 = "SELECT b, id, point FROM v1 t1, unnest(t1.`set`) AS A(id, point) where b < 3"
+
+    val result = tEnv.sqlQuery(sqlQuery1).toRetractStream[Row]
+    result.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      "1,12,45.6",
+      "2,12,45.612",
+      "2,13,41.6")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testLeftUnnestMultiSetFromCollectResult(): Unit = {
+    val data = List(
+      (1, "1", "Hello"),
+      (1, "2", "Hello2"),
+      (2, "2", "Hello"),
+      (3, null.asInstanceOf[String], "Hello"),
+      (4, "4", "Hello"),
+      (5, "5", "Hello"),
+      (5, null.asInstanceOf[String], "Hello"),
+      (6, "6", "Hello"),
+      (7, "7", "Hello World"),
+      (7, "8", "Hello World"))
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val sqlQuery = "SELECT a, COLLECT(b) as `set` FROM MyTable GROUP BY a"
+
+    val t = env.fromCollection(data).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+
+    val view1 = tEnv.sqlQuery(sqlQuery)
+    tEnv.registerTable("v1", view1)
+
+    val sqlQuery1 = "SELECT a, s FROM v1 t1 left join unnest(t1.`set`) AS A(s) on true where a < 5"
+
+    val result = tEnv.sqlQuery(sqlQuery1).toRetractStream[Row]
+    result.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      "1,1",
+      "1,2",
+      "2,2",
+      "3,null",
+      "4,4"
+    )
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
   @Test
