@@ -296,7 +296,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	 * @param props The Kafka properties to register the serializer in.
 	 */
 	private static void setDeserializer(Properties props) {
-		final String deSerName = ByteArrayDeserializer.class.getCanonicalName();
+		final String deSerName = ByteArrayDeserializer.class.getName();
 
 		Object keyDeSer = props.get(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
 		Object valDeSer = props.get(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
