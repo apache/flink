@@ -32,8 +32,10 @@ import org.apache.curator.framework.api.CuratorEvent;
 import org.apache.curator.framework.api.CuratorEventType;
 import org.apache.curator.framework.api.ErrorListenerPathable;
 import org.apache.curator.utils.EnsurePath;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -80,30 +82,15 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 	/**
 	 * Tests that the completed checkpoint store can retrieve all checkpoints stored in ZooKeeper
 	 * and ignores those which cannot be retrieved via their state handles.
+	 *
+	 * <p>We have a timeout in case the ZooKeeper store get's into a deadlock/livelock situation.
 	 */
-	@Test
+	@Test(timeout = 50000)
 	public void testCheckpointRecovery() throws Exception {
+		final JobID jobID = new JobID();
+		final long checkpoint1Id = 1L;
+		final long checkpoint2Id = 2;
 		final List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> checkpointsInZooKeeper = new ArrayList<>(4);
-
-		final CompletedCheckpoint completedCheckpoint1 = new CompletedCheckpoint(
-			new JobID(),
-			1L,
-			1L,
-			1L,
-			new HashMap<>(),
-			null,
-			CheckpointProperties.forStandardCheckpoint(),
-			null, null);
-
-		final CompletedCheckpoint completedCheckpoint2 = new CompletedCheckpoint(
-			new JobID(),
-			2L,
-			2L,
-			2L,
-			new HashMap<>(),
-			null,
-			CheckpointProperties.forStandardCheckpoint(),
-			null, null);
 
 		final Collection<Long> expectedCheckpointIds = new HashSet<>(2);
 		expectedCheckpointIds.add(1L);
@@ -113,10 +100,28 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 		when(failingRetrievableStateHandle.retrieveState()).thenThrow(new IOException("Test exception"));
 
 		final RetrievableStateHandle<CompletedCheckpoint> retrievableStateHandle1 = mock(RetrievableStateHandle.class);
-		when(retrievableStateHandle1.retrieveState()).thenReturn(completedCheckpoint1);
+		when(retrievableStateHandle1.retrieveState()).then(
+			(invocation) -> new CompletedCheckpoint(
+				jobID,
+				checkpoint1Id,
+				1L,
+				1L,
+				new HashMap<>(),
+				null,
+				CheckpointProperties.forStandardCheckpoint(),
+				null, null));
 
 		final RetrievableStateHandle<CompletedCheckpoint> retrievableStateHandle2 = mock(RetrievableStateHandle.class);
-		when(retrievableStateHandle2.retrieveState()).thenReturn(completedCheckpoint2);
+		when(retrievableStateHandle2.retrieveState()).then(
+			(invocation -> new CompletedCheckpoint(
+				jobID,
+				checkpoint2Id,
+				1L,
+				1L,
+				new HashMap<>(),
+				null,
+				CheckpointProperties.forStandardCheckpoint(),
+				null, null)));
 
 		checkpointsInZooKeeper.add(Tuple2.of(retrievableStateHandle1, "/foobar1"));
 		checkpointsInZooKeeper.add(Tuple2.of(failingRetrievableStateHandle, "/failing1"));
@@ -182,7 +187,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 
 		// check that we return the latest retrievable checkpoint
 		// this should remove the latest checkpoint because it is broken
-		assertEquals(completedCheckpoint2.getCheckpointID(), latestCompletedCheckpoint.getCheckpointID());
+		assertEquals(checkpoint2Id, latestCompletedCheckpoint.getCheckpointID());
 
 		// this should remove the second broken checkpoint because we're iterating over all checkpoints
 		List<CompletedCheckpoint> completedCheckpoints = zooKeeperCompletedCheckpointStore.getAllCheckpoints();
