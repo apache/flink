@@ -524,6 +524,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 	}
 
+	@Nullable
 	public CheckpointCoordinator getCheckpointCoordinator() {
 		return checkpointCoordinator;
 	}

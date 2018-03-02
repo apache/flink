@@ -34,8 +34,8 @@ public class SavepointTriggerRequestBodyTest
 	}
 
 	@Override
-	protected SavepointTriggerRequestBody getTestRequestInstance() throws Exception {
-		return new SavepointTriggerRequestBody("/tmp");
+	protected SavepointTriggerRequestBody getTestRequestInstance() {
+		return new SavepointTriggerRequestBody("/tmp", true);
 	}
 
 	@Override

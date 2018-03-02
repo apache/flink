@@ -87,7 +87,7 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 	@Override
 	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
-		throw new UnsupportedOperationException("MiniClusterClient does not yet support this operation.");
+		return miniCluster.triggerSavepoint(jobId, savepointDirectory, true).get();
 	}
 
 	@Override
