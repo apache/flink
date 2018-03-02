@@ -116,7 +116,7 @@ object CommonCollect {
 }
 
 object ExplodeFunctionUtil {
-  def explodeTableFuncFromType(ti: TypeInformation[_]):TableFunction[_] = {
+  def explodeTableFuncFromType(ti: TypeInformation[_]): TableFunction[_] = {
     ti match {
       case pat: PrimitiveArrayTypeInfo[_] => createTableFuncByType(pat.getComponentType)
 
