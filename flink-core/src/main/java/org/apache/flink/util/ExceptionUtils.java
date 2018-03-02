@@ -398,6 +398,18 @@ public final class ExceptionUtils {
 		}
 	}
 
+	/**
+	 * Checks whether the given exception is a {@link InterruptedException} and sets
+	 * the interrupted flag accordingly.
+	 *
+	 * @param e to check whether it is an {@link InterruptedException}
+	 */
+	public static void checkInterrupted(Throwable e) {
+		if (e instanceof InterruptedException) {
+			Thread.currentThread().interrupt();
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Lambda exception utilities
 	// ------------------------------------------------------------------------
