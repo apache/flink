@@ -402,6 +402,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.CURRENT_TIMESTAMP,
     SqlStdOperatorTable.CURRENT_DATE,
     ScalarSqlFunctions.DATE_FORMAT,
+    ScalarSqlFunctions.STR_TO_DATE,
     SqlStdOperatorTable.CAST,
     SqlStdOperatorTable.EXTRACT,
     SqlStdOperatorTable.QUARTER,
