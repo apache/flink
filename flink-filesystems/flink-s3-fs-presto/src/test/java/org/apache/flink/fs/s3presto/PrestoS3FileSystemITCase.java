@@ -32,6 +32,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
@@ -43,8 +44,13 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Unit tests for the S3 file system support via Presto's PrestoS3FileSystem.
- * These tests do not actually read from or write to S3.
+ * Unit tests for the S3 file system support via Presto's {@link com.facebook.presto.hive.PrestoS3FileSystem}.
+ *
+ * <p><strong>BEWARE</strong>: tests must take special care of S3's
+ * <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency guarantees</a>
+ * and what the {@link com.facebook.presto.hive.PrestoS3FileSystem} offers: it actually retries
+ * failed operations (with an exponential backoff) to circumvent, for example, read-after-write
+ * eventual-consistency.
  */
 public class PrestoS3FileSystemITCase extends TestLogger {
 
@@ -64,6 +70,7 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 
 	@Test
 	public void testSimpleFileWriteAndRead() throws Exception {
+		final long deadline = System.currentTimeMillis() + 30_000L; // 30 secs
 		final Configuration conf = new Configuration();
 		conf.setString("s3.access-key", ACCESS_KEY);
 		conf.setString("s3.secret-key", SECRET_KEY);
@@ -81,6 +88,9 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 				writer.write(testLine);
 			}
 
+			// just in case, wait for the path to exist
+			checkPathExists(fs, path, true, deadline);
+
 			try (FSDataInputStream in = fs.open(path);
 					InputStreamReader ir = new InputStreamReader(in, StandardCharsets.UTF_8);
 					BufferedReader reader = new BufferedReader(ir)) {
@@ -95,6 +105,7 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 
 	@Test
 	public void testDirectoryListing() throws Exception {
+		final long deadline = System.currentTimeMillis() + 30_000L; // 30 secs
 		final Configuration conf = new Configuration();
 		conf.setString("s3.access-key", ACCESS_KEY);
 		conf.setString("s3.secret-key", SECRET_KEY);
@@ -125,6 +136,9 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 						OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
 					writer.write("hello-" + i + "\n");
 				}
+				// just in case, wait for the file to exist (should then also be reflected in the
+				// directory's file list below)
+				checkPathExists(fs, file, true, deadline);
 			}
 
 			FileStatus[] files = fs.listStatus(directory);
@@ -143,7 +157,20 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 			fs.delete(directory, true);
 		}
 
-		// now directory must be gone
-		assertFalse(fs.exists(directory));
+		// now directory must be gone (this is eventually-consistent, though!)
+		checkPathExists(fs, directory, false, deadline);
+	}
+
+	private static void checkPathExists(
+		FileSystem fs,
+		Path path,
+		boolean expectedExists,
+		long deadline) throws IOException, InterruptedException {
+		boolean dirExists;
+		while ((dirExists = fs.exists(path)) != expectedExists &&
+			System.currentTimeMillis() < deadline) {
+			Thread.sleep(10);
+		}
+		assertEquals(expectedExists, dirExists);
 	}
 }

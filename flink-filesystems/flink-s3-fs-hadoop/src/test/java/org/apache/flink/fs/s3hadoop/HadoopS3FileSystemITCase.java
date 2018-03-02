@@ -46,8 +46,11 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Unit tests for the S3 file system support via Presto's PrestoS3FileSystem.
- * These tests do not actually read from or write to S3.
+ * Unit tests for the S3 file system support via Hadoop's {@link org.apache.hadoop.fs.s3a.S3AFileSystem}.
+ *
+ * <p><strong>BEWARE</strong>: tests must take special care of S3's
+ * <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency guarantees</a>
+ * and what the {@link org.apache.hadoop.fs.s3a.S3AFileSystem} offers.
  */
 public class HadoopS3FileSystemITCase extends TestLogger {
 
@@ -90,8 +93,9 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 	}
 
 	@AfterClass
-	public static void cleanUp() throws IOException {
+	public static void cleanUp() throws IOException, InterruptedException {
 		if (!skipTest) {
+			final long deadline = System.currentTimeMillis() + 30_000L; // 30 secs
 			// initialize configuration with valid credentials
 			final Configuration conf = new Configuration();
 			conf.setString("s3.access.key", ACCESS_KEY);
@@ -105,7 +109,7 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 			fs.delete(directory, true);
 
 			// now directory must be gone
-			assertFalse(fs.exists(directory));
+			checkPathExists(fs, directory, false, deadline);
 
 			// reset configuration
 			FileSystem.initialize(new Configuration());
@@ -167,6 +171,7 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 
 	@Test
 	public void testSimpleFileWriteAndRead() throws Exception {
+		final long deadline = System.currentTimeMillis() + 30_000L; // 30 secs
 		final Configuration conf = new Configuration();
 		conf.setString("s3.access.key", ACCESS_KEY);
 		conf.setString("s3.secret.key", SECRET_KEY);
@@ -184,6 +189,9 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 				writer.write(testLine);
 			}
 
+			// just in case, wait for the path to exist
+			checkPathExists(fs, path, true, deadline);
+
 			try (FSDataInputStream in = fs.open(path);
 					InputStreamReader ir = new InputStreamReader(in, StandardCharsets.UTF_8);
 					BufferedReader reader = new BufferedReader(ir)) {
@@ -198,6 +206,7 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 
 	@Test
 	public void testDirectoryListing() throws Exception {
+		final long deadline = System.currentTimeMillis() + 30_000L; // 30 secs
 		final Configuration conf = new Configuration();
 		conf.setString("s3.access.key", ACCESS_KEY);
 		conf.setString("s3.secret.key", SECRET_KEY);
@@ -214,8 +223,7 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 			// create directory
 			assertTrue(fs.mkdirs(directory));
 
-			// seems the presto file system does not assume existence of empty directories in S3
-			assertTrue(fs.exists(directory));
+			checkPathExists(fs, directory, true, deadline);
 
 			// directory empty
 			assertEquals(0, fs.listStatus(directory).length);
@@ -228,6 +236,9 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 						OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
 					writer.write("hello-" + i + "\n");
 				}
+				// just in case, wait for the file to exist (should then also be reflected in the
+				// directory's file list below)
+				checkPathExists(fs, file, true, deadline);
 			}
 
 			FileStatus[] files = fs.listStatus(directory);
@@ -246,7 +257,20 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 			fs.delete(directory, true);
 		}
 
-		// now directory must be gone
-		assertFalse(fs.exists(directory));
+		// now directory must be gone (this is eventually-consistent, though!)
+		checkPathExists(fs, directory, false, deadline);
+	}
+
+	private static void checkPathExists(
+			FileSystem fs,
+			Path path,
+			boolean expectedExists,
+			long deadline) throws IOException, InterruptedException {
+		boolean dirExists;
+		while ((dirExists = fs.exists(path)) != expectedExists &&
+				System.currentTimeMillis() < deadline) {
+			Thread.sleep(10);
+		}
+		assertEquals(expectedExists, dirExists);
 	}
 }
