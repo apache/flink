@@ -231,12 +231,13 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 		Configuration configuration = GlobalConfiguration.loadConfiguration();
-		final YarnClient yarnClient = YarnClient.createYarnClient();
 
 		try (final AbstractYarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
 			configuration,
+			getYarnConfiguration(),
 			confDirPath,
-			yarnClient)) {
+			getYarnClient(),
+			true)) {
 			Assert.assertNotNull("unable to get yarn client", clusterDescriptor);
 			clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 			clusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
