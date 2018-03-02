@@ -233,6 +233,13 @@ class DecimalTypeTest extends ExpressionTestBase {
       "-f0",
       "-f0",
       "-123456789.123456789123456789")
+
+    testAllApis(
+      BigDecimal("1") / BigDecimal("3"),
+      "1p / 3p",
+      "CAST('1' AS DECIMAL) / CAST('3' AS DECIMAL)",
+      "0.3333333333333333333333333333333333"
+    )
   }
 
   @Test
