@@ -101,6 +101,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -525,7 +526,14 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 	@Override
 	public String getWebInterfaceURL() {
-		return getWebMonitorBaseUrl().toString();
+		try {
+			return getWebMonitorBaseUrl().get().toString();
+		} catch (InterruptedException | ExecutionException e) {
+			ExceptionUtils.checkInterrupted(e);
+
+			log.warn("Could not retrieve the web interface URL for the cluster.", e);
+			return "Unknown address.";
+		}
 	}
 
 	@Override
