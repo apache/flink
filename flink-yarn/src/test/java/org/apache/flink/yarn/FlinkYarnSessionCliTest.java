@@ -133,6 +133,42 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		assertEquals(zkNamespaceCliInput, descriptor.getZookeeperNamespace());
 	}
 
+	@Test
+	public void testNameProperty() throws Exception {
+		String testName = "testFlinkApplication";
+		String[] params = new String[] {"-yn", "2", "-ynm", testName};
+
+		FlinkYarnSessionCli yarnCLI = new FlinkYarnSessionCli(
+			new Configuration(),
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+
+		CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
+
+		AbstractYarnClusterDescriptor descriptor = yarnCLI.createClusterDescriptor(commandLine);
+
+		assertEquals(testName, descriptor.getCustomName());
+	}
+
+	@Test
+	public void testFlinkJarPathProperty() throws Exception {
+		String testFlinkJarPathCliInput = "/path/to/flink.jar";
+		String[] params = new String[] {"-yn", "2", "-yj", testFlinkJarPathCliInput};
+
+		FlinkYarnSessionCli yarnCLI = new FlinkYarnSessionCli(
+			new Configuration(),
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+
+		CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
+
+		AbstractYarnClusterDescriptor descriptor = yarnCLI.createClusterDescriptor(commandLine);
+
+		assertEquals(testFlinkJarPathCliInput, new File(descriptor.getFlinkJarPath().toUri()).getAbsolutePath());
+	}
+
 	/**
 	 * Test that the CliFrontend is able to pick up the .yarn-properties file from a specified location.
 	 */

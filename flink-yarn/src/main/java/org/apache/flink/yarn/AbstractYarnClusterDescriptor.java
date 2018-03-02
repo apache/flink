@@ -78,10 +78,13 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLDecoder;
+import java.nio.charset.Charset;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.SimpleFileVisitor;
@@ -98,6 +101,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
+import static org.apache.flink.configuration.HighAvailabilityOptions.HA_CLUSTER_ID;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties;
@@ -118,12 +122,15 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	private final YarnClient yarnClient;
 
+	@Nullable
 	private String yarnQueue;
 
 	private String configurationDirectory;
 
+	@Nullable
 	private Path flinkJarPath;
 
+	@Nullable
 	private String dynamicPropertiesEncoded;
 
 	/** Lazily initialized list of files to ship. */
@@ -133,8 +140,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	private boolean detached;
 
+	@Nullable
 	private String customName;
 
+	@Nullable
 	private String zookeeperNamespace;
 
 	/** Optional Jar file to include in the system class loader of all application nodes
@@ -167,6 +176,93 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
 
 		this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
+
+		String yarnQueueConfigValue = flinkConfiguration.getString(YarnConfigOptions.YARN_QUEUE);
+		if (yarnQueueConfigValue != null) {
+			this.yarnQueue = yarnQueueConfigValue;
+		}
+
+		String zkNamespaceConfigValue = flinkConfiguration.getString(HA_CLUSTER_ID);
+		if (zkNamespaceConfigValue != null) {
+			this.zookeeperNamespace = zkNamespaceConfigValue;
+		}
+
+		this.detached = flinkConfiguration.getBoolean(YarnConfigOptions.DETACHED_MODE);
+
+		String dynamicPropertiesEncodedConfigValue = flinkConfiguration.getString(YarnConfigOptions.DYNAMIC_PROPERTIES_ENCODED);
+		if (dynamicPropertiesEncodedConfigValue != null) {
+			this.dynamicPropertiesEncoded = dynamicPropertiesEncodedConfigValue;
+		}
+
+		String nameConfigValue = flinkConfiguration.getString(YarnConfigOptions.YARN_APPLICATION_NAME);
+		if (nameConfigValue != null) {
+			this.customName = nameConfigValue;
+		}
+
+		buildFlinkJarPath(flinkConfiguration);
+
+		this.addShipFiles();
+	}
+
+	private void buildFlinkJarPath(Configuration flinkConfiguration) {
+		String flinkJarPathStrConfigValue = flinkConfiguration.getString(YarnConfigOptions.FLINK_JAR);
+		final Path localJarPath;
+		if (flinkJarPathStrConfigValue != null) {
+			if (!flinkJarPathStrConfigValue.startsWith("file://")) {
+				flinkJarPathStrConfigValue = "file://" + flinkJarPathStrConfigValue;
+			}
+
+			if (!flinkJarPathStrConfigValue.endsWith("jar")) {
+				LOG.error("The passed jar path ('" + flinkJarPathStrConfigValue + "') does not end with the 'jar' extension");
+				localJarPath = null;
+			} else {
+				localJarPath = new Path(flinkJarPathStrConfigValue);
+			}
+		} else {
+			LOG.info("No path for the flink jar passed. Using the location of "
+				+ this.getClass() + " to locate the jar");
+			String encodedJarPath =
+				this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
+
+			final String decodedPath;
+			try {
+				// we have to decode the url encoded parts of the path
+				decodedPath = URLDecoder.decode(encodedJarPath, Charset.defaultCharset().name());
+			} catch (UnsupportedEncodingException e) {
+				throw new RuntimeException("Couldn't decode the encoded Flink dist jar path: " + encodedJarPath +
+					" Please supply a path manually via the jar option.");
+			}
+
+			// check whether it's actually a jar file --> when testing we execute this class without a flink-dist jar
+			if (decodedPath.endsWith(".jar")) {
+				localJarPath = new Path(new File(decodedPath).toURI());
+			} else {
+				localJarPath = null;
+			}
+		}
+
+		if (localJarPath != null) {
+			this.flinkJarPath = localJarPath;
+		}
+	}
+
+	private void addShipFiles() {
+		List<File> shipFiles = new ArrayList<>();
+		// path to directory to ship
+		String shipPathConfigValue = flinkConfiguration.getString(YarnConfigOptions.YARN_SHIP_PATHS);
+		if (shipPathConfigValue != null) {
+			String[] shipPaths = shipPathConfigValue.split(",");
+			for (String shipPath : shipPaths) {
+				File shipDir = new File(shipPath);
+				if (shipDir.isDirectory()) {
+					shipFiles.add(shipDir);
+				} else {
+					LOG.warn("Ship directory is not a directory. Ignoring it.");
+				}
+			}
+		}
+
+		this.shipFiles.addAll(shipFiles);
 	}
 
 	public YarnClient getYarnClient() {
@@ -187,34 +283,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	public Configuration getFlinkConfiguration() {
 		return flinkConfiguration;
-	}
-
-	public void setQueue(String queue) {
-		this.yarnQueue = queue;
-	}
-
-	public void setLocalJarPath(Path localJarPath) {
-		if (!localJarPath.toString().endsWith("jar")) {
-			throw new IllegalArgumentException("The passed jar path ('" + localJarPath + "') does not end with the 'jar' extension");
-		}
-		this.flinkJarPath = localJarPath;
-	}
-
-	/**
-	 * Adds the given files to the list of files to ship.
-	 *
-	 * <p>Note that any file matching "<tt>flink-dist*.jar</tt>" will be excluded from the upload by
-	 * {@link #uploadAndRegisterFiles(Collection, FileSystem, Path, ApplicationId, List, Map, StringBuilder)}
-	 * since we upload the Flink uber jar ourselves and do not need to deploy it multiple times.
-	 *
-	 * @param shipFiles files to ship
-	 */
-	public void addShipFiles(List<File> shipFiles) {
-		this.shipFiles.addAll(shipFiles);
-	}
-
-	public void setDynamicPropertiesEncoded(String dynamicPropertiesEncoded) {
-		this.dynamicPropertiesEncoded = dynamicPropertiesEncoded;
 	}
 
 	/**
@@ -242,7 +310,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	/**
 	 * Sets the user jar which is included in the system classloader of all nodes.
 	 */
-	public void setProvidedUserJarFiles(List<URL> userJarFiles) {
+	private void setProvidedUserJarFiles(List<URL> userJarFiles) {
 		for (URL jarFile : userJarFiles) {
 			try {
 				this.userJarFiles.add(new File(jarFile.toURI()));
@@ -253,8 +321,19 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 	}
 
+	@Nullable
 	public String getDynamicPropertiesEncoded() {
 		return this.dynamicPropertiesEncoded;
+	}
+
+	@Nullable
+	public Path getFlinkJarPath() {
+		return flinkJarPath;
+	}
+
+	@Nullable
+	public String getCustomName() {
+		return customName;
 	}
 
 	private void isReadyForDeployment(ClusterSpecification clusterSpecification) throws YarnDeploymentException {
@@ -306,20 +385,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		return false;
 	}
 
-	public void setDetachedMode(boolean detachedMode) {
-		this.detached = detachedMode;
-	}
-
 	public boolean isDetachedMode() {
 		return detached;
 	}
 
 	public String getZookeeperNamespace() {
 		return zookeeperNamespace;
-	}
-
-	public void setZookeeperNamespace(String zookeeperNamespace) {
-		this.zookeeperNamespace = zookeeperNamespace;
 	}
 
 	// -------------------------------------------------------------
@@ -701,7 +772,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		if (zkNamespace == null || zkNamespace.isEmpty()) {
 			// namespace defined in config? else use applicationId as default.
 			zkNamespace = configuration.getString(HighAvailabilityOptions.HA_CLUSTER_ID, String.valueOf(appId));
-			setZookeeperNamespace(zkNamespace);
+			this.zookeeperNamespace = zkNamespace;
 		}
 
 		configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
@@ -1253,13 +1324,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		} catch (Exception e) {
 			throw new RuntimeException("Couldn't get cluster description", e);
 		}
-	}
-
-	public void setName(String name) {
-		if (name == null) {
-			throw new IllegalArgumentException("The passed name is null");
-		}
-		customName = name;
 	}
 
 	private void activateHighAvailabilitySupport(ApplicationSubmissionContext appContext) throws

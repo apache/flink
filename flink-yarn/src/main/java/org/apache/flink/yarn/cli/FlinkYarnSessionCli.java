@@ -49,7 +49,6 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -69,10 +68,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -187,7 +182,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		query = new Option(shortPrefix + "q", longPrefix + "query", false, "Display available YARN resources (memory, cores)");
 		applicationId = new Option(shortPrefix + "id", longPrefix + "applicationId", true, "Attach to running YARN session");
 		queue = new Option(shortPrefix + "qu", longPrefix + "queue", true, "Specify YARN queue.");
-		shipPath = new Option(shortPrefix + "t", longPrefix + "ship", true, "Ship files in the specified directory (t for transfer)");
+		shipPath = new Option(shortPrefix + "t", longPrefix + "ship", true, "Ship files in the specified directory, multi directory split them with comma (t for transfer)");
 		flinkJar = new Option(shortPrefix + "j", longPrefix + "jar", true, "Path to Flink jar file");
 		jmMemory = new Option(shortPrefix + "jm", longPrefix + "jobManagerMemory", true, "Memory for JobManager Container [in MB]");
 		tmMemory = new Option(shortPrefix + "tm", longPrefix + "taskManagerMemory", true, "Memory per TaskManager Container [in MB]");
@@ -268,98 +263,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		AbstractYarnClusterDescriptor yarnClusterDescriptor = getClusterDescriptor(
 			configuration,
 			configurationDirectory);
-
-		// Jar Path
-		final Path localJarPath;
-		if (cmd.hasOption(flinkJar.getOpt())) {
-			String userPath = cmd.getOptionValue(flinkJar.getOpt());
-			if (!userPath.startsWith("file://")) {
-				userPath = "file://" + userPath;
-			}
-			localJarPath = new Path(userPath);
-		} else {
-			LOG.info("No path for the flink jar passed. Using the location of "
-				+ yarnClusterDescriptor.getClass() + " to locate the jar");
-			String encodedJarPath =
-				yarnClusterDescriptor.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
-
-			final String decodedPath;
-			try {
-				// we have to decode the url encoded parts of the path
-				decodedPath = URLDecoder.decode(encodedJarPath, Charset.defaultCharset().name());
-			} catch (UnsupportedEncodingException e) {
-				throw new RuntimeException("Couldn't decode the encoded Flink dist jar path: " + encodedJarPath +
-					" Please supply a path manually via the -" + flinkJar.getOpt() + " option.");
-			}
-
-			// check whether it's actually a jar file --> when testing we execute this class without a flink-dist jar
-			if (decodedPath.endsWith(".jar")) {
-				localJarPath = new Path(new File(decodedPath).toURI());
-			} else {
-				localJarPath = null;
-			}
-		}
-
-		if (localJarPath != null) {
-			yarnClusterDescriptor.setLocalJarPath(localJarPath);
-		}
-
-		List<File> shipFiles = new ArrayList<>();
-		// path to directory to ship
-		if (cmd.hasOption(shipPath.getOpt())) {
-			String shipPath = cmd.getOptionValue(this.shipPath.getOpt());
-			File shipDir = new File(shipPath);
-			if (shipDir.isDirectory()) {
-				shipFiles.add(shipDir);
-			} else {
-				LOG.warn("Ship directory is not a directory. Ignoring it.");
-			}
-		}
-
-		yarnClusterDescriptor.addShipFiles(shipFiles);
-
-		// queue
-		if (cmd.hasOption(queue.getOpt())) {
-			yarnClusterDescriptor.setQueue(cmd.getOptionValue(queue.getOpt()));
-		}
-
-		final Properties properties = cmd.getOptionProperties(dynamicproperties.getOpt());
-
-		String[] dynamicProperties = properties.stringPropertyNames().stream()
-			.flatMap(
-				(String key) -> {
-					final String value = properties.getProperty(key);
-
-					if (value != null) {
-						return Stream.of(key + dynamicproperties.getValueSeparator() + value);
-					} else {
-						return Stream.empty();
-					}
-				})
-			.toArray(String[]::new);
-
-		String dynamicPropertiesEncoded = StringUtils.join(dynamicProperties, YARN_DYNAMIC_PROPERTIES_SEPARATOR);
-
-		yarnClusterDescriptor.setDynamicPropertiesEncoded(dynamicPropertiesEncoded);
-
-		if (cmd.hasOption(detached.getOpt()) || cmd.hasOption(CliFrontendParser.DETACHED_OPTION.getOpt())) {
-			this.detachedMode = true;
-			yarnClusterDescriptor.setDetachedMode(true);
-		}
-
-		if (cmd.hasOption(name.getOpt())) {
-			yarnClusterDescriptor.setName(cmd.getOptionValue(name.getOpt()));
-		} else {
-			// set the default application name, if none is specified
-			if (defaultApplicationName != null) {
-				yarnClusterDescriptor.setName(defaultApplicationName);
-			}
-		}
-
-		if (cmd.hasOption(zookeeperNamespace.getOpt())) {
-			String zookeeperNamespaceValue = cmd.getOptionValue(this.zookeeperNamespace.getOpt());
-			yarnClusterDescriptor.setZookeeperNamespace(zookeeperNamespaceValue);
-		}
 
 		return yarnClusterDescriptor;
 	}
@@ -476,14 +379,12 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 		final ApplicationId applicationId = getClusterId(commandLine);
 
-		if (applicationId != null) {
-			final String zooKeeperNamespace;
-			if (commandLine.hasOption(zookeeperNamespace.getOpt())){
-				zooKeeperNamespace = commandLine.getOptionValue(zookeeperNamespace.getOpt());
-			} else {
-				zooKeeperNamespace = effectiveConfiguration.getString(HA_CLUSTER_ID, applicationId.toString());
-			}
-
+		final String zooKeeperNamespace;
+		if (commandLine.hasOption(zookeeperNamespace.getOpt())){
+			zooKeeperNamespace = commandLine.getOptionValue(zookeeperNamespace.getOpt());
+			effectiveConfiguration.setString(HA_CLUSTER_ID, zooKeeperNamespace);
+		} else if (applicationId != null) {
+			zooKeeperNamespace = effectiveConfiguration.getString(HA_CLUSTER_ID, applicationId.toString());
 			effectiveConfiguration.setString(HA_CLUSTER_ID, zooKeeperNamespace);
 		}
 
@@ -497,6 +398,49 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 		if (commandLine.hasOption(slots.getOpt())) {
 			effectiveConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, Integer.parseInt(commandLine.getOptionValue(slots.getOpt())));
+		}
+
+		// queue
+		if (commandLine.hasOption(queue.getOpt())) {
+			effectiveConfiguration.setString(YarnConfigOptions.YARN_QUEUE, commandLine.getOptionValue(queue.getOpt()));
+		}
+
+		if (commandLine.hasOption(detached.getOpt()) || commandLine.hasOption(CliFrontendParser.DETACHED_OPTION.getOpt())) {
+			this.detachedMode = true;
+			effectiveConfiguration.setBoolean(YarnConfigOptions.DETACHED_MODE, true);
+		}
+
+		final Properties properties = commandLine.getOptionProperties(dynamicproperties.getOpt());
+
+		if (properties != null) {
+			String[] dynamicProperties = properties.stringPropertyNames().stream()
+				.flatMap(
+					(String key) -> {
+						final String value = properties.getProperty(key);
+
+						if (value != null) {
+							return Stream.of(key + dynamicproperties.getValueSeparator() + value);
+						} else {
+							return Stream.empty();
+						}
+					})
+				.toArray(String[]::new);
+
+			String dynamicPropertiesEncoded = StringUtils.join(dynamicProperties, YARN_DYNAMIC_PROPERTIES_SEPARATOR);
+
+			effectiveConfiguration.setString(YarnConfigOptions.DYNAMIC_PROPERTIES_ENCODED, dynamicPropertiesEncoded);
+		}
+
+		if (commandLine.hasOption(flinkJar.getOpt())) {
+			effectiveConfiguration.setString(YarnConfigOptions.FLINK_JAR, commandLine.getOptionValue(flinkJar.getOpt()));
+		}
+
+		if (commandLine.hasOption(name.getOpt())) {
+			effectiveConfiguration.setString(YarnConfigOptions.YARN_APPLICATION_NAME, commandLine.getOptionValue(name.getOpt()));
+		}
+
+		if (commandLine.hasOption(shipPath.getOpt())) {
+			effectiveConfiguration.setString(YarnConfigOptions.YARN_SHIP_PATHS, commandLine.getOptionValue(this.shipPath.getOpt()));
 		}
 
 		if (isYarnPropertiesFileMode(commandLine)) {
