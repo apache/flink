@@ -378,7 +378,14 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 			throw new IllegalArgumentException("Missing required argument " + container.getOpt());
 		}
 
-		int numberTaskManagers = Integer.valueOf(cmd.getOptionValue(container.getOpt()));
+		// TODO: The number of task manager should be deprecated soon
+		final int numberTaskManagers;
+
+		if (cmd.hasOption(container.getOpt())) {
+			numberTaskManagers = Integer.valueOf(cmd.getOptionValue(container.getOpt()));
+		} else {
+			numberTaskManagers = 1;
+		}
 
 		// JobManager Memory
 		final int jobManagerMemoryMB = configuration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY);
@@ -386,7 +393,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		// Task Managers memory
 		final int taskManagerMemoryMB = configuration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);
 
-		int slotsPerTaskManager = configuration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+		int slotsPerTaskManager = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
 
 		return new ClusterSpecification.ClusterSpecificationBuilder()
 			.setMasterMemoryMB(jobManagerMemoryMB)
