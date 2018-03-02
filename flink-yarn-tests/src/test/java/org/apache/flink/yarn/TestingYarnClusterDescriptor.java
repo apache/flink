@@ -24,6 +24,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -37,11 +38,18 @@ import java.util.List;
  */
 public class TestingYarnClusterDescriptor extends YarnClusterDescriptor {
 
-	public TestingYarnClusterDescriptor(Configuration configuration, String configurationDirectory) {
+	public TestingYarnClusterDescriptor(
+			Configuration configuration,
+			YarnConfiguration yarnConfiguration,
+			String configurationDirectory,
+			YarnClient yarnClient,
+			boolean sharedYarnClient) {
 		super(
 			configuration,
+			yarnConfiguration,
 			configurationDirectory,
-			YarnClient.createYarnClient());
+			yarnClient,
+			sharedYarnClient);
 		List<File> filesToShip = new ArrayList<>();
 
 		File testingJar = YarnTestBase.findFile("..", new TestJarFinder("flink-yarn-tests"));

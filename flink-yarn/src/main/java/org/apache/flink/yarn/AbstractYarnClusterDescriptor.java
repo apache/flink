@@ -118,6 +118,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	private final YarnClient yarnClient;
 
+	/** True if the descriptor must not shut down the YarnClient. */
+	private final boolean sharedYarnClient;
+
 	private String yarnQueue;
 
 	private String configurationDirectory;
@@ -145,10 +148,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	public AbstractYarnClusterDescriptor(
 			Configuration flinkConfiguration,
+			YarnConfiguration yarnConfiguration,
 			String configurationDirectory,
-			YarnClient yarnClient) {
+			YarnClient yarnClient,
+			boolean sharedYarnClient) {
 
-		yarnConfiguration = new YarnConfiguration();
+		this.yarnConfiguration = Preconditions.checkNotNull(yarnConfiguration);
 
 		// for unit tests only
 		if (System.getenv("IN_TESTS") != null) {
@@ -160,8 +165,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 
 		this.yarnClient = Preconditions.checkNotNull(yarnClient);
-		yarnClient.init(yarnConfiguration);
-		yarnClient.start();
+		this.sharedYarnClient = sharedYarnClient;
 
 		this.flinkConfiguration = Preconditions.checkNotNull(flinkConfiguration);
 		userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
@@ -328,7 +332,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	@Override
 	public void close() {
-		yarnClient.stop();
+		if (!sharedYarnClient) {
+			yarnClient.stop();
+		}
 	}
 
 	// -------------------------------------------------------------

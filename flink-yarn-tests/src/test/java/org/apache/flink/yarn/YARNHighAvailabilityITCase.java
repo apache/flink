@@ -110,7 +110,12 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		final int numberKillingAttempts = numberApplicationAttempts - 1;
 		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 		final Configuration configuration = GlobalConfiguration.loadConfiguration();
-		TestingYarnClusterDescriptor flinkYarnClient = new TestingYarnClusterDescriptor(configuration, confDirPath);
+		TestingYarnClusterDescriptor flinkYarnClient = new TestingYarnClusterDescriptor(
+			configuration,
+			getYarnConfiguration(),
+			confDirPath,
+			getYarnClient(),
+			true);
 
 		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
 		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
