@@ -30,6 +30,7 @@ import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 /**
  * Implementation of {@link org.apache.flink.yarn.AbstractYarnClusterDescriptor} which is used to start the
@@ -39,9 +40,16 @@ public class Flip6YarnClusterDescriptor extends AbstractYarnClusterDescriptor {
 
 	public Flip6YarnClusterDescriptor(
 			Configuration flinkConfiguration,
+			YarnConfiguration yarnConfiguration,
 			String configurationDirectory,
-			YarnClient yarnCLient) {
-		super(flinkConfiguration, configurationDirectory, yarnCLient);
+			YarnClient yarnClient,
+			boolean sharedYarnClient) {
+		super(
+			flinkConfiguration,
+			yarnConfiguration,
+			configurationDirectory,
+			yarnClient,
+			sharedYarnClient);
 	}
 
 	@Override

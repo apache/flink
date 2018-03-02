@@ -128,7 +128,7 @@ public abstract class YarnTestBase extends TestLogger {
 	 */
 	protected static File flinkUberjar;
 
-	protected static final Configuration YARN_CONFIGURATION;
+	protected static final YarnConfiguration YARN_CONFIGURATION;
 
 	/**
 	 * lib/ folder of the flink distribution.
@@ -211,6 +211,14 @@ public abstract class YarnTestBase extends TestLogger {
 		flinkConfiguration = new org.apache.flink.configuration.Configuration();
 
 		flip6 = CoreOptions.FLIP6_MODE.equalsIgnoreCase(flinkConfiguration.getString(CoreOptions.MODE));
+	}
+
+	protected YarnClient getYarnClient() {
+		return yarnClient;
+	}
+
+	protected static YarnConfiguration getYarnConfiguration() {
+		return YARN_CONFIGURATION;
 	}
 
 	/**
