@@ -742,56 +742,56 @@ abstract class CodeGenerator(
         val right = operands(1)
         requireNumeric(left)
         requireNumeric(right)
-        generateArithmeticOperator("+", nullCheck, resultType, left, right)
+        generateArithmeticOperator("+", nullCheck, resultType, left, right, config)
 
       case PLUS | DATETIME_PLUS if isTemporal(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireTemporal(left)
         requireTemporal(right)
-        generateTemporalPlusMinus(plus = true, nullCheck, left, right)
+        generateTemporalPlusMinus(plus = true, nullCheck, left, right, config)
 
       case MINUS if isNumeric(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireNumeric(left)
         requireNumeric(right)
-        generateArithmeticOperator("-", nullCheck, resultType, left, right)
+        generateArithmeticOperator("-", nullCheck, resultType, left, right, config)
 
       case MINUS | MINUS_DATE if isTemporal(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireTemporal(left)
         requireTemporal(right)
-        generateTemporalPlusMinus(plus = false, nullCheck, left, right)
+        generateTemporalPlusMinus(plus = false, nullCheck, left, right, config)
 
       case MULTIPLY if isNumeric(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireNumeric(left)
         requireNumeric(right)
-        generateArithmeticOperator("*", nullCheck, resultType, left, right)
+        generateArithmeticOperator("*", nullCheck, resultType, left, right, config)
 
       case MULTIPLY if isTimeInterval(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireTimeInterval(left)
         requireNumeric(right)
-        generateArithmeticOperator("*", nullCheck, resultType, left, right)
+        generateArithmeticOperator("*", nullCheck, resultType, left, right, config)
 
       case DIVIDE | DIVIDE_INTEGER if isNumeric(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireNumeric(left)
         requireNumeric(right)
-        generateArithmeticOperator("/", nullCheck, resultType, left, right)
+        generateArithmeticOperator("/", nullCheck, resultType, left, right, config)
 
       case MOD if isNumeric(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireNumeric(left)
         requireNumeric(right)
-        generateArithmeticOperator("%", nullCheck, resultType, left, right)
+        generateArithmeticOperator("%", nullCheck, resultType, left, right, config)
 
       case UNARY_MINUS if isNumeric(resultType) =>
         val operand = operands.head
@@ -922,7 +922,7 @@ abstract class CodeGenerator(
         val left = operands.head
         val right = operands(1)
         requireString(left)
-        generateArithmeticOperator("+", nullCheck, resultType, left, right)
+        generateArithmeticOperator("+", nullCheck, resultType, left, right, config)
 
       // rows
       case ROW =>

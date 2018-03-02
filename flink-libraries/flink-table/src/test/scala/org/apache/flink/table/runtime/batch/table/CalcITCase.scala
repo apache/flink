@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.batch.table
 
+import java.math.MathContext
 import java.sql.{Date, Time, Timestamp}
 import java.util
 
@@ -41,6 +42,7 @@ import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.math.BigDecimal.RoundingMode
 
 @RunWith(classOf[Parameterized])
 class CalcITCase(
@@ -330,6 +332,7 @@ class CalcITCase(
   def testAdvancedDataTypes(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    tEnv.getConfig.setDecimalContext(new MathContext(30))
 
     val t = env
       .fromElements((
@@ -341,10 +344,11 @@ class CalcITCase(
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .select('a, 'b, 'c, 'd, 'e, BigDecimal("11.2"), BigDecimal("11.2").bigDecimal,
         Date.valueOf("1984-07-12"), Time.valueOf("14:34:24"),
-        Timestamp.valueOf("1984-07-12 14:34:24"))
+        Timestamp.valueOf("1984-07-12 14:34:24"),
+        BigDecimal("1").toExpr / BigDecimal("3"))
 
     val expected = "78.454654654654654,4E+9999,1984-07-12,14:34:24,1984-07-12 14:34:24.0," +
-      "11.2,11.2,1984-07-12,14:34:24,1984-07-12 14:34:24.0"
+      "11.2,11.2,1984-07-12,14:34:24,1984-07-12 14:34:24.0,0.333333333333333333333333333333"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
