@@ -666,6 +666,18 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
+    * Creates a new DataStream which satisfies the partial function.
+    */
+  def collect[R: TypeInformation](pf: PartialFunction[T, R]): DataStream[R] = {
+    if (pf == null) {
+      throw new NullPointerException("Collect function must not be null.")
+    }
+    flatMap(item =>
+      if (pf.isDefinedAt(item)) Some(pf.apply(item)) else None
+    )
+  }
+
+  /**
    * Applies the given [[ProcessFunction]] on the input stream, thereby
    * creating a transformed output stream.
    *

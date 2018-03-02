@@ -477,6 +477,18 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
+    * Creates a new DataSet which satisfies the partial function.
+    */
+  def collect[R: TypeInformation: ClassTag](pf: PartialFunction[T, R]): DataSet[R] = {
+    if (pf == null) {
+      throw new NullPointerException("Collect function must not be null.")
+    }
+    flatMap(item =>
+      if (pf.isDefinedAt(item)) Some(pf.apply(item)) else None
+    )
+  }
+
+  /**
    * Creates a new DataSet that contains only the elements satisfying the given filter predicate.
    */
   def filter(filter: FilterFunction[T]): DataSet[T] = {
