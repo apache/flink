@@ -20,13 +20,34 @@ package org.apache.flink.runtime.rest.messages.job.savepoints;
 
 import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
 
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
+import java.util.Arrays;
+import java.util.Collection;
+
 import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for {@link SavepointTriggerRequestBody}.
  */
+@RunWith(Parameterized.class)
 public class SavepointTriggerRequestBodyTest
 		extends RestRequestMarshallingTestBase<SavepointTriggerRequestBody> {
+
+	private final SavepointTriggerRequestBody savepointTriggerRequestBody;
+
+	public SavepointTriggerRequestBodyTest(final SavepointTriggerRequestBody savepointTriggerRequestBody) {
+		this.savepointTriggerRequestBody = savepointTriggerRequestBody;
+	}
+
+	@Parameterized.Parameters
+	public static Collection<Object[]> data() {
+		return Arrays.asList(new Object[][]{
+			{new SavepointTriggerRequestBody("/tmp", true)},
+			{new SavepointTriggerRequestBody("/tmp", false)}
+		});
+	}
 
 	@Override
 	protected Class<SavepointTriggerRequestBody> getTestRequestClass() {
@@ -35,7 +56,7 @@ public class SavepointTriggerRequestBodyTest
 
 	@Override
 	protected SavepointTriggerRequestBody getTestRequestInstance() {
-		return new SavepointTriggerRequestBody("/tmp", true);
+		return savepointTriggerRequestBody;
 	}
 
 	@Override
