@@ -27,7 +27,6 @@ import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusRespon
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -46,7 +45,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -231,6 +229,18 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 		Configuration configuration = GlobalConfiguration.loadConfiguration();
+		configuration.setString(YarnConfigOptions.FLINK_JAR, flinkUberjar.getAbsolutePath());
+
+		StringBuilder sb = new StringBuilder();
+		for (File file : flinkLibFolder.listFiles()) {
+			sb.append(file.getAbsolutePath());
+			sb.append(",");
+		}
+
+		String linkedShipFiles = sb.toString();
+		linkedShipFiles.substring(0, linkedShipFiles.length() - 2);
+		configuration.setString(YarnConfigOptions.YARN_SHIP_PATHS, linkedShipFiles);
+
 		final YarnClient yarnClient = YarnClient.createYarnClient();
 
 		try (final AbstractYarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
@@ -238,8 +248,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			confDirPath,
 			yarnClient)) {
 			Assert.assertNotNull("unable to get yarn client", clusterDescriptor);
-			clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-			clusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 
 			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 				.setMasterMemoryMB(768)

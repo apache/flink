@@ -34,12 +34,13 @@ import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import akka.testkit.JavaTestKit;
 import org.apache.curator.test.TestingServer;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.AfterClass;
@@ -50,7 +51,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -110,23 +110,48 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		final int numberKillingAttempts = numberApplicationAttempts - 1;
 		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 		final Configuration configuration = GlobalConfiguration.loadConfiguration();
-		TestingYarnClusterDescriptor flinkYarnClient = new TestingYarnClusterDescriptor(configuration, confDirPath);
 
-		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
-		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-		flinkYarnClient.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+		configuration.setString(YarnConfigOptions.FLINK_JAR, flinkUberjar.getAbsolutePath());
+
+		StringBuilder sb = new StringBuilder();
+		for (File file : flinkLibFolder.listFiles()) {
+			sb.append(file.getAbsolutePath());
+			sb.append(",");
+		}
+
+		String linkedShipFiles = sb.toString();
+
+		File testingJar = YarnTestBase.findFile("..", new TestingYarnClusterDescriptor.TestJarFinder("flink-yarn-tests"));
+		Preconditions.checkNotNull(testingJar, "Could not find the flink-yarn-tests tests jar. " +
+			"Make sure to package the flink-yarn-tests module.");
+		linkedShipFiles += testingJar.getAbsolutePath();
+
+		File testingRuntimeJar = YarnTestBase.findFile("..", new TestingYarnClusterDescriptor.TestJarFinder("flink-runtime"));
+		Preconditions.checkNotNull(testingRuntimeJar, "Could not find the flink-runtime tests " +
+			"jar. Make sure to package the flink-runtime module.");
+		linkedShipFiles += ("," + testingRuntimeJar.getAbsolutePath());
+
+		File testingYarnJar = YarnTestBase.findFile("..", new TestingYarnClusterDescriptor.TestJarFinder("flink-yarn"));
+		Preconditions.checkNotNull(testingRuntimeJar, "Could not find the flink-yarn tests " +
+			"jar. Make sure to package the flink-yarn module.");
+		linkedShipFiles += ("," + testingYarnJar.getAbsolutePath());
+
+		configuration.setString(YarnConfigOptions.YARN_SHIP_PATHS, linkedShipFiles);
 
 		String fsStateHandlePath = temp.getRoot().getPath();
-
-		// load the configuration
-		File configDirectory = new File(confDirPath);
-		GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
-
-		flinkYarnClient.setDynamicPropertiesEncoded("recovery.mode=zookeeper@@recovery.zookeeper.quorum=" +
+		configuration.setString(YarnConfigOptions.DYNAMIC_PROPERTIES_ENCODED, "recovery.mode=zookeeper@@recovery.zookeeper.quorum=" +
 			zkServer.getConnectString() + "@@yarn.application-attempts=" + numberApplicationAttempts +
 			"@@" + CheckpointingOptions.STATE_BACKEND.key() + "=FILESYSTEM" +
 			"@@" + CheckpointingOptions.CHECKPOINTS_DIRECTORY + "=" + fsStateHandlePath + "/checkpoints" +
 			"@@" + HighAvailabilityOptions.HA_STORAGE_PATH.key() + "=" + fsStateHandlePath + "/recovery");
+
+		TestingYarnClusterDescriptor flinkYarnClient = new TestingYarnClusterDescriptor(configuration, confDirPath);
+
+		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
+
+		// load the configuration
+		File configDirectory = new File(confDirPath);
+		GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
 
 		ClusterClient<ApplicationId> yarnCluster = null;
 

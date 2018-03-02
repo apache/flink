@@ -21,14 +21,11 @@ package org.apache.flink.yarn;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.yarn.client.api.YarnClient;
 
 import java.io.File;
 import java.io.FilenameFilter;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Yarn client which starts a {@link TestingApplicationMaster}. Additionally the client adds the
@@ -42,25 +39,6 @@ public class TestingYarnClusterDescriptor extends YarnClusterDescriptor {
 			configuration,
 			configurationDirectory,
 			YarnClient.createYarnClient());
-		List<File> filesToShip = new ArrayList<>();
-
-		File testingJar = YarnTestBase.findFile("..", new TestJarFinder("flink-yarn-tests"));
-		Preconditions.checkNotNull(testingJar, "Could not find the flink-yarn-tests tests jar. " +
-			"Make sure to package the flink-yarn-tests module.");
-
-		File testingRuntimeJar = YarnTestBase.findFile("..", new TestJarFinder("flink-runtime"));
-		Preconditions.checkNotNull(testingRuntimeJar, "Could not find the flink-runtime tests " +
-			"jar. Make sure to package the flink-runtime module.");
-
-		File testingYarnJar = YarnTestBase.findFile("..", new TestJarFinder("flink-yarn"));
-		Preconditions.checkNotNull(testingRuntimeJar, "Could not find the flink-yarn tests " +
-			"jar. Make sure to package the flink-yarn module.");
-
-		filesToShip.add(testingJar);
-		filesToShip.add(testingRuntimeJar);
-		filesToShip.add(testingYarnJar);
-
-		addShipFiles(filesToShip);
 	}
 
 	@Override
