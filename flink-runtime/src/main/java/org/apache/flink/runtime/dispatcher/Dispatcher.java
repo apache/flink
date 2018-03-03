@@ -194,6 +194,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 				if (exception != null) {
 					throw exception;
+				} else {
+					log.info("Stopped dispatcher {}.", getAddress());
 				}
 			});
 	}
@@ -485,11 +487,12 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	public CompletableFuture<String> triggerSavepoint(
 			final JobID jobId,
 			final String targetDirectory,
+			final boolean cancelJob,
 			final Time timeout) {
 		if (jobManagerRunners.containsKey(jobId)) {
 			return jobManagerRunners.get(jobId)
 				.getJobManagerGateway()
-				.triggerSavepoint(targetDirectory, timeout);
+				.triggerSavepoint(targetDirectory, cancelJob, timeout);
 		} else {
 			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
 		}

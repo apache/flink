@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -34,11 +35,18 @@ import java.io.FilenameFilter;
  */
 public class TestingYarnClusterDescriptor extends YarnClusterDescriptor {
 
-	public TestingYarnClusterDescriptor(Configuration configuration, String configurationDirectory) {
+	public TestingYarnClusterDescriptor(
+			Configuration configuration,
+			YarnConfiguration yarnConfiguration,
+			String configurationDirectory,
+			YarnClient yarnClient,
+			boolean sharedYarnClient) {
 		super(
 			configuration,
+			yarnConfiguration,
 			configurationDirectory,
-			YarnClient.createYarnClient());
+			yarnClient,
+			sharedYarnClient);
 	}
 
 	@Override

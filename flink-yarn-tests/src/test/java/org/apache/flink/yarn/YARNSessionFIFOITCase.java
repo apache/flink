@@ -241,12 +241,12 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		linkedShipFiles = linkedShipFiles.substring(0, linkedShipFiles.length() - 1);
 		configuration.setString(YarnConfigOptions.YARN_SHIP_PATHS, linkedShipFiles);
 
-		final YarnClient yarnClient = YarnClient.createYarnClient();
-
 		try (final AbstractYarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
 			configuration,
+			getYarnConfiguration(),
 			confDirPath,
-			yarnClient)) {
+			getYarnClient(),
+			true)) {
 			Assert.assertNotNull("unable to get yarn client", clusterDescriptor);
 
 			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()

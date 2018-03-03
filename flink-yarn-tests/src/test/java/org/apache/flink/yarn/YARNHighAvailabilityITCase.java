@@ -145,7 +145,8 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 			"@@" + CheckpointingOptions.CHECKPOINTS_DIRECTORY + "=" + fsStateHandlePath + "/checkpoints" +
 			"@@" + HighAvailabilityOptions.HA_STORAGE_PATH.key() + "=" + fsStateHandlePath + "/recovery");
 
-		TestingYarnClusterDescriptor flinkYarnClient = new TestingYarnClusterDescriptor(configuration, confDirPath);
+		TestingYarnClusterDescriptor flinkYarnClient = new TestingYarnClusterDescriptor(
+			configuration, getYarnConfiguration(), confDirPath, getYarnClient(), true);
 
 		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
 

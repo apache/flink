@@ -70,8 +70,10 @@ public class YARNITCase extends YarnTestBase {
 
 		try (final Flip6YarnClusterDescriptor flip6YarnClusterDescriptor = new Flip6YarnClusterDescriptor(
 			configuration,
+			getYarnConfiguration(),
 			System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR),
-			yarnClient)) {
+			yarnClient,
+			true)) {
 
 			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 				.setMasterMemoryMB(768)

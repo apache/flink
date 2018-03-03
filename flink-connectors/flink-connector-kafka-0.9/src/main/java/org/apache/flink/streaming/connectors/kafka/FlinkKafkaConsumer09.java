@@ -40,6 +40,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -276,6 +277,13 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	protected boolean getIsAutoCommitEnabled() {
 		return getBoolean(properties, ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true) &&
 				PropertiesUtil.getLong(properties, ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 5000) > 0;
+	}
+
+	@Override
+	protected Map<KafkaTopicPartition, Long> fetchOffsetsWithTimestamp(Collection<KafkaTopicPartition> partitions, long timestamp) {
+		// this should not be reached, since we do not expose the timestamp-based startup feature in version 0.9.
+		throw new UnsupportedOperationException(
+			"Fetching partition offsets using timestamps is only supported in Kafka versions 0.10 and above.");
 	}
 
 	// ------------------------------------------------------------------------

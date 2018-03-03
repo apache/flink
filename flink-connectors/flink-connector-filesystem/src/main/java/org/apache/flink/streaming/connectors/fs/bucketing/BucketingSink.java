@@ -226,7 +226,12 @@ public class BucketingSink<T>
 	/**
 	 * The default prefix for part files.
 	 */
-	private static final String DEFAULT_PART_REFIX = "part";
+	private static final String DEFAULT_PART_PREFIX = "part";
+
+	/**
+	 * The default suffix for part files.
+	 */
+	private static final String DEFAULT_PART_SUFFIX = null;
 
 	/**
 	 * The default timeout for asynchronous operations such as recoverLease and truncate (in {@code ms}).
@@ -263,7 +268,8 @@ public class BucketingSink<T>
 	private String validLengthSuffix = DEFAULT_VALID_SUFFIX;
 	private String validLengthPrefix = DEFAULT_VALID_PREFIX;
 
-	private String partPrefix = DEFAULT_PART_REFIX;
+	private String partPrefix = DEFAULT_PART_PREFIX;
+	private String partSuffix = DEFAULT_PART_SUFFIX;
 
 	private boolean useTruncate = true;
 
@@ -528,6 +534,10 @@ public class BucketingSink<T>
 				fs.exists(getInProgressPathFor(partPath))) {
 			bucketState.partCounter++;
 			partPath = new Path(bucketPath, partPrefix + "-" + subtaskIndex + "-" + bucketState.partCounter);
+		}
+
+		if (partSuffix != null) {
+			partPath = partPath.suffix(partSuffix);
 		}
 
 		// increase, so we don't have to check for this name next time
@@ -983,6 +993,14 @@ public class BucketingSink<T>
 	 */
 	public BucketingSink<T> setValidLengthPrefix(String validLengthPrefix) {
 		this.validLengthPrefix = validLengthPrefix;
+		return this;
+	}
+
+	/**
+	 * Sets the prefix of part files.  The default is no suffix.
+	 */
+	public BucketingSink<T> setPartSuffix(String partSuffix) {
+		this.partSuffix = partSuffix;
 		return this;
 	}
 

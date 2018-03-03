@@ -16,29 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.entrypoint;
+package org.apache.flink.runtime.util;
 
-import org.apache.flink.util.Preconditions;
+import java.util.Optional;
+
+import scala.Option;
 
 /**
- * Configuration class which contains the parsed command line arguments for
- * the {@link ClusterEntrypoint}.
+ * Utilities to convert Scala types into Java types.
  */
-public class ClusterConfiguration {
-	private final String configDir;
+public class ScalaUtils {
 
-	private final int restPort;
-
-	public ClusterConfiguration(String configDir, int restPort) {
-		this.configDir = Preconditions.checkNotNull(configDir);
-		this.restPort = restPort;
+	/**
+	 * Converts a Scala {@link Option} to a {@link Optional}.
+	 *
+	 * @param scalaOption to convert into ta Java {@link Optional}
+	 * @param <T> type of the optional value
+	 * @return Optional of the given option
+	 */
+	public static <T> Optional<T> toJava(Option<T> scalaOption) {
+		if (scalaOption.isEmpty()) {
+			return Optional.empty();
+		} else {
+			return Optional.ofNullable(scalaOption.get());
+		}
 	}
 
-	public String getConfigDir() {
-		return configDir;
-	}
-
-	public int getRestPort() {
-		return restPort;
-	}
+	private ScalaUtils() {}
 }

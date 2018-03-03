@@ -971,14 +971,44 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	@Override
 	public CompletableFuture<String> triggerSavepoint(
-		@Nullable final String targetDirectory,
-		final Time timeout) {
-		try {
-			return executionGraph.getCheckpointCoordinator()
-				.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
-				.thenApply(CompletedCheckpoint::getExternalPointer);
-		} catch (Exception e) {
-			return FutureUtils.completedExceptionally(e);
+			@Nullable final String targetDirectory,
+			final boolean cancelJob,
+			final Time timeout) {
+
+		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+		if (checkpointCoordinator == null) {
+			return FutureUtils.completedExceptionally(new IllegalStateException(
+				String.format("Job %s is not a streaming job.", jobGraph.getJobID())));
+		}
+
+		if (cancelJob) {
+			checkpointCoordinator.stopCheckpointScheduler();
+		}
+		return checkpointCoordinator
+			.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
+			.thenApply(CompletedCheckpoint::getExternalPointer)
+			.thenApplyAsync(path -> {
+				if (cancelJob) {
+					log.info("Savepoint stored in {}. Now cancelling {}.", path, jobGraph.getJobID());
+					cancel(timeout);
+				}
+				return path;
+			}, getMainThreadExecutor())
+			.exceptionally(throwable -> {
+				if (cancelJob) {
+					startCheckpointScheduler(checkpointCoordinator);
+				}
+				throw new CompletionException(throwable);
+			});
+	}
+
+	private void startCheckpointScheduler(final CheckpointCoordinator checkpointCoordinator) {
+		if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
+			try {
+				checkpointCoordinator.startCheckpointScheduler();
+			} catch (IllegalStateException ignored) {
+				// Concurrent shut down of the coordinator
+			}
 		}
 	}
 
@@ -1315,6 +1345,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	private CompletableFuture<String> getJobModificationSavepoint(Time timeout) {
 		return triggerSavepoint(
 			null,
+			false,
 			timeout)
 			.handleAsync(
 				(String savepointPath, Throwable throwable) -> {

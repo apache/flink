@@ -127,8 +127,9 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Asy
 						HttpResponseStatus.BAD_REQUEST);
 			}
 
+			final boolean cancelJob = request.getRequestBody().isCancelJob();
 			final String targetDirectory = requestedTargetDirectory != null ? requestedTargetDirectory : defaultSavepointDir;
-			return gateway.triggerSavepoint(jobId, targetDirectory, RpcUtils.INF_TIMEOUT);
+			return gateway.triggerSavepoint(jobId, targetDirectory, cancelJob, RpcUtils.INF_TIMEOUT);
 		}
 
 		@Override
