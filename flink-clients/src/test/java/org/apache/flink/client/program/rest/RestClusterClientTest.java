@@ -529,6 +529,77 @@ public class RestClusterClientTest extends TestLogger {
 	}
 
 	@Test
+	public void testCancelWithSavepoint() throws Exception {
+		final String targetSavepointDirectory = "/tmp";
+		final String savepointLocationDefaultDir = "/other/savepoint-0d2fb9-8d5e0106041a";
+		final String savepointLocationRequestedDir = targetSavepointDirectory + "/savepoint-0d2fb9-8d5e0106041a";
+
+		TestJobTerminationHandler terminationHandler = new TestJobTerminationHandler();
+
+		final TestSavepointHandlers testSavepointHandlers = new TestSavepointHandlers();
+		final TestSavepointHandlers.TestSavepointTriggerHandler triggerHandler =
+			testSavepointHandlers.new TestSavepointTriggerHandler(
+				null, targetSavepointDirectory, null, null);
+		final TestSavepointHandlers.TestSavepointHandler savepointHandler =
+			testSavepointHandlers.new TestSavepointHandler(
+				new SavepointInfo(
+					savepointLocationDefaultDir,
+					null),
+				new SavepointInfo(
+					savepointLocationRequestedDir,
+					null),
+				new SavepointInfo(
+					null,
+					new SerializedThrowable(new RuntimeException("expected"))),
+				new RestHandlerException("not found", HttpResponseStatus.NOT_FOUND));
+
+		// fail first HTTP polling attempt, which should not be a problem because of the retries
+		final AtomicBoolean firstPollFailed = new AtomicBoolean();
+		failHttpRequest = (messageHeaders, messageParameters, requestBody) ->
+			messageHeaders instanceof SavepointStatusHeaders && !firstPollFailed.getAndSet(true);
+
+		try (TestRestServerEndpoint ignored = createRestServerEndpoint(
+			triggerHandler,
+			savepointHandler,
+			terminationHandler)) {
+
+			JobID id = new JobID();
+			{
+				String savepointPath = restClusterClient.cancelWithSavepoint(id, null);
+				assertEquals(savepointLocationDefaultDir, savepointPath);
+				Assert.assertTrue(terminationHandler.jobCanceled);
+			}
+
+			{
+				String savepointPath = restClusterClient.cancelWithSavepoint(id, targetSavepointDirectory);
+				assertEquals(savepointLocationRequestedDir, savepointPath);
+				Assert.assertTrue(terminationHandler.jobCanceled);
+			}
+
+			{
+				try {
+					restClusterClient.cancelWithSavepoint(id, null);
+					fail("Expected exception not thrown.");
+				} catch (ExecutionException e) {
+					final Throwable cause = e.getCause();
+					assertThat(cause, instanceOf(SerializedThrowable.class));
+					assertThat(((SerializedThrowable) cause)
+						.deserializeError(ClassLoader.getSystemClassLoader())
+						.getMessage(), equalTo("expected"));
+				}
+			}
+
+			try {
+				restClusterClient.cancelWithSavepoint(new JobID(), null);
+			} catch (final ExecutionException e) {
+				assertTrue(
+					"RestClientException not in causal chain",
+					ExceptionUtils.findThrowable(e, RestClientException.class).isPresent());
+			}
+		}
+	}
+
+	@Test
 	public void testListJobs() throws Exception {
 		try (TestRestServerEndpoint ignored = createRestServerEndpoint(new TestListJobsHandler())) {
 			{

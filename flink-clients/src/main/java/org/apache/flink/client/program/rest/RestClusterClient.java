@@ -353,7 +353,14 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 	@Override
 	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
-		throw new UnsupportedOperationException("Not implemented yet.");
+		//step 1 : call triggerSavepoint
+		CompletableFuture<String> savepointPathFuture = triggerSavepoint(jobId, savepointDirectory);
+		final String savepointPath = savepointPathFuture.get();
+
+		//step 2 : call cancel
+		cancel(jobId);
+
+		return savepointPath;
 	}
 
 	@Override
