@@ -175,12 +175,12 @@ public class YarnConfigOptions {
 		.withDescription("A command option to specify the flink jar path.");
 
 	/**
-	 * A command option to specify the flink application name.
+	 * A command option to specify the YARN flink application name.
 	 */
 	public static final ConfigOption<String> YARN_APPLICATION_NAME =
 		key("yarn.application-name")
 		.noDefaultValue()
-		.withDescription("A command option to specify the flink application name.");
+		.withDescription("A command option to specify the YARN flink application name.");
 
 	/**
 	 * A comma-separated list of ship paths.
