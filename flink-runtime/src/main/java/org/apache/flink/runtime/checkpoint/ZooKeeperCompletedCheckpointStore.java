@@ -209,7 +209,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 		if (completedCheckpoints.isEmpty() && numberOfInitialCheckpoints > 0) {
 			throw new FlinkException(
-				"Could not read any of the " + numberOfInitialCheckpoints + " from storage.");
+				"Could not read any of the " + numberOfInitialCheckpoints + " checkpoints from storage.");
 		} else if (completedCheckpoints.size() != numberOfInitialCheckpoints) {
 			LOG.warn(
 				"Could only fetch {} of {} checkpoints from storage.",
