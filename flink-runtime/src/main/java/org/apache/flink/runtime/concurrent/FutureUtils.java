@@ -37,9 +37,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import scala.concurrent.Future;
+import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -183,6 +185,81 @@ public class FutureUtils {
 					}
 				},
 				scheduledExecutor);
+
+			resultFuture.whenComplete(
+				(t, throwable) -> operationResultFuture.cancel(false));
+		}
+	}
+
+	/**
+	 * Retry the given operation with the given delay in between successful completions where the
+	 * result does not match a given predicate.
+	 *
+	 * @param operation to retry
+	 * @param retryDelay delay between retries
+	 * @param deadline A deadline that specifies at what point we should stop retrying
+	 * @param acceptancePredicate Predicate to test whether the result is acceptable
+	 * @param scheduledExecutor executor to be used for the retry operation
+	 * @param <T> type of the result
+	 * @return Future which retries the given operation a given amount of times and delays the retry
+	 *   in case the predicate isn't matched
+	 */
+	public static <T> CompletableFuture<T> retrySuccesfulWithDelay(
+		final Supplier<CompletableFuture<T>> operation,
+		final Time retryDelay,
+		final Deadline deadline,
+		final Predicate<T> acceptancePredicate,
+		final ScheduledExecutor scheduledExecutor) {
+
+		final CompletableFuture<T> resultFuture = new CompletableFuture<>();
+
+		retrySuccessfulOperationWithDelay(
+			resultFuture,
+			operation,
+			retryDelay,
+			deadline,
+			acceptancePredicate,
+			scheduledExecutor);
+
+		return resultFuture;
+	}
+
+	private static <T> void retrySuccessfulOperationWithDelay(
+		final CompletableFuture<T> resultFuture,
+		final Supplier<CompletableFuture<T>> operation,
+		final Time retryDelay,
+		final Deadline deadline,
+		final Predicate<T> acceptancePredicate,
+		final ScheduledExecutor scheduledExecutor) {
+
+		if (!resultFuture.isDone()) {
+			final CompletableFuture<T> operationResultFuture = operation.get();
+
+			operationResultFuture.whenComplete(
+				(t, throwable) -> {
+					if (throwable != null) {
+						if (throwable instanceof CancellationException) {
+							resultFuture.completeExceptionally(new RetryException("Operation future was cancelled.", throwable));
+						} else {
+							resultFuture.completeExceptionally(throwable);
+						}
+					} else {
+						if (acceptancePredicate.test(t)) {
+							resultFuture.complete(t);
+						} if (deadline.hasTimeLeft()) {
+							final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
+								() -> retrySuccessfulOperationWithDelay(resultFuture, operation, retryDelay, deadline, acceptancePredicate, scheduledExecutor),
+								retryDelay.toMilliseconds(),
+								TimeUnit.MILLISECONDS);
+
+							resultFuture.whenComplete(
+								(innerT, innerThrowable) -> scheduledFuture.cancel(false));
+						} else {
+							resultFuture.completeExceptionally(
+								new RetryException("Could not satisfy the predicate within the allowed time."));
+						}
+					}
+				});
 
 			resultFuture.whenComplete(
 				(t, throwable) -> operationResultFuture.cancel(false));
