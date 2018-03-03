@@ -25,6 +25,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -61,14 +62,17 @@ public class JobAccumulatorsInfo implements ResponseBody {
 		this.serializedUserAccumulators = Preconditions.checkNotNull(serializedUserAccumulators);
 	}
 
+	@JsonIgnore
 	public List<JobAccumulator> getJobAccumulators() {
 		return jobAccumulators;
 	}
 
+	@JsonIgnore
 	public List<UserTaskAccumulator> getUserAccumulators() {
 		return userAccumulators;
 	}
 
+	@JsonIgnore
 	public Map<String, SerializedValue<Object>> getSerializedUserAccumulators() {
 		return serializedUserAccumulators;
 	}
@@ -129,14 +133,17 @@ public class JobAccumulatorsInfo implements ResponseBody {
 			this.value = Preconditions.checkNotNull(value);
 		}
 
+		@JsonIgnore
 		public String getName() {
 			return name;
 		}
 
+		@JsonIgnore
 		public String getType() {
 			return type;
 		}
 
+		@JsonIgnore
 		public String getValue() {
 			return value;
 		}

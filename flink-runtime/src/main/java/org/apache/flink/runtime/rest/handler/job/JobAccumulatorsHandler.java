@@ -24,10 +24,10 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
+import org.apache.flink.runtime.rest.messages.AccumulatorsIncludeSerializedValueQueryParameter;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsInfo;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsMessageParameters;
-import org.apache.flink.runtime.rest.messages.JobAccumulatorsQueryParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -66,11 +66,11 @@ public class JobAccumulatorsHandler extends AbstractExecutionGraphHandler<JobAcc
 	@Override
 	protected JobAccumulatorsInfo handleRequest(HandlerRequest<EmptyRequestBody, JobAccumulatorsMessageParameters> request, AccessExecutionGraph graph) throws RestHandlerException {
 		JobAccumulatorsInfo accumulatorsInfo;
-		List<String> queryParams = request.getQueryParameter(JobAccumulatorsQueryParameter.class);
+		List<Boolean> queryParams = request.getQueryParameter(AccumulatorsIncludeSerializedValueQueryParameter.class);
 
 		boolean includeSerializedValue = false;
 		if (!queryParams.isEmpty()) {
-			includeSerializedValue = Boolean.valueOf(queryParams.get(0));
+			includeSerializedValue = queryParams.get(0);
 		}
 
 		StringifiedAccumulatorResult[] stringifiedAccs = graph.getAccumulatorResultsStringified();

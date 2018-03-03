@@ -21,6 +21,7 @@ package org.apache.flink.client.program.rest;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -100,7 +101,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -395,11 +395,16 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	}
 
 	@Override
-	public Map<String, Object> getAccumulators(final JobID jobID) throws Exception {
+	public Map<String, Object> getAccumulators(JobID jobID) throws Exception {
+		return getAccumulators(jobID, ClassLoader.getSystemClassLoader());
+	}
+
+	@Override
+	public Map<String, Object> getAccumulators(final JobID jobID, ClassLoader loader) throws Exception {
 		final JobAccumulatorsHeaders accumulatorsHeaders = JobAccumulatorsHeaders.getInstance();
 		final JobAccumulatorsMessageParameters accMsgParams = accumulatorsHeaders.getUnresolvedMessageParameters();
 		accMsgParams.jobPathParameter.resolve(jobID);
-		accMsgParams.queryParameter.resolve(Collections.singletonList("true"));
+		accMsgParams.includeSerializedAccumulatorsParameter.resolve(Collections.singletonList(true));
 
 		CompletableFuture<JobAccumulatorsInfo> responseFuture = sendRequest(
 			accumulatorsHeaders,
@@ -407,14 +412,12 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		);
 
 		return responseFuture.thenApply((JobAccumulatorsInfo accumulatorsInfo) -> {
-			if (accumulatorsInfo != null) {
-				Map<String, Object> result = new HashMap<>(3);
-
-				result.put(JobAccumulatorsInfo.FIELD_NAME_JOB_ACCUMULATORS, accumulatorsInfo.getJobAccumulators());
-				result.put(JobAccumulatorsInfo.FIELD_NAME_USER_TASK_ACCUMULATORS, accumulatorsInfo.getUserAccumulators());
-				result.put(JobAccumulatorsInfo.FIELD_NAME_SERIALIZED_USER_TASK_ACCUMULATORS, accumulatorsInfo.getSerializedUserAccumulators());
-
-				return result;
+			if (accumulatorsInfo != null && accumulatorsInfo.getSerializedUserAccumulators() != null) {
+				try {
+					return AccumulatorHelper.deserializeAccumulators(accumulatorsInfo.getSerializedUserAccumulators(), loader);
+				} catch (Exception e) {
+					log.error("Deserialize accumulators with customized classloader error : {}", e);
+				}
 			}
 
 			return Collections.EMPTY_MAP;

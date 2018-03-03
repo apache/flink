@@ -26,10 +26,11 @@ import java.util.Collections;
  */
 public class JobAccumulatorsMessageParameters extends JobMessageParameters {
 
-	public final JobAccumulatorsQueryParameter queryParameter = new JobAccumulatorsQueryParameter();
+	public final AccumulatorsIncludeSerializedValueQueryParameter
+		includeSerializedAccumulatorsParameter = new AccumulatorsIncludeSerializedValueQueryParameter();
 
 	@Override
 	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.singleton(queryParameter);
+		return Collections.singleton(includeSerializedAccumulatorsParameter);
 	}
 }

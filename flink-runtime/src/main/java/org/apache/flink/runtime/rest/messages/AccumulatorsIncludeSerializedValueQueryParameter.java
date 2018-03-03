@@ -21,21 +21,21 @@ package org.apache.flink.runtime.rest.messages;
 /**
  * query parameter for job's accumulator handler {@link org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler}.
  */
-public class JobAccumulatorsQueryParameter extends MessageQueryParameter<String> {
+public class AccumulatorsIncludeSerializedValueQueryParameter extends MessageQueryParameter<Boolean> {
 
 	private static final String key = "includeSerializedValue";
 
-	public JobAccumulatorsQueryParameter() {
+	public AccumulatorsIncludeSerializedValueQueryParameter() {
 		super(key, MessageParameterRequisiteness.OPTIONAL);
 	}
 
 	@Override
-	public String convertValueFromString(String value) {
-		return value;
+	public String convertValueToString(Boolean value) {
+		return String.valueOf(value);
 	}
 
 	@Override
-	public String convertStringToValue(String value) {
-		return value;
+	public Boolean convertStringToValue(String value) {
+		return Boolean.valueOf(value);
 	}
 }
