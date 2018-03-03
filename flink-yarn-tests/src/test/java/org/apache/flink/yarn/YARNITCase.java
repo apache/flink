@@ -63,7 +63,7 @@ public class YARNITCase extends YarnTestBase {
 		}
 
 		String linkedShipFiles = sb.toString();
-		linkedShipFiles.substring(0, linkedShipFiles.length() - 2);
+		linkedShipFiles = linkedShipFiles.substring(0, linkedShipFiles.length() - 1);
 		configuration.setString(YarnConfigOptions.YARN_SHIP_PATHS, linkedShipFiles);
 
 		final YarnClient yarnClient = YarnClient.createYarnClient();

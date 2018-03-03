@@ -253,12 +253,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		if (shipPathConfigValue != null) {
 			String[] shipPaths = shipPathConfigValue.split(",");
 			for (String shipPath : shipPaths) {
-				File shipDir = new File(shipPath);
-				if (shipDir.isDirectory()) {
-					shipFiles.add(shipDir);
-				} else {
-					LOG.warn("Ship directory is not a directory. Ignoring it.");
-				}
+				shipFiles.add(new File(shipPath));
 			}
 		}
 

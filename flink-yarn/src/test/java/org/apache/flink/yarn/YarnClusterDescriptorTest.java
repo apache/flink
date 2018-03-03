@@ -414,7 +414,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			YarnClient.createYarnClient());
 
 		try {
-			Assert.assertFalse(descriptor.shipFiles.contains(libFile));
+			Assert.assertTrue(descriptor.shipFiles.contains(libFile));
 			Assert.assertTrue(descriptor.shipFiles.contains(libFolder));
 
 			// only execute part of the deployment to test for shipped files
@@ -422,8 +422,8 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			descriptor.addLibFolderToShipFiles(effectiveShipFiles);
 
 			Assert.assertEquals(0, effectiveShipFiles.size());
-			Assert.assertEquals(1, descriptor.shipFiles.size());
-			Assert.assertFalse(descriptor.shipFiles.contains(libFile));
+			Assert.assertEquals(2, descriptor.shipFiles.size());
+			Assert.assertTrue(descriptor.shipFiles.contains(libFile));
 			Assert.assertTrue(descriptor.shipFiles.contains(libFolder));
 		} finally {
 			descriptor.close();
