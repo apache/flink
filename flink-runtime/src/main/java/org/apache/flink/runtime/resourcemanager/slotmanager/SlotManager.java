@@ -208,11 +208,15 @@ public class SlotManager implements AutoCloseable {
 		LOG.info("Suspending the SlotManager.");
 
 		// stop the timeout checks for the TaskManagers and the SlotRequests
-		taskManagerTimeoutCheck.cancel(false);
-		slotRequestTimeoutCheck.cancel(false);
+		if (taskManagerTimeoutCheck != null) {
+			taskManagerTimeoutCheck.cancel(false);
+			taskManagerTimeoutCheck = null;
+		}
 
-		taskManagerTimeoutCheck = null;
-		slotRequestTimeoutCheck = null;
+		if (slotRequestTimeoutCheck != null) {
+			slotRequestTimeoutCheck.cancel(false);
+			slotRequestTimeoutCheck = null;
+		}
 
 		for (PendingSlotRequest pendingSlotRequest : pendingSlotRequests.values()) {
 			cancelPendingSlotRequest(pendingSlotRequest);
