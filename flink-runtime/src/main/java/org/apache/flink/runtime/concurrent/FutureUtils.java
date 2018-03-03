@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.concurrent;
 
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.util.Preconditions;
 
@@ -27,6 +28,8 @@ import java.util.Collections;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import scala.concurrent.duration.Deadline;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -86,6 +89,72 @@ public class FutureUtils {
 		});
 	}
 
+	/**
+	 * Retry the given operation the given number of times in case of a failure.
+	 *
+	 * @param operation to executed
+	 * @param successPredicate if the result is acceptable
+	 * @param deadline how much time we have left
+	 * @param executor to use to run the futures
+	 * @param <T> type of the result
+	 * @return Future containing either the result of the operation or a {@link RetryException}
+	 */
+	public static <T> Future<T> retrySuccessful(
+		final Callable<Future<T>> operation,
+		final FilterFunction<T> successPredicate,
+		final Deadline deadline,
+		final Executor executor) {
+
+		Future<T> operationResultFuture;
+
+		try {
+			operationResultFuture = operation.call();
+		} catch (Exception e) {
+			return FlinkCompletableFuture.completedExceptionally(
+				new RetryException("Could not execute the provided operation.", e));
+		}
+
+		return operationResultFuture.handleAsync(new BiFunction<T, Throwable, Future<T>>() {
+			@Override
+			public Future<T> apply(T t, Throwable throwable) {
+				if (throwable != null) {
+					if (deadline.hasTimeLeft()) {
+						return retrySuccessful(operation, successPredicate, deadline, executor);
+					} else {
+						return FlinkCompletableFuture.completedExceptionally(
+							new RetryException("Could not complete the operation. Number of retries " +
+								"has been exhausted.", throwable));
+					}
+				} else {
+					Boolean predicateResult;
+					try {
+						predicateResult = successPredicate.filter(t);
+					} catch (Exception e) {
+						return FlinkCompletableFuture.completedExceptionally(
+							new RetryException("Predicate threw an exception.", e));
+
+					}
+					if (predicateResult) {
+						return FlinkCompletableFuture.completed(t);
+					} if (deadline.hasTimeLeft()) {
+						return retrySuccessful(operation, successPredicate, deadline, executor);
+					} else {
+						return FlinkCompletableFuture.completedExceptionally(
+							new RetryException("No time left and predicate returned false for " + t));
+
+					}
+				}
+			}
+		}, executor)
+			.thenCompose(new ApplyFunction<Future<T>, Future<T>>() {
+				@Override
+				public Future<T> apply(Future<T> value) {
+					return value;
+				}
+			});
+	}
+
+
 	public static class RetryException extends Exception {
 
 		private static final long serialVersionUID = 3613470781274141862L;
@@ -108,14 +177,14 @@ public class FutureUtils {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a future that is complete once multiple other futures completed. 
+	 * Creates a future that is complete once multiple other futures completed.
 	 * The future fails (completes exceptionally) once one of the futures in the
 	 * conjunction fails. Upon successful completion, the future returns the
 	 * collection of the futures' results.
 	 *
 	 * <p>The ConjunctFuture gives access to how many Futures in the conjunction have already
-	 * completed successfully, via {@link ConjunctFuture#getNumFuturesCompleted()}. 
-	 * 
+	 * completed successfully, via {@link ConjunctFuture#getNumFuturesCompleted()}.
+	 *
 	 * @param futures The futures that make up the conjunction. No null entries are allowed.
 	 * @return The ConjunctFuture that completes once all given futures are complete (or one fails).
 	 */
@@ -157,7 +226,7 @@ public class FutureUtils {
 	 * A future that is complete once multiple other futures completed. The futures are not
 	 * necessarily of the same type. The ConjunctFuture fails (completes exceptionally) once
 	 * one of the Futures in the conjunction fails.
-	 * 
+	 *
 	 * <p>The advantage of using the ConjunctFuture over chaining all the futures (such as via
 	 * {@link Future#thenCombine(Future, BiFunction)}) is that ConjunctFuture also tracks how
 	 * many of the Futures are already complete.
