@@ -19,11 +19,12 @@
 package org.apache.flink.table.descriptors
 
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.descriptors.RowtimeValidator.{ROWTIME, ROWTIME_VERSION, normalizeTimestampExtractor, normalizeWatermarkStrategy}
+import org.apache.flink.table.descriptors.RowtimeValidator.{normalizeTimestampExtractor, normalizeWatermarkStrategy}
 import org.apache.flink.table.sources.tsextractors.{ExistingField, StreamRecordTimestamp, TimestampExtractor}
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, BoundedOutOfOrderTimestamps, PreserveWatermarks, WatermarkStrategy}
 
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 
 /**
   * Rowtime descriptor for describing an event time attribute in the schema.
@@ -111,12 +112,9 @@ class Rowtime extends Descriptor {
     */
   final override def addProperties(properties: DescriptorProperties): Unit = {
     val props = mutable.HashMap[String, String]()
-    props.put(ROWTIME_VERSION, "1")
     timestampExtractor.foreach(normalizeTimestampExtractor(_).foreach(e => props.put(e._1, e._2)))
     watermarkStrategy.foreach(normalizeWatermarkStrategy(_).foreach(e => props.put(e._1, e._2)))
-
-    // use a list for the rowtime to support multiple rowtime attributes in the future
-    properties.putIndexedVariableProperties(ROWTIME, Seq(props.toMap))
+    properties.putProperties(props.toMap.asJava)
   }
 }
 

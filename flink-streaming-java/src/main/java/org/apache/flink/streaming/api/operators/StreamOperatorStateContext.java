@@ -40,7 +40,6 @@ public interface StreamOperatorStateContext {
 	 */
 	OperatorStateBackend operatorStateBackend();
 
-
 	/**
 	 * Returns the keyed state backend for the stream operator. This method returns null for non-keyed operators.
 	 */

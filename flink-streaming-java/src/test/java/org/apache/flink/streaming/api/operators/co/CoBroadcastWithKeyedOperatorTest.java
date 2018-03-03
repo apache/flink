@@ -25,11 +25,11 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
@@ -413,7 +413,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		keysToRegister.add("test2");
 		keysToRegister.add("test3");
 
-		final OperatorStateHandles mergedSnapshot;
+		final OperatorSubtaskState mergedSnapshot;
 
 		try (
 				TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness1 = getInitializedTestHarness(
@@ -512,7 +512,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		keysToRegister.add("test2");
 		keysToRegister.add("test3");
 
-		final OperatorStateHandles mergedSnapshot;
+		final OperatorSubtaskState mergedSnapshot;
 
 		try (
 				TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness1 = getInitializedTestHarness(
@@ -710,7 +710,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 			final int maxParallelism,
 			final int numTasks,
 			final int taskIdx,
-			final OperatorStateHandles initState) throws Exception {
+			final OperatorSubtaskState initState) throws Exception {
 
 		final TwoInputStreamOperatorTestHarness<IN1, IN2, OUT>  testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(

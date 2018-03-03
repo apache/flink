@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
@@ -41,8 +42,8 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.leaderelection.LeaderAddressAndId;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -64,19 +65,25 @@ import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetrie
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 
 import akka.actor.ActorSystem;
+import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -96,6 +103,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	private final MiniClusterConfiguration miniClusterConfiguration;
 
 	private final Time rpcTimeout;
+
+	private CompletableFuture<Void> terminationFuture;
 
 	@GuardedBy("lock")
 	private MetricRegistryImpl metricRegistry;
@@ -161,6 +170,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		this.miniClusterConfiguration = checkNotNull(miniClusterConfiguration, "config may not be null");
 
 		this.rpcTimeout = Time.seconds(10L);
+		this.terminationFuture = CompletableFuture.completedFuture(null);
 		running = false;
 	}
 
@@ -168,6 +178,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		synchronized (lock) {
 			checkState(running, "MiniCluster is not yet running.");
 			return restAddressURI;
+		}
+	}
+
+	public HighAvailabilityServices getHighAvailabilityServices() {
+		synchronized (lock) {
+			checkState(running, "MiniCluster is not yet running.");
+			return haServices;
 		}
 	}
 
@@ -194,6 +211,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 			LOG.info("Starting Flink Mini Cluster");
 			LOG.debug("Using configuration {}", miniClusterConfiguration);
+
+			// create a new termination future
+			terminationFuture = new CompletableFuture<>();
 
 			final Configuration configuration = miniClusterConfiguration.getConfiguration();
 			final Time rpcTimeout = miniClusterConfiguration.getRpcTimeout();
@@ -349,7 +369,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			catch (Exception e) {
 				// cleanup everything
 				try {
-					shutdownInternally();
+					close();
 				} catch (Exception ee) {
 					e.addSuppressed(ee);
 				}
@@ -370,187 +390,107 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	 * <p>This method shuts down all started services and components,
 	 * even if an exception occurs in the process of shutting down some component.
 	 *
-	 * @throws Exception Thrown, if the shutdown did not complete cleanly.
+	 * @return Future which is completed once the MiniCluster has been completely shut down
 	 */
-	public void shutdown() throws Exception {
+	@Override
+	public CompletableFuture<Void> closeAsync() {
 		synchronized (lock) {
 			if (running) {
 				LOG.info("Shutting down Flink Mini Cluster");
 				try {
-					shutdownInternally();
+					final int numComponents = 2 + miniClusterConfiguration.getNumTaskManagers();
+					final Collection<CompletableFuture<Void>> componentTerminationFutures = new ArrayList<>(numComponents);
+
+					if (taskManagers != null) {
+						for (TaskExecutor tm : taskManagers) {
+							if (tm != null) {
+								tm.shutDown();
+								componentTerminationFutures.add(tm.getTerminationFuture());
+							}
+						}
+						taskManagers = null;
+					}
+
+					componentTerminationFutures.add(shutDownDispatcher());
+
+					if (resourceManagerRunner != null) {
+						componentTerminationFutures.add(resourceManagerRunner.closeAsync());
+						resourceManagerRunner = null;
+					}
+
+					final FutureUtils.ConjunctFuture<Void> componentsTerminationFuture = FutureUtils.completeAll(componentTerminationFutures);
+
+					final CompletableFuture<Void> metricRegistryTerminationFuture = FutureUtils.runAfterwards(
+						componentsTerminationFuture,
+						() -> {
+							synchronized (lock) {
+								// metrics shutdown
+								if (metricRegistry != null) {
+									metricRegistry.shutdown();
+									metricRegistry = null;
+								}
+							}
+						});
+
+					// shut down the RpcServices
+					final CompletableFuture<Void> rpcServicesTerminationFuture = metricRegistryTerminationFuture
+						.thenCompose((Void ignored) -> terminateRpcServices());
+
+					final CompletableFuture<Void> remainingServicesTerminationFuture = FutureUtils.runAfterwards(
+						rpcServicesTerminationFuture,
+						this::terminateMiniClusterServices);
+
+						remainingServicesTerminationFuture.whenComplete(
+							(Void ignored, Throwable throwable) -> {
+								if (throwable != null) {
+									terminationFuture.completeExceptionally(ExceptionUtils.stripCompletionException(throwable));
+								} else {
+									terminationFuture.complete(null);
+								}
+							});
 				} finally {
 					running = false;
 				}
-				LOG.info("Flink Mini Cluster is shut down");
 			}
+
+			return terminationFuture;
 		}
 	}
 
-	@GuardedBy("lock")
-	private void shutdownInternally() throws Exception {
-		// this should always be called under the lock
-		assert Thread.holdsLock(lock);
+	// ------------------------------------------------------------------------
+	//  Accessing jobs
+	// ------------------------------------------------------------------------
 
-		// collect the first exception, but continue and add all successive
-		// exceptions as suppressed
-		Throwable exception = null;
-
-		// cancel all jobs and shut down the job dispatcher
-		if (dispatcher != null) {
-			try {
-				RpcUtils.terminateRpcEndpoint(dispatcher, rpcTimeout);
-			} catch (Exception e) {
-				exception = e;
-			}
-			dispatcher = null;
-		}
-
-		if (dispatcherRestEndpoint != null) {
-			try {
-				dispatcherRestEndpoint.shutDownAsync().get();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-
-			dispatcherRestEndpoint = null;
-		}
-
-		if (resourceManagerLeaderRetriever != null) {
-			try {
-				resourceManagerLeaderRetriever.stop();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-
-			resourceManagerLeaderRetriever = null;
-		}
-
-		if (dispatcherLeaderRetriever != null) {
-			try {
-				dispatcherLeaderRetriever.stop();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-
-			dispatcherLeaderRetriever = null;
-		}
-
-		if (resourceManagerRunner != null) {
-			try {
-				resourceManagerRunner.shutDown();
-			} catch (Throwable t) {
-				exception = ExceptionUtils.firstOrSuppressed(t, exception);
-			}
-		}
-
-		if (taskManagers != null) {
-			for (TaskExecutor tm : taskManagers) {
-				if (tm != null) {
-					try {
-						tm.shutDown();
-						// wait for the TaskManager to properly terminate
-						tm.getTerminationFuture().get();
-					} catch (Throwable t) {
-						exception = ExceptionUtils.firstOrSuppressed(t, exception);
-					}
-				}
-			}
-			taskManagers = null;
-		}
-		// metrics shutdown
-		if (metricRegistry != null) {
-			metricRegistry.shutdown();
-			metricRegistry = null;
-		}
-
-		// shut down the RpcServices
-		exception = shutDownRpc(commonRpcService, exception);
-		exception = shutDownRpc(jobManagerRpcService, exception);
-		exception = shutDownRpcs(taskManagerRpcServices, exception);
-		exception = shutDownRpc(resourceManagerRpcService, exception);
-		commonRpcService = null;
-		jobManagerRpcService = null;
-		taskManagerRpcServices = null;
-		resourceManagerRpcService = null;
-
-		if (blobCacheService != null) {
-			try {
-				blobCacheService.close();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-			blobCacheService = null;
-		}
-
-		// shut down the blob server
-		if (blobServer != null) {
-			try {
-				blobServer.close();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-			blobServer = null;
-		}
-
-		// shut down high-availability services
-		if (haServices != null) {
-			try {
-				haServices.closeAndCleanupAllData();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-			haServices = null;
-		}
-
-		// if anything went wrong, throw the first error with all the additional suppressed exceptions
-		if (exception != null) {
-			ExceptionUtils.rethrowException(exception, "Error while shutting down mini cluster");
-		}
-	}
-
-	public void waitUntilTaskManagerRegistrationsComplete() throws Exception {
-		LeaderRetrievalService rmMasterListener = null;
-		CompletableFuture<LeaderAddressAndId> addressAndIdFuture;
-
+	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
 		try {
-			synchronized (lock) {
-				checkState(running, "FlinkMiniCluster is not running");
-
-				OneTimeLeaderListenerFuture listenerFuture = new OneTimeLeaderListenerFuture();
-				rmMasterListener = haServices.getResourceManagerLeaderRetriever();
-				rmMasterListener.start(listenerFuture);
-				addressAndIdFuture = listenerFuture.future();
-			}
-
-			final LeaderAddressAndId addressAndId = addressAndIdFuture.get();
-
-			final ResourceManagerGateway resourceManager = commonRpcService
-				.connect(
-					addressAndId.leaderAddress(),
-					new ResourceManagerId(addressAndId.leaderId()),
-					ResourceManagerGateway.class)
-				.get();
-
-			final int numTaskManagersToWaitFor = taskManagers.length;
-
-			// poll and wait until enough TaskManagers are available
-			while (true) {
-				int numTaskManagersAvailable = resourceManager.getNumberOfRegisteredTaskManagers().get();
-
-				if (numTaskManagersAvailable >= numTaskManagersToWaitFor) {
-					break;
-				}
-				Thread.sleep(2);
-			}
+			return getDispatcherGateway().requestJobStatus(jobId, rpcTimeout);
+		} catch (LeaderRetrievalException | InterruptedException e) {
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					String.format("Could not retrieve job status for job %s.", jobId),
+					e));
 		}
-		finally {
-			try {
-				if (rmMasterListener != null) {
-					rmMasterListener.stop();
-				}
-			} catch (Exception e) {
-				LOG.warn("Error shutting down leader listener for ResourceManager");
-			}
+	}
+
+	public CompletableFuture<Acknowledge> cancelJob(JobID jobId) {
+		try {
+			return getDispatcherGateway().cancelJob(jobId, rpcTimeout);
+		} catch (LeaderRetrievalException | InterruptedException e) {
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					String.format("Could not cancel job %s.", jobId),
+					e));
+		}
+	}
+
+	public CompletableFuture<String> triggerSavepoint(JobID jobId, String targetDirectory, boolean cancelJob) {
+		try {
+			return getDispatcherGateway().triggerSavepoint(jobId, targetDirectory, cancelJob, rpcTimeout);
+		} catch (LeaderRetrievalException | InterruptedException e) {
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					String.format("Could not trigger savepoint for job %s.", jobId),
+					e));
 		}
 	}
 
@@ -681,12 +621,17 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			boolean remoteEnabled,
 			String bindAddress) {
 
-		ActorSystem actorSystem;
+		final Config akkaConfig;
+
 		if (remoteEnabled) {
-			actorSystem = AkkaUtils.createActorSystem(configuration, bindAddress, 0);
+			akkaConfig = AkkaUtils.getAkkaConfig(configuration, bindAddress, 0);
 		} else {
-			actorSystem = AkkaUtils.createLocalActorSystem(configuration);
+			akkaConfig = AkkaUtils.getAkkaConfig(configuration);
 		}
+
+		final Config effectiveAkkaConfig = AkkaUtils.testDispatcherConfig().withFallback(akkaConfig);
+
+		final ActorSystem actorSystem = AkkaUtils.createActorSystem(effectiveAkkaConfig);
 
 		return new AkkaRpcService(actorSystem, askTimeout);
 	}
@@ -745,6 +690,137 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	}
 
 	// ------------------------------------------------------------------------
+	//  Internal methods
+	// ------------------------------------------------------------------------
+
+	@GuardedBy("lock")
+	private CompletableFuture<Void> shutDownDispatcher() {
+
+		final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(2);
+
+		// cancel all jobs and shut down the job dispatcher
+		if (dispatcher != null) {
+			dispatcher.shutDown();
+			terminationFutures.add(dispatcher.getTerminationFuture());
+
+			dispatcher = null;
+		}
+
+		if (dispatcherRestEndpoint != null) {
+			terminationFutures.add(dispatcherRestEndpoint.shutDownAsync());
+
+			dispatcherRestEndpoint = null;
+		}
+
+		final FutureUtils.ConjunctFuture<Void> dispatcherTerminationFuture = FutureUtils.completeAll(terminationFutures);
+
+		return FutureUtils.runAfterwards(
+			dispatcherTerminationFuture,
+			() -> {
+				Exception exception = null;
+
+				synchronized (lock) {
+					if (resourceManagerLeaderRetriever != null) {
+						try {
+							resourceManagerLeaderRetriever.stop();
+						} catch (Exception e) {
+							exception = ExceptionUtils.firstOrSuppressed(e, exception);
+						}
+
+						resourceManagerLeaderRetriever = null;
+					}
+
+					if (dispatcherLeaderRetriever != null) {
+						try {
+							dispatcherLeaderRetriever.stop();
+						} catch (Exception e) {
+							exception = ExceptionUtils.firstOrSuppressed(e, exception);
+						}
+
+						dispatcherLeaderRetriever = null;
+					}
+				}
+
+				if (exception != null) {
+					throw exception;
+				}
+			});
+	}
+
+	private void terminateMiniClusterServices() throws Exception {
+		// collect the first exception, but continue and add all successive
+		// exceptions as suppressed
+		Exception exception = null;
+
+		synchronized (lock) {
+			if (blobCacheService != null) {
+				try {
+					blobCacheService.close();
+				} catch (Exception e) {
+					exception = ExceptionUtils.firstOrSuppressed(e, exception);
+				}
+				blobCacheService = null;
+			}
+
+			// shut down the blob server
+			if (blobServer != null) {
+				try {
+					blobServer.close();
+				} catch (Exception e) {
+					exception = ExceptionUtils.firstOrSuppressed(e, exception);
+				}
+				blobServer = null;
+			}
+
+			// shut down high-availability services
+			if (haServices != null) {
+				try {
+					haServices.closeAndCleanupAllData();
+				} catch (Exception e) {
+					exception = ExceptionUtils.firstOrSuppressed(e, exception);
+				}
+				haServices = null;
+			}
+
+			if (exception != null) {
+				throw exception;
+			}
+		}
+	}
+
+	@Nonnull
+	private CompletionStage<Void> terminateRpcServices() {
+		final int numRpcServices;
+		if (miniClusterConfiguration.getRpcServiceSharing() == MiniClusterConfiguration.RpcServiceSharing.SHARED) {
+			numRpcServices = 1;
+		} else {
+			numRpcServices = 1 + 2 + miniClusterConfiguration.getNumTaskManagers(); // common, JM, RM, TMs
+		}
+
+		final Collection<CompletableFuture<?>> rpcTerminationFutures = new ArrayList<>(numRpcServices);
+
+		synchronized (lock) {
+			rpcTerminationFutures.add(commonRpcService.stopService());
+
+			if (miniClusterConfiguration.getRpcServiceSharing() != MiniClusterConfiguration.RpcServiceSharing.SHARED) {
+				rpcTerminationFutures.add(jobManagerRpcService.stopService());
+				rpcTerminationFutures.add(resourceManagerRpcService.stopService());
+
+				for (RpcService taskManagerRpcService : taskManagerRpcServices) {
+					rpcTerminationFutures.add(taskManagerRpcService.stopService());
+				}
+			}
+
+			commonRpcService = null;
+			jobManagerRpcService = null;
+			taskManagerRpcServices = null;
+			resourceManagerRpcService = null;
+		}
+
+		return FutureUtils.completeAll(rpcTerminationFutures);
+	}
+
+	// ------------------------------------------------------------------------
 	//  miscellaneous utilities
 	// ------------------------------------------------------------------------
 
@@ -756,7 +832,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	private static Throwable shutDownRpc(RpcService rpcService, Throwable priorException) {
 		if (rpcService != null) {
 			try {
-				rpcService.stopService();
+				rpcService.stopService().get();
 			}
 			catch (Throwable t) {
 				return ExceptionUtils.firstOrSuppressed(t, priorException);
@@ -773,7 +849,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			for (RpcService service : rpcServices) {
 				try {
 					if (service != null) {
-						service.stopService();
+						service.stopService().get();
 					}
 				}
 				catch (Throwable t) {
@@ -782,16 +858,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			}
 		}
 		return priorException;
-	}
-
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		try {
-			shutdown();
-			return CompletableFuture.completedFuture(null);
-		} catch (Exception e) {
-			return FutureUtils.completedExceptionally(e);
-		}
 	}
 
 	private class TerminatingFatalErrorHandler implements FatalErrorHandler {
@@ -825,11 +891,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		@Override
 		public void onFatalError(Throwable exception) {
 			LOG.warn("Error in MiniCluster. Shutting the MiniCluster down.", exception);
-			try {
-				shutdown();
-			} catch (Exception e) {
-				LOG.warn("Could not shut down the MiniCluster.", e);
-			}
+			closeAsync();
 		}
 	}
 }

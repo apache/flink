@@ -28,6 +28,7 @@ import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -42,7 +43,6 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
@@ -51,6 +51,8 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 
 import javax.annotation.Nullable;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Entry point for Mesos session clusters.
@@ -141,26 +143,16 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 	}
 
 	@Override
-	protected void stopClusterServices(boolean cleanupHaData) throws FlinkException {
-		Throwable exception = null;
+	protected CompletableFuture<Void> stopClusterServices(boolean cleanupHaData) {
+		final CompletableFuture<Void> serviceShutDownFuture = super.stopClusterServices(cleanupHaData);
 
-		try {
-			super.stopClusterServices(cleanupHaData);
-		} catch (Throwable t) {
-			exception = t;
-		}
-
-		if (mesosServices != null) {
-			try {
-				mesosServices.close(cleanupHaData);
-			} catch (Throwable t) {
-				exception = t;
-			}
-		}
-
-		if (exception != null) {
-			throw new FlinkException("Could not properly shut down the Mesos session cluster entry point.", exception);
-		}
+		return FutureUtils.runAfterwards(
+			serviceShutDownFuture,
+			() -> {
+				if (mesosServices != null) {
+					mesosServices.close(cleanupHaData);
+				}
+			});
 	}
 
 	public static void main(String[] args) {

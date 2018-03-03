@@ -38,6 +38,10 @@ public class BufferBuilderTestUtils {
 		return createFilledBufferBuilder(size, 0);
 	}
 
+	public static BufferBuilder createFilledBufferBuilder(int dataSize) {
+		return createFilledBufferBuilder(BUFFER_SIZE, dataSize);
+	}
+
 	public static BufferBuilder createFilledBufferBuilder(int size, int dataSize) {
 		checkArgument(size >= dataSize);
 		BufferBuilder bufferBuilder = new BufferBuilder(

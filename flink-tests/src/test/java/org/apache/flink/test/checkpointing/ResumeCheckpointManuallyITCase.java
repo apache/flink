@@ -28,6 +28,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
@@ -44,6 +45,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -69,7 +71,8 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 		testExternalizedCheckpoints(
 			checkpointDir,
 			null,
-			new RocksDBStateBackend(checkpointDir.toURI().toString(), true));
+			createRocksDBStateBackend(checkpointDir, true),
+			false);
 	}
 
 	@Test
@@ -78,7 +81,28 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 		testExternalizedCheckpoints(
 			checkpointDir,
 			null,
-			new RocksDBStateBackend(checkpointDir.toURI().toString(), false));
+			createRocksDBStateBackend(checkpointDir, false),
+			false);
+	}
+
+	@Test
+	public void testExternalizedIncrementalRocksDBCheckpointsWithLocalRecoveryStandalone() throws Exception {
+		final File checkpointDir = temporaryFolder.newFolder();
+		testExternalizedCheckpoints(
+			checkpointDir,
+			null,
+			createRocksDBStateBackend(checkpointDir, true),
+			true);
+	}
+
+	@Test
+	public void testExternalizedFullRocksDBCheckpointsWithLocalRecoveryStandalone() throws Exception {
+		final File checkpointDir = temporaryFolder.newFolder();
+		testExternalizedCheckpoints(
+			checkpointDir,
+			null,
+			createRocksDBStateBackend(checkpointDir, false),
+			true);
 	}
 
 	@Test
@@ -87,8 +111,18 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 		testExternalizedCheckpoints(
 			checkpointDir,
 			null,
-			new FsStateBackend(checkpointDir.toURI().toString(), true));
+			createFsStateBackend(checkpointDir),
+			false);
+	}
 
+	@Test
+	public void testExternalizedFSCheckpointsWithLocalRecoveryStandalone() throws Exception {
+		final File checkpointDir = temporaryFolder.newFolder();
+		testExternalizedCheckpoints(
+			checkpointDir,
+			null,
+			createFsStateBackend(checkpointDir),
+			true);
 	}
 
 	@Test
@@ -100,7 +134,8 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 			testExternalizedCheckpoints(
 				checkpointDir,
 				zkServer.getConnectString(),
-				new RocksDBStateBackend(checkpointDir.toURI().toString(), true));
+				createRocksDBStateBackend(checkpointDir, true),
+				false);
 		} finally {
 			zkServer.stop();
 		}
@@ -115,7 +150,40 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 			testExternalizedCheckpoints(
 				checkpointDir,
 				zkServer.getConnectString(),
-				new RocksDBStateBackend(checkpointDir.toURI().toString(), false));
+				createRocksDBStateBackend(checkpointDir, false),
+				false);
+		} finally {
+			zkServer.stop();
+		}
+	}
+
+	@Test
+	public void testExternalizedIncrementalRocksDBCheckpointsWithLocalRecoveryZookeeper() throws Exception {
+		TestingServer zkServer = new TestingServer();
+		zkServer.start();
+		try {
+			final File checkpointDir = temporaryFolder.newFolder();
+			testExternalizedCheckpoints(
+				checkpointDir,
+				zkServer.getConnectString(),
+				createRocksDBStateBackend(checkpointDir, true),
+				true);
+		} finally {
+			zkServer.stop();
+		}
+	}
+
+	@Test
+	public void testExternalizedFullRocksDBCheckpointsWithLocalRecoveryZookeeper() throws Exception {
+		TestingServer zkServer = new TestingServer();
+		zkServer.start();
+		try {
+			final File checkpointDir = temporaryFolder.newFolder();
+			testExternalizedCheckpoints(
+				checkpointDir,
+				zkServer.getConnectString(),
+				createRocksDBStateBackend(checkpointDir, false),
+				true);
 		} finally {
 			zkServer.stop();
 		}
@@ -130,16 +198,45 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 			testExternalizedCheckpoints(
 				checkpointDir,
 				zkServer.getConnectString(),
-				new FsStateBackend(checkpointDir.toURI().toString(), true));
+				createFsStateBackend(checkpointDir),
+				false);
 		} finally {
 			zkServer.stop();
 		}
 	}
 
+	@Test
+	public void testExternalizedFSCheckpointsWithLocalRecoveryZookeeper() throws Exception {
+		TestingServer zkServer = new TestingServer();
+		zkServer.start();
+		try {
+			final File checkpointDir = temporaryFolder.newFolder();
+			testExternalizedCheckpoints(
+				checkpointDir,
+				zkServer.getConnectString(),
+				createFsStateBackend(checkpointDir),
+				true);
+		} finally {
+			zkServer.stop();
+		}
+	}
+
+	private FsStateBackend createFsStateBackend(File checkpointDir) throws IOException {
+		return new FsStateBackend(checkpointDir.toURI().toString(), true);
+	}
+
+	private RocksDBStateBackend createRocksDBStateBackend(
+		File checkpointDir,
+		boolean incrementalCheckpointing) throws IOException {
+
+		return new RocksDBStateBackend(checkpointDir.toURI().toString(), incrementalCheckpointing);
+	}
+
 	private void testExternalizedCheckpoints(
 		File checkpointDir,
 		String zooKeeperQuorum,
-		StateBackend backend) throws Exception {
+		StateBackend backend,
+		boolean localRecovery) throws Exception {
 
 		final Configuration config = new Configuration();
 
@@ -151,6 +248,12 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+
+		if (localRecovery) {
+			config.setString(
+				CheckpointingOptions.LOCAL_RECOVERY,
+				LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED.toString());
+		}
 
 		// ZooKeeper recovery mode?
 		if (zooKeeperQuorum != null) {

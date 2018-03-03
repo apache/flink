@@ -54,6 +54,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.slf4j.Logger;
@@ -159,6 +160,8 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 	private final boolean flip6;
 
+	private final YarnConfiguration yarnConfiguration;
+
 	//------------------------------------ Internal fields -------------------------
 	private boolean detachedMode = false;
 
@@ -257,16 +260,20 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		} else {
 			yarnApplicationIdFromYarnProperties = null;
 		}
+
+		this.yarnConfiguration = new YarnConfiguration();
 	}
 
 	private AbstractYarnClusterDescriptor createDescriptor(
 		Configuration configuration,
+		YarnConfiguration yarnConfiguration,
 		String configurationDirectory,
 		String defaultApplicationName,
 		CommandLine cmd) {
 
 		AbstractYarnClusterDescriptor yarnClusterDescriptor = getClusterDescriptor(
 			configuration,
+			yarnConfiguration,
 			configurationDirectory);
 
 		// Jar Path
@@ -371,7 +378,14 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 			throw new IllegalArgumentException("Missing required argument " + container.getOpt());
 		}
 
-		int numberTaskManagers = Integer.valueOf(cmd.getOptionValue(container.getOpt()));
+		// TODO: The number of task manager should be deprecated soon
+		final int numberTaskManagers;
+
+		if (cmd.hasOption(container.getOpt())) {
+			numberTaskManagers = Integer.valueOf(cmd.getOptionValue(container.getOpt()));
+		} else {
+			numberTaskManagers = 1;
+		}
 
 		// JobManager Memory
 		final int jobManagerMemoryMB = configuration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY);
@@ -379,7 +393,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		// Task Managers memory
 		final int taskManagerMemoryMB = configuration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);
 
-		int slotsPerTaskManager = configuration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+		int slotsPerTaskManager = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
 
 		return new ClusterSpecification.ClusterSpecificationBuilder()
 			.setMasterMemoryMB(jobManagerMemoryMB)
@@ -440,6 +454,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 		return createDescriptor(
 			effectiveConfiguration,
+			yarnConfiguration,
 			configurationDirectory,
 			null,
 			commandLine);
@@ -955,12 +970,28 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		return new File(propertiesFileLocation, YARN_PROPERTIES_FILE + currentUser);
 	}
 
-	private AbstractYarnClusterDescriptor getClusterDescriptor(Configuration configuration, String configurationDirectory) {
+	private AbstractYarnClusterDescriptor getClusterDescriptor(
+			Configuration configuration,
+			YarnConfiguration yarnConfiguration,
+			String configurationDirectory) {
 		final YarnClient yarnClient = YarnClient.createYarnClient();
+		yarnClient.init(yarnConfiguration);
+		yarnClient.start();
+
 		if (flip6) {
-			return new Flip6YarnClusterDescriptor(configuration, configurationDirectory, yarnClient);
+			return new Flip6YarnClusterDescriptor(
+				configuration,
+				yarnConfiguration,
+				configurationDirectory,
+				yarnClient,
+				false);
 		} else {
-			return new YarnClusterDescriptor(configuration, configurationDirectory, yarnClient);
+			return new YarnClusterDescriptor(
+				configuration,
+				yarnConfiguration,
+				configurationDirectory,
+				yarnClient,
+				false);
 		}
 	}
 }

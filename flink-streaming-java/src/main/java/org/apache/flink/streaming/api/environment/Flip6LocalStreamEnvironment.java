@@ -105,7 +105,7 @@ public class Flip6LocalStreamEnvironment extends LocalStreamEnvironment {
 		}
 		finally {
 			transformations.clear();
-			miniCluster.shutdown();
+			miniCluster.close();
 		}
 	}
 }

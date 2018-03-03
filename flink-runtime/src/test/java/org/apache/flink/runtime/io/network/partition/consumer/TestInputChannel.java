@@ -56,20 +56,28 @@ public class TestInputChannel {
 	}
 
 	public TestInputChannel read(Buffer buffer) throws IOException, InterruptedException {
+		return read(buffer, true);
+	}
+
+	public TestInputChannel read(Buffer buffer, boolean moreAvailable) throws IOException, InterruptedException {
 		if (stubbing == null) {
-			stubbing = when(mock.getNextBuffer()).thenReturn(Optional.of(new BufferAndAvailability(buffer, true, 0)));
+			stubbing = when(mock.getNextBuffer()).thenReturn(Optional.of(new BufferAndAvailability(buffer, moreAvailable, 0)));
 		} else {
-			stubbing = stubbing.thenReturn(Optional.of(new BufferAndAvailability(buffer, true, 0)));
+			stubbing = stubbing.thenReturn(Optional.of(new BufferAndAvailability(buffer, moreAvailable, 0)));
 		}
 
 		return this;
 	}
 
 	public TestInputChannel readBuffer() throws IOException, InterruptedException {
+		return readBuffer(true);
+	}
+
+	public TestInputChannel readBuffer(boolean moreAvailable) throws IOException, InterruptedException {
 		final Buffer buffer = mock(Buffer.class);
 		when(buffer.isBuffer()).thenReturn(true);
 
-		return read(buffer);
+		return read(buffer, moreAvailable);
 	}
 
 	public TestInputChannel readEndOfPartitionEvent() throws IOException, InterruptedException {

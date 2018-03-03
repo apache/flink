@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
+
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -54,6 +56,7 @@ public abstract class HeapStateBackendTestBase {
 			16,
 			new KeyGroupRange(0, 15),
 			async,
-			new ExecutionConfig());
+			new ExecutionConfig(),
+			TestLocalRecoveryConfig.disabled());
 	}
 }

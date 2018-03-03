@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_TYPE, FORMAT_VERSION}
+import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
 
 /**
   * Validator for [[FormatDescriptor]].
@@ -27,13 +27,32 @@ class FormatDescriptorValidator extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
     properties.validateString(FORMAT_TYPE, isOptional = false, minLen = 1)
-    properties.validateInt(FORMAT_VERSION, isOptional = true, 0, Integer.MAX_VALUE)
+    properties.validateInt(FORMAT_PROPERTY_VERSION, isOptional = true, 0, Integer.MAX_VALUE)
   }
 }
 
 object FormatDescriptorValidator {
 
+  /**
+    * Key for describing the type of the format. Usually used for factory discovery.
+    */
   val FORMAT_TYPE = "format.type"
+
+  /**
+    *  Key for describing the property version. This property can be used for backwards
+    *  compatibility in case the property format changes.
+    */
+  val FORMAT_PROPERTY_VERSION = "format.property-version"
+
+  /**
+    * Key for describing the version of the format. This property can be used for different
+    * format versions (e.g. Avro 1.8.2 or Avro 2.0).
+    */
   val FORMAT_VERSION = "format.version"
+
+  /**
+    * Key for deriving the schema of the format from the table's schema.
+    */
+  val FORMAT_DERIVE_SCHEMA = "format.derive-schema"
 
 }

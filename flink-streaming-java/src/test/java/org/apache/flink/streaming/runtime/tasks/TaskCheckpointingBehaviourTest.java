@@ -61,6 +61,7 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -81,9 +82,10 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Collections;
-import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 
@@ -303,7 +305,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				env.getExecutionConfig(),
 				true) {
 				@Override
-				public RunnableFuture<OperatorStateHandle> snapshot(
+				public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(
 					long checkpointId,
 					long timestamp,
 					CheckpointStreamFactory streamFactory,
@@ -332,17 +334,14 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				env.getExecutionConfig(),
 				true) {
 				@Override
-				public RunnableFuture<OperatorStateHandle> snapshot(
+				public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(
 					long checkpointId,
 					long timestamp,
 					CheckpointStreamFactory streamFactory,
 					CheckpointOptions checkpointOptions) throws Exception {
 
-					return new FutureTask<>(new Callable<OperatorStateHandle>() {
-						@Override
-						public OperatorStateHandle call() throws Exception {
-							throw new Exception("Async part snapshot exception.");
-						}
+					return new FutureTask<>(() -> {
+						throw new Exception("Async part snapshot exception.");
 					});
 				}
 			};
@@ -364,6 +363,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		private final Object lock = new Object();
 		private volatile boolean closed;
 
+		@Nullable
 		@Override
 		public StreamStateHandle closeAndGetHandle() throws IOException {
 			throw new UnsupportedOperationException();

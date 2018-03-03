@@ -38,7 +38,7 @@ import java.nio.ReadOnlyBufferException;
  */
 public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implements Buffer {
 
-	private final int index;
+	private final int memorySegmentOffset;
 
 	/**
 	 * Creates a buffer which shares the memory segment of the given buffer and exposed the given
@@ -53,7 +53,7 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 	 */
 	ReadOnlySlicedNetworkBuffer(NetworkBuffer buffer, int index, int length) {
 		super(new SlicedByteBuf(buffer, index, length));
-		this.index = index;
+		this.memorySegmentOffset = buffer.getMemorySegmentOffset() + index;
 	}
 
 	/**
@@ -66,10 +66,11 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 	 * @param buffer the buffer to derive from
 	 * @param index the index to start from
 	 * @param length the length of the slice
+	 * @param memorySegmentOffset <tt>buffer</tt>'s absolute offset in the backing {@link MemorySegment}
 	 */
-	private ReadOnlySlicedNetworkBuffer(ByteBuf buffer, int index, int length) {
+	private ReadOnlySlicedNetworkBuffer(ByteBuf buffer, int index, int length, int memorySegmentOffset) {
 		super(new SlicedByteBuf(buffer, index, length));
-		this.index = index;
+		this.memorySegmentOffset = memorySegmentOffset + index;
 	}
 
 	@Override
@@ -102,7 +103,7 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 
 	@Override
 	public int getMemorySegmentOffset() {
-		return ((Buffer) unwrap()).getMemorySegmentOffset() + index;
+		return memorySegmentOffset;
 	}
 
 	@Override
@@ -133,7 +134,7 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 
 	@Override
 	public ReadOnlySlicedNetworkBuffer readOnlySlice(int index, int length) {
-		return new ReadOnlySlicedNetworkBuffer(super.unwrap(), index, length);
+		return new ReadOnlySlicedNetworkBuffer(super.unwrap(), index, length, memorySegmentOffset);
 	}
 
 	@Override

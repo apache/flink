@@ -375,7 +375,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		kafkaOffsetHandler.setCommittedOffset(topicName, 1, 31);
 		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
 
-		readSequence(env, StartupMode.EARLIEST, null, readProps, parallelism, topicName, recordsInEachPartition, 0);
+		readSequence(env, StartupMode.EARLIEST, null, null, readProps, parallelism, topicName, recordsInEachPartition, 0);
 
 		kafkaOffsetHandler.close();
 		deleteTestTopic(topicName);
@@ -557,7 +557,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		partitionsToValueCountAndStartOffsets.put(1, new Tuple2<>(50, 0)); // partition 1 should read offset 0-49
 		partitionsToValueCountAndStartOffsets.put(2, new Tuple2<>(7, 43));	// partition 2 should read offset 43-49
 
-		readSequence(env, StartupMode.GROUP_OFFSETS, null, readProps, topicName, partitionsToValueCountAndStartOffsets);
+		readSequence(env, StartupMode.GROUP_OFFSETS, null, null, readProps, topicName, partitionsToValueCountAndStartOffsets);
 
 		kafkaOffsetHandler.close();
 		deleteTestTopic(topicName);
@@ -621,10 +621,53 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		partitionsToValueCountAndStartOffsets.put(2, new Tuple2<>(28, 22));	// partition 2 should read offset 22-49
 		partitionsToValueCountAndStartOffsets.put(3, new Tuple2<>(50, 0));	// partition 3 should read offset 0-49
 
-		readSequence(env, StartupMode.SPECIFIC_OFFSETS, specificStartupOffsets, readProps, topicName, partitionsToValueCountAndStartOffsets);
+		readSequence(env, StartupMode.SPECIFIC_OFFSETS, specificStartupOffsets, null, readProps, topicName, partitionsToValueCountAndStartOffsets);
 
 		kafkaOffsetHandler.close();
 		deleteTestTopic(topicName);
+	}
+
+	/**
+	 * This test ensures that the consumer correctly uses user-supplied timestamp when explicitly configured to
+	 * start from timestamp.
+	 *
+	 * <p>The validated Kafka data is written in 2 steps: first, an initial 50 records is written to each partition.
+	 * After that, another 30 records is appended to each partition. Before each step, a timestamp is recorded.
+	 * For the validation, when the read job is configured to start from the first timestamp, each partition should start
+	 * from offset 0 and read a total of 80 records. When configured to start from the second timestamp,
+	 * each partition should start from offset 50 and read on the remaining 30 appended records.
+	 */
+	public void runStartFromTimestamp() throws Exception {
+		// 4 partitions with 50 records each
+		final int parallelism = 4;
+		final int initialRecordsInEachPartition = 50;
+		final int appendRecordsInEachPartition = 30;
+
+		// attempt to create an appended test sequence, where the timestamp of writing the appended sequence
+		// is assured to be larger than the timestamp of the original sequence.
+		long firstTimestamp = System.currentTimeMillis();
+		String topic = writeSequence("runStartFromTimestamp", initialRecordsInEachPartition, parallelism, 1);
+
+		long secondTimestamp = 0;
+		while (secondTimestamp <= firstTimestamp) {
+			Thread.sleep(1000);
+			secondTimestamp = System.currentTimeMillis();
+		}
+		writeAppendSequence(topic, initialRecordsInEachPartition, appendRecordsInEachPartition, parallelism);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
+		env.setParallelism(parallelism);
+
+		Properties readProps = new Properties();
+		readProps.putAll(standardProps);
+
+		readSequence(env, StartupMode.TIMESTAMP, null, firstTimestamp,
+			readProps, parallelism, topic, initialRecordsInEachPartition + appendRecordsInEachPartition, 0);
+		readSequence(env, StartupMode.TIMESTAMP, null, secondTimestamp,
+			readProps, parallelism, topic, appendRecordsInEachPartition, initialRecordsInEachPartition);
+
+		deleteTestTopic(topic);
 	}
 
 	/**
@@ -1712,6 +1755,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	protected void readSequence(final StreamExecutionEnvironment env,
 								final StartupMode startupMode,
 								final Map<KafkaTopicPartition, Long> specificStartupOffsets,
+								final Long startupTimestamp,
 								final Properties cc,
 								final String topicName,
 								final Map<Integer, Tuple2<Integer, Integer>> partitionsToValuesCountAndStartOffset) throws Exception {
@@ -1731,20 +1775,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		// create the consumer
 		cc.putAll(secureProps);
 		FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer = kafkaServer.getConsumer(topicName, deser, cc);
-		switch (startupMode) {
-			case EARLIEST:
-				consumer.setStartFromEarliest();
-				break;
-			case LATEST:
-				consumer.setStartFromLatest();
-				break;
-			case SPECIFIC_OFFSETS:
-				consumer.setStartFromSpecificOffsets(specificStartupOffsets);
-				break;
-			case GROUP_OFFSETS:
-				consumer.setStartFromGroupOffsets();
-				break;
-		}
+		setKafkaConsumerOffset(startupMode, consumer, specificStartupOffsets, startupTimestamp);
 
 		DataStream<Tuple2<Integer, Integer>> source = env
 			.addSource(consumer).setParallelism(sourceParallelism)
@@ -1808,12 +1839,13 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	}
 
 	/**
-	 * Variant of {@link KafkaConsumerTestBase#readSequence(StreamExecutionEnvironment, StartupMode, Map, Properties, String, Map)} to
+	 * Variant of {@link KafkaConsumerTestBase#readSequence(StreamExecutionEnvironment, StartupMode, Map, Long, Properties, String, Map)} to
 	 * expect reading from the same start offset and the same value count for all partitions of a single Kafka topic.
 	 */
 	protected void readSequence(final StreamExecutionEnvironment env,
 								final StartupMode startupMode,
 								final Map<KafkaTopicPartition, Long> specificStartupOffsets,
+								final Long startupTimestamp,
 								final Properties cc,
 								final int sourceParallelism,
 								final String topicName,
@@ -1823,7 +1855,30 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		for (int i = 0; i < sourceParallelism; i++) {
 			partitionsToValuesCountAndStartOffset.put(i, new Tuple2<>(valuesCount, startFrom));
 		}
-		readSequence(env, startupMode, specificStartupOffsets, cc, topicName, partitionsToValuesCountAndStartOffset);
+		readSequence(env, startupMode, specificStartupOffsets, startupTimestamp, cc, topicName, partitionsToValuesCountAndStartOffset);
+	}
+
+	protected void setKafkaConsumerOffset(final StartupMode startupMode,
+										final FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer,
+										final Map<KafkaTopicPartition, Long> specificStartupOffsets,
+										final Long startupTimestamp) {
+		switch (startupMode) {
+			case EARLIEST:
+				consumer.setStartFromEarliest();
+				break;
+			case LATEST:
+				consumer.setStartFromLatest();
+				break;
+			case SPECIFIC_OFFSETS:
+				consumer.setStartFromSpecificOffsets(specificStartupOffsets);
+				break;
+			case GROUP_OFFSETS:
+				consumer.setStartFromGroupOffsets();
+				break;
+			case TIMESTAMP:
+				consumer.setStartFromTimestamp(startupTimestamp);
+				break;
+		}
 	}
 
 	protected String writeSequence(
@@ -1852,7 +1907,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			final String topicName = baseTopicName + '-' + attempt;
 
-			LOG.info("Writing attempt #1");
+			LOG.info("Writing attempt #" + attempt);
 
 			// -------- Write the Sequence --------
 
@@ -1910,76 +1965,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
 
-			final StreamExecutionEnvironment readEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-			readEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-			readEnv.getConfig().disableSysoutLogging();
-			readEnv.setParallelism(parallelism);
-
-			Properties readProps = (Properties) standardProps.clone();
-			readProps.setProperty("group.id", "flink-tests-validator");
-			readProps.putAll(secureProps);
-			FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer = kafkaServer.getConsumer(topicName, deserSchema, readProps);
-
-			readEnv
-					.addSource(consumer)
-					.map(new RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
-
-						private final int totalCount = parallelism * numElements;
-						private int count = 0;
-
-						@Override
-						public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
-							if (++count == totalCount) {
-								throw new SuccessException();
-							} else {
-								return value;
-							}
-						}
-					}).setParallelism(1)
-					.addSink(new DiscardingSink<Tuple2<Integer, Integer>>()).setParallelism(1);
-
-			final AtomicReference<Throwable> errorRef = new AtomicReference<>();
-
-			Thread runner = new Thread() {
-				@Override
-				public void run() {
-					try {
-						tryExecute(readEnv, "sequence validation");
-					} catch (Throwable t) {
-						errorRef.set(t);
-					}
-				}
-			};
-			runner.start();
-
-			final long deadline = System.nanoTime() + 10_000_000_000L;
-			long delay;
-			while (runner.isAlive() && (delay = deadline - System.nanoTime()) > 0) {
-				runner.join(delay / 1_000_000L);
-			}
-
-			boolean success;
-
-			if (runner.isAlive()) {
-				// did not finish in time, maybe the producer dropped one or more records and
-				// the validation did not reach the exit point
-				success = false;
-				JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
-			}
-			else {
-				Throwable error = errorRef.get();
-				if (error != null) {
-					success = false;
-					LOG.info("Attempt " + attempt + " failed with exception", error);
-				}
-				else {
-					success = true;
-				}
-			}
-
-			JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
-
-			if (success) {
+			if (validateSequence(topicName, parallelism, deserSchema, numElements)) {
 				// everything is good!
 				return topicName;
 			}
@@ -1990,6 +1976,159 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 
 		throw new Exception("Could not write a valid sequence to Kafka after " + maxNumAttempts + " attempts");
+	}
+
+	protected void writeAppendSequence(
+			String topicName,
+			final int originalNumElements,
+			final int numElementsToAppend,
+			final int parallelism) throws Exception {
+
+		LOG.info("\n===================================\n" +
+			"== Appending sequence of " + numElementsToAppend + " into " + topicName +
+			"===================================");
+
+		final TypeInformation<Tuple2<Integer, Integer>> resultType =
+			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {});
+
+		final KeyedSerializationSchema<Tuple2<Integer, Integer>> serSchema =
+			new KeyedSerializationSchemaWrapper<>(
+				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
+
+		final KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
+			new KeyedDeserializationSchemaWrapper<>(
+				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
+
+		// -------- Write the append sequence --------
+
+		StreamExecutionEnvironment writeEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+		writeEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+		writeEnv.getConfig().disableSysoutLogging();
+
+		DataStream<Tuple2<Integer, Integer>> stream = writeEnv.addSource(new RichParallelSourceFunction<Tuple2<Integer, Integer>>() {
+
+			private boolean running = true;
+
+			@Override
+			public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
+				int cnt = originalNumElements;
+				int partition = getRuntimeContext().getIndexOfThisSubtask();
+
+				while (running && cnt < numElementsToAppend + originalNumElements) {
+					ctx.collect(new Tuple2<>(partition, cnt));
+					cnt++;
+				}
+			}
+
+			@Override
+			public void cancel() {
+				running = false;
+			}
+		}).setParallelism(parallelism);
+
+		// the producer must not produce duplicates
+		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
+		producerProperties.setProperty("retries", "0");
+		producerProperties.putAll(secureProps);
+
+		kafkaServer.produceIntoKafka(stream, topicName, serSchema, producerProperties, new Tuple2FlinkPartitioner(parallelism))
+			.setParallelism(parallelism);
+
+		try {
+			writeEnv.execute("Write sequence");
+		}
+		catch (Exception e) {
+			throw new Exception("Failed to append sequence to Kafka; append job failed.", e);
+		}
+
+		LOG.info("Finished writing append sequence");
+
+		// we need to validate the sequence, because kafka's producers are not exactly once
+		LOG.info("Validating sequence");
+		JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
+
+		if (!validateSequence(topicName, parallelism, deserSchema, originalNumElements + numElementsToAppend)) {
+			throw new Exception("Could not append a valid sequence to Kafka.");
+		}
+	}
+
+	private boolean validateSequence(
+			final String topic,
+			final int parallelism,
+			KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema,
+			final int totalNumElements) throws Exception {
+
+		final StreamExecutionEnvironment readEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+		readEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+		readEnv.getConfig().disableSysoutLogging();
+		readEnv.setParallelism(parallelism);
+
+		Properties readProps = (Properties) standardProps.clone();
+		readProps.setProperty("group.id", "flink-tests-validator");
+		readProps.putAll(secureProps);
+		FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer = kafkaServer.getConsumer(topic, deserSchema, readProps);
+		consumer.setStartFromEarliest();
+
+		readEnv
+			.addSource(consumer)
+			.map(new RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
+
+				private final int totalCount = parallelism * totalNumElements;
+				private int count = 0;
+
+				@Override
+				public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
+					if (++count == totalCount) {
+						throw new SuccessException();
+					} else {
+						return value;
+					}
+				}
+			}).setParallelism(1)
+			.addSink(new DiscardingSink<>()).setParallelism(1);
+
+		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
+
+		Thread runner = new Thread() {
+			@Override
+			public void run() {
+				try {
+					tryExecute(readEnv, "sequence validation");
+				} catch (Throwable t) {
+					errorRef.set(t);
+				}
+			}
+		};
+		runner.start();
+
+		final long deadline = System.nanoTime() + 10_000_000_000L;
+		long delay;
+		while (runner.isAlive() && (delay = deadline - System.nanoTime()) > 0) {
+			runner.join(delay / 1_000_000L);
+		}
+
+		boolean success;
+
+		if (runner.isAlive()) {
+			// did not finish in time, maybe the producer dropped one or more records and
+			// the validation did not reach the exit point
+			success = false;
+			JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+		}
+		else {
+			Throwable error = errorRef.get();
+			if (error != null) {
+				success = false;
+				LOG.info("Sequence validation job failed with exception", error);
+			}
+			else {
+				success = true;
+			}
+		}
+
+		JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
+
+		return success;
 	}
 
 	// ------------------------------------------------------------------------

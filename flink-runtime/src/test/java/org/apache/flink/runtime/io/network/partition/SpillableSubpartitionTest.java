@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsyncWithNoOpBufferFileWriter;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
@@ -40,17 +41,18 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -196,8 +198,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 
 		assertEquals(4, partition.getTotalNumberOfBuffers());
 		assertEquals(3, partition.getBuffersInBacklog());
-		//TODO: re-enable this?
-//		assertEquals(BUFFER_DATA_SIZE * 4, partition.getTotalNumberOfBytes());
+		assertEquals(0, partition.getTotalNumberOfBytes()); // only updated when getting/releasing the buffers
 
 		assertFalse(bufferConsumer.isRecycled());
 		assertEquals(4, partition.releaseMemory());
@@ -225,7 +226,6 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertTrue(read.buffer().isBuffer());
 		assertEquals(2, partition.getBuffersInBacklog());
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
-		assertNotSame(bufferConsumer, read);
 		assertFalse(read.buffer().isRecycled());
 		read.buffer().recycleBuffer();
 		assertTrue(read.buffer().isRecycled());
@@ -237,7 +237,6 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertTrue(read.buffer().isBuffer());
 		assertEquals(1, partition.getBuffersInBacklog());
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
-		assertNotSame(bufferConsumer, read);
 		assertFalse(read.buffer().isRecycled());
 		read.buffer().recycleBuffer();
 		assertTrue(read.buffer().isRecycled());
@@ -302,8 +301,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 
 		assertEquals(5, partition.getTotalNumberOfBuffers());
 		assertEquals(3, partition.getBuffersInBacklog());
-		//TODO: re-enable this?
-//		assertEquals(BUFFER_DATA_SIZE * 4 + 4, partition.getTotalNumberOfBytes());
+		assertEquals(0, partition.getTotalNumberOfBytes()); // only updated when getting/spilling the buffers
 
 		AwaitableBufferAvailablityListener listener = new AwaitableBufferAvailablityListener();
 		SpillableSubpartitionView reader = (SpillableSubpartitionView) partition.createReadView(listener);
@@ -316,10 +314,12 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		BufferAndBacklog read = reader.getNextBuffer(); // first buffer (non-spilled)
 		assertNotNull(read);
 		assertTrue(read.buffer().isBuffer());
+		assertEquals(BUFFER_DATA_SIZE, partition.getTotalNumberOfBytes()); // only updated when getting/spilling the buffers
 		assertEquals(2, partition.getBuffersInBacklog());
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		read.buffer().recycleBuffer();
-		assertEquals(2, listener.getNumNotifications());
+		assertTrue(read.isMoreAvailable());
+		assertEquals(1, listener.getNumNotifications()); // since isMoreAvailable is set to true, no need for notification
 		assertFalse(bufferConsumer.isRecycled());
 		assertFalse(read.nextBufferIsEvent());
 
@@ -329,16 +329,18 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		// still same statistics:
 		assertEquals(5, partition.getTotalNumberOfBuffers());
 		assertEquals(2, partition.getBuffersInBacklog());
-		//TODO: re-enable this?
-//		assertEquals(BUFFER_DATA_SIZE * 4 + 4, partition.getTotalNumberOfBytes());
+		// only updated when getting/spilling the buffers but without the nextBuffer (kept in memory)
+		assertEquals(BUFFER_DATA_SIZE * 3 + 4, partition.getTotalNumberOfBytes());
 
-		listener.awaitNotifications(3, 30_000);
-		assertEquals(3, listener.getNumNotifications());
+		listener.awaitNotifications(2, 30_000);
+		// Spiller finished
+		assertEquals(2, listener.getNumNotifications());
 
 		assertFalse(reader.nextBufferIsEvent()); // second buffer (retained in SpillableSubpartition#nextBuffer)
 		read = reader.getNextBuffer();
 		assertNotNull(read);
 		assertTrue(read.buffer().isBuffer());
+		assertEquals(BUFFER_DATA_SIZE * 4 + 4, partition.getTotalNumberOfBytes()); // finally integrates the nextBuffer statistics
 		assertEquals(1, partition.getBuffersInBacklog());
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		read.buffer().recycleBuffer();
@@ -350,6 +352,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		read = reader.getNextBuffer();
 		assertNotNull(read);
 		assertFalse(read.buffer().isBuffer());
+		assertEquals(BUFFER_DATA_SIZE * 4 + 4, partition.getTotalNumberOfBytes()); // already updated during spilling
 		assertEquals(1, partition.getBuffersInBacklog());
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		read.buffer().recycleBuffer();
@@ -359,6 +362,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		read = reader.getNextBuffer();
 		assertNotNull(read);
 		assertTrue(read.buffer().isBuffer());
+		assertEquals(BUFFER_DATA_SIZE * 4 + 4, partition.getTotalNumberOfBytes()); // already updated during spilling
 		assertEquals(0, partition.getBuffersInBacklog());
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertFalse(read.buffer().isRecycled());
@@ -370,6 +374,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertTrue(reader.nextBufferIsEvent());
 		read = reader.getNextBuffer();
 		assertNotNull(read);
+		assertEquals(BUFFER_DATA_SIZE * 4 + 4, partition.getTotalNumberOfBytes()); // already updated during spilling
 		assertEquals(0, partition.getBuffersInBacklog());
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertEquals(EndOfPartitionEvent.class,
@@ -418,8 +423,8 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		partition.finish();
 		// finish adds an EndOfPartitionEvent
 		assertEquals(1, partition.getTotalNumberOfBuffers());
-		//TODO: re-enable this?
-//		assertEquals(4, partition.getTotalNumberOfBytes());
+		// if not spilled, statistics are only updated when consuming the buffers
+		assertEquals(spilled ? 4 : 0, partition.getTotalNumberOfBytes());
 
 		BufferConsumer buffer = createFilledBufferConsumer(BUFFER_DATA_SIZE, BUFFER_DATA_SIZE);
 		try {
@@ -432,8 +437,8 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		}
 		// still same statistics
 		assertEquals(1, partition.getTotalNumberOfBuffers());
-		//TODO: re-enable this?
-//		assertEquals(4, partition.getTotalNumberOfBytes());
+		// if not spilled, statistics are only updated when consuming the buffers
+		assertEquals(spilled ? 4 : 0, partition.getTotalNumberOfBytes());
 	}
 
 	@Test
@@ -543,13 +548,13 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 			assertFalse("buffer1 should not be recycled (still in the queue)", buffer1.isRecycled());
 			assertFalse("buffer2 should not be recycled (still in the queue)", buffer2.isRecycled());
 			assertEquals(2, partition.getTotalNumberOfBuffers());
-			//TODO: re-enable this?
-//			assertEquals(BUFFER_DATA_SIZE * 2, partition.getTotalNumberOfBytes());
+			assertEquals(0, partition.getTotalNumberOfBytes()); // only updated when buffers are consumed or spilled
 
 			if (createView) {
 				// Create a read view
 				partition.finish();
 				partition.createReadView(new NoOpBufferAvailablityListener());
+				assertEquals(0, partition.getTotalNumberOfBytes()); // only updated when buffers are consumed or spilled
 			}
 
 			// one instance of the buffers is placed in the view's nextBuffer and not released
@@ -568,8 +573,8 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		}
 		// note: a view requires a finished partition which has an additional EndOfPartitionEvent
 		assertEquals(2 + (createView ? 1 : 0), partition.getTotalNumberOfBuffers());
-		//TODO: re-enable this?
-//		assertEquals(BUFFER_DATA_SIZE * 2 + (createView ? 4 : 0), partition.getTotalNumberOfBytes());
+		// with a view, one buffer remains in nextBuffer and is not counted yet
+		assertEquals(BUFFER_DATA_SIZE + (createView ? 4 : BUFFER_DATA_SIZE), partition.getTotalNumberOfBytes());
 	}
 
 	/**
@@ -696,8 +701,32 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		}
 		// note: in case we create a view, there will be an additional EndOfPartitionEvent
 		assertEquals(createView ? 3 : 2, partition.getTotalNumberOfBuffers());
-		//TODO: re-enable this?
-//		assertEquals((createView ? 4 : 0) + 2 * BUFFER_DATA_SIZE, partition.getTotalNumberOfBytes());
+		if (spilled) {
+			// with a view, one buffer remains in nextBuffer and is not counted yet
+			assertEquals(BUFFER_DATA_SIZE + (createView ? 4 : BUFFER_DATA_SIZE),
+				partition.getTotalNumberOfBytes());
+		} else {
+			// non-spilled byte statistics are only updated when buffers are consumed
+			assertEquals(0, partition.getTotalNumberOfBytes());
+		}
+	}
+
+	/**
+	 * Tests {@link SpillableSubpartition#spillFinishedBufferConsumers()} spilled bytes counting.
+	 */
+	@Test
+	public void testSpillFinishedBufferConsumers() throws Exception {
+		SpillableSubpartition partition = createSubpartition();
+		BufferBuilder bufferBuilder = createBufferBuilder(BUFFER_DATA_SIZE);
+
+		try (BufferConsumer buffer = bufferBuilder.createBufferConsumer()) {
+			partition.add(buffer);
+			assertEquals(0, partition.releaseMemory());
+			// finally fill the buffer with some bytes
+			bufferBuilder.appendAndCommit(ByteBuffer.allocate(BUFFER_DATA_SIZE));
+			bufferBuilder.finish(); // so that this buffer can be removed from the queue
+			assertEquals(BUFFER_DATA_SIZE, partition.spillFinishedBufferConsumers());
+		}
 	}
 
 	/**

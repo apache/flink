@@ -29,6 +29,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ShutdownHookUtil;
 
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
@@ -132,19 +133,8 @@ public class FileCache {
 				}
 			}
 
-			// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
-			// shutdown hook itself
-			if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
-				try {
-					Runtime.getRuntime().removeShutdownHook(shutdownHook);
-				}
-				catch (IllegalStateException e) {
-					// race, JVM is in shutdown already, we can safely ignore this
-				}
-				catch (Throwable t) {
-					LOG.warn("Exception while unregistering file cache's cleanup shutdown hook.");
-				}
-			}
+			// Remove shutdown hook to prevent resource leaks
+			ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 		}
 	}
 
@@ -265,31 +255,11 @@ public class FileCache {
 
 	private static Thread createShutdownHook(final FileCache cache, final Logger logger) {
 
-		Thread shutdownHook = new Thread(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					cache.shutdown();
-				}
-				catch (Throwable t) {
-					logger.error("Error during shutdown of file cache via JVM shutdown hook: " + t.getMessage(), t);
-				}
-			}
-		});
-
-		try {
-			// Add JVM shutdown hook to call shutdown of service
-			Runtime.getRuntime().addShutdownHook(shutdownHook);
-			return shutdownHook;
-		}
-		catch (IllegalStateException e) {
-			// JVM is already shutting down. no need to do our work
-			return null;
-		}
-		catch (Throwable t) {
-			logger.error("Cannot register shutdown hook that cleanly terminates the file cache service.");
-			return null;
-		}
+		return ShutdownHookUtil.addShutdownHook(
+			cache::shutdown,
+			FileCache.class.getSimpleName(),
+			logger
+		);
 	}
 
 	// ------------------------------------------------------------------------

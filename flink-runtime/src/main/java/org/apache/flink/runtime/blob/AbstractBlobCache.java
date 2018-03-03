@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 
@@ -116,7 +117,7 @@ public abstract class AbstractBlobCache implements Closeable {
 		}
 
 		// Add shutdown hook to delete storage directory
-		shutdownHook = BlobUtils.addShutdownHook(this, log);
+		shutdownHook = ShutdownHookUtil.addShutdownHook(this, getClass().getSimpleName(), log);
 
 		this.serverAddress = serverAddress;
 	}
@@ -249,16 +250,8 @@ public abstract class AbstractBlobCache implements Closeable {
 			try {
 				FileUtils.deleteDirectory(storageDir);
 			} finally {
-				// Remove shutdown hook to prevent resource leaks, unless this is invoked by the shutdown hook itself
-				if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
-					try {
-						Runtime.getRuntime().removeShutdownHook(shutdownHook);
-					} catch (IllegalStateException e) {
-						// race, JVM is in shutdown already, we can safely ignore this
-					} catch (Throwable t) {
-						log.warn("Exception while unregistering BLOB cache's cleanup shutdown hook.");
-					}
-				}
+				// Remove shutdown hook to prevent resource leaks
+				ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), log);
 			}
 		}
 	}

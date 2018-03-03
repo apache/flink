@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
+import org.apache.flink.util.Disposable;
 
 import java.util.stream.Stream;
 
@@ -30,7 +31,7 @@ import java.util.stream.Stream;
  *
  * @param <K> The key by which state is keyed.
  */
-public interface KeyedStateBackend<K> extends InternalKeyContext<K> {
+public interface KeyedStateBackend<K> extends InternalKeyContext<K>, Disposable {
 
 	/**
 	 * Sets the current key that is used for partitioned state.
@@ -102,8 +103,6 @@ public interface KeyedStateBackend<K> extends InternalKeyContext<K> {
 			TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, ?> stateDescriptor) throws Exception;
 
-	/**
-	 * Closes the backend and releases all resources.
-	 */
+	@Override
 	void dispose();
 }

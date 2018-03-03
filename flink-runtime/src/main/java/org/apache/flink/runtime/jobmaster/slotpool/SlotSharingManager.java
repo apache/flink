@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -175,105 +176,20 @@ public class SlotSharingManager {
 	 * preferred locations is checked.
 	 *
 	 * @param groupId which the returned slot must not contain
-	 * @param locationPreferences specifying which locations are preferred
+	 * @param matcher slot profile matcher to match slot with the profile requirements
 	 * @return the resolved root slot and its locality wrt to the specified location preferences
 	 * 		or null if there was no root slot which did not contain the given groupId
 	 */
 	@Nullable
-	MultiTaskSlotLocality getResolvedRootSlot(AbstractID groupId, Collection<TaskManagerLocation> locationPreferences) {
-		Preconditions.checkNotNull(locationPreferences);
-
-		final MultiTaskSlotLocality multiTaskSlotLocality;
-
-		if (locationPreferences.isEmpty()) {
-			multiTaskSlotLocality = getResolvedRootSlotWithoutLocationPreferences(groupId);
-		} else {
-			multiTaskSlotLocality = getResolvedRootSlotWithLocationPreferences(groupId, locationPreferences);
-		}
-
-		return multiTaskSlotLocality;
-	}
-
-	/**
-	 * Gets a resolved root slot which does not yet contain the given groupId. The method will try to
-	 * find a slot of a TaskManager contained in the collection of preferred locations. If there is no such slot
-	 * with free capacities available, then the method will look for slots of TaskManager which run on the same
-	 * machine as the TaskManager in the collection of preferred locations. If there is no such slot, then any slot
-	 * with free capacities is returned. If there is no such slot, then null is returned.
-	 *
-	 * @param groupId which the returned slot must not contain
-	 * @param locationPreferences specifying which locations are preferred
-	 * @return the resolved root slot and its locality wrt to the specified location preferences
-	 * 		or null if there was not root slot which did not contain the given groupId
-	 */
-	@Nullable
-	private MultiTaskSlotLocality getResolvedRootSlotWithLocationPreferences(AbstractID groupId, Collection<TaskManagerLocation> locationPreferences) {
-		Preconditions.checkNotNull(groupId);
-		Preconditions.checkNotNull(locationPreferences);
-		final Set<String> hostnameSet = new HashSet<>(16);
-		MultiTaskSlot nonLocalMultiTaskSlot = null;
-
+	MultiTaskSlotLocality getResolvedRootSlot(AbstractID groupId, SlotProfile.ProfileToSlotContextMatcher matcher) {
 		synchronized (lock) {
-			for (TaskManagerLocation locationPreference : locationPreferences) {
-				final Set<MultiTaskSlot> multiTaskSlots = resolvedRootSlots.get(locationPreference);
-
-				if (multiTaskSlots != null) {
-					for (MultiTaskSlot multiTaskSlot : multiTaskSlots) {
-						if (!multiTaskSlot.contains(groupId)) {
-							return MultiTaskSlotLocality.of(multiTaskSlot, Locality.LOCAL);
-						}
-					}
-
-					hostnameSet.add(locationPreference.getHostname());
-				}
-			}
-
-			for (Map.Entry<TaskManagerLocation, Set<MultiTaskSlot>> taskManagerLocationSetEntry : resolvedRootSlots.entrySet()) {
-				if (hostnameSet.contains(taskManagerLocationSetEntry.getKey().getHostname())) {
-					for (MultiTaskSlot multiTaskSlot : taskManagerLocationSetEntry.getValue()) {
-						if (!multiTaskSlot.contains(groupId)) {
-							return MultiTaskSlotLocality.of(multiTaskSlot, Locality.HOST_LOCAL);
-						}
-					}
-				} else if (nonLocalMultiTaskSlot == null) {
-					for (MultiTaskSlot multiTaskSlot : taskManagerLocationSetEntry.getValue()) {
-						if (!multiTaskSlot.contains(groupId)) {
-							nonLocalMultiTaskSlot = multiTaskSlot;
-						}
-					}
-				}
-			}
+			Collection<Set<MultiTaskSlot>> resolvedRootSlotsValues = this.resolvedRootSlots.values();
+			return matcher.findMatchWithLocality(
+				resolvedRootSlotsValues.stream().flatMap(Collection::stream),
+				(MultiTaskSlot multiTaskSlot) -> multiTaskSlot.getSlotContextFuture().join(),
+				(MultiTaskSlot multiTaskSlot) -> !multiTaskSlot.contains(groupId),
+				MultiTaskSlotLocality::of);
 		}
-
-		if (nonLocalMultiTaskSlot != null) {
-			return MultiTaskSlotLocality.of(nonLocalMultiTaskSlot, Locality.NON_LOCAL);
-		} else {
-			return null;
-		}
-	}
-
-	/**
-	 * Gets a resolved slot which does not yet contain the given groupId without any location
-	 * preferences.
-	 *
-	 * @param groupId which the returned slot must not contain
-	 * @return the resolved slot or null if there was no root slot with free capacities
-	 */
-	@Nullable
-	private MultiTaskSlotLocality getResolvedRootSlotWithoutLocationPreferences(AbstractID groupId) {
-		Preconditions.checkNotNull(groupId);
-
-		synchronized (lock) {
-			for (Set<MultiTaskSlot> multiTaskSlots : resolvedRootSlots.values()) {
-				for (MultiTaskSlot multiTaskSlot : multiTaskSlots) {
-					if (!multiTaskSlot.contains(groupId)) {
-						return MultiTaskSlotLocality.of(multiTaskSlot, Locality.UNCONSTRAINED);
-					}
-				}
-			}
-		}
-
-		return null;
 	}
 
 	/**
@@ -418,9 +334,9 @@ public class SlotSharingManager {
 		private MultiTaskSlot(
 				SlotRequestId slotRequestId,
 				@Nullable AbstractID groupId,
-				MultiTaskSlot parent,
+				@Nullable MultiTaskSlot parent,
 				CompletableFuture<? extends SlotContext> slotContextFuture,
-				SlotRequestId allocatedSlotRequestId) {
+				@Nullable SlotRequestId allocatedSlotRequestId) {
 			super(slotRequestId, groupId);
 
 			this.parent = parent;
@@ -537,9 +453,8 @@ public class SlotSharingManager {
 				if (parent != null) {
 					// we remove ourselves from our parent if we no longer have children
 					parent.releaseChild(getGroupId());
-				} else {
+				} else if (allTaskSlots.remove(getSlotRequestId()) != null) {
 					// we are the root node --> remove the root node from the list of task slots
-					allTaskSlots.remove(getSlotRequestId());
 
 					if (!slotContextFuture.isDone() || slotContextFuture.isCompletedExceptionally()) {
 						synchronized (lock) {

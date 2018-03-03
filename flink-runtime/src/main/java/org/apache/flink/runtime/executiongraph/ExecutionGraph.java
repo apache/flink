@@ -91,6 +91,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -523,6 +524,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 	}
 
+	@Nullable
 	public CheckpointCoordinator getCheckpointCoordinator() {
 		return checkpointCoordinator;
 	}
@@ -891,9 +893,12 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			}
 
 			if (state == JobStatus.RUNNING && currentGlobalModVersion == globalModVersion) {
-				schedulingFuture = newSchedulingFuture.whenCompleteAsync(
+				schedulingFuture = newSchedulingFuture;
+
+				newSchedulingFuture.whenCompleteAsync(
 					(Void ignored, Throwable throwable) -> {
-						if (throwable != null) {
+						if (throwable != null && !(throwable instanceof CancellationException)) {
+							// only fail if the scheduling future was not canceled
 							failGlobal(ExceptionUtils.stripCompletionException(throwable));
 						}
 					},
@@ -963,7 +968,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		// the future fails once one slot future fails.
 		final ConjunctFuture<Collection<Execution>> allAllocationsFuture = FutureUtils.combineAll(allAllocationFutures);
 
-		return allAllocationsFuture
+		final CompletableFuture<Void> currentSchedulingFuture = allAllocationsFuture
 			.thenAccept(
 				(Collection<Execution> executionsToDeploy) -> {
 					for (Execution execution : executionsToDeploy) {
@@ -976,7 +981,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 									t));
 						}
 					}
-			})
+				})
 			// Generate a more specific failure message for the eager scheduling
 			.exceptionally(
 				(Throwable throwable) -> {
@@ -996,6 +1001,16 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 					throw new CompletionException(resultThrowable);
 				});
+
+		currentSchedulingFuture.whenComplete(
+			(Void ignored, Throwable throwable) -> {
+				if (throwable instanceof CancellationException) {
+					// cancel the individual allocation futures
+					allAllocationsFuture.cancel(false);
+				}
+			});
+
+		return currentSchedulingFuture;
 	}
 
 	public void cancel() {

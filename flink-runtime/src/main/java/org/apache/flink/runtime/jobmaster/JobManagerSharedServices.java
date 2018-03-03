@@ -131,9 +131,7 @@ public class JobManagerSharedServices {
 		final String classLoaderResolveOrder =
 			config.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
 
-		final String alwaysParentFirstLoaderString =
-			config.getString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER);
-		final String[] alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderString.split(";");
+		final String[] alwaysParentFirstLoaderPatterns = CoreOptions.getParentFirstLoaderPatterns(config);
 
 		final BlobLibraryCacheManager libraryCacheManager =
 			new BlobLibraryCacheManager(

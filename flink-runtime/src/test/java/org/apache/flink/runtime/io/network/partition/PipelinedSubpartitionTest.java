@@ -43,6 +43,7 @@ import java.util.concurrent.Future;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createEventBufferConsumer;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferBuilder;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.BUFFER_SIZE;
 import static org.apache.flink.util.FutureUtil.waitForAll;
@@ -142,6 +143,48 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		}
 	}
 
+	/**
+	 * Normally moreAvailable flag from InputChannel should ignore non finished BufferConsumers, otherwise we would
+	 * busy loop on the unfinished BufferConsumers.
+	 */
+	@Test
+	public void testUnfinishedBufferBehindFinished() throws Exception {
+		final ResultSubpartition subpartition = createSubpartition();
+		AwaitableBufferAvailablityListener availablityListener = new AwaitableBufferAvailablityListener();
+		ResultSubpartitionView readView = subpartition.createReadView(availablityListener);
+
+		try {
+			subpartition.add(createFilledBufferConsumer(1025)); // finished
+			subpartition.add(createFilledBufferBuilder(1024).createBufferConsumer()); // not finished
+
+			assertNextBuffer(readView, 1025, false, 1);
+		} finally {
+			subpartition.release();
+		}
+	}
+
+	/**
+	 * After flush call unfinished BufferConsumers should be reported as available, otherwise we might not flush some
+	 * of the data.
+	 */
+	@Test
+	public void testFlushWithUnfinishedBufferBehindFinished() throws Exception {
+		final ResultSubpartition subpartition = createSubpartition();
+		AwaitableBufferAvailablityListener availablityListener = new AwaitableBufferAvailablityListener();
+		ResultSubpartitionView readView = subpartition.createReadView(availablityListener);
+
+		try {
+			subpartition.add(createFilledBufferConsumer(1025)); // finished
+			subpartition.add(createFilledBufferBuilder(1024).createBufferConsumer()); // not finished
+			subpartition.flush();
+
+			assertNextBuffer(readView, 1025, true, 1);
+			assertNextBuffer(readView, 1024, false, 1);
+		} finally {
+			subpartition.release();
+		}
+	}
+
 	@Test
 	public void testMultipleEmptyBuffers() throws Exception {
 		final ResultSubpartition subpartition = createSubpartition();
@@ -188,6 +231,16 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 	}
 
 	@Test
+	public void testEmptyFlush() throws Exception {
+		final PipelinedSubpartition subpartition = createSubpartition();
+
+		AwaitableBufferAvailablityListener listener = new AwaitableBufferAvailablityListener();
+		subpartition.createReadView(listener);
+		subpartition.flush();
+		assertEquals(0, listener.getNumNotifications());
+	}
+
+	@Test
 	public void testBasicPipelinedProduceConsumeLogic() throws Exception {
 		final PipelinedSubpartition subpartition = createSubpartition();
 
@@ -207,8 +260,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		assertEquals(1, subpartition.getTotalNumberOfBuffers());
 		assertEquals(1, subpartition.getBuffersInBacklog());
-		// TODO: re-enable?
-//		assertEquals(BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
+		assertEquals(0, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 
 		// ...should have resulted in a notification
 		verify(listener, times(1)).notifyDataAvailable();
@@ -218,6 +270,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		BufferAndBacklog read = view.getNextBuffer();
 		assertNotNull(read);
 		assertTrue(read.buffer().isBuffer());
+		assertEquals(BUFFER_SIZE, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 		assertEquals(0, subpartition.getBuffersInBacklog());
 		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertFalse(read.nextBufferIsEvent());
@@ -231,14 +284,14 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		assertEquals(2, subpartition.getTotalNumberOfBuffers());
 		assertEquals(1, subpartition.getBuffersInBacklog());
-		// TODO: re-enable?
-//		assertEquals(2 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
+		assertEquals(BUFFER_SIZE, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 		verify(listener, times(2)).notifyDataAvailable();
 
 		assertFalse(view.nextBufferIsEvent());
 		read = view.getNextBuffer();
 		assertNotNull(read);
 		assertTrue(read.buffer().isBuffer());
+		assertEquals(2 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 		assertEquals(0, subpartition.getBuffersInBacklog());
 		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertFalse(read.nextBufferIsEvent());
@@ -258,14 +311,14 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		assertEquals(5, subpartition.getTotalNumberOfBuffers());
 		assertEquals(2, subpartition.getBuffersInBacklog()); // two buffers (events don't count)
-		// TODO: re-enable?
-//		assertEquals(5 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
+		assertEquals(2 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 		verify(listener, times(4)).notifyDataAvailable();
 
 		assertFalse(view.nextBufferIsEvent()); // the first buffer
 		read = view.getNextBuffer();
 		assertNotNull(read);
 		assertTrue(read.buffer().isBuffer());
+		assertEquals(3 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 		assertEquals(1, subpartition.getBuffersInBacklog());
 		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertTrue(read.nextBufferIsEvent());
@@ -274,6 +327,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		read = view.getNextBuffer();
 		assertNotNull(read);
 		assertFalse(read.buffer().isBuffer());
+		assertEquals(4 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 		assertEquals(1, subpartition.getBuffersInBacklog());
 		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertFalse(read.nextBufferIsEvent());
@@ -282,6 +336,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		read = view.getNextBuffer();
 		assertNotNull(read);
 		assertTrue(read.buffer().isBuffer());
+		assertEquals(5 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
 		assertEquals(0, subpartition.getBuffersInBacklog());
 		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertFalse(read.nextBufferIsEvent());
@@ -473,6 +528,6 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 			Assert.fail("buffer 2 not recycled");
 		}
 		assertEquals(2, partition.getTotalNumberOfBuffers());
-		//assertEquals(2 * 4096, partition.getTotalNumberOfBytes());
+		assertEquals(0, partition.getTotalNumberOfBytes()); // buffer data is never consumed
 	}
 }

@@ -18,38 +18,42 @@
 
 package org.apache.flink.table.descriptors
 
+import java.util
+
 import org.apache.flink.table.api.ValidationException
 import org.junit.Test
 
+import scala.collection.JavaConverters._
+
 class MetadataTest extends DescriptorTestBase {
 
-  @Test
-  def testMetadata(): Unit = {
+  @Test(expected = classOf[ValidationException])
+  def testInvalidCreationTime(): Unit = {
+    addPropertyAndVerify(descriptors().get(0), "metadata.creation-time", "dfghj")
+  }
+
+  // ----------------------------------------------------------------------------------------------
+
+  override def descriptors(): util.List[Descriptor] = {
     val desc = Metadata()
       .comment("Some additional comment")
       .creationTime(123L)
       .lastAccessTime(12020202L)
-    val expected = Seq(
-      "metadata.comment" -> "Some additional comment",
-      "metadata.creation-time" -> "123",
-      "metadata.last-access-time" -> "12020202"
-    )
-    verifyProperties(desc, expected)
-  }
 
-  @Test(expected = classOf[ValidationException])
-  def testInvalidCreationTime(): Unit = {
-    verifyInvalidProperty("metadata.creation-time", "dfghj")
-  }
-
-  override def descriptor(): Descriptor = {
-    Metadata()
-      .comment("Some additional comment")
-      .creationTime(123L)
-      .lastAccessTime(12020202L)
+    util.Arrays.asList(desc)
   }
 
   override def validator(): DescriptorValidator = {
     new MetadataValidator()
+  }
+
+  override def properties(): util.List[util.Map[String, String]] = {
+    val props = Map(
+      "metadata.comment" -> "Some additional comment",
+      "metadata.creation-time" -> "123",
+      "metadata.last-access-time" -> "12020202"
+    )
+
+    util.Arrays.asList(props.asJava)
   }
 }

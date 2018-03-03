@@ -31,6 +31,7 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -51,7 +52,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.connectors.kafka.testutils.TestPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.testutils.TestSourceContext;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -67,6 +67,7 @@ import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -538,13 +539,13 @@ public class FlinkKafkaConsumerBaseTest {
 		assertThat(globalSubscribedPartitions.values(), hasSize(numPartitions));
 		assertThat(mockFetchedPartitionsOnStartup, everyItem(isIn(globalSubscribedPartitions.keySet())));
 
-		OperatorStateHandles[] state = new OperatorStateHandles[initialParallelism];
+		OperatorSubtaskState[] state = new OperatorSubtaskState[initialParallelism];
 
 		for (int i = 0; i < initialParallelism; i++) {
 			state[i] = testHarnesses[i].snapshot(0, 0);
 		}
 
-		OperatorStateHandles mergedState = AbstractStreamOperatorTestHarness.repackageState(state);
+		OperatorSubtaskState mergedState = AbstractStreamOperatorTestHarness.repackageState(state);
 
 		// -----------------------------------------------------------------------------------------
 		// restore
@@ -674,7 +675,14 @@ public class FlinkKafkaConsumerBaseTest {
 
 		@Override
 		protected boolean getIsAutoCommitEnabled() {
-			return this.isAutoCommitEnabled;
+			return isAutoCommitEnabled;
+		}
+
+		@Override
+		protected Map<KafkaTopicPartition, Long> fetchOffsetsWithTimestamp(
+				Collection<KafkaTopicPartition> partitions,
+				long timestamp) {
+			throw new UnsupportedOperationException();
 		}
 	}
 

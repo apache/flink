@@ -337,6 +337,11 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		return numRequiredBuffers - initialCredit;
 	}
 
+	@VisibleForTesting
+	boolean isWaitingForFloatingBuffers() {
+		return isWaitingForFloatingBuffers;
+	}
+
 	/**
 	 * The Buffer pool notifies this channel of an available floating buffer. If the channel is released or
 	 * currently does not need extra buffers, the buffer should be recycled to the buffer pool. Otherwise,
@@ -362,6 +367,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			// Important: double check the isReleased state inside synchronized block, so there is no
 			// race condition when notifyBufferAvailable and releaseAllResources running in parallel.
 			if (isReleased.get() || bufferQueue.getAvailableBufferSize() >= numRequiredBuffers) {
+				isWaitingForFloatingBuffers = false;
 				buffer.recycleBuffer();
 				return false;
 			}

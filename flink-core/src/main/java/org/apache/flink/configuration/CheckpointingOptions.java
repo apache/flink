@@ -66,6 +66,20 @@ public class CheckpointingOptions {
 				" complete checkpoint state. Some state backends may not support incremental checkpoints and ignore" +
 				" this option.");
 
+	/**
+	 * This option configures local recovery for this state backend.
+	 */
+	public static final ConfigOption<String> LOCAL_RECOVERY = ConfigOptions
+		.key("state.backend.local-recovery")
+		.defaultValue("DISABLED");
+
+	/**
+	 * The config parameter defining the root directories for storing file-based state for local recovery.
+	 */
+	public static final ConfigOption<String> LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS = ConfigOptions
+		.key("taskmanager.state.local.root-dirs")
+		.noDefaultValue();
+
 	// ------------------------------------------------------------------------
 	//  Options specific to the file-system-based state backends
 	// ------------------------------------------------------------------------

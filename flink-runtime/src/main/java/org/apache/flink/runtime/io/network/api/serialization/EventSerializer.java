@@ -101,16 +101,15 @@ public class EventSerializer {
 	}
 
 	/**
-	 * Identifies whether the given buffer encodes the given event.
+	 * Identifies whether the given buffer encodes the given event. Custom events are not supported.
 	 *
 	 * <p><strong>Pre-condition</strong>: This buffer must encode some event!</p>
 	 *
 	 * @param buffer the buffer to peak into
 	 * @param eventClass the expected class of the event type
-	 * @param classLoader the class loader to use for custom event classes
 	 * @return whether the event class of the <tt>buffer</tt> matches the given <tt>eventClass</tt>
 	 */
-	private static boolean isEvent(ByteBuffer buffer, Class<?> eventClass, ClassLoader classLoader) throws IOException {
+	private static boolean isEvent(ByteBuffer buffer, Class<?> eventClass) throws IOException {
 		if (buffer.remaining() < 4) {
 			throw new IOException("Incomplete event");
 		}
@@ -122,38 +121,16 @@ public class EventSerializer {
 		try {
 			int type = buffer.getInt();
 
-			switch (type) {
-				case END_OF_PARTITION_EVENT:
-					return eventClass.equals(EndOfPartitionEvent.class);
-				case CHECKPOINT_BARRIER_EVENT:
-					return eventClass.equals(CheckpointBarrier.class);
-				case END_OF_SUPERSTEP_EVENT:
-					return eventClass.equals(EndOfSuperstepEvent.class);
-				case CANCEL_CHECKPOINT_MARKER_EVENT:
-					return eventClass.equals(CancelCheckpointMarker.class);
-				case OTHER_EVENT:
-					try {
-						final DataInputDeserializer deserializer = new DataInputDeserializer(buffer);
-						final String className = deserializer.readUTF();
-
-						final Class<? extends AbstractEvent> clazz;
-						try {
-							clazz = classLoader.loadClass(className).asSubclass(AbstractEvent.class);
-						}
-						catch (ClassNotFoundException e) {
-							throw new IOException("Could not load event class '" + className + "'.", e);
-						}
-						catch (ClassCastException e) {
-							throw new IOException("The class '" + className + "' is not a valid subclass of '"
-								+ AbstractEvent.class.getName() + "'.", e);
-						}
-						return eventClass.equals(clazz);
-					}
-					catch (Exception e) {
-						throw new IOException("Error while deserializing or instantiating event.", e);
-					}
-				default:
-					throw new IOException("Corrupt byte stream for event");
+			if (eventClass.equals(EndOfPartitionEvent.class)) {
+				return type == END_OF_PARTITION_EVENT;
+			} else if (eventClass.equals(CheckpointBarrier.class)) {
+				return type == CHECKPOINT_BARRIER_EVENT;
+			} else if (eventClass.equals(EndOfSuperstepEvent.class)) {
+				return type == END_OF_SUPERSTEP_EVENT;
+			} else if (eventClass.equals(CancelCheckpointMarker.class)) {
+				return type == CANCEL_CHECKPOINT_MARKER_EVENT;
+			} else {
+				throw new UnsupportedOperationException("Unsupported eventClass = " + eventClass);
 			}
 		}
 		finally {
@@ -314,17 +291,13 @@ public class EventSerializer {
 	}
 
 	/**
-	 * Identifies whether the given buffer encodes the given event.
+	 * Identifies whether the given buffer encodes the given event. Custom events are not supported.
 	 *
 	 * @param buffer the buffer to peak into
 	 * @param eventClass the expected class of the event type
-	 * @param classLoader the class loader to use for custom event classes
 	 * @return whether the event class of the <tt>buffer</tt> matches the given <tt>eventClass</tt>
 	 */
-	public static boolean isEvent(final Buffer buffer,
-		final Class<?> eventClass,
-		final ClassLoader classLoader) throws IOException {
-		return !buffer.isBuffer() &&
-			isEvent(buffer.getNioBufferReadable(), eventClass, classLoader);
+	public static boolean isEvent(Buffer buffer, Class<?> eventClass) throws IOException {
+		return !buffer.isBuffer() && isEvent(buffer.getNioBufferReadable(), eventClass);
 	}
 }

@@ -22,8 +22,8 @@ package org.apache.flink.test.checkpointing;
  * Integration tests for asynchronous memory backend.
  */
 public class AsyncMemBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
-
-	public AsyncMemBackendEventTimeWindowCheckpointingITCase() {
-		super(StateBackendEnum.MEM_ASYNC);
+	@Override
+	protected StateBackendEnum getStateBackend() {
+		return StateBackendEnum.MEM_ASYNC;
 	}
 }

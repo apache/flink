@@ -200,7 +200,7 @@ public class SavepointHandlersTest extends TestLogger {
 			final String targetDirectory
 	) throws HandlerRequestException {
 		return new HandlerRequest<>(
-			new SavepointTriggerRequestBody(targetDirectory),
+			new SavepointTriggerRequestBody(targetDirectory, false),
 			new SavepointTriggerMessageParameters(),
 			Collections.singletonMap(JobIDPathParameter.KEY, JOB_ID.toString()),
 			Collections.emptyMap());

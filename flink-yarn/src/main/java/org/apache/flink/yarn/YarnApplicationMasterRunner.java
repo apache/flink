@@ -457,7 +457,7 @@ public class YarnApplicationMasterRunner {
 
 		if (metricRegistry != null) {
 			try {
-				metricRegistry.shutdown();
+				metricRegistry.shutdown().get();
 			} catch (Throwable t) {
 				LOG.error("Could not properly shut down the metric registry.", t);
 			}

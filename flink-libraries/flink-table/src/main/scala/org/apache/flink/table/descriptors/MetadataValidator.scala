@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.descriptors.MetadataValidator.{METADATA_COMMENT, METADATA_CREATION_TIME, METADATA_LAST_ACCESS_TIME, METADATA_VERSION}
+import org.apache.flink.table.descriptors.MetadataValidator.{METADATA_COMMENT, METADATA_CREATION_TIME, METADATA_LAST_ACCESS_TIME, METADATA_PROPERTY_VERSION}
 
 /**
   * Validator for [[Metadata]].
@@ -26,7 +26,7 @@ import org.apache.flink.table.descriptors.MetadataValidator.{METADATA_COMMENT, M
 class MetadataValidator extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
-    properties.validateInt(METADATA_VERSION, isOptional = true, 0, Integer.MAX_VALUE)
+    properties.validateInt(METADATA_PROPERTY_VERSION, isOptional = true, 0, Integer.MAX_VALUE)
     properties.validateString(METADATA_COMMENT, isOptional = true)
     properties.validateLong(METADATA_CREATION_TIME, isOptional = true)
     properties.validateLong(METADATA_LAST_ACCESS_TIME, isOptional = true)
@@ -35,7 +35,7 @@ class MetadataValidator extends DescriptorValidator {
 
 object MetadataValidator {
 
-  val METADATA_VERSION = "metadata.version"
+  val METADATA_PROPERTY_VERSION = "metadata.property-version"
   val METADATA_COMMENT = "metadata.comment"
   val METADATA_CREATION_TIME = "metadata.creation-time"
   val METADATA_LAST_ACCESS_TIME = "metadata.last-access-time"

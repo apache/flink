@@ -29,7 +29,6 @@ import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
-import org.rocksdb.WriteOptions;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -54,12 +53,6 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 	private final AggregateFunction<T, ACC, R> aggFunction;
 
 	/**
-	 * We disable writes to the write-ahead-log here. We can't have these in the base class
-	 * because JNI segfaults for some reason if they are.
-	 */
-	private final WriteOptions writeOptions;
-
-	/**
 	 * Creates a new {@code RocksDBFoldingState}.
 	 *
 	 * @param namespaceSerializer
@@ -77,9 +70,6 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 
 		this.valueSerializer = stateDesc.getSerializer();
 		this.aggFunction = stateDesc.getAggregateFunction();
-
-		writeOptions = new WriteOptions();
-		writeOptions.setDisableWAL(true);
 	}
 
 	@Override

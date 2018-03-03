@@ -23,7 +23,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClientActorTest;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -70,7 +70,7 @@ public class AkkaJobManagerRetrieverTest extends TestLogger {
 	@Test
 	public void testAkkaJobManagerRetrieval() throws Exception {
 		AkkaJobManagerRetriever akkaJobManagerRetriever = new AkkaJobManagerRetriever(actorSystem, timeout, 0, Time.milliseconds(0L));
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService();
+		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService();
 
 		CompletableFuture<JobManagerGateway> gatewayFuture = akkaJobManagerRetriever.getFuture();
 		final UUID leaderSessionId = UUID.randomUUID();
@@ -83,18 +83,18 @@ public class AkkaJobManagerRetrieverTest extends TestLogger {
 
 			final String address = actorRef.path().toString();
 
-			testingLeaderRetrievalService.start(akkaJobManagerRetriever);
+			settableLeaderRetrievalService.start(akkaJobManagerRetriever);
 
 			// check that the gateway future has not been completed since there is no leader yet
 			assertFalse(gatewayFuture.isDone());
 
-			testingLeaderRetrievalService.notifyListener(address, leaderSessionId);
+			settableLeaderRetrievalService.notifyListener(address, leaderSessionId);
 
 			JobManagerGateway jobManagerGateway = gatewayFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			assertEquals(address, jobManagerGateway.getAddress());
 		} finally {
-			testingLeaderRetrievalService.stop();
+			settableLeaderRetrievalService.stop();
 
 			if (actorRef != null) {
 				TestingUtils.stopActorGracefully(actorRef);

@@ -213,7 +213,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	@Override
-	public void postStop() throws Exception {
+	public CompletableFuture<Void> postStop() {
 		Exception exception = null;
 
 		taskManagerHeartbeatManager.stop();
@@ -240,14 +240,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		clearState();
 
-		try {
-			super.postStop();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
-
 		if (exception != null) {
-			ExceptionUtils.rethrowException(exception, "Error while shutting the ResourceManager down.");
+			return FutureUtils.completedExceptionally(
+				new FlinkException("Could not properly shut down the ResourceManager.", exception));
+		} else {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 

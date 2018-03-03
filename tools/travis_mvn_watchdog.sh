@@ -576,53 +576,9 @@ case $TEST in
 			printf "Running end-to-end tests\n"
 			printf "==============================================================================\n"
 
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running Wordcount end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target test-infra/end-to-end-test/test_batch_wordcount.sh
-				EXIT_CODE=$?
-			fi
+			FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
 
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running Kafka end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target test-infra/end-to-end-test/test_streaming_kafka010.sh
-				EXIT_CODE=$?
-			fi
-
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running class loading end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target test-infra/end-to-end-test/test_streaming_classloader.sh
-				EXIT_CODE=$?
-			fi
-
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running Shaded Hadoop S3A end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target test-infra/end-to-end-test/test_shaded_hadoop_s3a.sh
-				EXIT_CODE=$?
-			fi
-
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running Shaded Presto S3 end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target test-infra/end-to-end-test/test_shaded_presto_s3.sh
-				EXIT_CODE=$?
-			fi
-
-			if [ $EXIT_CODE == 0]; then
-				printf "\n==============================================================================\n"
-				printf "Running Streaming Python Wordcount end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target test-infra/end-to-end-test/test_streaming_python_wordcount.sh
-				EXIT_CODE=$?
-			fi
+			EXIT_CODE=$?
 		else
 			printf "\n==============================================================================\n"
 			printf "Previous build failure detected, skipping end-to-end tests.\n"

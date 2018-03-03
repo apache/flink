@@ -64,12 +64,10 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	/** State descriptor from which to create this state instance. */
 	protected final SD stateDesc;
 
-	/**
-	 * We disable writes to the write-ahead-log here.
-	 */
-	private final WriteOptions writeOptions;
+	protected final WriteOptions writeOptions;
 
 	protected final ByteArrayOutputStreamWithPos keySerializationStream;
+
 	protected final DataOutputView keySerializationDataOutputView;
 
 	private final boolean ambiguousKeyPossible;
@@ -89,8 +87,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 
 		this.columnFamily = columnFamily;
 
-		writeOptions = new WriteOptions();
-		writeOptions.setDisableWAL(true);
+		this.writeOptions = backend.getWriteOptions();
 		this.stateDesc = Preconditions.checkNotNull(stateDesc, "State Descriptor");
 
 		this.keySerializationStream = new ByteArrayOutputStreamWithPos(128);
@@ -105,7 +102,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
 			byte[] key = keySerializationStream.toByteArray();
-			backend.db.remove(columnFamily, writeOptions, key);
+			backend.db.delete(columnFamily, writeOptions, key);
 		} catch (IOException | RocksDBException e) {
 			throw new RuntimeException("Error while removing entry from RocksDB", e);
 		}

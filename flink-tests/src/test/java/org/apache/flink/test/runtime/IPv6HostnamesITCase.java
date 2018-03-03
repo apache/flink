@@ -27,14 +27,16 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
+import org.junit.AssumptionViolatedException;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -56,31 +58,33 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("serial")
 public class IPv6HostnamesITCase extends TestLogger {
 
-	@Test
-	public void testClusterWithIPv6host() {
+	@Rule
+	public final MiniClusterResource miniClusterResource = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			getConfiguration(),
+			2,
+			2));
 
+	private Configuration getConfiguration() {
 		final Inet6Address ipv6address = getLocalIPv6Address();
 		if (ipv6address == null) {
-			System.err.println("--- Cannot find a non-loopback local IPv6 address that Akka/Netty can bind to; skipping IPv6HostnamesITCase");
-			return;
+			throw new AssumptionViolatedException("--- Cannot find a non-loopback local IPv6 address that Akka/Netty can bind to; skipping IPv6HostnamesITCase");
 		}
+		final String addressString = ipv6address.getHostAddress();
+		log.info("Test will use IPv6 address " + addressString + " for connection tests");
 
-		LocalFlinkMiniCluster flink = null;
+		Configuration config = new Configuration();
+		config.setString(JobManagerOptions.ADDRESS, addressString);
+		config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, addressString);
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 16L);
+		return config;
+	}
+
+	@Test
+	public void testClusterWithIPv6host() {
 		try {
-			final String addressString = ipv6address.getHostAddress();
-			log.info("Test will use IPv6 address " + addressString + " for connection tests");
 
-			Configuration conf = new Configuration();
-			conf.setString(JobManagerOptions.ADDRESS, addressString);
-			conf.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, addressString);
-			conf.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-			conf.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
-			conf.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 16L);
-
-			flink = new LocalFlinkMiniCluster(conf, false);
-			flink.start();
-
-			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(addressString, flink.getLeaderRPCPort());
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(4);
 			env.getConfig().disableSysoutLogging();
 
@@ -107,11 +111,6 @@ public class IPv6HostnamesITCase extends TestLogger {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-		finally {
-			if (flink != null) {
-				flink.stop();
-			}
 		}
 	}
 

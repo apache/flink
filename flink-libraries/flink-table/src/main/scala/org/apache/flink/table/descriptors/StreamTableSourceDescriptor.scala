@@ -46,7 +46,7 @@ class StreamTableSourceDescriptor(tableEnv: StreamTableEnvironment, connector: C
     * Searches for the specified table source, configures it accordingly, and returns it.
     */
   def toTableSource: TableSource[_] = {
-    val source = TableSourceFactoryService.findTableSourceFactory(this)
+    val source = TableSourceFactoryService.findAndCreateTableSource(this)
     source match {
       case _: StreamTableSource[_] => source
       case _ => throw new TableException(

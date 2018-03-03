@@ -29,7 +29,6 @@ import org.apache.flink.runtime.state.internal.InternalFoldingState;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
-import org.rocksdb.WriteOptions;
 
 import java.io.IOException;
 
@@ -55,12 +54,6 @@ public class RocksDBFoldingState<K, N, T, ACC>
 	private final FoldFunction<T, ACC> foldFunction;
 
 	/**
-	 * We disable writes to the write-ahead-log here. We can't have these in the base class
-	 * because JNI segfaults for some reason if they are.
-	 */
-	private final WriteOptions writeOptions;
-
-	/**
 	 * Creates a new {@code RocksDBFoldingState}.
 	 *
 	 * @param namespaceSerializer The serializer for the namespace.
@@ -76,9 +69,6 @@ public class RocksDBFoldingState<K, N, T, ACC>
 
 		this.valueSerializer = stateDesc.getSerializer();
 		this.foldFunction = stateDesc.getFoldFunction();
-
-		writeOptions = new WriteOptions();
-		writeOptions.setDisableWAL(true);
 	}
 
 	@Override

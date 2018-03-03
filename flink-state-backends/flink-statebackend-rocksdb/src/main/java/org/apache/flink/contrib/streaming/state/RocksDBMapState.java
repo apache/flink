@@ -35,7 +35,6 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
-import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,12 +67,6 @@ public class RocksDBMapState<K, N, UK, UV>
 	private final TypeSerializer<UK> userKeySerializer;
 	private final TypeSerializer<UV> userValueSerializer;
 
-	/**
-	 * We disable writes to the write-ahead-log here. We can't have these in the base class
-	 * because JNI segfaults for some reason if they are.
-	 */
-	private final WriteOptions writeOptions;
-
 	/** The offset of User Key offset in raw key bytes. */
 	private int userKeyOffset;
 
@@ -92,9 +85,6 @@ public class RocksDBMapState<K, N, UK, UV>
 
 		this.userKeySerializer = stateDesc.getKeySerializer();
 		this.userValueSerializer = stateDesc.getValueSerializer();
-
-		writeOptions = new WriteOptions();
-		writeOptions.setDisableWAL(true);
 	}
 
 	// ------------------------------------------------------------------------
@@ -133,7 +123,7 @@ public class RocksDBMapState<K, N, UK, UV>
 	public void remove(UK userKey) throws IOException, RocksDBException {
 		byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(userKey);
 
-		backend.db.remove(columnFamily, writeOptions, rawKeyBytes);
+		backend.db.delete(columnFamily, writeOptions, rawKeyBytes);
 	}
 
 	@Override
@@ -349,7 +339,7 @@ public class RocksDBMapState<K, N, UK, UV>
 			rawValueBytes = null;
 
 			try {
-				db.remove(columnFamily, writeOptions, rawKeyBytes);
+				db.delete(columnFamily, writeOptions, rawKeyBytes);
 			} catch (RocksDBException e) {
 				throw new RuntimeException("Error while removing data from RocksDB.", e);
 			}
