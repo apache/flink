@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.ScalarTypesTestBase
+import org.apache.flink.table.runtime.functions.DateTimeFunctions
 import org.junit.Test
 
 class ScalarFunctionsTest extends ScalarTypesTestBase {
@@ -57,6 +58,14 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "'testx'.position('xxxtest')",
       "POSITION('testx' IN 'xxxtest')",
       "0")
+  }
+
+  @Test
+  def testStrToDate(): Unit = {
+    testSqlApi("STR_TO_DATE('20170203', '%Y%m%d')", "2017-02-03")
+    testSqlApi("STR_TO_DATE('01,5,2013', '%d,%m,%Y')", "2013-05-01")
+    testSqlApi("STR_TO_DATE('pm09:30:17', '%p%h:%i:%s')", "21:30:17")
+    testSqlApi("STR_TO_DATE('20110303 am03:29:44', '%Y%m%d %p%h:%i:%s')", "2011-03-03 03:29:44")
   }
 
   @Test

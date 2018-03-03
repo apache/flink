@@ -28,9 +28,28 @@ object DateTimeFunctions {
     = createDateTimeFormatter(format)
   }
 
+  private val ONLY_TIME_FORMAT = 1
+  private val ONLY_DATE_FORMAT = 2
+  private val DATETIME_FORMAT = 3
+
+  private val timeCharacters = Seq('f', 'H', 'h', 'I', 'i', 'l', 'r', 'S', 's', 'p', 'T')
+  private val dateCharacters = Seq('a', 'b', 'c', 'd', 'e', 'j', 'k', 'M',
+                                   'm', 'v', 'x', 'W', 'Y', 'y')
+
   def dateFormat(ts: Long, formatString: String): String = {
     val formatter = DATETIME_FORMATTER_CACHE.get(formatString)
     formatter.print(ts)
+  }
+
+  def strToDate(str: String, format: String): String = {
+    val dtf = createDateTimeFormatter(format)
+    val result = checkOutputFormat(format) match {
+      case ONLY_TIME_FORMAT => dtf.parseLocalTime(str).toString("HH:mm:ss").substring(0, 8)
+      case ONLY_DATE_FORMAT => dtf.parseLocalDate(str).toString("yyyy-MM-dd")
+      case DATETIME_FORMAT => dtf.parseDateTime(str).toString("yyyy-MM-dd HH:mm:ss")
+      case _ => "0000-00-00 00:00:00"
+    }
+    result
   }
 
   def createDateTimeFormatter(format: String): DateTimeFormatter = {
@@ -114,5 +133,20 @@ object DateTimeFunctions {
       else { builder.appendLiteral(character) }
     }
     builder.toFormatter
+  }
+
+  private def checkOutputFormat(format: String): Int = {
+    format.toCharArray.foldLeft[Int](0) {
+      case (0, char) => {
+        if (timeCharacters.contains(char)) ONLY_TIME_FORMAT
+        else if (dateCharacters.contains(char)) ONLY_DATE_FORMAT
+        else 0
+      }
+      case (ONLY_TIME_FORMAT, char) => if (dateCharacters.contains(char)) DATETIME_FORMAT
+                                       else ONLY_TIME_FORMAT
+      case (ONLY_DATE_FORMAT, char) => if (timeCharacters.contains(char)) DATETIME_FORMAT
+                                       else ONLY_DATE_FORMAT
+      case (DATETIME_FORMAT, _) => DATETIME_FORMAT
+    }
   }
 }
