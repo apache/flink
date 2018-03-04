@@ -92,6 +92,28 @@ case class Log10(child: Expression) extends UnaryExpression with InputTypeSpec {
   }
 }
 
+case class Log(base: Expression, antilogarithm: Expression) extends Expression with InputTypeSpec {
+  def this(antilogarithm: Expression) = this(null, antilogarithm)
+
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def children: Seq[Expression] =
+    if (base == null) Seq(antilogarithm) else Seq(base, antilogarithm)
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    Seq.fill(children.length)(DOUBLE_TYPE_INFO)
+
+  override def toString: String = s"log(${children.mkString(",")})"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.LOG, children.map(_.toRexNode))
+  }
+}
+
+object Log {
+  def apply(antilogarithm: Expression): Log = Log(null, antilogarithm)
+}
+
 case class Ln(child: Expression) extends UnaryExpression with InputTypeSpec {
   override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
 

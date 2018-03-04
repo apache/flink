@@ -296,14 +296,24 @@ trait ImplicitExpressionOperations {
   def exp() = Exp(expr)
 
   /**
-    * Calculates the base 10 logarithm of given value.
+    * Calculates the base 10 logarithm of the given value.
     */
   def log10() = Log10(expr)
 
   /**
-    * Calculates the natural logarithm of given value.
+    * Calculates the natural logarithm of the given value.
     */
   def ln() = Ln(expr)
+
+  /**
+    * Calculates the natural logarithm of the given value.
+    */
+  def log() = Log(null, expr)
+
+  /**
+    * Calculates the logarithm of the given value to the given base.
+    */
+  def log(base: Expression) = Log(base, expr)
 
   /**
     * Calculates the given number raised to the power of the other value.
