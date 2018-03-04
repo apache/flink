@@ -31,7 +31,7 @@ under the License.
 For distributed execution, Flink *chains* operator subtasks together into *tasks*. Each task is executed by one thread.
 Chaining operators together into tasks is a useful optimization: it reduces the overhead of thread-to-thread
 handover and buffering, and increases overall throughput while decreasing latency.
-The chaining behavior can be configured; see the [chaining docs](../dev/datastream_api.html#task-chaining-and-resource-groups) for details.
+The chaining behavior can be configured; see the [chaining docs](../dev/stream/operators/#task-chaining-and-resource-groups) for details.
 
 The sample dataflow in the figure below is executed with five subtasks, and hence with five parallel threads.
 
