@@ -496,18 +496,20 @@ public final class Utils {
 			// NOTE: must read the tokens from the local file, not from the UGI context, because if UGI is login
 			// using Kerberos keytabs, there is no HDFS delegation token in the UGI context.
 			String fileLocation = System.getenv(UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION);
-			Method readTokenStorageFileMethod = Credentials.class.getMethod(
-				"readTokenStorageFile", File.class, org.apache.hadoop.conf.Configuration.class);
+			if (fileLocation != null) {
+				Method readTokenStorageFileMethod = Credentials.class.getMethod(
+					"readTokenStorageFile", File.class, org.apache.hadoop.conf.Configuration.class);
 
-			Credentials cred =
-				(Credentials) readTokenStorageFileMethod.invoke(
-					null,
-					new File(fileLocation),
-					HadoopUtils.getHadoopConfiguration(flinkConfig));
+				Credentials cred =
+					(Credentials) readTokenStorageFileMethod.invoke(
+						null,
+						new File(fileLocation),
+						HadoopUtils.getHadoopConfiguration(flinkConfig));
 
-			cred.writeTokenStorageToStream(dob);
-			ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
-			ctx.setTokens(securityTokens);
+				cred.writeTokenStorageToStream(dob);
+				ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
+				ctx.setTokens(securityTokens);
+			}
 		}
 		catch (Throwable t) {
 			log.error("Getting current user info failed when trying to launch the container", t);
