@@ -1130,4 +1130,13 @@ object concat_ws {
   }
 }
 
+object log {
+  def apply(base: Expression, antilogarithm: Expression): Expression = {
+    Log(base, antilogarithm)
+  }
+  def apply(antilogarithm: Expression): Expression = {
+    new Log(antilogarithm)
+  }
+}
+
 // scalastyle:on object.name
