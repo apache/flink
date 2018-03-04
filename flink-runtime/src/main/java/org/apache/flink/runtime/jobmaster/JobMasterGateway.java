@@ -263,6 +263,7 @@ public interface JobMasterGateway extends
 	 */
 	CompletableFuture<String> triggerSavepoint(
 		@Nullable final String targetDirectory,
+		final boolean cancelJob,
 		final Time timeout);
 
 	/**

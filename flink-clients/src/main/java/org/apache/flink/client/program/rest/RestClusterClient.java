@@ -101,6 +101,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -353,24 +354,29 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 	@Override
 	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
-		throw new UnsupportedOperationException("Not implemented yet.");
+		return triggerSavepoint(jobId, savepointDirectory, true).get();
 	}
 
 	@Override
 	public CompletableFuture<String> triggerSavepoint(
 			final JobID jobId,
 			final @Nullable String savepointDirectory) throws FlinkException {
+		return triggerSavepoint(jobId, savepointDirectory, false);
+	}
+
+	private CompletableFuture<String> triggerSavepoint(
+			final JobID jobId,
+			final @Nullable String savepointDirectory,
+			final boolean cancelJob) {
 		final SavepointTriggerHeaders savepointTriggerHeaders = SavepointTriggerHeaders.getInstance();
 		final SavepointTriggerMessageParameters savepointTriggerMessageParameters =
 			savepointTriggerHeaders.getUnresolvedMessageParameters();
 		savepointTriggerMessageParameters.jobID.resolve(jobId);
 
-		final CompletableFuture<TriggerResponse> responseFuture;
-
-		responseFuture = sendRequest(
+		final CompletableFuture<TriggerResponse> responseFuture = sendRequest(
 			savepointTriggerHeaders,
 			savepointTriggerMessageParameters,
-			new SavepointTriggerRequestBody(savepointDirectory));
+			new SavepointTriggerRequestBody(savepointDirectory, cancelJob));
 
 		return responseFuture.thenCompose(savepointTriggerResponseBody -> {
 			final TriggerId savepointTriggerId = savepointTriggerResponseBody.getTriggerId();
@@ -525,7 +531,14 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 	@Override
 	public String getWebInterfaceURL() {
-		return getWebMonitorBaseUrl().toString();
+		try {
+			return getWebMonitorBaseUrl().get().toString();
+		} catch (InterruptedException | ExecutionException e) {
+			ExceptionUtils.checkInterrupted(e);
+
+			log.warn("Could not retrieve the web interface URL for the cluster.", e);
+			return "Unknown address.";
+		}
 	}
 
 	@Override
