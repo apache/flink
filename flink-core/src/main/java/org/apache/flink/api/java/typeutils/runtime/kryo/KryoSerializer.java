@@ -74,6 +74,10 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KryoSerializer.class);
 
+	static {
+		configureKryoLogging();
+	}
+
 	// ------------------------------------------------------------------------
 
 	private final LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> defaultSerializers;
@@ -481,6 +485,16 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		AvroUtils.getAvroUtils().addAvroGenericDataArrayRegistration(kryoRegistrations);
 
 		return kryoRegistrations;
+	}
+
+	static void configureKryoLogging() {
+		// Kryo uses only DEBUG and TRACE levels
+		// we only forward TRACE level, because even DEBUG levels results in
+		// a logging for each object, which is infeasible in Flink.
+		if (LOG.isTraceEnabled()) {
+			com.esotericsoftware.minlog.Log.setLogger(new MinlogForwarder(LOG));
+			com.esotericsoftware.minlog.Log.TRACE();
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
