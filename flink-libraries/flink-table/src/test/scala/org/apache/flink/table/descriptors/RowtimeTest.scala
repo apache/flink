@@ -46,7 +46,7 @@ class RowtimeTest extends DescriptorTestBase {
   override def descriptors(): util.List[Descriptor] = {
     val desc1 = Rowtime()
       .timestampsFromField("otherField")
-      .watermarksPeriodicBounding(1000L)
+      .watermarksPeriodicBounded(1000L)
 
     val desc2 = Rowtime()
       .timestampsFromSource()
