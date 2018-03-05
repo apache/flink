@@ -133,6 +133,7 @@ under the License.
 
 	<build>
 		<plugins>
+			<!-- Build flink-sql-client jar -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -163,6 +164,28 @@ under the License.
 									</includes>
 								</filter>
 							</filters>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Test dependency classloading -->
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>2.4</version>
+				<executions>
+					<execution>
+						<id>create-table-source-factory-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<finalName>table-source-factory</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-table-source-factory.xml</descriptor>
+							</descriptors>
 						</configuration>
 					</execution>
 				</executions>

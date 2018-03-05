@@ -18,7 +18,7 @@
 
 #==============================================================================
 # TEST ENVIRONMENT FILE
-# Intended for org.apache.flink.table.client.gateway.local.LocalExecutorITCase.
+# Intended for org.apache.flink.table.client.gateway.local.DependencyTest.
 #==============================================================================
 
 # this file has variables that can be filled with content by replacing $VAR_XXX
@@ -31,43 +31,12 @@ sources:
       - name: StringField1
         type: VARCHAR
     connector:
-      type: filesystem
-      path: "$VAR_0"
-    format:
-      type: csv
-      fields:
-        - name: IntegerField1
-          type: INT
-        - name: StringField1
-          type: VARCHAR
-      line-delimiter: "\n"
-      comment-prefix: "#"
-  - name: TableNumber2
-    schema:
-      - name: IntegerField2
-        type: INT
-      - name: StringField2
-        type: VARCHAR
-    connector:
-      type: filesystem
-      path: "$VAR_1"
-    format:
-      type: csv
-      fields:
-        - name: IntegerField2
-          type: INT
-        - name: StringField2
-          type: VARCHAR
-      line-delimiter: "\n"
-      comment-prefix: "#"
+      type: "$VAR_0"
+      $VAR_1: "$VAR_2"
 
 execution:
   type: streaming
   parallelism: 1
-  max-parallelism: 16
-  min-idle-state-retention: 0
-  max-idle-state-retention: 0
-  result-mode: "$VAR_2"
 
 deployment:
   type: standalone
