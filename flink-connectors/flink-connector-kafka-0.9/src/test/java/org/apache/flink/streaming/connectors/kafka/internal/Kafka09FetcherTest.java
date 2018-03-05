@@ -24,6 +24,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
@@ -122,6 +123,7 @@ public class Kafka09FetcherTest {
 				partitionsWithInitialOffsets,
 				null, /* periodic watermark extractor */
 				null, /* punctuated watermark extractor */
+				FlinkKafkaConsumerBase.PARTITION_IDLE_DISABLED,
 				new TestProcessingTimeService(),
 				10, /* watermark interval */
 				this.getClass().getClassLoader(),
@@ -258,6 +260,7 @@ public class Kafka09FetcherTest {
 				partitionsWithInitialOffsets,
 				null, /* periodic watermark extractor */
 				null, /* punctuated watermark extractor */
+				FlinkKafkaConsumerBase.PARTITION_IDLE_DISABLED,
 				new TestProcessingTimeService(),
 				10, /* watermark interval */
 				this.getClass().getClassLoader(),
@@ -373,6 +376,7 @@ public class Kafka09FetcherTest {
 				partitionsWithInitialOffsets,
 				null, /* periodic watermark extractor */
 				null, /* punctuated watermark extractor */
+				FlinkKafkaConsumerBase.PARTITION_IDLE_DISABLED,
 				new TestProcessingTimeService(),
 				10, /* watermark interval */
 				this.getClass().getClassLoader(),

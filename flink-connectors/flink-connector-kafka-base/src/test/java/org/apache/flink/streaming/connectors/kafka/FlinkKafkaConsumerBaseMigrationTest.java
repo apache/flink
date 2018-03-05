@@ -390,6 +390,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 				Map<KafkaTopicPartition, Long> thisSubtaskPartitionsWithStartOffsets,
 				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
+				long partitionIdleTimeout,
 				StreamingRuntimeContext runtimeContext,
 				OffsetCommitMode offsetCommitMode,
 				MetricGroup consumerMetricGroup,
