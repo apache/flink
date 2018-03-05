@@ -249,10 +249,24 @@ that are using this incorrect event-time timestamp will fail, and users should a
 `KeyedProcessFunction`, as an extension of `ProcessFunction`, gives access to the key of timers in its `onTimer(...)`
 method.
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 {% highlight java %}
 @Override
-public void onTimer(long timestamp, OnTimerContext<K> ctx, Collector<OUT> out) throws Exception {
+public void onTimer(long timestamp, OnTimerContext ctx, Collector<OUT> out) throws Exception {
     K key = ctx.getCurrentKey();
     // ...
 }
+
 {% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+override def onTimer(timestamp: Long, ctx: OnTimerContext, out: Collector[OUT]): Unit = {
+  var key = ctx.getCurrentKey
+  // ...
+}
+{% endhighlight %}
+</div>
+</div>
