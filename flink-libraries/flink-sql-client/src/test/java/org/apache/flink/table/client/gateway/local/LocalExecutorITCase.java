@@ -31,16 +31,15 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -61,6 +60,8 @@ import static org.junit.Assert.assertTrue;
  */
 public class LocalExecutorITCase extends TestLogger {
 
+	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
+
 	private static StandaloneMiniCluster cluster;
 
 	@BeforeClass
@@ -80,9 +81,9 @@ public class LocalExecutorITCase extends TestLogger {
 	@Test
 	public void testListTables() throws Exception {
 		final Executor executor = createDefaultExecutor();
-		final SessionContext context = new SessionContext("test-session", new Environment());
+		final SessionContext session = new SessionContext("test-session", new Environment());
 
-		final List<String> actualTables = executor.listTables(context);
+		final List<String> actualTables = executor.listTables(session);
 
 		final List<String> expectedTables = Arrays.asList("TableNumber1", "TableNumber2");
 		assertEquals(expectedTables, actualTables);
@@ -91,12 +92,12 @@ public class LocalExecutorITCase extends TestLogger {
 	@Test
 	public void testGetSessionProperties() throws Exception {
 		final Executor executor = createDefaultExecutor();
-		final SessionContext context = new SessionContext("test-session", new Environment());
+		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		// modify defaults
-		context.setSessionProperty("execution.result-mode", "table");
+		session.setSessionProperty("execution.result-mode", "table");
 
-		final Map<String, String> actualProperties = executor.getSessionProperties(context);
+		final Map<String, String> actualProperties = executor.getSessionProperties(session);
 
 		final Map<String, String> expectedProperties = new HashMap<>();
 		expectedProperties.put("execution.type", "streaming");
@@ -114,9 +115,9 @@ public class LocalExecutorITCase extends TestLogger {
 	@Test
 	public void testTableSchema() throws Exception {
 		final Executor executor = createDefaultExecutor();
-		final SessionContext context = new SessionContext("test-session", new Environment());
+		final SessionContext session = new SessionContext("test-session", new Environment());
 
-		final TableSchema actualTableSchema = executor.getTableSchema(context, "TableNumber2");
+		final TableSchema actualTableSchema = executor.getTableSchema(session, "TableNumber2");
 
 		final TableSchema expectedTableSchema = new TableSchema(
 			new String[] {"IntegerField2", "StringField2"},
@@ -135,11 +136,11 @@ public class LocalExecutorITCase extends TestLogger {
 		replaceVars.put("$VAR_2", "changelog");
 
 		final Executor executor = createModifiedExecutor(replaceVars);
-		final SessionContext context = new SessionContext("test-session", new Environment());
+		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		try {
 			// start job and retrieval
-			final ResultDescriptor desc = executor.executeQuery(context, "SELECT * FROM TableNumber1");
+			final ResultDescriptor desc = executor.executeQuery(session, "SELECT * FROM TableNumber1");
 
 			assertFalse(desc.isMaterialized());
 
@@ -148,7 +149,7 @@ public class LocalExecutorITCase extends TestLogger {
 			while (true) {
 				Thread.sleep(50); // slow the processing down
 				final TypedResult<List<Tuple2<Boolean, Row>>> result =
-					executor.retrieveResultChanges(context, desc.getResultId());
+					executor.retrieveResultChanges(session, desc.getResultId());
 				if (result.getType() == TypedResult.ResultType.PAYLOAD) {
 					for (Tuple2<Boolean, Row> change : result.getPayload()) {
 						actualResults.add(change.toString());
@@ -168,7 +169,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {
-			executor.stop(context);
+			executor.stop(session);
 		}
 	}
 
@@ -182,11 +183,11 @@ public class LocalExecutorITCase extends TestLogger {
 		replaceVars.put("$VAR_2", "table");
 
 		final Executor executor = createModifiedExecutor(replaceVars);
-		final SessionContext context = new SessionContext("test-session", new Environment());
+		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		try {
 			// start job and retrieval
-			final ResultDescriptor desc = executor.executeQuery(context, "SELECT IntegerField1 FROM TableNumber1");
+			final ResultDescriptor desc = executor.executeQuery(session, "SELECT IntegerField1 FROM TableNumber1");
 
 			assertTrue(desc.isMaterialized());
 
@@ -194,7 +195,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 			while (true) {
 				Thread.sleep(50); // slow the processing down
-				final TypedResult<Integer> result = executor.snapshotResult(context, desc.getResultId(), 2);
+				final TypedResult<Integer> result = executor.snapshotResult(session, desc.getResultId(), 2);
 				if (result.getType() == TypedResult.ResultType.PAYLOAD) {
 					actualResults.clear();
 					IntStream.rangeClosed(1, result.getPayload()).forEach((page) -> {
@@ -217,29 +218,21 @@ public class LocalExecutorITCase extends TestLogger {
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {
-			executor.stop(context);
+			executor.stop(session);
 		}
 	}
 
 	private LocalExecutor createDefaultExecutor() throws Exception {
-		final URL url = getClass().getClassLoader().getResource("test-sql-client-defaults.yaml");
-		Objects.requireNonNull(url);
-		final Environment env = Environment.parse(url);
-
-		return new LocalExecutor(env, Collections.emptyList(), cluster.getConfiguration());
+		return new LocalExecutor(
+			EnvironmentFileUtil.parseUnmodified(DEFAULTS_ENVIRONMENT_FILE),
+			Collections.emptyList(),
+			cluster.getConfiguration());
 	}
 
 	private LocalExecutor createModifiedExecutor(Map<String, String> replaceVars) throws Exception {
-		final URL url = getClass().getClassLoader().getResource("test-sql-client-defaults.yaml");
-		Objects.requireNonNull(url);
-		String schema = FileUtils.readFileUtf8(new File(url.getFile()));
-
-		for (Map.Entry<String, String> replaceVar : replaceVars.entrySet()) {
-			schema = schema.replace(replaceVar.getKey(), replaceVar.getValue());
-		}
-
-		final Environment env = Environment.parse(schema);
-
-		return new LocalExecutor(env, Collections.emptyList(), cluster.getConfiguration());
+		return new LocalExecutor(
+			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
+			Collections.emptyList(),
+			cluster.getConfiguration());
 	}
 }
