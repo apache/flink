@@ -83,7 +83,7 @@ public class HBaseTestingClusterAutostarter extends TestLogger implements Serial
 
 	private static final Log LOG = LogFactory.getLog(HBaseTestingClusterAutostarter.class);
 
-	private static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
+	protected static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
 	private static HBaseAdmin admin = null;
 	private static List<TableName> createdTables = new ArrayList<>();
 
@@ -246,4 +246,7 @@ public class HBaseTestingClusterAutostarter extends TestLogger implements Serial
 		LOG.info("HBase minicluster: Down");
 	}
 
+	public static HBaseAdmin getAdmin() {
+		return admin;
+	}
 }

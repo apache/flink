@@ -18,7 +18,7 @@
 
 package org.apache.flink.addons.hbase.example;
 
-import org.apache.flink.addons.hbase.TableInputFormat;
+import org.apache.flink.addons.hbase.TableSnapshotInputFormat;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -29,60 +29,73 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 
 /**
- * Simple stub for HBase DataSet read
+ * Simple stub for HBase DataSet read based on HBase snapshot
  *
  * <p>To run the test first create the test table with hbase shell.
+ *
+ * <p>Make sure <tt>/restore_path</tt> directory is created in your root directory.
  *
  * <p>Use the following commands:
  * <ul>
  *     <li>create 'test-table', 'someCf'</li>
  *     <li>put 'test-table', '1', 'someCf:someQual', 'someString'</li>
  *     <li>put 'test-table', '2', 'someCf:someQual', 'anotherString'</li>
+ *     <li>snapshot 'test-table', 'test-snapshot'</li>
  * </ul>
  *
  * <p>The test should return just the first entry.
  *
  */
-public class HBaseReadExample {
+public class HBaseSnapshotReadExample {
 	public static void main(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		@SuppressWarnings("serial")
-		DataSet<Tuple2<String, String>> hbaseDs = env.createInput(new TableInputFormat<Tuple2<String, String>>() {
-
-			@Override
-			public String getTableName() {
-				return HBaseFlinkTestConstants.TEST_TABLE_NAME;
-			}
-
-			@Override
-			public Scan getScanner() {
-				Scan scan = new Scan();
-				scan.addColumn(HBaseFlinkTestConstants.CF_SOME, HBaseFlinkTestConstants.Q_SOME);
-				return scan;
-			}
-
-			private Tuple2<String, String> reuse = new Tuple2<String, String>();
-
-			@Override
-			public Tuple2<String, String> mapResultToTuple(Result r) {
-				String key = Bytes.toString(r.getRow());
-				String val = Bytes.toString(r.getValue(HBaseFlinkTestConstants.CF_SOME, HBaseFlinkTestConstants.Q_SOME));
-				reuse.setField(key, 0);
-				reuse.setField(val, 1);
-				return reuse;
-			}
-		})
-			.filter(new FilterFunction<Tuple2<String, String>>() {
+		DataSet<Tuple2<String, String>> hbaseDs = env.createInput(new TableSnapshotInputFormat<Tuple2<String, String>>() {
 
 				@Override
-				public boolean filter(Tuple2<String, String> t) throws Exception {
-					String val = t.getField(1);
-					if (val.startsWith("someStr")) {
-						return true;
-					}
-					return false;
+				public String getTableName() {
+					return HBaseFlinkTestConstants.TEST_TABLE_NAME;
 				}
-			});
+
+				@Override
+				public Scan getScanner() {
+					Scan scan = new Scan();
+					scan.addColumn(HBaseFlinkTestConstants.CF_SOME, HBaseFlinkTestConstants.Q_SOME);
+					return scan;
+				}
+
+				private Tuple2<String, String> reuse = new Tuple2<String, String>();
+
+				@Override
+				public Tuple2<String, String> mapResultToTuple(Result r) {
+					String key = Bytes.toString(r.getRow());
+					String val = Bytes.toString(r.getValue(HBaseFlinkTestConstants.CF_SOME, HBaseFlinkTestConstants.Q_SOME));
+					reuse.setField(key, 0);
+					reuse.setField(val, 1);
+					return reuse;
+				}
+
+				@Override
+				protected String getSnapshotName() {
+					return "test-snapshot";
+				}
+
+				@Override
+				protected String getRestoreDirPath() {
+					return "/restore_path";
+				}
+		})
+		.filter(new FilterFunction<Tuple2<String, String>>() {
+
+			@Override
+			public boolean filter(Tuple2<String, String> t) throws Exception {
+				String val = t.getField(1);
+				if (val.startsWith("someStr")) {
+					return true;
+				}
+				return false;
+			}
+		});
 
 		hbaseDs.print();
 

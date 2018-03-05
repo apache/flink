@@ -18,18 +18,21 @@
 
 package org.apache.flink.addons.hbase;
 
-import org.apache.flink.addons.hbase.strategy.TableInputSplitStrategyImpl;
+import org.apache.flink.addons.hbase.strategy.TableSnapshotInputSplitStrategyImpl;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.types.Row;
 
-/**
- * {@link InputFormat} subclass that wraps the access for HTables. Returns the result as {@link Row}.
- */
-public class HBaseRowInputFormat extends HBaseRowInputFormatTemplate implements ResultTypeQueryable<Row> {
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HConstants;
 
-	public HBaseRowInputFormat(org.apache.hadoop.conf.Configuration conf, String tableName, HBaseTableSchema schema) {
+/**
+ * {@link InputFormat} subclass that wraps the access for HTables snapshot. Returns the result as {@link Row}
+ */
+public class HBaseSnapshotRowInputFormat extends HBaseRowInputFormatTemplate implements ResultTypeQueryable<Row> {
+
+	public HBaseSnapshotRowInputFormat(Configuration conf, String tableName, String snapshotName, String restoreDirPath, HBaseTableSchema schema) {
 		super(conf, tableName, schema);
-		tableInputSplitStrategy = new TableInputSplitStrategyImpl();
+		tableInputSplitStrategy = new TableSnapshotInputSplitStrategyImpl(tableName, snapshotName, restoreDirPath, conf.get(HConstants.HBASE_DIR));
 	}
 }

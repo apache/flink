@@ -18,11 +18,12 @@
 
 package org.apache.flink.addons.hbase;
 
+import org.apache.flink.addons.hbase.strategy.TableInputSplitStrategyImpl;
+import org.apache.flink.addons.hbase.util.HBaseConnectorUtil;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
@@ -30,30 +31,17 @@ import org.apache.hadoop.hbase.client.Scan;
 /**
  * {@link InputFormat} subclass that wraps the access for HTables.
  */
-public abstract class TableInputFormat<T extends Tuple> extends AbstractTableInputFormat<T> {
+public abstract class TableInputFormat<T extends Tuple> extends AbstractTableInputFormat<T>
+	implements HBaseTableScannerAware, ResultToTupleMapper<T> {
 
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * Returns an instance of Scan that retrieves the required subset of records from the HBase table.
-	 * @return The appropriate instance of Scan for this usecase.
+	 * Creates a new table input format.
 	 */
-	protected abstract Scan getScanner();
-
-	/**
-	 * What table is to be read.
-	 * Per instance of a TableInputFormat derivative only a single tablename is possible.
-	 * @return The name of the table
-	 */
-	protected abstract String getTableName();
-
-	/**
-	 * The output from HBase is always an instance of {@link Result}.
-	 * This method is to copy the data in the Result instance into the required {@link Tuple}
-	 * @param r The Result instance from HBase that needs to be converted
-	 * @return The appropriate instance of {@link Tuple} that contains the needed information.
-	 */
-	protected abstract T mapResultToTuple(Result r);
+	public TableInputFormat() {
+		tableInputSplitStrategy = new TableInputSplitStrategyImpl();
+	}
 
 	/**
 	 * Creates a {@link Scan} object and opens the {@link HTable} connection.
@@ -66,28 +54,11 @@ public abstract class TableInputFormat<T extends Tuple> extends AbstractTableInp
 	 */
 	@Override
 	public void configure(Configuration parameters) {
-		table = createTable();
-		if (table != null) {
-			scan = getScanner();
-		}
+		table = HBaseConnectorUtil.createTable(getTableName(), null);
+		super.configure(parameters);
 	}
 
-	/**
-	 * Create an {@link HTable} instance and set it into this format.
-	 */
-	private HTable createTable() {
-		LOG.info("Initializing HBaseConfiguration");
-		//use files found in the classpath
-		org.apache.hadoop.conf.Configuration hConf = HBaseConfiguration.create();
-
-		try {
-			return new HTable(hConf, getTableName());
-		} catch (Exception e) {
-			LOG.error("Error instantiating a new HTable instance", e);
-		}
-		return null;
-	}
-
+	@Override
 	protected T mapResultToOutType(Result r) {
 		return mapResultToTuple(r);
 	}
