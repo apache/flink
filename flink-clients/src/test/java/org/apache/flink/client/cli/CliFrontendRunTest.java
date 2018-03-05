@@ -144,7 +144,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 
 	// --------------------------------------------------------------------------------------------
 
-	private static void verifyCliFrontend(
+	public static void verifyCliFrontend(
 			AbstractCustomCommandLine<?> cli,
 			String[] parameters,
 			int expectedParallelism,

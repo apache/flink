@@ -96,6 +96,18 @@ under the License.
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<version>2.4</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
@@ -120,7 +132,7 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-			<!--Remove the external jar test code from the test-classes directory since it musn't be in the
+			<!--Remove the external jar test code from the test-classes directory since it mustn't be in the
 			classpath when running the tests to actually test whether the user code class loader
 			is properly used.-->
 			<plugin>
