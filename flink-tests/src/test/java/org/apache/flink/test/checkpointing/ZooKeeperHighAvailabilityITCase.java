@@ -62,6 +62,7 @@ import java.nio.file.Files;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import scala.concurrent.Await;
@@ -69,7 +70,9 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -94,7 +97,12 @@ public class ZooKeeperHighAvailabilityITCase extends TestBaseUtils {
 	// once with isRestored() == false. All other invocations must have isRestored() == true. This
 	// verifies that we don't restart a job from scratch in case the CompletedCheckpoints can't
 	// be read.
-	private static AtomicInteger allowedRestores = new AtomicInteger(1);
+	private static AtomicInteger allowedInitializeCallsWithoutRestore = new AtomicInteger(1);
+
+	// in CheckpointBlockingFunction we count when we see restores that are not allowed. We only
+	// allow restores once we messed with the HA directory and moved it back again
+	private static AtomicInteger illegalRestores = new AtomicInteger(0);
+	private static AtomicBoolean restoreAllowed = new AtomicBoolean(false);
 
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointMigrationTestBase.class);
 	protected LocalFlinkMiniCluster cluster = null;
@@ -151,7 +159,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestBaseUtils {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 100L));
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0));
 		env.enableCheckpointing(10); // Flink doesn't allow lower than 10 ms
 
 		File checkpointLocation = temporaryFolder.newFolder();
@@ -186,8 +194,6 @@ public class ZooKeeperHighAvailabilityITCase extends TestBaseUtils {
 
 		failInCheckpointLatch.trigger();
 
-		Thread.sleep(2000);
-
 		// Ensure that we see at least one cycle where the job tries to restart and fails.
 		CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccesfulWithDelay(
 			() -> getJobStatus(jobManager, jobID, TEST_TIMEOUT),
@@ -210,6 +216,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestBaseUtils {
 			jobStatusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 
 		// move back the HA directory so that the job can restore
+		restoreAllowed.set(true);
 		Files.move(movedCheckpointLocation.toPath(), haStorageDir.toPath());
 
 		// now the job should be able to go to RUNNING again
@@ -239,6 +246,8 @@ public class ZooKeeperHighAvailabilityITCase extends TestBaseUtils {
 		assertEquals(
 			JobStatus.CANCELED,
 			jobStatusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
+
+		assertThat("We saw illegal restores.", illegalRestores.get(), is(0));
 	}
 
 	/**
@@ -311,11 +320,14 @@ public class ZooKeeperHighAvailabilityITCase extends TestBaseUtils {
 		@Override
 		public void initializeState(FunctionInitializationContext context) {
 			if (!context.isRestored()) {
-				int updatedValue = allowedRestores.decrementAndGet();
+				int updatedValue = allowedInitializeCallsWithoutRestore.decrementAndGet();
 				if (updatedValue < 0) {
 					throw new RuntimeException("We are not allowed any more restores.");
 				}
 			} else {
+				if (!restoreAllowed.get()) {
+					illegalRestores.getAndIncrement();
+				}
 				successfulRestoreLatch.trigger();
 			}
 		}
