@@ -158,7 +158,7 @@ public class MiniClusterResource extends ExternalResource {
 
 		final LocalFlinkMiniCluster flinkMiniCluster = TestBaseUtils.startCluster(
 			configuration,
-			true);
+			false);
 
 		jobExecutorService = flinkMiniCluster;
 		clusterClient = new StandaloneClusterClient(configuration, flinkMiniCluster.highAvailabilityServices(), true);
