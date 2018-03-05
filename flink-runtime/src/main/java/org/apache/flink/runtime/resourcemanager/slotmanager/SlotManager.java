@@ -384,7 +384,7 @@ public class SlotManager implements AutoCloseable {
 	public boolean reportSlotStatus(InstanceID instanceId, SlotReport slotReport) {
 		checkInit();
 
-		LOG.info("Received slot report from instance {}.", instanceId);
+		LOG.trace("Received slot report from instance {}.", instanceId);
 
 		TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(instanceId);
 
