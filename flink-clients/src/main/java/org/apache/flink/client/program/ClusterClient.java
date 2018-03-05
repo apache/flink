@@ -663,7 +663,7 @@ public abstract class ClusterClient<T> {
 
 	/**
 	 * Triggers a savepoint for the job identified by the job id. The savepoint will be written to the given savepoint
-	 * directory, or {@link org.apache.flink.configuration.CoreOptions#SAVEPOINT_DIRECTORY} if it is null.
+	 * directory, or {@link org.apache.flink.configuration.CheckpointingOptions#SAVEPOINT_DIRECTORY} if it is null.
 	 *
 	 * @param jobId job id
 	 * @param savepointDirectory directory the savepoint should be written to
