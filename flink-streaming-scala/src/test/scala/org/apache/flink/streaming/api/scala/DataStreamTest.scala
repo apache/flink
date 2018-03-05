@@ -23,10 +23,11 @@ import java.lang
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
-import org.apache.flink.streaming.api.functions.{KeyedProcessFunction, ProcessFunction}
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
-import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
+import org.apache.flink.streaming.api.graph.{StreamEdge}
 import org.apache.flink.streaming.api.operators._
+import org.apache.flink.streaming.api.scala.testutils.StreamTestUtils
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
 import org.apache.flink.streaming.api.windowing.triggers.{CountTrigger, PurgingTrigger}
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
@@ -37,6 +38,9 @@ import org.junit.Assert._
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
+/**
+  * Tests for [[DataStream]]
+  */
 class DataStreamTest extends AbstractTestBase {
 
   private val expectedException = ExpectedException.none()
@@ -428,52 +432,6 @@ class DataStreamTest extends AbstractTestBase {
   }
 
   /**
-   * Verify that a [[KeyedStream.process(ProcessFunction)]] call is correctly
-   * translated to an operator.
-   */
-  @Test
-  def testKeyedStreamProcessTranslation(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-    val src = env.generateSequence(0, 0)
-
-    val processFunction = new ProcessFunction[Long, Int] {
-      override def processElement(
-          value: Long,
-          ctx: ProcessFunction[Long, Int]#Context,
-          out: Collector[Int]): Unit = ???
-    }
-
-    val flatMapped = src.keyBy(x => x).process(processFunction)
-
-    assert(processFunction == getFunctionForDataStream(flatMapped))
-    assert(getOperatorForDataStream(flatMapped).isInstanceOf[LegacyKeyedProcessOperator[_, _, _]])
-  }
-
-  /**
-   * Verify that a [[KeyedStream.process(KeyedProcessFunction)]] call is correctly
-   * translated to an operator.
-   */
-  @Test
-  def testKeyedStreamKeyedProcessTranslation(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-    val src = env.generateSequence(0, 0)
-
-    val keyedProcessFunction = new KeyedProcessFunction[Long, Long, Int] {
-      override def processElement(
-                                   value: Long,
-                                   ctx: KeyedProcessFunction[Long, Long, Int]#Context,
-                                   out: Collector[Int]): Unit = ???
-    }
-
-    val flatMapped = src.keyBy(x => x).process(keyedProcessFunction)
-
-    assert(keyedProcessFunction == getFunctionForDataStream(flatMapped))
-    assert(getOperatorForDataStream(flatMapped).isInstanceOf[KeyedProcessOperator[_, _, _]])
-  }
-
-  /**
    * Verify that a [[DataStream.process(ProcessFunction)]] call is correctly
    * translated to an operator.
    */
@@ -492,8 +450,8 @@ class DataStreamTest extends AbstractTestBase {
 
     val flatMapped = src.process(processFunction)
 
-    assert(processFunction == getFunctionForDataStream(flatMapped))
-    assert(getOperatorForDataStream(flatMapped).isInstanceOf[ProcessOperator[_, _]])
+    assert(processFunction == StreamTestUtils.getFunctionForDataStream(flatMapped))
+    assert(StreamTestUtils.getOperatorForDataStream(flatMapped).isInstanceOf[ProcessOperator[_, _]])
   }
 
   @Test def operatorTest() {
@@ -506,8 +464,9 @@ class DataStreamTest extends AbstractTestBase {
     }
 
     val map = src.map(mapFunction)
-    assert(mapFunction == getFunctionForDataStream(map))
-    assert(getFunctionForDataStream(map.map(x => 0)).isInstanceOf[MapFunction[_, _]])
+    assert(mapFunction == StreamTestUtils.getFunctionForDataStream(map))
+    assert(StreamTestUtils.getFunctionForDataStream(map.map(x => 0))
+      .isInstanceOf[MapFunction[_, _]])
     
     val statefulMap2 = src.keyBy(x => x).mapWithState(
         (in, state: Option[Long]) => (in, None.asInstanceOf[Option[Long]]))
@@ -517,9 +476,9 @@ class DataStreamTest extends AbstractTestBase {
     }
     
     val flatMap = src.flatMap(flatMapFunction)
-    assert(flatMapFunction == getFunctionForDataStream(flatMap))
+    assert(flatMapFunction == StreamTestUtils.getFunctionForDataStream(flatMap))
     assert(
-      getFunctionForDataStream(flatMap
+      StreamTestUtils.getFunctionForDataStream(flatMap
         .flatMap((x: Int, out: Collector[Int]) => {}))
         .isInstanceOf[FlatMapFunction[_, _]])
 
@@ -531,9 +490,9 @@ class DataStreamTest extends AbstractTestBase {
     }
 
     val unionFilter = map.union(flatMap).filter(filterFunction)
-    assert(filterFunction == getFunctionForDataStream(unionFilter))
+    assert(filterFunction == StreamTestUtils.getFunctionForDataStream(unionFilter))
     assert(
-      getFunctionForDataStream(map
+      StreamTestUtils.getFunctionForDataStream(map
         .filter((x: Int) => true))
         .isInstanceOf[FilterFunction[_]])
 
@@ -582,9 +541,9 @@ class DataStreamTest extends AbstractTestBase {
       override def fold(accumulator: String, value: Int): String = ""
     }
     val fold = map.keyBy(x=>x).fold("", foldFunction)
-    assert(foldFunction == getFunctionForDataStream(fold))
+    assert(foldFunction == StreamTestUtils.getFunctionForDataStream(fold))
     assert(
-      getFunctionForDataStream(map.keyBy(x=>x)
+      StreamTestUtils.getFunctionForDataStream(map.keyBy(x=>x)
         .fold("")((x: String, y: Int) => ""))
         .isInstanceOf[FoldFunction[_, _]])
 
@@ -597,7 +556,7 @@ class DataStreamTest extends AbstractTestBase {
         override def map2(value: Int): String = ""
       }
     val coMap = connect.map(coMapFunction)
-    assert(coMapFunction == getFunctionForDataStream(coMap))
+    assert(coMapFunction == StreamTestUtils.getFunctionForDataStream(coMap))
 
     try {
       env.getStreamGraph.getStreamEdges(fold.getId, coMap.getId)
@@ -676,20 +635,6 @@ class DataStreamTest extends AbstractTestBase {
   /////////////////////////////////////////////////////////////
   // Utilities
   /////////////////////////////////////////////////////////////
-
-  private def getFunctionForDataStream(dataStream: DataStream[_]): Function = {
-    dataStream.print()
-    val operator = getOperatorForDataStream(dataStream)
-      .asInstanceOf[AbstractUdfStreamOperator[_, _]]
-    operator.getUserFunction.asInstanceOf[Function]
-  }
-
-  private def getOperatorForDataStream(dataStream: DataStream[_]): StreamOperator[_] = {
-    dataStream.print()
-    val env = dataStream.javaStream.getExecutionEnvironment
-    val streamGraph: StreamGraph = env.getStreamGraph
-    streamGraph.getStreamNode(dataStream.getId).getOperator
-  }
 
   private def isPartitioned(edges: java.util.List[StreamEdge]): Boolean = {
     import scala.collection.JavaConverters._

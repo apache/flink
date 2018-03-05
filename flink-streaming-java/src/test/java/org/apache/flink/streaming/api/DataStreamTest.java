@@ -21,7 +21,6 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
-import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -49,7 +48,6 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
@@ -60,11 +58,8 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
-import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.testutils.StreamTestUtils;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
@@ -691,77 +686,6 @@ public class DataStreamTest extends TestLogger {
 	}
 
 	/**
-	 * Verify that a {@link KeyedStream#process(ProcessFunction)} call is correctly translated to an operator.
-	 */
-	@Test
-	@Deprecated
-	public void testKeyedStreamProcessTranslation() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStreamSource<Long> src = env.generateSequence(0, 0);
-
-		ProcessFunction<Long, Integer> processFunction = new ProcessFunction<Long, Integer>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public void processElement(
-					Long value,
-					Context ctx,
-					Collector<Integer> out) throws Exception {
-				// Do nothing
-			}
-
-			@Override
-			public void onTimer(
-					long timestamp,
-					OnTimerContext ctx,
-					Collector<Integer> out) throws Exception {
-				// Do nothing
-			}
-		};
-
-		DataStream<Integer> processed = src
-				.keyBy(new IdentityKeySelector<Long>())
-				.process(processFunction);
-
-		processed.addSink(new DiscardingSink<Integer>());
-
-		assertEquals(processFunction, getFunctionForDataStream(processed));
-		assertTrue(getOperatorForDataStream(processed) instanceof LegacyKeyedProcessOperator);
-	}
-
-	/**
-	 * Verify that a {@link KeyedStream#process(KeyedProcessFunction)} call is correctly translated to an operator.
-	 */
-	@Test
-	public void testKeyedStreamKeyedProcessTranslation() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStreamSource<Long> src = env.generateSequence(0, 0);
-
-		KeyedProcessFunction<Long, Long, Integer> keyedProcessFunction = new KeyedProcessFunction<Long, Long, Integer>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public void processElement(Long value, Context ctx, Collector<Integer> out) throws Exception {
-				// Do nothing
-			}
-
-			@Override
-			public void onTimer(long timestamp, OnTimerContext ctx, Collector<Integer> out) throws Exception {
-				// Do nothing
-			}
-		};
-
-		DataStream<Integer> processed = src
-				.keyBy(new IdentityKeySelector<Long>())
-				.process(keyedProcessFunction);
-
-		processed.addSink(new DiscardingSink<Integer>());
-
-		assertEquals(keyedProcessFunction, getFunctionForDataStream(processed));
-		assertTrue(getOperatorForDataStream(processed) instanceof KeyedProcessOperator);
-	}
-
-	/**
 	 * Verify that a {@link DataStream#process(ProcessFunction)} call is correctly translated to an operator.
 	 */
 	@Test
@@ -794,8 +718,8 @@ public class DataStreamTest extends TestLogger {
 
 		processed.addSink(new DiscardingSink<Integer>());
 
-		assertEquals(processFunction, getFunctionForDataStream(processed));
-		assertTrue(getOperatorForDataStream(processed) instanceof ProcessOperator);
+		assertEquals(processFunction, StreamTestUtils.getFunctionForDataStream(processed));
+		assertTrue(StreamTestUtils.getOperatorForDataStream(processed) instanceof ProcessOperator);
 	}
 
 	/**
@@ -913,7 +837,7 @@ public class DataStreamTest extends TestLogger {
 		};
 		DataStream<Integer> map = src.map(mapFunction);
 		map.addSink(new DiscardingSink<Integer>());
-		assertEquals(mapFunction, getFunctionForDataStream(map));
+		assertEquals(mapFunction, StreamTestUtils.getFunctionForDataStream(map));
 
 		FlatMapFunction<Long, Integer> flatMapFunction = new FlatMapFunction<Long, Integer>() {
 			private static final long serialVersionUID = 1L;
@@ -924,7 +848,7 @@ public class DataStreamTest extends TestLogger {
 		};
 		DataStream<Integer> flatMap = src.flatMap(flatMapFunction);
 		flatMap.addSink(new DiscardingSink<Integer>());
-		assertEquals(flatMapFunction, getFunctionForDataStream(flatMap));
+		assertEquals(flatMapFunction, StreamTestUtils.getFunctionForDataStream(flatMap));
 
 		FilterFunction<Integer> filterFunction = new FilterFunction<Integer>() {
 			@Override
@@ -938,7 +862,7 @@ public class DataStreamTest extends TestLogger {
 
 		unionFilter.addSink(new DiscardingSink<Integer>());
 
-		assertEquals(filterFunction, getFunctionForDataStream(unionFilter));
+		assertEquals(filterFunction, StreamTestUtils.getFunctionForDataStream(unionFilter));
 
 		try {
 			env.getStreamGraph().getStreamEdges(map.getId(), unionFilter.getId());
@@ -987,7 +911,7 @@ public class DataStreamTest extends TestLogger {
 		};
 		DataStream<String> coMap = connect.map(coMapper);
 		coMap.addSink(new DiscardingSink<String>());
-		assertEquals(coMapper, getFunctionForDataStream(coMap));
+		assertEquals(coMapper, StreamTestUtils.getFunctionForDataStream(coMap));
 
 		try {
 			env.getStreamGraph().getStreamEdges(map.getId(), coMap.getId());
@@ -1319,18 +1243,6 @@ public class DataStreamTest extends TestLogger {
 	// Utilities
 	/////////////////////////////////////////////////////////////
 
-	private static StreamOperator<?> getOperatorForDataStream(DataStream<?> dataStream) {
-		StreamExecutionEnvironment env = dataStream.getExecutionEnvironment();
-		StreamGraph streamGraph = env.getStreamGraph();
-		return streamGraph.getStreamNode(dataStream.getId()).getOperator();
-	}
-
-	private static Function getFunctionForDataStream(DataStream<?> dataStream) {
-		AbstractUdfStreamOperator<?, ?> operator =
-				(AbstractUdfStreamOperator<?, ?>) getOperatorForDataStream(dataStream);
-		return operator.getUserFunction();
-	}
-
 	private static Integer createDownStreamId(DataStream<?> dataStream) {
 		return dataStream.print().getTransformation().getId();
 	}
@@ -1391,7 +1303,10 @@ public class DataStreamTest extends TestLogger {
 		}
 	}
 
-	private static class IdentityKeySelector<T> implements KeySelector<T, T> {
+	/**
+	 * Identity key selector.
+	 */
+	protected static class IdentityKeySelector<T> implements KeySelector<T, T> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
