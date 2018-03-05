@@ -120,7 +120,12 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 				// register extension handlers
 				handlers.addAll(webSubmissionExtension.getHandlers());
 			} catch (FlinkException e) {
-				log.info("Failed to load web based job submission extension.", e);
+				if (log.isDebugEnabled()) {
+					log.debug("Failed to load web based job submission extension.", e);
+				} else {
+					log.info("Failed to load web based job submission extension. " +
+						"Probable reason: flink-runtime-web is not in the classpath.");
+				}
 			}
 		} else {
 			log.info("Web-based job submission is not enabled.");
