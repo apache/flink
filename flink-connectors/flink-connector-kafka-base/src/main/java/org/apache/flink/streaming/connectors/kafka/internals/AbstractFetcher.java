@@ -106,8 +106,18 @@ public abstract class AbstractFetcher<T, KPH> {
 	 */
 	private final SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated;
 
+	/**
+	 * The timeout for determining a partition to be idle. The longer the timeout, the longer an idle
+	 * partition may block the watermark progression downstream. This is currently
+	 * only relevant when using periodic watermarks in the consumer.
+	 */
+	private final long partitionIdleTimeout;
+
 	/** User class loader used to deserialize watermark assigners. */
 	private final ClassLoader userCodeClassLoader;
+
+	/** The processing time provider. */
+	private final ProcessingTimeService processingTimeService;
 
 	/** Only relevant for punctuated watermarks: The current cross partition watermark. */
 	private volatile long maxWatermarkSoFar = Long.MIN_VALUE;
@@ -140,6 +150,7 @@ public abstract class AbstractFetcher<T, KPH> {
 			Map<KafkaTopicPartition, Long> seedPartitionsWithInitialOffsets,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
+			long partitionIdleTimeout,
 			ProcessingTimeService processingTimeProvider,
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
@@ -172,6 +183,10 @@ public abstract class AbstractFetcher<T, KPH> {
 				throw new IllegalArgumentException("Cannot have both periodic and punctuated watermarks");
 			}
 		}
+
+		this.partitionIdleTimeout = partitionIdleTimeout;
+
+		this.processingTimeService = checkNotNull(processingTimeProvider);
 
 		this.unassignedPartitionsQueue = new ClosableBlockingQueue<>();
 
@@ -425,6 +440,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		final long timestamp;
 		//noinspection SynchronizationOnLocalVariableOrMethodParameter
 		synchronized (withWatermarksState) {
+			withWatermarksState.setlastRecordProcessingTime(processingTimeService.getCurrentProcessingTime());
 			timestamp = withWatermarksState.getTimestampForRecord(record, kafkaEventTimestamp);
 		}
 
@@ -536,7 +552,8 @@ public abstract class AbstractFetcher<T, KPH> {
 							new KafkaTopicPartitionStateWithPeriodicWatermarks<>(
 									partitionEntry.getKey(),
 									kafkaHandle,
-									assignerInstance);
+									assignerInstance,
+									partitionIdleTimeout);
 
 					partitionState.setOffset(partitionEntry.getValue());
 
@@ -669,9 +686,9 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * The periodic watermark emitter. In its given interval, it checks all partitions for
 	 * the current event time watermark, and possibly emits the next watermark.
 	 */
-	private static class PeriodicWatermarkEmitter<KPH> implements ProcessingTimeCallback {
+	private static class PeriodicWatermarkEmitter<T, KPH> implements ProcessingTimeCallback {
 
-		private final List<KafkaTopicPartitionState<KPH>> allPartitions;
+		private final List<KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH>> allPartitions;
 
 		private final SourceContext<?> emitter;
 
@@ -684,7 +701,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		//-------------------------------------------------
 
 		PeriodicWatermarkEmitter(
-				List<KafkaTopicPartitionState<KPH>> allPartitions,
+				List<KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH>> allPartitions,
 				SourceContext<?> emitter,
 				ProcessingTimeService timerService,
 				long autoWatermarkInterval) {
@@ -705,23 +722,30 @@ public abstract class AbstractFetcher<T, KPH> {
 		public void onProcessingTime(long timestamp) throws Exception {
 
 			long minAcrossAll = Long.MAX_VALUE;
-			boolean isEffectiveMinAggregation = false;
-			for (KafkaTopicPartitionState<?> state : allPartitions) {
+			for (KafkaTopicPartitionStateWithPeriodicWatermarks<?, ?> state : allPartitions) {
+				if (!state.isIdle(timerService.getCurrentProcessingTime())) {
+					// we access the current watermark for the periodic assigners under the state
+					// lock, to prevent concurrent modification to any internal variables
+					final long curr;
+					//noinspection SynchronizationOnLocalVariableOrMethodParameter
+					synchronized (state) {
+						curr = state.getCurrentWatermarkTimestamp();
+					}
 
-				// we access the current watermark for the periodic assigners under the state
-				// lock, to prevent concurrent modification to any internal variables
-				final long curr;
-				//noinspection SynchronizationOnLocalVariableOrMethodParameter
-				synchronized (state) {
-					curr = ((KafkaTopicPartitionStateWithPeriodicWatermarks<?, ?>) state).getCurrentWatermarkTimestamp();
+					minAcrossAll = Math.min(minAcrossAll, curr);
 				}
-
-				minAcrossAll = Math.min(minAcrossAll, curr);
-				isEffectiveMinAggregation = true;
 			}
 
-			// emit next watermark, if there is one
-			if (isEffectiveMinAggregation && minAcrossAll > lastWatermarkTimestamp) {
+			for (KafkaTopicPartitionStateWithPeriodicWatermarks<?, ?> state : allPartitions) {
+				state.notifyMinimalWatermark(minAcrossAll);
+			}
+
+			if (minAcrossAll == Long.MAX_VALUE) {
+				// either there is no partitions, or all partitions are idle;
+				// mark this source subtask as idle
+				emitter.markAsTemporarilyIdle();
+			} else if (minAcrossAll > lastWatermarkTimestamp) {
+				// emit next watermark, if there is one
 				lastWatermarkTimestamp = minAcrossAll;
 				emitter.emitWatermark(new Watermark(minAcrossAll));
 			}
