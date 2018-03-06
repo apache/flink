@@ -127,10 +127,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	/** The class logger. */
 	private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
-	/** The tread group that contains all task threads */
+	/** The tread group that contains all task threads. */
 	private static final ThreadGroup TASK_THREADS_GROUP = new ThreadGroup("Flink Task Threads");
 
-	/** For atomic state updates */
+	/** For atomic state updates. */
 	private static final AtomicReferenceFieldUpdater<Task, ExecutionState> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(Task.class, ExecutionState.class, "executionState");
 
@@ -138,52 +138,52 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	//  Constant fields that are part of the initial Task construction
 	// ------------------------------------------------------------------------
 
-	/** The job that the task belongs to */
+	/** The job that the task belongs to. */
 	private final JobID jobId;
 
-	/** The vertex in the JobGraph whose code the task executes */
+	/** The vertex in the JobGraph whose code the task executes. */
 	private final JobVertexID vertexId;
 
-	/** The execution attempt of the parallel subtask */
+	/** The execution attempt of the parallel subtask. */
 	private final ExecutionAttemptID executionId;
 
-	/** ID which identifies the slot in which the task is supposed to run */
+	/** ID which identifies the slot in which the task is supposed to run. */
 	private final AllocationID allocationId;
 
-	/** TaskInfo object for this task */
+	/** TaskInfo object for this task. */
 	private final TaskInfo taskInfo;
 
-	/** The name of the task, including subtask indexes */
+	/** The name of the task, including subtask indexes. */
 	private final String taskNameWithSubtask;
 
-	/** The job-wide configuration object */
+	/** The job-wide configuration object. */
 	private final Configuration jobConfiguration;
 
-	/** The task-specific configuration */
+	/** The task-specific configuration. */
 	private final Configuration taskConfiguration;
 
-	/** The jar files used by this task */
+	/** The jar files used by this task. */
 	private final Collection<PermanentBlobKey> requiredJarFiles;
 
-	/** The classpaths used by this task */
+	/** The classpaths used by this task. */
 	private final Collection<URL> requiredClasspaths;
 
-	/** The name of the class that holds the invokable code */
+	/** The name of the class that holds the invokable code. */
 	private final String nameOfInvokableClass;
 
-	/** Access to task manager configuration and host names*/
+	/** Access to task manager configuration and host names. */
 	private final TaskManagerRuntimeInfo taskManagerConfig;
 
-	/** The memory manager to be used by this task */
+	/** The memory manager to be used by this task. */
 	private final MemoryManager memoryManager;
 
-	/** The I/O manager to be used by this task */
+	/** The I/O manager to be used by this task. */
 	private final IOManager ioManager;
 
-	/** The BroadcastVariableManager to be used by this task */
+	/** The BroadcastVariableManager to be used by this task. */
 	private final BroadcastVariableManager broadcastVariableManager;
 
-	/** The manager for state of operators running in this task/slot */
+	/** The manager for state of operators running in this task/slot. */
 	private final TaskStateManager taskStateManager;
 
 	/** Serialized version of the job specific execution configuration (see {@link ExecutionConfig}). */
@@ -195,43 +195,43 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 	private final Map<IntermediateDataSetID, SingleInputGate> inputGatesById;
 
-	/** Connection to the task manager */
+	/** Connection to the task manager. */
 	private final TaskManagerActions taskManagerActions;
 
-	/** Input split provider for the task */
+	/** Input split provider for the task. */
 	private final InputSplitProvider inputSplitProvider;
 
-	/** Checkpoint notifier used to communicate with the CheckpointCoordinator */
+	/** Checkpoint notifier used to communicate with the CheckpointCoordinator. */
 	private final CheckpointResponder checkpointResponder;
 
-	/** All listener that want to be notified about changes in the task's execution state */
+	/** All listener that want to be notified about changes in the task's execution state. */
 	private final List<TaskExecutionStateListener> taskExecutionStateListeners;
 
-	/** The BLOB cache, from which the task can request BLOB files */
+	/** The BLOB cache, from which the task can request BLOB files. */
 	private final BlobCacheService blobService;
 
-	/** The library cache, from which the task can request its class loader */
+	/** The library cache, from which the task can request its class loader. */
 	private final LibraryCacheManager libraryCache;
 
-	/** The cache for user-defined files that the invokable requires */
+	/** The cache for user-defined files that the invokable requires. */
 	private final FileCache fileCache;
 
-	/** The gateway to the network stack, which handles inputs and produced results */
+	/** The gateway to the network stack, which handles inputs and produced results. */
 	private final NetworkEnvironment network;
 
-	/** The registry of this task which enables live reporting of accumulators */
+	/** The registry of this task which enables live reporting of accumulators. */
 	private final AccumulatorRegistry accumulatorRegistry;
 
-	/** The thread that executes the task */
+	/** The thread that executes the task. */
 	private final Thread executingThread;
 
-	/** Parent group for all metrics of this task */
+	/** Parent group for all metrics of this task. */
 	private final TaskMetricGroup metrics;
 
-	/** Partition producer state checker to request partition states from */
+	/** Partition producer state checker to request partition states from. */
 	private final PartitionProducerStateChecker partitionProducerStateChecker;
 
-	/** Executor to run future callbacks */
+	/** Executor to run future callbacks. */
 	private final Executor executor;
 
 	// ------------------------------------------------------------------------
@@ -240,19 +240,19 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	//  proper happens-before semantics on parallel modification
 	// ------------------------------------------------------------------------
 
-	/** atomic flag that makes sure the invokable is canceled exactly once upon error */
+	/** atomic flag that makes sure the invokable is canceled exactly once upon error. */
 	private final AtomicBoolean invokableHasBeenCanceled;
 
-	/** The invokable of this task, if initialized */
+	/** The invokable of this task, if initialized. */
 	private volatile AbstractInvokable invokable;
 
-	/** The current execution state of the task */
+	/** The current execution state of the task. */
 	private volatile ExecutionState executionState = ExecutionState.CREATED;
 
-	/** The observed exception, in case the task execution failed */
+	/** The observed exception, in case the task execution failed. */
 	private volatile Throwable failureCause;
 
-	/** Serial executor for asynchronous calls (checkpoints, etc), lazily initialized */
+	/** Serial executor for asynchronous calls (checkpoints, etc), lazily initialized. */
 	private volatile ExecutorService asyncCallDispatcher;
 
 	/** Initialized from the Flink configuration. May also be set at the ExecutionConfig */
@@ -512,7 +512,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	}
 
 	/**
-	 * The core work method that bootstraps the task and executes its code
+	 * The core work method that bootstraps the task and executes its code.
 	 */
 	@Override
 	public void run() {
@@ -556,7 +556,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 		// all resource acquisitions and registrations from here on
 		// need to be undone in the end
-		Map<String, Future<Path>> distributedCacheEntries = new HashMap<String, Future<Path>>();
+		Map<String, Future<Path>> distributedCacheEntries = new HashMap<>();
 		AbstractInvokable invokable = null;
 
 		try {
@@ -743,8 +743,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			try {
 				// check if the exception is unrecoverable
 				if (ExceptionUtils.isJvmFatalError(t) ||
-					(t instanceof OutOfMemoryError && taskManagerConfig.shouldExitJvmOnOutOfMemoryError()))
-				{
+						(t instanceof OutOfMemoryError && taskManagerConfig.shouldExitJvmOnOutOfMemoryError())) {
+
 					// terminate the JVM immediately
 					// don't attempt a clean shutdown, because we cannot expect the clean shutdown to complete
 					try {
