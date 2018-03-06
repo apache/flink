@@ -26,6 +26,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -34,7 +35,6 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 
-import static org.apache.flink.client.cli.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -49,7 +49,12 @@ public class CliFrontendStopTest extends TestLogger {
 
 	@BeforeClass
 	public static void setup() {
-		pipeSystemOutToNull();
+		CliFrontendTestUtils.pipeSystemOutToNull();
+	}
+
+	@AfterClass
+	public static void shutdown() {
+		CliFrontendTestUtils.restoreSystemOut();
 	}
 
 	@Test
