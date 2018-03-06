@@ -142,7 +142,7 @@ public class TaskExecutorLocalStateStoresManager {
 				LocalRecoveryConfig localRecoveryConfig =
 					new LocalRecoveryConfig(localRecoveryEnabled, directoryProvider);
 
-				taskLocalStateStore = (localRecoveryMode != LocalRecoveryConfig.LocalRecoveryMode.DISABLED) ?
+				taskLocalStateStore = localRecoveryConfig.isLocalRecoveryEnabled() ?
 
 						// Real store implementation if local recovery is enabled
 						new TaskLocalStateStoreImpl(
