@@ -118,7 +118,7 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 	@Override
 	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) throws FlinkException {
-		throw new UnsupportedOperationException("MiniClusterClient does not yet support this operation.");
+		return guardWithSingleRetry(() -> miniCluster.triggerSavepoint(jobId, savepointDirectory, false), scheduledExecutor);
 	}
 
 	@Override
