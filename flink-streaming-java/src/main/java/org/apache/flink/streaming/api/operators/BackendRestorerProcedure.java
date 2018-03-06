@@ -105,6 +105,8 @@ public class BackendRestorerProcedure<
 
 			++alternativeIdx;
 
+			// IMPORTANT: please be careful when modifying the log statements because they are used for validation in
+			// the automatic end-to-end tests. Those tests might fail if they are not aligned with the log message!
 			if (restoreState.isEmpty()) {
 				LOG.debug("Creating {} with empty state.", logDescription);
 			} else {
