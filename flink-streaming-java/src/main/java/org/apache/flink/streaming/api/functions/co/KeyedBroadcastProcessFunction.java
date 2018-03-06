@@ -170,5 +170,10 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> extends B
 		 * event or processing time timer.
 		 */
 		public abstract TimeDomain timeDomain();
+
+		/**
+		 * Get the key of the firing timer.
+		 */
+		public abstract KS getCurrentKey();
 	}
 }

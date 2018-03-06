@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.util.Collector
 import org.junit.Assert.assertEquals
-import org.junit.{Assert, Test}
+import org.junit.{Test}
 
 /**
   * ITCase for the [[org.apache.flink.api.common.state.BroadcastState]].
@@ -103,13 +103,19 @@ class TestBroadcastProcessFunction(
     BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]],
     BasicTypeInfo.STRING_TYPE_INFO)
 
+  var timerToExpectedKey = Map[Long, Long]()
+  var nextTimerTimestamp :Long = expectedTimestamp
+
   @throws[Exception]
   override def processElement(
       value: Long,
       ctx: KeyedBroadcastProcessFunction[Long, Long, String, String]#KeyedReadOnlyContext,
       out: Collector[String]): Unit = {
 
-    ctx.timerService.registerEventTimeTimer(expectedTimestamp)
+    val currentTime = nextTimerTimestamp
+    nextTimerTimestamp += 1
+    ctx.timerService.registerEventTimeTimer(currentTime)
+    timerToExpectedKey += (currentTime -> value)
   }
 
   @throws[Exception]
@@ -128,6 +134,8 @@ class TestBroadcastProcessFunction(
       ctx: KeyedBroadcastProcessFunction[Long, Long, String, String]#OnTimerContext,
       out: Collector[String]): Unit = {
 
+    assertEquals(timerToExpectedKey(timestamp), ctx.getCurrentKey)
+
     var map = Map[Long, String]()
 
     import scala.collection.JavaConversions._
@@ -137,7 +145,7 @@ class TestBroadcastProcessFunction(
       map += (entry.getKey -> entry.getValue)
     }
 
-    Assert.assertEquals(expectedBroadcastState, map)
+    assertEquals(expectedBroadcastState, map)
 
     out.collect(timestamp.toString)
   }
