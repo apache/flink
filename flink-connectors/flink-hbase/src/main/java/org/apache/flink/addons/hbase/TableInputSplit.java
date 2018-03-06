@@ -22,7 +22,6 @@ import org.apache.flink.core.io.LocatableInputSplit;
 
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HRegionInfo;
-import org.apache.hadoop.hbase.util.Bytes;
 
 /**
  * This class implements a input splits for HBase. Each table input split corresponds to a key range (low, high). All
@@ -183,9 +182,4 @@ public class TableInputSplit extends LocatableInputSplit {
 		return replicaId;
 	}
 
-	@Override
-	public String toString() {
-		return String.format("tableName=%s, startRow=%s, endRow=%s", tableName,
-			Bytes.toString(startRow), Bytes.toString(endRow));
-	}
 }
