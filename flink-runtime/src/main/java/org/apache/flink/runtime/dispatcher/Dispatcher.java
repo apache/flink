@@ -412,6 +412,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			}
 		}
 
+		if (log.isDebugEnabled()) {
+			log.debug("Try to get job status from archived execution graph store for job {}.", jobId);
+		}
+
 		final JobDetails jobDetails = archivedExecutionGraphStore.getAvailableJobDetails(jobId);
 
 		if (jobDetails != null) {
