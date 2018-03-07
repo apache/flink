@@ -39,6 +39,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -506,6 +507,17 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			return FutureUtils.completedExceptionally(
 				new FlinkException(
 					String.format("Could not trigger savepoint for job %s.", jobId),
+					e));
+		}
+	}
+
+	public CompletableFuture<? extends AccessExecutionGraph> getExecutionGraph(JobID jobId) {
+		try {
+			return getDispatcherGateway().requestJob(jobId, rpcTimeout);
+		} catch (LeaderRetrievalException | InterruptedException e) {
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					String.format("Could not retrieve job job %s.", jobId),
 					e));
 		}
 	}
