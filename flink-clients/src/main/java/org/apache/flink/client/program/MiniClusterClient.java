@@ -125,7 +125,7 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 	@Override
 	public CompletableFuture<Collection<JobStatusMessage>> listJobs() throws Exception {
-		throw new UnsupportedOperationException("MiniClusterClient does not yet support this operation.");
+		return guardWithSingleRetry(miniCluster::listJobs, scheduledExecutor);
 	}
 
 	@Override
