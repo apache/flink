@@ -288,15 +288,18 @@ public class CompletedCheckpoint implements Serializable {
 	public static boolean checkpointsMatch(
 		Collection<CompletedCheckpoint> first,
 		Collection<CompletedCheckpoint> second) {
+		if (first.size() != second.size()) {
+			return false;
+		}
 
-		List<Tuple2<Long, JobID>> firstInterestingFields = new ArrayList<>();
+		List<Tuple2<Long, JobID>> firstInterestingFields = new ArrayList<>(first.size());
 
 		for (CompletedCheckpoint checkpoint : first) {
 			firstInterestingFields.add(
 				new Tuple2<>(checkpoint.getCheckpointID(), checkpoint.getJobId()));
 		}
 
-		List<Tuple2<Long, JobID>> secondInterestingFields = new ArrayList<>();
+		List<Tuple2<Long, JobID>> secondInterestingFields = new ArrayList<>(second.size());
 
 		for (CompletedCheckpoint checkpoint : second) {
 			secondInterestingFields.add(
