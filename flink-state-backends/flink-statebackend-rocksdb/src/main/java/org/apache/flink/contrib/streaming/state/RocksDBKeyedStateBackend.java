@@ -658,41 +658,43 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 */
 		private void restoreKVStateData() throws IOException, RocksDBException {
 			//for all key-groups in the current state handle...
-			for (Tuple2<Integer, Long> keyGroupOffset : currentKeyGroupsStateHandle.getGroupRangeOffsets()) {
-				int keyGroup = keyGroupOffset.f0;
+			try (RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(rocksDBKeyedStateBackend.db)) {
+				for (Tuple2<Integer, Long> keyGroupOffset : currentKeyGroupsStateHandle.getGroupRangeOffsets()) {
+					int keyGroup = keyGroupOffset.f0;
 
-				// Check that restored key groups all belong to the backend
-				Preconditions.checkState(rocksDBKeyedStateBackend.getKeyGroupRange().contains(keyGroup),
-					"The key group must belong to the backend");
+					// Check that restored key groups all belong to the backend
+					Preconditions.checkState(rocksDBKeyedStateBackend.getKeyGroupRange().contains(keyGroup),
+						"The key group must belong to the backend");
 
-				long offset = keyGroupOffset.f1;
-				//not empty key-group?
-				if (0L != offset) {
-					currentStateHandleInStream.seek(offset);
-					try (InputStream compressedKgIn = keygroupStreamCompressionDecorator.decorateWithCompression(currentStateHandleInStream)) {
-						DataInputViewStreamWrapper compressedKgInputView = new DataInputViewStreamWrapper(compressedKgIn);
-						//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-						int kvStateId = compressedKgInputView.readShort();
-						ColumnFamilyHandle handle = currentStateHandleKVStateColumnFamilies.get(kvStateId);
-						//insert all k/v pairs into DB
-						boolean keyGroupHasMoreKeys = true;
-						while (keyGroupHasMoreKeys) {
-							byte[] key = BytePrimitiveArraySerializer.INSTANCE.deserialize(compressedKgInputView);
-							byte[] value = BytePrimitiveArraySerializer.INSTANCE.deserialize(compressedKgInputView);
-							if (RocksDBFullSnapshotOperation.hasMetaDataFollowsFlag(key)) {
-								//clear the signal bit in the key to make it ready for insertion again
-								RocksDBFullSnapshotOperation.clearMetaDataFollowsFlag(key);
-								rocksDBKeyedStateBackend.db.put(handle, key, value);
-								//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-								kvStateId = RocksDBFullSnapshotOperation.END_OF_KEY_GROUP_MARK
-									& compressedKgInputView.readShort();
-								if (RocksDBFullSnapshotOperation.END_OF_KEY_GROUP_MARK == kvStateId) {
-									keyGroupHasMoreKeys = false;
+					long offset = keyGroupOffset.f1;
+					//not empty key-group?
+					if (0L != offset) {
+						currentStateHandleInStream.seek(offset);
+						try (InputStream compressedKgIn = keygroupStreamCompressionDecorator.decorateWithCompression(currentStateHandleInStream)) {
+							DataInputViewStreamWrapper compressedKgInputView = new DataInputViewStreamWrapper(compressedKgIn);
+							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+							int kvStateId = compressedKgInputView.readShort();
+							ColumnFamilyHandle handle = currentStateHandleKVStateColumnFamilies.get(kvStateId);
+							//insert all k/v pairs into DB
+							boolean keyGroupHasMoreKeys = true;
+							while (keyGroupHasMoreKeys) {
+								byte[] key = BytePrimitiveArraySerializer.INSTANCE.deserialize(compressedKgInputView);
+								byte[] value = BytePrimitiveArraySerializer.INSTANCE.deserialize(compressedKgInputView);
+								if (RocksDBFullSnapshotOperation.hasMetaDataFollowsFlag(key)) {
+									//clear the signal bit in the key to make it ready for insertion again
+									RocksDBFullSnapshotOperation.clearMetaDataFollowsFlag(key);
+									writeBatchWrapper.put(handle, key, value);
+									//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+									kvStateId = RocksDBFullSnapshotOperation.END_OF_KEY_GROUP_MARK
+										& compressedKgInputView.readShort();
+									if (RocksDBFullSnapshotOperation.END_OF_KEY_GROUP_MARK == kvStateId) {
+										keyGroupHasMoreKeys = false;
+									} else {
+										handle = currentStateHandleKVStateColumnFamilies.get(kvStateId);
+									}
 								} else {
-									handle = currentStateHandleKVStateColumnFamilies.get(kvStateId);
+									writeBatchWrapper.put(handle, key, value);
 								}
-							} else {
-								rocksDBKeyedStateBackend.db.put(handle, key, value);
 							}
 						}
 					}
@@ -1042,7 +1044,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			try (RocksDB restoreDb = stateBackend.openDB(
 				restoreInstancePath.getPath(),
 				columnFamilyDescriptors,
-				columnFamilyHandles)) {
+				columnFamilyHandles);
+				RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(stateBackend.db)) {
 
 				final ColumnFamilyHandle defaultColumnFamily = columnFamilyHandles.remove(0);
 
@@ -1096,8 +1099,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 								}
 
 								if (stateBackend.keyGroupRange.contains(keyGroup)) {
-									stateBackend.db.put(targetColumnFamilyHandle,
-										iterator.key(), iterator.value());
+									writeBatchWrapper.put(targetColumnFamilyHandle, iterator.key(), iterator.value());
 								}
 
 								iterator.next();
