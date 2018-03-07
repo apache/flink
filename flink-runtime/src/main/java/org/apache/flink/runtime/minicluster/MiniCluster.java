@@ -28,6 +28,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -85,6 +86,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -460,6 +462,20 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	// ------------------------------------------------------------------------
 	//  Accessing jobs
 	// ------------------------------------------------------------------------
+
+	public CompletableFuture<Collection<JobStatusMessage>> listJobs() {
+		try {
+			return getDispatcherGateway().requestMultipleJobDetails(rpcTimeout)
+				.thenApply(jobs -> jobs.getJobs().stream()
+					.map(details -> new JobStatusMessage(details.getJobId(), details.getJobName(), details.getStatus(), details.getStartTime()))
+					.collect(Collectors.toList()));
+		} catch (LeaderRetrievalException | InterruptedException e) {
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					"Could not retrieve job list.",
+					e));
+		}
+	}
 
 	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
 		try {
