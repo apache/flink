@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -34,6 +35,7 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
@@ -42,7 +44,9 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -54,11 +58,11 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.testutils.DataGenerators;
 import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapper;
-import org.apache.flink.streaming.connectors.kafka.testutils.JobManagerCommunicationUtils;
 import org.apache.flink.streaming.connectors.kafka.testutils.PartitionValidatingMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.ThrottledMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2FlinkPartitioner;
@@ -72,6 +76,7 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.testutils.junit.RetryOnException;
 import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.ExceptionUtils;
 
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
@@ -95,6 +100,7 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -105,11 +111,11 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -123,6 +129,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	@Rule
 	public RetryRule retryRule = new RetryRule();
 
+	private ClusterClient<?> client;
+
 	// ------------------------------------------------------------------------
 	//  Common Test Preparation
 	// ------------------------------------------------------------------------
@@ -132,8 +140,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 * the same mini cluster. Otherwise, missing slots may happen.
 	 */
 	@Before
-	public void ensureNoJobIsLingering() throws Exception {
-		JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
+	public void setClientAndEnsureNoJobIsLingering() throws Exception {
+		client = flink.getClusterClient();
+		while (!getRunningJobs(client).isEmpty()){
+			Thread.sleep(50);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -244,7 +255,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		while (System.nanoTime() < deadline);
 
 		// cancel the job & wait for the job to finish
-		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+		client.cancel(getRunningJobs(client).get(0));
 		runner.join();
 
 		final Throwable t = errorRef.get();
@@ -330,7 +341,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		while (System.nanoTime() < deadline);
 
 		// cancel the job & wait for the job to finish
-		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+		client.cancel(getRunningJobs(client).get(0));
 		runner.join();
 
 		final Throwable t = errorRef.get();
@@ -443,14 +454,18 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			}).setParallelism(1)
 			.addSink(new DiscardingSink<>());
 
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+		final JobID consumeJobId = jobGraph.getJobID();
+
 		final AtomicReference<Throwable> error = new AtomicReference<>();
 		Thread consumeThread = new Thread(new Runnable() {
 			@Override
 			public void run() {
 				try {
-					env.execute(consumeExtraRecordsJobName);
+					client.setDetached(false);
+					client.submitJob(jobGraph, KafkaConsumerTestBase.class.getClassLoader());
 				} catch (Throwable t) {
-					if (!(t instanceof JobCancellationException)) {
+					if (!ExceptionUtils.findThrowable(t, JobCancellationException.class).isPresent()) {
 						error.set(t);
 					}
 				}
@@ -459,9 +474,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		consumeThread.start();
 
 		// wait until the consuming job has started, to be extra safe
-		JobManagerCommunicationUtils.waitUntilJobIsRunning(
-			flink.getLeaderGateway(timeout),
-			consumeExtraRecordsJobName);
+		while (getRunningJobs(client).isEmpty()) {
+			Thread.sleep(50);
+		}
 
 		// setup the extra records writing job
 		final StreamExecutionEnvironment env2 = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -500,9 +515,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 
 		// cancel the consume job after all extra records are written
-		JobManagerCommunicationUtils.cancelCurrentJob(
-			flink.getLeaderGateway(timeout),
-			consumeExtraRecordsJobName);
+		client.cancel(consumeJobId);
 		consumeThread.join();
 
 		kafkaOffsetHandler.close();
@@ -989,23 +1002,27 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		final AtomicReference<Throwable> jobError = new AtomicReference<>();
 
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(parallelism);
+		env.enableCheckpointing(100);
+		env.getConfig().disableSysoutLogging();
+
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+		FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, new SimpleStringSchema(), props);
+
+		env.addSource(source).addSink(new DiscardingSink<String>());
+
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+		final JobID jobId = jobGraph.getJobID();
+
 		final Runnable jobRunner = new Runnable() {
 			@Override
 			public void run() {
 				try {
-					final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-					env.setParallelism(parallelism);
-					env.enableCheckpointing(100);
-					env.getConfig().disableSysoutLogging();
-
-					Properties props = new Properties();
-					props.putAll(standardProps);
-					props.putAll(secureProps);
-					FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, new SimpleStringSchema(), props);
-
-					env.addSource(source).addSink(new DiscardingSink<String>());
-
-					env.execute("Runner for CancelingOnFullInputTest");
+					client.setDetached(false);
+					client.submitJob(jobGraph, KafkaConsumerTestBase.class.getClassLoader());
 				}
 				catch (Throwable t) {
 					jobError.set(t);
@@ -1026,14 +1043,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 
 		// cancel
-		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout), "Runner for CancelingOnFullInputTest");
+		client.cancel(jobId);
 
 		// wait for the program to be done and validate that we failed with the right exception
 		runnerThread.join();
 
-		failueCause = jobError.get();
-		assertNotNull("program did not fail properly due to canceling", failueCause);
-		assertTrue(failueCause.getMessage().contains("Job was cancelled"));
+		assertEquals(JobStatus.CANCELED, client.getJobStatus(jobId).get());
 
 		if (generator.isAlive()) {
 			generator.shutdown();
@@ -1063,23 +1078,27 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		final AtomicReference<Throwable> error = new AtomicReference<>();
 
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(parallelism);
+		env.enableCheckpointing(100);
+		env.getConfig().disableSysoutLogging();
+
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+		FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, new SimpleStringSchema(), props);
+
+		env.addSource(source).addSink(new DiscardingSink<String>());
+
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+		final JobID jobId = jobGraph.getJobID();
+
 		final Runnable jobRunner = new Runnable() {
 			@Override
 			public void run() {
 				try {
-					final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-					env.setParallelism(parallelism);
-					env.enableCheckpointing(100);
-					env.getConfig().disableSysoutLogging();
-
-					Properties props = new Properties();
-					props.putAll(standardProps);
-					props.putAll(secureProps);
-					FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, new SimpleStringSchema(), props);
-
-					env.addSource(source).addSink(new DiscardingSink<String>());
-
-					env.execute("CancelingOnEmptyInputTest");
+					client.setDetached(false);
+					client.submitJob(jobGraph, KafkaConsumerTestBase.class.getClassLoader());
 				}
 				catch (Throwable t) {
 					LOG.error("Job Runner failed with exception", t);
@@ -1100,14 +1119,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			Assert.fail("Test failed prematurely with: " + failueCause.getMessage());
 		}
 		// cancel
-		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+		client.cancel(jobId);
 
 		// wait for the program to be done and validate that we failed with the right exception
 		runnerThread.join();
 
-		failueCause = error.get();
-		assertNotNull("program did not fail properly due to canceling", failueCause);
-		assertTrue(failueCause.getMessage().contains("Job was cancelled"));
+		assertEquals(JobStatus.CANCELED, client.getJobStatus(jobId).get());
 
 		deleteTestTopic(topic);
 	}
@@ -1558,55 +1575,54 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		createTestTopic(topic, 5, 1);
 
 		final Tuple1<Throwable> error = new Tuple1<>(null);
+
+		// start job writing & reading data.
+		final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.getExecutionEnvironment();
+		env1.setParallelism(1);
+		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+		env1.getConfig().disableSysoutLogging();
+		env1.disableOperatorChaining(); // let the source read everything into the network buffers
+
+		TypeInformationSerializationSchema<Tuple2<Integer, Integer>> schema = new TypeInformationSerializationSchema<>(TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>"), env1.getConfig());
+		DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, standardProps));
+		fromKafka.flatMap(new FlatMapFunction<Tuple2<Integer, Integer>, Void>() {
+			@Override
+			public void flatMap(Tuple2<Integer, Integer> value, Collector<Void> out) throws Exception {// no op
+			}
+		});
+
+		DataStream<Tuple2<Integer, Integer>> fromGen = env1.addSource(new RichSourceFunction<Tuple2<Integer, Integer>>() {
+			boolean running = true;
+
+			@Override
+			public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
+				int i = 0;
+				while (running) {
+					ctx.collect(Tuple2.of(i++, getRuntimeContext().getIndexOfThisSubtask()));
+					Thread.sleep(1);
+				}
+			}
+
+			@Override
+			public void cancel() {
+				running = false;
+			}
+		});
+
+		kafkaServer.produceIntoKafka(fromGen, topic, new KeyedSerializationSchemaWrapper<>(schema), standardProps, null);
+
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env1.getStreamGraph());
+		final JobID jobId = jobGraph.getJobID();
+
 		Runnable job = new Runnable() {
 			@Override
 			public void run() {
 				try {
-					// start job writing & reading data.
-					final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.getExecutionEnvironment();
-					env1.setParallelism(1);
-					env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-					env1.getConfig().disableSysoutLogging();
-					env1.disableOperatorChaining(); // let the source read everything into the network buffers
-
-					Properties props = new Properties();
-					props.putAll(standardProps);
-					props.putAll(secureProps);
-
-					TypeInformationSerializationSchema<Tuple2<Integer, Integer>> schema = new TypeInformationSerializationSchema<>(TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>"), env1.getConfig());
-					DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, standardProps));
-					fromKafka.flatMap(new FlatMapFunction<Tuple2<Integer, Integer>, Void>() {
-						@Override
-						public void flatMap(Tuple2<Integer, Integer> value, Collector<Void> out) throws Exception {// no op
-						}
-					});
-
-					DataStream<Tuple2<Integer, Integer>> fromGen = env1.addSource(new RichSourceFunction<Tuple2<Integer, Integer>>() {
-						boolean running = true;
-
-						@Override
-						public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
-							int i = 0;
-							while (running) {
-								ctx.collect(Tuple2.of(i++, getRuntimeContext().getIndexOfThisSubtask()));
-								Thread.sleep(1);
-							}
-						}
-
-						@Override
-						public void cancel() {
-							running = false;
-						}
-					});
-
-					kafkaServer.produceIntoKafka(fromGen, topic, new KeyedSerializationSchemaWrapper<>(schema), standardProps, null);
-
-					env1.execute("Metrics test job");
+					client.setDetached(false);
+					client.submitJob(jobGraph, KafkaConsumerTestBase.class.getClassLoader());
 				} catch (Throwable t) {
-					if (!(t instanceof JobCancellationException)) { // we'll cancel the job
-						LOG.warn("Got exception during execution", t);
-						error.f0 = t;
-					}
+					LOG.warn("Got exception during execution", t);
+					error.f0 = t;
 				}
 			}
 		};
@@ -1653,7 +1669,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			LOG.info("Found all JMX metrics. Cancelling job.");
 		} finally {
 			// cancel
-			JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+			client.cancel(jobId);
 			// wait for the job to finish (it should due to the cancel command above)
 			jobThread.join();
 		}
@@ -1903,7 +1919,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			catch (Exception e) {
 				LOG.error("Write attempt failed, trying again", e);
 				deleteTestTopic(topicName);
-				JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
+				while (!getRunningJobs(client).isEmpty()) {
+					Thread.sleep(50);
+				}
 				continue;
 			}
 
@@ -1914,7 +1932,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			// we need to validate the sequence, because kafka's producers are not exactly once
 			LOG.info("Validating sequence");
 
-			JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
+			while (!getRunningJobs(client).isEmpty()) {
+				Thread.sleep(50);
+			}
 
 			if (validateSequence(topicName, parallelism, deserSchema, numElements)) {
 				// everything is good!
@@ -1996,7 +2016,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		// we need to validate the sequence, because kafka's producers are not exactly once
 		LOG.info("Validating sequence");
-		JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
+		while (!getRunningJobs(client).isEmpty()){
+			Thread.sleep(50);
+		}
 
 		if (!validateSequence(topicName, parallelism, deserSchema, originalNumElements + numElementsToAppend)) {
 			throw new Exception("Could not append a valid sequence to Kafka.");
@@ -2040,13 +2062,20 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(readEnv.getStreamGraph());
+		final JobID jobId = jobGraph.getJobID();
+
 		Thread runner = new Thread() {
 			@Override
 			public void run() {
 				try {
+					client.setDetached(false);
+					client.submitJob(jobGraph, KafkaConsumerTestBase.class.getClassLoader());
 					tryExecute(readEnv, "sequence validation");
 				} catch (Throwable t) {
-					errorRef.set(t);
+					if (!ExceptionUtils.findThrowable(t, SuccessException.class).isPresent()) {
+						errorRef.set(t);
+					}
 				}
 			}
 		};
@@ -2064,7 +2093,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			// did not finish in time, maybe the producer dropped one or more records and
 			// the validation did not reach the exit point
 			success = false;
-			JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+			client.cancel(jobId);
 		}
 		else {
 			Throwable error = errorRef.get();
@@ -2077,7 +2106,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			}
 		}
 
-		JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
+		while (!getRunningJobs(client).isEmpty()){
+			Thread.sleep(50);
+		}
 
 		return success;
 	}
@@ -2276,5 +2307,13 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		public String getTargetTopic(Tuple3<Integer, Integer, String> element) {
 			return element.f2;
 		}
+	}
+
+	private static List<JobID> getRunningJobs(ClusterClient<?> client) throws Exception {
+		Collection<JobStatusMessage> statusMessages = client.listJobs().get();
+		return statusMessages.stream()
+			.filter(status -> !status.getJobState().isGloballyTerminalState())
+			.map(JobStatusMessage::getJobId)
+			.collect(Collectors.toList());
 	}
 }
