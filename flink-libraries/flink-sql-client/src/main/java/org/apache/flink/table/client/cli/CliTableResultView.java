@@ -124,6 +124,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 		keys.bind(ResultTableOperation.RIGHT, "d", "D", key(client.getTerminal(), Capability.key_right));
 		keys.bind(ResultTableOperation.OPEN, "o", "O", "\r");
 		keys.bind(ResultTableOperation.GOTO, "g", "G");
+		keys.bind(ResultTableOperation.FIRST, "f", "F");
 		keys.bind(ResultTableOperation.NEXT, "n", "N");
 		keys.bind(ResultTableOperation.PREV, "p", "P");
 		keys.bind(ResultTableOperation.LAST, "l", "L", key(client.getTerminal(), Capability.key_end));
@@ -158,6 +159,9 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 				break;
 			case PREV:
 				gotoPreviousPage();
+				break;
+			case FIRST:
+				gotoFirstPage();
 				break;
 			case LAST:
 				gotoLastPage();
@@ -289,6 +293,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 
 		options.add(Tuple2.of("G", CliStrings.RESULT_GOTO));
 		options.add(Tuple2.of("L", CliStrings.RESULT_LAST));
+		options.add(Tuple2.of("F", CliStrings.RESULT_FIRST));
 
 		options.add(Tuple2.of("N", CliStrings.RESULT_NEXT));
 		options.add(Tuple2.of("P", CliStrings.RESULT_PREV));
@@ -340,6 +345,11 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 		updatePage();
 	}
 
+	private void gotoFirstPage() {
+		page = 1;
+		updatePage();
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -354,6 +364,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 		GOTO, // enter table page number
 		NEXT, // next table page
 		PREV, // previous table page
+		FIRST, // first table page
 		LAST, // last table page
 		LEFT, // scroll left if row is large
 		RIGHT, // scroll right if row is large

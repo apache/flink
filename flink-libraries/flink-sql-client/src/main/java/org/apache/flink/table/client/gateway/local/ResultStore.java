@@ -46,18 +46,21 @@ public class ResultStore {
 
 	private Configuration flinkConfig;
 
-	private Map<String, DynamicResult> results;
+	private Map<String, DynamicResult> dynamicResults;
+
+	private Map<String, StaticResult> staticResults;
 
 	public ResultStore(Configuration flinkConfig) {
 		this.flinkConfig = flinkConfig;
 
-		results = new HashMap<>();
+		dynamicResults = new HashMap<>();
+		staticResults = new HashMap<>();
 	}
 
 	/**
-	 * Creates a result. Might start thread or opens sockets so every creates result must be closed.
+	 * Creates a dynamic result. Might start thread or opens sockets so every creates result must be closed.
 	 */
-	public DynamicResult createResult(Environment env, TableSchema schema, ExecutionConfig config) {
+	public DynamicResult createDynamicResult(Environment env, TableSchema schema, ExecutionConfig config) {
 		if (!env.getExecution().isStreamingExecution()) {
 			throw new SqlExecutionException("Emission is only supported in streaming environments yet.");
 		}
@@ -74,20 +77,36 @@ public class ResultStore {
 		}
 	}
 
-	public void storeResult(String resultId, DynamicResult result) {
-		results.put(resultId, result);
+	public void storeDynamicResult(String resultId, DynamicResult result) {
+		dynamicResults.put(resultId, result);
 	}
 
-	public DynamicResult getResult(String resultId) {
-		return results.get(resultId);
+	public void storeStaticResult(String resultId, StaticResult result) {
+		staticResults.put(resultId, result);
 	}
 
-	public void removeResult(String resultId) {
-		results.remove(resultId);
+	public DynamicResult getDynamicResult(String resultId) {
+		return dynamicResults.get(resultId);
 	}
 
-	public List<String> getResults() {
-		return new ArrayList<>(results.keySet());
+	public StaticResult getStaticResult(String resultId) {
+		return staticResults.get(resultId);
+	}
+
+	public void removeDynamicResult(String resultId) {
+		dynamicResults.remove(resultId);
+	}
+
+	public void removeStaticResult(String resultId) {
+		staticResults.remove(resultId);
+	}
+
+	public List<String> getDynamicResults() {
+		return new ArrayList<>(dynamicResults.keySet());
+	}
+
+	public boolean isStatic(String resultId) {
+		return staticResults.containsKey(resultId);
 	}
 
 	// --------------------------------------------------------------------------------------------
