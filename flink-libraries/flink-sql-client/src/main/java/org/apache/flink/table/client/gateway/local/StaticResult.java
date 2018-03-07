@@ -18,24 +18,22 @@
 
 package org.apache.flink.table.client.gateway.local;
 
-import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 
 import java.util.List;
 
 /**
- * A result that is materialized and can be viewed by navigating through a snapshot.
+ * A result of a static table program.
  */
-public interface MaterializedResult {
+public interface StaticResult extends MaterializedResult {
+	/**
+	 * Returns the table sink required by this result type.
+	 */
+	TableSink<?> getTableSink();
 
 	/**
-	 * Takes a snapshot of the current table and returns the number of pages for navigating
-	 * through the snapshot.
+	 * Sets the collected SQL result.
 	 */
-	TypedResult<Integer> snapshot(int pageSize);
-
-	/**
-	 * Retrieves a page of a snapshotted result.
-	 */
-	List<Row> retrievePage(int page);
+	void setResultTable(List<Row> resultTable);
 }

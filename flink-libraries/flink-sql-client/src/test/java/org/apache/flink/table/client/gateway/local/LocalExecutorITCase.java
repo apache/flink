@@ -94,6 +94,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final SessionContext context = new SessionContext("test-session", new Environment());
 
 		// modify defaults
+		context.setSessionProperty("execution.type", "streaming");
 		context.setSessionProperty("execution.result-mode", "table");
 
 		final Map<String, String> actualProperties = executor.getSessionProperties(context);
@@ -126,13 +127,14 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test(timeout = 30_000L)
-	public void testQueryExecutionChangelog() throws Exception {
+	public void testStreamQueryExecutionChangelog() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_0", url.getPath());
 		replaceVars.put("$VAR_1", "/");
-		replaceVars.put("$VAR_2", "changelog");
+		replaceVars.put("$VAR_2", "streaming");
+		replaceVars.put("$VAR_3", "changelog");
 
 		final Executor executor = createModifiedExecutor(replaceVars);
 		final SessionContext context = new SessionContext("test-session", new Environment());
@@ -173,13 +175,14 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test(timeout = 30_000L)
-	public void testQueryExecutionTable() throws Exception {
+	public void testStreamQueryExecutionTable() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_0", url.getPath());
 		replaceVars.put("$VAR_1", "/");
-		replaceVars.put("$VAR_2", "table");
+		replaceVars.put("$VAR_2", "streaming");
+		replaceVars.put("$VAR_3", "table");
 
 		final Executor executor = createModifiedExecutor(replaceVars);
 		final SessionContext context = new SessionContext("test-session", new Environment());
@@ -205,6 +208,51 @@ public class LocalExecutorITCase extends TestLogger {
 				} else if (result.getType() == TypedResult.ResultType.EOS) {
 					break;
 				}
+			}
+
+			final List<String> expectedResults = new ArrayList<>();
+			expectedResults.add("42");
+			expectedResults.add("22");
+			expectedResults.add("32");
+			expectedResults.add("32");
+			expectedResults.add("42");
+			expectedResults.add("52");
+
+			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
+		} finally {
+			executor.stop(context);
+		}
+	}
+
+	@Test(timeout = 30_000L)
+	public void testBatchQueryExecution() throws Exception {
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_0", url.getPath());
+		replaceVars.put("$VAR_1", "/");
+		replaceVars.put("$VAR_2", "batch");
+		replaceVars.put("$VAR_3", "table");
+
+		final Executor executor = createModifiedExecutor(replaceVars);
+		final SessionContext context = new SessionContext("test-session", new Environment());
+
+		try {
+			final ResultDescriptor desc = executor.executeQuery(context, "SELECT IntegerField1 FROM TableNumber1");
+
+			assertTrue(desc.isMaterialized());
+
+			final List<String> actualResults = new ArrayList<>();
+
+			final TypedResult<Integer> result = executor.snapshotResult(context, desc.getResultId(), 2);
+
+			if (result.getType() == TypedResult.ResultType.PAYLOAD) {
+				actualResults.clear();
+				IntStream.rangeClosed(1, result.getPayload()).forEach((page) -> {
+					for (Row row : executor.retrieveResultPage(desc.getResultId(), page)) {
+						actualResults.add(row.toString());
+					}
+				});
 			}
 
 			final List<String> expectedResults = new ArrayList<>();

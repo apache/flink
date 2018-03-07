@@ -19,8 +19,10 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -241,65 +243,110 @@ public class LocalExecutor implements Executor {
 		// deployment
 		final ClusterClient<?> clusterClient = createDeployment(env.getDeployment());
 
-		// initialize result
-		final DynamicResult result = resultStore.createResult(
-			env,
-			table.f1.getSchema(),
-			getExecutionConfig(table.f0));
-
-		// create job graph with jars
-		final JobGraph jobGraph;
-		try {
-			jobGraph = createJobGraph(
-				context.getName() + ": " + query,
-				env.getExecution(),
-				table.f0,
-				table.f1,
-				result.getTableSink(),
-				clusterClient);
-		} catch (Throwable t) {
-			// the result needs to be closed as long as
-			// it not stored in the result store
-			result.close();
-			throw t;
-		}
-
-		// store the result with a unique id (the job id for now)
-		final String resultId = jobGraph.getJobID().toString();
-		resultStore.storeResult(resultId, result);
-
 		// create class loader
 		final ClassLoader classLoader = JobWithJars.buildUserCodeClassLoader(
-			dependencies,
-			Collections.emptyList(),
-			this.getClass().getClassLoader());
+				dependencies,
+				Collections.emptyList(),
+				this.getClass().getClassLoader());
 
-		// create execution
-		final Runnable program = () -> {
-			// we need to submit the job attached for now
-			// otherwise it is not possible to retrieve the reason why an execution failed
+		if (env.getExecution().isStreamingExecution()) {
+			// initialize result for stream job
+			final DynamicResult result = resultStore.createDynamicResult(
+					env,
+					table.f1.getSchema(),
+					getExecutionConfig(table.f0));
+			// create job graph with jars
+			final JobGraph jobGraph;
 			try {
-				clusterClient.run(jobGraph, classLoader);
+				jobGraph = createJobGraph(
+						context.getName() + ": " + query,
+						env.getExecution(),
+						table.f0,
+						table.f1,
+						result.getTableSink(),
+						clusterClient);
+			} catch (Throwable t) {
+				// the result needs to be closed as long as
+				// it not stored in the result store
+				result.close();
+				throw t;
+			}
+
+			// store the result with a unique id (the job id for now)
+			final String resultId = jobGraph.getJobID().toString();
+			resultStore.storeDynamicResult(resultId, result);
+
+			// create execution
+			final Runnable program = () -> {
+				// we need to submit the job attached for now
+				// otherwise it is not possible to retrieve the reason why an execution failed
+				try {
+					clusterClient.run(jobGraph, classLoader);
+				} catch (ProgramInvocationException e) {
+					throw new SqlExecutionException("Could not execute table program.", e);
+				} finally {
+					try {
+						clusterClient.shutdown();
+					} catch (Exception e) {
+						// ignore
+					}
+				}
+			};
+
+			// start result retrieval
+			result.startRetrieval(program);
+
+			return new ResultDescriptor(resultId, table.f1.getSchema(), result.isMaterialized());
+
+		} else if (env.getExecution().isBatchExecution()) {
+
+			if (!env.getExecution().isTableMode()) {
+				throw new SqlExecutionException("Batch queries can only work on table mode");
+			}
+
+			BatchResult batchResult = new BatchResult();
+
+			final JobGraph jobGraph = createJobGraph(
+					context.getName() + ": " + query,
+					env.getExecution(),
+					table.f0,
+					table.f1,
+					batchResult.getTableSink(),
+					clusterClient);
+
+			final String resultId = jobGraph.getJobID().toString();
+			final JobExecutionResult result;
+			try {
+				// Fetch the result synchronously.
+				result = clusterClient.run(jobGraph, classLoader);
 			} catch (ProgramInvocationException e) {
 				throw new SqlExecutionException("Could not execute table program.", e);
-			} finally {
-				try {
-					clusterClient.shutdown();
-				} catch (Exception e) {
-					// ignore
-				}
 			}
-		};
 
-		// start result retrieval
-		result.startRetrieval(program);
-
-		return new ResultDescriptor(resultId, table.f1.getSchema(), result.isMaterialized());
+			ArrayList<byte[]> accResult = result.getAccumulatorResult(batchResult.getAccumulatorName());
+			if (accResult != null) {
+				try {
+					List<Row> resultTable = SerializedListAccumulator.deserializeList(accResult, batchResult.getSerializer());
+					batchResult.setResultTable(resultTable);
+					// store the result with a unique id (the job id for now)
+					resultStore.storeStaticResult(resultId, batchResult);
+				} catch (ClassNotFoundException e) {
+					throw new SqlExecutionException("Cannot find type class of collected data type.", e);
+				} catch (IOException e) {
+					throw new SqlExecutionException("Serialization error while deserializing collected data", e);
+				}
+			} else {
+				throw new SqlExecutionException("The call to collect() could not retrieve the DataSet.");
+			}
+			return new ResultDescriptor(resultId, table.f1.getSchema(), true);
+		} else {
+			throw new SqlClientException("Unknown execution type. Can only be streaming or batch.");
+		}
 	}
 
 	@Override
 	public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(SessionContext context, String resultId) throws SqlExecutionException {
-		final DynamicResult result = resultStore.getResult(resultId);
+		final DynamicResult result = resultStore.getDynamicResult(resultId);
 		if (result == null) {
 			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
 		}
@@ -311,58 +358,73 @@ public class LocalExecutor implements Executor {
 
 	@Override
 	public TypedResult<Integer> snapshotResult(SessionContext context, String resultId, int pageSize) throws SqlExecutionException {
-		final DynamicResult result = resultStore.getResult(resultId);
-		if (result == null) {
-			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
+		if (!resultStore.isStatic(resultId)) {
+			final DynamicResult result = resultStore.getDynamicResult(resultId);
+			if (result == null) {
+				throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
+			}
+			if (!result.isMaterialized()) {
+				throw new SqlExecutionException("Invalid result retrieval mode.");
+			}
+			return ((MaterializedResult) result).snapshot(pageSize);
+		} else {
+			StaticResult staticResult = resultStore.getStaticResult(resultId);
+			return staticResult.snapshot(pageSize);
 		}
-		if (!result.isMaterialized()) {
-			throw new SqlExecutionException("Invalid result retrieval mode.");
-		}
-		return ((MaterializedResult) result).snapshot(pageSize);
 	}
 
 	@Override
-	public List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException {
-		final DynamicResult result = resultStore.getResult(resultId);
-		if (result == null) {
-			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
+	public List<Row> retrieveResultPage(String resultId, int page) throws
+			SqlExecutionException {
+		if (!resultStore.isStatic(resultId)) {
+			final DynamicResult result = resultStore.getDynamicResult(resultId);
+			if (result == null) {
+				throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
+			}
+			if (!result.isMaterialized()) {
+				throw new SqlExecutionException("Invalid result retrieval mode.");
+			}
+			return ((MaterializedResult) result).retrievePage(page);
+		} else {
+			return resultStore.getStaticResult(resultId).retrievePage(page);
 		}
-		if (!result.isMaterialized()) {
-			throw new SqlExecutionException("Invalid result retrieval mode.");
-		}
-		return ((MaterializedResult) result).retrievePage(page);
 	}
 
 	@Override
 	public void cancelQuery(SessionContext context, String resultId) throws SqlExecutionException {
-		final DynamicResult result = resultStore.getResult(resultId);
-		if (result == null) {
-			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
-		}
-
-		// stop retrieval and remove the result
-		result.close();
-		resultStore.removeResult(resultId);
-
-		// stop Flink job
-		final Environment env = createEnvironment(context);
-		final ClusterClient<?> clusterClient = createDeployment(env.getDeployment());
-		try {
-			clusterClient.cancel(new JobID(StringUtils.hexStringToByte(resultId)));
-		} catch (Throwable t) {
-			// the job might has finished earlier
-		} finally {
-			try {
-				clusterClient.shutdown();
-			} catch (Throwable t) {
-				// ignore
+		if (!resultStore.isStatic(resultId)) {
+			final DynamicResult result = resultStore.getDynamicResult(resultId);
+			if (result == null) {
+				throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
 			}
+
+			// stop retrieval and remove the result
+			result.close();
+			resultStore.removeDynamicResult(resultId);
+
+			// stop Flink job
+			final Environment env = createEnvironment(context);
+			final ClusterClient<?> clusterClient = createDeployment(env.getDeployment());
+			try {
+				clusterClient.cancel(new JobID(StringUtils.hexStringToByte(resultId)));
+			} catch (Throwable t) {
+				// the job might has finished earlier
+			} finally {
+				try {
+					clusterClient.shutdown();
+				} catch (Throwable t) {
+					// ignore
+				}
+			}
+		} else {
+			// We just need to remove the cached result here.
+			resultStore.removeStaticResult(resultId);
 		}
 	}
 
 	@Override
 	public void stop(SessionContext context) {
-		resultStore.getResults().forEach((resultId) -> {
+		resultStore.getDynamicResults().forEach((resultId) -> {
 			try {
 				cancelQuery(context, resultId);
 			} catch (Throwable t) {
@@ -395,6 +457,7 @@ public class LocalExecutor implements Executor {
 			table.writeToSink(sink, queryConfig);
 		} catch (Throwable t) {
 			// catch everything such that the query does not crash the executor
+			t.printStackTrace();
 			throw new SqlExecutionException("Invalid SQL statement.", t);
 		}
 
@@ -404,13 +467,15 @@ public class LocalExecutor implements Executor {
 			final StreamGraph graph = ((StreamTableEnvironment) tableEnv).execEnv().getStreamGraph();
 			graph.setJobName(name);
 			plan = graph;
-		} else {
+		} else if (exec.isBatchExecution()) {
 			final int parallelism = exec.getParallelism();
 			final Plan unoptimizedPlan = ((BatchTableEnvironment) tableEnv).execEnv().createProgramPlan();
 			unoptimizedPlan.setJobName(name);
 			final Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(),
 				clusterClient.getFlinkConfiguration());
 			plan = ClusterClient.getOptimizedPlan(compiler, unoptimizedPlan, parallelism);
+		} else {
+			throw new SqlClientException("Unknown execution type. Can only be streaming or batch.");
 		}
 
 		// create job graph
@@ -493,8 +558,10 @@ public class LocalExecutor implements Executor {
 			final long maxRetention = exec.getMaxStateRetention();
 			config.withIdleStateRetentionTime(Time.milliseconds(minRetention), Time.milliseconds(maxRetention));
 			return config;
-		} else {
+		} else if (exec.isBatchExecution()){
 			return new BatchQueryConfig();
+		} else {
+			throw new SqlClientException("Unknown execution type. Can only be streaming or batch.");
 		}
 	}
 }
