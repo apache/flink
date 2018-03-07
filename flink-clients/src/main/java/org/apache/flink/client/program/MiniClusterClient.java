@@ -113,7 +113,7 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 	@Override
 	public void stop(JobID jobId) throws Exception {
-		throw new UnsupportedOperationException("MiniClusterClient does not yet support this operation.");
+		guardWithSingleRetry(() -> miniCluster.stopJob(jobId), scheduledExecutor).get();
 	}
 
 	@Override
