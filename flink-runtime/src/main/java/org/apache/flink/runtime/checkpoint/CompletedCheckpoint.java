@@ -38,9 +38,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -289,17 +288,18 @@ public class CompletedCheckpoint implements Serializable {
 	public static boolean checkpointsMatch(
 		Collection<CompletedCheckpoint> first,
 		Collection<CompletedCheckpoint> second) {
+		if (first.size() != second.size()) {
+			return false;
+		}
 
-		Set<Tuple2<Long, JobID>> firstInterestingFields =
-			new HashSet<>();
+		List<Tuple2<Long, JobID>> firstInterestingFields = new ArrayList<>(first.size());
 
 		for (CompletedCheckpoint checkpoint : first) {
 			firstInterestingFields.add(
 				new Tuple2<>(checkpoint.getCheckpointID(), checkpoint.getJobId()));
 		}
 
-		Set<Tuple2<Long, JobID>> secondInterestingFields =
-			new HashSet<>();
+		List<Tuple2<Long, JobID>> secondInterestingFields = new ArrayList<>(second.size());
 
 		for (CompletedCheckpoint checkpoint : second) {
 			secondInterestingFields.add(
