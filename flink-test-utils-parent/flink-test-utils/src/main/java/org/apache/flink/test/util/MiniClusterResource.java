@@ -75,6 +75,8 @@ public class MiniClusterResource extends ExternalResource {
 
 	private TestEnvironment executionEnvironment;
 
+	private int webUIPort = -1;
+
 	public MiniClusterResource(final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
 		this(miniClusterResourceConfiguration, false);
 	}
@@ -127,6 +129,10 @@ public class MiniClusterResource extends ExternalResource {
 
 	public TestEnvironment getTestEnvironment() {
 		return executionEnvironment;
+	}
+
+	public int getWebUIPort() {
+		return webUIPort;
 	}
 
 	@Override
@@ -205,6 +211,10 @@ public class MiniClusterResource extends ExternalResource {
 		Configuration restClientConfig = new Configuration();
 		restClientConfig.setInteger(JobManagerOptions.PORT, flinkMiniCluster.getLeaderRPCPort());
 		this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
+
+		if (flinkMiniCluster.webMonitor().isDefined()) {
+			webUIPort = flinkMiniCluster.webMonitor().get().getServerPort();
+		}
 	}
 
 	private void startMiniCluster() throws Exception {
@@ -244,6 +254,8 @@ public class MiniClusterResource extends ExternalResource {
 		restClientConfig.setString(JobManagerOptions.ADDRESS, miniCluster.getRestAddress().getHost());
 		restClientConfig.setInteger(RestOptions.REST_PORT, miniCluster.getRestAddress().getPort());
 		this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
+
+		webUIPort = miniCluster.getRestAddress().getPort();
 	}
 
 	/**
