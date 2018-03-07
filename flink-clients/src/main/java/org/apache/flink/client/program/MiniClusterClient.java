@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 
 /**
@@ -58,14 +59,19 @@ import java.util.function.Supplier;
 public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClusterId> {
 
 	private final MiniCluster miniCluster;
-
-	private final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(
-		Executors.newScheduledThreadPool(4, new ExecutorThreadFactory("Flink-MiniClusterClient")));
+	private final ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(4, new ExecutorThreadFactory("Flink-MiniClusterClient"));
+	private final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(scheduledExecutorService);
 
 	public MiniClusterClient(@Nonnull Configuration configuration, @Nonnull MiniCluster miniCluster) throws Exception {
 		super(configuration, miniCluster.getHighAvailabilityServices(), true);
 
 		this.miniCluster = miniCluster;
+	}
+
+	@Override
+	public void shutdown() throws Exception {
+		super.shutdown();
+		scheduledExecutorService.shutdown();
 	}
 
 	@Override
