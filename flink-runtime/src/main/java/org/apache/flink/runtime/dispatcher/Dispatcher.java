@@ -407,7 +407,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			try {
 				return jobManagerRunner.getJobManagerGateway().requestJobStatus(timeout);
 			} catch (Exception e) {
-				log.error("Request job status from job master : {} occurs exception : {}",
+				log.error("Request job status from remote job master : {} occurs exception : {}",
 					jobManagerRunner.getAddress(), e);
 			}
 		}
