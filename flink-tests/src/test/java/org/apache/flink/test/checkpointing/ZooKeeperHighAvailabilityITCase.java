@@ -135,8 +135,8 @@ public class ZooKeeperHighAvailabilityITCase extends TestBaseUtils {
 	 * <ol>
 	 *     <li>Start job and block on a latch until we have done some checkpoints
 	 *     <li>Block in the special function
-	 *     <li>Move away the contents of the ZooKeeper HA directory and make it non-writable
-	 *       to make creating and restoring from checkpoints impossible
+	 *     <li>Move away the contents of the ZooKeeper HA directory to make restoring from
+	 *       checkpoints impossible
 	 *     <li>Unblock the special function, which now induces a failure
 	 *     <li>Make sure that the job does not recover successfully
 	 *     <li>Move back the HA directory
