@@ -404,15 +404,20 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		final JobManagerRunner jobManagerRunner = jobManagerRunners.get(jobId);
 
 		if (jobManagerRunner != null) {
-			return jobManagerRunner.getJobManagerGateway().requestJobStatus(timeout);
-		} else {
-			final JobDetails jobDetails = archivedExecutionGraphStore.getAvailableJobDetails(jobId);
-
-			if (jobDetails != null) {
-				return CompletableFuture.completedFuture(jobDetails.getStatus());
-			} else {
-				return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
+			try {
+				return jobManagerRunner.getJobManagerGateway().requestJobStatus(timeout);
+			} catch (Exception e) {
+				log.error("Request job status from job master : {} occurs exception : {}",
+					jobManagerRunner.getAddress(), e);
 			}
+		}
+
+		final JobDetails jobDetails = archivedExecutionGraphStore.getAvailableJobDetails(jobId);
+
+		if (jobDetails != null) {
+			return CompletableFuture.completedFuture(jobDetails.getStatus());
+		} else {
+			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
 		}
 	}
 
