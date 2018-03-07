@@ -28,6 +28,7 @@ import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusRespon
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
@@ -40,6 +41,7 @@ import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -47,6 +49,7 @@ import javax.annotation.Nullable;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -130,12 +133,18 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 	@Override
 	public Map<String, Object> getAccumulators(JobID jobID) throws Exception {
-		throw new UnsupportedOperationException("MiniClusterClient does not yet support this operation.");
+		return getAccumulators(jobID, ClassLoader.getSystemClassLoader());
 	}
 
 	@Override
 	public Map<String, Object> getAccumulators(JobID jobID, ClassLoader loader) throws Exception {
-		throw new UnsupportedOperationException("MiniClusterClient does not yet support this operation.");
+		AccessExecutionGraph executionGraph = guardWithSingleRetry(() -> miniCluster.getExecutionGraph(jobID), scheduledExecutor).get();
+		Map<String, SerializedValue<Object>> accumulatorsSerialized = executionGraph.getAccumulatorsSerialized();
+		Map<String, Object> result = new HashMap<>(accumulatorsSerialized.size());
+		for (Map.Entry<String, SerializedValue<Object>> acc : accumulatorsSerialized.entrySet()) {
+			result.put(acc.getKey(), acc.getValue().deserializeValue(loader));
+		}
+		return result;
 	}
 
 	@Override
