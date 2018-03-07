@@ -21,32 +21,31 @@ package org.apache.flink.table.client.gateway.local;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.experimental.CollectSink;
-import org.apache.flink.table.sinks.RetractStreamTableSink;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.Utils;
+import org.apache.flink.table.sinks.BatchTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 
-import java.net.InetAddress;
-
 /**
- * Table sink for collecting the results locally using sockets.
+ * Table sink for collecting the results locally all at once using accumulators.
  */
-public class CollectStreamTableSink implements RetractStreamTableSink<Row> {
+public class CollectBatchTableSink implements BatchTableSink<Row> {
 
-	private final InetAddress targetAddress;
-	private final int targetPort;
-	private final TypeSerializer<Tuple2<Boolean, Row>> serializer;
+	private final String accumulatorName;
+	private final TypeSerializer<Row> serializer;
 
 	private String[] fieldNames;
 	private TypeInformation<?>[] fieldTypes;
 
-	public CollectStreamTableSink(InetAddress targetAddress, int targetPort, TypeSerializer<Tuple2<Boolean, Row>> serializer) {
-		this.targetAddress = targetAddress;
-		this.targetPort = targetPort;
+	public CollectBatchTableSink(String accumulatorName, TypeSerializer<Row> serializer) {
+		this.accumulatorName = accumulatorName;
 		this.serializer = serializer;
+	}
+
+	@Override
+	public TypeInformation<Row> getOutputType() {
+		return Types.ROW_NAMED(fieldNames, fieldTypes);
 	}
 
 	@Override
@@ -60,29 +59,24 @@ public class CollectStreamTableSink implements RetractStreamTableSink<Row> {
 	}
 
 	@Override
-	public TableSink<Tuple2<Boolean, Row>> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		final CollectStreamTableSink copy = new CollectStreamTableSink(targetAddress, targetPort, serializer);
+	public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+		final CollectBatchTableSink copy = new CollectBatchTableSink(accumulatorName, serializer);
 		copy.fieldNames = fieldNames;
 		copy.fieldTypes = fieldTypes;
 		return copy;
 	}
 
 	@Override
-	public TypeInformation<Row> getRecordType() {
-		return Types.ROW_NAMED(fieldNames, fieldTypes);
+	public void emitDataSet(DataSet<Row> dataSet) {
+		dataSet
+			.output(new Utils.CollectHelper<>(accumulatorName, serializer))
+			.name("SQL Client Batch Collect Sink");
 	}
 
-	@Override
-	public void emitDataStream(DataStream<Tuple2<Boolean, Row>> stream) {
-		// add sink
-		stream
-			.addSink(new CollectSink<>(targetAddress, targetPort, serializer))
-			.name("SQL Client Stream Collect Sink")
-			.setParallelism(1);
-	}
-
-	@Override
-	public TupleTypeInfo<Tuple2<Boolean, Row>> getOutputType() {
-		return new TupleTypeInfo<>(Types.BOOLEAN, getRecordType());
+	/**
+	 * Returns the serializer for deserializing the collected result.
+	 */
+	public TypeSerializer<Row> getSerializer() {
+		return serializer;
 	}
 }

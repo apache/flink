@@ -26,7 +26,6 @@ import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
-import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
@@ -353,17 +352,10 @@ public class LocalExecutor implements Executor {
 		resultStore.storeResult(resultId, result);
 
 		// create execution
-		final Runnable program = () -> {
-			LOG.info("Submitting job {} for query {}`", jobGraph.getJobID(), jobName);
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Submitting job {} with the following environment: \n{}",
-					jobGraph.getJobID(), context.getMergedEnvironment());
-			}
-			deployJob(context, jobGraph, result);
-		};
+		final ProgramDeployer<T> deployer = new ProgramDeployer<>(context, jobName, jobGraph, result);
 
 		// start result retrieval
-		result.startRetrieval(program);
+		result.startRetrieval(deployer);
 
 		return new ResultDescriptor(
 			resultId,
@@ -395,55 +387,6 @@ public class LocalExecutor implements Executor {
 			}
 		}
 		return executionContext;
-	}
-
-	/**
-	 * Deploys a job. Depending on the deployment create a new job cluster. It saves cluster id in
-	 * the result and blocks until job completion.
-	 */
-	private <T> void deployJob(ExecutionContext<T> context, JobGraph jobGraph, DynamicResult<T> result) {
-		// create or retrieve cluster and deploy job
-		try (final ClusterDescriptor<T> clusterDescriptor = context.createClusterDescriptor()) {
-			ClusterClient<T> clusterClient = null;
-			try {
-				// new cluster
-				if (context.getClusterId() == null) {
-					// deploy job cluster with job attached
-					clusterClient = clusterDescriptor.deployJobCluster(context.getClusterSpec(), jobGraph, false);
-					// save the new cluster id
-					result.setClusterId(clusterClient.getClusterId());
-					// we need to hard cast for now
-					((RestClusterClient<T>) clusterClient)
-						.requestJobResult(jobGraph.getJobID())
-						.get()
-						.toJobExecutionResult(context.getClassLoader()); // throws exception if job fails
-				}
-				// reuse existing cluster
-				else {
-					// retrieve existing cluster
-					clusterClient = clusterDescriptor.retrieve(context.getClusterId());
-					// save the cluster id
-					result.setClusterId(clusterClient.getClusterId());
-					// submit the job
-					clusterClient.setDetached(false);
-					clusterClient.submitJob(jobGraph, context.getClassLoader()); // throws exception if job fails
-				}
-			} catch (Exception e) {
-				throw new SqlExecutionException("Could not retrieve or create a cluster.", e);
-			} finally {
-				try {
-					if (clusterClient != null) {
-						clusterClient.shutdown();
-					}
-				} catch (Exception e) {
-					// ignore
-				}
-			}
-		} catch (SqlExecutionException e) {
-			throw e;
-		} catch (Exception e) {
-			throw new SqlExecutionException("Could not locate a cluster.", e);
-		}
 	}
 
 	// --------------------------------------------------------------------------------------------

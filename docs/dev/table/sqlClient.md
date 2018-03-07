@@ -184,13 +184,13 @@ tables:
 # Execution properties allow for changing the behavior of a table program.
 
 execution:
-  type: streaming
-  time-characteristic: event-time
-  parallelism: 1
-  max-parallelism: 16
-  min-idle-state-retention: 0
-  max-idle-state-retention: 0
-  result-mode: table
+  type: streaming                   # required: execution mode either 'batch' or 'streaming'
+  time-characteristic: event-time   # optional: 'processing-time' or 'event-time' (default)
+  parallelism: 1                    # optional: Flink's parallelism (1 by default)
+  max-parallelism: 16               # optional: Flink's maximum parallelism (128 by default)
+  min-idle-state-retention: 0       # optional: table program's minimum idle state time
+  max-idle-state-retention: 0       # optional: table program's maximum idle state time
+  result-mode: table                # required: either 'table' or 'changelog'
 
 # Deployment properties allow for describing the cluster to which table programs are submitted to.
 
@@ -201,8 +201,8 @@ deployment:
 This configuration:
 
 - defines an environment with a table source `MyTableName` that reads from a CSV file,
-- specifies a parallelism of 1 for queries executed in this environment,
-- specifies an even-time characteristic, and
+- specifies a parallelism of 1 for queries executed in this streaming environment,
+- specifies an event-time characteristic, and
 - runs queries in the `table` result mode.
 
 Depending on the use case, a configuration can be split into multiple files. Therefore, environment files can be created for general purposes (*defaults environment file* using `--defaults`) as well as on a per-session basis (*session environment file* using `--environment`). Every CLI session is initialized with the default properties followed by the session properties. For example, the defaults environment file could specify all table sources that should be available for querying in every session whereas the session environment file only declares a specific state retention time and parallelism. Both default and session environment files can be passed when starting the CLI application. If no default environment file has been specified, the SQL Client searches for `./conf/sql-client-defaults.yaml` in Flink's configuration directory.
@@ -212,6 +212,8 @@ Depending on the use case, a configuration can be split into multiple files. The
 {% highlight text %}
 CLI commands > session environment file > defaults environment file
 {% endhighlight %}
+
+Queries that are executed in a batch environment, can only be retrieved using the `table` result mode. 
 
 {% top %}
 
