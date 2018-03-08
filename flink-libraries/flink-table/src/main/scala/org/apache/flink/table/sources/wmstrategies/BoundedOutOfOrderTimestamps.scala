@@ -38,4 +38,14 @@ final class BoundedOutOfOrderTimestamps(val delay: Long) extends PeriodicWaterma
   }
 
   override def getWatermark: Watermark = new Watermark(maxTimestamp - delay)
+
+  override def equals(other: Any): Boolean = other match {
+    case that: BoundedOutOfOrderTimestamps =>
+      delay == that.delay
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    delay.hashCode()
+  }
 }
