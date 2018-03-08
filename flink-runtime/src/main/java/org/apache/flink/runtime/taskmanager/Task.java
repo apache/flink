@@ -67,6 +67,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -77,7 +78,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -94,11 +94,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -127,10 +127,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	/** The class logger. */
 	private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
-	/** The tread group that contains all task threads */
+	/** The tread group that contains all task threads. */
 	private static final ThreadGroup TASK_THREADS_GROUP = new ThreadGroup("Flink Task Threads");
 
-	/** For atomic state updates */
+	/** For atomic state updates. */
 	private static final AtomicReferenceFieldUpdater<Task, ExecutionState> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(Task.class, ExecutionState.class, "executionState");
 
@@ -138,52 +138,52 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	//  Constant fields that are part of the initial Task construction
 	// ------------------------------------------------------------------------
 
-	/** The job that the task belongs to */
+	/** The job that the task belongs to. */
 	private final JobID jobId;
 
-	/** The vertex in the JobGraph whose code the task executes */
+	/** The vertex in the JobGraph whose code the task executes. */
 	private final JobVertexID vertexId;
 
-	/** The execution attempt of the parallel subtask */
+	/** The execution attempt of the parallel subtask. */
 	private final ExecutionAttemptID executionId;
 
-	/** ID which identifies the slot in which the task is supposed to run */
+	/** ID which identifies the slot in which the task is supposed to run. */
 	private final AllocationID allocationId;
 
-	/** TaskInfo object for this task */
+	/** TaskInfo object for this task. */
 	private final TaskInfo taskInfo;
 
-	/** The name of the task, including subtask indexes */
+	/** The name of the task, including subtask indexes. */
 	private final String taskNameWithSubtask;
 
-	/** The job-wide configuration object */
+	/** The job-wide configuration object. */
 	private final Configuration jobConfiguration;
 
-	/** The task-specific configuration */
+	/** The task-specific configuration. */
 	private final Configuration taskConfiguration;
 
-	/** The jar files used by this task */
+	/** The jar files used by this task. */
 	private final Collection<PermanentBlobKey> requiredJarFiles;
 
-	/** The classpaths used by this task */
+	/** The classpaths used by this task. */
 	private final Collection<URL> requiredClasspaths;
 
-	/** The name of the class that holds the invokable code */
+	/** The name of the class that holds the invokable code. */
 	private final String nameOfInvokableClass;
 
-	/** Access to task manager configuration and host names*/
+	/** Access to task manager configuration and host names. */
 	private final TaskManagerRuntimeInfo taskManagerConfig;
 
-	/** The memory manager to be used by this task */
+	/** The memory manager to be used by this task. */
 	private final MemoryManager memoryManager;
 
-	/** The I/O manager to be used by this task */
+	/** The I/O manager to be used by this task. */
 	private final IOManager ioManager;
 
-	/** The BroadcastVariableManager to be used by this task */
+	/** The BroadcastVariableManager to be used by this task. */
 	private final BroadcastVariableManager broadcastVariableManager;
 
-	/** The manager for state of operators running in this task/slot */
+	/** The manager for state of operators running in this task/slot. */
 	private final TaskStateManager taskStateManager;
 
 	/** Serialized version of the job specific execution configuration (see {@link ExecutionConfig}). */
@@ -195,43 +195,43 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 	private final Map<IntermediateDataSetID, SingleInputGate> inputGatesById;
 
-	/** Connection to the task manager */
+	/** Connection to the task manager. */
 	private final TaskManagerActions taskManagerActions;
 
-	/** Input split provider for the task */
+	/** Input split provider for the task. */
 	private final InputSplitProvider inputSplitProvider;
 
-	/** Checkpoint notifier used to communicate with the CheckpointCoordinator */
+	/** Checkpoint notifier used to communicate with the CheckpointCoordinator. */
 	private final CheckpointResponder checkpointResponder;
 
-	/** All listener that want to be notified about changes in the task's execution state */
+	/** All listener that want to be notified about changes in the task's execution state. */
 	private final List<TaskExecutionStateListener> taskExecutionStateListeners;
 
-	/** The BLOB cache, from which the task can request BLOB files */
+	/** The BLOB cache, from which the task can request BLOB files. */
 	private final BlobCacheService blobService;
 
-	/** The library cache, from which the task can request its class loader */
+	/** The library cache, from which the task can request its class loader. */
 	private final LibraryCacheManager libraryCache;
 
-	/** The cache for user-defined files that the invokable requires */
+	/** The cache for user-defined files that the invokable requires. */
 	private final FileCache fileCache;
 
-	/** The gateway to the network stack, which handles inputs and produced results */
+	/** The gateway to the network stack, which handles inputs and produced results. */
 	private final NetworkEnvironment network;
 
-	/** The registry of this task which enables live reporting of accumulators */
+	/** The registry of this task which enables live reporting of accumulators. */
 	private final AccumulatorRegistry accumulatorRegistry;
 
-	/** The thread that executes the task */
+	/** The thread that executes the task. */
 	private final Thread executingThread;
 
-	/** Parent group for all metrics of this task */
+	/** Parent group for all metrics of this task. */
 	private final TaskMetricGroup metrics;
 
-	/** Partition producer state checker to request partition states from */
+	/** Partition producer state checker to request partition states from. */
 	private final PartitionProducerStateChecker partitionProducerStateChecker;
 
-	/** Executor to run future callbacks */
+	/** Executor to run future callbacks. */
 	private final Executor executor;
 
 	// ------------------------------------------------------------------------
@@ -240,19 +240,19 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	//  proper happens-before semantics on parallel modification
 	// ------------------------------------------------------------------------
 
-	/** atomic flag that makes sure the invokable is canceled exactly once upon error */
+	/** atomic flag that makes sure the invokable is canceled exactly once upon error. */
 	private final AtomicBoolean invokableHasBeenCanceled;
 
-	/** The invokable of this task, if initialized */
+	/** The invokable of this task, if initialized. */
 	private volatile AbstractInvokable invokable;
 
-	/** The current execution state of the task */
+	/** The current execution state of the task. */
 	private volatile ExecutionState executionState = ExecutionState.CREATED;
 
-	/** The observed exception, in case the task execution failed */
+	/** The observed exception, in case the task execution failed. */
 	private volatile Throwable failureCause;
 
-	/** Serial executor for asynchronous calls (checkpoints, etc), lazily initialized */
+	/** Serial executor for asynchronous calls (checkpoints, etc), lazily initialized. */
 	private volatile ExecutorService asyncCallDispatcher;
 
 	/** Initialized from the Flink configuration. May also be set at the ExecutionConfig */
@@ -512,7 +512,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	}
 
 	/**
-	 * The core work method that bootstraps the task and executes its code
+	 * The core work method that bootstraps the task and executes its code.
 	 */
 	@Override
 	public void run() {
@@ -556,7 +556,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 		// all resource acquisitions and registrations from here on
 		// need to be undone in the end
-		Map<String, Future<Path>> distributedCacheEntries = new HashMap<String, Future<Path>>();
+		Map<String, Future<Path>> distributedCacheEntries = new HashMap<>();
 		AbstractInvokable invokable = null;
 
 		try {
@@ -743,8 +743,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			try {
 				// check if the exception is unrecoverable
 				if (ExceptionUtils.isJvmFatalError(t) ||
-					(t instanceof OutOfMemoryError && taskManagerConfig.shouldExitJvmOnOutOfMemoryError()))
-				{
+						(t instanceof OutOfMemoryError && taskManagerConfig.shouldExitJvmOnOutOfMemoryError())) {
+
 					// terminate the JVM immediately
 					// don't attempt a clean shutdown, because we cannot expect the clean shutdown to complete
 					try {
@@ -1048,15 +1048,51 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 								invokable,
 								executingThread,
 								taskNameWithSubtask,
-								taskCancellationInterval,
-								taskCancellationTimeout,
-								taskManagerActions,
 								producedPartitions,
 								inputGates);
-						Thread cancelThread = new Thread(executingThread.getThreadGroup(), canceler,
+
+						Thread cancelThread = new Thread(
+								executingThread.getThreadGroup(),
+								canceler,
 								String.format("Canceler for %s (%s).", taskNameWithSubtask, executionId));
 						cancelThread.setDaemon(true);
+						cancelThread.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
 						cancelThread.start();
+
+						// the periodic interrupting thread - a different thread than the canceller, in case
+						// the application code does blocking stuff in its cancellation paths.
+						Runnable interrupter = new TaskInterrupter(
+								LOG,
+								executingThread,
+								taskNameWithSubtask,
+								taskCancellationInterval);
+
+						Thread interruptingThread = new Thread(
+								executingThread.getThreadGroup(),
+								interrupter,
+								String.format("Canceler/Interrupts for %s (%s).", taskNameWithSubtask, executionId));
+						interruptingThread.setDaemon(true);
+						interruptingThread.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
+						interruptingThread.start();
+
+						// if a cancellation timeout is set, the watchdog thread kills the process
+						// if graceful cancellation does not succeed
+						if (taskCancellationTimeout > 0) {
+							Runnable cancelWatchdog = new TaskCancelerWatchDog(
+									executingThread,
+									taskManagerActions,
+									taskCancellationTimeout,
+									LOG);
+
+							Thread watchDogThread = new Thread(
+									executingThread.getThreadGroup(),
+									cancelWatchdog,
+									String.format("Cancellation Watchdog for %s (%s).",
+											taskNameWithSubtask, executionId));
+							watchDogThread.setDaemon(true);
+							watchDogThread.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
+							watchDogThread.start();
+						}
 					}
 					return;
 				}
@@ -1408,12 +1444,28 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	}
 
 	// ------------------------------------------------------------------------
-	//  TaskCanceler
+	//  Task cancellation
+	//
+	//  The task cancellation uses in total three threads, as a safety net
+	//  against various forms of user- and JVM bugs.
+	//
+	//    - The first thread calls 'cancel()' on the invokable and closes
+	//      the input and output connections, for fast thread termination
+	//    - The second thread periodically interrupts the invokable in order
+	//      to pull the thread out of blocking wait and I/O operations
+	//    - The third thread (watchdog thread) waits until the cancellation
+	//      timeout and then performs a hard cancel (kill process, or let
+	//      the TaskManager know)
+	//
+	//  Previously, thread two and three were in one thread, but we needed
+	//  to separate this to make sure the watchdog thread does not call
+	//  'interrupt()'. This is a workaround for the following JVM bug
+	//   https://bugs.java.com/bugdatabase/view_bug.do?bug_id=8138622
 	// ------------------------------------------------------------------------
 
 	/**
-	 * This runner calls cancel() on the invokable and periodically interrupts the
-	 * thread until it has terminated.
+	 * This runner calls cancel() on the invokable, closes input-/output resources,
+	 * and initially interrupts the task thread.
 	 */
 	private static class TaskCanceler implements Runnable {
 
@@ -1424,27 +1476,11 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		private final ResultPartition[] producedPartitions;
 		private final SingleInputGate[] inputGates;
 
-		/** Interrupt interval. */
-		private final long interruptInterval;
-
-		/** Timeout after which a fatal error notification happens. */
-		private final long interruptTimeout;
-
-		/** TaskManager to notify about a timeout */
-		private final TaskManagerActions taskManager;
-
-		/** Watch Dog thread */
-		@Nullable
-		private final Thread watchDogThread;
-
 		public TaskCanceler(
 				Logger logger,
 				AbstractInvokable invokable,
 				Thread executer,
 				String taskName,
-				long cancellationInterval,
-				long cancellationTimeout,
-				TaskManagerActions taskManager,
 				ResultPartition[] producedPartitions,
 				SingleInputGate[] inputGates) {
 
@@ -1452,39 +1488,19 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			this.invokable = invokable;
 			this.executer = executer;
 			this.taskName = taskName;
-			this.interruptInterval = cancellationInterval;
-			this.interruptTimeout = cancellationTimeout;
-			this.taskManager = taskManager;
 			this.producedPartitions = producedPartitions;
 			this.inputGates = inputGates;
-
-			if (cancellationTimeout > 0) {
-				// The watch dog repeatedly interrupts the executor until
-				// the cancellation timeout kicks in (at which point the
-				// task manager is notified about a fatal error) or the
-				// executor has terminated.
-				this.watchDogThread = new Thread(
-						executer.getThreadGroup(),
-						new TaskCancelerWatchDog(),
-						"WatchDog for " + taskName + " cancellation");
-				this.watchDogThread.setDaemon(true);
-			} else {
-				this.watchDogThread = null;
-			}
 		}
 
 		@Override
 		public void run() {
 			try {
-				if (watchDogThread != null) {
-					watchDogThread.start();
-				}
-
 				// the user-defined cancel method may throw errors.
 				// we need do continue despite that
 				try {
 					invokable.cancel();
 				} catch (Throwable t) {
+					ExceptionUtils.rethrowIfFatalError(t);
 					logger.error("Error while canceling the task {}.", taskName, t);
 				}
 
@@ -1499,6 +1515,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 					try {
 						partition.destroyBufferPool();
 					} catch (Throwable t) {
+						ExceptionUtils.rethrowIfFatalError(t);
 						LOG.error("Failed to release result partition buffer pool for task {}.", taskName, t);
 					}
 				}
@@ -1507,89 +1524,146 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 					try {
 						inputGate.releaseAllResources();
 					} catch (Throwable t) {
+						ExceptionUtils.rethrowIfFatalError(t);
 						LOG.error("Failed to release input gate for task {}.", taskName, t);
 					}
 				}
 
-				// interrupt the running thread initially
+				// send the initial interruption signal
 				executer.interrupt();
-				try {
-					executer.join(interruptInterval);
-				}
-				catch (InterruptedException e) {
-					// we can ignore this
-				}
-
-				if (watchDogThread != null) {
-					watchDogThread.interrupt();
-					watchDogThread.join();
-				}
-			} catch (Throwable t) {
+			}
+			catch (Throwable t) {
+				ExceptionUtils.rethrowIfFatalError(t);
 				logger.error("Error in the task canceler for task {}.", taskName, t);
 			}
 		}
+	}
 
-		/**
-		 * Watchdog for the cancellation. If the task is stuck in cancellation,
-		 * we notify the task manager about a fatal error.
-		 */
-		private class TaskCancelerWatchDog implements Runnable {
+	/**
+	 * This thread sends the delayed, periodic interrupt calls to the executing thread.
+	 */
+	private static final class TaskInterrupter implements Runnable {
 
-			@Override
-			public void run() {
-				long intervalNanos = TimeUnit.NANOSECONDS.convert(interruptInterval, TimeUnit.MILLISECONDS);
-				long timeoutNanos = TimeUnit.NANOSECONDS.convert(interruptTimeout, TimeUnit.MILLISECONDS);
-				long deadline = System.nanoTime() + timeoutNanos;
+		/** The logger to report on the fatal condition. */
+		private final Logger log;
 
-				try {
-					// Initial wait before interrupting periodically
-					Thread.sleep(interruptInterval);
-				} catch (InterruptedException ignored) {
-				}
+		/** The executing task thread that we wait for to terminate. */
+		private final Thread executerThread;
 
-				// It is possible that the user code does not react to the task canceller.
-				// for that reason, we spawn this separate thread that repeatedly interrupts
-				// the user code until it exits. If the user code does not exit within
-				// the timeout, we notify the job manager about a fatal error.
-				while (executer.isAlive()) {
-					long now = System.nanoTime();
+		/** The name of the task, for logging purposes. */
+		private final String taskName;
 
+		/** The interval in which we interrupt. */
+		private final long interruptIntervalMillis;
+
+		TaskInterrupter(
+				Logger log,
+				Thread executerThread,
+				String taskName,
+				long interruptIntervalMillis) {
+
+			this.log = log;
+			this.executerThread = executerThread;
+			this.taskName = taskName;
+			this.interruptIntervalMillis = interruptIntervalMillis;
+		}
+
+		@Override
+		public void run() {
+			try {
+				// we initially wait for one interval
+				// in most cases, the threads go away immediately (by the cancellation thread)
+				// and we need not actually do anything
+				executerThread.join(interruptIntervalMillis);
+
+				// log stack trace where the executing thread is stuck and
+				// interrupt the running thread periodically while it is still alive
+				while (executerThread.isAlive()) {
 					// build the stack trace of where the thread is stuck, for the log
+					StackTraceElement[] stack = executerThread.getStackTrace();
 					StringBuilder bld = new StringBuilder();
-					StackTraceElement[] stack = executer.getStackTrace();
 					for (StackTraceElement e : stack) {
 						bld.append(e).append('\n');
 					}
 
-					if (now >= deadline) {
-						long duration = TimeUnit.SECONDS.convert(interruptInterval, TimeUnit.MILLISECONDS);
-						String msg = String.format("Task '%s' did not react to cancelling signal in " +
-										"the last %d seconds, but is stuck in method:\n %s",
-								taskName,
-								duration,
-								bld.toString());
+					log.warn("Task '{}' did not react to cancelling signal for {} seconds, but is stuck in method:\n {}",
+							taskName, (interruptIntervalMillis / 1000), bld);
 
-						logger.info("Notifying TaskManager about fatal error. {}.", msg);
-
-						taskManager.notifyFatalError(msg, null);
-
-						return; // done, don't forget to leave the loop
-					} else {
-						logger.warn("Task '{}' did not react to cancelling signal, but is stuck in method:\n {}",
-								taskName, bld.toString());
-
-						executer.interrupt();
-						try {
-							long timeLeftNanos = Math.min(intervalNanos, deadline - now);
-							long timeLeftMillis = TimeUnit.MILLISECONDS.convert(timeLeftNanos, TimeUnit.NANOSECONDS);
-
-							if (timeLeftMillis > 0) {
-								executer.join(timeLeftMillis);
-							}
-						} catch (InterruptedException ignored) {
-						}
+					executerThread.interrupt();
+					try {
+						executerThread.join(interruptIntervalMillis);
+					}
+					catch (InterruptedException e) {
+						// we ignore this and fall through the loop
 					}
 				}
+			} catch (Throwable t) {
+				ExceptionUtils.rethrowIfFatalError(t);
+				log.error("Error in the task canceler for task {}.", taskName, t);
+			}
+		}
+	}
+
+	/**
+	 * Watchdog for the cancellation.
+	 * If the task thread does not go away gracefully within a certain time, we
+	 * trigger a hard cancel action (notify TaskManager of fatal error, which in
+	 * turn kills the process).
+	 */
+	private static class TaskCancelerWatchDog implements Runnable {
+
+		/** The logger to report on the fatal condition. */
+		private final Logger log;
+
+		/** The executing task thread that we wait for to terminate. */
+		private final Thread executerThread;
+
+		/** The TaskManager to notify if cancellation does not happen in time. */
+		private final TaskManagerActions taskManager;
+
+		/** The timeout for cancellation. */
+		private final long timeoutMillis;
+
+		TaskCancelerWatchDog(
+				Thread executerThread,
+				TaskManagerActions taskManager,
+				long timeoutMillis,
+				Logger log) {
+
+			checkArgument(timeoutMillis > 0);
+
+			this.log = log;
+			this.executerThread = executerThread;
+			this.taskManager = taskManager;
+			this.timeoutMillis = timeoutMillis;
+		}
+
+		@Override
+		public void run() {
+			try {
+				final long hardKillDeadline = System.nanoTime() + timeoutMillis * 1_000_000;
+
+				long millisLeft;
+				while (executerThread.isAlive()
+						&& (millisLeft = (hardKillDeadline - System.nanoTime()) / 1_000_000) > 0) {
+
+					try {
+						executerThread.join(millisLeft);
+					}
+					catch (InterruptedException ignored) {
+						// we don't react to interrupted exceptions, simply fall through the loop
+					}
+				}
+
+				if (executerThread.isAlive()) {
+					String msg = "Task did not exit gracefully within " + (timeoutMillis / 1000) + " + seconds.";
+					log.error(msg);
+					taskManager.notifyFatalError(msg, null);
+				}
+			}
+			catch (Throwable t) {
+				ExceptionUtils.rethrowIfFatalError(t);
+				log.error("Error in Task Cancellation Watch Dog", t);
 			}
 		}
 	}
