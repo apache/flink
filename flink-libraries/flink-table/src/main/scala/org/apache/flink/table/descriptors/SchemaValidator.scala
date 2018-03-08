@@ -23,7 +23,7 @@ import java.util.Optional
 
 import org.apache.flink.table.api.{TableSchema, ValidationException}
 import org.apache.flink.table.descriptors.DescriptorProperties.{toJava, toScala}
-import org.apache.flink.table.descriptors.RowtimeValidator.{ROWTIME, ROWTIME_TIMESTAMPS_TYPE}
+import org.apache.flink.table.descriptors.RowtimeValidator.{ROWTIME, ROWTIME_TIMESTAMPS_FROM, ROWTIME_TIMESTAMPS_TYPE, ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD}
 import org.apache.flink.table.descriptors.SchemaValidator._
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor
 
@@ -148,6 +148,13 @@ object SchemaValidator {
 
     val schema = properties.getTableSchema(SCHEMA)
 
+    // add all source fields first because rowtime might reference one of them
+    toScala(sourceSchema).map(_.getColumnNames).foreach { names =>
+      names.foreach { name =>
+        mapping.put(name, name)
+      }
+    }
+
     // add all schema fields first for implicit mappings
     schema.getColumnNames.foreach { name =>
       mapping.put(name, name)
@@ -198,13 +205,19 @@ object SchemaValidator {
       val isProctime = properties
         .getOptionalBoolean(s"$SCHEMA.$i.$SCHEMA_PROCTIME")
         .orElse(false)
-      val isRowtime = properties
-        .containsKey(s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_TYPE")
+      val tsType = s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_TYPE"
+      val isRowtime = properties.containsKey(tsType)
       if (!isProctime && !isRowtime) {
         // check for a aliasing
         val fieldName = properties.getOptionalString(s"$SCHEMA.$i.$SCHEMA_FROM")
           .orElse(n)
         builder.field(fieldName, t)
+      }
+      // only use the rowtime attribute if it references a field
+      else if (isRowtime &&
+          properties.getString(tsType) == ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD) {
+        val field = properties.getString(s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_FROM")
+        builder.field(field, t)
       }
     }
 
