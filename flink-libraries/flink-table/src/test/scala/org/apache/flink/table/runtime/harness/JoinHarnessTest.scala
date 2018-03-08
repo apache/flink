@@ -1029,12 +1029,13 @@ class JoinHarnessTest extends HarnessTestBase {
         STRING_TYPE_INFO),
       Array("a", "b", "c", "d")))
 
-    val joinProcessFunc = new NonWindowLeftJoin(
+    val joinProcessFunc = new NonWindowLeftRightJoin(
       rowType,
       rowType,
       joinReturnType,
       "TestJoinFunction",
       funcCode,
+      true,
       queryConfig)
 
     val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
@@ -1145,12 +1146,13 @@ class JoinHarnessTest extends HarnessTestBase {
         STRING_TYPE_INFO),
       Array("a", "b", "c", "d")))
 
-    val joinProcessFunc = new NonWindowLeftJoinWithNonEquiPredicates(
+    val joinProcessFunc = new NonWindowLeftRightJoinWithNonEquiPredicates(
       rowType,
       rowType,
       joinReturnType,
       "TestJoinFunction",
       funcCodeWithNonEqualPred,
+      true,
       queryConfig)
 
     val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
@@ -1171,14 +1173,18 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(Row.of(1: JInt, "aaa"), change = true)))
     testHarness.processElement1(new StreamRecord(
       CRow(Row.of(1: JInt, "aaa"), change = false)))
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb"), change = true)))
     assertEquals(1, testHarness.numProcessingTimeTimers())
-    assertEquals(1, testHarness.numKeyedStateEntries())
+    // 1 left timer(5), 1 left key(1), 1 join cnt
+    assertEquals(3, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(2)
     testHarness.processElement1(new StreamRecord(
       CRow(Row.of(1: JInt, "aaa"), change = true)))
     testHarness.processElement1(new StreamRecord(
       CRow(Row.of(2: JInt, "bbb"), change = true)))
     assertEquals(2, testHarness.numProcessingTimeTimers())
+    // 2 left timer(5,6), 2 left key(1,2), 2 join cnt
     assertEquals(6, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(3)
 
@@ -1187,6 +1193,7 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(Row.of(1: JInt, "Hi1"), change = true)))
     testHarness.processElement2(new StreamRecord(
       CRow(Row.of(1: JInt, "bbb"), change = false)))
+    // 2 left timer(5,6), 2 left keys(1,2), 2 join cnt, 1 right timer(7), 1 right key(1)
     assertEquals(8, testHarness.numKeyedStateEntries())
     assertEquals(3, testHarness.numProcessingTimeTimers())
     testHarness.setProcessingTime(4)
@@ -1194,6 +1201,7 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(Row.of(2: JInt, "ccc"), change = true)))
     testHarness.processElement2(new StreamRecord(
       CRow(Row.of(2: JInt, "Hello"), change = true)))
+    // 2 left timer(5,6), 2 left keys(1,2), 2 join cnt, 2 right timer(7,8), 2 right key(1,2)
     assertEquals(10, testHarness.numKeyedStateEntries())
     assertEquals(4, testHarness.numProcessingTimeTimers())
 
@@ -1205,6 +1213,7 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(Row.of(1: JInt, "Hi2"), change = true)))
     testHarness.processElement2(new StreamRecord(
       CRow(Row.of(1: JInt, "Hi2"), change = false)))
+    // 1 left timer(6), 1 left keys(2), 1 join cnt, 2 right timer(7,8), 2 right key(1,2)
     assertEquals(7, testHarness.numKeyedStateEntries())
     assertEquals(3, testHarness.numProcessingTimeTimers())
 
@@ -1227,13 +1236,19 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(
       CRow(Row.of(1: JInt, "aaa", null: JInt, null), change = false)))
     expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", null: JInt, null), change = true)))
+    expectedOutput.add(new StreamRecord(
       CRow(Row.of(1: JInt, "aaa", null: JInt, null), change = true)))
     expectedOutput.add(new StreamRecord(
       CRow(Row.of(2: JInt, "bbb", null: JInt, null), change = true)))
     expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", null: JInt, null), change = false)))
+    expectedOutput.add(new StreamRecord(
       CRow(Row.of(1: JInt, "aaa", null: JInt, null), change = false)))
     expectedOutput.add(new StreamRecord(
       CRow(Row.of(1: JInt, "aaa", 1: JInt, "Hi1"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", 1: JInt, "Hi1"), change = true)))
     expectedOutput.add(new StreamRecord(
       CRow(Row.of(2: JInt, "bbb", null: JInt, null), change = false)))
     expectedOutput.add(new StreamRecord(

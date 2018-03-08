@@ -30,7 +30,7 @@ import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.CRowKeySelector
-import org.apache.flink.table.runtime.join.{NonWindowInnerJoin, NonWindowLeftJoin, NonWindowLeftJoinWithNonEquiPredicates}
+import org.apache.flink.table.runtime.join.{NonWindowInnerJoin, NonWindowLeftRightJoin, NonWindowLeftRightJoinWithNonEquiPredicates}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
 
@@ -143,7 +143,7 @@ class DataStreamJoin(
       case JoinRelType.INNER | JoinRelType.LEFT => (leftDataStream.connect(rightDataStream), false)
       case _ =>
         throw TableException(s"Unsupported join type '$joinType'. Currently only " +
-          s"non-window inner joins with at least one equality predicate are supported")
+          s"non-window inner/left joins with at least one equality predicate are supported")
     }
 
     val generator = new FunctionCodeGenerator(
@@ -189,20 +189,22 @@ class DataStreamJoin(
           genFunction.code,
           queryConfig)
       case JoinRelType.LEFT if joinInfo.isEqui =>
-        new NonWindowLeftJoin(
+        new NonWindowLeftRightJoin(
           leftSchema.typeInfo,
           rightSchema.typeInfo,
           CRowTypeInfo(returnType),
           genFunction.name,
           genFunction.code,
+          joinType == JoinRelType.LEFT,
           queryConfig)
       case JoinRelType.LEFT =>
-        new NonWindowLeftJoinWithNonEquiPredicates(
+        new NonWindowLeftRightJoinWithNonEquiPredicates(
           leftSchema.typeInfo,
           rightSchema.typeInfo,
           CRowTypeInfo(returnType),
           genFunction.name,
           genFunction.code,
+          joinType == JoinRelType.LEFT,
           queryConfig)
     }
 
