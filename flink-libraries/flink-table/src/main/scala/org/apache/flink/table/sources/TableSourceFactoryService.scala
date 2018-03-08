@@ -36,18 +36,39 @@ import scala.collection.mutable
   */
 object TableSourceFactoryService extends Logging {
 
-  private lazy val loader = ServiceLoader.load(classOf[TableSourceFactory[_]])
+  private lazy val defaultLoader = ServiceLoader.load(classOf[TableSourceFactory[_]])
 
   def findAndCreateTableSource(descriptor: TableSourceDescriptor): TableSource[_] = {
+    findAndCreateTableSource(descriptor, null)
+  }
+
+  def findAndCreateTableSource(
+      descriptor: TableSourceDescriptor,
+      classLoader: ClassLoader)
+    : TableSource[_] = {
+
     val properties = new DescriptorProperties()
     descriptor.addProperties(properties)
-    findAndCreateTableSource(properties.asMap.asScala.toMap)
+    findAndCreateTableSource(properties.asMap.asScala.toMap, classLoader)
   }
 
   def findAndCreateTableSource(properties: Map[String, String]): TableSource[_] = {
+    findAndCreateTableSource(properties, null)
+  }
+
+  def findAndCreateTableSource(
+      properties: Map[String, String],
+      classLoader: ClassLoader)
+    : TableSource[_] = {
+
     var matchingFactory: Option[(TableSourceFactory[_], Seq[String])] = None
     try {
-      val iter = loader.iterator()
+      val iter = if (classLoader == null) {
+        defaultLoader.iterator()
+      } else {
+        val customLoader = ServiceLoader.load(classOf[TableSourceFactory[_]], classLoader)
+        customLoader.iterator()
+      }
       while (iter.hasNext) {
         val factory = iter.next()
 
