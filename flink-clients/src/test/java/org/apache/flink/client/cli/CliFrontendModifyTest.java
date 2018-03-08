@@ -25,7 +25,6 @@ import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -38,7 +37,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the modify command.
  */
-public class CliFrontendModifyTest extends TestLogger {
+public class CliFrontendModifyTest extends CliFrontendTestBase {
 
 	@Test
 	public void testModifyJob() throws Exception {
@@ -106,7 +105,7 @@ public class CliFrontendModifyTest extends TestLogger {
 
 	private Tuple2<JobID, Integer> callModify(String[] args) throws Exception {
 		final CompletableFuture<Tuple2<JobID, Integer>> rescaleJobFuture = new CompletableFuture<>();
-		final TestingClusterClient clusterClient = new TestingClusterClient(rescaleJobFuture);
+		final TestingClusterClient clusterClient = new TestingClusterClient(rescaleJobFuture, getConfiguration());
 		final MockedCliFrontend cliFrontend = new MockedCliFrontend(clusterClient);
 
 		cliFrontend.modify(args);
@@ -120,8 +119,9 @@ public class CliFrontendModifyTest extends TestLogger {
 
 		private final CompletableFuture<Tuple2<JobID, Integer>> rescaleJobFuture;
 
-		public TestingClusterClient(CompletableFuture<Tuple2<JobID, Integer>> rescaleJobFuture) throws Exception {
-			super(new Configuration(), new TestingHighAvailabilityServices(), false);
+		TestingClusterClient(
+			CompletableFuture<Tuple2<JobID, Integer>> rescaleJobFuture, Configuration configuration) {
+			super(configuration, new TestingHighAvailabilityServices(), false);
 
 			this.rescaleJobFuture = rescaleJobFuture;
 		}

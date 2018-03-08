@@ -30,7 +30,6 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -61,7 +60,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the SAVEPOINT command.
  */
-public class CliFrontendSavepointTest extends TestLogger {
+public class CliFrontendSavepointTest extends CliFrontendTestBase {
 
 	private static PrintStream stdOut;
 	private static PrintStream stdErr;
@@ -137,7 +136,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 		try {
 			CliFrontend frontend = new MockedCliFrontend(new StandaloneClusterClient(
-				new Configuration(),
+				getConfiguration(),
 				new TestingHighAvailabilityServices(),
 				false));
 
@@ -197,7 +196,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 		String savepointPath = "expectedSavepointPath";
 
 		ClusterClient clusterClient = new DisposeSavepointClusterClient(
-			(String path, Time timeout) -> CompletableFuture.completedFuture(Acknowledge.get()));
+			(String path, Time timeout) -> CompletableFuture.completedFuture(Acknowledge.get()), getConfiguration());
 
 		try {
 
@@ -229,7 +228,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 			(String savepointPath, Time timeout) -> {
 				disposeSavepointFuture.complete(savepointPath);
 				return CompletableFuture.completedFuture(Acknowledge.get());
-			});
+			}, getConfiguration());
 
 		try {
 			CliFrontend frontend = new MockedCliFrontend(clusterClient);
@@ -261,7 +260,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 		Exception testException = new Exception("expectedTestException");
 
-		DisposeSavepointClusterClient clusterClient = new DisposeSavepointClusterClient((String path, Time timeout) -> FutureUtils.completedExceptionally(testException));
+		DisposeSavepointClusterClient clusterClient = new DisposeSavepointClusterClient((String path, Time timeout) -> FutureUtils.completedExceptionally(testException), getConfiguration());
 
 		try {
 			CliFrontend frontend = new MockedCliFrontend(clusterClient);
@@ -288,8 +287,8 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 		private final BiFunction<String, Time, CompletableFuture<Acknowledge>> disposeSavepointFunction;
 
-		DisposeSavepointClusterClient(BiFunction<String, Time, CompletableFuture<Acknowledge>> disposeSavepointFunction) throws Exception {
-			super(new Configuration(), new TestingHighAvailabilityServices(), false);
+		DisposeSavepointClusterClient(BiFunction<String, Time, CompletableFuture<Acknowledge>> disposeSavepointFunction, Configuration configuration) {
+			super(configuration, new TestingHighAvailabilityServices(), false);
 
 			this.disposeSavepointFunction = Preconditions.checkNotNull(disposeSavepointFunction);
 		}
