@@ -23,7 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.StandaloneClusterClient;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -36,15 +36,20 @@ import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.zip.ZipOutputStream;
 
+import static org.apache.flink.client.cli.CliFrontendTestUtils.getConfiguration;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -61,7 +66,16 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the SAVEPOINT command.
  */
+@RunWith(Parameterized.class)
 public class CliFrontendSavepointTest extends TestLogger {
+
+	@Parameterized.Parameters(name = "Mode = {0}")
+	public static List<String> parameters() {
+		return Arrays.asList(CoreOptions.OLD_MODE, CoreOptions.FLIP6_MODE);
+	}
+
+	@Parameterized.Parameter
+	public String mode;
 
 	private static PrintStream stdOut;
 	private static PrintStream stdErr;
@@ -137,7 +151,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 		try {
 			CliFrontend frontend = new MockedCliFrontend(new StandaloneClusterClient(
-				new Configuration(),
+				getConfiguration(mode),
 				new TestingHighAvailabilityServices(),
 				false));
 
@@ -197,7 +211,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 		String savepointPath = "expectedSavepointPath";
 
 		ClusterClient clusterClient = new DisposeSavepointClusterClient(
-			(String path, Time timeout) -> CompletableFuture.completedFuture(Acknowledge.get()));
+			(String path, Time timeout) -> CompletableFuture.completedFuture(Acknowledge.get()), mode);
 
 		try {
 
@@ -229,7 +243,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 			(String savepointPath, Time timeout) -> {
 				disposeSavepointFuture.complete(savepointPath);
 				return CompletableFuture.completedFuture(Acknowledge.get());
-			});
+			}, mode);
 
 		try {
 			CliFrontend frontend = new MockedCliFrontend(clusterClient);
@@ -261,7 +275,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 		Exception testException = new Exception("expectedTestException");
 
-		DisposeSavepointClusterClient clusterClient = new DisposeSavepointClusterClient((String path, Time timeout) -> FutureUtils.completedExceptionally(testException));
+		DisposeSavepointClusterClient clusterClient = new DisposeSavepointClusterClient((String path, Time timeout) -> FutureUtils.completedExceptionally(testException), mode);
 
 		try {
 			CliFrontend frontend = new MockedCliFrontend(clusterClient);
@@ -288,8 +302,8 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 		private final BiFunction<String, Time, CompletableFuture<Acknowledge>> disposeSavepointFunction;
 
-		DisposeSavepointClusterClient(BiFunction<String, Time, CompletableFuture<Acknowledge>> disposeSavepointFunction) throws Exception {
-			super(new Configuration(), new TestingHighAvailabilityServices(), false);
+		DisposeSavepointClusterClient(BiFunction<String, Time, CompletableFuture<Acknowledge>> disposeSavepointFunction, String mode) throws Exception {
+			super(getConfiguration(mode), new TestingHighAvailabilityServices(), false);
 
 			this.disposeSavepointFunction = Preconditions.checkNotNull(disposeSavepointFunction);
 		}

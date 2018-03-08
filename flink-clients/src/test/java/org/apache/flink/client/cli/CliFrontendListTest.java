@@ -21,16 +21,23 @@ package org.apache.flink.client.cli;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.mockito.Mockito;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.client.cli.CliFrontendTestUtils.getCli;
+import static org.apache.flink.client.cli.CliFrontendTestUtils.getConfiguration;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
@@ -38,7 +45,16 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the LIST command.
  */
+@RunWith(Parameterized.class)
 public class CliFrontendListTest extends TestLogger {
+
+	@Parameterized.Parameters(name = "Mode = {0}")
+	public static List<String> parameters() {
+		return Arrays.asList(CoreOptions.OLD_MODE, CoreOptions.FLIP6_MODE);
+	}
+
+	@Parameterized.Parameter
+	public String mode;
 
 	@BeforeClass
 	public static void init() {
@@ -66,10 +82,10 @@ public class CliFrontendListTest extends TestLogger {
 	@Test(expected = CliArgsException.class)
 	public void testUnrecognizedOption() throws Exception {
 		String[] parameters = {"-v", "-k"};
-		Configuration configuration = new Configuration();
+		Configuration configuration = getConfiguration(mode);
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(new DefaultCLI(configuration)));
+			Collections.singletonList(getCli(configuration)));
 		testFrontend.list(parameters);
 	}
 

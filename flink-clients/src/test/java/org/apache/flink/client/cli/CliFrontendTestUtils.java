@@ -19,6 +19,8 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 
 import java.io.File;
@@ -64,6 +66,22 @@ public class CliFrontendTestUtils {
 	public static String getInvalidConfigDir() {
 		String confFile = CliFrontendRunTest.class.getResource("/invalidtestconfig/flink-conf.yaml").getFile();
 		return new File(confFile).getAbsoluteFile().getParent();
+	}
+
+	static Configuration getConfiguration(String mode) {
+		final Configuration configuration = GlobalConfiguration.loadConfiguration(getConfigDir());
+		configuration.setString(CoreOptions.MODE, mode);
+		return configuration;
+	}
+
+	static AbstractCustomCommandLine<?> getCli(Configuration configuration) {
+		switch (configuration.getString(CoreOptions.MODE)) {
+			case CoreOptions.OLD_MODE:
+				return new DefaultCLI(configuration);
+			case CoreOptions.FLIP6_MODE:
+				return new Flip6DefaultCLI(configuration);
+		}
+		throw new IllegalStateException();
 	}
 
 	public static void pipeSystemOutToNull() {

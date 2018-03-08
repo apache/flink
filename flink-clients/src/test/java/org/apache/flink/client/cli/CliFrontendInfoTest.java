@@ -19,21 +19,37 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
+import static org.apache.flink.client.cli.CliFrontendTestUtils.getCli;
+import static org.apache.flink.client.cli.CliFrontendTestUtils.getConfiguration;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
  * Tests for the "info" command.
  */
+@RunWith(Parameterized.class)
 public class CliFrontendInfoTest extends TestLogger {
+
+	@Parameterized.Parameters(name = "Mode = {0}")
+	public static List<String> parameters() {
+		return Arrays.asList(CoreOptions.OLD_MODE, CoreOptions.FLIP6_MODE);
+	}
+
+	@Parameterized.Parameter
+	public String mode;
 
 	private static PrintStream stdOut;
 	private static PrintStream capture;
@@ -42,20 +58,20 @@ public class CliFrontendInfoTest extends TestLogger {
 	@Test(expected = CliArgsException.class)
 	public void testMissingOption() throws Exception {
 		String[] parameters = {};
-		Configuration configuration = new Configuration();
+		Configuration configuration = getConfiguration(mode);
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(new DefaultCLI(configuration)));
+			Collections.singletonList(getCli(configuration)));
 		testFrontend.cancel(parameters);
 	}
 
 	@Test(expected = CliArgsException.class)
 	public void testUnrecognizedOption() throws Exception {
 		String[] parameters = {"-v", "-l"};
-		Configuration configuration = new Configuration();
+		Configuration configuration = getConfiguration(mode);
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(new DefaultCLI(configuration)));
+			Collections.singletonList(getCli(configuration)));
 		testFrontend.cancel(parameters);
 	}
 
@@ -65,10 +81,10 @@ public class CliFrontendInfoTest extends TestLogger {
 		try {
 
 			String[] parameters = new String[]{CliFrontendTestUtils.getTestJarPath(), "-f", "true"};
-			Configuration configuration = new Configuration();
+			Configuration configuration = getConfiguration(mode);
 			CliFrontend testFrontend = new CliFrontend(
 				configuration,
-				Collections.singletonList(new DefaultCLI(configuration)));
+				Collections.singletonList(getCli(configuration)));
 			testFrontend.info(parameters);
 			assertTrue(buffer.toString().contains("\"parallelism\": \"1\""));
 		}
@@ -82,10 +98,10 @@ public class CliFrontendInfoTest extends TestLogger {
 		replaceStdOut();
 		try {
 			String[] parameters = {"-p", "17", CliFrontendTestUtils.getTestJarPath()};
-			Configuration configuration = new Configuration();
+			Configuration configuration = getConfiguration(mode);
 			CliFrontend testFrontend = new CliFrontend(
 				configuration,
-				Collections.singletonList(new DefaultCLI(configuration)));
+				Collections.singletonList(getCli(configuration)));
 			testFrontend.info(parameters);
 			assertTrue(buffer.toString().contains("\"parallelism\": \"17\""));
 		}

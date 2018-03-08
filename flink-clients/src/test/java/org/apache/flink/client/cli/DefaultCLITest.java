@@ -18,9 +18,11 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
+import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.util.TestLogger;
@@ -30,13 +32,29 @@ import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.util.Arrays;
+import java.util.List;
+
+import static org.apache.flink.client.cli.CliFrontendTestUtils.getCli;
+import static org.apache.flink.client.cli.CliFrontendTestUtils.getConfiguration;
 import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the {@link DefaultCLI}.
  */
+@RunWith(Parameterized.class)
 public class DefaultCLITest extends TestLogger {
+
+	@Parameterized.Parameters(name = "Mode = {0}")
+	public static List<String> parameters() {
+		return Arrays.asList(CoreOptions.OLD_MODE, CoreOptions.FLIP6_MODE);
+	}
+
+	@Parameterized.Parameter
+	public String mode;
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -47,7 +65,7 @@ public class DefaultCLITest extends TestLogger {
 	 */
 	@Test
 	public void testConfigurationPassing() throws Exception {
-		final Configuration configuration = new Configuration();
+		final Configuration configuration = getConfiguration(mode);
 
 		final String localhost = "localhost";
 		final int port = 1234;
@@ -55,13 +73,16 @@ public class DefaultCLITest extends TestLogger {
 		configuration.setString(JobManagerOptions.ADDRESS, localhost);
 		configuration.setInteger(JobManagerOptions.PORT, port);
 
-		final DefaultCLI defaultCLI = new DefaultCLI(configuration);
+		@SuppressWarnings("unchecked")
+		final AbstractCustomCommandLine<StandaloneClusterId> defaultCLI =
+			(AbstractCustomCommandLine<StandaloneClusterId>) getCli(configuration);
 
 		final String[] args = {};
 
 		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
 
-		final StandaloneClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
+		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor =
+			defaultCLI.createClusterDescriptor(commandLine);
 
 		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
 
@@ -78,12 +99,14 @@ public class DefaultCLITest extends TestLogger {
 	public void testManualConfigurationOverride() throws Exception {
 		final String localhost = "localhost";
 		final int port = 1234;
-		final Configuration configuration = new Configuration();
+		final Configuration configuration = getConfiguration(mode);
 
 		configuration.setString(JobManagerOptions.ADDRESS, localhost);
 		configuration.setInteger(JobManagerOptions.PORT, port);
 
-		final DefaultCLI defaultCLI = new DefaultCLI(configuration);
+		@SuppressWarnings("unchecked")
+		final AbstractCustomCommandLine<StandaloneClusterId> defaultCLI =
+			(AbstractCustomCommandLine<StandaloneClusterId>) getCli(configuration);
 
 		final String manualHostname = "123.123.123.123";
 		final int manualPort = 4321;
@@ -91,7 +114,8 @@ public class DefaultCLITest extends TestLogger {
 
 		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
 
-		final StandaloneClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
+		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor =
+			defaultCLI.createClusterDescriptor(commandLine);
 
 		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
 
