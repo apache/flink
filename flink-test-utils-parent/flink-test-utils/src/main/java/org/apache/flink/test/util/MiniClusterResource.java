@@ -169,7 +169,9 @@ public class MiniClusterResource extends ExternalResource {
 
 		// we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
 		// enabled this by default
-		configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+		if (!configuration.contains(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE)) {
+			configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+		}
 
 		// set rest port to 0 to avoid clashes with concurrent MiniClusters
 		configuration.setInteger(RestOptions.REST_PORT, 0);
