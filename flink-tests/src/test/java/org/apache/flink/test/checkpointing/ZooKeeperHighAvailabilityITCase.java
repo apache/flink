@@ -95,7 +95,6 @@ public class ZooKeeperHighAvailabilityITCase extends TestBaseUtils {
 
 	private static OneShotLatch waitForCheckpointLatch = new OneShotLatch();
 	private static OneShotLatch failInCheckpointLatch = new OneShotLatch();
-	private static OneShotLatch successfulRestoreLatch = new OneShotLatch();
 
 	@BeforeClass
 	public static void setup() throws Exception {
@@ -154,7 +153,6 @@ public class ZooKeeperHighAvailabilityITCase extends TestBaseUtils {
 
 		waitForCheckpointLatch = new OneShotLatch();
 		failInCheckpointLatch = new OneShotLatch();
-		successfulRestoreLatch = new OneShotLatch();
 
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
@@ -249,7 +247,8 @@ public class ZooKeeperHighAvailabilityITCase extends TestBaseUtils {
 			}
 		}
 
-		// now the job should be able to go to RUNNING again and then eventually to FINISHED
+		// now the job should be able to go to RUNNING again and then eventually to FINISHED,
+		// which it only does if it could successfully restore
 		jobStatusFuture = FutureUtils.retrySuccessful(
 			new Callable<Future<JobStatus>>() {
 				@Override
@@ -266,9 +265,6 @@ public class ZooKeeperHighAvailabilityITCase extends TestBaseUtils {
 			deadline,
 			TestingUtils.defaultExecutor());
 		assertEquals(JobStatus.FINISHED, jobStatusFuture.get());
-
-		// make sure we saw a successful restore
-		successfulRestoreLatch.await();
 
 		assertThat("We saw illegal restores.", CheckpointBlockingFunction.illegalRestores.get(), is(0));
 	}
@@ -303,17 +299,14 @@ public class ZooKeeperHighAvailabilityITCase extends TestBaseUtils {
 	}
 
 	private static class UnboundedSource implements SourceFunction<String> {
-		private boolean running = true;
+		private volatile boolean running = true;
 
 		@Override
 		public void run(SourceContext<String> ctx) throws Exception {
-			while (running) {
+			while (running && !CheckpointBlockingFunction.afterMessWithZooKeeper.get()) {
 				ctx.collect("hello");
 				// don't overdo it ... ;-)
 				Thread.sleep(50);
-				if (CheckpointBlockingFunction.afterMessWithZooKeeper.get()) {
-					break;
-				}
 			}
 		}
 
@@ -380,7 +373,6 @@ public class ZooKeeperHighAvailabilityITCase extends TestBaseUtils {
 					// already saw the one allowed successful restore
 					illegalRestores.getAndIncrement();
 				}
-				successfulRestoreLatch.trigger();
 			}
 		}
 	}
