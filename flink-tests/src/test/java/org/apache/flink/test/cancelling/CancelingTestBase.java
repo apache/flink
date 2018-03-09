@@ -59,7 +59,8 @@ public abstract class CancelingTestBase extends TestLogger {
 		new MiniClusterResource.MiniClusterResourceConfiguration(
 			getConfiguration(),
 			2,
-			4));
+			4),
+		true);
 
 	// --------------------------------------------------------------------------------------------
 
