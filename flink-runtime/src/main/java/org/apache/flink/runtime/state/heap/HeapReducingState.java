@@ -29,8 +29,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * Heap-backed partitioned {@link org.apache.flink.api.common.state.ReducingState} that is
- * snapshotted into files.
+ * Heap-backed partitioned {@link ReducingState} that is snapshotted into files.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
@@ -38,7 +37,7 @@ import java.io.IOException;
  */
 public class HeapReducingState<K, N, V>
 		extends AbstractHeapMergingState<K, N, V, V, V, ReducingState<V>, ReducingStateDescriptor<V>>
-		implements InternalReducingState<N, V> {
+		implements InternalReducingState<K, N, V> {
 
 	private final ReduceTransformation<V> reduceTransformation;
 
@@ -57,6 +56,21 @@ public class HeapReducingState<K, N, V>
 
 		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
 		this.reduceTransformation = new ReduceTransformation<>(stateDesc.getReduceFunction());
+	}
+
+	@Override
+	public TypeSerializer<K> getKeySerializer() {
+		return keySerializer;
+	}
+
+	@Override
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
+	}
+
+	@Override
+	public TypeSerializer<V> getValueSerializer() {
+		return stateDesc.getSerializer();
 	}
 
 	// ------------------------------------------------------------------------

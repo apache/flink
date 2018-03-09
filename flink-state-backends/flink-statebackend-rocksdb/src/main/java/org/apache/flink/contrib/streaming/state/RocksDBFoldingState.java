@@ -44,8 +44,8 @@ import java.io.IOException;
  */
 @Deprecated
 public class RocksDBFoldingState<K, N, T, ACC>
-	extends AbstractRocksDBState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, ACC>
-	implements InternalFoldingState<N, T, ACC> {
+		extends AbstractRocksDBState<K, N, ACC, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>>
+		implements InternalFoldingState<K, N, T, ACC> {
 
 	/** Serializer for the values. */
 	private final TypeSerializer<ACC> valueSerializer;
@@ -69,6 +69,21 @@ public class RocksDBFoldingState<K, N, T, ACC>
 
 		this.valueSerializer = stateDesc.getSerializer();
 		this.foldFunction = stateDesc.getFoldFunction();
+	}
+
+	@Override
+	public TypeSerializer<K> getKeySerializer() {
+		return backend.getKeySerializer();
+	}
+
+	@Override
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
+	}
+
+	@Override
+	public TypeSerializer<ACC> getValueSerializer() {
+		return stateDesc.getSerializer();
 	}
 
 	@Override
@@ -108,5 +123,4 @@ public class RocksDBFoldingState<K, N, T, ACC>
 			throw new RuntimeException("Error while adding data to RocksDB", e);
 		}
 	}
-
 }

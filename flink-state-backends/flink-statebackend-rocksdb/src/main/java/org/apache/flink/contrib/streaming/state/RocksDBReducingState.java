@@ -42,8 +42,8 @@ import java.util.Collection;
  * @param <V> The type of value that the state state stores.
  */
 public class RocksDBReducingState<K, N, V>
-	extends AbstractRocksDBState<K, N, ReducingState<V>, ReducingStateDescriptor<V>, V>
-	implements InternalReducingState<N, V> {
+		extends AbstractRocksDBState<K, N, V, ReducingState<V>, ReducingStateDescriptor<V>>
+		implements InternalReducingState<K, N, V> {
 
 	/** Serializer for the values. */
 	private final TypeSerializer<V> valueSerializer;
@@ -66,6 +66,21 @@ public class RocksDBReducingState<K, N, V>
 		super(columnFamily, namespaceSerializer, stateDesc, backend);
 		this.valueSerializer = stateDesc.getSerializer();
 		this.reduceFunction = stateDesc.getReduceFunction();
+	}
+
+	@Override
+	public TypeSerializer<K> getKeySerializer() {
+		return backend.getKeySerializer();
+	}
+
+	@Override
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
+	}
+
+	@Override
+	public TypeSerializer<V> getValueSerializer() {
+		return stateDesc.getSerializer();
 	}
 
 	@Override

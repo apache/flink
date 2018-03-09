@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -52,14 +53,14 @@ import java.util.Map;
  * {@link org.rocksdb.StringAppendOperator} on the column family that we use for our state since
  * we use the {@code merge()} call.
  *
- * @param <K>  The type of the key.
- * @param <N>  The type of the namespace.
+ * @param <K> The type of the key.
+ * @param <N> The type of the namespace.
  * @param <UK> The type of the keys in the map state.
  * @param <UV> The type of the values in the map state.
  */
 public class RocksDBMapState<K, N, UK, UV>
-	extends AbstractRocksDBState<K, N, MapState<UK, UV>, MapStateDescriptor<UK, UV>, Map<UK, UV>>
-	implements InternalMapState<N, UK, UV> {
+		extends AbstractRocksDBState<K, N, Map<UK, UV>, MapState<UK, UV>, MapStateDescriptor<UK, UV>>
+		implements InternalMapState<K, N, UK, UV, Map<UK, UV>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBMapState.class);
 
@@ -76,7 +77,8 @@ public class RocksDBMapState<K, N, UK, UV>
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param stateDesc The state identifier for the state.
 	 */
-	public RocksDBMapState(ColumnFamilyHandle columnFamily,
+	public RocksDBMapState(
+			ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			MapStateDescriptor<UK, UV> stateDesc,
 			RocksDBKeyedStateBackend<K> backend) {
@@ -85,6 +87,21 @@ public class RocksDBMapState<K, N, UK, UV>
 
 		this.userKeySerializer = stateDesc.getKeySerializer();
 		this.userValueSerializer = stateDesc.getValueSerializer();
+	}
+
+	@Override
+	public TypeSerializer<K> getKeySerializer() {
+		return backend.getKeySerializer();
+	}
+
+	@Override
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
+	}
+
+	@Override
+	public TypeSerializer<Map<UK, UV>> getValueSerializer() {
+		return stateDesc.getSerializer();
 	}
 
 	// ------------------------------------------------------------------------
@@ -158,7 +175,7 @@ public class RocksDBMapState<K, N, UK, UV>
 		return new Iterable<UK>() {
 			@Override
 			public Iterator<UK> iterator() {
-				return new RocksDBMapIterator<UK>(backend.db, prefixBytes) {
+				return new RocksDBMapIterator<UK>(backend.db, prefixBytes, userKeySerializer, userValueSerializer) {
 					@Override
 					public UK next() {
 						RocksDBMapEntry entry = nextEntry();
@@ -176,7 +193,7 @@ public class RocksDBMapState<K, N, UK, UV>
 		return new Iterable<UV>() {
 			@Override
 			public Iterator<UV> iterator() {
-				return new RocksDBMapIterator<UV>(backend.db, prefixBytes) {
+				return new RocksDBMapIterator<UV>(backend.db, prefixBytes, userKeySerializer, userValueSerializer) {
 					@Override
 					public UV next() {
 						RocksDBMapEntry entry = nextEntry();
@@ -191,7 +208,7 @@ public class RocksDBMapState<K, N, UK, UV>
 	public Iterator<Map.Entry<UK, UV>> iterator() throws IOException, RocksDBException {
 		final byte[] prefixBytes = serializeCurrentKeyAndNamespace();
 
-		return new RocksDBMapIterator<Map.Entry<UK, UV>>(backend.db, prefixBytes) {
+		return new RocksDBMapIterator<Map.Entry<UK, UV>>(backend.db, prefixBytes, userKeySerializer, userValueSerializer) {
 			@Override
 			public Map.Entry<UK, UV> next() {
 				return nextEntry();
@@ -215,23 +232,48 @@ public class RocksDBMapState<K, N, UK, UV>
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
-		Preconditions.checkNotNull(serializedKeyAndNamespace, "Serialized key and namespace");
+	public byte[] getSerializedValue(
+			final byte[] serializedKeyAndNamespace,
+			final TypeSerializer<K> safeKeySerializer,
+			final TypeSerializer<N> safeNamespaceSerializer,
+			final TypeSerializer<Map<UK, UV>> safeValueSerializer) throws Exception {
+
+		Preconditions.checkNotNull(serializedKeyAndNamespace);
+		Preconditions.checkNotNull(safeKeySerializer);
+		Preconditions.checkNotNull(safeNamespaceSerializer);
+		Preconditions.checkNotNull(safeValueSerializer);
 
 		//TODO make KvStateSerializer key-group aware to save this round trip and key-group computation
-		Tuple2<K, N> des = KvStateSerializer.deserializeKeyAndNamespace(
-				serializedKeyAndNamespace,
-				backend.getKeySerializer(),
-				namespaceSerializer);
+		Tuple2<K, N> keyAndNamespace = KvStateSerializer.deserializeKeyAndNamespace(
+				serializedKeyAndNamespace, safeKeySerializer, safeNamespaceSerializer);
 
-		int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(des.f0, backend.getNumberOfKeyGroups());
+		int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(keyAndNamespace.f0, backend.getNumberOfKeyGroups());
 
 		ByteArrayOutputStreamWithPos outputStream = new ByteArrayOutputStreamWithPos(128);
 		DataOutputViewStreamWrapper outputView = new DataOutputViewStreamWrapper(outputStream);
-		writeKeyWithGroupAndNamespace(keyGroup, des.f0, des.f1, outputStream, outputView);
+
+		writeKeyWithGroupAndNamespace(
+				keyGroup,
+				keyAndNamespace.f0,
+				safeKeySerializer,
+				keyAndNamespace.f1,
+				safeNamespaceSerializer,
+				outputStream,
+				outputView);
+
 		final byte[] keyPrefixBytes = outputStream.toByteArray();
 
-		final Iterator<Map.Entry<UK, UV>> iterator = new RocksDBMapIterator<Map.Entry<UK, UV>>(backend.db, keyPrefixBytes) {
+		final MapSerializer<UK, UV> serializer = (MapSerializer<UK, UV>) safeValueSerializer;
+
+		final TypeSerializer<UK> dupUserKeySerializer = serializer.getKeySerializer();
+		final TypeSerializer<UV> dupUserValueSerializer = serializer.getValueSerializer();
+
+		final Iterator<Map.Entry<UK, UV>> iterator = new RocksDBMapIterator<Map.Entry<UK, UV>>(
+				backend.db,
+				keyPrefixBytes,
+				dupUserKeySerializer,
+				dupUserValueSerializer) {
+
 			@Override
 			public Map.Entry<UK, UV> next() {
 				return nextEntry();
@@ -248,7 +290,7 @@ public class RocksDBMapState<K, N, UK, UV>
 			public Iterator<Map.Entry<UK, UV>> iterator() {
 				return iterator;
 			}
-		}, userKeySerializer, userValueSerializer);
+		}, dupUserKeySerializer, dupUserValueSerializer);
 	}
 
 	// ------------------------------------------------------------------------
@@ -270,34 +312,42 @@ public class RocksDBMapState<K, N, UK, UV>
 	}
 
 	private byte[] serializeUserValue(UV userValue) throws IOException {
+		return serializeUserValue(userValue, userValueSerializer);
+	}
+
+	private UV deserializeUserValue(byte[] rawValueBytes) throws IOException {
+		return deserializeUserValue(rawValueBytes, userValueSerializer);
+	}
+
+	private byte[] serializeUserValue(UV userValue, TypeSerializer<UV> valueSerializer) throws IOException {
 		keySerializationStream.reset();
 
 		if (userValue == null) {
 			keySerializationDataOutputView.writeBoolean(true);
 		} else {
 			keySerializationDataOutputView.writeBoolean(false);
-			userValueSerializer.serialize(userValue, keySerializationDataOutputView);
+			valueSerializer.serialize(userValue, keySerializationDataOutputView);
 		}
 
 		return keySerializationStream.toByteArray();
 	}
 
-	private UK deserializeUserKey(byte[] rawKeyBytes) throws IOException {
+	private UK deserializeUserKey(byte[] rawKeyBytes, TypeSerializer<UK> keySerializer) throws IOException {
 		ByteArrayInputStreamWithPos bais = new ByteArrayInputStreamWithPos(rawKeyBytes);
 		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
 
 		in.skipBytes(userKeyOffset);
 
-		return userKeySerializer.deserialize(in);
+		return keySerializer.deserialize(in);
 	}
 
-	private UV deserializeUserValue(byte[] rawValueBytes) throws IOException {
+	private UV deserializeUserValue(byte[] rawValueBytes, TypeSerializer<UV> valueSerializer) throws IOException {
 		ByteArrayInputStreamWithPos bais = new ByteArrayInputStreamWithPos(rawValueBytes);
 		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
 
 		boolean isNull = in.readBoolean();
 
-		return isNull ? null : userValueSerializer.deserialize(in);
+		return isNull ? null : valueSerializer.deserialize(in);
 	}
 
 	// ------------------------------------------------------------------------
@@ -320,14 +370,24 @@ public class RocksDBMapState<K, N, UK, UV>
 
 		/** The user key and value. The deserialization is performed lazily, i.e. the key
 		 * and the value is deserialized only when they are accessed. */
-		private UK userKey = null;
-		private UV userValue = null;
+		private UK userKey;
+
+		private UV userValue;
+
+		private TypeSerializer<UK> keySerializer;
+
+		private TypeSerializer<UV> valueSerializer;
 
 		RocksDBMapEntry(
-			@Nonnull final RocksDB db,
-			@Nonnull final byte[] rawKeyBytes,
-			@Nonnull final byte[] rawValueBytes) {
+				@Nonnull final RocksDB db,
+				@Nonnull final byte[] rawKeyBytes,
+				@Nonnull final byte[] rawValueBytes,
+				@Nonnull final TypeSerializer<UK> keySerializer,
+				@Nonnull final TypeSerializer<UV> valueSerializer) {
 			this.db = db;
+
+			this.keySerializer = keySerializer;
+			this.valueSerializer = valueSerializer;
 
 			this.rawKeyBytes = rawKeyBytes;
 			this.rawValueBytes = rawValueBytes;
@@ -349,9 +409,9 @@ public class RocksDBMapState<K, N, UK, UV>
 		public UK getKey() {
 			if (userKey == null) {
 				try {
-					userKey = deserializeUserKey(rawKeyBytes);
+					userKey = deserializeUserKey(rawKeyBytes, keySerializer);
 				} catch (IOException e) {
-					throw new RuntimeException("Error while deserializing the user key.");
+					throw new RuntimeException("Error while deserializing the user key.", e);
 				}
 			}
 
@@ -365,9 +425,9 @@ public class RocksDBMapState<K, N, UK, UV>
 			} else {
 				if (userValue == null) {
 					try {
-						userValue = deserializeUserValue(rawValueBytes);
+						userValue = deserializeUserValue(rawValueBytes, valueSerializer);
 					} catch (IOException e) {
-						throw new RuntimeException("Error while deserializing the user value.");
+						throw new RuntimeException("Error while deserializing the user value.", e);
 					}
 				}
 
@@ -385,7 +445,7 @@ public class RocksDBMapState<K, N, UK, UV>
 
 			try {
 				userValue = value;
-				rawValueBytes = serializeUserValue(value);
+				rawValueBytes = serializeUserValue(value, valueSerializer);
 
 				db.put(columnFamily, writeOptions, rawKeyBytes, rawValueBytes);
 			} catch (IOException | RocksDBException e) {
@@ -399,14 +459,14 @@ public class RocksDBMapState<K, N, UK, UV>
 	/** An auxiliary utility to scan all entries under the given key. */
 	private abstract class RocksDBMapIterator<T> implements Iterator<T> {
 
-		static final int CACHE_SIZE_LIMIT = 128;
+		private static final int CACHE_SIZE_LIMIT = 128;
 
 		/** The db where data resides. */
 		private final RocksDB db;
 
 		/**
 		 * The prefix bytes of the key being accessed. All entries under the same key
-		 * has the same prefix, hence we can stop the iterating once coming across an
+		 * have the same prefix, hence we can stop iterating once coming across an
 		 * entry with a different prefix.
 		 */
 		private final byte[] keyPrefixBytes;
@@ -421,9 +481,19 @@ public class RocksDBMapState<K, N, UK, UV>
 		private ArrayList<RocksDBMapEntry> cacheEntries = new ArrayList<>();
 		private int cacheIndex = 0;
 
-		RocksDBMapIterator(final RocksDB db, final byte[] keyPrefixBytes) {
+		private final TypeSerializer<UK> keySerializer;
+		private final TypeSerializer<UV> valueSerializer;
+
+		RocksDBMapIterator(
+				final RocksDB db,
+				final byte[] keyPrefixBytes,
+				final TypeSerializer<UK> keySerializer,
+				final TypeSerializer<UV> valueSerializer) {
+
 			this.db = db;
 			this.keyPrefixBytes = keyPrefixBytes;
+			this.keySerializer = keySerializer;
+			this.valueSerializer = valueSerializer;
 		}
 
 		@Override
@@ -436,7 +506,7 @@ public class RocksDBMapState<K, N, UK, UV>
 		@Override
 		public void remove() {
 			if (cacheIndex == 0 || cacheIndex > cacheEntries.size()) {
-				throw new IllegalStateException("The remove operation must be called after an valid next operation.");
+				throw new IllegalStateException("The remove operation must be called after a valid next operation.");
 			}
 
 			RocksDBMapEntry lastEntry = cacheEntries.get(cacheIndex - 1);
@@ -503,7 +573,13 @@ public class RocksDBMapState<K, N, UK, UV>
 					break;
 				}
 
-				RocksDBMapEntry entry = new RocksDBMapEntry(db, iterator.key(), iterator.value());
+				RocksDBMapEntry entry = new RocksDBMapEntry(
+						db,
+						iterator.key(),
+						iterator.value(),
+						keySerializer,
+						valueSerializer);
+
 				cacheEntries.add(entry);
 
 				iterator.next();

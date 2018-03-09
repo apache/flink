@@ -19,26 +19,125 @@
 package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link KvStateRegistry}.
  */
 public class KvStateRegistryTest extends TestLogger {
+
+	@Test
+	public void testKvStateEntry() throws InterruptedException {
+		final int threads = 10;
+
+		final CountDownLatch latch1 = new CountDownLatch(threads);
+		final CountDownLatch latch2 = new CountDownLatch(1);
+
+		final List<KvStateInfo<?, ?, ?>> infos = Collections.synchronizedList(new ArrayList<>());
+
+		final JobID jobID = new JobID();
+
+		final JobVertexID jobVertexId = new JobVertexID();
+		final KeyGroupRange keyGroupRange = new KeyGroupRange(0, 1);
+		final String registrationName = "foobar";
+
+		final KvStateRegistry kvStateRegistry = new KvStateRegistry();
+		final KvStateID stateID = kvStateRegistry.registerKvState(
+				jobID,
+				jobVertexId,
+				keyGroupRange,
+				registrationName,
+				new DummyKvState()
+		);
+
+		final AtomicReference<Throwable> exceptionHolder = new AtomicReference<>();
+
+		for (int i = 0; i < threads; i++) {
+			new Thread(() -> {
+				final KvStateEntry<?, ?, ?> kvState = kvStateRegistry.getKvState(stateID);
+				final KvStateInfo<?, ?, ?> stateInfo = kvState.getInfoForCurrentThread();
+				infos.add(stateInfo);
+
+				latch1.countDown();
+				try {
+					latch2.await();
+				} catch (InterruptedException e) {
+					// compare and set, so that we do not overwrite an exception
+					// that was (potentially) already encountered.
+					exceptionHolder.compareAndSet(null, e);
+				}
+
+			}).start();
+		}
+
+		latch1.await();
+
+		final KvStateEntry<?, ?, ?> kvState = kvStateRegistry.getKvState(stateID);
+
+		// verify that all the threads are done correctly.
+		Assert.assertEquals(threads, infos.size());
+		Assert.assertEquals(threads, kvState.getCacheSize());
+
+		latch2.countDown();
+
+		for (KvStateInfo<?, ?, ?> infoA: infos) {
+			boolean instanceAlreadyFound = false;
+			for (KvStateInfo<?, ?, ?> infoB: infos) {
+				if (infoA == infoB) {
+					if (instanceAlreadyFound) {
+						Assert.fail("More than one thread sharing the same serializer instance.");
+					}
+					instanceAlreadyFound = true;
+				} else {
+					Assert.assertEquals(infoA, infoB);
+				}
+			}
+		}
+
+		kvStateRegistry.unregisterKvState(
+				jobID,
+				jobVertexId,
+				keyGroupRange,
+				registrationName,
+				stateID);
+
+		Assert.assertEquals(0L, kvState.getCacheSize());
+
+		Throwable t = exceptionHolder.get();
+		if (t != null) {
+			fail(t.getMessage());
+		}
+	}
 
 	/**
 	 * Tests that {@link KvStateRegistryListener} only receive the notifications which
@@ -74,7 +173,7 @@ public class KvStateRegistryTest extends TestLogger {
 			jobVertexId,
 			keyGroupRange,
 			registrationName,
-			new DummyKvState<>());
+			new DummyKvState());
 
 		assertThat(registeredNotifications1.poll(), equalTo(jobId1));
 		assertThat(registeredNotifications2.isEmpty(), is(true));
@@ -87,7 +186,7 @@ public class KvStateRegistryTest extends TestLogger {
 			jobVertexId2,
 			keyGroupRange2,
 			registrationName2,
-			new DummyKvState<>());
+			new DummyKvState());
 
 		assertThat(registeredNotifications2.poll(), equalTo(jobId2));
 		assertThat(registeredNotifications1.isEmpty(), is(true));
@@ -191,18 +290,35 @@ public class KvStateRegistryTest extends TestLogger {
 
 	/**
 	 * Testing implementation of {@link InternalKvState}.
-	 *
-	 * @param <T> type of the state
 	 */
-	private static final class DummyKvState<T> implements InternalKvState<T> {
+	private static class DummyKvState implements InternalKvState<Integer, VoidNamespace, String> {
 
 		@Override
-		public void setCurrentNamespace(Object namespace) {
+		public TypeSerializer<Integer> getKeySerializer() {
+			return IntSerializer.INSTANCE;
+		}
+
+		@Override
+		public TypeSerializer<VoidNamespace> getNamespaceSerializer() {
+			return VoidNamespaceSerializer.INSTANCE;
+		}
+
+		@Override
+		public TypeSerializer<String> getValueSerializer() {
+			return new DeepCopyingStringSerializer();
+		}
+
+		@Override
+		public void setCurrentNamespace(VoidNamespace namespace) {
 			// noop
 		}
 
 		@Override
-		public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
+		public byte[] getSerializedValue(
+				final byte[] serializedKeyAndNamespace,
+				final TypeSerializer<Integer> safeKeySerializer,
+				final TypeSerializer<VoidNamespace> safeNamespaceSerializer,
+				final TypeSerializer<String> safeValueSerializer) throws Exception {
 			return serializedKeyAndNamespace;
 		}
 
@@ -212,4 +328,86 @@ public class KvStateRegistryTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * A dummy serializer that just returns another instance when .duplicate().
+	 */
+	private static class DeepCopyingStringSerializer extends TypeSerializer<String> {
+
+		private static final long serialVersionUID = -3744051158625555607L;
+
+		@Override
+		public boolean isImmutableType() {
+			return false;
+		}
+
+		@Override
+		public TypeSerializer<String> duplicate() {
+			return new DeepCopyingStringSerializer();
+		}
+
+		@Override
+		public String createInstance() {
+			return null;
+		}
+
+		@Override
+		public String copy(String from) {
+			return null;
+		}
+
+		@Override
+		public String copy(String from, String reuse) {
+			return null;
+		}
+
+		@Override
+		public int getLength() {
+			return 0;
+		}
+
+		@Override
+		public void serialize(String record, DataOutputView target) throws IOException {
+
+		}
+
+		@Override
+		public String deserialize(DataInputView source) throws IOException {
+			return null;
+		}
+
+		@Override
+		public String deserialize(String reuse, DataInputView source) throws IOException {
+			return null;
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof DeepCopyingStringSerializer;
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return true;
+		}
+
+		@Override
+		public int hashCode() {
+			return 0;
+		}
+
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			return null;
+		}
+
+		@Override
+		public CompatibilityResult<String> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+			return null;
+		}
+	}
 }

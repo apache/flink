@@ -41,6 +41,7 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 
 import java.io.File;
+import java.util.Map;
 
 import static org.mockito.Mockito.mock;
 
@@ -82,7 +83,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 		}
 
 		@Override
-		public <N, T> InternalListState<N, T> createListState(
+		public <N, T> InternalListState<K, N, T> createListState(
 			final TypeSerializer<N> namespaceSerializer,
 			final ListStateDescriptor<T> stateDesc) throws Exception {
 
@@ -120,7 +121,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 		longHeapKeyedStateBackend.restore(null);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final InternalListState<VoidNamespace, Long> listState = longHeapKeyedStateBackend
+		final InternalListState<Long, VoidNamespace, Long> listState = longHeapKeyedStateBackend
 			.createListState(VoidNamespaceSerializer.INSTANCE,
 				new ListStateDescriptor<>("test", LongSerializer.INSTANCE));
 
@@ -159,11 +160,12 @@ public final class KVStateRequestSerializerRocksDBTest {
 		longHeapKeyedStateBackend.restore(null);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final InternalMapState<VoidNamespace, Long, String> mapState = (InternalMapState<VoidNamespace, Long, String>)
-				longHeapKeyedStateBackend.getPartitionedState(
-						VoidNamespace.INSTANCE,
-						VoidNamespaceSerializer.INSTANCE,
-						new MapStateDescriptor<>("test", LongSerializer.INSTANCE, StringSerializer.INSTANCE));
+		final InternalMapState<Long, VoidNamespace, Long, String, Map<Long, String>> mapState =
+				(InternalMapState<Long, VoidNamespace, Long, String, Map<Long, String>>)
+						longHeapKeyedStateBackend.getPartitionedState(
+								VoidNamespace.INSTANCE,
+								VoidNamespaceSerializer.INSTANCE,
+								new MapStateDescriptor<>("test", LongSerializer.INSTANCE, StringSerializer.INSTANCE));
 
 		KvStateRequestSerializerTest.testMapSerialization(key, mapState);
 		longHeapKeyedStateBackend.dispose();

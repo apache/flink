@@ -21,11 +21,12 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
+import org.apache.flink.runtime.state.HashMapSerializer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -33,14 +34,14 @@ import java.util.Map;
 /**
  * Heap-backed partitioned {@link MapState} that is snapshotted into files.
  *
- * @param <K>  The type of the key.
- * @param <N>  The type of the namespace.
+ * @param <K> The type of the key.
+ * @param <N> The type of the namespace.
  * @param <UK> The type of the keys in the state.
  * @param <UV> The type of the values in the state.
  */
 public class HeapMapState<K, N, UK, UV>
 		extends AbstractHeapState<K, N, HashMap<UK, UV>, MapState<UK, UV>, MapStateDescriptor<UK, UV>>
-		implements InternalMapState<N, UK, UV> {
+		implements InternalMapState<K, N, UK, UV, HashMap<UK, UV>> {
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
@@ -55,6 +56,24 @@ public class HeapMapState<K, N, UK, UV>
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
+	}
+
+	@Override
+	public TypeSerializer<K> getKeySerializer() {
+		return keySerializer;
+	}
+
+	@Override
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
+	}
+
+	@Override
+	public TypeSerializer<HashMap<UK, UV>> getValueSerializer() {
+		return new HashMapSerializer<>(
+				stateDesc.getKeySerializer(),
+				stateDesc.getValueSerializer()
+		);
 	}
 
 	@Override
@@ -140,19 +159,31 @@ public class HeapMapState<K, N, UK, UV>
 	}
 
 	@Override
-	public byte[] getSerializedValue(K key, N namespace) throws IOException {
-		Preconditions.checkState(namespace != null, "No namespace given.");
-		Preconditions.checkState(key != null, "No key given.");
+	public byte[] getSerializedValue(
+			final byte[] serializedKeyAndNamespace,
+			final TypeSerializer<K> safeKeySerializer,
+			final TypeSerializer<N> safeNamespaceSerializer,
+			final TypeSerializer<HashMap<UK, UV>> safeValueSerializer) throws Exception {
 
-		HashMap<UK, UV> result = stateTable.get(key, namespace);
+		Preconditions.checkNotNull(serializedKeyAndNamespace);
+		Preconditions.checkNotNull(safeKeySerializer);
+		Preconditions.checkNotNull(safeNamespaceSerializer);
+		Preconditions.checkNotNull(safeValueSerializer);
 
-		if (null == result) {
+		Tuple2<K, N> keyAndNamespace = KvStateSerializer.deserializeKeyAndNamespace(
+				serializedKeyAndNamespace, safeKeySerializer, safeNamespaceSerializer);
+
+		Map<UK, UV> result = stateTable.get(keyAndNamespace.f0, keyAndNamespace.f1);
+
+		if (result == null) {
 			return null;
 		}
 
-		TypeSerializer<UK> userKeySerializer = stateDesc.getKeySerializer();
-		TypeSerializer<UV> userValueSerializer = stateDesc.getValueSerializer();
+		final HashMapSerializer<UK, UV> serializer = (HashMapSerializer<UK, UV>) safeValueSerializer;
 
-		return KvStateSerializer.serializeMap(result.entrySet(), userKeySerializer, userValueSerializer);
+		final TypeSerializer<UK> dupUserKeySerializer = serializer.getKeySerializer();
+		final TypeSerializer<UV> dupUserValueSerializer = serializer.getValueSerializer();
+
+		return KvStateSerializer.serializeMap(result.entrySet(), dupUserKeySerializer, dupUserValueSerializer);
 	}
 }
