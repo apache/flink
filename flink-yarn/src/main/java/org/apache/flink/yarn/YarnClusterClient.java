@@ -139,7 +139,7 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 	public int getMaxSlots() {
 		// TODO: this should be retrieved from the running Flink cluster
 		int maxSlots = numberTaskManagers * slotsPerTaskManager;
-		return maxSlots > 0 ? maxSlots : -1;
+		return maxSlots > 0 ? maxSlots : MAX_SLOTS_UNKNOWN;
 	}
 
 	@Override
