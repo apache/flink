@@ -94,7 +94,9 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 		TypeSerializer<K> duplicateKeySerializer = keySerializer.duplicate();
 		TypeSerializer<V> duplicateValueSerializer = valueSerializer.duplicate();
 
-		return new MapSerializer<>(duplicateKeySerializer, duplicateValueSerializer);
+		return (duplicateKeySerializer == keySerializer) && (duplicateValueSerializer == valueSerializer)
+				? this
+				: new MapSerializer<>(duplicateKeySerializer, duplicateValueSerializer);
 	}
 
 	@Override
