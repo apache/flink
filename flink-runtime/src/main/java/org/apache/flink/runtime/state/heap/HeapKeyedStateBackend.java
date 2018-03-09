@@ -92,8 +92,7 @@ import java.util.stream.Stream;
 
 /**
  * A {@link AbstractKeyedStateBackend} that keeps state on the Java Heap and will serialize state to
- * streams provided by a {@link org.apache.flink.runtime.state.CheckpointStreamFactory} upon
- * checkpointing.
+ * streams provided by a {@link CheckpointStreamFactory} upon checkpointing.
  *
  * @param <K> The key by which state is keyed.
  */
@@ -247,7 +246,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, V> InternalValueState<N, V> createValueState(
+	public <N, V> InternalValueState<K, N, V> createValueState(
 			TypeSerializer<N> namespaceSerializer,
 			ValueStateDescriptor<V> stateDesc) throws Exception {
 
@@ -256,7 +255,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, T> InternalListState<N, T> createListState(
+	public <N, T> InternalListState<K, N, T> createListState(
 			TypeSerializer<N> namespaceSerializer,
 			ListStateDescriptor<T> stateDesc) throws Exception {
 
@@ -265,7 +264,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, T> InternalReducingState<N, T> createReducingState(
+	public <N, T> InternalReducingState<K, N, T> createReducingState(
 			TypeSerializer<N> namespaceSerializer,
 			ReducingStateDescriptor<T> stateDesc) throws Exception {
 
@@ -274,7 +273,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, T, ACC, R> InternalAggregatingState<N, T, R> createAggregatingState(
+	public <N, T, ACC, R> InternalAggregatingState<K, N, T, ACC, R> createAggregatingState(
 			TypeSerializer<N> namespaceSerializer,
 			AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception {
 
@@ -283,7 +282,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, T, ACC> InternalFoldingState<N, T, ACC> createFoldingState(
+	public <N, T, ACC> InternalFoldingState<K, N, T, ACC> createFoldingState(
 			TypeSerializer<N> namespaceSerializer,
 			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
 
@@ -292,7 +291,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, UK, UV> InternalMapState<N, UK, UV> createMapState(TypeSerializer<N> namespaceSerializer,
+	protected <N, UK, UV> InternalMapState<K, N, UK, UV, ? extends Map<UK, UV>> createMapState(
+			TypeSerializer<N> namespaceSerializer,
 			MapStateDescriptor<UK, UV> stateDesc) throws Exception {
 
 		StateTable<K, N, HashMap<UK, UV>> stateTable = tryRegisterStateTable(

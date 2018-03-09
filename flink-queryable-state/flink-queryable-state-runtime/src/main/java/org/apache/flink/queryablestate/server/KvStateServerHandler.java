@@ -26,15 +26,14 @@ import org.apache.flink.queryablestate.messages.KvStateResponse;
 import org.apache.flink.queryablestate.network.AbstractServerHandler;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
 import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
+import org.apache.flink.runtime.query.KvStateEntry;
+import org.apache.flink.runtime.query.KvStateInfo;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -49,8 +48,6 @@ import java.util.concurrent.CompletableFuture;
 @Internal
 @ChannelHandler.Sharable
 public class KvStateServerHandler extends AbstractServerHandler<KvStateInternalRequest, KvStateResponse> {
-
-	private static final Logger LOG = LoggerFactory.getLogger(KvStateServerHandler.class);
 
 	/** KvState registry holding references to the KvState instances. */
 	private final KvStateRegistry registry;
@@ -78,13 +75,13 @@ public class KvStateServerHandler extends AbstractServerHandler<KvStateInternalR
 		final CompletableFuture<KvStateResponse> responseFuture = new CompletableFuture<>();
 
 		try {
-			final InternalKvState<?> kvState = registry.getKvState(request.getKvStateId());
+			final KvStateEntry<?, ?, ?> kvState = registry.getKvState(request.getKvStateId());
 			if (kvState == null) {
 				responseFuture.completeExceptionally(new UnknownKvStateIdException(getServerName(), request.getKvStateId()));
 			} else {
 				byte[] serializedKeyAndNamespace = request.getSerializedKeyAndNamespace();
 
-				byte[] serializedResult = kvState.getSerializedValue(serializedKeyAndNamespace);
+				byte[] serializedResult = getSerializedValue(kvState, serializedKeyAndNamespace);
 				if (serializedResult != null) {
 					responseFuture.complete(new KvStateResponse(serializedResult));
 				} else {
@@ -98,6 +95,21 @@ public class KvStateServerHandler extends AbstractServerHandler<KvStateInternalR
 			responseFuture.completeExceptionally(new RuntimeException(errMsg));
 			return responseFuture;
 		}
+	}
+
+	private static <K, N, V> byte[] getSerializedValue(
+			final KvStateEntry<K, N, V> entry,
+			final byte[] serializedKeyAndNamespace) throws Exception {
+
+		final InternalKvState<K, N, V> state = entry.getState();
+		final KvStateInfo<K, N, V> infoForCurrentThread = entry.getInfoForCurrentThread();
+
+		return state.getSerializedValue(
+				serializedKeyAndNamespace,
+				infoForCurrentThread.getKeySerializer(),
+				infoForCurrentThread.getNamespaceSerializer(),
+				infoForCurrentThread.getStateValueSerializer()
+		);
 	}
 
 	@Override

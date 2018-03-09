@@ -1203,7 +1203,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	protected <N, T> InternalValueState<N, T> createValueState(
+	protected <N, T> InternalValueState<K, N, T> createValueState(
 		TypeSerializer<N> namespaceSerializer,
 		ValueStateDescriptor<T> stateDesc) throws Exception {
 
@@ -1213,7 +1213,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	protected <N, T> InternalListState<N, T> createListState(
+	protected <N, T> InternalListState<K, N, T> createListState(
 		TypeSerializer<N> namespaceSerializer,
 		ListStateDescriptor<T> stateDesc) throws Exception {
 
@@ -1223,7 +1223,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	protected <N, T> InternalReducingState<N, T> createReducingState(
+	protected <N, T> InternalReducingState<K, N, T> createReducingState(
 		TypeSerializer<N> namespaceSerializer,
 		ReducingStateDescriptor<T> stateDesc) throws Exception {
 
@@ -1233,7 +1233,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	protected <N, T, ACC, R> InternalAggregatingState<N, T, R> createAggregatingState(
+	protected <N, T, ACC, R> InternalAggregatingState<K, N, T, ACC, R> createAggregatingState(
 		TypeSerializer<N> namespaceSerializer,
 		AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception {
 
@@ -1242,7 +1242,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	protected <N, T, ACC> InternalFoldingState<N, T, ACC> createFoldingState(
+	protected <N, T, ACC> InternalFoldingState<K, N, T, ACC> createFoldingState(
 		TypeSerializer<N> namespaceSerializer,
 		FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
 
@@ -1252,7 +1252,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	protected <N, UK, UV> InternalMapState<N, UK, UV> createMapState(
+	protected <N, UK, UV> InternalMapState<K, N, UK, UV, ? extends Map<UK, UV>> createMapState(
 		TypeSerializer<N> namespaceSerializer,
 		MapStateDescriptor<UK, UV> stateDesc) throws Exception {
 

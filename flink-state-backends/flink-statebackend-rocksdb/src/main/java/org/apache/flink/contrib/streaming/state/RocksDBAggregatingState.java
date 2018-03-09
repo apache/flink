@@ -43,8 +43,8 @@ import java.util.Collection;
  * @param <R> The type of the value returned from the state
  */
 public class RocksDBAggregatingState<K, N, T, ACC, R>
-	extends AbstractRocksDBState<K, N, AggregatingState<T, R>, AggregatingStateDescriptor<T, ACC, R>, ACC>
-	implements InternalAggregatingState<N, T, R> {
+		extends AbstractRocksDBState<K, N, ACC, AggregatingState<T, R>, AggregatingStateDescriptor<T, ACC, R>>
+		implements InternalAggregatingState<K, N, T, ACC, R> {
 
 	/** Serializer for the values. */
 	private final TypeSerializer<ACC> valueSerializer;
@@ -70,6 +70,21 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 
 		this.valueSerializer = stateDesc.getSerializer();
 		this.aggFunction = stateDesc.getAggregateFunction();
+	}
+
+	@Override
+	public TypeSerializer<K> getKeySerializer() {
+		return backend.getKeySerializer();
+	}
+
+	@Override
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
+	}
+
+	@Override
+	public TypeSerializer<ACC> getValueSerializer() {
+		return stateDesc.getSerializer();
 	}
 
 	@Override

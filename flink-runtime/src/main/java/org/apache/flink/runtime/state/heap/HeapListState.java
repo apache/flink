@@ -21,7 +21,10 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.Preconditions;
 
@@ -30,16 +33,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Heap-backed partitioned {@link org.apache.flink.api.common.state.ListState} that is snapshotted
- * into files.
+ * Heap-backed partitioned {@link ListState} that is snapshotted into files.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
 public class HeapListState<K, N, V>
-		extends AbstractHeapMergingState<K, N, V, Iterable<V>, List<V>, ListState<V>, ListStateDescriptor<V>>
-		implements InternalListState<N, V> {
+		extends AbstractHeapMergingState<K, N, V, List<V>, Iterable<V>, ListState<V>, ListStateDescriptor<V>>
+		implements InternalListState<K, N, V> {
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
@@ -54,6 +56,21 @@ public class HeapListState<K, N, V>
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
+	}
+
+	@Override
+	public TypeSerializer<K> getKeySerializer() {
+		return keySerializer;
+	}
+
+	@Override
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
+	}
+
+	@Override
+	public TypeSerializer<List<V>> getValueSerializer() {
+		return stateDesc.getSerializer();
 	}
 
 	// ------------------------------------------------------------------------
@@ -82,24 +99,34 @@ public class HeapListState<K, N, V>
 	}
 
 	@Override
-	public byte[] getSerializedValue(K key, N namespace) throws Exception {
-		Preconditions.checkState(namespace != null, "No namespace given.");
-		Preconditions.checkState(key != null, "No key given.");
+	public byte[] getSerializedValue(
+			final byte[] serializedKeyAndNamespace,
+			final TypeSerializer<K> safeKeySerializer,
+			final TypeSerializer<N> safeNamespaceSerializer,
+			final TypeSerializer<List<V>> safeValueSerializer) throws Exception {
 
-		List<V> result = stateTable.get(key, namespace);
+		Preconditions.checkNotNull(serializedKeyAndNamespace);
+		Preconditions.checkNotNull(safeKeySerializer);
+		Preconditions.checkNotNull(safeNamespaceSerializer);
+		Preconditions.checkNotNull(safeValueSerializer);
+
+		Tuple2<K, N> keyAndNamespace = KvStateSerializer.deserializeKeyAndNamespace(
+				serializedKeyAndNamespace, safeKeySerializer, safeNamespaceSerializer);
+
+		List<V> result = stateTable.get(keyAndNamespace.f0, keyAndNamespace.f1);
 
 		if (result == null) {
 			return null;
 		}
 
-		TypeSerializer<V> serializer = stateDesc.getElementSerializer();
+		final TypeSerializer<V> dupSerializer = ((ListSerializer<V>) safeValueSerializer).getElementSerializer();
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper view = new DataOutputViewStreamWrapper(baos);
 
 		// write the same as RocksDB writes lists, with one ',' separator
 		for (int i = 0; i < result.size(); i++) {
-			serializer.serialize(result.get(i), view);
+			dupSerializer.serialize(result.get(i), view);
 			if (i < result.size() -1) {
 				view.writeByte(',');
 			}

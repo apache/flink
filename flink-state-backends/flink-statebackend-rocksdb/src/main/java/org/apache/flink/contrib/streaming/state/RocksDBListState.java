@@ -47,8 +47,8 @@ import java.util.List;
  * @param <V> The type of the values in the list state.
  */
 public class RocksDBListState<K, N, V>
-	extends AbstractRocksDBState<K, N, ListState<V>, ListStateDescriptor<V>, List<V>>
-	implements InternalListState<N, V> {
+		extends AbstractRocksDBState<K, N, List<V>, ListState<V>, ListStateDescriptor<V>>
+		implements InternalListState<K, N, V> {
 
 	/** Serializer for the values. */
 	private final TypeSerializer<V> valueSerializer;
@@ -72,6 +72,21 @@ public class RocksDBListState<K, N, V>
 
 		super(columnFamily, namespaceSerializer, stateDesc, backend);
 		this.valueSerializer = stateDesc.getElementSerializer();
+	}
+
+	@Override
+	public TypeSerializer<K> getKeySerializer() {
+		return backend.getKeySerializer();
+	}
+
+	@Override
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
+	}
+
+	@Override
+	public TypeSerializer<List<V>> getValueSerializer() {
+		return stateDesc.getSerializer();
 	}
 
 	@Override

@@ -144,16 +144,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	// ------------------------------------------------------------------------
 
 	/** The state in which the window contents is stored. Each window is a namespace */
-	private transient InternalAppendingState<W, IN, ACC> windowState;
+	private transient InternalAppendingState<K, W, IN, ACC, ACC> windowState;
 
 	/**
 	 * The {@link #windowState}, typed to merging state for merging windows.
 	 * Null if the window state is not mergeable.
 	 */
-	private transient InternalMergingState<W, IN, ACC> windowMergingState;
+	private transient InternalMergingState<K, W, IN, ACC, ACC> windowMergingState;
 
 	/** The state that holds the merging window metadata (the sets that describe what is merged). */
-	private transient InternalListState<VoidNamespace, Tuple2<W, W>> mergingSetsState;
+	private transient InternalListState<K, VoidNamespace, Tuple2<W, W>> mergingSetsState;
 
 	/**
 	 * This is given to the {@code InternalWindowFunction} for emitting elements with a given
@@ -234,7 +234,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		// create (or restore) the state that hold the actual window contents
 		// NOTE - the state may be null in the case of the overriding evicting window operator
 		if (windowStateDescriptor != null) {
-			windowState = (InternalAppendingState<W, IN, ACC>) getOrCreateKeyedState(windowSerializer, windowStateDescriptor);
+			windowState = (InternalAppendingState<K, W, IN, ACC, ACC>) getOrCreateKeyedState(windowSerializer, windowStateDescriptor);
 		}
 
 		// create the typed and helper states for merging windows
@@ -242,7 +242,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 			// store a typed reference for the state of merging windows - sanity check
 			if (windowState instanceof InternalMergingState) {
-				windowMergingState = (InternalMergingState<W, IN, ACC>) windowState;
+				windowMergingState = (InternalMergingState<K, W, IN, ACC, ACC>) windowState;
 			}
 			// TODO this sanity check should be here, but is prevented by an incorrect test (pending validation)
 			// TODO see WindowOperatorTest.testCleanupTimerWithEmptyFoldingStateForSessionWindows()
@@ -263,7 +263,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					new ListStateDescriptor<>("merging-window-set", tupleSerializer);
 
 			// get the state that stores the merging sets
-			mergingSetsState = (InternalListState<VoidNamespace, Tuple2<W, W>>)
+			mergingSetsState = (InternalListState<K, VoidNamespace, Tuple2<W, W>>)
 					getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, mergingSetsStateDescriptor);
 			mergingSetsState.setCurrentNamespace(VoidNamespace.INSTANCE);
 		}
@@ -883,7 +883,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 					if (rawState instanceof InternalMergingState) {
 						@SuppressWarnings("unchecked")
-						InternalMergingState<W, ?, ?> mergingState = (InternalMergingState<W, ?, ?>) rawState;
+						InternalMergingState<K, W, ?, ?, ?> mergingState = (InternalMergingState<K, W, ?, ?, ?>) rawState;
 						mergingState.mergeNamespaces(window, mergedWindows);
 					}
 					else {
