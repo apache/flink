@@ -316,7 +316,10 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		return workerNodeMap.get(resourceID);
 	}
 
-	// AMRMClientAsync CallbackHandler methods
+	// ------------------------------------------------------------------------
+	//  AMRMClientAsync CallbackHandler methods
+	// ------------------------------------------------------------------------
+
 	@Override
 	public float getProgress() {
 		// Temporarily need not record the total size of asked and allocated containers
@@ -325,67 +328,68 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	public void onContainersCompleted(List<ContainerStatus> list) {
-		for (ContainerStatus container : list) {
-			if (container.getExitStatus() < 0) {
-				closeTaskManagerConnection(new ResourceID(
-					container.getContainerId().toString()), new Exception(container.getDiagnostics()));
+		runAsync(() -> {
+				for (ContainerStatus container : list) {
+					if (container.getExitStatus() < 0) {
+						closeTaskManagerConnection(new ResourceID(
+							container.getContainerId().toString()), new Exception(container.getDiagnostics()));
+					}
+					workerNodeMap.remove(new ResourceID(container.getContainerId().toString()));
+				}
 			}
-			workerNodeMap.remove(new ResourceID(container.getContainerId().toString()));
-		}
+		);
 	}
 
 	@Override
 	public void onContainersAllocated(List<Container> containers) {
-		for (Container container : containers) {
-			log.info(
-				"Received new container: {} - Remaining pending container requests: {}",
-				container.getId(),
-				numPendingContainerRequests);
+		runAsync(() -> {
+			for (Container container : containers) {
+				log.info(
+					"Received new container: {} - Remaining pending container requests: {}",
+					container.getId(),
+					numPendingContainerRequests);
 
-			if (numPendingContainerRequests > 0) {
-				numPendingContainerRequests--;
+				if (numPendingContainerRequests > 0) {
+					numPendingContainerRequests--;
 
-				final String containerIdStr = container.getId().toString();
+					final String containerIdStr = container.getId().toString();
 
-				workerNodeMap.put(new ResourceID(containerIdStr), new YarnWorkerNode(container));
+					workerNodeMap.put(new ResourceID(containerIdStr), new YarnWorkerNode(container));
 
-				try {
-					// Context information used to start a TaskExecutor Java process
-					ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(
-						container.getResource(),
-						containerIdStr,
-						container.getNodeId().getHost());
+					try {
+						// Context information used to start a TaskExecutor Java process
+						ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(
+							container.getResource(),
+							containerIdStr,
+							container.getNodeId().getHost());
 
-					nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
-				} catch (Throwable t) {
-					log.error("Could not start TaskManager in container {}.", container.getId(), t);
+						nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
+					} catch (Throwable t) {
+						log.error("Could not start TaskManager in container {}.", container.getId(), t);
 
-					// release the failed container
+						// release the failed container
+						resourceManagerClient.releaseAssignedContainer(container.getId());
+						// and ask for a new one
+						requestYarnContainer(container.getResource(), container.getPriority());
+					}
+				} else {
+					// return the excessive containers
+					log.info("Returning excess container {}.", container.getId());
 					resourceManagerClient.releaseAssignedContainer(container.getId());
-					// and ask for a new one
-					requestYarnContainer(container.getResource(), container.getPriority());
 				}
-			} else {
-				// return the excessive containers
-				log.info("Returning excess container {}.", container.getId());
-				resourceManagerClient.releaseAssignedContainer(container.getId());
 			}
-		}
 
-		// if we are waiting for no further containers, we can go to the
-		// regular heartbeat interval
-		if (numPendingContainerRequests <= 0) {
-			resourceManagerClient.setHeartbeatInterval(yarnHeartbeatIntervalMillis);
-		}
+			// if we are waiting for no further containers, we can go to the
+			// regular heartbeat interval
+			if (numPendingContainerRequests <= 0) {
+				resourceManagerClient.setHeartbeatInterval(yarnHeartbeatIntervalMillis);
+			}
+		});
 	}
 
 	@Override
 	public void onShutdownRequest() {
-		try {
-			shutDown();
-		} catch (Exception e) {
-			log.warn("Fail to shutdown the YARN resource manager.", e);
-		}
+		shutDown();
 	}
 
 	@Override
@@ -398,7 +402,10 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		onFatalError(error);
 	}
 
-	//Utility methods
+	// ------------------------------------------------------------------------
+	//  Utility methods
+	// ------------------------------------------------------------------------
+
 	/**
 	 * Converts a Flink application status enum to a YARN application status enum.
 	 * @param status The Flink application status.
