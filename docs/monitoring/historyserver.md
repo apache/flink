@@ -37,7 +37,7 @@ After you have configured the HistoryServer *and* JobManager, you start and stop
 
 ```sh
 # Start or stop the HistoryServer
-bin/historyserver.sh (start|stop)
+bin/historyserver.sh (start|start-foreground|stop)
 ```
 
 By default, this server binds to `localhost` and listens at port `8082`.
