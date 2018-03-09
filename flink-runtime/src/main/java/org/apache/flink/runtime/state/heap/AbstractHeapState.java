@@ -37,8 +37,7 @@ import org.apache.flink.util.Preconditions;
  * @param <S> The type of State
  * @param <SD> The type of StateDescriptor for the State S
  */
-public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>>
-		implements InternalKvState<N> {
+public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> implements InternalKvState<K, N, SV> {
 
 	/** Map containing the actual key/value pairs. */
 	protected final StateTable<K, N, SV> stateTable;
@@ -86,28 +85,26 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 	}
 
 	@Override
-	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
-		Preconditions.checkNotNull(serializedKeyAndNamespace, "Serialized key and namespace");
+	public byte[] getSerializedValue(
+			final byte[] serializedKeyAndNamespace,
+			final TypeSerializer<K> safeKeySerializer,
+			final TypeSerializer<N> safeNamespaceSerializer,
+			final TypeSerializer<SV> safeValueSerializer) throws Exception {
+
+		Preconditions.checkNotNull(serializedKeyAndNamespace);
+		Preconditions.checkNotNull(safeKeySerializer);
+		Preconditions.checkNotNull(safeNamespaceSerializer);
+		Preconditions.checkNotNull(safeValueSerializer);
 
 		Tuple2<K, N> keyAndNamespace = KvStateSerializer.deserializeKeyAndNamespace(
-				serializedKeyAndNamespace, keySerializer, namespaceSerializer);
+				serializedKeyAndNamespace, safeKeySerializer, safeNamespaceSerializer);
 
-		return getSerializedValue(keyAndNamespace.f0, keyAndNamespace.f1);
-	}
-
-	public byte[] getSerializedValue(K key, N namespace) throws Exception {
-		Preconditions.checkState(namespace != null, "No namespace given.");
-		Preconditions.checkState(key != null, "No key given.");
-
-		SV result = stateTable.get(key, namespace);
+		SV result = stateTable.get(keyAndNamespace.f0, keyAndNamespace.f1);
 
 		if (result == null) {
 			return null;
 		}
-
-		@SuppressWarnings("unchecked,rawtypes")
-		TypeSerializer serializer = stateDesc.getSerializer();
-		return KvStateSerializer.serializeValue(result, serializer);
+		return KvStateSerializer.serializeValue(result, safeValueSerializer);
 	}
 
 	/**

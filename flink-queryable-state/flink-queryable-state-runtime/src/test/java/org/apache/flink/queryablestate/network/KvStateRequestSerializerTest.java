@@ -200,7 +200,7 @@ public class KvStateRequestSerializerTest {
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final InternalListState<VoidNamespace, Long> listState = longHeapKeyedStateBackend.createListState(
+		final InternalListState<Long, VoidNamespace, Long> listState = longHeapKeyedStateBackend.createListState(
 				VoidNamespaceSerializer.INSTANCE,
 				new ListStateDescriptor<>("test", LongSerializer.INSTANCE));
 
@@ -220,7 +220,7 @@ public class KvStateRequestSerializerTest {
 	 */
 	public static void testListSerialization(
 			final long key,
-			final InternalListState<VoidNamespace, Long> listState) throws Exception {
+			final InternalListState<Long, VoidNamespace, Long> listState) throws Exception {
 
 		TypeSerializer<Long> valueSerializer = LongSerializer.INSTANCE;
 		listState.setCurrentNamespace(VoidNamespace.INSTANCE);
@@ -240,7 +240,11 @@ public class KvStateRequestSerializerTest {
 				key, LongSerializer.INSTANCE,
 				VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE);
 
-		final byte[] serializedValues = listState.getSerializedValue(serializedKey);
+		final byte[] serializedValues = listState.getSerializedValue(
+				serializedKey,
+				listState.getKeySerializer(),
+				listState.getNamespaceSerializer(),
+				listState.getValueSerializer());
 
 		List<Long> actualValues = KvStateSerializer.deserializeList(serializedValues, valueSerializer);
 		assertEquals(expectedValues, actualValues);
@@ -303,10 +307,12 @@ public class KvStateRequestSerializerTest {
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final InternalMapState<VoidNamespace, Long, String> mapState = (InternalMapState<VoidNamespace, Long, String>) longHeapKeyedStateBackend.getPartitionedState(
-				VoidNamespace.INSTANCE,
-				VoidNamespaceSerializer.INSTANCE,
-				new MapStateDescriptor<>("test", LongSerializer.INSTANCE, StringSerializer.INSTANCE));
+		final InternalMapState<Long, VoidNamespace, Long, String, HashMap<Long, String>> mapState =
+				(InternalMapState<Long, VoidNamespace, Long, String, HashMap<Long, String>>)
+						longHeapKeyedStateBackend.getPartitionedState(
+								VoidNamespace.INSTANCE,
+								VoidNamespaceSerializer.INSTANCE,
+								new MapStateDescriptor<>("test", LongSerializer.INSTANCE, StringSerializer.INSTANCE));
 
 		testMapSerialization(key, mapState);
 	}
@@ -322,9 +328,9 @@ public class KvStateRequestSerializerTest {
 	 *
 	 * @throws Exception
 	 */
-	public static void testMapSerialization(
+	public static <M extends Map<Long, String>> void testMapSerialization(
 			final long key,
-			final InternalMapState<VoidNamespace, Long, String> mapState) throws Exception {
+			final InternalMapState<Long, VoidNamespace, Long, String, M> mapState) throws Exception {
 
 		TypeSerializer<Long> userKeySerializer = LongSerializer.INSTANCE;
 		TypeSerializer<String> userValueSerializer = StringSerializer.INSTANCE;
@@ -348,7 +354,11 @@ public class KvStateRequestSerializerTest {
 				key, LongSerializer.INSTANCE,
 				VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE);
 
-		final byte[] serializedValues = mapState.getSerializedValue(serializedKey);
+		final byte[] serializedValues = mapState.getSerializedValue(
+				serializedKey,
+				mapState.getKeySerializer(),
+				mapState.getNamespaceSerializer(),
+				mapState.getValueSerializer());
 
 		Map<Long, String> actualValues = KvStateSerializer.deserializeMap(serializedValues, userKeySerializer, userValueSerializer);
 		assertEquals(expectedValues.size(), actualValues.size());

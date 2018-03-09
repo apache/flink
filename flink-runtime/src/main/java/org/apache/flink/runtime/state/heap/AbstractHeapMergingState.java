@@ -28,18 +28,19 @@ import org.apache.flink.runtime.state.internal.InternalMergingState;
 import java.util.Collection;
 
 /**
- * Base class for {@link MergingState} ({@link org.apache.flink.runtime.state.internal.InternalMergingState})
- * that is stored on the heap.
+ * Base class for {@link MergingState} ({@link InternalMergingState}) that is stored on the heap.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
+ * @param <IN> The type of the input elements.
  * @param <SV> The type of the values in the state.
+ * @param <OUT> The type of the output elements.
  * @param <S> The type of State
  * @param <SD> The type of StateDescriptor for the State S
  */
-public abstract class AbstractHeapMergingState<K, N, IN, OUT, SV, S extends State, SD extends StateDescriptor<S, ?>>
+public abstract class AbstractHeapMergingState<K, N, IN, SV, OUT, S extends State, SD extends StateDescriptor<S, SV>>
 		extends AbstractHeapState<K, N, SV, S, SD>
-		implements InternalMergingState<N, IN, OUT> {
+		implements InternalMergingState<K, N, IN, SV, OUT> {
 
 	/**
 	 * The merge transformation function that implements the merge logic.

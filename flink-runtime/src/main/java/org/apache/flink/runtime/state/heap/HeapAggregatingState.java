@@ -39,8 +39,8 @@ import java.io.IOException;
  * @param <OUT> The type of the value returned from the state.
  */
 public class HeapAggregatingState<K, N, IN, ACC, OUT>
-		extends AbstractHeapMergingState<K, N, IN, OUT, ACC, AggregatingState<IN, OUT>, AggregatingStateDescriptor<IN, ACC, OUT>>
-		implements InternalAggregatingState<N, IN, OUT> {
+		extends AbstractHeapMergingState<K, N, IN, ACC, OUT, AggregatingState<IN, OUT>, AggregatingStateDescriptor<IN, ACC, OUT>>
+		implements InternalAggregatingState<K, N, IN, ACC, OUT> {
 
 	private final AggregateTransformation<IN, ACC, OUT> aggregateTransformation;
 
@@ -62,6 +62,21 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 
 		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
 		this.aggregateTransformation = new AggregateTransformation<>(stateDesc.getAggregateFunction());
+	}
+
+	@Override
+	public TypeSerializer<K> getKeySerializer() {
+		return keySerializer;
+	}
+
+	@Override
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
+	}
+
+	@Override
+	public TypeSerializer<ACC> getValueSerializer() {
+		return stateDesc.getSerializer();
 	}
 
 	// ------------------------------------------------------------------------
