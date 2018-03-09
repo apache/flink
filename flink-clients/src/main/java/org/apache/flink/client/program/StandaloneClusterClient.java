@@ -98,7 +98,7 @@ public class StandaloneClusterClient extends ClusterClient<StandaloneClusterId> 
 
 	@Override
 	public int getMaxSlots() {
-		return -1;
+		return MAX_SLOTS_UNKNOWN;
 	}
 
 	@Override
