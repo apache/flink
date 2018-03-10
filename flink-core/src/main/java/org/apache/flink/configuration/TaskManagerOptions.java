@@ -269,7 +269,10 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
 			key("taskmanager.network.memory.buffers-per-channel")
 			.defaultValue(2)
-			.withDescription("Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel).");
+			.withDescription("Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel)." +
+				"In credit-based flow control mode, this indicates how many credits are exclusive in each input channel. It should be" +
+				" configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is" +
+				" for parallel serialization.");
 
 	/**
 	 * Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate).
@@ -277,7 +280,12 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
 			key("taskmanager.network.memory.floating-buffers-per-gate")
 			.defaultValue(8)
-			.withDescription("Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate).");
+			.withDescription("Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate)." +
+				" In credit-based flow control mode, this indicates how many floating credits are shared among all the input channels." +
+				" The floating buffers are distributed based on backlog (real-time output buffers in the subpartition) feedback, and can" +
+				" help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be" +
+				" increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");
+
 
 	/**
 	 * Minimum backoff for partition requests of input channels.
@@ -307,7 +315,7 @@ public class TaskManagerOptions {
 			.withDescription("Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.");
 
 	/**
-	 * Config parameter defining whether to enable credit-based flow control or not.
+	 * Boolean flag to enable/disable network credit-based flow control.
 	 *
 	 * @deprecated Will be removed for Flink 1.6 when the old code will be dropped in favour of
 	 * credit-based flow control.
@@ -315,7 +323,8 @@ public class TaskManagerOptions {
 	@Deprecated
 	public static final ConfigOption<Boolean> NETWORK_CREDIT_BASED_FLOW_CONTROL_ENABLED =
 			key("taskmanager.network.credit-based-flow-control.enabled")
-			.defaultValue(true);
+			.defaultValue(true)
+			.withDescription("Boolean flag to enable/disable network credit-based flow control.");
 
 	/**
 	 * Config parameter defining whether to spill data for channels with barrier or not in exactly-once

@@ -303,6 +303,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
 			taskManagerServicesConfiguration,
 			resourceID,
+			rpcService.getExecutor(), // TODO replace this later with some dedicated executor for io.
 			EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag(),
 			EnvironmentInformation.getMaxJvmHeapMemory());
 

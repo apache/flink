@@ -148,7 +148,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		}
 
 		int newBacklog = parent.decreaseBuffersInBacklog(current);
-		return new BufferAndBacklog(current, newBacklog > 0, newBacklog, nextBufferIsEvent);
+		return new BufferAndBacklog(current, newBacklog > 0 || nextBufferIsEvent, newBacklog, nextBufferIsEvent);
 	}
 
 	@Nullable
@@ -217,6 +217,14 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 			}
 			return nextBuffer != null && !nextBuffer.isBuffer();
 		}
+	}
+
+	@Override
+	public synchronized boolean isAvailable() {
+		if (nextBuffer != null) {
+			return true;
+		}
+		return !fileReader.hasReachedEndOfFile();
 	}
 
 	@Override

@@ -32,7 +32,6 @@ import org.apache.flink.examples.java.clustering.util.KMeansData;
 import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.util.TestLogger;
 
@@ -66,40 +65,20 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 	}
 
 	@Test
-	public void testSuccessfulProgramAfterFailure() {
-		LocalFlinkMiniCluster cluster = null;
+	public void testSuccessfulProgramAfterFailure() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		runConnectedComponents(env);
 
 		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-			try {
-				runConnectedComponents(env);
-			}
-			catch (Exception e) {
-				e.printStackTrace();
-				fail("Program Execution should have succeeded.");
-			}
-
-			try {
-				runKMeans(env);
-				fail("This program execution should have failed.");
-			}
-			catch (JobExecutionException e) {
-				assertTrue(e.getCause().getMessage().contains("Insufficient number of network buffers"));
-			}
-
-			try {
-				runConnectedComponents(env);
-			}
-			catch (Exception e) {
-				e.printStackTrace();
-				fail("Program Execution should have succeeded.");
-			}
+			runKMeans(env);
+			fail("This program execution should have failed.");
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+		catch (JobExecutionException e) {
+			assertTrue(e.getCause().getMessage().contains("Insufficient number of network buffers"));
 		}
+
+		runConnectedComponents(env);
 	}
 
 	private static void runConnectedComponents(ExecutionEnvironment env) throws Exception {

@@ -35,6 +35,7 @@ import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusRespon
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -61,6 +62,8 @@ import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.TriggerId;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
@@ -77,6 +80,7 @@ import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.runtime.util.ScalaUtils;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -97,8 +101,10 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -106,10 +112,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
-import scala.Option;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A {@link ClusterClient} implementation that communicates via HTTP REST requests.
@@ -142,11 +144,29 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			config,
 			null,
 			clusterId,
-			new ExponentialWaitStrategy(10L, 2000L));
+			new ExponentialWaitStrategy(10L, 2000L),
+			null);
+	}
+
+	public RestClusterClient(
+			Configuration config,
+			T clusterId,
+			LeaderRetrievalService webMonitorRetrievalService) throws Exception {
+		this(
+			config,
+			null,
+			clusterId,
+			new ExponentialWaitStrategy(10L, 2000L),
+			webMonitorRetrievalService);
 	}
 
 	@VisibleForTesting
-	RestClusterClient(Configuration configuration, @Nullable RestClient restClient, T clusterId, WaitStrategy waitStrategy) throws Exception {
+	RestClusterClient(
+			Configuration configuration,
+			@Nullable RestClient restClient,
+			T clusterId,
+			WaitStrategy waitStrategy,
+			@Nullable LeaderRetrievalService webMonitorRetrievalService) throws Exception {
 		super(configuration);
 		this.restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(configuration);
 
@@ -159,7 +179,11 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		this.waitStrategy = Preconditions.checkNotNull(waitStrategy);
 		this.clusterId = Preconditions.checkNotNull(clusterId);
 
-		this.webMonitorRetrievalService = highAvailabilityServices.getWebMonitorLeaderRetriever();
+		if (webMonitorRetrievalService == null) {
+			this.webMonitorRetrievalService = highAvailabilityServices.getWebMonitorLeaderRetriever();
+		} else {
+			this.webMonitorRetrievalService = webMonitorRetrievalService;
+		}
 		this.dispatcherRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
 		this.retryExecutorService = Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("Flink-RestClusterClient-Retry"));
 		startLeaderRetrievers();
@@ -172,13 +196,6 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 	@Override
 	public void shutdown() {
-		try {
-			// we only call this for legacy reasons to shutdown components that are started in the ClusterClient constructor
-			super.shutdown();
-		} catch (Exception e) {
-			log.error("An error occurred during the client shutdown.", e);
-		}
-
 		ExecutorUtils.gracefulShutdown(restClusterClientConfiguration.getRetryDelay(), TimeUnit.MILLISECONDS, retryExecutorService);
 
 		this.restClient.shutdown(Time.seconds(5));
@@ -195,10 +212,17 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		} catch (Exception e) {
 			log.error("An error occurred during stopping the dispatcherLeaderRetriever", e);
 		}
+
+		try {
+			// we only call this for legacy reasons to shutdown components that are started in the ClusterClient constructor
+			super.shutdown();
+		} catch (Exception e) {
+			log.error("An error occurred during the client shutdown.", e);
+		}
 	}
 
 	@Override
-	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
+	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
 		log.info("Submitting job {}.", jobGraph.getJobID());
 
 		final CompletableFuture<JobSubmitResponseBody> jobSubmissionFuture = submitJob(jobGraph);
@@ -231,6 +255,17 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 				throw new ProgramInvocationException(e);
 			}
 		}
+	}
+
+	@Override
+	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
+		JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();
+		final JobMessageParameters  params = new JobMessageParameters();
+		params.jobPathParameter.resolve(jobId);
+
+		CompletableFuture<JobDetailsInfo> responseFuture = sendRequest(detailsHeaders, params);
+
+		return responseFuture.thenApply(JobDetailsInfo::getJobStatus);
 	}
 
 	/**
@@ -333,24 +368,29 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 	@Override
 	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
-		throw new UnsupportedOperationException("Not implemented yet.");
+		return triggerSavepoint(jobId, savepointDirectory, true).get();
 	}
 
 	@Override
 	public CompletableFuture<String> triggerSavepoint(
 			final JobID jobId,
 			final @Nullable String savepointDirectory) throws FlinkException {
+		return triggerSavepoint(jobId, savepointDirectory, false);
+	}
+
+	private CompletableFuture<String> triggerSavepoint(
+			final JobID jobId,
+			final @Nullable String savepointDirectory,
+			final boolean cancelJob) {
 		final SavepointTriggerHeaders savepointTriggerHeaders = SavepointTriggerHeaders.getInstance();
 		final SavepointTriggerMessageParameters savepointTriggerMessageParameters =
 			savepointTriggerHeaders.getUnresolvedMessageParameters();
 		savepointTriggerMessageParameters.jobID.resolve(jobId);
 
-		final CompletableFuture<TriggerResponse> responseFuture;
-
-		responseFuture = sendRequest(
+		final CompletableFuture<TriggerResponse> responseFuture = sendRequest(
 			savepointTriggerHeaders,
 			savepointTriggerMessageParameters,
-			new SavepointTriggerRequestBody(savepointDirectory));
+			new SavepointTriggerRequestBody(savepointDirectory, cancelJob));
 
 		return responseFuture.thenCompose(savepointTriggerResponseBody -> {
 			final TriggerId savepointTriggerId = savepointTriggerResponseBody.getTriggerId();
@@ -505,7 +545,14 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 	@Override
 	public String getWebInterfaceURL() {
-		return getWebMonitorBaseUrl().toString();
+		try {
+			return getWebMonitorBaseUrl().get().toString();
+		} catch (InterruptedException | ExecutionException e) {
+			ExceptionUtils.checkInterrupted(e);
+
+			log.warn("Could not retrieve the web interface URL for the cluster.", e);
+			return "Unknown address.";
+		}
 	}
 
 	@Override
@@ -614,9 +661,17 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 				TimeUnit.MILLISECONDS)
 			.thenApplyAsync(leaderAddressSessionId -> {
 				final String address = leaderAddressSessionId.f0;
-				final Option<String> host = AddressFromURIString.parse(address).host();
-				checkArgument(host.isDefined(), "Could not parse host from %s", address);
-				return host.get();
+				final Optional<String> host = ScalaUtils.toJava(AddressFromURIString.parse(address).host());
+
+				return host.orElseGet(() -> {
+					// if the dispatcher address does not contain a host part, then assume it's running
+					// on the same machine as the client
+					log.info("The dispatcher seems to run without remoting enabled. This indicates that we are " +
+						"in a test. This can only work if the RestClusterClient runs on the same machine. " +
+						"Assuming, therefore, 'localhost' as the host.");
+
+					return "localhost";
+				});
 			}, executorService);
 	}
 

@@ -182,7 +182,12 @@ public class RestClusterClientTest extends TestLogger {
 				}
 			}
 		};
-		restClusterClient = new RestClusterClient<>(config, restClient, StandaloneClusterId.getInstance(), (attempt) -> 0);
+		restClusterClient = new RestClusterClient<>(
+			config,
+			restClient,
+			StandaloneClusterId.getInstance(),
+			(attempt) -> 0,
+			null);
 
 		jobGraph = new JobGraph("testjob");
 		jobId = jobGraph.getJobID();

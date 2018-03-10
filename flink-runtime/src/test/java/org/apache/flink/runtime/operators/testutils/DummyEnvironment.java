@@ -41,6 +41,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 
@@ -59,12 +60,17 @@ public class DummyEnvironment implements Environment {
 	private TaskStateManager taskStateManager;
 	private final AccumulatorRegistry accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
 
+	public DummyEnvironment() {
+		this("Test Job", 1, 0, 1);
+	}
+
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
 		this(taskName, numSubTasks, subTaskIndex, numSubTasks);
 	}
 
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex, int maxParallelism) {
 		this.taskInfo = new TaskInfo(taskName, maxParallelism, subTaskIndex, numSubTasks, 0);
+		this.taskStateManager = new TestTaskStateManager();
 	}
 
 	public void setKvStateRegistry(KvStateRegistry kvStateRegistry) {

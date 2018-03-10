@@ -74,6 +74,16 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KryoSerializer.class);
 
+	/** Flag whether to check for concurrent thread access.
+	 * Because this flag is static final, a value of 'false' allows the JIT compiler to eliminate
+	 * the guarded code sections. */
+	private static final boolean CONCURRENT_ACCESS_CHECK =
+			LOG.isDebugEnabled() || KryoSerializerDebugInitHelper.setToDebug;
+
+	static {
+		configureKryoLogging();
+	}
+
 	// ------------------------------------------------------------------------
 
 	private final LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> defaultSerializers;
@@ -107,6 +117,9 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	private LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> registeredTypesWithSerializers;
 	private LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> registeredTypesWithSerializerClasses;
 	private LinkedHashSet<Class<?>> registeredTypes;
+
+	// for debugging purposes
+	private transient volatile Thread currentThread;
 
 	// ------------------------------------------------------------------------
 
@@ -170,26 +183,38 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		if (from == null) {
 			return null;
 		}
-		checkKryoInitialized();
-		try {
-			return kryo.copy(from);
+
+		if (CONCURRENT_ACCESS_CHECK) {
+			enterExclusiveThread();
 		}
-		catch(KryoException ke) {
-			// kryo was unable to copy it, so we do it through serialization:
-			ByteArrayOutputStream baout = new ByteArrayOutputStream();
-			Output output = new Output(baout);
 
-			kryo.writeObject(output, from);
+		try {
+			checkKryoInitialized();
+			try {
+				return kryo.copy(from);
+			}
+			catch (KryoException ke) {
+				// kryo was unable to copy it, so we do it through serialization:
+				ByteArrayOutputStream baout = new ByteArrayOutputStream();
+				Output output = new Output(baout);
 
-			output.close();
+				kryo.writeObject(output, from);
 
-			ByteArrayInputStream bain = new ByteArrayInputStream(baout.toByteArray());
-			Input input = new Input(bain);
+				output.close();
 
-			return (T)kryo.readObject(input, from.getClass());
+				ByteArrayInputStream bain = new ByteArrayInputStream(baout.toByteArray());
+				Input input = new Input(bain);
+
+				return (T)kryo.readObject(input, from.getClass());
+			}
+		}
+		finally {
+			if (CONCURRENT_ACCESS_CHECK) {
+				exitExclusiveThread();
+			}
 		}
 	}
-	
+
 	@Override
 	public T copy(T from, T reuse) {
 		return copy(from);
@@ -202,35 +227,47 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public void serialize(T record, DataOutputView target) throws IOException {
-		checkKryoInitialized();
-		if (target != previousOut) {
-			DataOutputViewStream outputStream = new DataOutputViewStream(target);
-			output = new Output(outputStream);
-			previousOut = target;
-		}
-
-		// Sanity check: Make sure that the output is cleared/has been flushed by the last call
-		// otherwise data might be written multiple times in case of a previous EOFException
-		if (output.position() != 0) {
-			throw new IllegalStateException("The Kryo Output still contains data from a previous " +
-				"serialize call. It has to be flushed or cleared at the end of the serialize call.");
+		if (CONCURRENT_ACCESS_CHECK) {
+			enterExclusiveThread();
 		}
 
 		try {
-			kryo.writeClassAndObject(output, record);
-			output.flush();
-		}
-		catch (KryoException ke) {
-			// make sure that the Kryo output buffer is cleared in case that we can recover from
-			// the exception (e.g. EOFException which denotes buffer full)
-			output.clear();
+			checkKryoInitialized();
 
-			Throwable cause = ke.getCause();
-			if (cause instanceof EOFException) {
-				throw (EOFException) cause;
+			if (target != previousOut) {
+				DataOutputViewStream outputStream = new DataOutputViewStream(target);
+				output = new Output(outputStream);
+				previousOut = target;
 			}
-			else {
-				throw ke;
+
+			// Sanity check: Make sure that the output is cleared/has been flushed by the last call
+			// otherwise data might be written multiple times in case of a previous EOFException
+			if (output.position() != 0) {
+				throw new IllegalStateException("The Kryo Output still contains data from a previous " +
+					"serialize call. It has to be flushed or cleared at the end of the serialize call.");
+			}
+
+			try {
+				kryo.writeClassAndObject(output, record);
+				output.flush();
+			}
+			catch (KryoException ke) {
+				// make sure that the Kryo output buffer is cleared in case that we can recover from
+				// the exception (e.g. EOFException which denotes buffer full)
+				output.clear();
+
+				Throwable cause = ke.getCause();
+				if (cause instanceof EOFException) {
+					throw (EOFException) cause;
+				}
+				else {
+					throw ke;
+				}
+			}
+		}
+		finally {
+			if (CONCURRENT_ACCESS_CHECK) {
+				exitExclusiveThread();
 			}
 		}
 	}
@@ -238,26 +275,38 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	@SuppressWarnings("unchecked")
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
-		checkKryoInitialized();
-		if (source != previousIn) {
-			DataInputViewStream inputStream = new DataInputViewStream(source);
-			input = new NoFetchingInput(inputStream);
-			previousIn = source;
+		if (CONCURRENT_ACCESS_CHECK) {
+			enterExclusiveThread();
 		}
 
 		try {
-			return (T) kryo.readClassAndObject(input);
-		} catch (KryoException ke) {
-			Throwable cause = ke.getCause();
+			checkKryoInitialized();
 
-			if (cause instanceof EOFException) {
-				throw (EOFException) cause;
-			} else {
-				throw ke;
+			if (source != previousIn) {
+				DataInputViewStream inputStream = new DataInputViewStream(source);
+				input = new NoFetchingInput(inputStream);
+				previousIn = source;
+			}
+
+			try {
+				return (T) kryo.readClassAndObject(input);
+			} catch (KryoException ke) {
+				Throwable cause = ke.getCause();
+
+				if (cause instanceof EOFException) {
+					throw (EOFException) cause;
+				} else {
+					throw ke;
+				}
+			}
+		}
+		finally {
+			if (CONCURRENT_ACCESS_CHECK) {
+				exitExclusiveThread();
 			}
 		}
 	}
-	
+
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
 		return deserialize(source);
@@ -265,13 +314,24 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		checkKryoInitialized();
-		if(this.copyInstance == null){
-			this.copyInstance = createInstance();
+		if (CONCURRENT_ACCESS_CHECK) {
+			enterExclusiveThread();
 		}
 
-		T tmp = deserialize(copyInstance, source);
-		serialize(tmp, target);
+		try {
+			checkKryoInitialized();
+			if (this.copyInstance == null){
+				this.copyInstance = createInstance();
+			}
+
+			T tmp = deserialize(copyInstance, source);
+			serialize(tmp, target);
+		}
+		finally {
+			if (CONCURRENT_ACCESS_CHECK) {
+				exitExclusiveThread();
+			}
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -483,6 +543,16 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		return kryoRegistrations;
 	}
 
+	static void configureKryoLogging() {
+		// Kryo uses only DEBUG and TRACE levels
+		// we only forward TRACE level, because even DEBUG levels results in
+		// a logging for each object, which is infeasible in Flink.
+		if (LOG.isTraceEnabled()) {
+			com.esotericsoftware.minlog.Log.setLogger(new MinlogForwarder(LOG));
+			com.esotericsoftware.minlog.Log.TRACE();
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
@@ -501,6 +571,27 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	// --------------------------------------------------------------------------------------------
 	// For testing
 	// --------------------------------------------------------------------------------------------
+
+	private void enterExclusiveThread() {
+		// we use simple get, check, set here, rather than CAS
+		// we don't need lock-style correctness, this is only a sanity-check and we thus
+		// favor speed at the cost of some false negatives in this check
+		Thread previous = currentThread;
+		Thread thisThread = Thread.currentThread();
+
+		if (previous == null) {
+			currentThread = thisThread;
+		}
+		else if (previous != thisThread) {
+			throw new IllegalStateException(
+					"Concurrent access to KryoSerializer. Thread 1: " + thisThread.getName() +
+							" , Thread 2: " + previous.getName());
+		}
+	}
+
+	private void exitExclusiveThread() {
+		currentThread = null;
+	}
 
 	@VisibleForTesting
 	public Kryo getKryo() {

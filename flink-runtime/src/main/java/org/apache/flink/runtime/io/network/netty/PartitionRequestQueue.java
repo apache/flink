@@ -38,6 +38,8 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdap
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Set;
@@ -52,7 +54,7 @@ import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferRespo
  */
 class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
-	private final Logger LOG = LoggerFactory.getLogger(PartitionRequestQueue.class);
+	private static final Logger LOG = LoggerFactory.getLogger(PartitionRequestQueue.class);
 
 	private final ChannelFutureListener writeListener = new WriteAndFlushNextMessageIfPossibleListener();
 
@@ -278,6 +280,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		reader.setRegisteredAsAvailable(true);
 	}
 
+	@Nullable
 	private NetworkSequenceViewReader pollAvailableReader() {
 		NetworkSequenceViewReader reader = availableReaders.poll();
 		if (reader != null) {
@@ -287,8 +290,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 	}
 
 	private boolean isEndOfPartitionEvent(Buffer buffer) throws IOException {
-		return EventSerializer.isEvent(buffer, EndOfPartitionEvent.class,
-			getClass().getClassLoader());
+		return EventSerializer.isEvent(buffer, EndOfPartitionEvent.class);
 	}
 
 	@Override

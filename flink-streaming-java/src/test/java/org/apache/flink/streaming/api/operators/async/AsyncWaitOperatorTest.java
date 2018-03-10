@@ -27,6 +27,7 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -52,7 +53,6 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -538,7 +538,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		testHarness.waitForTaskCompletion();
 
 		// set the operator state from previous attempt into the restored one
-		TaskStateSnapshot subtaskStates = taskStateManagerMock.getLastTaskStateSnapshot();
+		TaskStateSnapshot subtaskStates = taskStateManagerMock.getLastJobManagerTaskStateSnapshot();
 
 		final OneInputStreamTaskTestHarness<Integer, Integer> restoredTaskHarness =
 				new OneInputStreamTaskTestHarness<>(
@@ -969,7 +969,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		snapshotHarness.open();
 
-		final OperatorStateHandles snapshot;
+		final OperatorSubtaskState snapshot;
 
 		final ArrayList<Integer> expectedOutput = new ArrayList<>(capacity + 1);
 

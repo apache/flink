@@ -26,11 +26,11 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -101,7 +101,7 @@ public class CEPRescalingTest {
 				new StreamRecord<Event>(middleEvent2, 4));                // valid element
 
 			// take a snapshot with some elements in internal sorting queue
-			OperatorStateHandles snapshot = harness.snapshot(0, 0);
+			OperatorSubtaskState snapshot = harness.snapshot(0, 0);
 			harness.close();
 
 			// initialize two sub-tasks with the previously snapshotted state to simulate scaling up
@@ -273,7 +273,7 @@ public class CEPRescalingTest {
 
 			// we take a snapshot and make it look as a single operator
 			// this will be the initial state of all downstream tasks.
-			OperatorStateHandles snapshot = AbstractStreamOperatorTestHarness.repackageState(
+			OperatorSubtaskState snapshot = AbstractStreamOperatorTestHarness.repackageState(
 				harness2.snapshot(0, 0),
 				harness1.snapshot(0, 0),
 				harness3.snapshot(0, 0)

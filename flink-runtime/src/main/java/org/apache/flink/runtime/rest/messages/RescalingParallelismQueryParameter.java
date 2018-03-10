@@ -30,12 +30,12 @@ public class RescalingParallelismQueryParameter extends MessageQueryParameter<In
 	}
 
 	@Override
-	public Integer convertValueFromString(String value) {
+	public Integer convertStringToValue(String value) {
 		return Integer.valueOf(value);
 	}
 
 	@Override
-	public String convertStringToValue(Integer value) {
+	public String convertValueToString(Integer value) {
 		return value.toString();
 	}
 }

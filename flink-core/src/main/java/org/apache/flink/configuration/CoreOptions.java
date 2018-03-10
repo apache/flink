@@ -45,7 +45,7 @@ public class CoreOptions {
 	 * which means that user code jars can include and load different dependencies than
 	 * Flink uses (transitively).
 	 *
-	 * <p>Exceptions to the rules are defined via {@link #ALWAYS_PARENT_FIRST_LOADER}.
+	 * <p>Exceptions to the rules are defined via {@link #ALWAYS_PARENT_FIRST_LOADER_PATTERNS}.
 	 */
 	public static final ConfigOption<String> CLASSLOADER_RESOLVE_ORDER = ConfigOptions
 		.key("classloader.resolve-order")
@@ -80,17 +80,46 @@ public class CoreOptions {
 	 *         and formats (flink-avro, etc) are loaded parent-first as well if they are in the
 	 *         core classpath.</li>
 	 *     <li>Java annotations and loggers, defined by the following list:
-	 *         javax.annotation;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback.
+	 *         javax.annotation;org.slf4j;org.apache.log4j;org.apache.logging;org.apache.commons.logging;ch.qos.logback.
 	 *         This is done for convenience, to avoid duplication of annotations and multiple
 	 *         log bindings.</li>
 	 * </ul>
 	 */
-	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER = ConfigOptions
-		.key("classloader.parent-first-patterns")
-		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback")
+	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_PATTERNS = ConfigOptions
+		.key("classloader.parent-first-patterns.default")
+		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging;org.apache.commons.logging;ch.qos.logback")
+		.withDeprecatedKeys("classloader.parent-first-patterns")
 		.withDescription("A (semicolon-separated) list of patterns that specifies which classes should always be" +
 			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
-			" the fully qualified class name.");
+			" the fully qualified class name. This setting should generally not be modified. To add another pattern we" +
+			" recommend to use \"classloader.parent-first-patterns.additional\" instead.");
+
+	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL = ConfigOptions
+		.key("classloader.parent-first-patterns.additional")
+		.defaultValue("")
+		.withDescription("A (semicolon-separated) list of patterns that specifies which classes should always be" +
+			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
+			" the fully qualified class name. These patterns are appended to \"" + ALWAYS_PARENT_FIRST_LOADER_PATTERNS.key() + "\".");
+
+	public static String[] getParentFirstLoaderPatterns(Configuration config) {
+		String base = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
+		String append = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
+
+		String[] basePatterns = base.isEmpty()
+			? new String[0]
+			: base.split(";");
+
+		if (append.isEmpty()) {
+			return basePatterns;
+		} else {
+			String[] appendPatterns = append.split(";");
+
+			String[] joinedPatterns = new String[basePatterns.length + appendPatterns.length];
+			System.arraycopy(basePatterns, 0, joinedPatterns, 0, basePatterns.length);
+			System.arraycopy(appendPatterns, 0, joinedPatterns, basePatterns.length, appendPatterns.length);
+			return joinedPatterns;
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//  process parameters
@@ -108,17 +137,32 @@ public class CoreOptions {
 		.key("env.java.opts.taskmanager")
 		.defaultValue("");
 
+	/**
+	 * This options is here only for documentation generation, it is only
+	 * evaluated in the shell scripts.
+	 */
+	@SuppressWarnings("unused")
 	public static final ConfigOption<String> FLINK_LOG_DIR = ConfigOptions
 		.key("env.log.dir")
 		.noDefaultValue()
 		.withDescription("Defines the directory where the Flink logs are saved. It has to be an absolute path." +
 			" (Defaults to the log directory under Flink’s home)");
 
+	/**
+	 * This options is here only for documentation generation, it is only
+	 * evaluated in the shell scripts.
+	 */
+	@SuppressWarnings("unused")
 	public static final ConfigOption<Integer> FLINK_LOG_MAX = ConfigOptions
 		.key("env.log.max")
 		.defaultValue(5)
 		.withDescription("The maximum number of old log files to keep.");
 
+	/**
+	 * This options is here only for documentation generation, it is only
+	 * evaluated in the shell scripts.
+	 */
+	@SuppressWarnings("unused")
 	public static final ConfigOption<String> FLINK_SSH_OPTIONS = ConfigOptions
 		.key("env.ssh.opts")
 		.noDefaultValue()

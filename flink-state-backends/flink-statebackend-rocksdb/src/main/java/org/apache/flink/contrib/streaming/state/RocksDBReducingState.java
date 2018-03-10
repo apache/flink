@@ -29,7 +29,6 @@ import org.apache.flink.runtime.state.internal.InternalReducingState;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
-import org.rocksdb.WriteOptions;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -53,12 +52,6 @@ public class RocksDBReducingState<K, N, V>
 	private final ReduceFunction<V> reduceFunction;
 
 	/**
-	 * We disable writes to the write-ahead-log here. We can't have these in the base class
-	 * because JNI segfaults for some reason if they are.
-	 */
-	private final WriteOptions writeOptions;
-
-	/**
 	 * Creates a new {@code RocksDBReducingState}.
 	 *
 	 * @param namespaceSerializer The serializer for the namespace.
@@ -73,9 +66,6 @@ public class RocksDBReducingState<K, N, V>
 		super(columnFamily, namespaceSerializer, stateDesc, backend);
 		this.valueSerializer = stateDesc.getSerializer();
 		this.reduceFunction = stateDesc.getReduceFunction();
-
-		writeOptions = new WriteOptions();
-		writeOptions.setDisableWAL(true);
 	}
 
 	@Override

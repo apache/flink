@@ -42,7 +42,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
@@ -107,7 +107,7 @@ public class ResourceManagerTest extends TestLogger {
 	private final Time timeout = Time.seconds(10L);
 
 	private TestingHighAvailabilityServices highAvailabilityServices;
-	private TestingLeaderRetrievalService jobManagerLeaderRetrievalService;
+	private SettableLeaderRetrievalService jobManagerLeaderRetrievalService;
 
 	@BeforeClass
 	public static void setup() {
@@ -121,7 +121,7 @@ public class ResourceManagerTest extends TestLogger {
 
 	@Before
 	public void setupTest() {
-		jobManagerLeaderRetrievalService = new TestingLeaderRetrievalService();
+		jobManagerLeaderRetrievalService = new SettableLeaderRetrievalService();
 
 		highAvailabilityServices = new TestingHighAvailabilityServices();
 
@@ -602,7 +602,7 @@ public class ResourceManagerTest extends TestLogger {
 			Time.seconds(5L));
 
 		final TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
-		final TestingLeaderRetrievalService jmLeaderRetrievalService = new TestingLeaderRetrievalService(jobMasterAddress, jobMasterId.toUUID());
+		final SettableLeaderRetrievalService jmLeaderRetrievalService = new SettableLeaderRetrievalService(jobMasterAddress, jobMasterId.toUUID());
 		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
 		highAvailabilityServices.setJobMasterLeaderRetriever(jobId, jmLeaderRetrievalService);

@@ -56,6 +56,7 @@ import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -176,6 +177,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private final JobLeaderService jobLeaderService;
 
+	private final LeaderRetrievalService resourceManagerLeaderRetriever;
+
 	// ------------------------------------------------------------------------
 
 	private final HardwareDescription hardwareDescription;
@@ -205,8 +208,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.jobManagerTable = taskExecutorServices.getJobManagerTable();
 		this.jobLeaderService = taskExecutorServices.getJobLeaderService();
 		this.taskManagerLocation = taskExecutorServices.getTaskManagerLocation();
-		this.localStateStoresManager = taskExecutorServices.getTaskStateManager();
+		this.localStateStoresManager = taskExecutorServices.getTaskManagerStateStore();
 		this.networkEnvironment = taskExecutorServices.getNetworkEnvironment();
+		this.resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
 
 		this.jobManagerConnections = new HashMap<>(4);
 
@@ -238,7 +242,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		// start by connecting to the ResourceManager
 		try {
-			haServices.getResourceManagerLeaderRetriever().start(new ResourceManagerLeaderListener());
+			resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
 		} catch (Exception e) {
 			onFatalError(e);
 		}
@@ -255,7 +259,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	 */
 	@Override
 	public CompletableFuture<Void> postStop() {
-		log.info("Stopping TaskManager {}.", getAddress());
+		log.info("Stopping TaskExecutor {}.", getAddress());
 
 		Throwable throwable = null;
 
@@ -276,6 +280,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		resourceManagerHeartbeatManager.stop();
 
 		try {
+			resourceManagerLeaderRetriever.stop();
+		} catch (Exception e) {
+			throwable = ExceptionUtils.firstOrSuppressed(e, throwable);
+		}
+
+		try {
 			taskExecutorServices.shutDown();
 		} catch (Throwable t) {
 			throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
@@ -284,6 +294,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		if (throwable != null) {
 			return FutureUtils.completedExceptionally(new FlinkException("Error while shutting the TaskExecutor down.", throwable));
 		} else {
+			log.info("Stopped TaskExecutor {}.", getAddress());
 			return CompletableFuture.completedFuture(null);
 		}
 	}
@@ -452,8 +463,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = jobManagerConnection.getResultPartitionConsumableNotifier();
 			PartitionProducerStateChecker partitionStateChecker = jobManagerConnection.getPartitionStateChecker();
 
-			final TaskLocalStateStore localStateStore = localStateStoresManager.localStateStoreForTask(
+			final TaskLocalStateStore localStateStore = localStateStoresManager.localStateStoreForSubtask(
 				jobId,
+				tdd.getAllocationId(),
 				taskInformation.getJobVertexId(),
 				tdd.getSubtaskIndex());
 
@@ -744,6 +756,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 						onFatalError(slotNotFoundException);
 					}
 
+					// release local state under the allocation id.
+					localStateStoresManager.releaseLocalStateForAllocationId(allocationId);
+
 					// sanity check
 					if (!taskSlotTable.isSlotFree(slotId.getSlotNumber())) {
 						onFatalError(new Exception("Could not free slot " + slotId));
@@ -898,13 +913,25 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		if (resourceManagerConnection != null) {
 
 			if (resourceManagerConnection.isConnected()) {
-				log.info("Close ResourceManager connection {}.", resourceManagerConnection.getResourceManagerId(), cause);
+				if (log.isDebugEnabled()) {
+					log.debug("Close ResourceManager connection {}.",
+						resourceManagerConnection.getResourceManagerId(), cause);
+				} else {
+					log.info("Close ResourceManager connection {}.",
+						resourceManagerConnection.getResourceManagerId());
+				}
 				resourceManagerHeartbeatManager.unmonitorTarget(resourceManagerConnection.getResourceManagerId());
 
 				ResourceManagerGateway resourceManagerGateway = resourceManagerConnection.getTargetGateway();
 				resourceManagerGateway.disconnectTaskManager(getResourceID(), cause);
 			} else {
-				log.info("Terminating registration attempts towards ResourceManager {}.", resourceManagerConnection.getTargetAddress(), cause);
+				if (log.isDebugEnabled()) {
+					log.debug("Terminating registration attempts towards ResourceManager {}.",
+						resourceManagerConnection.getTargetAddress(), cause);
+				} else {
+					log.info("Terminating registration attempts towards ResourceManager {}.",
+						resourceManagerConnection.getTargetAddress());
+				}
 			}
 
 			resourceManagerConnection.close();
@@ -1271,6 +1298,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		} catch (SlotNotFoundException e) {
 			log.debug("Could not free slot for allocation id {}.", allocationId, e);
 		}
+
+		localStateStoresManager.releaseLocalStateForAllocationId(allocationId);
 	}
 
 	private void timeoutSlot(AllocationID allocationId, UUID ticket) {
@@ -1317,7 +1346,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	 */
 	void onFatalError(final Throwable t) {
 		try {
-			log.error("Fatal error occurred in TaskExecutor.", t);
+			log.error("Fatal error occurred in TaskExecutor {}.", getAddress(), t);
 		} catch (Throwable ignored) {}
 
 		// The fatal error handler implementation should make sure that this call is non-blocking

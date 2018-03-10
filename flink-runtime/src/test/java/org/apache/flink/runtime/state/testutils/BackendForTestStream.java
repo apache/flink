@@ -68,7 +68,7 @@ public class BackendForTestStream extends MemoryStateBackend {
 	// ------------------------------------------------------------------------
 
 	public interface StreamFactory
-			extends SupplierWithException<CheckpointStateOutputStream, Exception>, java.io.Serializable {}
+			extends SupplierWithException<CheckpointStateOutputStream, IOException>, java.io.Serializable {}
 
 	// ------------------------------------------------------------------------
 
@@ -119,7 +119,7 @@ public class BackendForTestStream extends MemoryStateBackend {
 		}
 
 		@Override
-		public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws Exception {
+		public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException {
 			return streamFactory.get();
 		}
 	}

@@ -138,6 +138,7 @@ class DataStreamGroupAggregate(
       inputSchema.fieldTypeInfos,
       groupings,
       queryConfig,
+      tableEnv.getConfig,
       DataStreamRetractionRules.isAccRetract(this),
       DataStreamRetractionRules.isAccRetract(getInput))
 

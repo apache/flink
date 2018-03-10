@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 
@@ -48,6 +49,9 @@ class PipelinedSubpartition extends ResultSubpartition {
 	/** Flag indicating whether the subpartition has been finished. */
 	private boolean isFinished;
 
+	@GuardedBy("buffers")
+	private boolean flushRequested;
+
 	/** Flag indicating whether the subpartition has been released. */
 	private volatile boolean isReleased;
 
@@ -65,9 +69,11 @@ class PipelinedSubpartition extends ResultSubpartition {
 	@Override
 	public void flush() {
 		synchronized (buffers) {
-			if (readView != null) {
-				readView.notifyDataAvailable();
+			if (buffers.isEmpty()) {
+				return;
 			}
+			flushRequested = !buffers.isEmpty();
+			notifyDataAvailable();
 		}
 	}
 
@@ -93,7 +99,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 			if (finish) {
 				isFinished = true;
-				notifyDataAvailable();
+				flush();
 			}
 			else {
 				maybeNotifyDataAvailable();
@@ -138,17 +144,28 @@ class PipelinedSubpartition extends ResultSubpartition {
 		synchronized (buffers) {
 			Buffer buffer = null;
 
+			if (buffers.isEmpty()) {
+				flushRequested = false;
+			}
+
 			while (!buffers.isEmpty()) {
 				BufferConsumer bufferConsumer = buffers.peek();
 
 				buffer = bufferConsumer.build();
+
 				checkState(bufferConsumer.isFinished() || buffers.size() == 1,
 					"When there are multiple buffers, an unfinished bufferConsumer can not be at the head of the buffers queue.");
+
+				if (buffers.size() == 1) {
+					// turn off flushRequested flag if we drained all of the available data
+					flushRequested = false;
+				}
 
 				if (bufferConsumer.isFinished()) {
 					buffers.pop().close();
 					decreaseBuffersInBacklogUnsafe(bufferConsumer.isBuffer());
 				}
+
 				if (buffer.readableBytes() > 0) {
 					break;
 				}
@@ -169,7 +186,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 			// will be 2 or more.
 			return new BufferAndBacklog(
 				buffer,
-				getNumberOfFinishedBuffers() > 0,
+				isAvailableUnsafe(),
 				getBuffersInBacklog(),
 				_nextBufferIsEvent());
 		}
@@ -211,11 +228,21 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 			readView = new PipelinedSubpartitionView(this, availabilityListener);
 			if (!buffers.isEmpty()) {
-				readView.notifyDataAvailable();
+				notifyDataAvailable();
 			}
 		}
 
 		return readView;
+	}
+
+	public boolean isAvailable() {
+		synchronized (buffers) {
+			return isAvailableUnsafe();
+		}
+	}
+
+	private boolean isAvailableUnsafe() {
+		return flushRequested || getNumberOfFinishedBuffers() > 0;
 	}
 
 	// ------------------------------------------------------------------------
@@ -265,6 +292,8 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	private int getNumberOfFinishedBuffers() {
+		assert Thread.holdsLock(buffers);
+
 		if (buffers.size() == 1 && buffers.peekLast().isFinished()) {
 			return 1;
 		}

@@ -18,36 +18,41 @@
 
 package org.apache.flink.table.descriptors
 
+import java.util
+
 import org.apache.flink.table.api.ValidationException
 import org.junit.Test
 
-class FileSystemTest extends DescriptorTestBase {
+import scala.collection.JavaConverters._
 
-  @Test
-  def testFileSystem(): Unit = {
-    val desc = FileSystem().path("/myfile")
-    val expected = Seq(
-      "connector.type" -> "filesystem",
-      "connector.version" -> "1",
-      "connector.path" -> "/myfile")
-    verifyProperties(desc, expected)
-  }
+class FileSystemTest extends DescriptorTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testInvalidPath(): Unit = {
-    verifyInvalidProperty("connector.path", "")
+    addPropertyAndVerify(descriptors().get(0), "connector.path", "")
   }
 
   @Test(expected = classOf[ValidationException])
   def testMissingPath(): Unit = {
-    verifyMissingProperty("connector.path")
+    removePropertyAndVerify(descriptors().get(0), "connector.path")
   }
 
-  override def descriptor(): Descriptor = {
-    FileSystem().path("/myfile")
+  // ----------------------------------------------------------------------------------------------
+
+  override def descriptors(): util.List[Descriptor] = {
+    util.Arrays.asList(FileSystem().path("/myfile"))
   }
 
   override def validator(): DescriptorValidator = {
     new FileSystemValidator()
+  }
+
+  override def properties(): util.List[util.Map[String, String]] = {
+    val desc = Map(
+      "connector.type" -> "filesystem",
+      "connector.property-version" -> "1",
+      "connector.path" -> "/myfile")
+
+    util.Arrays.asList(desc.asJava)
   }
 }

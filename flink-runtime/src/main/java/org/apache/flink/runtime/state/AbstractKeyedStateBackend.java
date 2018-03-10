@@ -51,6 +51,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.stream.Stream;
 
@@ -62,8 +63,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <K> Type of the key by which state is keyed.
  */
-public abstract class AbstractKeyedStateBackend<K>
-		implements KeyedStateBackend<K>, Snapshotable<KeyedStateHandle>, Closeable, CheckpointListener {
+public abstract class AbstractKeyedStateBackend<K> implements
+	KeyedStateBackend<K>,
+	Snapshotable<SnapshotResult<KeyedStateHandle>, Collection<KeyedStateHandle>>,
+	Closeable,
+	CheckpointListener {
 
 	/** {@link TypeSerializer} for our key. */
 	protected final TypeSerializer<K> keySerializer;
@@ -110,7 +114,7 @@ public abstract class AbstractKeyedStateBackend<K>
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig) {
 
-		this.kvStateRegistry = kvStateRegistry; //Preconditions.checkNotNull(kvStateRegistry);
+		this.kvStateRegistry = kvStateRegistry;
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.numberOfKeyGroups = Preconditions.checkNotNull(numberOfKeyGroups);
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);

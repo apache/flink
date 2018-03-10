@@ -550,7 +550,6 @@ public class RescalingITCase extends TestLogger {
 				if (savepointResponse instanceof JobManagerMessages.TriggerSavepointSuccess) {
 					break;
 				}
-				System.out.println(savepointResponse);
 			}
 
 			assertTrue(savepointResponse instanceof JobManagerMessages.TriggerSavepointSuccess);

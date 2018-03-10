@@ -53,7 +53,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -412,7 +412,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			public final String address;
 			public final JobMasterGateway gateway;
 			public final JobMasterId jobMasterId;
-			public final TestingLeaderRetrievalService leaderRetrievalService;
+			public final SettableLeaderRetrievalService leaderRetrievalService;
 
 			MockJobMaster(JobID jobID) {
 				this.jobID = jobID;
@@ -420,7 +420,7 @@ public class MesosResourceManagerTest extends TestLogger {
 				this.address = "/" + jobID;
 				this.gateway = mock(JobMasterGateway.class);
 				this.jobMasterId = JobMasterId.generate();
-				this.leaderRetrievalService = new TestingLeaderRetrievalService(this.address, this.jobMasterId.toUUID());
+				this.leaderRetrievalService = new SettableLeaderRetrievalService(this.address, this.jobMasterId.toUUID());
 			}
 		}
 

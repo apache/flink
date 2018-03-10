@@ -32,13 +32,14 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * ITCase for the {@link org.apache.flink.api.common.state.BroadcastState}.
@@ -120,7 +121,7 @@ public class BroadcastStateITCase {
 			super.close();
 
 			// make sure that all the timers fired
-			Assert.assertEquals(expectedOutputCounter, outputCounter);
+			assertEquals(expectedOutputCounter, outputCounter);
 		}
 	}
 
@@ -145,17 +146,15 @@ public class BroadcastStateITCase {
 		private static final long serialVersionUID = 7616910653561100842L;
 
 		private final Map<Long, String> expectedState;
+		private final Map<Long, Long> timerToExpectedKey = new HashMap<>();
 
-		private final long timerTimestamp;
+		private long nextTimerTimestamp;
 
 		private transient MapStateDescriptor<Long, String> descriptor;
 
-		TestBroadcastProcessFunction(
-				final long timerTS,
-				final Map<Long, String> expectedBroadcastState
-		) {
+		TestBroadcastProcessFunction(final long initialTimerTimestamp, final Map<Long, String> expectedBroadcastState) {
 			expectedState = expectedBroadcastState;
-			timerTimestamp = timerTS;
+			nextTimerTimestamp = initialTimerTimestamp;
 		}
 
 		@Override
@@ -169,7 +168,10 @@ public class BroadcastStateITCase {
 
 		@Override
 		public void processElement(Long value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
-			ctx.timerService().registerEventTimeTimer(timerTimestamp);
+			long currentTime = nextTimerTimestamp;
+			nextTimerTimestamp++;
+			ctx.timerService().registerEventTimeTimer(currentTime);
+			timerToExpectedKey.put(currentTime, value);
 		}
 
 		@Override
@@ -180,14 +182,14 @@ public class BroadcastStateITCase {
 
 		@Override
 		public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
-			Assert.assertEquals(timerTimestamp, timestamp);
+			assertEquals(timerToExpectedKey.get(timestamp), ctx.getCurrentKey());
 
 			Map<Long, String> map = new HashMap<>();
 			for (Map.Entry<Long, String> entry : ctx.getBroadcastState(descriptor).immutableEntries()) {
 				map.put(entry.getKey(), entry.getValue());
 			}
 
-			Assert.assertEquals(expectedState, map);
+			assertEquals(expectedState, map);
 
 			out.collect(Long.toString(timestamp));
 		}

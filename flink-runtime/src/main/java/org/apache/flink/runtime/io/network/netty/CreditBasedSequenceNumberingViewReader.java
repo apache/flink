@@ -30,7 +30,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Simple wrapper for the subpartition view used in the new network credit-based mode.
@@ -43,8 +42,6 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	private final Object requestLock = new Object();
 
 	private final InputChannelID receiverId;
-
-	private final AtomicBoolean buffersAvailable = new AtomicBoolean();
 
 	private final PartitionRequestQueue requestQueue;
 
@@ -117,8 +114,8 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	 */
 	@Override
 	public boolean isAvailable() {
-		// BEWARE: this must be in sync with #isAvailable()!
-		return buffersAvailable.get() &&
+		// BEWARE: this must be in sync with #isAvailable(BufferAndBacklog)!
+		return hasBuffersAvailable() &&
 			(numCreditsAvailable > 0 || subpartitionView.nextBufferIsEvent());
 	}
 
@@ -133,6 +130,7 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	 * 		current buffer and backlog including information about the next buffer
 	 */
 	private boolean isAvailable(BufferAndBacklog bufferAndBacklog) {
+		// BEWARE: this must be in sync with #isAvailable()!
 		return bufferAndBacklog.isMoreAvailable() &&
 			(numCreditsAvailable > 0 || bufferAndBacklog.nextBufferIsEvent());
 	}
@@ -154,14 +152,13 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 
 	@VisibleForTesting
 	boolean hasBuffersAvailable() {
-		return buffersAvailable.get();
+		return subpartitionView.isAvailable();
 	}
 
 	@Override
 	public BufferAndAvailability getNextBuffer() throws IOException, InterruptedException {
 		BufferAndBacklog next = subpartitionView.getNextBuffer();
 		if (next != null) {
-			buffersAvailable.set(next.isMoreAvailable());
 			sequenceNumber++;
 
 			if (next.buffer().isBuffer() && --numCreditsAvailable < 0) {
@@ -197,7 +194,6 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 
 	@Override
 	public void notifyDataAvailable() {
-		buffersAvailable.set(true);
 		requestQueue.notifyReaderNonEmpty(this);
 	}
 
@@ -206,7 +202,6 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 		return "CreditBasedSequenceNumberingViewReader{" +
 			"requestLock=" + requestLock +
 			", receiverId=" + receiverId +
-			", buffersAvailable=" + buffersAvailable.get() +
 			", sequenceNumber=" + sequenceNumber +
 			", numCreditsAvailable=" + numCreditsAvailable +
 			", isRegisteredAsAvailable=" + isRegisteredAsAvailable +

@@ -49,6 +49,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -117,6 +118,8 @@ public abstract class ClusterClient<T> {
 	/** Service factory for high available. */
 	protected final HighAvailabilityServices highAvailabilityServices;
 
+	private final boolean sharedHaServices;
+
 	/** Flag indicating whether to sysout print execution updates. */
 	private boolean printStatusDuringExecution = true;
 
@@ -144,11 +147,13 @@ public abstract class ClusterClient<T> {
 	 * @throws Exception we cannot create the high availability services
 	 */
 	public ClusterClient(Configuration flinkConfig) throws Exception {
-		this(flinkConfig,
+		this(
+			flinkConfig,
 			HighAvailabilityServicesUtils.createHighAvailabilityServices(
 				flinkConfig,
 				Executors.directExecutor(),
-				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION));
+				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION),
+			false);
 	}
 
 	/**
@@ -158,8 +163,9 @@ public abstract class ClusterClient<T> {
 	 *
 	 * @param flinkConfig The config used to obtain the job-manager's address, and used to configure the optimizer.
 	 * @param highAvailabilityServices HighAvailabilityServices to use for leader retrieval
+	 * @param sharedHaServices true if the HighAvailabilityServices are shared and must not be shut down
 	 */
-	public ClusterClient(Configuration flinkConfig, HighAvailabilityServices highAvailabilityServices) {
+	public ClusterClient(Configuration flinkConfig, HighAvailabilityServices highAvailabilityServices, boolean sharedHaServices) {
 		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), flinkConfig);
 
@@ -173,6 +179,7 @@ public abstract class ClusterClient<T> {
 			log);
 
 		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
+		this.sharedHaServices = sharedHaServices;
 	}
 
 	// ------------------------------------------------------------------------
@@ -265,7 +272,7 @@ public abstract class ClusterClient<T> {
 		synchronized (this) {
 			actorSystemLoader.shutdown();
 
-			if (highAvailabilityServices != null) {
+			if (!sharedHaServices && highAvailabilityServices != null) {
 				highAvailabilityServices.close();
 			}
 		}
@@ -578,6 +585,34 @@ public abstract class ClusterClient<T> {
 	}
 
 	/**
+	 * Requests the {@link JobStatus} of the job with the given {@link JobID}.
+	 */
+	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
+		final ActorGateway jobManager;
+		try {
+			jobManager = getJobManagerGateway();
+		} catch (FlinkException e) {
+			throw new RuntimeException("Could not retrieve JobManage gateway.", e);
+		}
+
+		Future<Object> response = jobManager.ask(JobManagerMessages.getRequestJobStatus(jobId), timeout);
+
+		CompletableFuture<Object> javaFuture = FutureUtils.toJava(response);
+
+		return javaFuture.thenApply((responseMessage) -> {
+			if (responseMessage instanceof JobManagerMessages.CurrentJobStatus) {
+				return ((JobManagerMessages.CurrentJobStatus) responseMessage).status();
+			} else if (responseMessage instanceof JobManagerMessages.JobNotFound) {
+				throw new CompletionException(
+					new IllegalStateException("Could not find job with JobId " + jobId));
+			} else {
+				throw new CompletionException(
+					new IllegalStateException("Unknown JobManager response of type " + responseMessage.getClass()));
+			}
+		});
+	}
+
+	/**
 	 * Cancels a job identified by the job id.
 	 * @param jobId the job id
 	 * @throws Exception In case an error occurred.
@@ -657,7 +692,7 @@ public abstract class ClusterClient<T> {
 
 	/**
 	 * Triggers a savepoint for the job identified by the job id. The savepoint will be written to the given savepoint
-	 * directory, or {@link org.apache.flink.configuration.CoreOptions#SAVEPOINT_DIRECTORY} if it is null.
+	 * directory, or {@link org.apache.flink.configuration.CheckpointingOptions#SAVEPOINT_DIRECTORY} if it is null.
 	 *
 	 * @param jobId job id
 	 * @param savepointDirectory directory the savepoint should be written to
@@ -981,7 +1016,7 @@ public abstract class ClusterClient<T> {
 	 * @param jobGraph The JobGraph to be submitted
 	 * @return JobSubmissionResult
 	 */
-	protected abstract JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
+	public abstract JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
 		throws ProgramInvocationException;
 
 	/**

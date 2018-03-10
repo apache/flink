@@ -33,6 +33,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -40,6 +41,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -117,6 +119,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	private final YarnClient yarnClient;
 
+	/** True if the descriptor must not shut down the YarnClient. */
+	private final boolean sharedYarnClient;
+
 	private String yarnQueue;
 
 	private String configurationDirectory;
@@ -144,10 +149,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	public AbstractYarnClusterDescriptor(
 			Configuration flinkConfiguration,
+			YarnConfiguration yarnConfiguration,
 			String configurationDirectory,
-			YarnClient yarnClient) {
+			YarnClient yarnClient,
+			boolean sharedYarnClient) {
 
-		yarnConfiguration = new YarnConfiguration();
+		this.yarnConfiguration = Preconditions.checkNotNull(yarnConfiguration);
 
 		// for unit tests only
 		if (System.getenv("IN_TESTS") != null) {
@@ -159,8 +166,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 
 		this.yarnClient = Preconditions.checkNotNull(yarnClient);
-		yarnClient.init(yarnConfiguration);
-		yarnClient.start();
+		this.sharedYarnClient = sharedYarnClient;
 
 		this.flinkConfiguration = Preconditions.checkNotNull(flinkConfiguration);
 		userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
@@ -327,7 +333,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	@Override
 	public void close() {
-		yarnClient.stop();
+		if (!sharedYarnClient) {
+			yarnClient.stop();
+		}
 	}
 
 	// -------------------------------------------------------------
@@ -481,7 +489,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		flinkConfiguration.setString(ClusterEntrypoint.EXECUTION_MODE, executionMode.toString());
 
 		ApplicationReport report = startAppMaster(
-			new Configuration(flinkConfiguration),
+			flinkConfiguration,
 			yarnClusterEntrypoint,
 			jobGraph,
 			yarnClient,
@@ -793,9 +801,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			homeDir,
 			"");
 
+		// set the right configuration values for the TaskManager
 		configuration.setInteger(
-			ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
+			TaskManagerOptions.NUM_TASK_SLOTS,
 			clusterSpecification.getSlotsPerTaskManager());
+
+		configuration.setInteger(
+			TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY,
+			clusterSpecification.getTaskManagerMemoryMB());
 
 		// Upload the flink configuration
 		// write out configuration file
@@ -1036,11 +1049,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					"temporary files of the YARN session in the home directoy will not be removed.");
 		}
 		// since deployment was successful, remove the hook
-		try {
-			Runtime.getRuntime().removeShutdownHook(deploymentFailureHook);
-		} catch (IllegalStateException e) {
-			// we're already in the shut down hook.
-		}
+		ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
 		return report;
 	}
 

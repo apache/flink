@@ -32,7 +32,9 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -102,7 +104,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	 * A value of 'undefined' means not yet configured, in which case the default will be used. */
 	private final TernaryBoolean asynchronousSnapshots;
 
-	// ------------------------------------------------------------------------
+	// -----------------------------------------------------------------------
 
 	/**
 	 * Creates a new state backend that stores its checkpoint data in the file system and location
@@ -451,7 +453,10 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws IOException {
+			TaskKvStateRegistry kvStateRegistry) {
+
+		TaskStateManager taskStateManager = env.getTaskStateManager();
+		LocalRecoveryConfig localRecoveryConfig = taskStateManager.createLocalRecoveryConfig();
 
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
@@ -460,13 +465,14 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 				numberOfKeyGroups,
 				keyGroupRange,
 				isUsingAsynchronousSnapshots(),
-				env.getExecutionConfig());
+				env.getExecutionConfig(),
+				localRecoveryConfig);
 	}
 
 	@Override
 	public OperatorStateBackend createOperatorStateBackend(
 		Environment env,
-		String operatorIdentifier) throws Exception {
+		String operatorIdentifier) {
 
 		return new DefaultOperatorStateBackend(
 			env.getUserClassLoader(),

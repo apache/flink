@@ -53,6 +53,14 @@ public class StreamNetworkThroughputBenchmarkTests {
 	}
 
 	@Test
+	public void largeRemoteAlwaysFlush() throws Exception {
+		StreamNetworkThroughputBenchmark env = new StreamNetworkThroughputBenchmark();
+		env.setUp(1, 1, 0, false);
+		env.executeBenchmark(1_000_000);
+		env.tearDown();
+	}
+
+	@Test
 	public void pointToMultiPointBenchmark() throws Exception {
 		StreamNetworkThroughputBenchmark benchmark = new StreamNetworkThroughputBenchmark();
 		benchmark.setUp(1, 100, 100);

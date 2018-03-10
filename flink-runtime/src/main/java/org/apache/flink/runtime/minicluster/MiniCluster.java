@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
@@ -41,6 +42,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -63,6 +65,7 @@ import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetrie
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 
 import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
@@ -175,6 +178,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		synchronized (lock) {
 			checkState(running, "MiniCluster is not yet running.");
 			return restAddressURI;
+		}
+	}
+
+	public HighAvailabilityServices getHighAvailabilityServices() {
+		synchronized (lock) {
+			checkState(running, "MiniCluster is not yet running.");
+			return haServices;
 		}
 	}
 
@@ -391,13 +401,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					final int numComponents = 2 + miniClusterConfiguration.getNumTaskManagers();
 					final Collection<CompletableFuture<Void>> componentTerminationFutures = new ArrayList<>(numComponents);
 
-					componentTerminationFutures.add(shutDownDispatcher());
-
-					if (resourceManagerRunner != null) {
-						componentTerminationFutures.add(resourceManagerRunner.closeAsync());
-						resourceManagerRunner = null;
-					}
-
 					if (taskManagers != null) {
 						for (TaskExecutor tm : taskManagers) {
 							if (tm != null) {
@@ -406,6 +409,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 							}
 						}
 						taskManagers = null;
+					}
+
+					componentTerminationFutures.add(shutDownDispatcher());
+
+					if (resourceManagerRunner != null) {
+						componentTerminationFutures.add(resourceManagerRunner.closeAsync());
+						resourceManagerRunner = null;
 					}
 
 					final FutureUtils.ConjunctFuture<Void> componentsTerminationFuture = FutureUtils.completeAll(componentTerminationFutures);
@@ -444,6 +454,43 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			}
 
 			return terminationFuture;
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Accessing jobs
+	// ------------------------------------------------------------------------
+
+	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
+		try {
+			return getDispatcherGateway().requestJobStatus(jobId, rpcTimeout);
+		} catch (LeaderRetrievalException | InterruptedException e) {
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					String.format("Could not retrieve job status for job %s.", jobId),
+					e));
+		}
+	}
+
+	public CompletableFuture<Acknowledge> cancelJob(JobID jobId) {
+		try {
+			return getDispatcherGateway().cancelJob(jobId, rpcTimeout);
+		} catch (LeaderRetrievalException | InterruptedException e) {
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					String.format("Could not cancel job %s.", jobId),
+					e));
+		}
+	}
+
+	public CompletableFuture<String> triggerSavepoint(JobID jobId, String targetDirectory, boolean cancelJob) {
+		try {
+			return getDispatcherGateway().triggerSavepoint(jobId, targetDirectory, cancelJob, rpcTimeout);
+		} catch (LeaderRetrievalException | InterruptedException e) {
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					String.format("Could not trigger savepoint for job %s.", jobId),
+					e));
 		}
 	}
 

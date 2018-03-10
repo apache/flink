@@ -42,7 +42,7 @@ import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -161,7 +161,7 @@ public class DispatcherTest extends TestLogger {
 		haServices.setSubmittedJobGraphStore(submittedJobGraphStore);
 		haServices.setJobMasterLeaderElectionService(TEST_JOB_ID, jobMasterLeaderElectionService);
 		haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
-		haServices.setResourceManagerLeaderRetriever(new TestingLeaderRetrievalService());
+		haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
 		runningJobsRegistry = haServices.getRunningJobsRegistry();
 
 		final Configuration blobServerConfig = new Configuration();

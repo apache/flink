@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.DummyScheduledUnit;
@@ -58,7 +59,6 @@ import org.junit.experimental.categories.Category;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -121,8 +121,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			CompletableFuture<LogicalSlot> future = pool.allocateSlot(
 				new SlotRequestId(),
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
-				DEFAULT_TESTING_PROFILE,
-				Collections.emptyList(),
+				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
 				true,
 				fastTimeout);
 
@@ -158,8 +157,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			CompletableFuture<LogicalSlot> future = slotPoolGateway.allocateSlot(
 				requestId,
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
-				DEFAULT_TESTING_PROFILE,
-				Collections.emptyList(),
+				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
 				true,
 				fastTimeout);
 
@@ -204,8 +202,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			CompletableFuture<LogicalSlot> future = slotPoolGateway.allocateSlot(
 				requestId,
 				new DummyScheduledUnit(),
-				DEFAULT_TESTING_PROFILE,
-				Collections.emptyList(),
+				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
 				true,
 				fastTimeout);
 
@@ -252,8 +249,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			CompletableFuture<LogicalSlot> future = slotPoolGateway.allocateSlot(
 				requestId,
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
-				DEFAULT_TESTING_PROFILE,
-				Collections.emptyList(),
+				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
 				true,
 				fastTimeout);
 
@@ -313,7 +309,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			CompletableFuture<LogicalSlot> future = pool.getSlotProvider().allocateSlot(
 				new DummyScheduledUnit(),
 				true,
-				Collections.emptyList(),
+				SlotProfile.noRequirements(),
 				fastTimeout);
 
 			try {

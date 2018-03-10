@@ -34,6 +34,7 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend.PartitionableListState;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
@@ -41,6 +42,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.Preconditions;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -51,7 +53,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -254,7 +255,7 @@ public class OperatorStateBackendTest {
 		broadcastState.put(5, 6);
 
 		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
-		RunnableFuture<OperatorStateHandle> runnableFuture =
+		RunnableFuture<SnapshotResult<OperatorStateHandle>> runnableFuture =
 			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 		FutureUtil.runIfNotDoneAndGet(runnableFuture);
 
@@ -375,10 +376,11 @@ public class OperatorStateBackendTest {
 
 		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
 
-		RunnableFuture<OperatorStateHandle> snapshot =
+		RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
 				operatorStateBackend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(snapshot);
+		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtil.runIfNotDoneAndGet(snapshot);
+		OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 		assertNull(stateHandle);
 	}
 
@@ -404,15 +406,16 @@ public class OperatorStateBackendTest {
 		OperatorStateHandle stateHandle = null;
 
 		try {
-			RunnableFuture<OperatorStateHandle> snapshot =
+			RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
 					operatorStateBackend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-			stateHandle = FutureUtil.runIfNotDoneAndGet(snapshot);
+			SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtil.runIfNotDoneAndGet(snapshot);
+			stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 			assertNotNull(stateHandle);
 
 			final Map<Integer, Integer> retrieved = new HashMap<>();
 
-			operatorStateBackend.restore(Collections.singleton(stateHandle));
+			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
 			BroadcastState<Integer, Integer> retrievedState = operatorStateBackend.getBroadcastState(broadcastStateDesc);
 			for (Map.Entry<Integer, Integer> e: retrievedState.entries()) {
 				retrieved.put(e.getKey(), e.getValue());
@@ -424,10 +427,13 @@ public class OperatorStateBackendTest {
 			expected.remove(1);
 
 			snapshot = operatorStateBackend.snapshot(1L, 1L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
-			stateHandle = FutureUtil.runIfNotDoneAndGet(snapshot);
+			snapshotResult = FutureUtil.runIfNotDoneAndGet(snapshot);
+
+			stateHandle.discardState();
+			stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 
 			retrieved.clear();
-			operatorStateBackend.restore(Collections.singleton(stateHandle));
+			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
 			retrievedState = operatorStateBackend.getBroadcastState(broadcastStateDesc);
 			for (Map.Entry<Integer, Integer> e: retrievedState.immutableEntries()) {
 				retrieved.put(e.getKey(), e.getValue());
@@ -439,16 +445,24 @@ public class OperatorStateBackendTest {
 			expected.clear();
 
 			snapshot = operatorStateBackend.snapshot(2L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
-			stateHandle = FutureUtil.runIfNotDoneAndGet(snapshot);
+			snapshotResult = FutureUtil.runIfNotDoneAndGet(snapshot);
+			if (stateHandle != null) {
+				stateHandle.discardState();
+			}
+			stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 
 			retrieved.clear();
-			operatorStateBackend.restore(Collections.singleton(stateHandle));
+			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
 			retrievedState = operatorStateBackend.getBroadcastState(broadcastStateDesc);
 			for (Map.Entry<Integer, Integer> e: retrievedState.immutableEntries()) {
 				retrieved.put(e.getKey(), e.getValue());
 			}
 			assertTrue(expected.isEmpty());
 			assertEquals(expected, retrieved);
+			if (stateHandle != null) {
+				stateHandle.discardState();
+				stateHandle = null;
+			}
 		} finally {
 			operatorStateBackend.close();
 			operatorStateBackend.dispose();
@@ -497,9 +511,11 @@ public class OperatorStateBackendTest {
 		broadcastState2.put(2, 5);
 
 		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(2 * 4096);
-		RunnableFuture<OperatorStateHandle> runnableFuture =
-				operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
-		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(runnableFuture);
+		RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
+			operatorStateBackend.snapshot(1L, 1L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
+
+		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtil.runIfNotDoneAndGet(snapshot);
+		OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 
 		try {
 
@@ -510,7 +526,7 @@ public class OperatorStateBackendTest {
 					createMockEnvironment(),
 					"testOperator");
 
-			operatorStateBackend.restore(Collections.singletonList(stateHandle));
+			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
 
 			assertEquals(3, operatorStateBackend.getRegisteredStateNames().size());
 			assertEquals(3, operatorStateBackend.getRegisteredBroadcastStateNames().size());
@@ -624,7 +640,7 @@ public class OperatorStateBackendTest {
 		streamFactory.setWaiterLatch(waiterLatch);
 		streamFactory.setBlockerLatch(blockerLatch);
 
-		RunnableFuture<OperatorStateHandle> runnableFuture =
+		RunnableFuture<SnapshotResult<OperatorStateHandle>> runnableFuture =
 				operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		ExecutorService executorService = Executors.newFixedThreadPool(1);
@@ -657,7 +673,8 @@ public class OperatorStateBackendTest {
 				new ListStateDescriptor<>("test4", new JavaSerializer<MutableType>()));
 
 		// run the snapshot
-		OperatorStateHandle stateHandle = runnableFuture.get();
+		SnapshotResult<OperatorStateHandle> snapshotResult = runnableFuture.get();
+		OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 
 		try {
 
@@ -670,7 +687,7 @@ public class OperatorStateBackendTest {
 					createMockEnvironment(),
 					"testOperator");
 
-			operatorStateBackend.restore(Collections.singletonList(stateHandle));
+			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
 
 			assertEquals(3, operatorStateBackend.getRegisteredStateNames().size());
 			assertEquals(3, operatorStateBackend.getRegisteredBroadcastStateNames().size());
@@ -762,7 +779,7 @@ public class OperatorStateBackendTest {
 		streamFactory.setWaiterLatch(waiterLatch);
 		streamFactory.setBlockerLatch(blockerLatch);
 
-		RunnableFuture<OperatorStateHandle> runnableFuture =
+		RunnableFuture<SnapshotResult<OperatorStateHandle>> runnableFuture =
 				operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		ExecutorService executorService = Executors.newFixedThreadPool(1);
@@ -805,7 +822,7 @@ public class OperatorStateBackendTest {
 		streamFactory.setWaiterLatch(waiterLatch);
 		streamFactory.setBlockerLatch(blockerLatch);
 
-		RunnableFuture<OperatorStateHandle> runnableFuture =
+		RunnableFuture<SnapshotResult<OperatorStateHandle>> runnableFuture =
 				operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		ExecutorService executorService = Executors.newFixedThreadPool(1);
@@ -856,9 +873,11 @@ public class OperatorStateBackendTest {
 		listState3.add(20);
 
 		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
-		RunnableFuture<OperatorStateHandle> runnableFuture =
+		RunnableFuture<SnapshotResult<OperatorStateHandle>> runnableFuture =
 			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
-		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(runnableFuture);
+
+		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtil.runIfNotDoneAndGet(runnableFuture);
+		OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 
 		try {
 
@@ -875,7 +894,7 @@ public class OperatorStateBackendTest {
 			doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
 			PowerMockito.whenNew(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
 
-			operatorStateBackend.restore(Collections.singletonList(stateHandle));
+			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
 
 			fail("The operator state restore should have failed if the previous state serializer could not be loaded.");
 		} catch (IOException expected) {

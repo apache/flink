@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -143,8 +144,7 @@ public interface SlotPoolGateway extends AllocatedSlotActions, RpcGateway {
 	 *
 	 * @param slotRequestId identifying the requested slot
 	 * @param scheduledUnit for which to allocate slot
-	 * @param resourceProfile which the allocated slot must fulfill
-	 * @param locationPreferences which define where the allocated slot should be placed, this can also be empty
+	 * @param slotProfile profile that specifies the requirements for the requested slot
 	 * @param allowQueuedScheduling true if the slot request can be queued (e.g. the returned future must not be completed)
 	 * @param timeout for the operation
 	 * @return Future which is completed with the allocated {@link LogicalSlot}
@@ -152,8 +152,7 @@ public interface SlotPoolGateway extends AllocatedSlotActions, RpcGateway {
 	CompletableFuture<LogicalSlot> allocateSlot(
 			SlotRequestId slotRequestId,
 			ScheduledUnit scheduledUnit,
-			ResourceProfile resourceProfile,
-			Collection<TaskManagerLocation> locationPreferences,
+			SlotProfile slotProfile,
 			boolean allowQueuedScheduling,
 			@RpcTimeout Time timeout);
 }

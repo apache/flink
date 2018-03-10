@@ -26,6 +26,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
@@ -295,6 +296,18 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
+	public Execution getLatestPriorExecution() {
+		synchronized (priorExecutions) {
+			final int size = priorExecutions.size();
+			if (size > 0) {
+				return priorExecutions.get(size - 1);
+			}
+			else {
+				return null;
+			}
+		}
+	}
+
 	/**
 	 * Gets the location where the latest completed/canceled/failed execution of the vertex's
 	 * task happened.
@@ -302,15 +315,13 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * @return The latest prior execution location, or null, if there is none, yet.
 	 */
 	public TaskManagerLocation getLatestPriorLocation() {
-		synchronized (priorExecutions) {
-			final int size = priorExecutions.size();
-			if (size > 0) {
-				return priorExecutions.get(size - 1).getAssignedResourceLocation();
-			}
-			else {
-				return null;
-			}
-		}
+		Execution latestPriorExecution = getLatestPriorExecution();
+		return latestPriorExecution != null ? latestPriorExecution.getAssignedResourceLocation() : null;
+	}
+
+	public AllocationID getLatestPriorAllocation() {
+		Execution latestPriorExecution = getLatestPriorExecution();
+		return latestPriorExecution != null ? latestPriorExecution.getAssignedAllocationID() : null;
 	}
 
 	EvictingBoundedList<Execution> getCopyOfPriorExecutionsList() {

@@ -31,8 +31,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -49,6 +51,127 @@ public class CompletedCheckpointTest {
 
 	@Rule
 	public final TemporaryFolder tmpFolder = new TemporaryFolder();
+
+	@Test
+	public void testCompareCheckpointsWithDifferentOrder() {
+
+		CompletedCheckpoint checkpoint1 = new CompletedCheckpoint(
+			new JobID(), 0, 0, 1,
+			new HashMap<>(),
+			Collections.emptyList(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
+			new TestCompletedCheckpointStorageLocation());
+
+		CompletedCheckpoint checkpoint2 = new CompletedCheckpoint(
+			new JobID(), 1, 0, 1,
+			new HashMap<>(),
+			Collections.emptyList(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
+			new TestCompletedCheckpointStorageLocation());
+
+		List<CompletedCheckpoint> checkpoints1= new ArrayList<>();
+		checkpoints1.add(checkpoint1);
+		checkpoints1.add(checkpoint2);
+		checkpoints1.add(checkpoint1);
+
+		List<CompletedCheckpoint> checkpoints2 = new ArrayList<>();
+		checkpoints2.add(checkpoint2);
+		checkpoints2.add(checkpoint1);
+		checkpoints2.add(checkpoint2);
+
+		assertFalse(CompletedCheckpoint.checkpointsMatch(checkpoints1, checkpoints2));
+	}
+
+	@Test
+	public void testCompareCheckpointsWithSameOrder() {
+
+		CompletedCheckpoint checkpoint1 = new CompletedCheckpoint(
+			new JobID(), 0, 0, 1,
+			new HashMap<>(),
+			Collections.emptyList(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
+			new TestCompletedCheckpointStorageLocation());
+
+		CompletedCheckpoint checkpoint2 = new CompletedCheckpoint(
+			new JobID(), 1, 0, 1,
+			new HashMap<>(),
+			Collections.emptyList(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
+			new TestCompletedCheckpointStorageLocation());
+
+		List<CompletedCheckpoint> checkpoints1= new ArrayList<>();
+		checkpoints1.add(checkpoint1);
+		checkpoints1.add(checkpoint2);
+		checkpoints1.add(checkpoint1);
+
+		List<CompletedCheckpoint> checkpoints2 = new ArrayList<>();
+		checkpoints2.add(checkpoint1);
+		checkpoints2.add(checkpoint2);
+		checkpoints2.add(checkpoint1);
+
+		assertTrue(CompletedCheckpoint.checkpointsMatch(checkpoints1, checkpoints2));
+	}
+
+	/**
+	 * Verify that both JobID and checkpoint id are taken into account when comparing.
+	 */
+	@Test
+	public void testCompareCheckpointsWithSameJobID() {
+		JobID jobID = new JobID();
+
+		CompletedCheckpoint checkpoint1 = new CompletedCheckpoint(
+			jobID, 0, 0, 1,
+			new HashMap<>(),
+			Collections.emptyList(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
+			new TestCompletedCheckpointStorageLocation());
+
+		CompletedCheckpoint checkpoint2 = new CompletedCheckpoint(
+			jobID, 1, 0, 1,
+			new HashMap<>(),
+			Collections.emptyList(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
+			new TestCompletedCheckpointStorageLocation());
+
+		List<CompletedCheckpoint> checkpoints1= new ArrayList<>();
+		checkpoints1.add(checkpoint1);
+
+		List<CompletedCheckpoint> checkpoints2 = new ArrayList<>();
+		checkpoints2.add(checkpoint2);
+
+		assertFalse(CompletedCheckpoint.checkpointsMatch(checkpoints1, checkpoints2));
+	}
+
+	/**
+	 * Verify that both JobID and checkpoint id are taken into account when comparing.
+	 */
+	@Test
+	public void testCompareCheckpointsWithSameCheckpointId() {
+		JobID jobID1 = new JobID();
+		JobID jobID2 = new JobID();
+
+		CompletedCheckpoint checkpoint1 = new CompletedCheckpoint(
+			jobID1, 0, 0, 1,
+			new HashMap<>(),
+			Collections.emptyList(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
+			new TestCompletedCheckpointStorageLocation());
+
+		CompletedCheckpoint checkpoint2 = new CompletedCheckpoint(
+			jobID2, 0, 0, 1,
+			new HashMap<>(),
+			Collections.emptyList(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
+			new TestCompletedCheckpointStorageLocation());
+
+		List<CompletedCheckpoint> checkpoints1= new ArrayList<>();
+		checkpoints1.add(checkpoint1);
+
+		List<CompletedCheckpoint> checkpoints2 = new ArrayList<>();
+		checkpoints2.add(checkpoint2);
+
+		assertFalse(CompletedCheckpoint.checkpointsMatch(checkpoints1, checkpoints2));
+	}
 
 	@Test
 	public void testRegisterStatesAtRegistry() {

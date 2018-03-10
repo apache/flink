@@ -1,6 +1,4 @@
-package ${package}
-
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,36 +16,27 @@ package ${package}
  * limitations under the License.
  */
 
+package ${package}
+
 import org.apache.flink.api.scala._
 
 /**
  * Skeleton for a Flink Batch Job.
  *
- * For a full example of a Flink Batch Job, see the WordCountJob.scala file in the
- * same package/directory or have a look at the website.
+ * For a tutorial how to write a Flink batch application, check the
+ * tutorials and examples on the <a href="http://flink.apache.org/docs/stable/">Flink Website</a>.
  *
- * You can also generate a .jar file that you can submit on your Flink
- * cluster. Just type
- * {{{
- *   mvn clean package
- * }}}
- * in the projects root directory. You will find the jar in
- * target/${artifactId}-${version}.jar
- * From the CLI you can then run
- * {{{
- *    ./bin/flink run -c ${package}.BatchJob target/${artifactId}-${version}.jar
- * }}}
- *
- * For more information on the CLI see:
- *
- * http://flink.apache.org/docs/latest/apis/cli.html
+ * To package your appliation into a JAR file for execution,
+ * change the main class in the POM.xml file to this class (simply search for 'mainClass')
+ * and run 'mvn clean package' on the command line.
  */
 object BatchJob {
+
   def main(args: Array[String]) {
     // set up the batch execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    /**
+    /*
      * Here, you can start creating your execution plan for Flink.
      *
      * Start with getting some data from the environment, like

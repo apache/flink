@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-metrics</artifactId>
-		<version>1.5-SNAPSHOT</version>
+		<version>1.6-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -60,6 +60,7 @@ under the License.
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
+						<id>shade-flink</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>

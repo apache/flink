@@ -63,8 +63,7 @@ public class TaskManagerServicesBuilder {
 		taskSlotTable = mock(TaskSlotTable.class);
 		jobManagerTable = new JobManagerTable();
 		jobLeaderService = new JobLeaderService(taskManagerLocation);
-		taskStateManager = new TaskExecutorLocalStateStoresManager();
-
+		taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
 	}
 
 	public TaskManagerServicesBuilder setTaskManagerLocation(TaskManagerLocation taskManagerLocation) {
