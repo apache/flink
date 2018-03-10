@@ -821,7 +821,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		}
 		catch (FileNotFoundException e) {
 			throw (FileNotFoundException)(new FileNotFoundException("Input split " + fileSplit.getPath() +
-					" doesn't exist, skip and continue: "  + e.getMessage())).initCause(e);
+					" doesn't exist: "  + e.getMessage())).initCause(e);
 		}
 		catch (Throwable t) {
 			throw new IOException("Error opening the Input Split " + fileSplit.getPath() + 

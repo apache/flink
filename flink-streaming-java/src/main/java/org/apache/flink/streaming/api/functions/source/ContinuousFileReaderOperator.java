@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -78,6 +79,8 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 	private transient ListState<TimestampedFileInputSplit> checkpointedState;
 	private transient List<TimestampedFileInputSplit> restoredReaderState;
+
+	private Configuration cfg = new Configuration();
 
 	public ContinuousFileReaderOperator(FileInputFormat<OUT> format) {
 		this.format = checkNotNull(format);
@@ -348,8 +351,12 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 				}
 
 			} catch (FileNotFoundException e) {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Input split " + this.currentSplit.getPath() + " doesn't exist, skip and continue");
+				if (cfg.getBoolean(CoreOptions.FILESYSTEM_INPUT_IGNORE_FILE_NOT_FOUND_EXCEPTION)) {
+					LOG.warn("Input split {} doesn't exist, since FILESYSTEM_INPUT_IGNORE_FILE_NOT_FOUND_EXCEPTION " +
+						"is true, ignore the exception and continue", this.currentSplit.getPath());
+				}
+				else{
+					getContainingTask().handleAsyncException("File Not Found: " + currentSplit, e);
 				}
 			} catch (Throwable e) {
 
