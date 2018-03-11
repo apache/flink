@@ -355,7 +355,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 					LOG.warn("Input split {} doesn't exist, since FILESYSTEM_INPUT_IGNORE_FILE_NOT_FOUND_EXCEPTION " +
 						"is true, ignore the exception and continue", this.currentSplit.getPath());
 				}
-				else{
+				else {
 					getContainingTask().handleAsyncException("File Not Found: " + currentSplit, e);
 				}
 			} catch (Throwable e) {
