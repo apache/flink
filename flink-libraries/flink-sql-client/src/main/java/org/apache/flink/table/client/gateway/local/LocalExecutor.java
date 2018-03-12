@@ -228,6 +228,7 @@ public class LocalExecutor implements Executor {
 
 		// create table here to fail quickly for wrong queries
 		final Table table = createTable(context, query);
+		final TableSchema resultSchema = table.getSchema().withoutTimeAttributes();
 
 		// deployment
 		final ClusterClient<?> clusterClient = createDeployment(mergedEnv.getDeployment());
@@ -235,7 +236,7 @@ public class LocalExecutor implements Executor {
 		// initialize result
 		final DynamicResult result = resultStore.createResult(
 			mergedEnv,
-			table.getSchema(),
+			resultSchema,
 			context.getExecutionConfig());
 
 		// create job graph with jars
@@ -275,7 +276,7 @@ public class LocalExecutor implements Executor {
 		// start result retrieval
 		result.startRetrieval(program);
 
-		return new ResultDescriptor(resultId, table.getSchema(), result.isMaterialized());
+		return new ResultDescriptor(resultId, resultSchema, result.isMaterialized());
 	}
 
 	@Override

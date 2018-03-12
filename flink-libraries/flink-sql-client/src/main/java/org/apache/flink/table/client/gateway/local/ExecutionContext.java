@@ -149,6 +149,7 @@ public class ExecutionContext {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(mergedEnv.getExecution().getParallelism());
 		env.setMaxParallelism(mergedEnv.getExecution().getMaxParallelism());
+		env.setStreamTimeCharacteristic(mergedEnv.getExecution().getTimeCharacteristic());
 		return env;
 	}
 
