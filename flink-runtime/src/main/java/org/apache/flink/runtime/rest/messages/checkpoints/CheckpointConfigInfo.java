@@ -24,7 +24,12 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
+import java.io.IOException;
 import java.util.Objects;
 
 /**
@@ -145,8 +150,36 @@ public class CheckpointConfigInfo implements ResponseBody {
 	/**
 	 * Processing mode.
 	 */
+	@JsonSerialize(using = ProcessingModeSerializer.class)
 	public enum ProcessingMode {
-		AT_LEAST_ONCE,
-		EXACTLY_ONCE
+		AT_LEAST_ONCE("at_least_once"),
+		EXACTLY_ONCE("exactly_once");
+
+		private String value;
+
+		ProcessingMode(String value) {
+			this.value = value;
+		}
+
+		public String getValue() {
+			return value;
+		}
+	}
+
+	/**
+	 * processing mode serializer.
+	 */
+	public static class ProcessingModeSerializer extends StdSerializer<ProcessingMode> {
+
+		public ProcessingModeSerializer() {
+			super(ProcessingMode.class);
+		}
+
+		@Override
+		public void serialize(ProcessingMode mode, JsonGenerator generator, SerializerProvider serializerProvider)
+			throws IOException {
+			generator.writeFieldName("mode");
+			generator.writeString(mode.getValue());
+		}
 	}
 }
