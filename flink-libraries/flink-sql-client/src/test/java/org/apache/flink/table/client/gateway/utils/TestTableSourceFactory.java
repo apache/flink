@@ -25,6 +25,10 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.gateway.local.DependencyTest;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.SchemaValidator;
+import org.apache.flink.table.sources.DefinedProctimeAttribute;
+import org.apache.flink.table.sources.DefinedRowtimeAttributes;
+import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceFactory;
@@ -34,8 +38,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
+import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_TYPE;
+import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_TYPE;
 import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA;
 import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
@@ -58,6 +65,8 @@ public class TestTableSourceFactory implements TableSourceFactory<Row> {
 		properties.add("connector.test-property");
 		properties.add(SCHEMA() + ".#." + SCHEMA_TYPE());
 		properties.add(SCHEMA() + ".#." + SCHEMA_NAME());
+		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_TYPE());
+		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_TYPE());
 		return properties;
 	}
 
@@ -65,9 +74,13 @@ public class TestTableSourceFactory implements TableSourceFactory<Row> {
 	public TableSource<Row> create(Map<String, String> properties) {
 		final DescriptorProperties params = new DescriptorProperties(true);
 		params.putProperties(properties);
+		final Optional<String> proctime = SchemaValidator.deriveProctimeAttribute(params);
+		final List<RowtimeAttributeDescriptor> rowtime = SchemaValidator.deriveRowtimeAttributes(params);
 		return new TestTableSource(
 			params.getTableSchema(SCHEMA()),
-			properties.get("connector.test-property"));
+			properties.get("connector.test-property"),
+			proctime.orElse(null),
+			rowtime);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -75,14 +88,18 @@ public class TestTableSourceFactory implements TableSourceFactory<Row> {
 	/**
 	 * Test table source.
 	 */
-	public static class TestTableSource implements StreamTableSource<Row> {
+	public static class TestTableSource implements StreamTableSource<Row>, DefinedRowtimeAttributes, DefinedProctimeAttribute {
 
 		private final TableSchema schema;
 		private final String property;
+		private final String proctime;
+		private final List<RowtimeAttributeDescriptor> rowtime;
 
-		public TestTableSource(TableSchema schema, String property) {
+		public TestTableSource(TableSchema schema, String property, String proctime, List<RowtimeAttributeDescriptor> rowtime) {
 			this.schema = schema;
 			this.property = property;
+			this.proctime = proctime;
+			this.rowtime = rowtime;
 		}
 
 		public String getProperty() {
@@ -107,6 +124,16 @@ public class TestTableSourceFactory implements TableSourceFactory<Row> {
 		@Override
 		public String explainSource() {
 			return "TestTableSource";
+		}
+
+		@Override
+		public List<RowtimeAttributeDescriptor> getRowtimeAttributeDescriptors() {
+			return rowtime;
+		}
+
+		@Override
+		public String getProctimeAttribute() {
+			return proctime;
 		}
 	}
 }

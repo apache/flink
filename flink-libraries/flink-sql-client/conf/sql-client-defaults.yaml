@@ -41,12 +41,20 @@ sources: [] # empty list
 # Execution properties allow for changing the behavior of a table program.
 
 execution:
-  type: streaming              # 'batch' or 'streaming' execution
-  result-mode: changelog       # 'changelog' or 'table' presentation of results
-  parallelism: 1               # parallelism of the program
-  max-parallelism: 128         # maximum parallelism
-  min-idle-state-retention: 0  # minimum idle state retention in ms
-  max-idle-state-retention: 0  # maximum idle state retention in ms
+  # 'batch' or 'streaming' execution
+  type: streaming
+  # allow 'event-time' or only 'processing-time' in sources
+  time-characteristic: event-time
+  # 'changelog' or 'table' presentation of results
+  result-mode: changelog
+  # parallelism of the program
+  parallelism: 1
+  # maximum parallelism
+  max-parallelism: 128
+  # minimum idle state retention in ms
+  min-idle-state-retention: 0
+  # maximum idle state retention in ms
+  max-idle-state-retention: 0
 
 #==============================================================================
 # Deployment properties
@@ -56,9 +64,13 @@ execution:
 # programs are submitted to.
 
 deployment:
-  type: standalone             # only the 'standalone' deployment is supported
-  response-timeout: 5000       # general cluster communication timeout in ms
-  gateway-address: ""          # (optional) address from cluster to gateway
-  gateway-port: 0              # (optional) port from cluster to gateway
+  # only the 'standalone' deployment is supported
+  type: standalone
+  # general cluster communication timeout in ms
+  response-timeout: 5000
+  # (optional) address from cluster to gateway
+  gateway-address: ""
+  # (optional) port from cluster to gateway
+  gateway-port: 0
 
 

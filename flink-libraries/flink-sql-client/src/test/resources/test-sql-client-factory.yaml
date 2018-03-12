@@ -30,6 +30,13 @@ sources:
         type: INT
       - name: StringField1
         type: VARCHAR
+      - name: rowtimeField
+        type: TIMESTAMP
+        rowtime:
+          timestamps:
+            type: from-source
+          watermarks:
+            type: from-source
     connector:
       type: "$VAR_0"
       $VAR_1: "$VAR_2"

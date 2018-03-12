@@ -23,12 +23,16 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import _root_.scala.collection.mutable.ArrayBuffer
 import _root_.java.util.Objects
 
+import org.apache.flink.table.calcite.FlinkTypeFactory
+
 /**
   * A TableSchema represents a Table's structure.
   */
 class TableSchema(
   private val columnNames: Array[String],
   private val columnTypes: Array[TypeInformation[_]]) {
+
+  private val columnNameToIndex: Map[String, Int] = columnNames.zipWithIndex.toMap
 
   if (columnNames.length != columnTypes.length) {
     throw new TableException(
@@ -51,8 +55,6 @@ class TableSchema(
         s"List of duplicate fields: ${duplicateFields.mkString("[", ", ", "]")}.\n" +
         s"List of all fields: ${columnNames.mkString("[", ", ", "]")}.")
   }
-
-  val columnNameToIndex: Map[String, Int] = columnNames.zipWithIndex.toMap
 
   /**
     * Returns a deep copy of the TableSchema.
@@ -113,6 +115,24 @@ class TableSchema(
     } else {
       Some(columnNames(columnIndex))
     }
+  }
+
+  /**
+    * Converts a table schema into a schema that represents the result that would be written
+    * into a table sink or operator outside of the Table & SQL API. Time attributes are replaced
+    * by proper TIMESTAMP data types.
+    *
+    * @return a table schema with no time attributes
+    */
+  def withoutTimeAttributes: TableSchema = {
+    val converted = columnTypes.map { t =>
+      if (FlinkTypeFactory.isTimeIndicatorType(t)) {
+        Types.SQL_TIMESTAMP
+      } else {
+        t
+      }
+    }
+    new TableSchema(columnNames, converted)
   }
 
   override def toString: String = {
