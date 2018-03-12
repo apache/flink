@@ -86,11 +86,13 @@ public class MaterializedCollectStreamResult extends CollectStreamResult impleme
 
 	@Override
 	public List<Row> retrievePage(int page) {
-		if (page <= 0 || page > pageCount) {
-			throw new SqlExecutionException("Invalid page '" + page + "'.");
-		}
+		synchronized (resultLock) {
+			if (page <= 0 || page > pageCount) {
+				throw new SqlExecutionException("Invalid page '" + page + "'.");
+			}
 
-		return snapshot.subList(pageSize * (page - 1), Math.min(snapshot.size(), pageSize * page));
+			return snapshot.subList(pageSize * (page - 1), Math.min(snapshot.size(), pageSize * page));
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
