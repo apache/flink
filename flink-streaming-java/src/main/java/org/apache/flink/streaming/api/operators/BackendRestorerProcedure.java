@@ -125,6 +125,10 @@ public class BackendRestorerProcedure<
 
 				LOG.warn("Exception while restoring {} from alternative ({}/{}), will retry while more " +
 					"alternatives are available.", logDescription, alternativeIdx, restoreOptions.size(), ex);
+
+				if (backendCloseableRegistry.isClosed()) {
+					throw new FlinkException("Stopping restore attempts for already cancelled task.", collectedException);
+				}
 			}
 		}
 
