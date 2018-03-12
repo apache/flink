@@ -152,34 +152,13 @@ public class CheckpointConfigInfo implements ResponseBody {
 	}
 
 	/**
-	 * JSON serializer for {@link ProcessingMode}.
+	 * Processing mode.
 	 */
 	@JsonSerialize(using = ProcessingModeSerializer.class)
 	@JsonDeserialize(using = ProcessingModeDeserializer.class)
 	public enum ProcessingMode {
-		AT_LEAST_ONCE("at_least_once"),
-		EXACTLY_ONCE("exactly_once");
-
-		private String value;
-
-		ProcessingMode(String value) {
-			this.value = value;
-		}
-
-		public String getValue() {
-			return value;
-		}
-
-		public static ProcessingMode fromString(String value) {
-			for (ProcessingMode mode : ProcessingMode.values()) {
-				if (mode.value.equalsIgnoreCase(value)) {
-					return mode;
-				}
-			}
-
-			throw new IllegalArgumentException("No constant with value " + value + " found");
-		}
-
+		AT_LEAST_ONCE,
+		EXACTLY_ONCE
 	}
 
 	/**
@@ -194,7 +173,7 @@ public class CheckpointConfigInfo implements ResponseBody {
 		@Override
 		public void serialize(ProcessingMode mode, JsonGenerator generator, SerializerProvider serializerProvider)
 			throws IOException {
-			generator.writeString(mode.getValue());
+			generator.writeString(mode.name().toLowerCase());
 		}
 	}
 
@@ -210,7 +189,7 @@ public class CheckpointConfigInfo implements ResponseBody {
 		@Override
 		public ProcessingMode deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
 			throws IOException {
-			return ProcessingMode.fromString(jsonParser.getValueAsString());
+			return ProcessingMode.valueOf(jsonParser.getValueAsString().toUpperCase());
 		}
 	}
 
