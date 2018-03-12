@@ -25,8 +25,12 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 import java.io.IOException;
@@ -148,9 +152,10 @@ public class CheckpointConfigInfo implements ResponseBody {
 	}
 
 	/**
-	 * Processing mode.
+	 * JSON serializer for {@link ProcessingMode}.
 	 */
 	@JsonSerialize(using = ProcessingModeSerializer.class)
+	@JsonDeserialize(using = ProcessingModeDeserializer.class)
 	public enum ProcessingMode {
 		AT_LEAST_ONCE("at_least_once"),
 		EXACTLY_ONCE("exactly_once");
@@ -164,10 +169,21 @@ public class CheckpointConfigInfo implements ResponseBody {
 		public String getValue() {
 			return value;
 		}
+
+		public static ProcessingMode fromString(String value) {
+			for (ProcessingMode mode : ProcessingMode.values()) {
+				if (mode.value.equalsIgnoreCase(value)) {
+					return mode;
+				}
+			}
+
+			throw new IllegalArgumentException("No constant with value " + value + " found");
+		}
+
 	}
 
 	/**
-	 * processing mode serializer.
+	 * JSON deserializer for {@link ProcessingMode}.
 	 */
 	public static class ProcessingModeSerializer extends StdSerializer<ProcessingMode> {
 
@@ -178,8 +194,24 @@ public class CheckpointConfigInfo implements ResponseBody {
 		@Override
 		public void serialize(ProcessingMode mode, JsonGenerator generator, SerializerProvider serializerProvider)
 			throws IOException {
-			generator.writeFieldName("mode");
 			generator.writeString(mode.getValue());
 		}
 	}
+
+	/**
+	 * Processing mode deserializer.
+	 */
+	public static class ProcessingModeDeserializer extends StdDeserializer<ProcessingMode> {
+
+		public ProcessingModeDeserializer() {
+			super(ProcessingMode.class);
+		}
+
+		@Override
+		public ProcessingMode deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
+			throws IOException {
+			return ProcessingMode.fromString(jsonParser.getValueAsString());
+		}
+	}
+
 }
