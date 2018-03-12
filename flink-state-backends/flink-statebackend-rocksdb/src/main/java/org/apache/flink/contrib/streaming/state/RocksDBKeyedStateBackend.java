@@ -2318,8 +2318,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 
 			// create hard links of living files in the snapshot path
-			Checkpoint checkpoint = Checkpoint.create(stateBackend.db);
-			checkpoint.createCheckpoint(localBackupDirectory.getDirectory().getPath());
+			try (Checkpoint checkpoint = Checkpoint.create(stateBackend.db)) {
+				checkpoint.createCheckpoint(localBackupDirectory.getDirectory().getPath());
+			}
 		}
 
 		@Nonnull
