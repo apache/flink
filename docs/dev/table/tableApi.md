@@ -2030,6 +2030,17 @@ NUMERIC.log10()
         <p>Calculates the base 10 logarithm of given value.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.log()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the logarithm of given value and given base.</p>
+      </td>
+    </tr>
 
     <tr>
       <td>
