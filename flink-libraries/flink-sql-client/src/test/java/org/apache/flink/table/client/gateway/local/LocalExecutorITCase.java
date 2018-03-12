@@ -101,6 +101,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 		final Map<String, String> expectedProperties = new HashMap<>();
 		expectedProperties.put("execution.type", "streaming");
+		expectedProperties.put("execution.time-characteristic", "event-time");
 		expectedProperties.put("execution.parallelism", "1");
 		expectedProperties.put("execution.max-parallelism", "16");
 		expectedProperties.put("execution.max-idle-state-retention", "0");
