@@ -25,6 +25,7 @@ import org.apache.flink.runtime.jobmaster.KvStateLocationOracle;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -51,6 +52,11 @@ public class KvStateClientProxyImplTest extends TestLogger {
 			1,
 			1,
 			new DisabledKvStateRequestStats());
+	}
+
+	@After
+	public void shutdown() {
+		kvStateClientProxy.shutdown();
 	}
 
 	/**
