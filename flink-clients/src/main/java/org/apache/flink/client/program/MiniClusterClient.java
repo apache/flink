@@ -38,6 +38,7 @@ import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nonnull;
@@ -197,7 +198,10 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 			operation,
 			1,
 			Time.milliseconds(500),
-			throwable -> throwable instanceof FencingTokenException || throwable instanceof AkkaRpcException,
+			throwable -> {
+				Throwable actualException = ExceptionUtils.stripCompletionException(throwable);
+				return actualException instanceof FencingTokenException || actualException instanceof AkkaRpcException;
+			},
 			executor);
 	}
 }
