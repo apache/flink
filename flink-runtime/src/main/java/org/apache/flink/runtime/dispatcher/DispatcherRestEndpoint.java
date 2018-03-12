@@ -44,7 +44,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -92,7 +91,6 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 		// Add the Dispatcher specific handlers
 
 		final Time timeout = restConfiguration.getTimeout();
-		final Map<String, String> responseHeaders = restConfiguration.getResponseHeaders();
 
 		BlobServerPortHandler blobServerPortHandler = new BlobServerPortHandler(
 			restAddressFuture,

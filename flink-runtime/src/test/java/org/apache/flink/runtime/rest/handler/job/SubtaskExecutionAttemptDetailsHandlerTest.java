@@ -129,7 +129,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			CompletableFuture.completedFuture("127.0.0.1:9527"),
 			() -> null,
 			Time.milliseconds(100L),
-			restHandlerConfiguration.getResponseHeaders(),
+			Collections.emptyMap(),
 			SubtaskExecutionAttemptDetailsHeaders.getInstance(),
 			new ExecutionGraphCache(
 				restHandlerConfiguration.getTimeout(),

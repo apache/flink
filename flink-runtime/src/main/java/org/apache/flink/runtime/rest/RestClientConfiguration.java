@@ -29,6 +29,8 @@ import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * A configuration object for {@link RestClient}s.
  */
@@ -45,6 +47,7 @@ public final class RestClientConfiguration {
 			@Nullable final SSLEngine sslEngine,
 			final long connectionTimeout,
 			final int maxContentLength) {
+		checkArgument(maxContentLength > 0, "maxContentLength must be positive, was: %d", maxContentLength);
 		this.sslEngine = sslEngine;
 		this.connectionTimeout = connectionTimeout;
 		this.maxContentLength = maxContentLength;
@@ -104,10 +107,7 @@ public final class RestClientConfiguration {
 
 		final long connectionTimeout = config.getLong(RestOptions.CONNECTION_TIMEOUT);
 
-		int maxContentLength = config.getInteger(RestOptions.REST_CLIENT_CONTENT_MAX_MB) * 1024 * 1024;
-		if (maxContentLength <= 0) {
-			throw new ConfigurationException("Max content length for client must be a positive integer: " + maxContentLength);
-		}
+		int maxContentLength = config.getInteger(RestOptions.REST_CLIENT_MAX_CONTENT_LENGTH);
 
 		return new RestClientConfiguration(sslEngine, connectionTimeout, maxContentLength);
 	}

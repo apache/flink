@@ -37,7 +37,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObjectAggregator;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Handler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
@@ -59,6 +58,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -78,6 +78,7 @@ public abstract class RestServerEndpoint {
 	private final SSLEngine sslEngine;
 	private final Path uploadDir;
 	private final int maxContentLength;
+	protected final Map<String, String> responseHeaders;
 
 	private final CompletableFuture<Void> terminationFuture;
 
@@ -97,6 +98,7 @@ public abstract class RestServerEndpoint {
 		createUploadDir(uploadDir, log);
 
 		this.maxContentLength = configuration.getMaxContentLength();
+		this.responseHeaders = configuration.getResponseHeaders();
 
 		terminationFuture = new CompletableFuture<>();
 
@@ -148,7 +150,7 @@ public abstract class RestServerEndpoint {
 
 				@Override
 				protected void initChannel(SocketChannel ch) {
-					Handler handler = new RouterHandler(router);
+					Handler handler = new RouterHandler(router, responseHeaders);
 
 					// SSL should be the first handler in the pipeline
 					if (sslEngine != null) {
@@ -158,9 +160,9 @@ public abstract class RestServerEndpoint {
 					ch.pipeline()
 						.addLast(new HttpServerCodec())
 						.addLast(new FileUploadHandler(uploadDir))
-						.addLast(new HttpObjectAggregator(maxContentLength))
+						.addLast(new FlinkHttpObjectAggregator(maxContentLength, responseHeaders))
 						.addLast(handler.name(), handler)
-						.addLast(new PipelineErrorHandler(log));
+						.addLast(new PipelineErrorHandler(log, responseHeaders));
 				}
 			};
 
