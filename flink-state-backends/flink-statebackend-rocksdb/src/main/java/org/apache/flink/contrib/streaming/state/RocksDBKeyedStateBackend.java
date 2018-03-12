@@ -680,7 +680,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							if (RocksDBFullSnapshotOperation.hasMetaDataFollowsFlag(key)) {
 								//clear the signal bit in the key to make it ready for insertion again
 								RocksDBFullSnapshotOperation.clearMetaDataFollowsFlag(key);
-								rocksDBKeyedStateBackend.db.put(handle, rocksDBKeyedStateBackend.writeOptions, key, value);
+								rocksDBKeyedStateBackend.db.put(handle, key, value);
 								//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
 								kvStateId = RocksDBFullSnapshotOperation.END_OF_KEY_GROUP_MARK
 									& compressedKgInputView.readShort();
@@ -690,7 +690,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 									handle = currentStateHandleKVStateColumnFamilies.get(kvStateId);
 								}
 							} else {
-								rocksDBKeyedStateBackend.db.put(handle, rocksDBKeyedStateBackend.writeOptions, key, value);
+								rocksDBKeyedStateBackend.db.put(handle, key, value);
 							}
 						}
 					}
@@ -1091,7 +1091,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 								if (stateBackend.keyGroupRange.contains(keyGroup)) {
 									stateBackend.db.put(targetColumnFamilyHandle,
-										stateBackend.writeOptions,
 										iterator.key(), iterator.value());
 								}
 

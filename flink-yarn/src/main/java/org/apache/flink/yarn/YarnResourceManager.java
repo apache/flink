@@ -438,7 +438,10 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		resourceManagerClient.setHeartbeatInterval(FAST_YARN_HEARTBEAT_INTERVAL_MS);
 
 		numPendingContainerRequests++;
-		log.info("Requesting new TaskManager container pending requests: {}", numPendingContainerRequests);
+
+		log.info("Requesting new TaskExecutor container with resources {}. Number pending requests {}.",
+			resource,
+			numPendingContainerRequests);
 	}
 
 	private ContainerLaunchContext createTaskExecutorLaunchContext(Resource resource, String containerId, String host)

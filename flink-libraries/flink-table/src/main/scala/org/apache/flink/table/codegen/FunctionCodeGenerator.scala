@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
+import org.apache.flink.util.Collector
 
 /**
   * A code generator for generating Flink [[org.apache.flink.api.common.functions.Function]]s.
@@ -85,22 +86,23 @@ class FunctionCodeGenerator(
     * @return instance of GeneratedFunction
     */
   def generateFunction[F <: Function, T <: Any](
-    name: String,
-    clazz: Class[F],
-    bodyCode: String,
-    returnType: TypeInformation[T])
-  : GeneratedFunction[F, T] = {
+      name: String,
+      clazz: Class[F],
+      bodyCode: String,
+      returnType: TypeInformation[T])
+    : GeneratedFunction[F, T] = {
     val funcName = newName(name)
+    val collectorTypeTerm = classOf[Collector[Any]].getCanonicalName
 
     // Janino does not support generics, that's why we need
     // manual casting here
-    val samHeader =
+    val (functionClass, signature, inputStatements) =
     // FlatMapFunction
     if (clazz == classOf[FlatMapFunction[_, _]]) {
       val baseClass = classOf[RichFlatMapFunction[_, _]]
       val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
       (baseClass,
-        s"void flatMap(Object _in1, org.apache.flink.util.Collector $collectorTerm)",
+        s"void flatMap(Object _in1, $collectorTypeTerm $collectorTerm)",
         List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
     }
 
@@ -120,7 +122,7 @@ class FunctionCodeGenerator(
       val inputTypeTerm2 = boxedTypeTermForTypeInfo(input2.getOrElse(
         throw new CodeGenException("Input 2 for FlatJoinFunction should not be null")))
       (baseClass,
-        s"void join(Object _in1, Object _in2, org.apache.flink.util.Collector $collectorTerm)",
+        s"void join(Object _in1, Object _in2, $collectorTypeTerm $collectorTerm)",
         List(s"$inputTypeTerm1 $input1Term = ($inputTypeTerm1) _in1;",
              s"$inputTypeTerm2 $input2Term = ($inputTypeTerm2) _in2;"))
     }
@@ -141,11 +143,22 @@ class FunctionCodeGenerator(
     else if (clazz == classOf[ProcessFunction[_, _]]) {
       val baseClass = classOf[ProcessFunction[_, _]]
       val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
+      val contextTypeTerm = classOf[ProcessFunction[Any, Any]#Context].getCanonicalName
+
+      // make context accessible also for split code
+      val globalContext = if (hasCodeSplits) {
+        // declaration
+        reusableMemberStatements.add(s"private $contextTypeTerm $contextTerm;")
+        // assignment
+        List(s"this.$contextTerm = $contextTerm;")
+      } else {
+        Nil
+      }
+
       (baseClass,
-        s"void processElement(Object _in1, " +
-          s"org.apache.flink.streaming.api.functions.ProcessFunction.Context $contextTerm," +
-          s"org.apache.flink.util.Collector $collectorTerm)",
-        List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
+        s"void processElement(Object _in1, $contextTypeTerm $contextTerm, " +
+          s"$collectorTypeTerm $collectorTerm)",
+        List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;") ++ globalContext)
     }
     else {
       // TODO more functions
@@ -153,36 +166,35 @@ class FunctionCodeGenerator(
     }
 
     val funcCode = j"""
-      public class $funcName
-          extends ${samHeader._1.getCanonicalName} {
-
-        ${reuseMemberCode()}
-
-        public $funcName() throws Exception {
-          ${reuseInitCode()}
-        }
-
-        ${reuseConstructorCode(funcName)}
-
-        @Override
-        public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
-          ${reuseOpenCode()}
-        }
-
-        @Override
-        public ${samHeader._2} throws Exception {
-          ${samHeader._3.mkString("\n")}
-          ${reusePerRecordCode()}
-          ${reuseInputUnboxingCode()}
-          $bodyCode
-        }
-
-        @Override
-        public void close() throws Exception {
-          ${reuseCloseCode()}
-        }
-      }
-    """.stripMargin
+      |public class $funcName extends ${functionClass.getCanonicalName} {
+      |
+      |  ${reuseMemberCode()}
+      |
+      |  public $funcName() throws Exception {
+      |    ${reuseInitCode()}
+      |  }
+      |
+      |  ${reuseConstructorCode(funcName)}
+      |
+      |  @Override
+      |  public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
+      |    ${reuseOpenCode()}
+      |  }
+      |
+      |  @Override
+      |  public $signature throws Exception {
+      |    ${inputStatements.mkString("\n")}
+      |    ${reuseInputUnboxingCode()}
+      |    ${reusePerRecordCode()}
+      |    $bodyCode
+      |  }
+      |
+      |  @Override
+      |  public void close() throws Exception {
+      |    ${reuseCloseCode()}
+      |  }
+      |}
+      |""".stripMargin
 
     GeneratedFunction(funcName, returnType, funcCode)
   }
