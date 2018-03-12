@@ -42,6 +42,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicReference;
 
 import scala.collection.Seq;
 
@@ -85,6 +86,7 @@ public class JobRetrievalITCase extends TestLogger {
 		// has been attached in resumingThread
 		lock.acquire();
 		client.runDetached(jobGraph, JobRetrievalITCase.class.getClassLoader());
+		final AtomicReference<Throwable> error = new AtomicReference<>();
 
 		final Thread resumingThread = new Thread(new Runnable() {
 			@Override
@@ -92,7 +94,7 @@ public class JobRetrievalITCase extends TestLogger {
 				try {
 					assertNotNull(client.retrieveJob(jobID));
 				} catch (Throwable e) {
-					fail(e.getMessage());
+					error.set(e);
 				}
 			}
 		});
@@ -115,10 +117,15 @@ public class JobRetrievalITCase extends TestLogger {
 			TestingJobManagerMessages.getClientConnected(),
 			TestingJobManagerMessages.getClassLoadingPropsDelivered());
 
+		resumingThread.join();
+
 		// client has connected, we can release the lock
 		lock.release();
 
-		resumingThread.join();
+		Throwable exception = error.get();
+		if (exception != null) {
+			throw new AssertionError(exception);
+		}
 	}
 
 	@Test
