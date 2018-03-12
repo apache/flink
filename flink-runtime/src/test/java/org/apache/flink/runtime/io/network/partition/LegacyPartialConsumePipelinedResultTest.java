@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -31,51 +32,41 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
-@Category(Flip6.class)
-public class PartialConsumePipelinedResultTest extends TestLogger {
+public class LegacyPartialConsumePipelinedResultTest extends TestLogger {
 
 	// Test configuration
-	private static final int NUMBER_OF_TMS = 1;
-	private static final int NUMBER_OF_SLOTS_PER_TM = 1;
-	private static final int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
+	private final static int NUMBER_OF_TMS = 1;
+	private final static int NUMBER_OF_SLOTS_PER_TM = 1;
+	private final static int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
 
-	private static final int NUMBER_OF_NETWORK_BUFFERS = 128;
+	private final static int NUMBER_OF_NETWORK_BUFFERS = 128;
 
-	private static MiniCluster flink;
+	private static TestingCluster flink;
 
 	@BeforeClass
 	public static void setUp() throws Exception {
 		final Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUMBER_OF_TMS);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUMBER_OF_SLOTS_PER_TM);
 		config.setString(AkkaOptions.ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
 		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, NUMBER_OF_NETWORK_BUFFERS);
 
-		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
-			.setConfiguration(config)
-			.setNumTaskManagers(NUMBER_OF_TMS)
-			.setNumSlotsPerTaskManager(NUMBER_OF_SLOTS_PER_TM)
-			.build();
-
-		flink = new MiniCluster(miniClusterConfiguration);
+		flink = new TestingCluster(config, true);
 
 		flink.start();
 	}
 
 	@AfterClass
 	public static void tearDown() throws Exception {
-		if (flink != null) {
-			flink.close();
-		}
+		flink.stop();
 	}
 
 	/**
@@ -111,7 +102,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 		sender.setSlotSharingGroup(slotSharingGroup);
 		receiver.setSlotSharingGroup(slotSharingGroup);
 
-		flink.executeJobBlocking(jobGraph);
+		flink.submitJobAndWait(jobGraph, false, TestingUtils.TESTING_DURATION());
 	}
 
 	// ---------------------------------------------------------------------------------------------
