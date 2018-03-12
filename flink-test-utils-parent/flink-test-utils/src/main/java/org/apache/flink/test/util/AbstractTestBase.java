@@ -56,7 +56,6 @@ import java.io.IOException;
  *
  * </pre>
  */
-@Category(OldAndFlip6.class)
 public abstract class AbstractTestBase extends TestBaseUtils {
 
 	private static final int DEFAULT_PARALLELISM = 4;
