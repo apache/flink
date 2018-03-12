@@ -61,6 +61,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.TestingResourceManager;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
@@ -70,6 +71,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
@@ -95,6 +97,7 @@ import static org.mockito.Mockito.verify;
 /**
  * General tests for the resource manager component.
  */
+@Category(Old.class)
 public class ResourceManagerTest extends TestLogger {
 
 	private static ActorSystem system;

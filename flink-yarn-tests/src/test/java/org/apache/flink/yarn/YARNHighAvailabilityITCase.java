@@ -34,6 +34,7 @@ import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.testutils.category.Old;
 
 import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
@@ -47,6 +48,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -60,6 +62,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Tests that verify correct HA behavior.
  */
+@Category(Old.class)
 public class YARNHighAvailabilityITCase extends YarnTestBase {
 
 	private static TestingServer zkServer;

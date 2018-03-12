@@ -34,10 +34,12 @@ import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -49,6 +51,7 @@ import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertTrue;
 
+@Category(Old.class)
 public class LeaderChangeJobRecoveryTest extends TestLogger {
 
 	private static FiniteDuration timeout = FiniteDuration.apply(30, TimeUnit.SECONDS);

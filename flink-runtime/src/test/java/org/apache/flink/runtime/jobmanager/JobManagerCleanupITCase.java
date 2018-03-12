@@ -40,12 +40,14 @@ import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.FailingBlockingInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -70,6 +72,7 @@ import static org.junit.Assert.fail;
  * Small test to check that the {@link org.apache.flink.runtime.blob.BlobServer} cleanup is executed
  * after job termination.
  */
+@Category(Old.class)
 public class JobManagerCleanupITCase extends TestLogger {
 
 	@Rule

@@ -29,10 +29,12 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.IOUtils;
 import org.junit.Rule;
 import org.junit.Test;
 
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import scala.Tuple2;
 
@@ -55,6 +57,7 @@ import static org.junit.Assert.*;
  * and verifies its content.
  */
 @NotThreadSafe
+@Category(Old.class)
 public class TaskManagerConfigurationTest {
 
 	@Rule

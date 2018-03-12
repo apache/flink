@@ -27,11 +27,13 @@ import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -47,6 +49,7 @@ import static org.junit.Assert.fail;
 /**
  * Integration tests for {@link LocalFlinkMiniCluster}.
  */
+@Category(Old.class)
 public class LocalFlinkMiniClusterITCase extends TestLogger {
 
 	private static final String[] ALLOWED_THREAD_PREFIXES = {

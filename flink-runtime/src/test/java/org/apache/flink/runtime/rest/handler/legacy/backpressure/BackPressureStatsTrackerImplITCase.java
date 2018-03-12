@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
@@ -50,6 +51,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -67,6 +69,7 @@ import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.Wa
 /**
  * Simple back pressured task test.
  */
+@Category(Old.class)
 public class BackPressureStatsTrackerImplITCase extends TestLogger {
 
 	private static NetworkBufferPool networkBufferPool;

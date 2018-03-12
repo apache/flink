@@ -47,6 +47,7 @@ import org.apache.flink.runtime.testutils.JobManagerActorTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
@@ -61,6 +62,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -85,6 +87,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests recovery of {@link SubmittedJobGraph} instances.
  */
+@Category(Old.class)
 public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 
 	private static final ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);

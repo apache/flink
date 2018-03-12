@@ -27,13 +27,18 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProviderException;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.category.Old;
+
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
+
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.junit.Assert.*;
 
 import java.util.concurrent.TimeUnit;
 
+@Category(Old.class)
 public class TaskInputSplitProviderTest {
 
 	@Test

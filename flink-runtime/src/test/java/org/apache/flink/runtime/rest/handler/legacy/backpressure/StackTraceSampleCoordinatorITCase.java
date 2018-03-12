@@ -36,6 +36,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
@@ -44,6 +45,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -60,6 +62,7 @@ import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.Wa
 /**
  * Simple stack trace sampling test.
  */
+@Category(Old.class)
 public class StackTraceSampleCoordinatorITCase extends TestLogger {
 
 	private static ActorSystem testActorSystem;

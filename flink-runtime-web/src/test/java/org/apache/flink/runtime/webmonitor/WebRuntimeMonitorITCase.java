@@ -39,6 +39,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaJobManagerRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -48,6 +49,7 @@ import akka.actor.ActorSystem;
 import org.apache.curator.test.TestingServer;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -74,6 +76,7 @@ import static org.mockito.Mockito.mock;
 /**
  * Tests for the WebRuntimeMonitor.
  */
+@Category(Old.class)
 public class WebRuntimeMonitorITCase extends TestLogger {
 
 	@Rule

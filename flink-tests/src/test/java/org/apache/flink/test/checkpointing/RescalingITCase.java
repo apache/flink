@@ -50,6 +50,7 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -57,6 +58,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -86,6 +88,7 @@ import static org.junit.Assert.fail;
  * Test savepoint rescaling.
  */
 @RunWith(Parameterized.class)
+@Category(Old.class) // TODO: FLINK-8956
 public class RescalingITCase extends TestLogger {
 
 	private static final int numTaskManagers = 2;

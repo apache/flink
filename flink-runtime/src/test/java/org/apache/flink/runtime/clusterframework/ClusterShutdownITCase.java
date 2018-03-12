@@ -32,6 +32,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testingUtils.TestingMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.TestingResourceManager;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -39,6 +40,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import scala.Option;
 
@@ -47,6 +49,7 @@ import java.util.Arrays;
 /**
  * Runs tests to ensure that a cluster is shutdown properly.
  */
+@Category(Old.class)
 public class ClusterShutdownITCase extends TestLogger {
 
 	private static ActorSystem system;

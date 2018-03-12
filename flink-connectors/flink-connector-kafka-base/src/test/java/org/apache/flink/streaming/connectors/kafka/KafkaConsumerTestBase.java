@@ -69,6 +69,7 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.TypeInformationKeyValueSerializationSchema;
 import org.apache.flink.test.util.SuccessException;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.testutils.junit.RetryOnException;
 import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.Collector;
@@ -86,6 +87,7 @@ import org.apache.kafka.common.errors.TimeoutException;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
+import org.junit.experimental.categories.Category;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
@@ -118,6 +120,7 @@ import static org.junit.Assert.fail;
  * Abstract test base for all Kafka consumer tests.
  */
 @SuppressWarnings("serial")
+@Category(Old.class)
 public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 	@Rule

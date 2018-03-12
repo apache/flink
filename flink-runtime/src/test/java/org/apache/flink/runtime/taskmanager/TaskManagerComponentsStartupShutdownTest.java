@@ -50,6 +50,7 @@ import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
@@ -58,6 +59,7 @@ import akka.actor.Kill;
 import akka.actor.Props;
 import akka.testkit.JavaTestKit;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.net.InetAddress;
 import java.util.concurrent.TimeUnit;
@@ -67,6 +69,7 @@ import scala.concurrent.duration.FiniteDuration;
 
 import static org.junit.Assert.assertTrue;
 
+@Category(Old.class)
 public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 
 	/**

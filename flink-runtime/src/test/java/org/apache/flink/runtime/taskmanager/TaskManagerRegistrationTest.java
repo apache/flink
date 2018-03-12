@@ -46,12 +46,14 @@ import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManage
 import org.apache.flink.runtime.messages.RegistrationMessages.RefuseRegistration;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.mockito.Matchers;
 import scala.Option;
 import scala.concurrent.Await;
@@ -77,6 +79,7 @@ import static org.mockito.Mockito.when;
  * when connecting to the JobManager, and when the JobManager
  * is unreachable.
  */
+@Category(Old.class)
 public class TaskManagerRegistrationTest extends TestLogger {
 
 	// use one actor system throughout all tests

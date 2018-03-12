@@ -34,6 +34,7 @@ import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -43,6 +44,7 @@ import akka.pattern.Patterns;
 import akka.util.Timeout;
 import org.apache.commons.io.FileUtils;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +81,7 @@ import static org.junit.Assert.fail;
  * guaranteed to remain empty (all tasks are already deployed) and kills one of
  * the original task managers. The recovery should restart the tasks on the new TaskManager.
  */
+@Category(Old.class)
 public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends TestLogger {
 
 	protected static final String READY_MARKER_FILE_PREFIX = "ready_";

@@ -46,6 +46,7 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -53,6 +54,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -66,6 +68,7 @@ import static org.junit.Assert.fail;
  * Tests for timestamps, watermarks, and event-time sources.
  */
 @SuppressWarnings("serial")
+@Category(Old.class) // TODO: FLINK-8965
 public class TimestampITCase extends TestLogger {
 
 	private static final int NUM_TASK_MANAGERS = 2;

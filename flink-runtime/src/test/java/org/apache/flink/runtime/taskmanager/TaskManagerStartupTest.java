@@ -31,6 +31,7 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServic
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.StartupUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -41,6 +42,7 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -60,6 +62,7 @@ import static org.junit.Assert.fail;
  * Tests that check how the TaskManager behaves when encountering startup
  * problems.
  */
+@Category(Old.class)
 public class TaskManagerStartupTest extends TestLogger {
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
