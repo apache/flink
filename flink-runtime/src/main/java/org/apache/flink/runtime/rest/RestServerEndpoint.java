@@ -69,7 +69,6 @@ import java.util.concurrent.TimeoutException;
  */
 public abstract class RestServerEndpoint {
 
-	public static final int MAX_REQUEST_SIZE_BYTES = 1024 * 1024 * 10;
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	private final Object lock = new Object();
