@@ -62,6 +62,8 @@ public class MiniClusterResource extends ExternalResource {
 
 	private JobExecutorService jobExecutorService;
 
+	private final boolean enableClusterClient;
+
 	private ClusterClient<?> clusterClient;
 
 	private int numberSlots = -1;
@@ -69,16 +71,25 @@ public class MiniClusterResource extends ExternalResource {
 	private TestEnvironment executionEnvironment;
 
 	public MiniClusterResource(final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
-		this(
-			miniClusterResourceConfiguration,
-			Objects.equals(FLIP6_CODEBASE, System.getProperty(CODEBASE_KEY)) ? MiniClusterType.FLIP6 : MiniClusterType.OLD);
+		this(miniClusterResourceConfiguration, false);
 	}
 
 	public MiniClusterResource(
 			final MiniClusterResourceConfiguration miniClusterResourceConfiguration,
-			final MiniClusterType miniClusterType) {
+			final boolean enableClusterClient) {
+		this(
+			miniClusterResourceConfiguration,
+			Objects.equals(FLIP6_CODEBASE, System.getProperty(CODEBASE_KEY)) ? MiniClusterType.FLIP6 : MiniClusterType.OLD,
+			enableClusterClient);
+	}
+
+	private MiniClusterResource(
+			final MiniClusterResourceConfiguration miniClusterResourceConfiguration,
+			final MiniClusterType miniClusterType,
+			final boolean enableClusterClient) {
 		this.miniClusterResourceConfiguration = Preconditions.checkNotNull(miniClusterResourceConfiguration);
 		this.miniClusterType = Preconditions.checkNotNull(miniClusterType);
+		this.enableClusterClient = enableClusterClient;
 	}
 
 	public int getNumberSlots() {
@@ -86,6 +97,12 @@ public class MiniClusterResource extends ExternalResource {
 	}
 
 	public ClusterClient<?> getClusterClient() {
+		if (!enableClusterClient) {
+			// this check is technically only necessary for legacy clusters
+			// we still fail here for flip6 to keep the behaviors in sync
+			throw new IllegalStateException("To use the client you must enable it with the constructor.");
+		}
+
 		return clusterClient;
 	}
 
@@ -113,10 +130,12 @@ public class MiniClusterResource extends ExternalResource {
 
 		Exception exception = null;
 
-		try {
-			clusterClient.shutdown();
-		} catch (Exception e) {
-			exception = e;
+		if (clusterClient != null) {
+			try {
+				clusterClient.shutdown();
+			} catch (Exception e) {
+				exception = e;
+			}
 		}
 
 		clusterClient = null;
@@ -158,10 +177,12 @@ public class MiniClusterResource extends ExternalResource {
 
 		final LocalFlinkMiniCluster flinkMiniCluster = TestBaseUtils.startCluster(
 			configuration,
-			true);
+			!enableClusterClient); // the cluster client only works if separate actor systems are used
 
 		jobExecutorService = flinkMiniCluster;
-		clusterClient = new StandaloneClusterClient(configuration, flinkMiniCluster.highAvailabilityServices(), true);
+		if (enableClusterClient) {
+			clusterClient = new StandaloneClusterClient(configuration, flinkMiniCluster.highAvailabilityServices(), true);
+		}
 	}
 
 	private void startFlip6MiniCluster() throws Exception {
@@ -169,7 +190,9 @@ public class MiniClusterResource extends ExternalResource {
 
 		// we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
 		// enabled this by default
-		configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+		if (!configuration.contains(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE)) {
+			configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+		}
 
 		// set rest port to 0 to avoid clashes with concurrent MiniClusters
 		configuration.setInteger(RestOptions.REST_PORT, 0);
@@ -188,7 +211,9 @@ public class MiniClusterResource extends ExternalResource {
 		configuration.setInteger(RestOptions.REST_PORT, miniCluster.getRestAddress().getPort());
 
 		jobExecutorService = miniCluster;
-		clusterClient = new MiniClusterClient(configuration, miniCluster);
+		if (enableClusterClient) {
+			clusterClient = new MiniClusterClient(configuration, miniCluster);
+		}
 	}
 
 	/**

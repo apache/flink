@@ -709,7 +709,10 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 						discoveryLoopErrorRef.set(e);
 					} finally {
 						// calling cancel will also let the fetcher loop escape
-						cancel();
+						// (if not running, cancel() was already called)
+						if (running) {
+							cancel();
+						}
 					}
 				}
 			});

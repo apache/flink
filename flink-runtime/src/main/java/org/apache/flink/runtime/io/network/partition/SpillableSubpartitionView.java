@@ -167,7 +167,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 
 				parent.updateStatistics(current);
 				// if we are spilled (but still process a non-spilled nextBuffer), we don't know the
-				// state of nextBufferIsEvent...
+				// state of nextBufferIsEvent or whether more buffers are available
 				if (spilledView == null) {
 					return new BufferAndBacklog(current, isMoreAvailable, newBacklog, nextBufferIsEvent);
 				}
@@ -177,7 +177,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		SpilledSubpartitionView spilled = spilledView;
 		if (spilled != null) {
 			if (current != null) {
-				return new BufferAndBacklog(current, isMoreAvailable, newBacklog, spilled.nextBufferIsEvent());
+				return new BufferAndBacklog(current, spilled.isAvailable(), newBacklog, spilled.nextBufferIsEvent());
 			} else {
 				return spilled.getNextBuffer();
 			}

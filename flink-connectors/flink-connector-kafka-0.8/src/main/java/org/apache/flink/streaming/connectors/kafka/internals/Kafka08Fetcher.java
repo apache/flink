@@ -189,7 +189,8 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 				// special marker into the queue
 				List<KafkaTopicPartitionState<TopicAndPartition>> partitionsToAssign =
 						unassignedPartitionsQueue.getBatchBlocking(5000);
-				partitionsToAssign.remove(MARKER);
+				// note: if there are more markers, remove them all
+				partitionsToAssign.removeIf(MARKER::equals);
 
 				if (!partitionsToAssign.isEmpty()) {
 					LOG.info("Assigning {} partitions to broker threads", partitionsToAssign.size());

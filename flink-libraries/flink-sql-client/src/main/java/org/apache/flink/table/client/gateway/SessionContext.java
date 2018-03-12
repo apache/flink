@@ -22,6 +22,7 @@ import org.apache.flink.table.client.config.Environment;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Context describing a session.
@@ -53,5 +54,24 @@ public class SessionContext {
 	public Environment getEnvironment() {
 		// enrich with session properties
 		return Environment.enrich(defaultEnvironment, sessionProperties);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (!(o instanceof SessionContext)) {
+			return false;
+		}
+		SessionContext context = (SessionContext) o;
+		return Objects.equals(name, context.name) &&
+			Objects.equals(defaultEnvironment, context.defaultEnvironment) &&
+			Objects.equals(sessionProperties, context.sessionProperties);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(name, defaultEnvironment, sessionProperties);
 	}
 }

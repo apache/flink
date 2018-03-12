@@ -325,6 +325,11 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		}
 
 		@Override
+		public KS getCurrentKey() {
+			return timer.getKey();
+		}
+
+		@Override
 		public TimerService timerService() {
 			return timerService;
 		}

@@ -18,6 +18,7 @@
 
 #==============================================================================
 # TEST ENVIRONMENT FILE
+# Intended for org.apache.flink.table.client.gateway.local.LocalExecutorITCase.
 #==============================================================================
 
 # this file has variables that can be filled with content by replacing $VAR_XXX

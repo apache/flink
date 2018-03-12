@@ -25,13 +25,20 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
+import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nonnull;
@@ -43,6 +50,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Supplier;
 
 /**
  * Client to interact with a {@link MiniCluster}.
@@ -50,11 +60,19 @@ import java.util.concurrent.CompletableFuture;
 public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClusterId> {
 
 	private final MiniCluster miniCluster;
+	private final ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(4, new ExecutorThreadFactory("Flink-MiniClusterClient"));
+	private final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(scheduledExecutorService);
 
 	public MiniClusterClient(@Nonnull Configuration configuration, @Nonnull MiniCluster miniCluster) throws Exception {
 		super(configuration, miniCluster.getHighAvailabilityServices(), true);
 
 		this.miniCluster = miniCluster;
+	}
+
+	@Override
+	public void shutdown() throws Exception {
+		super.shutdown();
+		scheduledExecutorService.shutdown();
 	}
 
 	@Override
@@ -82,12 +100,12 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 	@Override
 	public void cancel(JobID jobId) throws Exception {
-		miniCluster.cancelJob(jobId);
+		guardWithSingleRetry(() -> miniCluster.cancelJob(jobId), scheduledExecutor);
 	}
 
 	@Override
 	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
-		return miniCluster.triggerSavepoint(jobId, savepointDirectory, true).get();
+		return guardWithSingleRetry(() -> miniCluster.triggerSavepoint(jobId, savepointDirectory, true), scheduledExecutor).get();
 	}
 
 	@Override
@@ -120,8 +138,9 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 		throw new UnsupportedOperationException("MiniClusterClient does not yet support this operation.");
 	}
 
+	@Override
 	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
-		return miniCluster.getJobStatus(jobId);
+		return guardWithSingleRetry(() -> miniCluster.getJobStatus(jobId), scheduledExecutor);
 	}
 
 	@Override
@@ -172,5 +191,17 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 	enum MiniClusterId {
 		INSTANCE
+	}
+
+	private static <X> CompletableFuture<X> guardWithSingleRetry(Supplier<CompletableFuture<X>> operation, ScheduledExecutor executor) {
+		return FutureUtils.retryWithDelay(
+			operation,
+			1,
+			Time.milliseconds(500),
+			throwable -> {
+				Throwable actualException = ExceptionUtils.stripCompletionException(throwable);
+				return actualException instanceof FencingTokenException || actualException instanceof AkkaRpcException;
+			},
+			executor);
 	}
 }

@@ -85,7 +85,7 @@ class Rowtime extends Descriptor {
     *
     * Emits watermarks which are the maximum observed timestamp minus the specified delay.
     */
-  def watermarksPeriodicBounding(delay: Long): Rowtime = {
+  def watermarksPeriodicBounded(delay: Long): Rowtime = {
     watermarkStrategy = Some(new BoundedOutOfOrderTimestamps(delay))
     this
   }

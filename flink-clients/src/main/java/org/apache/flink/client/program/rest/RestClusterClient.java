@@ -35,6 +35,7 @@ import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusRespon
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -61,6 +62,8 @@ import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.TriggerId;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
@@ -219,7 +222,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	}
 
 	@Override
-	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
+	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
 		log.info("Submitting job {}.", jobGraph.getJobID());
 
 		final CompletableFuture<JobSubmitResponseBody> jobSubmissionFuture = submitJob(jobGraph);
@@ -252,6 +255,17 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 				throw new ProgramInvocationException(e);
 			}
 		}
+	}
+
+	@Override
+	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
+		JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();
+		final JobMessageParameters  params = new JobMessageParameters();
+		params.jobPathParameter.resolve(jobId);
+
+		CompletableFuture<JobDetailsInfo> responseFuture = sendRequest(detailsHeaders, params);
+
+		return responseFuture.thenApply(JobDetailsInfo::getJobStatus);
 	}
 
 	/**

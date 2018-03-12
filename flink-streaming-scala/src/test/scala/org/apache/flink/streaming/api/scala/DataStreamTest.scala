@@ -23,13 +23,11 @@ import java.lang
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
-import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.functions.{KeyedProcessFunction, ProcessFunction}
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
-import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, KeyedProcessOperator, ProcessOperator, StreamOperator}
+import org.apache.flink.streaming.api.operators._
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
-import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.{CountTrigger, PurgingTrigger}
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
 import org.apache.flink.streaming.runtime.partitioner._
@@ -430,10 +428,11 @@ class DataStreamTest extends AbstractTestBase {
   }
 
   /**
-   * Verify that a [[KeyedStream.process()]] call is correctly translated to an operator.
+   * Verify that a [[KeyedStream.process(ProcessFunction)]] call is correctly
+   * translated to an operator.
    */
   @Test
-  def testKeyedProcessTranslation(): Unit = {
+  def testKeyedStreamProcessTranslation(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     val src = env.generateSequence(0, 0)
@@ -448,12 +447,36 @@ class DataStreamTest extends AbstractTestBase {
     val flatMapped = src.keyBy(x => x).process(processFunction)
 
     assert(processFunction == getFunctionForDataStream(flatMapped))
+    assert(getOperatorForDataStream(flatMapped).isInstanceOf[LegacyKeyedProcessOperator[_, _, _]])
+  }
+
+  /**
+   * Verify that a [[KeyedStream.process(KeyedProcessFunction)]] call is correctly
+   * translated to an operator.
+   */
+  @Test
+  def testKeyedStreamKeyedProcessTranslation(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+
+    val src = env.generateSequence(0, 0)
+
+    val keyedProcessFunction = new KeyedProcessFunction[Long, Long, Int] {
+      override def processElement(
+                                   value: Long,
+                                   ctx: KeyedProcessFunction[Long, Long, Int]#Context,
+                                   out: Collector[Int]): Unit = ???
+    }
+
+    val flatMapped = src.keyBy(x => x).process(keyedProcessFunction)
+
+    assert(keyedProcessFunction == getFunctionForDataStream(flatMapped))
     assert(getOperatorForDataStream(flatMapped).isInstanceOf[KeyedProcessOperator[_, _, _]])
   }
 
   /**
-    * Verify that a [[DataStream.process()]] call is correctly translated to an operator.
-    */
+   * Verify that a [[DataStream.process(ProcessFunction)]] call is correctly
+   * translated to an operator.
+   */
   @Test
   def testProcessTranslation(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -472,7 +495,6 @@ class DataStreamTest extends AbstractTestBase {
     assert(processFunction == getFunctionForDataStream(flatMapped))
     assert(getOperatorForDataStream(flatMapped).isInstanceOf[ProcessOperator[_, _]])
   }
-
 
   @Test def operatorTest() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -688,5 +710,4 @@ class DataStreamTest extends AbstractTestBase {
     m.print()
     m.getId
   }
-
 }

@@ -81,12 +81,15 @@ public final class ExceptionUtils {
 	 * <p>Currently considered fatal exceptions are Virtual Machine errors indicating
 	 * that the JVM is corrupted, like {@link InternalError}, {@link UnknownError},
 	 * and {@link java.util.zip.ZipError} (a special case of InternalError).
+	 * The {@link ThreadDeath} exception is also treated as a fatal error, because when
+	 * a thread is forcefully stopped, there is a high chance that parts of the system
+	 * are in an inconsistent state.
 	 *
 	 * @param t The exception to check.
 	 * @return True, if the exception is considered fatal to the JVM, false otherwise.
 	 */
 	public static boolean isJvmFatalError(Throwable t) {
-		return (t instanceof InternalError) || (t instanceof UnknownError);
+		return (t instanceof InternalError) || (t instanceof UnknownError) || (t instanceof ThreadDeath);
 	}
 
 	/**
