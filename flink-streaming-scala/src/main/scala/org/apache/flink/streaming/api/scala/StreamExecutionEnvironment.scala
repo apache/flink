@@ -595,7 +595,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   @PublicEvolving
   def createInput[T: TypeInformation](inputFormat: InputFormat[T, _]): DataStream[T] =
-    if (inputFormat.isInstanceOf[ResultTypeQueryable[T]]) {
+    if (inputFormat.isInstanceOf[ResultTypeQueryable[_]]) {
       asScalaStream(javaEnv.createInput(inputFormat))
     } else {
       asScalaStream(javaEnv.createInput(inputFormat, implicitly[TypeInformation[T]]))
