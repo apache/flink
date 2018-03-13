@@ -53,7 +53,7 @@ import java.util.function.LongPredicate;
 /**
  * Main implementation of a {@link TaskLocalStateStore}.
  */
-public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
+public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
 
 	/** Logger for this class. */
 	private static final Logger LOG = LoggerFactory.getLogger(TaskLocalStateStoreImpl.class);
@@ -232,6 +232,7 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 	/**
 	 * Disposes the state of all local snapshots managed by this object.
 	 */
+	@Override
 	public CompletableFuture<Void> dispose() {
 
 		Collection<Map.Entry<Long, TaskStateSnapshot>> statesCopy;
