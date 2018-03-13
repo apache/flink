@@ -691,7 +691,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		pendingRequest.getAllocatedSlotFuture().whenComplete(
 			(AllocatedSlot allocatedSlot, Throwable throwable) -> {
-				if (throwable != null || allocationId.equals(allocatedSlot.getAllocationId())) {
+				if (throwable != null || !allocationId.equals(allocatedSlot.getAllocationId())) {
 					// cancel the slot request if there is a failure or if the pending request has
 					// been completed with another allocated slot
 					resourceManagerGateway.cancelSlotRequest(allocationId);
