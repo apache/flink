@@ -30,6 +30,9 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import org.slf4j.Logger;
 
 import java.util.Collections;
+import java.util.Map;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * This is the last handler in the pipeline. It logs all error messages.
@@ -40,8 +43,11 @@ public class PipelineErrorHandler extends SimpleChannelInboundHandler<HttpReques
 	/** The logger to which the handler writes the log statements. */
 	private final Logger logger;
 
-	public PipelineErrorHandler(Logger logger) {
-		this.logger = logger;
+	private final Map<String, String> responseHeaders;
+
+	public PipelineErrorHandler(Logger logger, final Map<String, String> responseHeaders) {
+		this.logger = requireNonNull(logger);
+		this.responseHeaders = requireNonNull(responseHeaders);
 	}
 
 	@Override
@@ -59,5 +65,11 @@ public class PipelineErrorHandler extends SimpleChannelInboundHandler<HttpReques
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
 		logger.warn("Unhandled exception", cause);
+		HandlerUtils.sendErrorResponse(
+			ctx,
+			false,
+			new ErrorResponseBody("Internal server error: " + cause.getMessage()),
+			HttpResponseStatus.INTERNAL_SERVER_ERROR,
+			responseHeaders);
 	}
 }

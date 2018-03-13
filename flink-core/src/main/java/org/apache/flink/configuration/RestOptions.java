@@ -81,4 +81,21 @@ public class RestOptions {
 		key("rest.connection-timeout")
 			.defaultValue(15_000L)
 			.withDescription("The maximum time in ms for the client to establish a TCP connection.");
+
+	/**
+	 * The maximum content length that the server will handle.
+	 */
+	public static final ConfigOption<Integer> REST_SERVER_MAX_CONTENT_LENGTH =
+		key("rest.server.max-content-length")
+			.defaultValue(104_857_600)
+			.withDescription("The maximum content length in bytes that the server will handle.");
+
+	/**
+	 * The maximum content length that the client will handle.
+	 */
+	public static final ConfigOption<Integer> REST_CLIENT_MAX_CONTENT_LENGTH =
+		key("rest.client.max-content-length")
+			.defaultValue(104_857_600)
+			.withDescription("The maximum content length in bytes that the client will handle.");
+
 }
