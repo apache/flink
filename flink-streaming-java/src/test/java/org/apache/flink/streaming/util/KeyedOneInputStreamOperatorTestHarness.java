@@ -18,11 +18,15 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -73,6 +77,20 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		KeyedStateBackend<Object> keyedStateBackend = abstractStreamOperator.getKeyedStateBackend();
 		if (keyedStateBackend instanceof HeapKeyedStateBackend) {
 			return ((HeapKeyedStateBackend) keyedStateBackend).numStateEntries();
+		} else {
+			throw new UnsupportedOperationException();
+		}
+	}
+
+	public <S extends State> S getState(K key, StateDescriptor<S, ?> stateDesc) throws Exception {
+		AbstractStreamOperator<?> abstractStreamOperator = (AbstractStreamOperator<?>) operator;
+		KeyedStateBackend<Object> keyedStateBackend = abstractStreamOperator.getKeyedStateBackend();
+		if (keyedStateBackend instanceof HeapKeyedStateBackend) {
+			HeapKeyedStateBackend<K> heapStateBackend = (HeapKeyedStateBackend<K>) keyedStateBackend;
+			heapStateBackend.setCurrentKey(key);
+			return heapStateBackend.getPartitionedState(VoidNamespace.INSTANCE,
+				VoidNamespaceSerializer.INSTANCE,
+				stateDesc);
 		} else {
 			throw new UnsupportedOperationException();
 		}

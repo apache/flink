@@ -82,6 +82,7 @@ class QueryableTableSink(private val namePrefix: String,
     val processFunction = new QueryableStateProcessFunction(
       namePrefix,
       queryConfig,
+      keys,
       getFieldNames,
       getFieldTypes)
 
@@ -120,21 +121,26 @@ class RowKeySelector(private val keyIndices: Array[Int],
 
 class QueryableStateProcessFunction(private val namePrefix: String,
                                     private val queryConfig: StreamQueryConfig,
+                                    private val keyNames: Array[String],
                                     private val fieldNames: Array[String],
                                     private val fieldTypes: Array[TypeInformation[_]])
   extends ProcessFunctionWithCleanupState[JTuple2[JBool, Row], Void](queryConfig) {
 
-  private val LOG = LoggerFactory.getLogger(this.getClass)
-
   @transient private var states = Array[ValueState[AnyRef]]()
+  @transient private var nonKeyIndices = Array[Int]()
 
   override def open(parameters: Configuration): Unit = {
     super.open(parameters)
 
+    nonKeyIndices = fieldNames.indices
+      .filter(idx => !keyNames.contains(fieldNames(idx)))
+      .toArray
+
     val statesBuilder = Array.newBuilder[ValueState[AnyRef]]
 
-    for (i <- fieldNames.indices) {
+    for (i <- nonKeyIndices) {
       val stateDesc = new ValueStateDescriptor(fieldNames(i), fieldTypes(i))
+      stateDesc.initializeSerializerUnlessSet(getRuntimeContext.getExecutionConfig)
       stateDesc.setQueryable(fieldNames(i))
       statesBuilder += getRuntimeContext.getState(stateDesc).asInstanceOf[ValueState[AnyRef]]
     }
@@ -148,8 +154,8 @@ class QueryableStateProcessFunction(private val namePrefix: String,
                               ctx: ProcessFunction[JTuple2[JBool, Row], Void]#Context,
                               out: Collector[Void]): Unit = {
     if (value.f0) {
-      for (i <- 0 until value.f1.getArity) {
-        states(i).update(value.f1.getField(i))
+      for (i <- nonKeyIndices.indices) {
+        states(i).update(value.f1.getField(nonKeyIndices(i)))
       }
 
       val currentTime = ctx.timerService().currentProcessingTime()
