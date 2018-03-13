@@ -20,6 +20,7 @@ package org.apache.flink.api.common.functions.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -238,5 +239,11 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
+	}
+
+	@Internal
+	@VisibleForTesting
+	public String getAllocationIDAsString() {
+		return taskInfo.getAllocationIDAsString();
 	}
 }
