@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.scala
 
 import java.lang
+
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.java.io.ParallelIteratorInputFormat
 import org.apache.flink.api.java.typeutils.TypeExtractor
