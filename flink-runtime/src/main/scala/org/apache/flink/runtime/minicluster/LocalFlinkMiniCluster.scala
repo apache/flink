@@ -76,9 +76,10 @@ class LocalFlinkMiniCluster(
   def this(userConfiguration: Configuration, useSingleActorSystem: Boolean) = {
     this(
       userConfiguration,
-       HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+      HighAvailabilityServicesUtils.createHighAvailabilityServices(
          userConfiguration,
-         ExecutionContext.global),
+          org.apache.flink.runtime.concurrent.Executors.directExecutor,
+            HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION),
       useSingleActorSystem)
   }
 
