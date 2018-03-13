@@ -457,16 +457,21 @@ public class SlotPoolTest extends TestLogger {
 	 * Tests that unused offered slots are directly used to fulfill pending slot
 	 * requests.
 	 *
-	 * <p>See FLINK-8089
+	 * Moreover it tests that the old slot request is canceled
+	 *
+	 * <p>See FLINK-8089, FLINK-8934
 	 */
 	@Test
 	public void testFulfillingSlotRequestsWithUnusedOfferedSlots() throws Exception {
 		final SlotPool slotPool = new SlotPool(rpcService, jobId);
 
-		final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
+		final ArrayBlockingQueue<AllocationID> allocationIds = new ArrayBlockingQueue<>(2);
 
 		resourceManagerGateway.setRequestSlotConsumer(
-			(SlotRequest slotRequest) -> allocationIdFuture.complete(slotRequest.getAllocationId()));
+			(SlotRequest slotRequest) -> allocationIds.offer(slotRequest.getAllocationId()));
+
+		final ArrayBlockingQueue<AllocationID> canceledAllocations = new ArrayBlockingQueue<>(2);
+		resourceManagerGateway.setCancelSlotConsumer(canceledAllocations::offer);
 
 		final SlotRequestId slotRequestId1 = new SlotRequestId();
 		final SlotRequestId slotRequestId2 = new SlotRequestId();
@@ -487,7 +492,7 @@ public class SlotPoolTest extends TestLogger {
 				timeout);
 
 			// wait for the first slot request
-			final AllocationID allocationId = allocationIdFuture.get();
+			final AllocationID allocationId1 = allocationIds.take();
 
 			CompletableFuture<LogicalSlot> slotFuture2 = slotPoolGateway.allocateSlot(
 				slotRequestId2,
@@ -495,6 +500,9 @@ public class SlotPoolTest extends TestLogger {
 				SlotProfile.noRequirements(),
 				true,
 				timeout);
+
+			// wait for the second slot request
+			final AllocationID allocationId2 = allocationIds.take();
 
 			slotPoolGateway.releaseSlot(slotRequestId1, null, null);
 
@@ -505,17 +513,21 @@ public class SlotPoolTest extends TestLogger {
 			} catch (ExecutionException ee) {
 				// expected
 				assertTrue(ExceptionUtils.stripExecutionException(ee) instanceof FlinkException);
-
 			}
 
-			final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
+			assertEquals(allocationId1, canceledAllocations.take());
+
+			final SlotOffer slotOffer = new SlotOffer(allocationId1, 0, ResourceProfile.UNKNOWN);
 
 			slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()).get();
 
 			assertTrue(slotPoolGateway.offerSlot(taskManagerLocation, taskManagerGateway, slotOffer).get());
 
 			// the slot offer should fulfill the second slot request
-			assertEquals(allocationId, slotFuture2.get().getAllocationId());
+			assertEquals(allocationId1, slotFuture2.get().getAllocationId());
+
+			// check that the second slot allocation has been canceled
+			assertEquals(allocationId2, canceledAllocations.take());
 		} finally {
 			RpcUtils.terminateRpcEndpoint(slotPool, timeout);
 		}
