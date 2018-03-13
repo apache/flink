@@ -2,26 +2,18 @@ package org.apache.flink.table.runtime.stream.table
 
 import java.lang.{Boolean => JBool}
 
-import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.functions.RuntimeContext
-import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
+import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.base.{BooleanSerializer, StringSerializer}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.runtime.harness.HarnessTestBase
 import org.apache.flink.table.sinks.{QueryableStateProcessFunction, RowKeySelector}
-import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
-import org.apache.flink.table.runtime.harness.HarnessTestBase._
-import org.junit.Assert.assertEquals
+import org.junit.Assert.{assertEquals, assertArrayEquals}
 import org.junit.Test
-import org.mockito.Mockito.{mock, verify, when}
 
 class QueryableTableSinkTest extends HarnessTestBase {
   @Test
@@ -62,32 +54,31 @@ class QueryableTableSinkTest extends HarnessTestBase {
     stateDesc1.initializeSerializerUnlessSet(operator.getExecutionConfig)
     val stateDesc2 = new ValueStateDescriptor[String]("name", TypeInformation.of(classOf[String]))
     stateDesc2.initializeSerializerUnlessSet(operator.getExecutionConfig)
+    val key1 = Row.of("1")
+    val key2 = Row.of("2")
+
     testHarness.processElement(JTuple2.of(true, Row.of("1", JBool.valueOf(true), "jeff")), 2)
     testHarness.processElement(JTuple2.of(true, Row.of("2", JBool.valueOf(false), "dean")), 6)
 
-    var state1 = testHarness.getState(Row.of("1"), stateDesc1)
-    assert(state1.value())
-    state1 = testHarness.getState(Row.of("2"), stateDesc1)
-    assert(!state1.value())
+    val stateOf = (key: Row, sd: ValueStateDescriptor[_]) => testHarness.getState(key, sd).value().asInstanceOf[AnyRef]
 
-    var state2 = testHarness.getState(Row.of("1"), stateDesc2)
-    assertEquals("jeff", state2.value())
-    state2 = testHarness.getState(Row.of("2"), stateDesc2)
-    assertEquals("dean", state2.value())
+    var expectedData = Array(Row.of(JBool.valueOf(true), "jeff"), Row.of(JBool.valueOf(false), "dean"))
+    var storedData = Array(
+      Row.of(stateOf(key1, stateDesc1), stateOf(key1, stateDesc2)),
+      Row.of(stateOf(key2, stateDesc1), stateOf(key2, stateDesc2)))
+
+    verify(expectedData, storedData)
+
 
 
     testHarness.processElement(JTuple2.of(false, Row.of("1", JBool.valueOf(true), "jeff")), 2)
     testHarness.processElement(JTuple2.of(false, Row.of("2", JBool.valueOf(false), "dean")), 6)
 
-    state1 = testHarness.getState(Row.of("1"), stateDesc1)
-    assertEquals(null, state1.value())
-    state1 = testHarness.getState(Row.of("2"), stateDesc1)
-    assertEquals(null, state1.value())
+    expectedData = Array(Row.of(null, null), Row.of(null, null))
+    storedData = Array(
+      Row.of(stateOf(key1, stateDesc1), stateOf(key1, stateDesc2)),
+      Row.of(stateOf(key2, stateDesc1), stateOf(key2, stateDesc2)))
 
-    state2 = testHarness.getState(Row.of("1"), stateDesc2)
-    assertEquals(null, state2.value())
-    state2 = testHarness.getState(Row.of("2"), stateDesc2)
-    assertEquals(null, state2.value())
-
+    verify(expectedData, storedData)
   }
 }

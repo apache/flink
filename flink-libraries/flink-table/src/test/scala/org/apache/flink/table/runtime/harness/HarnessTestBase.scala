@@ -33,6 +33,8 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.aggfunctions.{IntSumWithRetractAggFunction, LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.types.Row
+import org.junit.Assert.assertEquals
 
 class HarnessTestBase {
 
@@ -331,6 +333,13 @@ class HarnessTestBase {
       }
     }
     TestHarnessUtil.assertOutputEqualsSorted("Verify Error...", expected, actual, comparator)
+  }
+
+  def verify(expected: Array[Row], actual: Array[Row]): Unit = {
+    assertEquals(expected.length, actual.length)
+    for (i <- expected.indices) {
+      assertEquals(expected(i), actual(i))
+    }
   }
 }
 
