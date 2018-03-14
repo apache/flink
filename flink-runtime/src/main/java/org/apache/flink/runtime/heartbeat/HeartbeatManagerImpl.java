@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -106,8 +107,8 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 		return heartbeatListener;
 	}
 
-	Collection<HeartbeatManagerImpl.HeartbeatMonitor<O>> getHeartbeatTargets() {
-		return heartbeatTargets.values();
+	Collection<Map.Entry<ResourceID, HeartbeatMonitor<O>>> getHeartbeatTargets() {
+		return heartbeatTargets.entrySet();
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -202,7 +203,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 					heartbeatListener.reportPayload(requestOrigin, heartbeatPayload);
 				}
 
-				CompletableFuture<O> futurePayload = heartbeatListener.retrievePayload();
+				CompletableFuture<O> futurePayload = heartbeatListener.retrievePayload(requestOrigin);
 
 				if (futurePayload != null) {
 					CompletableFuture<Void> sendHeartbeatFuture = futurePayload.thenAcceptAsync(
