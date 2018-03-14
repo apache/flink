@@ -122,7 +122,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 	 *
 	 * @param configProps configuration properties containing AWS credential and AWS region info
 	 */
-	private KinesisProxy(Properties configProps) {
+	protected KinesisProxy(Properties configProps) {
 		checkNotNull(configProps);
 
 		this.kinesisClient = AWSUtil.createKinesisClient(configProps);
