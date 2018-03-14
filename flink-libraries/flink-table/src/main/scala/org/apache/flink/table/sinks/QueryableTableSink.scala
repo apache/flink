@@ -34,22 +34,13 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 import org.slf4j.LoggerFactory
 
-class QueryableTableSink(private val namePrefix: String,
-                         private val queryConfig: StreamQueryConfig)
+class QueryableTableSink(
+  private val namePrefix: String,
+  private val queryConfig: StreamQueryConfig)
   extends UpsertStreamTableSink[Row]
-  with TableSinkBase[JTuple2[JBool, Row]] {
+    with TableSinkBase[JTuple2[JBool, Row]] {
   private var keys: Array[String] = _
 
-  /**
-    * Configures the unique key fields of the [[Table]] to write.
-    * The method is called after [[TableSink.configure()]].
-    *
-    * The keys array might be empty, if the table consists of a single (updated) record.
-    * If the table does not have a key and is append-only, the keys attribute is null.
-    *
-    * @param keys the field names of the table's keys, an empty array if the table has a single
-    *             row, and null if the table is append-only and has no key.
-    */
   override def setKeyFields(keys: Array[String]): Unit = {
     if (keys == null) {
       throw new IllegalArgumentException("keys can't be null!")
@@ -57,22 +48,15 @@ class QueryableTableSink(private val namePrefix: String,
     this.keys = keys
   }
 
-  /**
-    * Specifies whether the [[Table]] to write is append-only or not.
-    *
-    * @param isAppendOnly true if the table is append-only, false otherwise.
-    */
   override def setIsAppendOnly(isAppendOnly: JBool): Unit = {
     if (isAppendOnly) {
-      throw new IllegalArgumentException("A QueryableTableSink can not be used with append-only tables " +
-        "as the table would grow infinitely")
+      throw new IllegalArgumentException("A QueryableTableSink can not be used with append-only " +
+        "tables as the table would grow infinitely")
     }
   }
 
-  /** Returns the requested record type */
   override def getRecordType: TypeInformation[Row] = new RowTypeInfo(getFieldTypes, getFieldNames)
 
-  /** Emits the DataStream. */
   override def emitDataStream(dataStream: DataStream[JTuple2[JBool, Row]]): Unit = {
     val keyIndices = keys.map(getFieldNames.indexOf(_))
     val keyTypes = keyIndices.map(getFieldTypes(_))
@@ -90,14 +74,14 @@ class QueryableTableSink(private val namePrefix: String,
       .process(processFunction)
   }
 
-  /** Return a deep copy of the [[TableSink]]. */
   override protected def copy: TableSinkBase[JTuple2[JBool, Row]] = {
     new QueryableTableSink(this.namePrefix, this.queryConfig)
   }
 }
 
-class RowKeySelector(private val keyIndices: Array[Int],
-                     @transient private val returnType: TypeInformation[Row])
+class RowKeySelector(
+  private val keyIndices: Array[Int],
+  @transient private val returnType: TypeInformation[Row])
   extends KeySelector[JTuple2[JBool, Row], Row]
     with ResultTypeQueryable[Row] {
 
@@ -119,11 +103,12 @@ class RowKeySelector(private val keyIndices: Array[Int],
   override def getProducedType: TypeInformation[Row] = returnType
 }
 
-class QueryableStateProcessFunction(private val namePrefix: String,
-                                    private val queryConfig: StreamQueryConfig,
-                                    private val keyNames: Array[String],
-                                    private val fieldNames: Array[String],
-                                    private val fieldTypes: Array[TypeInformation[_]])
+class QueryableStateProcessFunction(
+  private val namePrefix: String,
+  private val queryConfig: StreamQueryConfig,
+  private val keyNames: Array[String],
+  private val fieldNames: Array[String],
+  private val fieldTypes: Array[TypeInformation[_]])
   extends ProcessFunctionWithCleanupState[JTuple2[JBool, Row], Void](queryConfig) {
 
   @transient private var states = Array[ValueState[AnyRef]]()
@@ -150,9 +135,10 @@ class QueryableStateProcessFunction(private val namePrefix: String,
     initCleanupTimeState("QueryableStateCleanupTime")
   }
 
-  override def processElement(value: JTuple2[JBool, Row],
-                              ctx: ProcessFunction[JTuple2[JBool, Row], Void]#Context,
-                              out: Collector[Void]): Unit = {
+  override def processElement(
+    value: JTuple2[JBool, Row],
+    ctx: ProcessFunction[JTuple2[JBool, Row], Void]#Context,
+    out: Collector[Void]): Unit = {
     if (value.f0) {
       for (i <- nonKeyIndices.indices) {
         states(i).update(value.f1.getField(nonKeyIndices(i)))
@@ -161,15 +147,16 @@ class QueryableStateProcessFunction(private val namePrefix: String,
       val currentTime = ctx.timerService().currentProcessingTime()
       registerProcessingCleanupTimer(ctx, currentTime)
     } else {
-      cleanupState(states:_*)
+      cleanupState(states: _*)
     }
   }
 
-  override def onTimer(timestamp: Long,
-                       ctx: ProcessFunction[JTuple2[JBool, Row], Void]#OnTimerContext,
-                       out: Collector[Void]): Unit = {
+  override def onTimer(
+    timestamp: Long,
+    ctx: ProcessFunction[JTuple2[JBool, Row], Void]#OnTimerContext,
+    out: Collector[Void]): Unit = {
     if (needToCleanupState(timestamp)) {
-      cleanupState(states:_*)
+      cleanupState(states: _*)
     }
   }
 }
