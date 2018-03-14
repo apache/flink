@@ -51,10 +51,10 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.TooLongFrameException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -81,7 +81,12 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -96,6 +101,7 @@ public class RestServerEndpointITCase extends TestLogger {
 	private static final JobID QUERY_JOB_ID = new JobID();
 	private static final String JOB_ID_KEY = "jobid";
 	private static final Time timeout = Time.seconds(10L);
+	private static final int TEST_REST_MAX_CONTENT_LENGTH = 4096;
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -103,12 +109,15 @@ public class RestServerEndpointITCase extends TestLogger {
 	private RestServerEndpoint serverEndpoint;
 	private RestClient restClient;
 	private TestUploadHandler testUploadHandler;
+	private InetSocketAddress serverAddress;
 
 	@Before
 	public void setup() throws Exception {
 		Configuration config = new Configuration();
 		config.setInteger(RestOptions.REST_PORT, 0);
 		config.setString(WebOptions.UPLOAD_DIR, temporaryFolder.newFolder().getCanonicalPath());
+		config.setInteger(RestOptions.REST_SERVER_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
+		config.setInteger(RestOptions.REST_CLIENT_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
 
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 		RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
@@ -133,6 +142,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		restClient = new TestRestClient(clientConfig);
 
 		serverEndpoint.start();
+		serverAddress = serverEndpoint.getServerAddress();
 	}
 
 	@After
@@ -161,7 +171,6 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		// send first request and wait until the handler blocks
 		CompletableFuture<TestResponse> response1;
-		final InetSocketAddress serverAddress = serverEndpoint.getServerAddress();
 
 		synchronized (TestHandler.LOCK) {
 			response1 = restClient.sendRequest(
@@ -198,8 +207,6 @@ public class RestServerEndpointITCase extends TestLogger {
 	 */
 	@Test
 	public void testBadHandlerRequest() throws Exception {
-		final InetSocketAddress serverAddress = serverEndpoint.getServerAddress();
-
 		final FaultyTestParameters parameters = new FaultyTestParameters();
 
 		parameters.faultyJobIDPathParameter.resolve(PATH_JOB_ID);
@@ -215,15 +222,59 @@ public class RestServerEndpointITCase extends TestLogger {
 		try {
 			response.get();
 
-			Assert.fail("The request should fail with a bad request return code.");
+			fail("The request should fail with a bad request return code.");
 		} catch (ExecutionException ee) {
 			Throwable t = ExceptionUtils.stripExecutionException(ee);
 
-			Assert.assertTrue(t instanceof RestClientException);
+			assertTrue(t instanceof RestClientException);
 
 			RestClientException rce = (RestClientException) t;
 
 			assertEquals(HttpResponseStatus.BAD_REQUEST, rce.getHttpResponseStatus());
+		}
+	}
+
+	/**
+	 * Tests that requests and responses larger than {@link #TEST_REST_MAX_CONTENT_LENGTH}
+	 * are rejected by the server and client, respectively.
+	 */
+	@Test
+	public void testMaxContentLengthLimit() throws Exception {
+		final TestParameters parameters = new TestParameters();
+		parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
+		parameters.jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
+
+		CompletableFuture<TestResponse> response;
+		response = restClient.sendRequest(
+			serverAddress.getHostName(),
+			serverAddress.getPort(),
+			new TestHeaders(),
+			parameters,
+			new TestRequest(2, createStringOfSize(TEST_REST_MAX_CONTENT_LENGTH)));
+
+		try {
+			response.get();
+			fail("Expected exception not thrown");
+		} catch (final ExecutionException e) {
+			final Throwable throwable = ExceptionUtils.stripExecutionException(e);
+			assertThat(throwable, instanceOf(RestClientException.class));
+			assertThat(throwable.getMessage(), containsString("Try to raise"));
+		}
+
+		response = restClient.sendRequest(
+			serverAddress.getHostName(),
+			serverAddress.getPort(),
+			new TestHeaders(),
+			parameters,
+			new TestRequest(TestHandler.LARGE_RESPONSE_BODY_ID));
+
+		try {
+			response.get();
+			fail("Expected exception not thrown");
+		} catch (final ExecutionException e) {
+			final Throwable throwable = ExceptionUtils.stripExecutionException(e);
+			assertThat(throwable, instanceOf(TooLongFrameException.class));
+			assertThat(throwable.getMessage(), containsString("Try to raise"));
 		}
 	}
 
@@ -294,6 +345,14 @@ public class RestServerEndpointITCase extends TestLogger {
 		return Long.toHexString(System.currentTimeMillis());
 	}
 
+	private static String createStringOfSize(int size) {
+		StringBuilder sb = new StringBuilder(size);
+		for (int i = 0; i < size; i++) {
+			sb.append('a');
+		}
+		return sb.toString();
+	}
+
 	private static class TestRestServerEndpoint extends RestServerEndpoint {
 
 		private final TestHandler testHandler;
@@ -323,12 +382,14 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	private static class TestHandler extends AbstractRestHandler<RestfulGateway, TestRequest, TestResponse, TestParameters> {
 
-		public static final Object LOCK = new Object();
+		private static final Object LOCK = new Object();
+
+		private static final int LARGE_RESPONSE_BODY_ID = 3;
 
 		TestHandler(
-			CompletableFuture<String> localAddressFuture,
-			GatewayRetriever<RestfulGateway> leaderRetriever,
-			Time timeout) {
+				CompletableFuture<String> localAddressFuture,
+				GatewayRetriever<RestfulGateway> leaderRetriever,
+				Time timeout) {
 			super(
 				localAddressFuture,
 				leaderRetriever,
@@ -342,7 +403,8 @@ public class RestServerEndpointITCase extends TestLogger {
 			assertEquals(request.getPathParameter(JobIDPathParameter.class), PATH_JOB_ID);
 			assertEquals(request.getQueryParameter(JobIDQueryParameter.class).get(0), QUERY_JOB_ID);
 
-			if (request.getRequestBody().id == 1) {
+			final int id = request.getRequestBody().id;
+			if (id == 1) {
 				synchronized (LOCK) {
 					try {
 						LOCK.notifyAll();
@@ -350,8 +412,12 @@ public class RestServerEndpointITCase extends TestLogger {
 					} catch (InterruptedException ignored) {
 					}
 				}
+			} else if (id == LARGE_RESPONSE_BODY_ID) {
+				return CompletableFuture.completedFuture(new TestResponse(
+					id,
+					createStringOfSize(TEST_REST_MAX_CONTENT_LENGTH)));
 			}
-			return CompletableFuture.completedFuture(new TestResponse(request.getRequestBody().id));
+			return CompletableFuture.completedFuture(new TestResponse(id));
 		}
 	}
 
@@ -365,18 +431,37 @@ public class RestServerEndpointITCase extends TestLogger {
 	private static class TestRequest implements RequestBody {
 		public final int id;
 
+		public final String content;
+
+		public TestRequest(int id) {
+			this(id, null);
+		}
+
 		@JsonCreator
-		public TestRequest(@JsonProperty("id") int id) {
+		public TestRequest(
+				@JsonProperty("id") int id,
+				@JsonProperty("content") final String content) {
 			this.id = id;
+			this.content = content;
 		}
 	}
 
 	private static class TestResponse implements ResponseBody {
+
 		public final int id;
 
+		public final String content;
+
+		public TestResponse(int id) {
+			this(id, null);
+		}
+
 		@JsonCreator
-		public TestResponse(@JsonProperty("id") int id) {
+		public TestResponse(
+				@JsonProperty("id") int id,
+				@JsonProperty("content") String content) {
 			this.id = id;
+			this.content = content;
 		}
 	}
 

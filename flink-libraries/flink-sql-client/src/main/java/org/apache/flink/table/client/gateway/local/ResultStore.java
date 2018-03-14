@@ -55,7 +55,7 @@ public class ResultStore {
 	}
 
 	/**
-	 * Creates a result. Might start thread or opens sockets so every creates result must be closed.
+	 * Creates a result. Might start threads or opens sockets so every created result must be closed.
 	 */
 	public DynamicResult createResult(Environment env, TableSchema schema, ExecutionConfig config) {
 		if (!env.getExecution().isStreamingExecution()) {

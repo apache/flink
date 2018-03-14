@@ -20,7 +20,7 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
@@ -50,6 +50,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandl
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioSocketChannel;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.TooLongFrameException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
@@ -103,9 +104,8 @@ public class RestClient {
 
 				socketChannel.pipeline()
 					.addLast(new HttpClientCodec())
-					.addLast(new HttpObjectAggregator(1024 * 1024))
-					.addLast(new ClientHandler())
-					.addLast(new PipelineErrorHandler(LOG));
+					.addLast(new HttpObjectAggregator(configuration.getMaxContentLength()))
+					.addLast(new ClientHandler());
 			}
 		};
 		NioEventLoopGroup group = new NioEventLoopGroup(1, new DefaultThreadFactory("flink-rest-client-netty"));
@@ -269,8 +269,14 @@ public class RestClient {
 		}
 
 		@Override
-		public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) throws Exception {
-			jsonFuture.completeExceptionally(cause);
+		public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {
+			if (cause instanceof TooLongFrameException) {
+				jsonFuture.completeExceptionally(new TooLongFrameException(String.format(
+					cause.getMessage() + " Try to raise [%s]",
+					RestOptions.REST_CLIENT_MAX_CONTENT_LENGTH.key())));
+			} else {
+				jsonFuture.completeExceptionally(cause);
+			}
 			ctx.close();
 		}
 

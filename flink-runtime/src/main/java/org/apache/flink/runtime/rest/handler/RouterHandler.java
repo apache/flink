@@ -27,20 +27,21 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Handler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.Map;
 
-import java.util.Collections;
+import static java.util.Objects.requireNonNull;
 
 /**
  * This class is an extension of {@link Handler} that replaces the standard error response to be identical with those
  * sent by the {@link AbstractRestHandler}.
  */
 public class RouterHandler extends Handler {
-	private static final Logger LOG = LoggerFactory.getLogger(RouterHandler.class);
 
-	public RouterHandler(Router router) {
+	private final Map<String, String> responseHeaders;
+
+	public RouterHandler(Router router, final Map<String, String> responseHeaders) {
 		super(router);
+		this.responseHeaders = requireNonNull(responseHeaders);
 	}
 
 	@Override
@@ -50,6 +51,6 @@ public class RouterHandler extends Handler {
 			request,
 			new ErrorResponseBody("Not found."),
 			HttpResponseStatus.NOT_FOUND,
-			Collections.emptyMap());
+			responseHeaders);
 	}
 }

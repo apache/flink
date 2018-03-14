@@ -63,6 +63,7 @@ sources:
 
 execution:
   type: streaming
+  time-characteristic: event-time
   parallelism: 1
   max-parallelism: 16
   min-idle-state-retention: 0

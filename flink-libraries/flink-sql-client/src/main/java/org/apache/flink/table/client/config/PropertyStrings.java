@@ -35,6 +35,12 @@ public final class PropertyStrings {
 
 	public static final String EXECUTION_TYPE_VALUE_BATCH = "batch";
 
+	public static final String EXECUTION_TIME_CHARACTERISTIC = "time-characteristic";
+
+	public static final String EXECUTION_TIME_CHARACTERISTIC_VALUE_EVENT_TIME = "event-time";
+
+	public static final String EXECUTION_TIME_CHARACTERISTIC_VALUE_PROCESSING_TIME = "processing-time";
+
 	public static final String EXECUTION_MIN_STATE_RETENTION = "min-idle-state-retention";
 
 	public static final String EXECUTION_MAX_STATE_RETENTION = "max-idle-state-retention";
