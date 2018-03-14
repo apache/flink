@@ -46,7 +46,8 @@ public interface Executor {
 	List<String> listTables(SessionContext session) throws SqlExecutionException;
 
 	/**
-	 * Returns the schema of a table. Throws an exception if the table could not be found.
+	 * Returns the schema of a table. Throws an exception if the table could not be found. The
+	 * schema might contain time attribute types for helping the user during debugging a query.
 	 */
 	TableSchema getTableSchema(SessionContext session, String name) throws SqlExecutionException;
 

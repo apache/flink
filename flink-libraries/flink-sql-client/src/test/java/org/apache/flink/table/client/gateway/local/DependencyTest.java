@@ -65,6 +65,7 @@ public class DependencyTest {
 		final TableSchema expected = TableSchema.builder()
 			.field("IntegerField1", Types.INT())
 			.field("StringField1", Types.STRING())
+			.field("rowtimeField", Types.SQL_TIMESTAMP())
 			.build();
 
 		assertEquals(expected, result);
