@@ -53,7 +53,7 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 	private final AggregateFunction<T, ACC, R> aggFunction;
 
 	/**
-	 * Creates a new {@code RocksDBFoldingState}.
+	 * Creates a new {@code RocksDBAggregatingState}.
 	 *
 	 * @param namespaceSerializer
 	 *             The serializer for the namespace.

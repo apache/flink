@@ -46,9 +46,10 @@ public interface SlotProvider {
 	/**
 	 * Allocating slot with specific requirement.
 	 *
+	 * @param slotRequestId identifying the slot request
 	 * @param task The task to allocate the slot for
 	 * @param allowQueued Whether allow the task be queued if we do not have enough resource
-	 * @param preferredLocations preferred locations for the slot allocation
+	 * @param slotProfile profile of the requested slot
 	 * @param timeout after which the allocation fails with a timeout exception
 	 * @return The future of the allocation
 	 */
