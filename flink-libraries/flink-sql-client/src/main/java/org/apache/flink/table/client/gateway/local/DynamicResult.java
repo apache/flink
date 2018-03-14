@@ -26,8 +26,15 @@ import org.apache.flink.types.Row;
  * A result of a dynamic table program.
  *
  * <p>Note: Make sure to call close() after the result is not needed anymore.
+ *
+ * @param <C> cluster id to which this result belongs to
  */
-public interface DynamicResult {
+public interface DynamicResult<C> {
+
+	/**
+	 * Sets the cluster id of the cluster this result comes from. This method should only be called once.
+	 */
+	void setClusterId(C clusterId);
 
 	/**
 	 * Returns whether this result is materialized such that snapshots can be taken or results

@@ -30,8 +30,10 @@ import java.util.List;
 
 /**
  * Collects results and returns them as a changelog.
+ *
+ * @param <C> cluster id to which this result belongs to
  */
-public class ChangelogCollectStreamResult extends CollectStreamResult implements ChangelogResult {
+public class ChangelogCollectStreamResult<C> extends CollectStreamResult<C> implements ChangelogResult<C> {
 
 	private List<Tuple2<Boolean, Row>> changeRecordBuffer;
 	private static final int CHANGE_RECORD_BUFFER_SIZE = 5_000;

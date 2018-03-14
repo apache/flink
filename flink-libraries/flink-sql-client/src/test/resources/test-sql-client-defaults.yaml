@@ -71,7 +71,6 @@ execution:
   result-mode: "$VAR_2"
 
 deployment:
-  type: standalone
   response-timeout: 5000
 
 

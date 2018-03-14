@@ -46,7 +46,7 @@ public class ResultStore {
 
 	private Configuration flinkConfig;
 
-	private Map<String, DynamicResult> results;
+	private Map<String, DynamicResult<?>> results;
 
 	public ResultStore(Configuration flinkConfig) {
 		this.flinkConfig = flinkConfig;
@@ -57,7 +57,7 @@ public class ResultStore {
 	/**
 	 * Creates a result. Might start threads or opens sockets so every created result must be closed.
 	 */
-	public DynamicResult createResult(Environment env, TableSchema schema, ExecutionConfig config) {
+	public <T> DynamicResult<T> createResult(Environment env, TableSchema schema, ExecutionConfig config) {
 		if (!env.getExecution().isStreamingExecution()) {
 			throw new SqlExecutionException("Emission is only supported in streaming environments yet.");
 		}
@@ -68,9 +68,9 @@ public class ResultStore {
 		final int gatewayPort = getGatewayPort(env.getDeployment());
 
 		if (env.getExecution().isChangelogMode()) {
-			return new ChangelogCollectStreamResult(outputType, config, gatewayAddress, gatewayPort);
+			return new ChangelogCollectStreamResult<>(outputType, config, gatewayAddress, gatewayPort);
 		} else {
-			return new MaterializedCollectStreamResult(outputType, config, gatewayAddress, gatewayPort);
+			return new MaterializedCollectStreamResult<>(outputType, config, gatewayAddress, gatewayPort);
 		}
 	}
 
@@ -78,8 +78,9 @@ public class ResultStore {
 		results.put(resultId, result);
 	}
 
-	public DynamicResult getResult(String resultId) {
-		return results.get(resultId);
+	@SuppressWarnings("unchecked")
+	public <T> DynamicResult<T> getResult(String resultId) {
+		return (DynamicResult<T>) results.get(resultId);
 	}
 
 	public void removeResult(String resultId) {

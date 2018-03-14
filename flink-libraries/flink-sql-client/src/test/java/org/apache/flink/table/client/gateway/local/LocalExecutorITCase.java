@@ -22,9 +22,12 @@ package org.apache.flink.table.client.gateway.local;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.cli.util.DummyCustomCommandLine;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.minicluster.StandaloneMiniCluster;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
@@ -32,12 +35,13 @@ import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
+import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.net.URL;
@@ -62,25 +66,36 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
 
-	private static StandaloneMiniCluster cluster;
+	private static final int NUM_TMS = 2;
+	private static final int NUM_SLOTS_PER_TM = 2;
+
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			getConfig(),
+			NUM_TMS,
+			NUM_SLOTS_PER_TM),
+		true);
+
+	private static ClusterClient<?> clusterClient;
 
 	@BeforeClass
-	public static void before() throws Exception {
-		final Configuration config = new Configuration();
-		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
-
-		cluster = new StandaloneMiniCluster(config);
+	public static void setup() {
+		clusterClient = MINI_CLUSTER_RESOURCE.getClusterClient();
 	}
 
-	@AfterClass
-	public static void after() throws Exception {
-		cluster.close();
-		cluster = null;
+	private static Configuration getConfig() {
+		Configuration config = new Configuration();
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
+		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
+		config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
+		return config;
 	}
 
 	@Test
 	public void testListTables() throws Exception {
-		final Executor executor = createDefaultExecutor();
+		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		final List<String> actualTables = executor.listTables(session);
@@ -91,7 +106,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 	@Test
 	public void testGetSessionProperties() throws Exception {
-		final Executor executor = createDefaultExecutor();
+		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		// modify defaults
@@ -107,7 +122,6 @@ public class LocalExecutorITCase extends TestLogger {
 		expectedProperties.put("execution.max-idle-state-retention", "0");
 		expectedProperties.put("execution.min-idle-state-retention", "0");
 		expectedProperties.put("execution.result-mode", "table");
-		expectedProperties.put("deployment.type", "standalone");
 		expectedProperties.put("deployment.response-timeout", "5000");
 
 		assertEquals(expectedProperties, actualProperties);
@@ -115,7 +129,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 	@Test
 	public void testTableSchema() throws Exception {
-		final Executor executor = createDefaultExecutor();
+		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		final TableSchema actualTableSchema = executor.getTableSchema(session, "TableNumber2");
@@ -136,7 +150,7 @@ public class LocalExecutorITCase extends TestLogger {
 		replaceVars.put("$VAR_1", "/");
 		replaceVars.put("$VAR_2", "changelog");
 
-		final Executor executor = createModifiedExecutor(replaceVars);
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		try {
@@ -183,7 +197,7 @@ public class LocalExecutorITCase extends TestLogger {
 		replaceVars.put("$VAR_1", "/");
 		replaceVars.put("$VAR_2", "table");
 
-		final Executor executor = createModifiedExecutor(replaceVars);
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		try {
@@ -223,17 +237,19 @@ public class LocalExecutorITCase extends TestLogger {
 		}
 	}
 
-	private LocalExecutor createDefaultExecutor() throws Exception {
+	private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient) throws Exception {
 		return new LocalExecutor(
 			EnvironmentFileUtil.parseUnmodified(DEFAULTS_ENVIRONMENT_FILE),
 			Collections.emptyList(),
-			cluster.getConfiguration());
+			clusterClient.getFlinkConfiguration(),
+			new DummyCustomCommandLine<T>(clusterClient));
 	}
 
-	private LocalExecutor createModifiedExecutor(Map<String, String> replaceVars) throws Exception {
+	private <T> LocalExecutor createModifiedExecutor(ClusterClient<T> clusterClient, Map<String, String> replaceVars) throws Exception {
 		return new LocalExecutor(
 			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
 			Collections.emptyList(),
-			cluster.getConfiguration());
+			clusterClient.getFlinkConfiguration(),
+			new DummyCustomCommandLine<T>(clusterClient));
 	}
 }

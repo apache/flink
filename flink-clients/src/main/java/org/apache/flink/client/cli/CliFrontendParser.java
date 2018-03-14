@@ -420,7 +420,7 @@ public class CliFrontendParser {
 	 * @param optionsB options to merge, can be null if none
 	 * @return
 	 */
-	static Options mergeOptions(@Nullable Options optionsA, @Nullable Options optionsB) {
+	public static Options mergeOptions(@Nullable Options optionsA, @Nullable Options optionsB) {
 		final Options resultOptions = new Options();
 		if (optionsA != null) {
 			for (Option option : optionsA.getOptions()) {

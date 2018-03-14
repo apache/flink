@@ -46,7 +46,6 @@ execution:
   parallelism: 1
 
 deployment:
-  type: standalone
   response-timeout: 5000
 
 

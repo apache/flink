@@ -33,8 +33,10 @@ import java.util.Map;
 
 /**
  * Collects results and returns them as table snapshots.
+ *
+ * @param <C> cluster id to which this result belongs to
  */
-public class MaterializedCollectStreamResult extends CollectStreamResult implements MaterializedResult {
+public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> implements MaterializedResult<C> {
 
 	private final List<Row> materializedTable;
 	private final Map<Row, List<Integer>> rowPositions; // positions of rows in table for faster access
