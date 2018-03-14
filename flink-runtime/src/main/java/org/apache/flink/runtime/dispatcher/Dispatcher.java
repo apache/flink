@@ -280,7 +280,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				try {
 					// We should only remove a job from the submitted job graph store
 					// if the initial submission failed. Never in case of a recovery
-					submittedJobGraphStore.removeJobGraph(jobId);
+					if (!RunningJobsRegistry.JobSchedulingStatus.RUNNING.equals(jobSchedulingStatus)) {
+						submittedJobGraphStore.removeJobGraph(jobId);
+					}
 				} catch (Throwable t) {
 					log.warn("Cannot remove job graph from submitted job graph store.", t);
 					e.addSuppressed(t);
