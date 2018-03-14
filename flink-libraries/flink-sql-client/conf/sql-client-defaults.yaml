@@ -64,8 +64,6 @@ execution:
 # programs are submitted to.
 
 deployment:
-  # only the 'standalone' deployment is supported
-  type: standalone
   # general cluster communication timeout in ms
   response-timeout: 5000
   # (optional) address from cluster to gateway

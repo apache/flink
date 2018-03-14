@@ -460,7 +460,7 @@ public abstract class ClusterClient<T> {
 	public JobSubmissionResult run(FlinkPlan compiledPlan,
 			List<URL> libraries, List<URL> classpaths, ClassLoader classLoader, SavepointRestoreSettings savepointSettings)
 			throws ProgramInvocationException {
-		JobGraph job = getJobGraph(compiledPlan, libraries, classpaths, savepointSettings);
+		JobGraph job = getJobGraph(flinkConfig, compiledPlan, libraries, classpaths, savepointSettings);
 		return submitJob(job, classLoader);
 	}
 
@@ -882,17 +882,17 @@ public abstract class ClusterClient<T> {
 		return getOptimizedPlan(compiler, prog.getPlan(), parallelism);
 	}
 
-	public JobGraph getJobGraph(PackagedProgram prog, FlinkPlan optPlan, SavepointRestoreSettings savepointSettings) throws ProgramInvocationException {
-		return getJobGraph(optPlan, prog.getAllLibraries(), prog.getClasspaths(), savepointSettings);
+	public static JobGraph getJobGraph(Configuration flinkConfig, PackagedProgram prog, FlinkPlan optPlan, SavepointRestoreSettings savepointSettings) throws ProgramInvocationException {
+		return getJobGraph(flinkConfig, optPlan, prog.getAllLibraries(), prog.getClasspaths(), savepointSettings);
 	}
 
-	public JobGraph getJobGraph(FlinkPlan optPlan, List<URL> jarFiles, List<URL> classpaths, SavepointRestoreSettings savepointSettings) {
+	public static JobGraph getJobGraph(Configuration flinkConfig, FlinkPlan optPlan, List<URL> jarFiles, List<URL> classpaths, SavepointRestoreSettings savepointSettings) {
 		JobGraph job;
 		if (optPlan instanceof StreamingPlan) {
 			job = ((StreamingPlan) optPlan).getJobGraph();
 			job.setSavepointRestoreSettings(savepointSettings);
 		} else {
-			JobGraphGenerator gen = new JobGraphGenerator(this.flinkConfig);
+			JobGraphGenerator gen = new JobGraphGenerator(flinkConfig);
 			job = gen.compileJobGraph((OptimizedPlan) optPlan);
 		}
 

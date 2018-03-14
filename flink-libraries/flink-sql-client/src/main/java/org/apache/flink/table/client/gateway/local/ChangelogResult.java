@@ -26,8 +26,10 @@ import java.util.List;
 
 /**
  * A result that is represented as a changelog consisting of insert and delete records.
+ *
+ * @param <C> cluster id to which this result belongs to
  */
-public interface ChangelogResult extends DynamicResult {
+public interface ChangelogResult<C> extends DynamicResult<C> {
 
 	/**
 	 * Retrieves the available result records.
