@@ -67,7 +67,6 @@ class QueryableTableSinkTest extends HarnessTestBase {
 
     testHarness.open()
 
-
     val stateDesc1 = new ValueStateDescriptor[JBool]("is_manager", TypeInformation.of(classOf[JBool]))
     stateDesc1.initializeSerializerUnlessSet(operator.getExecutionConfig)
     val stateDesc2 = new ValueStateDescriptor[String]("name", TypeInformation.of(classOf[String]))
