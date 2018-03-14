@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
@@ -30,7 +29,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * Heap-backed partitioned {@link ReducingState} that is
+ * Heap-backed partitioned {@link AggregatingState} that is
  * snapshotted into files.
  *
  * @param <K> The type of the key.
