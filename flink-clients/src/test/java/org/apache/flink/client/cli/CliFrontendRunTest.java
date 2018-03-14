@@ -23,7 +23,9 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -37,11 +39,16 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for the RUN command.
  */
-public class CliFrontendRunTest {
+public class CliFrontendRunTest extends TestLogger {
 
 	@BeforeClass
 	public static void init() {
 		CliFrontendTestUtils.pipeSystemOutToNull();
+	}
+
+	@AfterClass
+	public static void shutdown() {
+		CliFrontendTestUtils.restoreSystemOut();
 	}
 
 	@Test

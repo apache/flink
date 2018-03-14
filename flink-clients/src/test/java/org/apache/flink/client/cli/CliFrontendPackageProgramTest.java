@@ -27,6 +27,7 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -40,7 +41,6 @@ import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_CLASSLOA
 import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_MAIN_CLASS;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getNonJarFilePath;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
-import static org.apache.flink.client.cli.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -58,7 +58,12 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 
 	@BeforeClass
 	public static void init() {
-		pipeSystemOutToNull();
+		CliFrontendTestUtils.pipeSystemOutToNull();
+	}
+
+	@AfterClass
+	public static void shutdown() {
+		CliFrontendTestUtils.restoreSystemOut();
 	}
 
 	@Before
