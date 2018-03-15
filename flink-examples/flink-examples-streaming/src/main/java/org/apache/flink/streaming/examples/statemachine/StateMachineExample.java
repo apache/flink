@@ -19,10 +19,14 @@
 package org.apache.flink.streaming.examples.statemachine;
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -92,7 +96,29 @@ public class StateMachineExample {
 
 		// create the environment to create streams and configure execution
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.enableCheckpointing(5000);
+
+		final String checkpointDir = params.getRequired("checkpointDir");
+		final String stateBackend = params.get("stateBackend", "file");
+		if ("file".equals(stateBackend)) {
+			boolean asyncCheckpoints = params.getBoolean("asyncCheckpoints", false);
+			env.setStateBackend(new FsStateBackend(checkpointDir, asyncCheckpoints));
+		} else if ("rocks".equals(stateBackend)) {
+			boolean incrementalCheckpoints = params.getBoolean("incrementalCheckpoints", false);
+			env.setStateBackend(new RocksDBStateBackend(checkpointDir, incrementalCheckpoints));
+		} else {
+			throw new IllegalArgumentException("Unknown backend: " + stateBackend);
+		}
+
+		env.enableCheckpointing(2000L);
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
+				params.getInt("restartAttempts", Integer.MAX_VALUE),
+				params.getLong("restartDelay", 0L))
+		);
+
+		final String outputFile = params.getRequired("output");
+
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(params);
 
 		DataStream<Event> events = env.addSource(source);
 
@@ -105,7 +131,7 @@ public class StateMachineExample {
 				.flatMap(new StateMachineMapper());
 
 		// output the alerts to std-out
-		alerts.print();
+		alerts.writeAsText(outputFile, FileSystem.WriteMode.OVERWRITE);
 
 		// trigger program execution
 		env.execute("State machine job");
@@ -140,7 +166,7 @@ public class StateMachineExample {
 				state = State.Initial;
 			}
 
-			// ask the state machine what state we should go to based on teh given event
+			// ask the state machine what state we should go to based on the given event
 			State nextState = state.transition(evt.type());
 
 			if (nextState == State.InvalidTransition) {
