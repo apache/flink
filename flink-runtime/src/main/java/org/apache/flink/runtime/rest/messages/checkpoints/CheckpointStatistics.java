@@ -22,6 +22,7 @@ import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.FailedCheckpointStats;
+import org.apache.flink.runtime.checkpoint.PendingCheckpointStats;
 import org.apache.flink.runtime.checkpoint.TaskStateStats;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
@@ -273,7 +274,21 @@ public class CheckpointStatistics implements ResponseBody {
 				failedCheckpointStats.getFailureTimestamp(),
 				failedCheckpointStats.getFailureMessage());
 		} else {
-			throw new IllegalArgumentException("Given checkpoint stats object of type " + checkpointStats.getClass().getName() + " cannot be converted.");
+			final PendingCheckpointStats pendingCheckpointStats = ((PendingCheckpointStats) checkpointStats);
+
+			return new CheckpointStatistics.PendingCheckpointStatistics(
+				pendingCheckpointStats.getCheckpointId(),
+				pendingCheckpointStats.getStatus(),
+				pendingCheckpointStats.getProperties().isSavepoint(),
+				pendingCheckpointStats.getTriggerTimestamp(),
+				pendingCheckpointStats.getLatestAckTimestamp(),
+				pendingCheckpointStats.getStateSize(),
+				pendingCheckpointStats.getEndToEndDuration(),
+				pendingCheckpointStats.getAlignmentBuffered(),
+				pendingCheckpointStats.getNumberOfSubtasks(),
+				pendingCheckpointStats.getNumberOfAcknowledgedSubtasks(),
+				checkpointStatisticsPerTask
+			);
 		}
 	}
 
@@ -437,5 +452,59 @@ public class CheckpointStatistics implements ResponseBody {
 		public int hashCode() {
 			return Objects.hash(super.hashCode(), failureTimestamp, failureMessage);
 		}
+	}
+
+	/**
+	 * Statistics for a pending checkpoint.
+	 */
+	public static final class PendingCheckpointStatistics extends CheckpointStatistics {
+
+		@JsonCreator
+		public PendingCheckpointStatistics(
+			@JsonProperty(FIELD_NAME_ID) long id,
+			@JsonProperty(FIELD_NAME_STATUS) CheckpointStatsStatus status,
+			@JsonProperty(FIELD_NAME_IS_SAVEPOINT) boolean savepoint,
+			@JsonProperty(FIELD_NAME_TRIGGER_TIMESTAMP) long triggerTimestamp,
+			@JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
+			@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
+			@JsonProperty(FIELD_NAME_DURATION) long duration,
+			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
+			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
+			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
+			@JsonDeserialize(keyUsing = JobVertexIDKeyDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask) {
+			super(
+				id,
+				status,
+				savepoint,
+				triggerTimestamp,
+				latestAckTimestamp,
+				stateSize,
+				duration,
+				alignmentBuffered,
+				numSubtasks,
+				numAckSubtasks,
+				checkpointingStatisticsPerTask);
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			if (!super.equals(o)) {
+				return false;
+			}
+
+			return true;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(super.hashCode());
+		}
+
 	}
 }
