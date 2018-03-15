@@ -73,8 +73,9 @@ public abstract class RestServerEndpoint {
 
 	private final Object lock = new Object();
 
-	private final String configuredAddress;
-	private final int configuredPort;
+	private final String restAddress;
+	private final String restBindAddress;
+	private final int restBindPort;
 	private final SSLEngine sslEngine;
 	private final Path uploadDir;
 	private final int maxContentLength;
@@ -84,14 +85,16 @@ public abstract class RestServerEndpoint {
 
 	private ServerBootstrap bootstrap;
 	private Channel serverChannel;
-	private String restAddress;
+	private String restBaseUrl;
 
 	private State state = State.CREATED;
 
 	public RestServerEndpoint(RestServerEndpointConfiguration configuration) throws IOException {
 		Preconditions.checkNotNull(configuration);
-		this.configuredAddress = configuration.getEndpointBindAddress();
-		this.configuredPort = configuration.getEndpointBindPort();
+
+		this.restAddress = configuration.getRestAddress();
+		this.restBindAddress = configuration.getRestBindAddress();
+		this.restBindPort = configuration.getRestBindPort();
 		this.sslEngine = configuration.getSslEngine();
 
 		this.uploadDir = configuration.getUploadDir();
@@ -101,8 +104,6 @@ public abstract class RestServerEndpoint {
 		this.responseHeaders = configuration.getResponseHeaders();
 
 		terminationFuture = new CompletableFuture<>();
-
-		this.restAddress = null;
 	}
 
 	/**
@@ -176,18 +177,23 @@ public abstract class RestServerEndpoint {
 				.childHandler(initializer);
 
 			final ChannelFuture channel;
-			if (configuredAddress == null) {
-				channel = bootstrap.bind(configuredPort);
+			if (restBindAddress == null) {
+				channel = bootstrap.bind(restBindPort);
 			} else {
-				channel = bootstrap.bind(configuredAddress, configuredPort);
+				channel = bootstrap.bind(restBindAddress, restBindPort);
 			}
 			serverChannel = channel.syncUninterruptibly().channel();
 
-			InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
-			String address = bindAddress.getAddress().getHostAddress();
-			int port = bindAddress.getPort();
+			final InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
+			final String advertisedAddress;
+			if (bindAddress.getAddress().isAnyLocalAddress()) {
+				advertisedAddress = this.restAddress;
+			} else {
+				advertisedAddress = bindAddress.getAddress().getHostAddress();
+			}
+			final int port = bindAddress.getPort();
 
-			log.info("Rest endpoint listening at {}:{}", address, port);
+			log.info("Rest endpoint listening at {}:{}", advertisedAddress, port);
 
 			final String protocol;
 
@@ -197,9 +203,9 @@ public abstract class RestServerEndpoint {
 				protocol = "http://";
 			}
 
-			restAddress = protocol + address + ':' + port;
+			restBaseUrl = protocol + advertisedAddress + ':' + port;
 
-			restAddressFuture.complete(restAddress);
+			restAddressFuture.complete(restBaseUrl);
 
 			state = State.RUNNING;
 
@@ -238,14 +244,14 @@ public abstract class RestServerEndpoint {
 	}
 
 	/**
-	 * Returns the address of the REST server endpoint.
+	 * Returns the base URL of the REST server endpoint.
 	 *
-	 * @return REST address of this endpoint
+	 * @return REST base URL of this endpoint
 	 */
-	public String getRestAddress() {
+	public String getRestBaseUrl() {
 		synchronized (lock) {
 			Preconditions.checkState(state != State.CREATED, "The RestServerEndpoint has not been started yet.");
-			return restAddress;
+			return restBaseUrl;
 		}
 	}
 
