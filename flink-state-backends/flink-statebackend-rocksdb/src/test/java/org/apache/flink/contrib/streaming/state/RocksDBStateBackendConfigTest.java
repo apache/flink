@@ -299,7 +299,9 @@ public class RocksDBStateBackendConfigTest {
 		});
 
 		assertNotNull(rocksDbBackend.getOptions());
-		assertEquals(CompactionStyle.FIFO, rocksDbBackend.getColumnOptions().compactionStyle());
+		try (ColumnFamilyOptions colCreated = rocksDbBackend.getColumnOptions()) {
+			assertEquals(CompactionStyle.FIFO, colCreated.compactionStyle());
+		}
 	}
 
 	@Test
@@ -324,7 +326,9 @@ public class RocksDBStateBackendConfigTest {
 
 		assertEquals(PredefinedOptions.SPINNING_DISK_OPTIMIZED, rocksDbBackend.getPredefinedOptions());
 		assertNotNull(rocksDbBackend.getOptions());
-		assertEquals(CompactionStyle.UNIVERSAL, rocksDbBackend.getColumnOptions().compactionStyle());
+		try (ColumnFamilyOptions colCreated = rocksDbBackend.getColumnOptions()) {
+			assertEquals(CompactionStyle.UNIVERSAL, colCreated.compactionStyle());
+		}
 	}
 
 	@Test
