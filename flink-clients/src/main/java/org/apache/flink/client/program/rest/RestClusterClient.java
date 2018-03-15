@@ -567,7 +567,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 
 	@Override
 	public int getMaxSlots() {
-		return -1;
+		return MAX_SLOTS_UNKNOWN;
 	}
 
 	//-------------------------------------------------------------------------

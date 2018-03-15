@@ -133,6 +133,11 @@ public abstract class ClusterClient<T> {
 	/** Switch for blocking/detached job submission of the client. */
 	private boolean detachedJobSubmission = false;
 
+	/**
+	 * Value returned by {@link #getMaxSlots()} if the number of maximum slots is unknown.
+	 */
+	public static final int MAX_SLOTS_UNKNOWN = -1;
+
 	// ------------------------------------------------------------------------
 	//                            Construction
 	// ------------------------------------------------------------------------
@@ -1000,7 +1005,7 @@ public abstract class ClusterClient<T> {
 
 	/**
 	 * The client may define an upper limit on the number of slots to use.
-	 * @return -1 if unknown
+	 * @return <tt>-1</tt> ({@link #MAX_SLOTS_UNKNOWN}) if unknown
 	 */
 	public abstract int getMaxSlots();
 

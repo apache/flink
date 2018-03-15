@@ -181,7 +181,7 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 	@Override
 	public int getMaxSlots() {
-		return 0;
+		return MAX_SLOTS_UNKNOWN;
 	}
 
 	@Override
