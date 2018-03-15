@@ -438,8 +438,8 @@ public class HeartbeatManagerTest extends TestLogger {
 	 */
 	private static class TargetDependentHeartbeatReceiver implements HeartbeatTarget<Integer> {
 
-		private int lastReceivedHeartbeatPayload = -1;
-		private int lastRequestedHeartbeatPayload = -1;
+		private volatile int lastReceivedHeartbeatPayload = -1;
+		private volatile int lastRequestedHeartbeatPayload = -1;
 
 		private final OneShotLatch latch;
 
