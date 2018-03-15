@@ -341,7 +341,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 				dispatcherRestEndpoint.start();
 
-				restAddressURI = new URI(dispatcherRestEndpoint.getRestAddress());
+				restAddressURI = new URI(dispatcherRestEndpoint.getRestBaseUrl());
 
 				// bring up the dispatcher that launches JobManagers when jobs submitted
 				LOG.info("Starting job dispatcher(s) for JobManger");
@@ -361,7 +361,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					new MemoryArchivedExecutionGraphStore(),
 					Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
 					new ShutDownFatalErrorHandler(),
-					dispatcherRestEndpoint.getRestAddress());
+					dispatcherRestEndpoint.getRestBaseUrl());
 
 				dispatcher.start();
 
