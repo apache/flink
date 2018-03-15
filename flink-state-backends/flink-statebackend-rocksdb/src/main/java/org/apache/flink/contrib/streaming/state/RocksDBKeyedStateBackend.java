@@ -1952,14 +1952,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			this.kvStateIterators = new ArrayList<>(kvStateInformationCopy.size());
 
 			int kvStateId = 0;
+
+			//retrieve iterator for this k/v states
+			readOptions = new ReadOptions();
+			readOptions.setSnapshot(snapshot);
+
 			for (Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> column :
 				kvStateInformationCopy) {
 
 				metaInfoSnapshots.add(column.f1.snapshot());
-
-				//retrieve iterator for this k/v states
-				readOptions = new ReadOptions();
-				readOptions.setSnapshot(snapshot);
 
 				kvStateIterators.add(
 					new Tuple2<>(stateBackend.db.newIterator(column.f0, readOptions), kvStateId));
