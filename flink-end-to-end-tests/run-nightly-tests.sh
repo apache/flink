@@ -47,6 +47,15 @@ EXIT_CODE=0
 #     EXIT_CODE=$?
 # fi
 
+
+if [ $EXIT_CODE == 0 ]; then
+    printf "\n==============================================================================\n"
+    printf "Running HA end-to-end test\n"
+    printf "==============================================================================\n"
+    $END_TO_END_DIR/test-scripts/test_ha.sh
+    EXIT_CODE=$?
+fi
+
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
   printf "Running Resuming Savepoint (no parallelism change) end-to-end test\n"
