@@ -22,37 +22,22 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
 import org.apache.flink.client.program.StandaloneClusterClient;
-import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.client.cli.CliFrontendTestUtils.getConfiguration;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
  * Tests for the modify command.
  */
-@RunWith(Parameterized.class)
-public class CliFrontendModifyTest extends TestLogger {
-
-	@Parameterized.Parameters(name = "Mode = {0}")
-	public static List<String> parameters() {
-		return Arrays.asList(CoreOptions.OLD_MODE, CoreOptions.FLIP6_MODE);
-	}
-
-	@Parameterized.Parameter
-	public String mode;
+public class CliFrontendModifyTest extends CliFrontendTestBase {
 
 	@Test
 	public void testModifyJob() throws Exception {
@@ -120,7 +105,7 @@ public class CliFrontendModifyTest extends TestLogger {
 
 	private Tuple2<JobID, Integer> callModify(String[] args) throws Exception {
 		final CompletableFuture<Tuple2<JobID, Integer>> rescaleJobFuture = new CompletableFuture<>();
-		final TestingClusterClient clusterClient = new TestingClusterClient(rescaleJobFuture, mode);
+		final TestingClusterClient clusterClient = new TestingClusterClient(rescaleJobFuture, getConfiguration());
 		final MockedCliFrontend cliFrontend = new MockedCliFrontend(clusterClient);
 
 		cliFrontend.modify(args);
@@ -134,9 +119,9 @@ public class CliFrontendModifyTest extends TestLogger {
 
 		private final CompletableFuture<Tuple2<JobID, Integer>> rescaleJobFuture;
 
-		public TestingClusterClient(
-			CompletableFuture<Tuple2<JobID, Integer>> rescaleJobFuture, String mode) throws Exception {
-			super(getConfiguration(mode), new TestingHighAvailabilityServices(), false);
+		TestingClusterClient(
+			CompletableFuture<Tuple2<JobID, Integer>> rescaleJobFuture, Configuration configuration) {
+			super(configuration, new TestingHighAvailabilityServices(), false);
 
 			this.rescaleJobFuture = rescaleJobFuture;
 		}

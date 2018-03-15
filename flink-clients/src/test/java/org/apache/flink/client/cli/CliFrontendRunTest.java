@@ -21,22 +21,14 @@ package org.apache.flink.client.cli;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 
-import static org.apache.flink.client.cli.CliFrontendTestUtils.getCli;
-import static org.apache.flink.client.cli.CliFrontendTestUtils.getConfiguration;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -45,16 +37,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for the RUN command.
  */
-@RunWith(Parameterized.class)
-public class CliFrontendRunTest extends TestLogger {
-
-	@Parameterized.Parameters(name = "Mode = {0}")
-	public static List<String> parameters() {
-		return Arrays.asList(CoreOptions.OLD_MODE, CoreOptions.FLIP6_MODE);
-	}
-
-	@Parameterized.Parameter
-	public String mode;
+public class CliFrontendRunTest extends CliFrontendTestBase {
 
 	@BeforeClass
 	public static void init() {
@@ -68,7 +51,7 @@ public class CliFrontendRunTest extends TestLogger {
 
 	@Test
 	public void testRun() throws Exception {
-		final Configuration configuration = getConfiguration(mode);
+		final Configuration configuration = getConfiguration();
 		// test without parallelism
 		{
 			String[] parameters = {"-v", getTestJarPath()};
@@ -130,7 +113,7 @@ public class CliFrontendRunTest extends TestLogger {
 	public void testUnrecognizedOption() throws Exception {
 		// test unrecognized option
 		String[] parameters = {"-v", "-l", "-a", "some", "program", "arguments"};
-		Configuration configuration = getConfiguration(mode);
+		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli(configuration)));
@@ -141,7 +124,7 @@ public class CliFrontendRunTest extends TestLogger {
 	public void testInvalidParallelismOption() throws Exception {
 		// test configure parallelism with non integer value
 		String[] parameters = {"-v", "-p", "text",  getTestJarPath()};
-		Configuration configuration = getConfiguration(mode);
+		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli(configuration)));

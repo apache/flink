@@ -22,39 +22,21 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.cli.CommandLine;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
-import java.util.List;
-
-import static org.apache.flink.client.cli.CliFrontendTestUtils.getCli;
-import static org.apache.flink.client.cli.CliFrontendTestUtils.getConfiguration;
 import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the {@link DefaultCLI}.
  */
-@RunWith(Parameterized.class)
-public class DefaultCLITest extends TestLogger {
-
-	@Parameterized.Parameters(name = "Mode = {0}")
-	public static List<String> parameters() {
-		return Arrays.asList(CoreOptions.OLD_MODE, CoreOptions.FLIP6_MODE);
-	}
-
-	@Parameterized.Parameter
-	public String mode;
+public class DefaultCLITest extends CliFrontendTestBase {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -65,7 +47,7 @@ public class DefaultCLITest extends TestLogger {
 	 */
 	@Test
 	public void testConfigurationPassing() throws Exception {
-		final Configuration configuration = getConfiguration(mode);
+		final Configuration configuration = getConfiguration();
 
 		final String localhost = "localhost";
 		final int port = 1234;
@@ -99,7 +81,7 @@ public class DefaultCLITest extends TestLogger {
 	public void testManualConfigurationOverride() throws Exception {
 		final String localhost = "localhost";
 		final int port = 1234;
-		final Configuration configuration = getConfiguration(mode);
+		final Configuration configuration = getConfiguration();
 
 		configuration.setString(JobManagerOptions.ADDRESS, localhost);
 		configuration.setInteger(JobManagerOptions.PORT, port);

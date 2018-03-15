@@ -22,22 +22,14 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.mockito.Mockito;
 
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 
-import static org.apache.flink.client.cli.CliFrontendTestUtils.getCli;
-import static org.apache.flink.client.cli.CliFrontendTestUtils.getConfiguration;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.isNull;
 import static org.mockito.Matchers.notNull;
@@ -47,16 +39,7 @@ import static org.mockito.Mockito.times;
 /**
  * Tests for the CANCEL command.
  */
-@RunWith(Parameterized.class)
-public class CliFrontendCancelTest extends TestLogger {
-
-	@Parameterized.Parameters(name = "Mode = {0}")
-	public static List<String> parameters() {
-		return Arrays.asList(CoreOptions.OLD_MODE, CoreOptions.FLIP6_MODE);
-	}
-
-	@Parameterized.Parameter
-	public String mode;
+public class CliFrontendCancelTest extends CliFrontendTestBase {
 
 	@BeforeClass
 	public static void init() {
@@ -85,7 +68,7 @@ public class CliFrontendCancelTest extends TestLogger {
 	@Test(expected = CliArgsException.class)
 	public void testMissingJobId() throws Exception {
 		String[] parameters = {};
-		Configuration configuration = getConfiguration(mode);
+		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli(configuration)));
@@ -95,7 +78,7 @@ public class CliFrontendCancelTest extends TestLogger {
 	@Test(expected = CliArgsException.class)
 	public void testUnrecognizedOption() throws Exception {
 		String[] parameters = {"-v", "-l"};
-		Configuration configuration = getConfiguration(mode);
+		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli(configuration)));
@@ -138,7 +121,7 @@ public class CliFrontendCancelTest extends TestLogger {
 	public void testCancelWithSavepointWithoutJobId() throws Exception {
 		// Cancel with savepoint (with target directory), but no job ID
 		String[] parameters = { "-s", "targetDirectory" };
-		Configuration configuration = getConfiguration(mode);
+		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli(configuration)));
@@ -149,7 +132,7 @@ public class CliFrontendCancelTest extends TestLogger {
 	public void testCancelWithSavepointWithoutParameters() throws Exception {
 		// Cancel with savepoint (no target directory) and no job ID
 		String[] parameters = { "-s" };
-		Configuration configuration = getConfiguration(mode);
+		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli(configuration)));
