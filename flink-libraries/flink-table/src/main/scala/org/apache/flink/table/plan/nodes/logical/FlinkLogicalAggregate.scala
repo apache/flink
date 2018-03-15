@@ -30,7 +30,7 @@ import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.table.plan.nodes.FlinkConventions
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 class FlinkLogicalAggregate(
     cluster: RelOptCluster,
@@ -74,7 +74,7 @@ private class FlinkLogicalAggregateConverter
 
     // we do not support these functions natively
     // they have to be converted using the AggregateReduceFunctionsRule
-    val supported = agg.getAggCallList.map(_.getAggregation.getKind).forall {
+    val supported = agg.getAggCallList.asScala.map(_.getAggregation.getKind).forall {
       case SqlKind.STDDEV_POP | SqlKind.STDDEV_SAMP | SqlKind.VAR_POP | SqlKind.VAR_SAMP => false
       case _ => true
     }

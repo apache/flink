@@ -26,12 +26,15 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelShuttle}
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
 import org.apache.flink.table.plan.nodes.FlinkConventions
+
+import scala.collection.JavaConverters._
 
 class FlinkLogicalWindowAggregate(
     window: LogicalWindow,
@@ -102,6 +105,19 @@ class FlinkLogicalWindowAggregateConverter
     Convention.NONE,
     FlinkConventions.LOGICAL,
     "FlinkLogicalWindowAggregateConverter") {
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val agg = call.rel(0).asInstanceOf[LogicalWindowAggregate]
+
+    // we do not support these functions natively
+    // they have to be converted using the WindowAggregateReduceFunctionsRule
+    val supported = agg.getAggCallList.asScala.map(_.getAggregation.getKind).forall {
+      case SqlKind.STDDEV_POP | SqlKind.STDDEV_SAMP | SqlKind.VAR_POP | SqlKind.VAR_SAMP => false
+      case _ => true
+    }
+
+    !agg.containsDistinctCall() && supported
+  }
 
   override def convert(rel: RelNode): RelNode = {
     val agg = rel.asInstanceOf[LogicalWindowAggregate]

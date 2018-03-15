@@ -1259,7 +1259,7 @@ object AggregateUtil {
               }
             }
 
-          case _: SqlAvgAggFunction =>
+          case a: SqlAvgAggFunction if a.kind == SqlKind.AVG =>
             aggregates(index) = sqlTypeName match {
               case TINYINT =>
                 new ByteAvgAggFunction
@@ -1413,7 +1413,7 @@ object AggregateUtil {
             accTypes(index) = udagg.accType
 
           case unSupported: SqlAggFunction =>
-            throw new TableException(s"unsupported Function: '${unSupported.getName}'")
+            throw new TableException(s"Unsupported Function: '${unSupported.getName}'")
         }
       }
     }
