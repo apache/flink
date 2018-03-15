@@ -330,7 +330,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				metricRegistry,
 				this,
 				clusterInformation,
-				webMonitorEndpoint.getRestAddress());
+				webMonitorEndpoint.getRestBaseUrl());
 
 			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, rpcService.getAddress());
 
@@ -345,7 +345,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				metricRegistry.getMetricQueryServicePath(),
 				archivedExecutionGraphStore,
 				this,
-				webMonitorEndpoint.getRestAddress());
+				webMonitorEndpoint.getRestBaseUrl());
 
 			LOG.debug("Starting ResourceManager.");
 			resourceManager.start();

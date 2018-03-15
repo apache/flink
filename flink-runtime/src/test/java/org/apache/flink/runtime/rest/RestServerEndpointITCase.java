@@ -115,6 +115,7 @@ public class RestServerEndpointITCase extends TestLogger {
 	public void setup() throws Exception {
 		Configuration config = new Configuration();
 		config.setInteger(RestOptions.REST_PORT, 0);
+		config.setString(RestOptions.REST_ADDRESS, "localhost");
 		config.setString(WebOptions.UPLOAD_DIR, temporaryFolder.newFolder().getCanonicalPath());
 		config.setInteger(RestOptions.REST_SERVER_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
 		config.setInteger(RestOptions.REST_CLIENT_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
@@ -335,7 +336,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	private HttpURLConnection openHttpConnectionForUpload(final String boundary) throws IOException {
 		final HttpURLConnection connection =
-			(HttpURLConnection) new URL(serverEndpoint.getRestAddress() + "/upload").openConnection();
+			(HttpURLConnection) new URL(serverEndpoint.getRestBaseUrl() + "/upload").openConnection();
 		connection.setDoOutput(true);
 		connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
 		return connection;

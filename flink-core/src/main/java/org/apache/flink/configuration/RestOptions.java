@@ -29,12 +29,21 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 public class RestOptions {
 
 	/**
-	 * The address that the server binds itself to / the client connects to.
+	 * The address that the server binds itself to.
+	 */
+	public static final ConfigOption<String> REST_BIND_ADDRESS =
+		key("rest.bind-address")
+			.noDefaultValue()
+			.withDescription("The address that the server binds itself.");
+
+	/**
+	 * The address that should be used by clients to connect to the server.
 	 */
 	public static final ConfigOption<String> REST_ADDRESS =
 		key("rest.address")
-			.defaultValue("localhost")
-			.withDescription("The address that the server binds itself to / the client connects to.");
+			.noDefaultValue()
+			.withDeprecatedKeys(JobManagerOptions.ADDRESS.key())
+			.withDescription("The address that should be used by clients to connect to the server.");
 
 	/**
 	 * The port that the server listens on / the client connects to.
