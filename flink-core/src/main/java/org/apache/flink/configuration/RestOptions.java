@@ -33,7 +33,7 @@ public class RestOptions {
 	 */
 	public static final ConfigOption<String> REST_ADDRESS =
 		key("rest.address")
-			.defaultValue("localhost")
+			.defaultValue("0.0.0.0")
 			.withDescription("The address that the server binds itself to / the client connects to.");
 
 	/**
