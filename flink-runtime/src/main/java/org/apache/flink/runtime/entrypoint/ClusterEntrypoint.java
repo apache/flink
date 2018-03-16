@@ -51,6 +51,8 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -153,6 +155,9 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 	@GuardedBy("lock")
 	private ClusterInformation clusterInformation;
+
+	@GuardedBy("lock")
+	private JobManagerMetricGroup jobManagerMetricGroup;
 
 	protected ClusterEntrypoint(Configuration configuration) {
 		this.configuration = Preconditions.checkNotNull(configuration);
@@ -327,6 +332,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				clusterInformation,
 				webMonitorEndpoint.getRestAddress());
 
+			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, rpcService.getAddress());
+
 			dispatcher = createDispatcher(
 				configuration,
 				rpcService,
@@ -334,7 +341,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				resourceManager.getSelfGateway(ResourceManagerGateway.class),
 				blobServer,
 				heartbeatServices,
-				metricRegistry,
+				jobManagerMetricGroup,
+				metricRegistry.getMetricQueryServicePath(),
 				archivedExecutionGraphStore,
 				this,
 				webMonitorEndpoint.getRestAddress());
@@ -488,7 +496,19 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				terminationFutures.add(FutureUtils.completedExceptionally(exception));
 			}
 
-			return FutureUtils.completeAll(terminationFutures);
+			final CompletableFuture<Void> componentTerminationFuture = FutureUtils.completeAll(terminationFutures);
+
+			if (jobManagerMetricGroup != null) {
+				return FutureUtils.runAfterwards(
+					componentTerminationFuture,
+					() -> {
+						synchronized (lock) {
+							jobManagerMetricGroup.close();
+						}
+					});
+			} else {
+				return componentTerminationFuture;
+			}
 		}
 	}
 
@@ -567,7 +587,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		ResourceManagerGateway resourceManagerGateway,
 		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
-		MetricRegistry metricRegistry,
+		JobManagerMetricGroup jobManagerMetricGroup,
+		@Nullable String metricQueryServicePath,
 		ArchivedExecutionGraphStore archivedExecutionGraphStore,
 		FatalErrorHandler fatalErrorHandler,
 		@Nullable String restAddress) throws Exception;
