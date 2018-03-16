@@ -54,6 +54,9 @@ import java.util.Map;
 /*
  * THIS FILE HAS BEEN COPIED FROM THE APACHE CALCITE PROJECT TO MAKE IT MORE EXTENSIBLE.
  *
+ * We have opened an issue to port this change to Apache Calcite (CALCITE-2216).
+ * Once CALCITE-2216 is fixed and included in a release, we can remove the copied class.
+ *
  * Modification:
  * - Added newCalcRel() method to be able to add fields to the projection.
  */
@@ -574,6 +577,15 @@ public class AggregateReduceFunctionsRule extends RelOptRule {
 			newCalls);
 	}
 
+	/**
+	 * Add a calc with the expressions to compute the original agg calls from the
+	 * decomposed ones.
+	 *
+	 * @param relBuilder Builder of relational expressions; at the top of its
+	 *                   stack is its input
+	 * @param oldAggregate The original LogicalAggregate that is replaced.
+	 * @param exprs The expressions to compute the original agg calls.
+	 */
 	protected void newCalcRel(RelBuilder relBuilder,
 							  Aggregate oldAggregate,
 							  List<RexNode> exprs) {
