@@ -33,6 +33,12 @@ public class LongValueParser extends FieldParser<LongValue> {
 	
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, LongValue reusable) {
+
+		if (startPos == limit) {
+			setErrorState(ParseErrorState.EMPTY_COLUMN);
+			return -1;
+		}
+
 		long val = 0;
 		boolean neg = false;
 

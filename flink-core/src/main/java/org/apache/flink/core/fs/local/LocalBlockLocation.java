@@ -18,10 +18,10 @@
 
 package org.apache.flink.core.fs.local;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.BlockLocation;
+
+import java.io.IOException;
 
 /**
  * Implementation of the {@link BlockLocation} interface for a local file system.

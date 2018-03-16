@@ -17,10 +17,12 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,12 +33,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * A {@link SourceFunction} that monitors a directory and sends events downstream when it detects
+ * new files. Used together with {@link FileReadFunction}.
+ *
+ * @deprecated Internal class deprecated in favour of {@link ContinuousFileMonitoringFunction}.
+ */
+@Internal
 @Deprecated
 public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Long, Long>> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileMonitoringFunction.class);
 
+	/**
+	 * The watch type of the {@code FileMonitoringFunction}.
+	 */
 	public enum WatchType {
 		ONLY_NEW_FILES, // Only new files will be processed.
 		REPROCESS_WITH_APPENDED, // When some files are appended, all contents

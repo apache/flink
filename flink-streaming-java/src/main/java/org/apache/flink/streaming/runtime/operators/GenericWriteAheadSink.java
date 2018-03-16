@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.state.ListState;
@@ -23,6 +24,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.io.disk.InputViewIterator;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -32,6 +34,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,8 +48,8 @@ import java.util.UUID;
 /**
  * Generic Sink that emits its input elements into an arbitrary backend. This sink is integrated with Flink's checkpointing
  * mechanism and can provide exactly-once guarantees; depending on the storage backend and sink/committer implementation.
- * <p/>
- * Incoming records are stored within a {@link org.apache.flink.runtime.state.AbstractStateBackend}, and only committed if a
+ *
+ * <p>Incoming records are stored within a {@link org.apache.flink.runtime.state.AbstractStateBackend}, and only committed if a
  * checkpoint is completed.
  *
  * @param <IN> Type of the elements emitted by this sink
@@ -63,7 +66,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	protected final TypeSerializer<IN> serializer;
 
 	private transient CheckpointStreamFactory.CheckpointStateOutputStream out;
-	private transient CheckpointStreamFactory checkpointStreamFactory;
+	private transient CheckpointStorage checkpointStorage;
 
 	private transient ListState<PendingCheckpoint> checkpointedState;
 
@@ -114,8 +117,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 		committer.setOperatorId(id);
 		committer.open();
 
-		checkpointStreamFactory = getContainingTask()
-			.createCheckpointStreamFactory(this);
+		checkpointStorage = getContainingTask().getCheckpointStorage();
 
 		cleanRestoredHandles();
 	}
@@ -162,9 +164,17 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 		saveHandleInState(context.getCheckpointId(), context.getCheckpointTimestamp());
 
 		this.checkpointedState.clear();
-		for (PendingCheckpoint pendingCheckpoint : pendingCheckpoints) {
-			// create a new partition for each entry.
-			this.checkpointedState.add(pendingCheckpoint);
+
+		try {
+			for (PendingCheckpoint pendingCheckpoint : pendingCheckpoints) {
+				// create a new partition for each entry.
+				this.checkpointedState.add(pendingCheckpoint);
+			}
+		} catch (Exception e) {
+			checkpointedState.clear();
+
+			throw new Exception("Could not add panding checkpoints to operator state " +
+				"backend of operator " + getOperatorName() + '.', e);
 		}
 
 		int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
@@ -194,8 +204,8 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	}
 
 	@Override
-	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
-		super.notifyOfCompletedCheckpoint(checkpointId);
+	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		super.notifyCheckpointComplete(checkpointId);
 
 		synchronized (pendingCheckpoints) {
 
@@ -220,6 +230,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 																in),
 														serializer),
 												serializer),
+										pastCheckpointId,
 										timestamp);
 								if (success) {
 									// in case the checkpoint was successfully committed,
@@ -248,18 +259,22 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	/**
 	 * Write the given element into the backend.
 	 *
-	 * @param value value to be written
+	 * @param values The values to be written
+	 * @param checkpointId The checkpoint ID of the checkpoint to be written
+	 * @param timestamp The wall-clock timestamp of the checkpoint
+	 *
 	 * @return true, if the sending was successful, false otherwise
+	 *
 	 * @throws Exception
 	 */
-	protected abstract boolean sendValues(Iterable<IN> value, long timestamp) throws Exception;
+	protected abstract boolean sendValues(Iterable<IN> values, long checkpointId, long timestamp) throws Exception;
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		IN value = element.getValue();
 		// generate initial operator state
 		if (out == null) {
-			out = checkpointStreamFactory.createCheckpointStateOutputStream(0, 0);
+			out = checkpointStorage.createTaskOwnedStateStream();
 		}
 		serializer.serialize(value, new DataOutputViewStreamWrapper(out));
 	}
@@ -288,7 +303,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 
 		@Override
 		public boolean equals(Object o) {
-			if (o == null || !(o instanceof GenericWriteAheadSink.PendingCheckpoint)) {
+			if (!(o instanceof GenericWriteAheadSink.PendingCheckpoint)) {
 				return false;
 			}
 			PendingCheckpoint other = (PendingCheckpoint) o;

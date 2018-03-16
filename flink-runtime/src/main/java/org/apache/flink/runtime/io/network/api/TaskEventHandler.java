@@ -18,10 +18,11 @@
 
 package org.apache.flink.runtime.io.network.api;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.util.event.EventListener;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.HashMultimap;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Multimap;
 
 /**
  * The event handler manages {@link EventListener} instances and allows to
@@ -29,18 +30,12 @@ import org.apache.flink.runtime.util.event.EventListener;
  */
 public class TaskEventHandler {
 
-	/** Listeners for each event type */
+	/** Listeners for each event type. */
 	private final Multimap<Class<? extends TaskEvent>, EventListener<TaskEvent>> listeners = HashMultimap.create();
 
 	public void subscribe(EventListener<TaskEvent> listener, Class<? extends TaskEvent> eventType) {
 		synchronized (listeners) {
 			listeners.put(eventType, listener);
-		}
-	}
-
-	public void unsubscribe(EventListener<TaskEvent> listener, Class<? extends TaskEvent> eventType) {
-		synchronized (listeners) {
-			listeners.remove(eventType, listener);
 		}
 	}
 

@@ -18,7 +18,12 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.util.ExceptionUtils;
+
 import kafka.api.FetchRequestBuilder;
+import kafka.api.OffsetRequest;
 import kafka.api.PartitionOffsetRequestInfo;
 import kafka.common.ErrorMapping;
 import kafka.common.TopicAndPartition;
@@ -27,12 +32,7 @@ import kafka.javaapi.OffsetResponse;
 import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.javaapi.message.ByteBufferMessageSet;
 import kafka.message.MessageAndOffset;
-
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.util.StringUtils;
-
 import org.apache.kafka.common.Node;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,38 +52,38 @@ import static org.apache.flink.util.PropertiesUtil.getInt;
 /**
  * This class implements a thread with a connection to a single Kafka broker. The thread
  * pulls records for a set of topic partitions for which the connected broker is currently
- * the leader. The thread deserializes these records and emits them. 
- * 
+ * the leader. The thread deserializes these records and emits them.
+ *
  * @param <T> The type of elements that this consumer thread creates from Kafka's byte messages
  *            and emits into the Flink DataStream.
  */
+@Internal
 class SimpleConsumerThread<T> extends Thread {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SimpleConsumerThread.class);
 
 	private static final KafkaTopicPartitionState<TopicAndPartition> MARKER = Kafka08Fetcher.MARKER;
-	
+
 	// ------------------------------------------------------------------------
 
 	private final Kafka08Fetcher<T> owner;
-	
+
 	private final KeyedDeserializationSchema<T> deserializer;
 
 	private final List<KafkaTopicPartitionState<TopicAndPartition>> partitions;
 
 	private final Node broker;
 
-	/** Queue containing new fetch partitions for the consumer thread */
+	/** Queue containing new fetch partitions for the consumer thread. */
 	private final ClosableBlockingQueue<KafkaTopicPartitionState<TopicAndPartition>> newPartitionsQueue;
-	
+
 	private final ClosableBlockingQueue<KafkaTopicPartitionState<TopicAndPartition>> unassignedPartitions;
-	
+
 	private final ExceptionProxy errorHandler;
-	
+
 	private final long invalidOffsetBehavior;
-	
+
 	private volatile boolean running = true;
-	
 
 	// ----------------- Simple Consumer ----------------------
 	private volatile SimpleConsumer consumer;
@@ -95,7 +95,6 @@ class SimpleConsumerThread<T> extends Thread {
 	private final int bufferSize;
 	private final int reconnectLimit;
 
-
 	// exceptions are thrown locally
 	public SimpleConsumerThread(
 			Kafka08Fetcher<T> owner,
@@ -105,17 +104,18 @@ class SimpleConsumerThread<T> extends Thread {
 			List<KafkaTopicPartitionState<TopicAndPartition>> seedPartitions,
 			ClosableBlockingQueue<KafkaTopicPartitionState<TopicAndPartition>> unassignedPartitions,
 			KeyedDeserializationSchema<T> deserializer,
-			long invalidOffsetBehavior)
-	{
+			long invalidOffsetBehavior) {
 		this.owner = owner;
 		this.errorHandler = errorHandler;
 		this.broker = broker;
+		// all partitions should have been assigned a starting offset by the fetcher
+		checkAllPartitionsHaveDefinedStartingOffsets(seedPartitions);
 		this.partitions = seedPartitions;
 		this.deserializer = requireNonNull(deserializer);
 		this.unassignedPartitions = requireNonNull(unassignedPartitions);
 		this.newPartitionsQueue = new ClosableBlockingQueue<>();
 		this.invalidOffsetBehavior = invalidOffsetBehavior;
-		
+
 		// these are the actual configuration values of Kafka + their original default values.
 		this.soTimeout = getInt(config, "socket.timeout.ms", 30000);
 		this.minBytes = getInt(config, "fetch.min.bytes", 1);
@@ -128,11 +128,11 @@ class SimpleConsumerThread<T> extends Thread {
 	public ClosableBlockingQueue<KafkaTopicPartitionState<TopicAndPartition>> getNewPartitionsQueue() {
 		return newPartitionsQueue;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  main work loop
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public void run() {
 		LOG.info("Starting to fetch from {}", this.partitions);
@@ -143,11 +143,11 @@ class SimpleConsumerThread<T> extends Thread {
 		try {
 			// create the Kafka consumer that we actually use for fetching
 			consumer = new SimpleConsumer(broker.host(), broker.port(), soTimeout, bufferSize, clientId);
-			
-			// make sure that all partitions have some offsets to start with
-			// those partitions that do not have an offset from a checkpoint need to get
-			// their start offset from ZooKeeper
-			getMissingOffsetsFromKafka(partitions);
+
+			// replace earliest of latest starting offsets with actual offset values fetched from Kafka
+			requestAndSetEarliestOrLatestOffsetsFromKafka(consumer, partitions);
+
+			LOG.info("Starting to consume {} partitions with consumer thread {}", partitions.size(), getName());
 
 			// Now, the actual work starts :-)
 			int offsetOutOfRangeCount = 0;
@@ -160,19 +160,22 @@ class SimpleConsumerThread<T> extends Thread {
 				List<KafkaTopicPartitionState<TopicAndPartition>> newPartitions = newPartitionsQueue.pollBatch();
 				if (newPartitions != null) {
 					// found some new partitions for this thread's broker
-					
-					// check if the new partitions need an offset lookup
-					getMissingOffsetsFromKafka(newPartitions);
-					
+
+					// the new partitions should already be assigned a starting offset
+					checkAllPartitionsHaveDefinedStartingOffsets(newPartitions);
+					// if the new partitions are to start from earliest or latest offsets,
+					// we need to replace them with actual values from Kafka
+					requestAndSetEarliestOrLatestOffsetsFromKafka(consumer, newPartitions);
+
 					// add the new partitions (and check they are not already in there)
 					for (KafkaTopicPartitionState<TopicAndPartition> newPartition: newPartitions) {
 						if (partitions.contains(newPartition)) {
-							throw new IllegalStateException("Adding partition " + newPartition + 
+							throw new IllegalStateException("Adding partition " + newPartition +
 									" to subscribed partitions even though it is already subscribed");
 						}
 						partitions.add(newPartition);
 					}
-					
+
 					LOG.info("Adding {} new partitions to consumer thread {}", newPartitions.size(), getName());
 					LOG.debug("Partitions list: {}", newPartitions);
 				}
@@ -181,8 +184,8 @@ class SimpleConsumerThread<T> extends Thread {
 					if (newPartitionsQueue.close()) {
 						// close succeeded. Closing thread
 						running = false;
-						
-						LOG.info("Consumer thread {} does not have any partitions assigned anymore. Stopping thread.", 
+
+						LOG.info("Consumer thread {} does not have any partitions assigned anymore. Stopping thread.",
 								getName());
 
 						// add the wake-up marker into the queue to make the main thread
@@ -193,7 +196,7 @@ class SimpleConsumerThread<T> extends Thread {
 					} else {
 						// close failed: fetcher main thread concurrently added new partitions into the queue.
 						// go to top of loop again and get the new partitions
-						continue; 
+						continue;
 					}
 				}
 
@@ -211,7 +214,7 @@ class SimpleConsumerThread<T> extends Thread {
 							partition.getOffset() + 1, // request the next record
 							fetchSize);
 				}
-				
+
 				kafka.api.FetchRequest fetchRequest = frb.build();
 				LOG.debug("Issuing fetch request {}", fetchRequest);
 
@@ -224,7 +227,7 @@ class SimpleConsumerThread<T> extends Thread {
 					if (cce instanceof ClosedChannelException) {
 						LOG.warn("Fetch failed because of ClosedChannelException.");
 						LOG.debug("Full exception", cce);
-						
+
 						// we don't know if the broker is overloaded or unavailable.
 						// retry a few times, then return ALL partitions for new leader lookup
 						if (++reconnects >= reconnectLimit) {
@@ -255,15 +258,15 @@ class SimpleConsumerThread<T> extends Thread {
 				if (fetchResponse == null) {
 					throw new IOException("Fetch from Kafka failed (request returned null)");
 				}
-				
+
 				if (fetchResponse.hasError()) {
 					String exception = "";
 					List<KafkaTopicPartitionState<TopicAndPartition>> partitionsToGetOffsetsFor = new ArrayList<>();
-					
+
 					// iterate over partitions to get individual error codes
 					Iterator<KafkaTopicPartitionState<TopicAndPartition>> partitionsIterator = partitions.iterator();
 					boolean partitionsRemoved = false;
-					
+
 					while (partitionsIterator.hasNext()) {
 						final KafkaTopicPartitionState<TopicAndPartition> fp = partitionsIterator.next();
 						short code = fetchResponse.errorCode(fp.getTopic(), fp.getPartition());
@@ -276,8 +279,7 @@ class SimpleConsumerThread<T> extends Thread {
 						else if (code == ErrorMapping.NotLeaderForPartitionCode() ||
 								code == ErrorMapping.LeaderNotAvailableCode() ||
 								code == ErrorMapping.BrokerNotAvailableCode() ||
-								code == ErrorMapping.UnknownCode())
-						{
+								code == ErrorMapping.UnknownCode()) {
 							// the broker we are connected to is not the leader for the partition.
 							LOG.warn("{} is not the leader of {}. Reassigning leader for partition", broker, fp);
 							LOG.debug("Error code = {}", code);
@@ -288,8 +290,8 @@ class SimpleConsumerThread<T> extends Thread {
 							partitionsRemoved = true;
 						}
 						else if (code != ErrorMapping.NoError()) {
-							exception += "\nException for " + fp.getTopic() +":"+ fp.getPartition() + ": " +
-									StringUtils.stringifyException(ErrorMapping.exceptionFor(code));
+							exception += "\nException for " + fp.getTopic() + ":" + fp.getPartition() + ": " +
+									ExceptionUtils.stringifyException(ErrorMapping.exceptionFor(code));
 						}
 					}
 					if (partitionsToGetOffsetsFor.size() > 0) {
@@ -300,8 +302,8 @@ class SimpleConsumerThread<T> extends Thread {
 						}
 						// get valid offsets for these partitions and try again.
 						LOG.warn("The following partitions had an invalid offset: {}", partitionsToGetOffsetsFor);
-						getLastOffsetFromKafka(consumer, partitionsToGetOffsetsFor, invalidOffsetBehavior);
-						
+						requestAndSetSpecificTimeOffsetsFromKafka(consumer, partitionsToGetOffsetsFor, invalidOffsetBehavior);
+
 						LOG.warn("The new partition offsets are {}", partitionsToGetOffsetsFor);
 						continue; // jump back to create a new fetch request. The offset has not been touched.
 					}
@@ -310,7 +312,7 @@ class SimpleConsumerThread<T> extends Thread {
 					}
 					else {
 						// partitions failed on an error
-						throw new IOException("Error while fetching from broker '" + broker +"': " + exception);
+						throw new IOException("Error while fetching from broker '" + broker + "': " + exception);
 					}
 				} else {
 					// successful fetch, reset offsetOutOfRangeCount.
@@ -322,11 +324,11 @@ class SimpleConsumerThread<T> extends Thread {
 				int messagesInFetch = 0;
 				int deletedMessages = 0;
 				Iterator<KafkaTopicPartitionState<TopicAndPartition>> partitionsIterator = partitions.iterator();
-				
+
 				partitionsLoop:
 				while (partitionsIterator.hasNext()) {
 					final KafkaTopicPartitionState<TopicAndPartition> currentPartition = partitionsIterator.next();
-					
+
 					final ByteBufferMessageSet messageSet = fetchResponse.messageSet(
 							currentPartition.getTopic(), currentPartition.getPartition());
 
@@ -335,7 +337,7 @@ class SimpleConsumerThread<T> extends Thread {
 							messagesInFetch++;
 							final ByteBuffer payload = msg.message().payload();
 							final long offset = msg.offset();
-							
+
 							if (offset <= currentPartition.getOffset()) {
 								// we have seen this message already
 								LOG.info("Skipping message with offset " + msg.offset()
@@ -367,15 +369,15 @@ class SimpleConsumerThread<T> extends Thread {
 								keyPayload.get(keyBytes);
 							}
 
-							final T value = deserializer.deserialize(keyBytes, valueBytes, 
+							final T value = deserializer.deserialize(keyBytes, valueBytes,
 									currentPartition.getTopic(), currentPartition.getPartition(), offset);
-							
+
 							if (deserializer.isEndOfStream(value)) {
 								// remove partition from subscribed partitions.
 								partitionsIterator.remove();
 								continue partitionsLoop;
 							}
-							
+
 							owner.emitRecord(value, currentPartition, offset);
 						}
 						else {
@@ -408,26 +410,6 @@ class SimpleConsumerThread<T> extends Thread {
 		}
 	}
 
-	private void getMissingOffsetsFromKafka(
-			List<KafkaTopicPartitionState<TopicAndPartition>> partitions) throws IOException
-	{
-		// collect which partitions we should fetch offsets for
-		List<KafkaTopicPartitionState<TopicAndPartition>> partitionsToGetOffsetsFor = new ArrayList<>();
-		for (KafkaTopicPartitionState<TopicAndPartition> part : partitions) {
-			if (!part.isOffsetDefined()) {
-				// retrieve the offset from the consumer
-				partitionsToGetOffsetsFor.add(part);
-			}
-		}
-		
-		if (partitionsToGetOffsetsFor.size() > 0) {
-			getLastOffsetFromKafka(consumer, partitionsToGetOffsetsFor, invalidOffsetBehavior);
-			
-			LOG.info("No checkpoint/savepoint offsets found for some partitions. " +
-					"Fetched the following start offsets {}", partitionsToGetOffsetsFor);
-		}
-	}
-
 	/**
 	 * Cancels this fetch thread. The thread will release all resources and terminate.
 	 */
@@ -441,50 +423,84 @@ class SimpleConsumerThread<T> extends Thread {
 
 		this.interrupt();
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Kafka Request Utils
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Request latest offsets for a set of partitions, via a Kafka consumer.
-	 *
-	 * <p>This method retries three times if the response has an error.
+	 * Request offsets before a specific time for a set of partitions, via a Kafka consumer.
 	 *
 	 * @param consumer The consumer connected to lead broker
 	 * @param partitions The list of partitions we need offsets for
 	 * @param whichTime The type of time we are requesting. -1 and -2 are special constants (See OffsetRequest)
 	 */
-	private static void getLastOffsetFromKafka(
+	private static void requestAndSetSpecificTimeOffsetsFromKafka(
 			SimpleConsumer consumer,
 			List<KafkaTopicPartitionState<TopicAndPartition>> partitions,
-			long whichTime) throws IOException
-	{
+			long whichTime) throws IOException {
 		Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo = new HashMap<>();
 		for (KafkaTopicPartitionState<TopicAndPartition> part : partitions) {
 			requestInfo.put(part.getKafkaPartitionHandle(), new PartitionOffsetRequestInfo(whichTime, 1));
 		}
 
+		requestAndSetOffsetsFromKafka(consumer, partitions, requestInfo);
+	}
+
+	/**
+	 * For a set of partitions, if a partition is set with the special offsets {@link OffsetRequest#EarliestTime()}
+	 * or {@link OffsetRequest#LatestTime()}, replace them with actual offsets requested via a Kafka consumer.
+	 *
+	 * @param consumer The consumer connected to lead broker
+	 * @param partitions The list of partitions we need offsets for
+	 */
+	private static void requestAndSetEarliestOrLatestOffsetsFromKafka(
+			SimpleConsumer consumer,
+			List<KafkaTopicPartitionState<TopicAndPartition>> partitions) throws Exception {
+		Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo = new HashMap<>();
+		for (KafkaTopicPartitionState<TopicAndPartition> part : partitions) {
+			if (part.getOffset() == OffsetRequest.EarliestTime() || part.getOffset() == OffsetRequest.LatestTime()) {
+				requestInfo.put(part.getKafkaPartitionHandle(), new PartitionOffsetRequestInfo(part.getOffset(), 1));
+			}
+		}
+
+		requestAndSetOffsetsFromKafka(consumer, partitions, requestInfo);
+	}
+
+	/**
+	 * Request offsets from Kafka with a specified set of partition's offset request information.
+	 * The returned offsets are used to set the internal partition states.
+	 *
+	 * <p>This method retries three times if the response has an error.
+	 *
+	 * @param consumer The consumer connected to lead broker
+	 * @param partitionStates the partition states, will be set with offsets fetched from Kafka request
+	 * @param partitionToRequestInfo map of each partition to its offset request info
+	 */
+	private static void requestAndSetOffsetsFromKafka(
+			SimpleConsumer consumer,
+			List<KafkaTopicPartitionState<TopicAndPartition>> partitionStates,
+			Map<TopicAndPartition, PartitionOffsetRequestInfo> partitionToRequestInfo) throws IOException {
 		int retries = 0;
 		OffsetResponse response;
 		while (true) {
 			kafka.javaapi.OffsetRequest request = new kafka.javaapi.OffsetRequest(
-					requestInfo, kafka.api.OffsetRequest.CurrentVersion(), consumer.clientId());
+				partitionToRequestInfo, kafka.api.OffsetRequest.CurrentVersion(), consumer.clientId());
 			response = consumer.getOffsetsBefore(request);
 
 			if (response.hasError()) {
 				StringBuilder exception = new StringBuilder();
-				for (KafkaTopicPartitionState<TopicAndPartition> part : partitions) {
+				for (KafkaTopicPartitionState<TopicAndPartition> part : partitionStates) {
 					short code;
 					if ((code = response.errorCode(part.getTopic(), part.getPartition())) != ErrorMapping.NoError()) {
 						exception.append("\nException for topic=").append(part.getTopic())
-								.append(" partition=").append(part.getPartition()).append(": ")
-								.append(StringUtils.stringifyException(ErrorMapping.exceptionFor(code)));
+							.append(" partition=").append(part.getPartition()).append(": ")
+							.append(ExceptionUtils.stringifyException(ErrorMapping.exceptionFor(code)));
 					}
 				}
 				if (++retries >= 3) {
-					throw new IOException("Unable to get last offset for partitions " + partitions + ": "
-							+ exception.toString());
+					throw new IOException("Unable to get last offset for partitions " + partitionStates + ": "
+						+ exception.toString());
 				} else {
 					LOG.warn("Unable to get last offset for partitions: Exception(s): {}", exception);
 				}
@@ -493,12 +509,24 @@ class SimpleConsumerThread<T> extends Thread {
 			}
 		}
 
-		for (KafkaTopicPartitionState<TopicAndPartition> part: partitions) {
-			final long offset = response.offsets(part.getTopic(), part.getPartition())[0];
-			
-			// the offset returned is that of the next record to fetch. because our state reflects the latest
-			// successfully emitted record, we subtract one
-			part.setOffset(offset - 1);
+		for (KafkaTopicPartitionState<TopicAndPartition> part: partitionStates) {
+			// there will be offsets only for partitions that were requested for
+			if (partitionToRequestInfo.containsKey(part.getKafkaPartitionHandle())) {
+				final long offset = response.offsets(part.getTopic(), part.getPartition())[0];
+
+				// the offset returned is that of the next record to fetch. because our state reflects the latest
+				// successfully emitted record, we subtract one
+				part.setOffset(offset - 1);
+			}
+		}
+	}
+
+	private static void checkAllPartitionsHaveDefinedStartingOffsets(
+		List<KafkaTopicPartitionState<TopicAndPartition>> partitions) {
+		for (KafkaTopicPartitionState<TopicAndPartition> part : partitions) {
+			if (!part.isOffsetDefined()) {
+				throw new IllegalArgumentException("SimpleConsumerThread received a partition with undefined starting offset");
+			}
 		}
 	}
 }

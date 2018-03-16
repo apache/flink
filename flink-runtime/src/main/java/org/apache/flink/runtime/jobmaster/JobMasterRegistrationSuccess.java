@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.registration.RegistrationResponse;
-
-import java.util.UUID;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -33,11 +33,17 @@ public class JobMasterRegistrationSuccess extends RegistrationResponse.Success {
 
 	private final long heartbeatInterval;
 
-	private final UUID resourceManagerLeaderId;
+	private final ResourceManagerId resourceManagerId;
 
-	public JobMasterRegistrationSuccess(final long heartbeatInterval, final UUID resourceManagerLeaderId) {
+	private final ResourceID resourceManagerResourceId;
+
+	public JobMasterRegistrationSuccess(
+			final long heartbeatInterval,
+			final ResourceManagerId resourceManagerId,
+			final ResourceID resourceManagerResourceId) {
 		this.heartbeatInterval = heartbeatInterval;
-		this.resourceManagerLeaderId = checkNotNull(resourceManagerLeaderId);
+		this.resourceManagerId = checkNotNull(resourceManagerId);
+		this.resourceManagerResourceId = checkNotNull(resourceManagerResourceId);
 	}
 
 	/**
@@ -49,15 +55,20 @@ public class JobMasterRegistrationSuccess extends RegistrationResponse.Success {
 		return heartbeatInterval;
 	}
 
-	public UUID getResourceManagerLeaderId() {
-		return resourceManagerLeaderId;
+	public ResourceManagerId getResourceManagerId() {
+		return resourceManagerId;
+	}
+
+	public ResourceID getResourceManagerResourceId() {
+		return resourceManagerResourceId;
 	}
 
 	@Override
 	public String toString() {
 		return "JobMasterRegistrationSuccess{" +
 			"heartbeatInterval=" + heartbeatInterval +
-			", resourceManagerLeaderId=" + resourceManagerLeaderId +
+			", resourceManagerLeaderId=" + resourceManagerId +
+			", resourceManagerResourceId=" + resourceManagerResourceId +
 			'}';
 	}
 }

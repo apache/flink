@@ -105,7 +105,7 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 	}
 
 	/**
-	 * Computes the results of the gather-sum-apply iteration
+	 * Computes the results of the gather-sum-apply iteration.
 	 *
 	 * @return The resulting DataSet
 	 */
@@ -161,7 +161,7 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 		}
 
 		// Prepare the neighbors
-		if(this.configuration != null) {
+		if (this.configuration != null) {
 			direction = this.configuration.getDirection();
 		}
 		DataSet<Tuple2<K, Neighbor<VV, EV>>> neighbors;
@@ -169,24 +169,24 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 			case OUT:
 				neighbors = iteration
 				.getWorkset().join(edgeDataSet)
-				.where(0).equalTo(0).with(new ProjectKeyWithNeighborOUT<K, VV, EV>());
+				.where(0).equalTo(0).with(new ProjectKeyWithNeighborOUT<>());
 				break;
 			case IN:
 				neighbors = iteration
 				.getWorkset().join(edgeDataSet)
-				.where(0).equalTo(1).with(new ProjectKeyWithNeighborIN<K, VV, EV>());
+				.where(0).equalTo(1).with(new ProjectKeyWithNeighborIN<>());
 				break;
 			case ALL:
 				neighbors =  iteration
 						.getWorkset().join(edgeDataSet)
-						.where(0).equalTo(0).with(new ProjectKeyWithNeighborOUT<K, VV, EV>()).union(iteration
+						.where(0).equalTo(0).with(new ProjectKeyWithNeighborOUT<>()).union(iteration
 								.getWorkset().join(edgeDataSet)
-								.where(0).equalTo(1).with(new ProjectKeyWithNeighborIN<K, VV, EV>()));
+								.where(0).equalTo(1).with(new ProjectKeyWithNeighborIN<>()));
 				break;
 			default:
 				neighbors = iteration
 						.getWorkset().join(edgeDataSet)
-						.where(0).equalTo(0).with(new ProjectKeyWithNeighborOUT<K, VV, EV>());
+						.where(0).equalTo(0).with(new ProjectKeyWithNeighborOUT<>());
 				break;
 		}
 
@@ -246,7 +246,7 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 	}
 
 	/**
-	 * Creates a new gather-sum-apply iteration operator for graphs
+	 * Creates a new gather-sum-apply iteration operator for graphs.
 	 *
 	 * @param edges The edge DataSet
 	 *
@@ -330,9 +330,19 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 
 		@Override
 		public Tuple2<K, M> reduce(Tuple2<K, M> arg0, Tuple2<K, M> arg1) throws Exception {
-			K key = arg0.f0;
 			M result = this.sumFunction.sum(arg0.f1, arg1.f1);
-			return new Tuple2<>(key, result);
+
+			// if the user returns value from the right argument then swap as
+			// in ReduceDriver.run()
+			if (result == arg1.f1) {
+				M tmp = arg1.f1;
+				arg1.f1 = arg0.f1;
+				arg0.f1 = tmp;
+			} else {
+				arg0.f1 = result;
+			}
+
+			return arg0;
 		}
 
 		@Override

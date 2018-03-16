@@ -26,6 +26,9 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+/**
+ * Test join with a slow source.
+ */
 public class ConsumePipelinedAndBlockingResultITCase extends JavaProgramTestBase {
 
 	@Override
@@ -33,7 +36,7 @@ public class ConsumePipelinedAndBlockingResultITCase extends JavaProgramTestBase
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 
-		DataSet<Tuple1<Long>> pipelinedSource = env.fromElements(new Tuple1<Long>(1l));
+		DataSet<Tuple1<Long>> pipelinedSource = env.fromElements(new Tuple1<Long>(1L));
 
 		DataSet<Tuple1<Long>> slowBlockingSource = env.generateSequence(0, 10).map(
 				new MapFunction<Long, Tuple1<Long>>() {

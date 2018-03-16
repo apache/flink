@@ -18,90 +18,111 @@
 
 package org.apache.flink.table.plan.nodes.datastream
 
-import org.apache.calcite.plan._
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.TableScan
-import org.apache.flink.api.common.functions.MapFunction
+import org.apache.calcite.rex.RexNode
+import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.PojoTypeInfo
-import org.apache.flink.table.codegen.CodeGenerator
-import org.apache.flink.table.plan.schema.FlinkTable
-import org.apache.flink.table.runtime.MapRunner
-import org.apache.flink.table.typeutils.TypeConverter.determineReturnType
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.plan.nodes.CommonScan
+import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.types.Row
+import org.apache.flink.table.runtime.CRowOutputProcessRunner
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
-import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
+trait StreamScan extends CommonScan[CRow] with DataStreamRel {
 
-abstract class StreamScan(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    table: RelOptTable)
-  extends TableScan(cluster, traitSet, table)
-  with DataStreamRel {
-
-  protected def convertToExpectedType(
+  protected def convertToInternalRow(
+      schema: RowSchema,
       input: DataStream[Any],
-      flinkTable: FlinkTable[_],
-      expectedType: Option[TypeInformation[Any]],
-      config: TableConfig): DataStream[Any] = {
+      fieldIdxs: Array[Int],
+      config: TableConfig,
+      rowtimeExpression: Option[RexNode]): DataStream[CRow] = {
 
     val inputType = input.getType
+    val internalType = schema.typeInfo
+    val cRowType = CRowTypeInfo(internalType)
 
-    expectedType match {
+    val hasTimeIndicator = fieldIdxs.exists(f =>
+      f == TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER ||
+      f == TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER)
 
-      // special case:
-      // if efficient type usage is enabled and no expected type is set
-      // we can simply forward the DataSet to the next operator.
-      // however, we cannot forward PojoTypes as their fields don't have an order
-      case None if config.getEfficientTypeUsage && !inputType.isInstanceOf[PojoTypeInfo[_]] =>
-        input
+    if (input.getType == cRowType && !hasTimeIndicator) {
+      // input is already a CRow with correct type
+      input.asInstanceOf[DataStream[CRow]]
 
-      case _ =>
-        val determinedType = determineReturnType(
-          getRowType,
-          expectedType,
-          config.getNullCheck,
-          config.getEfficientTypeUsage)
-
-        // conversion
-        if (determinedType != inputType) {
-          val generator = new CodeGenerator(
-            config,
-            nullableInput = false,
-            input.getType,
-            flinkTable.fieldIndexes)
-
-          val conversion = generator.generateConverterResultExpression(
-            determinedType,
-            getRowType.getFieldNames)
-
-          val body =
-            s"""
-               |${conversion.code}
-               |return ${conversion.resultTerm};
-               |""".stripMargin
-
-          val genFunction = generator.generateFunction(
-            "DataSetSourceConversion",
-            classOf[MapFunction[Any, Any]],
-            body,
-            determinedType)
-
-          val mapFunc = new MapRunner[Any, Any](
-            genFunction.name,
-            genFunction.code,
-            genFunction.returnType)
-
-          val opName = s"from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
-
-          input.map(mapFunc).name(opName)
+    } else if (input.getType == internalType && !hasTimeIndicator) {
+      // input is already of correct type. Only need to wrap it as CRow
+      input.asInstanceOf[DataStream[Row]].map(new RichMapFunction[Row, CRow] {
+        @transient private var outCRow: CRow = null
+        override def open(parameters: Configuration): Unit = {
+          outCRow = new CRow(null, change = true)
         }
-        // no conversion necessary, forward
-        else {
-          input
+
+        override def map(v: Row): CRow = {
+          outCRow.row = v
+          outCRow
         }
+      }).returns(cRowType)
+
+    } else {
+      // input needs to be converted and wrapped as CRow or time indicators need to be generated
+
+      val function = generateConversionProcessFunction(
+        config,
+        inputType,
+        internalType,
+        "DataStreamSourceConversion",
+        schema.fieldNames,
+        fieldIdxs,
+        rowtimeExpression
+      )
+
+      val processFunc = new CRowOutputProcessRunner(
+        function.name,
+        function.code,
+        cRowType)
+
+      val opName = s"from: (${schema.fieldNames.mkString(", ")})"
+
+      input.process(processFunc).name(opName).returns(cRowType)
     }
+  }
+
+  private def generateConversionProcessFunction(
+      config: TableConfig,
+      inputType: TypeInformation[Any],
+      outputType: TypeInformation[Row],
+      conversionOperatorName: String,
+      fieldNames: Seq[String],
+      inputFieldMapping: Array[Int],
+      rowtimeExpression: Option[RexNode]): GeneratedFunction[ProcessFunction[Any, Row], Row] = {
+
+    val generator = new FunctionCodeGenerator(
+      config,
+      false,
+      inputType,
+      None,
+      Some(inputFieldMapping))
+
+    val conversion = generator.generateConverterResultExpression(
+      outputType,
+      fieldNames,
+      rowtimeExpression)
+
+    val body =
+      s"""
+         |${conversion.code}
+         |${generator.collectorTerm}.collect(${conversion.resultTerm});
+         |""".stripMargin
+
+    generator.generateFunction(
+      "DataStreamSourceConversion",
+      classOf[ProcessFunction[Any, Row]],
+      body,
+      outputType)
   }
 }

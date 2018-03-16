@@ -18,17 +18,12 @@
 
 package org.apache.flink.table.expressions
 
-import java.sql.{Date, Time, Timestamp}
-
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.types.Row
-import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.ExpressionTestBase
+import org.apache.flink.table.expressions.utils.ScalarTypesTestBase
 import org.junit.Test
 
-class ScalarFunctionsTest extends ExpressionTestBase {
+class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   // ----------------------------------------------------------------------------------------------
   // String functions
@@ -97,18 +92,6 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testSqlApi(
       "SUBSTRING(f0 FROM 2)",
       "his is a test String.")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidSubstring1(): Unit = {
-    // Must fail. Parameter of substring must be an Integer not a Double.
-    testTableApi("test".substring(2.0.toExpr), "FAIL", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidSubstring2(): Unit = {
-    // Must fail. Parameter of substring must be an Integer not a String.
-    testTableApi("test".substring("test".toExpr), "FAIL", "FAIL")
   }
 
   @Test
@@ -325,6 +308,146 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "false")
   }
 
+  @Test
+  def testMultiConcat(): Unit = {
+    testAllApis(concat("xx", 'f33), "concat('xx', f33)", "CONCAT('xx', f33)", "null")
+    testAllApis(
+      concat("AA", "BB", "CC", "---"),
+      "concat('AA','BB','CC','---')",
+      "CONCAT('AA','BB','CC','---')",
+      "AABBCC---")
+    testAllApis(
+      concat("x~x", "b~b", "c~~~~c", "---"),
+      "concat('x~x','b~b','c~~~~c','---')",
+      "CONCAT('x~x','b~b','c~~~~c','---')",
+      "x~xb~bc~~~~c---")
+  }
+
+  @Test
+  def testConcatWs(): Unit = {
+    testAllApis(
+      concat_ws('f33, "AA"),
+      "concat_ws(f33, 'AA')",
+      "CONCAT_WS(f33, 'AA')",
+      "null")
+    testAllApis(
+      concat_ws("~~~~", "AA"),
+      "concat_ws('~~~~','AA')",
+      "concat_ws('~~~~','AA')",
+      "AA")
+    testAllApis(
+      concat_ws("~", "AA", "BB"),
+      "concat_ws('~','AA','BB')",
+      "concat_ws('~','AA','BB')",
+      "AA~BB")
+    testAllApis(
+      concat_ws("~", 'f33, "AA", "BB", "", 'f33, "CC"),
+      "concat_ws('~',f33, 'AA','BB','',f33, 'CC')",
+      "concat_ws('~',f33, 'AA','BB','',f33, 'CC')",
+      "AA~BB~~CC")
+    testAllApis(
+      concat_ws("~~~~", "Flink", 'f33, "xx", 'f33, 'f33),
+      "concat_ws('~~~~','Flink', f33, 'xx', f33, f33)",
+      "CONCAT_WS('~~~~','Flink', f33, 'xx', f33, f33)",
+      "Flink~~~~xx")
+  }
+
+  @Test
+  def testLPad(): Unit = {
+    testSqlApi("LPAD('hi',4,'??')", "??hi")
+    testSqlApi("LPAD('hi',1,'??')", "h")
+    testSqlApi("LPAD('',1,'??')", "?")
+    testSqlApi("LPAD('',30,'??')", "??????????????????????????????")
+    testSqlApi("LPAD('111',-2,'??')", "null")
+    testSqlApi("LPAD(f33,1,'??')", "null")
+    testSqlApi("LPAD('\u0061\u0062',1,'??')", "a") // the unicode of ab is \u0061\u0062
+    testSqlApi("LPAD('⎨⎨',1,'??')", "⎨")
+    testSqlApi("LPAD('äääääääää',2,'??')", "ää")
+    testSqlApi("LPAD('äääääääää',10,'??')", "?äääääääää")
+
+    testAllApis(
+      "äää".lpad(13, "12345"),
+      "'äää'.lpad(13, '12345')",
+      "LPAD('äää',13,'12345')",
+      "1234512345äää")
+  }
+
+  @Test
+  def testRPad(): Unit = {
+    testSqlApi("RPAD('hi',4,'??')", "hi??")
+    testSqlApi("RPAD('hi',1,'??')", "h")
+    testSqlApi("RPAD('',1,'??')", "?")
+    testSqlApi("RPAD('1',30,'??')", "1?????????????????????????????")
+    testSqlApi("RPAD('111',-2,'??')", "null")
+    testSqlApi("RPAD(f33,1,'??')", "null")
+    testSqlApi("RPAD('\u0061\u0062',1,'??')", "a") // the unicode of ab is \u0061\u0062
+    testSqlApi("RPAD('üö',1,'??')", "ü")
+
+    testAllApis(
+      "äää".rpad(13, "12345"),
+      "'äää'.rpad(13, '12345')",
+      "RPAD('äää',13,'12345')",
+      "äää1234512345")
+  }
+
+  @Test
+  def testBin(): Unit = {
+
+    testAllApis(
+      Null(Types.BYTE).bin(),
+      "bin(Null(BYTE))",
+      "BIN((CAST(NULL AS TINYINT)))",
+      "null")
+
+    testAllApis(
+      'f2.bin(),
+      "f2.bin()",
+      "BIN(f2)",
+      "101010")
+
+    testAllApis(
+      'f3.bin(),
+      "f3.bin()",
+      "BIN(f3)",
+      "101011")
+
+    testAllApis(
+      'f4.bin(),
+      "f4.bin()",
+      "BIN(f4)",
+      "101100")
+
+    testAllApis(
+      'f7.bin(),
+      "f7.bin()",
+      "BIN(f7)",
+      "11")
+
+    testAllApis(
+      12.bin(),
+      "12.bin()",
+      "BIN(12)",
+      "1100")
+
+    testAllApis(
+      10.bin(),
+      "10.bin()",
+      "BIN(10)",
+      "1010")
+
+    testAllApis(
+      0.bin(),
+      "0.bin()",
+      "BIN(0)",
+      "0")
+
+    testAllApis(
+      'f32.bin(),
+      "f32.bin()",
+      "BIN(f32)",
+      "1111111111111111111111111111111111111111111111111111111111111111")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------
@@ -348,7 +471,6 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "mod(44, 3)",
       "MOD(44, 3)",
       "2")
-
   }
 
   @Test
@@ -385,12 +507,12 @@ class ScalarFunctionsTest extends ExpressionTestBase {
 
     testAllApis(
       'f7.exp(),
-      "exp(3)",
-      "EXP(3)",
+      "exp(f7)",
+      "EXP(f7)",
       math.exp(3).toString)
 
     testAllApis(
-      'f7.exp(),
+      3.exp(),
       "exp(3)",
       "EXP(3)",
       math.exp(3).toString)
@@ -696,6 +818,500 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "-1231")
   }
 
+  @Test
+  def testSin(): Unit = {
+    testAllApis(
+      'f2.sin(),
+      "f2.sin()",
+      "SIN(f2)",
+      math.sin(42.toByte).toString)
+
+    testAllApis(
+      'f3.sin(),
+      "f3.sin()",
+      "SIN(f3)",
+      math.sin(43.toShort).toString)
+
+    testAllApis(
+      'f4.sin(),
+      "f4.sin()",
+      "SIN(f4)",
+      math.sin(44.toLong).toString)
+
+    testAllApis(
+      'f5.sin(),
+      "f5.sin()",
+      "SIN(f5)",
+      math.sin(4.5.toFloat).toString)
+
+    testAllApis(
+      'f6.sin(),
+      "f6.sin()",
+      "SIN(f6)",
+      math.sin(4.6).toString)
+
+    testAllApis(
+      'f15.sin(),
+      "sin(f15)",
+      "SIN(f15)",
+      math.sin(-1231.1231231321321321111).toString)
+  }
+
+  @Test
+  def testCos(): Unit = {
+    testAllApis(
+      'f2.cos(),
+      "f2.cos()",
+      "COS(f2)",
+      math.cos(42.toByte).toString)
+
+    testAllApis(
+      'f3.cos(),
+      "f3.cos()",
+      "COS(f3)",
+      math.cos(43.toShort).toString)
+
+    testAllApis(
+      'f4.cos(),
+      "f4.cos()",
+      "COS(f4)",
+      math.cos(44.toLong).toString)
+
+    testAllApis(
+      'f5.cos(),
+      "f5.cos()",
+      "COS(f5)",
+      math.cos(4.5.toFloat).toString)
+
+    testAllApis(
+      'f6.cos(),
+      "f6.cos()",
+      "COS(f6)",
+      math.cos(4.6).toString)
+
+    testAllApis(
+      'f15.cos(),
+      "cos(f15)",
+      "COS(f15)",
+      math.cos(-1231.1231231321321321111).toString)
+  }
+
+  @Test
+  def testTan(): Unit = {
+    testAllApis(
+      'f2.tan(),
+      "f2.tan()",
+      "TAN(f2)",
+      math.tan(42.toByte).toString)
+
+    testAllApis(
+      'f3.tan(),
+      "f3.tan()",
+      "TAN(f3)",
+      math.tan(43.toShort).toString)
+
+    testAllApis(
+      'f4.tan(),
+      "f4.tan()",
+      "TAN(f4)",
+      math.tan(44.toLong).toString)
+
+    testAllApis(
+      'f5.tan(),
+      "f5.tan()",
+      "TAN(f5)",
+      math.tan(4.5.toFloat).toString)
+
+    testAllApis(
+      'f6.tan(),
+      "f6.tan()",
+      "TAN(f6)",
+      math.tan(4.6).toString)
+
+    testAllApis(
+      'f15.tan(),
+      "tan(f15)",
+      "TAN(f15)",
+      math.tan(-1231.1231231321321321111).toString)
+  }
+
+  @Test
+  def testCot(): Unit = {
+    testAllApis(
+      'f2.cot(),
+      "f2.cot()",
+      "COT(f2)",
+      (1.0d / math.tan(42.toByte)).toString)
+
+    testAllApis(
+      'f3.cot(),
+      "f3.cot()",
+      "COT(f3)",
+      (1.0d / math.tan(43.toShort)).toString)
+
+    testAllApis(
+      'f4.cot(),
+      "f4.cot()",
+      "COT(f4)",
+      (1.0d / math.tan(44.toLong)).toString)
+
+    testAllApis(
+      'f5.cot(),
+      "f5.cot()",
+      "COT(f5)",
+      (1.0d / math.tan(4.5.toFloat)).toString)
+
+    testAllApis(
+      'f6.cot(),
+      "f6.cot()",
+      "COT(f6)",
+      (1.0d / math.tan(4.6)).toString)
+
+    testAllApis(
+      'f15.cot(),
+      "cot(f15)",
+      "COT(f15)",
+      (1.0d / math.tan(-1231.1231231321321321111)).toString)
+  }
+
+  @Test
+  def testAsin(): Unit = {
+    testAllApis(
+      'f25.asin(),
+      "f25.asin()",
+      "ASIN(f25)",
+      math.asin(0.42.toByte).toString)
+
+    testAllApis(
+      'f26.asin(),
+      "f26.asin()",
+      "ASIN(f26)",
+      math.asin(0.toShort).toString)
+
+    testAllApis(
+      'f27.asin(),
+      "f27.asin()",
+      "ASIN(f27)",
+      math.asin(0.toLong).toString)
+
+    testAllApis(
+      'f28.asin(),
+      "f28.asin()",
+      "ASIN(f28)",
+      math.asin(0.45.toFloat).toString)
+
+    testAllApis(
+      'f29.asin(),
+      "f29.asin()",
+      "ASIN(f29)",
+      math.asin(0.46).toString)
+
+    testAllApis(
+      'f30.asin(),
+      "f30.asin()",
+      "ASIN(f30)",
+      math.asin(1).toString)
+
+    testAllApis(
+      'f31.asin(),
+      "f31.asin()",
+      "ASIN(f31)",
+      math.asin(-0.1231231321321321111).toString)
+  }
+
+  @Test
+  def testAcos(): Unit = {
+    testAllApis(
+      'f25.acos(),
+      "f25.acos()",
+      "ACOS(f25)",
+      math.acos(0.42.toByte).toString)
+
+    testAllApis(
+      'f26.acos(),
+      "f26.acos()",
+      "ACOS(f26)",
+      math.acos(0.toShort).toString)
+
+    testAllApis(
+      'f27.acos(),
+      "f27.acos()",
+      "ACOS(f27)",
+      math.acos(0.toLong).toString)
+
+    testAllApis(
+      'f28.acos(),
+      "f28.acos()",
+      "ACOS(f28)",
+      math.acos(0.45.toFloat).toString)
+
+    testAllApis(
+      'f29.acos(),
+      "f29.acos()",
+      "ACOS(f29)",
+      math.acos(0.46).toString)
+
+    testAllApis(
+      'f30.acos(),
+      "f30.acos()",
+      "ACOS(f30)",
+      math.acos(1).toString)
+
+    testAllApis(
+      'f31.acos(),
+      "f31.acos()",
+      "ACOS(f31)",
+      math.acos(-0.1231231321321321111).toString)
+  }
+
+  @Test
+  def testAtan(): Unit = {
+    testAllApis(
+      'f25.atan(),
+      "f25.atan()",
+      "ATAN(f25)",
+      math.atan(0.42.toByte).toString)
+
+    testAllApis(
+      'f26.atan(),
+      "f26.atan()",
+      "ATAN(f26)",
+      math.atan(0.toShort).toString)
+
+    testAllApis(
+      'f27.atan(),
+      "f27.atan()",
+      "ATAN(f27)",
+      math.atan(0.toLong).toString)
+
+    testAllApis(
+      'f28.atan(),
+      "f28.atan()",
+      "ATAN(f28)",
+      math.atan(0.45.toFloat).toString)
+
+    testAllApis(
+      'f29.atan(),
+      "f29.atan()",
+      "ATAN(f29)",
+      math.atan(0.46).toString)
+
+    testAllApis(
+      'f30.atan(),
+      "f30.atan()",
+      "ATAN(f30)",
+      math.atan(1).toString)
+
+    testAllApis(
+      'f31.atan(),
+      "f31.atan()",
+      "ATAN(f31)",
+      math.atan(-0.1231231321321321111).toString)
+  }
+
+  @Test
+  def testDegrees(): Unit = {
+    testAllApis(
+      'f2.degrees(),
+      "f2.degrees()",
+      "DEGREES(f2)",
+      math.toDegrees(42.toByte).toString)
+
+    testAllApis(
+      'f3.degrees(),
+      "f3.degrees()",
+      "DEGREES(f3)",
+      math.toDegrees(43.toShort).toString)
+
+    testAllApis(
+      'f4.degrees(),
+      "f4.degrees()",
+      "DEGREES(f4)",
+      math.toDegrees(44.toLong).toString)
+
+    testAllApis(
+      'f5.degrees(),
+      "f5.degrees()",
+      "DEGREES(f5)",
+      math.toDegrees(4.5.toFloat).toString)
+
+    testAllApis(
+      'f6.degrees(),
+      "f6.degrees()",
+      "DEGREES(f6)",
+      math.toDegrees(4.6).toString)
+
+    testAllApis(
+      'f15.degrees(),
+      "degrees(f15)",
+      "DEGREES(f15)",
+      math.toDegrees(-1231.1231231321321321111).toString)
+  }
+
+  @Test
+  def testRadians(): Unit = {
+    testAllApis(
+      'f2.radians(),
+      "f2.radians()",
+      "RADIANS(f2)",
+      math.toRadians(42.toByte).toString)
+
+    testAllApis(
+      'f3.radians(),
+      "f3.radians()",
+      "RADIANS(f3)",
+      math.toRadians(43.toShort).toString)
+
+    testAllApis(
+      'f4.radians(),
+      "f4.radians()",
+      "RADIANS(f4)",
+      math.toRadians(44.toLong).toString)
+
+    testAllApis(
+      'f5.radians(),
+      "f5.radians()",
+      "RADIANS(f5)",
+      math.toRadians(4.5.toFloat).toString)
+
+    testAllApis(
+      'f6.radians(),
+      "f6.radians()",
+      "RADIANS(f6)",
+      math.toRadians(4.6).toString)
+
+    testAllApis(
+      'f15.radians(),
+      "radians(f15)",
+      "RADIANS(f15)",
+      math.toRadians(-1231.1231231321321321111).toString)
+  }
+
+  @Test
+  def testSign(): Unit = {
+    testAllApis(
+      'f4.sign(),
+      "f4.sign()",
+      "SIGN(f4)",
+      1.toString)
+
+    testAllApis(
+      'f6.sign(),
+      "f6.sign()",
+      "SIGN(f6)",
+      1.0.toString)
+
+    testAllApis(
+      'f15.sign(),
+      "sign(f15)",
+      "SIGN(f15)",
+      (-1).toString)
+  }
+
+  @Test
+  def testRound(): Unit = {
+    testAllApis(
+      'f29.round('f30),
+      "f29.round(f30)",
+      "ROUND(f29, f30)",
+      0.5.toString)
+
+    testAllApis(
+      'f31.round('f7),
+      "f31.round(f7)",
+      "ROUND(f31, f7)",
+      (-0.123).toString)
+
+    testAllApis(
+      'f4.round('f32),
+      "f4.round(f32)",
+      "ROUND(f4, f32)",
+      40.toString)
+  }
+
+  @Test
+  def testPi(): Unit = {
+    testAllApis(
+      pi(),
+      "pi()",
+      "PI",
+      math.Pi.toString)
+  }
+
+  @Test
+  def testRandAndRandInteger(): Unit = {
+    val random1 = new java.util.Random(1)
+    testAllApis(
+      rand(1),
+      "rand(1)",
+      "RAND(1)",
+      random1.nextDouble().toString)
+
+    val random2 = new java.util.Random(3)
+    testAllApis(
+      rand('f7),
+      "rand(f7)",
+      "RAND(f7)",
+      random2.nextDouble().toString)
+
+    val random3 = new java.util.Random(1)
+    testAllApis(
+      randInteger(1, 10),
+      "randInteger(1, 10)",
+      "RAND_INTEGER(1, 10)",
+      random3.nextInt(10).toString)
+
+    val random4 = new java.util.Random(3)
+    testAllApis(
+      randInteger('f7, 'f4.cast(Types.INT)),
+      "randInteger(f7, f4.cast(INT))",
+      "RAND_INTEGER(f7, CAST(f4 AS INT))",
+      random4.nextInt(44).toString)
+  }
+
+  @Test
+  def testE(): Unit = {
+    testAllApis(
+      e(),
+      "E()",
+      "E()",
+      math.E.toString)
+
+    testAllApis(
+      e(),
+      "e()",
+      "e()",
+      math.E.toString)
+  }
+
+  @Test
+  def testLog(): Unit = {
+    testSqlApi(
+      "LOG(f6)",
+      "1.5260563034950492"
+    )
+
+    testSqlApi(
+      "LOG(f6-f6 + 10, f6-f6+100)",
+      "2.0"
+    )
+
+    testSqlApi(
+      "LOG(f6+20)",
+      "3.202746442938317"
+    )
+
+    testSqlApi(
+      "LOG(10)",
+      "2.302585092994046"
+    )
+
+    testSqlApi(
+      "LOG(10, 100)",
+      "2.0"
+    )
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------
@@ -809,6 +1425,47 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "f20.extract(YEAR)",
       "EXTRACT(YEAR FROM f20)",
       "2")
+
+    // test SQL only time units
+    testSqlApi(
+      "EXTRACT(MILLENNIUM FROM f18)",
+      "2")
+
+    testSqlApi(
+      "EXTRACT(MILLENNIUM FROM f16)",
+      "2")
+
+    testSqlApi(
+      "EXTRACT(CENTURY FROM f18)",
+      "20")
+
+    testSqlApi(
+      "EXTRACT(CENTURY FROM f16)",
+      "20")
+
+    testSqlApi(
+      "EXTRACT(DOY FROM f18)",
+      "315")
+
+    testSqlApi(
+      "EXTRACT(DOY FROM f16)",
+      "315")
+
+    testSqlApi(
+      "EXTRACT(QUARTER FROM f18)",
+      "4")
+
+    testSqlApi(
+      "EXTRACT(QUARTER FROM f16)",
+      "4")
+
+    testSqlApi(
+      "EXTRACT(WEEK FROM f18)",
+      "45")
+
+    testSqlApi(
+      "EXTRACT(WEEK FROM f16)",
+      "45")
   }
 
   @Test
@@ -989,7 +1646,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
 
     testAllApis(
       temporalOverlaps("9:00:00".toTime, "9:30:00".toTime, "9:29:00".toTime, "9:31:00".toTime),
-      "temporalOverlaps('9:00:00'.toTime, '9:30:00'.toTime, '9:29:00'.toTime, '9:31:00'.toTime)",
+      "temporalOverlaps(toTime('9:00:00'), '9:30:00'.toTime, '9:29:00'.toTime, '9:31:00'.toTime)",
       "(TIME '9:00:00', TIME '9:30:00') OVERLAPS (TIME '9:29:00', TIME '9:31:00')",
       "true")
 
@@ -1001,29 +1658,27 @@ class ScalarFunctionsTest extends ExpressionTestBase {
 
     testAllApis(
       temporalOverlaps("2011-03-10".toDate, 10.days, "2011-03-19".toDate, 10.days),
-      "temporalOverlaps('2011-03-10'.toDate, 10.days, '2011-03-19'.toDate, 10.days)",
+      "temporalOverlaps(toDate('2011-03-10'), 10.days, '2011-03-19'.toDate, 10.days)",
       "(DATE '2011-03-10', INTERVAL '10' DAY) OVERLAPS (DATE '2011-03-19', INTERVAL '10' DAY)",
       "true")
 
     testAllApis(
       temporalOverlaps("2011-03-10 05:02:02".toTimestamp, 0.milli,
         "2011-03-10 05:02:02".toTimestamp, "2011-03-10 05:02:01".toTimestamp),
-      "temporalOverlaps('2011-03-10 05:02:02'.toTimestamp, 0.milli, " +
+      "temporalOverlaps(toTimestamp('2011-03-10 05:02:02'), 0.milli, " +
         "'2011-03-10 05:02:02'.toTimestamp, '2011-03-10 05:02:01'.toTimestamp)",
       "(TIMESTAMP '2011-03-10 05:02:02', INTERVAL '0' SECOND) OVERLAPS " +
         "(TIMESTAMP '2011-03-10 05:02:02', TIMESTAMP '2011-03-10 05:02:01')",
-      "false")
+      "true")
 
-    // TODO enable once CALCITE-1435 is fixed
-    // comparison of timestamps based on milliseconds is buggy
-    //testAllApis(
-    //  temporalOverlaps("2011-03-10 02:02:02.001".toTimestamp, 0.milli,
-    //    "2011-03-10 02:02:02.002".toTimestamp, "2011-03-10 02:02:02.002".toTimestamp),
-    //  "temporalOverlaps('2011-03-10 02:02:02.001'.toTimestamp, 0.milli, " +
-    //    "'2011-03-10 02:02:02.002'.toTimestamp, '2011-03-10 02:02:02.002'.toTimestamp)",
-    //  "(TIMESTAMP '2011-03-10 02:02:02.001', INTERVAL '0' SECOND) OVERLAPS " +
-    //    "(TIMESTAMP '2011-03-10 02:02:02.002', TIMESTAMP '2011-03-10 02:02:02.002')",
-    //  "false")
+    testAllApis(
+      temporalOverlaps("2011-03-10 02:02:02.001".toTimestamp, 0.milli,
+        "2011-03-10 02:02:02.002".toTimestamp, "2011-03-10 02:02:02.002".toTimestamp),
+      "temporalOverlaps('2011-03-10 02:02:02.001'.toTimestamp, 0.milli, " +
+        "'2011-03-10 02:02:02.002'.toTimestamp, '2011-03-10 02:02:02.002'.toTimestamp)",
+      "(TIMESTAMP '2011-03-10 02:02:02.001', INTERVAL '0' SECOND) OVERLAPS " +
+        "(TIMESTAMP '2011-03-10 02:02:02.002', TIMESTAMP '2011-03-10 02:02:02.002')",
+      "false")
   }
 
   @Test
@@ -1045,6 +1700,162 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "'1997-12-31'.toDate.quarter()",
       "QUARTER(DATE '1997-12-31')",
       "4")
+  }
+
+  @Test
+  def testTimestampAdd(): Unit = {
+    val data = Seq(
+      (1, "TIMESTAMP '2017-11-29 22:58:58.998'"),
+      (3, "TIMESTAMP '2017-11-29 22:58:58.998'"),
+      (-1, "TIMESTAMP '2017-11-29 22:58:58.998'"),
+      (-61, "TIMESTAMP '2017-11-29 22:58:58.998'"),
+      (-1000, "TIMESTAMP '2017-11-29 22:58:58.998'")
+    )
+
+    val YEAR = Seq(
+      "2018-11-29 22:58:58.998",
+      "2020-11-29 22:58:58.998",
+      "2016-11-29 22:58:58.998",
+      "1956-11-29 22:58:58.998",
+      "1017-11-29 22:58:58.998")
+
+    val QUARTER = Seq(
+      "2018-03-01 22:58:58.998",
+      "2018-08-31 22:58:58.998",
+      "2017-08-29 22:58:58.998",
+      "2002-08-29 22:58:58.998",
+      "1767-11-29 22:58:58.998")
+
+    val MONTH = Seq(
+      "2017-12-29 22:58:58.998",
+      "2018-03-01 22:58:58.998",
+      "2017-10-29 22:58:58.998",
+      "2012-10-29 22:58:58.998",
+      "1934-07-29 22:58:58.998")
+
+    val WEEK = Seq(
+      "2017-12-06 22:58:58.998",
+      "2017-12-20 22:58:58.998",
+      "2017-11-22 22:58:58.998",
+      "2016-09-28 22:58:58.998",
+      "1998-09-30 22:58:58.998")
+
+    val DAY = Seq(
+      "2017-11-30 22:58:58.998",
+      "2017-12-02 22:58:58.998",
+      "2017-11-28 22:58:58.998",
+      "2017-09-29 22:58:58.998",
+      "2015-03-05 22:58:58.998")
+
+    val HOUR = Seq(
+      "2017-11-29 23:58:58.998",
+      "2017-11-30 01:58:58.998",
+      "2017-11-29 21:58:58.998",
+      "2017-11-27 09:58:58.998",
+      "2017-10-19 06:58:58.998")
+
+    val MINUTE = Seq(
+      "2017-11-29 22:59:58.998",
+      "2017-11-29 23:01:58.998",
+      "2017-11-29 22:57:58.998",
+      "2017-11-29 21:57:58.998",
+      "2017-11-29 06:18:58.998")
+
+    val SECOND = Seq(
+      "2017-11-29 22:58:59.998",
+      "2017-11-29 22:59:01.998",
+      "2017-11-29 22:58:57.998",
+      "2017-11-29 22:57:57.998",
+      "2017-11-29 22:42:18.998")
+
+    // we do not supported FRAC_SECOND, MICROSECOND, SQL_TSI_FRAC_SECOND, SQL_TSI_MICROSECOND
+    val intervalMapResults = Map(
+      "YEAR" -> YEAR,
+      "SQL_TSI_YEAR" -> YEAR,
+      "QUARTER" -> QUARTER,
+      "SQL_TSI_QUARTER" -> QUARTER,
+      "MONTH" -> MONTH,
+      "SQL_TSI_MONTH" -> MONTH,
+      "WEEK" -> WEEK,
+      "SQL_TSI_WEEK" -> WEEK,
+      "DAY" -> DAY,
+      "SQL_TSI_DAY" -> DAY,
+      "HOUR" -> HOUR,
+      "SQL_TSI_HOUR" -> HOUR,
+      "MINUTE" -> MINUTE,
+      "SQL_TSI_MINUTE" -> MINUTE,
+      "SECOND" -> SECOND,
+      "SQL_TSI_SECOND" -> SECOND
+    )
+
+    for ((interval, result) <- intervalMapResults) {
+      testSqlApi(
+        s"TIMESTAMPADD($interval, ${data.head._1}, ${data.head._2})", result.head)
+      testSqlApi(
+        s"TIMESTAMPADD($interval, ${data(1)._1}, ${data(1)._2})", result(1))
+      testSqlApi(
+        s"TIMESTAMPADD($interval, ${data(2)._1}, ${data(2)._2})", result(2))
+      testSqlApi(
+        s"TIMESTAMPADD($interval, ${data(3)._1}, ${data(3)._2})", result(3))
+      testSqlApi(
+        s"TIMESTAMPADD($interval, ${data(4)._1}, ${data(4)._2})", result(4))
+    }
+
+    testSqlApi("TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')", "null")
+
+    testSqlApi("TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))", "null")
+
+    testSqlApi("TIMESTAMPADD(DAY, 1, DATE '2016-06-15')", "2016-06-16")
+
+    testSqlApi("TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))", "null")
+
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Hash functions
+  // ----------------------------------------------------------------------------------------------
+
+  @Test
+  def testHashFunctions(): Unit = {
+    val expectedMd5 = "098f6bcd4621d373cade4e832627b4f6"
+    val expectedSha1 = "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3"
+    val expectedSha256 = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+
+    testAllApis(
+      "test".md5(),
+      "md5('test')",
+      "MD5('test')",
+      expectedMd5)
+
+    testAllApis(
+      "test".sha1(),
+      "sha1('test')",
+      "SHA1('test')",
+      expectedSha1)
+
+    testAllApis(
+      "test".sha256(),
+      "sha256('test')",
+      "SHA256('test')",
+      expectedSha256)
+
+    testAllApis(
+      'f33.md5(),
+      "sha256(f33)",
+      "SHA256(f33)",
+      "null")
+
+    testAllApis(
+      'f33.sha256(),
+      "sha256(f33)",
+      "SHA256(f33)",
+      "null")
+
+    testAllApis(
+      'f33.sha256(),
+      "sha256(f33)",
+      "SHA256(f33)",
+      "null")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -1100,67 +1911,5 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "f21.isNotFalse",
       "f21 IS NOT FALSE",
       "true")
-  }
-
-  // ----------------------------------------------------------------------------------------------
-
-  def testData = {
-    val testData = new Row(25)
-    testData.setField(0, "This is a test String.")
-    testData.setField(1, true)
-    testData.setField(2, 42.toByte)
-    testData.setField(3, 43.toShort)
-    testData.setField(4, 44.toLong)
-    testData.setField(5, 4.5.toFloat)
-    testData.setField(6, 4.6)
-    testData.setField(7, 3)
-    testData.setField(8, " This is a test String. ")
-    testData.setField(9, -42.toByte)
-    testData.setField(10, -43.toShort)
-    testData.setField(11, -44.toLong)
-    testData.setField(12, -4.5.toFloat)
-    testData.setField(13, -4.6)
-    testData.setField(14, -3)
-    testData.setField(15, BigDecimal("-1231.1231231321321321111").bigDecimal)
-    testData.setField(16, Date.valueOf("1996-11-10"))
-    testData.setField(17, Time.valueOf("06:55:44"))
-    testData.setField(18, Timestamp.valueOf("1996-11-10 06:55:44.333"))
-    testData.setField(19, 1467012213000L) // +16979 07:23:33.000
-    testData.setField(20, 25) // +2-01
-    testData.setField(21, null)
-    testData.setField(22, BigDecimal("2").bigDecimal)
-    testData.setField(23, "%This is a test String.")
-    testData.setField(24, "*_This is a test String.")
-    testData
-  }
-
-  def typeInfo = {
-    new RowTypeInfo(
-      Types.STRING,
-      Types.BOOLEAN,
-      Types.BYTE,
-      Types.SHORT,
-      Types.LONG,
-      Types.FLOAT,
-      Types.DOUBLE,
-      Types.INT,
-      Types.STRING,
-      Types.BYTE,
-      Types.SHORT,
-      Types.LONG,
-      Types.FLOAT,
-      Types.DOUBLE,
-      Types.INT,
-      Types.DECIMAL,
-      Types.DATE,
-      Types.TIME,
-      Types.TIMESTAMP,
-      Types.INTERVAL_MILLIS,
-      Types.INTERVAL_MONTHS,
-      Types.BOOLEAN,
-      Types.DECIMAL,
-      Types.STRING,
-      Types.STRING).asInstanceOf[TypeInformation[Any]]
-
   }
 }

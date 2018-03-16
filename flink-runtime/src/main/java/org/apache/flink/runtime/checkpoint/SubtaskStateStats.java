@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import java.io.Serializable;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -30,8 +32,10 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <p>This is the smallest immutable unit of the stats.
  */
-public class SubtaskStateStats {
-	
+public class SubtaskStateStats implements Serializable {
+
+	private static final long serialVersionUID = 8928594531621862214L;
+
 	/** Index of this sub task. */
 	private final int subtaskIndex;
 

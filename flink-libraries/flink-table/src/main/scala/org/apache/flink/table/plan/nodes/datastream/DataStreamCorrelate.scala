@@ -18,19 +18,19 @@
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SemiJoinType
-import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.codegen.CodeGenerator
-import org.apache.flink.table.functions.utils.TableSqlFunction
-import org.apache.flink.table.plan.nodes.FlinkCorrelate
-import org.apache.flink.table.typeutils.TypeConverter._
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
+import org.apache.flink.table.functions.utils.TableSqlFunction
+import org.apache.flink.table.plan.nodes.CommonCorrelate
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
+import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.runtime.CRowCorrelateProcessRunner
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 /**
   * Flink RelNode which matches along with join a user defined table function.
@@ -38,28 +38,30 @@ import org.apache.flink.table.api.StreamTableEnvironment
 class DataStreamCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    inputNode: RelNode,
-    scan: LogicalTableFunctionScan,
+    inputSchema: RowSchema,
+    input: RelNode,
+    scan: FlinkLogicalTableFunctionScan,
     condition: Option[RexNode],
-    relRowType: RelDataType,
-    joinRowType: RelDataType,
+    schema: RowSchema,
+    joinSchema: RowSchema,
     joinType: SemiJoinType,
     ruleDescription: String)
-  extends SingleRel(cluster, traitSet, inputNode)
-  with FlinkCorrelate
+  extends SingleRel(cluster, traitSet, input)
+  with CommonCorrelate
   with DataStreamRel {
 
-  override def deriveRowType() = relRowType
+  override def deriveRowType() = schema.relDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamCorrelate(
       cluster,
       traitSet,
+      inputSchema,
       inputs.get(0),
       scan,
       condition,
-      relRowType,
-      joinRowType,
+      schema,
+      joinSchema,
       joinType,
       ruleDescription)
   }
@@ -67,7 +69,7 @@ class DataStreamCorrelate(
   override def toString: String = {
     val rexCall = scan.getCall.asInstanceOf[RexCall]
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    correlateToString(rexCall, sqlFunction)
+    correlateToString(inputSchema.relDataType, rexCall, sqlFunction, getExpressionString)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -75,60 +77,70 @@ class DataStreamCorrelate(
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     super.explainTerms(pw)
       .item("invocation", scan.getCall)
-      .item("function", sqlFunction.getTableFunction.getClass.getCanonicalName)
-      .item("rowType", relRowType)
+      .item("correlate", correlateToString(
+        inputSchema.relDataType,
+        rexCall, sqlFunction,
+        getExpressionString))
+      .item("select", selectToString(schema.relDataType))
+      .item("rowType", schema.relDataType)
       .item("joinType", joinType)
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
 
   override def translateToPlan(
       tableEnv: StreamTableEnvironment,
-      expectedType: Option[TypeInformation[Any]])
-    : DataStream[Any] = {
+      queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     val config = tableEnv.getConfig
-    val returnType = determineReturnType(
-      getRowType,
-      expectedType,
-      config.getNullCheck,
-      config.getEfficientTypeUsage)
 
     // we do not need to specify input type
-    val inputDS = inputNode.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
+    val inputDS = getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
 
-    val funcRel = scan.asInstanceOf[LogicalTableFunctionScan]
+    val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    val pojoFieldMapping = sqlFunction.getPojoFieldMapping
+    val pojoFieldMapping = Some(sqlFunction.getPojoFieldMapping)
     val udtfTypeInfo = sqlFunction.getRowTypeInfo.asInstanceOf[TypeInformation[Any]]
 
-    val generator = new CodeGenerator(
+    val process = generateFunction(
       config,
-      false,
-      inputDS.getType,
-      Some(udtfTypeInfo),
-      None,
-      Some(pojoFieldMapping))
-
-    val body = functionBody(
-      generator,
+      inputSchema,
       udtfTypeInfo,
-      getRowType,
-      rexCall,
-      condition,
-      config,
+      schema,
       joinType,
-      expectedType)
-
-    val genFunction = generator.generateFunction(
+      rexCall,
+      pojoFieldMapping,
       ruleDescription,
-      classOf[FlatMapFunction[Any, Any]],
-      body,
-      returnType)
+      classOf[ProcessFunction[CRow, CRow]])
 
-    val mapFunc = correlateMapFunction(genFunction)
+    val collector = generateCollector(
+      config,
+      inputSchema,
+      udtfTypeInfo,
+      schema,
+      condition,
+      pojoFieldMapping)
 
-    inputDS.flatMap(mapFunc).name(correlateOpName(rexCall, sqlFunction, relRowType))
+    val processFunc = new CRowCorrelateProcessRunner(
+      process.name,
+      process.code,
+      collector.name,
+      collector.code,
+      CRowTypeInfo(process.returnType))
+
+    val inputParallelism = inputDS.getParallelism
+
+    inputDS
+      .process(processFunc)
+      // preserve input parallelism to ensure that acc and retract messages remain in order
+      .setParallelism(inputParallelism)
+      .name(correlateOpName(
+        inputSchema.relDataType,
+        rexCall,
+        sqlFunction,
+        schema.relDataType,
+        getExpressionString)
+      )
   }
 
 }

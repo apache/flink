@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,8 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -32,8 +34,7 @@ import java.util.Collections;
  * A {@link WindowAssigner} that windows elements into sessions based on the current processing
  * time. Windows cannot overlap.
  *
- * <p>
- * For example, in order to window into windows of 1 minute, every 10 seconds:
+ * <p>For example, in order to window into windows of 1 minute, every 10 seconds:
  * <pre> {@code
  * DataStream<Tuple2<String, Integer>> in = ...;
  * KeyedStream<String, Tuple2<String, Integer>> keyed = in.keyBy(...);
@@ -47,6 +48,10 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
 	protected long sessionTimeout;
 
 	protected ProcessingTimeSessionWindows(long sessionTimeout) {
+		if (sessionTimeout <= 0) {
+			throw new IllegalArgumentException("ProcessingTimeSessionWindows parameters must satisfy 0 < size");
+		}
+
 		this.sessionTimeout = sessionTimeout;
 	}
 
@@ -75,6 +80,18 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
 	 */
 	public static ProcessingTimeSessionWindows withGap(Time size) {
 		return new ProcessingTimeSessionWindows(size.toMilliseconds());
+	}
+
+	/**
+	 * Creates a new {@code SessionWindows} {@link WindowAssigner} that assigns
+	 * elements to sessions based on the element timestamp.
+	 *
+	 * @param sessionWindowTimeGapExtractor The extractor to use to extract the time gap from the input elements
+	 * @return The policy.
+	 */
+	@PublicEvolving
+	public static <T> DynamicProcessingTimeSessionWindows<T> withDynamicGap(SessionWindowTimeGapExtractor<T> sessionWindowTimeGapExtractor) {
+		return new DynamicProcessingTimeSessionWindows<>(sessionWindowTimeGapExtractor);
 	}
 
 	@Override

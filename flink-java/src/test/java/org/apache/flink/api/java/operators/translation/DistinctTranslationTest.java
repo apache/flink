@@ -34,6 +34,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
+
 import org.junit.Test;
 
 import java.io.Serializable;
@@ -45,6 +46,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for translation of distinct operation.
+ */
 @SuppressWarnings("serial")
 public class DistinctTranslationTest {
 
@@ -164,7 +168,7 @@ public class DistinctTranslationTest {
 
 			DataSet<Tuple3<Double, StringValue, LongValue>> initialData = getSourceDataSet(env);
 
-			initialData.distinct(new KeySelector<Tuple3<Double,StringValue,LongValue>, StringValue>() {
+			initialData.distinct(new KeySelector<Tuple3<Double, StringValue, LongValue>, StringValue>() {
 				public StringValue getKey(Tuple3<Double, StringValue, LongValue> value) {
 					return value.f1;
 				}
@@ -183,7 +187,7 @@ public class DistinctTranslationTest {
 			assertEquals(4, reducer.getParallelism());
 
 			// check types
-			TypeInformation<?> keyValueInfo = new TupleTypeInfo<Tuple2<StringValue, Tuple3<Double,StringValue,LongValue>>>(
+			TypeInformation<?> keyValueInfo = new TupleTypeInfo<Tuple2<StringValue, Tuple3<Double, StringValue, LongValue>>>(
 					new ValueTypeInfo<StringValue>(StringValue.class),
 					initialData.getType());
 
@@ -245,7 +249,7 @@ public class DistinctTranslationTest {
 	}
 
 	@SuppressWarnings("unchecked")
-	private static final DataSet<Tuple3<Double, StringValue, LongValue>> getSourceDataSet(ExecutionEnvironment env) {
+	private static DataSet<Tuple3<Double, StringValue, LongValue>> getSourceDataSet(ExecutionEnvironment env) {
 		return env.fromElements(new Tuple3<Double, StringValue, LongValue>(3.141592, new StringValue("foobar"), new LongValue(77)))
 				.setParallelism(1);
 	}
@@ -256,6 +260,9 @@ public class DistinctTranslationTest {
 		return env.fromCollection(data);
 	}
 
+	/**
+	 * Custom data type, for testing purposes.
+	 */
 	public static class CustomType implements Serializable {
 
 		private static final long serialVersionUID = 1L;
@@ -269,7 +276,7 @@ public class DistinctTranslationTest {
 
 		@Override
 		public String toString() {
-			return ""+myInt;
+			return "" + myInt;
 		}
 	}
 }

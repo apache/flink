@@ -27,9 +27,10 @@ import org.apache.flink.core.memory.DataOutputView;
 /**
  * This interface must be implemented by every class whose objects have to be serialized to their binary representation
  * and vice-versa. In particular, records have to implement this interface in order to specify how their data can be
- * transfered
- * to a binary representation.
- * When implementing this Interface make sure that the implementing class has a default (zero-argument) constructor!
+ * transferred to a binary representation.
+ * 
+ * <p>When implementing this Interface make sure that the implementing class has a default
+ * (zero-argument) constructor!
  */
 @Public
 public interface IOReadableWritable {

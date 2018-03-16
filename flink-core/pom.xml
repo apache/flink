@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.3-SNAPSHOT</version>
+		<version>1.6-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -45,6 +45,11 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-metrics-core</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-asm</artifactId>
 		</dependency>
 
 		<!-- standard utilities -->
@@ -75,53 +80,11 @@ under the License.
 			<!-- managed version -->
 		</dependency>
 
-		<!-- Avro is needed for the interoperability with Avro types for serialization -->
-		<dependency>
-			<groupId>org.apache.avro</groupId>
-			<artifactId>avro</artifactId>
-			<!-- managed version -->
-			<exclusions>
-				<exclusion>
-					<groupId>org.xerial.snappy</groupId>
-					<artifactId>snappy-java</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<!-- ASM is needed for type extraction -->
-		<dependency>
-			<groupId>org.ow2.asm</groupId>
-			<artifactId>asm-all</artifactId>
-			<version>${asm.version}</version>
-		</dependency>
-
-		<!--
-			Because there are no logger implementation dependency in the root pom, we
-			add them here so that they are available during execution of code (core 
-			and example) in the IDE
-
-			NOTE: Once we are confident that users will use the newer quickstart templates,
-			we can drop these dependencies and only add them to 'flink-dist' and as test
-			dependencies
-		-->
-
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-log4j12</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
-		</dependency>
-
 		<!-- ================== test dependencies ================== -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -129,6 +92,9 @@ under the License.
 			<artifactId>commons-io</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- Joda and jackson are used to test that serialization and type extraction
+			work with types from those libraries -->
 
 		<dependency>
 			<groupId>joda-time</groupId>
@@ -141,10 +107,46 @@ under the License.
 			<artifactId>joda-convert</artifactId>
 			<scope>test</scope>
 		</dependency>
-    </dependencies>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-jackson</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+	</dependencies>
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>2.17</version>
+				<dependencies>
+					<dependency>
+						<groupId>com.puppycrawl.tools</groupId>
+						<artifactId>checkstyle</artifactId>
+						<version>8.4</version>
+					</dependency>
+				</dependencies>
+				<executions>
+					<execution>
+						<id>validate</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+
+				<configuration>
+					<configLocation>/tools/maven/checkstyle.xml</configLocation>
+					<suppressionsLocation>/tools/maven/suppressions-core.xml</suppressionsLocation>
+					<includeTestSourceDirectory>true</includeTestSourceDirectory>
+					<logViolationsToConsole>true</logViolationsToConsole>
+					<failOnViolation>true</failOnViolation>
+				</configuration>
+			</plugin>
 
 			<!-- activate API compatibility checks -->
 			<plugin>
@@ -154,8 +156,45 @@ under the License.
 					<parameter>
 						<excludes combine.children="append">
 							<exclude>org.apache.flink.api.common.ExecutionConfig#CONFIG_KEY</exclude>
-							<exclude>org.apache.flink.core.fs.FileSystem$FSKey</exclude>
+							<exclude>org.apache.flink.core.fs.FileSystem\$FSKey</exclude>
+							<exclude>org.apache.flink.core.fs.FileSystem#initialize(java.net.URI)</exclude>
+							<exclude>org.apache.flink.core.fs.FileSystem#isFlinkSupportedScheme(java.lang.String)</exclude>
+							<exclude>org.apache.flink.core.fs.FileSystem#setDefaultScheme(org.apache.flink.configuration.Configuration)</exclude>
 							<exclude>org.apache.flink.api.java.typeutils.WritableTypeInfo</exclude>
+							<exclude>org.apache.flink.api.java.typeutils.AvroTypeInfo</exclude>
+							<!-- Breaking changes between 1.1 and 1.2.
+							We ignore these changes because these are low-level, internal runtime configuration parameters -->
+							<exclude>org.apache.flink.configuration.ConfigConstants</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants#DEFAULT_NETWORK_REQUEST_BACKOFF_INITIAL</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants#DEFAULT_NETWORK_REQUEST_BACKOFF_MAX</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants#DEFAULT_TASK_CANCELLATION_TIMEOUT_MILLIS</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants#ENABLE_QUARANTINE_MONITOR</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants#NETWORK_REQUEST_BACKOFF_INITIAL_KEY</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants#NETWORK_REQUEST_BACKOFF_MAX_KEY</exclude>
+
+							<!-- fields that were accidentally not final in the beginning -->
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_WATCH_THRESHOLD</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_DISPATCHER_THROUGHPUT</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_SECURITY_SSL_VERIFY_HOSTNAME</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_LOOKUP_TIMEOUT</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_TRANSPORT_HEARTBEAT_INTERVAL</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_RECOVERY_MODE</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_SECURITY_SSL_ENABLED</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_CLIENT_TIMEOUT</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_STATE_BACKEND</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_TRANSPORT_THRESHOLD</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_FRAMESIZE</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_TRANSPORT_HEARTBEAT_PAUSE</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_SSL_ENABLED</exclude>
+
+							<!-- apparently there is a bug in the plugin which makes it fail on this new file, event though
+								its new, and not conflicting/breaking -->
+							<exclude>org.apache.flink.api.common.serialization.DeserializationSchema</exclude>
+							<exclude>org.apache.flink.api.common.serialization.SerializationSchema</exclude>
 						</excludes>
 					</parameter>
 				</configuration>
@@ -174,7 +213,7 @@ under the License.
 				</executions>
 			</plugin>
 		</plugins>
-		
+
 	</build>
 
 </project>

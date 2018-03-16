@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.util.Preconditions;
+
 import scala.concurrent.duration.Duration;
 
 import java.util.ArrayDeque;
@@ -34,6 +36,7 @@ import java.util.concurrent.TimeUnit;
  * with a fixed time delay in between.
  */
 public class FailureRateRestartStrategy implements RestartStrategy {
+
 	private final Time failuresInterval;
 	private final Time delayInterval;
 	private final int maxFailuresPerInterval;
@@ -65,16 +68,31 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 	}
 
 	@Override
-	public void restart(final ExecutionGraph executionGraph) {
+	public void restart(final RestartCallback restarter, ScheduledExecutor executor) {
 		if (isRestartTimestampsQueueFull()) {
 			restartTimestampsDeque.remove();
 		}
 		restartTimestampsDeque.add(System.currentTimeMillis());
-		FlinkFuture.supplyAsync(ExecutionGraphRestarter.restartWithDelay(executionGraph, delayInterval.toMilliseconds()), executionGraph.getFutureExecutor());
+
+		executor.schedule(new Runnable() {
+			@Override
+			public void run() {
+				restarter.triggerFullRecovery();
+			}
+		}, delayInterval.getSize(), delayInterval.getUnit());
 	}
 
 	private boolean isRestartTimestampsQueueFull() {
-		return restartTimestampsDeque.size() == maxFailuresPerInterval;
+		return restartTimestampsDeque.size() >= maxFailuresPerInterval;
+	}
+
+	@Override
+	public String toString() {
+		return "FailureRateRestartStrategy(" +
+			"failuresInterval=" + failuresInterval +
+			"delayInterval=" + delayInterval +
+			"maxFailuresPerInterval=" + maxFailuresPerInterval +
+			")";
 	}
 
 	public static FailureRateRestartStrategyFactory createFactory(Configuration configuration) throws Exception {
@@ -82,7 +100,7 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 		String failuresIntervalString = configuration.getString(
 				ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL, Duration.apply(1, TimeUnit.MINUTES).toString()
 		);
-		String timeoutString = configuration.getString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT);
+		String timeoutString = configuration.getString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL);
 		String delayString = configuration.getString(ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_DELAY, timeoutString);
 
 		Duration failuresInterval = Duration.apply(failuresIntervalString);

@@ -20,9 +20,9 @@ package org.apache.flink.table.api.java
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.table.api._
-import org.apache.flink.table.functions.TableFunction
+import org.apache.flink.table.expressions.ExpressionParser
+import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 
 /**
   * The [[TableEnvironment]] for a Java batch [[DataSet]]
@@ -133,7 +133,7 @@ class BatchTableEnvironment(
     * Converts the given [[Table]] into a [[DataSet]] of a specified type.
     *
     * The fields of the [[Table]] are mapped to [[DataSet]] fields as follows:
-    * - [[Row]] and [[org.apache.flink.api.java.tuple.Tuple]]
+    * - [[org.apache.flink.types.Row]] and [[org.apache.flink.api.java.tuple.Tuple]]
     * types: Fields are mapped by position, field types must match.
     * - POJO [[DataSet]] types: Fields are mapped by field name, field types must match.
     *
@@ -143,14 +143,15 @@ class BatchTableEnvironment(
     * @return The converted [[DataSet]].
     */
   def toDataSet[T](table: Table, clazz: Class[T]): DataSet[T] = {
-    translate[T](table)(TypeExtractor.createTypeInfo(clazz))
+    // Use the default query config.
+    translate[T](table, queryConfig)(TypeExtractor.createTypeInfo(clazz))
   }
 
   /**
     * Converts the given [[Table]] into a [[DataSet]] of a specified type.
     *
     * The fields of the [[Table]] are mapped to [[DataSet]] fields as follows:
-    * - [[Row]] and [[org.apache.flink.api.java.tuple.Tuple]]
+    * - [[org.apache.flink.types.Row]] and [[org.apache.flink.api.java.tuple.Tuple]]
     * types: Fields are mapped by position, field types must match.
     * - POJO [[DataSet]] types: Fields are mapped by field name, field types must match.
     *
@@ -160,7 +161,50 @@ class BatchTableEnvironment(
     * @return The converted [[DataSet]].
     */
   def toDataSet[T](table: Table, typeInfo: TypeInformation[T]): DataSet[T] = {
-    translate[T](table)(typeInfo)
+    // Use the default batch query config.
+    translate[T](table, queryConfig)(typeInfo)
+  }
+
+  /**
+    * Converts the given [[Table]] into a [[DataSet]] of a specified type.
+    *
+    * The fields of the [[Table]] are mapped to [[DataSet]] fields as follows:
+    * - [[org.apache.flink.types.Row]] and [[org.apache.flink.api.java.tuple.Tuple]]
+    * types: Fields are mapped by position, field types must match.
+    * - POJO [[DataSet]] types: Fields are mapped by field name, field types must match.
+    *
+    * @param table The [[Table]] to convert.
+    * @param clazz The class of the type of the resulting [[DataSet]].
+    * @param queryConfig The configuration for the query to generate.
+    * @tparam T The type of the resulting [[DataSet]].
+    * @return The converted [[DataSet]].
+    */
+  def toDataSet[T](
+      table: Table,
+      clazz: Class[T],
+      queryConfig: BatchQueryConfig): DataSet[T] = {
+    translate[T](table, queryConfig)(TypeExtractor.createTypeInfo(clazz))
+  }
+
+  /**
+    * Converts the given [[Table]] into a [[DataSet]] of a specified type.
+    *
+    * The fields of the [[Table]] are mapped to [[DataSet]] fields as follows:
+    * - [[org.apache.flink.types.Row]] and [[org.apache.flink.api.java.tuple.Tuple]]
+    * types: Fields are mapped by position, field types must match.
+    * - POJO [[DataSet]] types: Fields are mapped by field name, field types must match.
+    *
+    * @param table The [[Table]] to convert.
+    * @param typeInfo The [[TypeInformation]] that specifies the type of the resulting [[DataSet]].
+    * @param queryConfig The configuration for the query to generate.
+    * @tparam T The type of the resulting [[DataSet]].
+    * @return The converted [[DataSet]].
+    */
+  def toDataSet[T](
+      table: Table,
+      typeInfo: TypeInformation[T],
+      queryConfig: BatchQueryConfig): DataSet[T] = {
+    translate[T](table, queryConfig)(typeInfo)
   }
 
   /**
@@ -177,5 +221,29 @@ class BatchTableEnvironment(
       .asInstanceOf[TypeInformation[T]]
 
     registerTableFunctionInternal[T](name, tf)
+  }
+
+  /**
+    * Registers an [[AggregateFunction]] under a unique name in the TableEnvironment's catalog.
+    * Registered functions can be referenced in Table API and SQL queries.
+    *
+    * @param name The name under which the function is registered.
+    * @param f The AggregateFunction to register.
+    * @tparam T The type of the output value.
+    * @tparam ACC The type of aggregate accumulator.
+    */
+  def registerFunction[T, ACC](
+      name: String,
+      f: AggregateFunction[T, ACC])
+  : Unit = {
+    implicit val typeInfo: TypeInformation[T] = TypeExtractor
+      .createTypeInfo(f, classOf[AggregateFunction[T, ACC]], f.getClass, 0)
+      .asInstanceOf[TypeInformation[T]]
+
+    implicit val accTypeInfo: TypeInformation[ACC] = TypeExtractor
+      .createTypeInfo(f, classOf[AggregateFunction[T, ACC]], f.getClass, 1)
+      .asInstanceOf[TypeInformation[ACC]]
+
+    registerAggregateFunctionInternal[T, ACC](name, f)
   }
 }

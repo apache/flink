@@ -24,22 +24,24 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for the RetryOnException annotation.
+ */
 public class RetryOnExceptionTest {
 
 	@Rule
 	public RetryRule retryRule = new RetryRule();
 
 	private static final int NUMBER_OF_RUNS = 3;
-	
+
 	private static int runsForSuccessfulTest = 0;
 
 	private static int runsForTestWithMatchingException = 0;
 
 	private static int runsForTestWithSubclassException = 0;
-	
+
 	private static int runsForPassAfterOneFailure = 0;
 
-	
 	@AfterClass
 	public static void verify() {
 		assertEquals(NUMBER_OF_RUNS + 1, runsForTestWithMatchingException);

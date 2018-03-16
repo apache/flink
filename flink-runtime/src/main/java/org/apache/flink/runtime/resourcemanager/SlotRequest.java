@@ -42,10 +42,18 @@ public class SlotRequest implements Serializable {
 	/** The resource profile of the required slot */
 	private final ResourceProfile resourceProfile;
 
-	public SlotRequest(JobID jobId, AllocationID allocationId, ResourceProfile resourceProfile) {
+	/** Address of the emitting job manager */
+	private final String targetAddress;
+
+	public SlotRequest(
+			JobID jobId,
+			AllocationID allocationId,
+			ResourceProfile resourceProfile,
+			String targetAddress) {
 		this.jobId = checkNotNull(jobId);
 		this.allocationId = checkNotNull(allocationId);
 		this.resourceProfile = checkNotNull(resourceProfile);
+		this.targetAddress = checkNotNull(targetAddress);
 	}
 
 	/**
@@ -70,5 +78,9 @@ public class SlotRequest implements Serializable {
 	 */
 	public ResourceProfile getResourceProfile() {
 		return resourceProfile;
+	}
+
+	public String getTargetAddress() {
+		return targetAddress;
 	}
 }

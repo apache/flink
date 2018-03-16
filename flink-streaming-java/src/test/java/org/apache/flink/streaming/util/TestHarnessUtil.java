@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,11 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.util;
 
-import com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
 import org.junit.Assert;
 
 import java.util.ArrayList;
@@ -36,26 +39,13 @@ import static org.junit.Assert.assertEquals;
  * Utils for working with the various test harnesses.
  */
 public class TestHarnessUtil {
-	/**
-	 * Extracts the StreamRecords from the given output list.
-	 */
-	@SuppressWarnings("unchecked")
-	public static <OUT> List<StreamRecord<OUT>> getStreamRecordsFromOutput(List<Object> output) {
-		List<StreamRecord<OUT>> resultElements = new LinkedList<StreamRecord<OUT>>();
-		for (Object e: output) {
-			if (e instanceof StreamRecord) {
-				resultElements.add((StreamRecord<OUT>) e);
-			}
-		}
-		return resultElements;
-	}
 
 	/**
 	 * Extracts the raw elements from the given output list.
 	 */
 	@SuppressWarnings("unchecked")
 	public static <OUT> List<OUT> getRawElementsFromOutput(Queue<Object> output) {
-		List<OUT> resultElements = new LinkedList<OUT>();
+		List<OUT> resultElements = new LinkedList<>();
 		for (Object e: output) {
 			if (e instanceof StreamRecord) {
 				resultElements.add(((StreamRecord<OUT>) e).getValue());
@@ -67,7 +57,7 @@ public class TestHarnessUtil {
 	/**
 	 * Compare the two queues containing operator/task output by converting them to an array first.
 	 */
-	public static void assertOutputEquals(String message, Queue<Object> expected, Queue<Object> actual) {
+	public static <T> void assertOutputEquals(String message, Queue<T> expected, Queue<T> actual) {
 		Assert.assertArrayEquals(message,
 				expected.toArray(),
 				actual.toArray());

@@ -29,15 +29,17 @@ import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
+import org.apache.flink.api.common.operators.Keys;
+import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
-import org.apache.flink.api.common.operators.Keys;
-import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.sca.TaggedValue.Input;
-import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.MethodNode;
+
+import org.apache.flink.shaded.asm5.org.objectweb.asm.Type;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.MethodNode;
+
 import org.slf4j.Logger;
 
 import java.lang.reflect.Method;
@@ -58,7 +60,7 @@ import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.removeUngroupedInpu
  * constants are tagged such that a tracking of atomic input fields through the
  * entire UDF (until the function returns or calls collect()) is possible.
  *
- * The implementation is as conservative as possible meaning that for cases
+ * <p>The implementation is as conservative as possible meaning that for cases
  * or bytecode instructions that haven't been considered the analyzer
  * will fallback to the ASM library (which removes TaggedValues).
  */
@@ -271,7 +273,7 @@ public class UdfAnalyzer {
 		if (state == STATE_END_OF_ANALYZING) {
 			throw new IllegalStateException("Analyzing is already done.");
 		}
-		
+
 		boolean discardReturnValues = false;
 
 		if (isIterableInput) {
@@ -329,12 +331,12 @@ public class UdfAnalyzer {
 			while (cause != null && !(cause instanceof CodeErrorException)) {
 				cause = cause.getCause();
 			}
-			if ((cause != null && cause instanceof CodeErrorException) || e instanceof CodeErrorException) {
+			if (cause instanceof CodeErrorException || e instanceof CodeErrorException) {
 				throw new CodeErrorException("Function code contains obvious errors. " +
 						"If you think the code analysis is wrong at this point you can " +
 						"disable the entire code analyzer in ExecutionConfig or add" +
 						" @SkipCodeAnalysis to your function to disable the analysis.",
-						(cause != null)? cause : e);
+						(cause != null) ? cause : e);
 			}
 			throw new CodeAnalyzerException("Exception occurred during code analysis.", e);
 		}
@@ -348,13 +350,13 @@ public class UdfAnalyzer {
 			if (returnValue != null) {
 				String[] ff1Array = null;
 				final String ff1 = returnValue.toForwardedFieldsExpression(Input.INPUT_1);
-				if (ff1 !=null && ff1.length() > 0) {
-					ff1Array = new String[] { ff1 };
+				if (ff1 != null && ff1.length() > 0) {
+					ff1Array = new String[]{ff1};
 				}
 				String[] ff2Array = null;
 				final String ff2 = returnValue.toForwardedFieldsExpression(Input.INPUT_2);
-				if (ff2 !=null && ff2.length() > 0) {
-					ff2Array = new String[] { ff2 };
+				if (ff2 != null && ff2.length() > 0) {
+					ff2Array = new String[]{ff2};
 				}
 				SemanticPropUtil.getSemanticPropsDualFromString((DualInputSemanticProperties) sp,
 						ff1Array, ff2Array, null, null, null, null, in1Type, in2Type, outType, true);
@@ -365,8 +367,8 @@ public class UdfAnalyzer {
 			if (returnValue != null) {
 				String[] ffArray = null;
 				final String ff = returnValue.toForwardedFieldsExpression(Input.INPUT_1);
-				if (ff !=null && ff.length() > 0) {
-					ffArray = new String[] { ff };
+				if (ff != null && ff.length() > 0) {
+					ffArray = new String[]{ff};
 				}
 				SemanticPropUtil.getSemanticPropsSingleFromString((SingleInputSemanticProperties) sp,
 						ffArray, null, null, in1Type, outType, true);

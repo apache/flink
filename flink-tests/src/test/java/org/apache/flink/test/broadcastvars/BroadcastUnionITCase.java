@@ -15,17 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.broadcastvars;
 
-import java.util.List;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
+
 import org.junit.Assert;
 
+import java.util.List;
+
+/**
+ * Test broadcast input after union.
+ */
 public class BroadcastUnionITCase extends JavaProgramTestBase {
 	private static final String BC_NAME = "bc";
 
@@ -43,11 +49,11 @@ public class BroadcastUnionITCase extends JavaProgramTestBase {
 				.withBroadcastSet(bc1.union(bc2), BC_NAME)
 				.reduce(new Reducer())
 				.collect();
-		
+
 		Assert.assertEquals(Long.valueOf(3025), result.get(0));
 	}
 
-	public static class Mapper extends RichMapFunction<Long, Long> {
+	private static class Mapper extends RichMapFunction<Long, Long> {
 		private List<Long> values;
 
 		@Override
@@ -65,7 +71,7 @@ public class BroadcastUnionITCase extends JavaProgramTestBase {
 		}
 	}
 
-	public static class Reducer implements ReduceFunction<Long> {
+	private static class Reducer implements ReduceFunction<Long> {
 		@Override
 		public Long reduce(Long value1, Long value2) throws Exception {
 			return value1 + value2;

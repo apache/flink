@@ -24,30 +24,34 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.InfiniteIntegerInputFormat;
+
 import org.junit.Test;
 
+/**
+ * Test job cancellation from within a MapFunction.
+ */
 public class MapCancelingITCase extends CancelingTestBase {
 	private static final int parallelism = 4;
 
 	public MapCancelingITCase() {
 		setTaskManagerNumSlots(parallelism);
 	}
-	
+
 	@Test
 	public void testMapCancelling() throws Exception {
 		executeTask(new IdentityMapper<Integer>());
 	}
-	
+
 	@Test
 	public void testSlowMapCancelling() throws Exception {
 		executeTask(new DelayingIdentityMapper<Integer>());
 	}
-	
+
 	@Test
 	public void testMapWithLongCancellingResponse() throws Exception {
 		executeTask(new LongCancelTimeIdentityMapper<Integer>());
 	}
-	
+
 	@Test
 	public void testMapPriorToFirstRecordReading() throws Exception {
 		executeTask(new StuckInOpenIdentityMapper<Integer>());
@@ -67,8 +71,8 @@ public class MapCancelingITCase extends CancelingTestBase {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
-	public static final class IdentityMapper<IN> implements MapFunction<IN, IN> {
+
+	private static final class IdentityMapper<IN> implements MapFunction<IN, IN> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -76,8 +80,8 @@ public class MapCancelingITCase extends CancelingTestBase {
 			return value;
 		}
 	}
-	
-	public static final class DelayingIdentityMapper<IN> implements MapFunction<IN, IN> {
+
+	private static final class DelayingIdentityMapper<IN> implements MapFunction<IN, IN> {
 		private static final long serialVersionUID = 1L;
 
 		private static final int WAIT_TIME_PER_VALUE = 10 * 1000; // 10 sec.
@@ -88,8 +92,8 @@ public class MapCancelingITCase extends CancelingTestBase {
 			return value;
 		}
 	}
-	
-	public static final class LongCancelTimeIdentityMapper<IN> implements MapFunction<IN, IN> {
+
+	private static final class LongCancelTimeIdentityMapper<IN> implements MapFunction<IN, IN> {
 		private static final long serialVersionUID = 1L;
 
 		private static final int WAIT_TIME_PER_VALUE = 5 * 1000; // 5 sec.
@@ -108,8 +112,8 @@ public class MapCancelingITCase extends CancelingTestBase {
 			return value;
 		}
 	}
-	
-	public static final class StuckInOpenIdentityMapper<IN> extends RichMapFunction<IN, IN> {
+
+	private static final class StuckInOpenIdentityMapper<IN> extends RichMapFunction<IN, IN> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

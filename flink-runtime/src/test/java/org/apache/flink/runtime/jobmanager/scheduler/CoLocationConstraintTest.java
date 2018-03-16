@@ -90,10 +90,10 @@ public class CoLocationConstraintTest {
 			Instance instance1 = SchedulerTestUtils.getRandomInstance(2);
 			Instance instance2 = SchedulerTestUtils.getRandomInstance(2);
 			
-			SharedSlot slot1_1 = instance1.allocateSharedSlot(jid, assignment);
-			SharedSlot slot1_2 = instance1.allocateSharedSlot(jid, assignment);
-			SharedSlot slot2_1 = instance2.allocateSharedSlot(jid, assignment);
-			SharedSlot slot2_2 = instance2.allocateSharedSlot(jid, assignment);
+			SharedSlot slot1_1 = instance1.allocateSharedSlot(assignment);
+			SharedSlot slot1_2 = instance1.allocateSharedSlot(assignment);
+			SharedSlot slot2_1 = instance2.allocateSharedSlot(assignment);
+			SharedSlot slot2_2 = instance2.allocateSharedSlot(assignment);
 			
 			// constraint is still completely unassigned
 			assertFalse(constraint.isAssigned());

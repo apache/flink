@@ -33,92 +33,39 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeDegreePair;
-import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
-import org.apache.flink.graph.utils.proxy.OptionalBoolean;
+import org.apache.flink.graph.asm.result.PrintableResult;
+import org.apache.flink.graph.asm.result.TertiaryResultBase;
+import org.apache.flink.graph.library.clustering.TriangleListingBase;
+import org.apache.flink.graph.library.clustering.undirected.TriangleListing.Result;
+import org.apache.flink.graph.utils.MurmurHash;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-
 /**
  * Generates a listing of distinct triangles from the input graph.
- * <br/>
- * A triangle is a 3-cycle with vertices A, B, and C connected by edges
+ *
+ * <p>A triangle is a 3-cycle with vertices A, B, and C connected by edges
  * (A, B), (A, C), and (B, C).
- * <br/>
- * The input graph must be a simple, undirected graph containing no duplicate
+ *
+ * <p>The input graph must be a simple, undirected graph containing no duplicate
  * edges or self-loops.
- * <br/>
- * Algorithm from "Graph Twiddling in a MapReduce World", J. D. Cohen,
- * http://lintool.github.io/UMD-courses/bigdata-2015-Spring/content/Cohen_2009.pdf
+ *
+ * <p>Algorithm from "Finding, Counting and Listing all Triangles in Large Graphs,
+ * An Experimental Study", Thomas Schank and Dorothea Wagner.
+ *
+ * <p>See http://i11www.iti.uni-karlsruhe.de/extra/publications/sw-fclt-05_t.pdf
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
 public class TriangleListing<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-extends GraphAlgorithmWrappingDataSet<K, VV, EV, Tuple3<K, K, K>> {
-
-	// Optional configuration
-	private OptionalBoolean sortTriangleVertices = new OptionalBoolean(false, false);
-
-	private int littleParallelism = PARALLELISM_DEFAULT;
-
-	/**
-	 * Normalize the triangle listing such that for each result (K0, K1, K2)
-	 * the vertex IDs are sorted K0 < K1 < K2.
-	 *
-	 * @param sortTriangleVertices whether to output each triangle's vertices in sorted order
-	 * @return this
-	 */
-	public TriangleListing<K, VV, EV> setSortTriangleVertices(boolean sortTriangleVertices) {
-		this.sortTriangleVertices.set(sortTriangleVertices);
-
-		return this;
-	}
-
-	/**
-	 * Override the parallelism of operators processing small amounts of data.
-	 *
-	 * @param littleParallelism operator parallelism
-	 * @return this
-	 */
-	public TriangleListing<K, VV, EV> setLittleParallelism(int littleParallelism) {
-		Preconditions.checkArgument(littleParallelism > 0 || littleParallelism == PARALLELISM_DEFAULT,
-			"The parallelism must be greater than zero.");
-
-		this.littleParallelism = littleParallelism;
-
-		return this;
-	}
-
-	@Override
-	protected String getAlgorithmName() {
-		return TriangleListing.class.getName();
-	}
-
-	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
-		Preconditions.checkNotNull(other);
-
-		if (! TriangleListing.class.isAssignableFrom(other.getClass())) {
-			return false;
-		}
-
-		TriangleListing rhs = (TriangleListing) other;
-
-		sortTriangleVertices.mergeWith(rhs.sortTriangleVertices);
-		littleParallelism = (littleParallelism == PARALLELISM_DEFAULT) ? rhs.littleParallelism :
-			((rhs.littleParallelism == PARALLELISM_DEFAULT) ? littleParallelism : Math.min(littleParallelism, rhs.littleParallelism));
-
-		return true;
-	}
+extends TriangleListingBase<K, VV, EV, Result<K>> {
 
 	/*
 	 * Implementation notes:
@@ -131,44 +78,48 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Tuple3<K, K, K>> {
 	 */
 
 	@Override
-	public DataSet<Tuple3<K, K, K>> runInternal(Graph<K, VV, EV> input)
+	public DataSet<Result<K>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// u, v where u < v
 		DataSet<Tuple2<K, K>> filteredByID = input
 			.getEdges()
-			.flatMap(new FilterByID<K, EV>())
-				.setParallelism(littleParallelism)
+			.flatMap(new FilterByID<>())
+				.setParallelism(parallelism)
 				.name("Filter by ID");
 
 		// u, v, (edge value, deg(u), deg(v))
 		DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> pairDegree = input
 			.run(new EdgeDegreePair<K, VV, EV>()
-				.setParallelism(littleParallelism));
+				.setParallelism(parallelism));
 
 		// u, v where deg(u) < deg(v) or (deg(u) == deg(v) and u < v)
 		DataSet<Tuple2<K, K>> filteredByDegree = pairDegree
-			.flatMap(new FilterByDegree<K, EV>())
-				.setParallelism(littleParallelism)
+			.flatMap(new FilterByDegree<>())
+				.setParallelism(parallelism)
 				.name("Filter by degree");
 
 		// u, v, w where (u, v) and (u, w) are edges in graph, v < w
 		DataSet<Tuple3<K, K, K>> triplets = filteredByDegree
 			.groupBy(0)
 			.sortGroup(1, Order.ASCENDING)
-			.reduceGroup(new GenerateTriplets<K>())
+			.reduceGroup(new GenerateTriplets<>())
 				.name("Generate triplets");
 
 		// u, v, w where (u, v), (u, w), and (v, w) are edges in graph, v < w
-		DataSet<Tuple3<K, K, K>> triangles = triplets
+		DataSet<Result<K>> triangles = triplets
 			.join(filteredByID, JoinOperatorBase.JoinHint.REPARTITION_HASH_SECOND)
 			.where(1, 2)
 			.equalTo(0, 1)
-			.with(new ProjectTriangles<K>())
+			.with(new ProjectTriangles<>())
 				.name("Triangle listing");
 
-		if (sortTriangleVertices.get()) {
+		if (permuteResults) {
 			triangles = triangles
-				.map(new SortTriangleVertices<K>())
+				.flatMap(new PermuteResult<>())
+					.name("Permute triangle vertices");
+		} else if (sortTriangleVertices.get()) {
+			triangles = triangles
+				.map(new SortTriangleVertices<>())
 					.name("Sort triangle vertices");
 		}
 
@@ -178,8 +129,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Tuple3<K, K, K>> {
 	/**
 	 * Removes edge values while filtering such that only edges where the
 	 * source vertex ID compares less than the target vertex ID are emitted.
-	 * <br/>
-	 * Since the input graph is a simple graph this filter removes exactly half
+	 *
+	 * <p>Since the input graph is a simple graph this filter removes exactly half
 	 * of the original edges.
 	 *
 	 * @param <T> ID type
@@ -206,8 +157,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Tuple3<K, K, K>> {
 	 * vertex has lower degree are emitted. If the source and target vertex
 	 * degrees are equal then the edge is emitted if the source vertex ID
 	 * compares less than the target vertex ID.
-	 * <br/>
-	 * Since the input graph is a simple graph this filter removes exactly half
+	 *
+	 * <p>Since the input graph is a simple graph this filter removes exactly half
 	 * of the original edges.
 	 *
 	 * @param <T> ID type
@@ -266,7 +217,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Tuple3<K, K, K>> {
 					out.collect(output);
 				}
 
-				if (! iter.hasNext()) {
+				if (!iter.hasNext()) {
 					break;
 				}
 
@@ -286,14 +237,72 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Tuple3<K, K, K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@ForwardedFieldsFirst("0; 1; 2")
-	@ForwardedFieldsSecond("0; 1")
+	@ForwardedFieldsFirst("0->vertexId0; 1->vertexId1; 2->vertexId2")
+	@ForwardedFieldsSecond("0->vertexId0; 1->vertexId1")
 	private static final class ProjectTriangles<T>
-	implements JoinFunction<Tuple3<T, T, T>, Tuple2<T, T>, Tuple3<T, T, T>> {
+	implements JoinFunction<Tuple3<T, T, T>, Tuple2<T, T>, Result<T>> {
+		private Result<T> output = new Result<>();
+
 		@Override
-		public Tuple3<T, T, T> join(Tuple3<T, T, T> triplet, Tuple2<T, T> edge)
+		public Result<T> join(Tuple3<T, T, T> triplet, Tuple2<T, T> edge)
 				throws Exception {
-			return triplet;
+			output.setVertexId0(triplet.f0);
+			output.setVertexId1(triplet.f1);
+			output.setVertexId2(triplet.f2);
+			return output;
+		}
+	}
+
+	/**
+	 * Output each input and an additional result for each of the five
+	 * permutations of the three vertex IDs.
+	 *
+	 * @param <T> ID type
+	 */
+	private static class PermuteResult<T>
+	implements FlatMapFunction<Result<T>, Result<T>> {
+		@Override
+		public void flatMap(Result<T> value, Collector<Result<T>> out)
+				throws Exception {
+			T tmp;
+
+			// 0, 1, 2
+			out.collect(value);
+
+			tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId1());
+			value.setVertexId1(tmp);
+
+			// 1, 0, 2
+			out.collect(value);
+
+			tmp = value.getVertexId1();
+			value.setVertexId1(value.getVertexId2());
+			value.setVertexId2(tmp);
+
+			// 1, 2, 0
+			out.collect(value);
+
+			tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId2());
+			value.setVertexId2(tmp);
+
+			// 0, 2, 1
+			out.collect(value);
+
+			tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId1());
+			value.setVertexId1(tmp);
+
+			// 2, 0, 1
+			out.collect(value);
+
+			tmp = value.getVertexId1();
+			value.setVertexId1(value.getVertexId2());
+			value.setVertexId2(tmp);
+
+			// 2, 1, 0
+			out.collect(value);
 		}
 	}
 
@@ -304,24 +313,67 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Tuple3<K, K, K>> {
 	 * @param <T> ID type
 	 */
 	private static final class SortTriangleVertices<T extends Comparable<T>>
-	implements MapFunction<Tuple3<T, T, T>, Tuple3<T, T, T>> {
+	implements MapFunction<Result<T>, Result<T>> {
 		@Override
-		public Tuple3<T, T, T> map(Tuple3<T, T, T> value)
+		public Result<T> map(Result<T> value)
 				throws Exception {
 			// by the triangle listing algorithm we know f1 < f2
-			if (value.f0.compareTo(value.f1) > 0) {
-				T temp_val = value.f0;
-				value.f0 = value.f1;
+			if (value.getVertexId0().compareTo(value.getVertexId1()) > 0) {
+				T tempVal = value.getVertexId0();
+				value.setVertexId0(value.getVertexId1());
 
-				if (temp_val.compareTo(value.f2) <= 0) {
-					value.f1 = temp_val;
+				if (tempVal.compareTo(value.getVertexId2()) <= 0) {
+					value.setVertexId1(tempVal);
 				} else {
-					value.f1 = value.f2;
-					value.f2 = temp_val;
+					value.setVertexId1(value.getVertexId2());
+					value.setVertexId2(tempVal);
 				}
 			}
 
 			return value;
+		}
+	}
+
+	/**
+	 * A result for the undirected Triangle Listing algorithm.
+	 *
+	 * @param <T> ID type
+	 */
+	public static class Result<T>
+	extends TertiaryResultBase<T>
+	implements PrintableResult {
+		@Override
+		public String toString() {
+			return "(" + getVertexId0()
+				+ "," + getVertexId1()
+				+ "," + getVertexId2()
+				+ ")";
+		}
+
+		@Override
+		public String toPrintableString() {
+			return "1st vertex ID: " + getVertexId0()
+				+ ", 2nd vertex ID: " + getVertexId1()
+				+ ", 3rd vertex ID: " + getVertexId2();
+		}
+
+		// ----------------------------------------------------------------------------------------
+
+		public static final int HASH_SEED = 0xd39fd1ab;
+
+		private transient MurmurHash hasher;
+
+		@Override
+		public int hashCode() {
+			if (hasher == null) {
+				hasher = new MurmurHash(HASH_SEED);
+			}
+
+			return hasher.reset()
+				.hash(getVertexId0().hashCode())
+				.hash(getVertexId1().hashCode())
+				.hash(getVertexId2().hashCode())
+				.hash();
 		}
 	}
 }

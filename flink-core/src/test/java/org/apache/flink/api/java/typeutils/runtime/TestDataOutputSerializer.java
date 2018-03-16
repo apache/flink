@@ -18,15 +18,15 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.MemoryUtils;
+
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.MemoryUtils;
 
 public final class TestDataOutputSerializer implements DataOutputView {
 	
@@ -301,7 +301,7 @@ public final class TestDataOutputSerializer implements DataOutputView {
 			throw new EOFException("Could not write " + numBytes + " bytes. Buffer overflow.");
 		}
 
-		source.read(this.buffer, this.position, numBytes);
+		source.readFully(this.buffer, this.position, numBytes);
 		this.position += numBytes;
 	}
 	

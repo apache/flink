@@ -56,7 +56,7 @@ public class RestoredCheckpointStats implements Serializable {
 			long checkpointId,
 			CheckpointProperties props,
 			long restoreTimestamp,
-			String externalPath) {
+			@Nullable String externalPath) {
 
 		this.checkpointId = checkpointId;
 		this.props = checkNotNull(props, "Checkpoint Properties");

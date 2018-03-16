@@ -24,12 +24,12 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-examples_2.10</artifactId>
-		<version>1.3-SNAPSHOT</version>
+		<artifactId>flink-examples</artifactId>
+		<version>1.6-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-examples-streaming_2.10</artifactId>
+	<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
 	<name>flink-examples-streaming</name>
 
 	<packaging>jar</packaging>
@@ -40,46 +40,45 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_2.10</artifactId>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala_2.10</artifactId>
+			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-batch_2.10</artifactId>
+			<artifactId>flink-connector-twitter_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-twitter_2.10</artifactId>
+			<artifactId>flink-connector-kafka-0.10_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka-0.8_2.10</artifactId>
-			<version>${project.version}</version>
+			<artifactId>flink-shaded-jackson</artifactId>
 		</dependency>
 
 		<!-- test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_2.10</artifactId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_2.10</artifactId>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -116,17 +115,17 @@ under the License.
 								<!-- For WordCount example data -->
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-examples-batch_2.10</artifactId>
+									<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>
 									<outputDirectory>${project.build.directory}/classes</outputDirectory>
-									<includes>org/apache/flink/examples/java/wordcount/util/WordCountData.class</includes>
+									<includes>org/apache/flink/streaming/examples/wordcount/util/WordCountData.class</includes>
 								</artifactItem>
 								<!-- For JSON utilities -->
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-connector-twitter_2.10</artifactId>
+									<artifactId>flink-connector-twitter_${scala.binary.version}</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>
@@ -262,7 +261,7 @@ under the License.
 							<includes>
 								<include>org/apache/flink/streaming/examples/wordcount/PojoExample.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/PojoExample$*.class</include>
-								<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>
+								<include>org/apache/flink/streaming/examples/wordcount/util/WordCountData.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -286,7 +285,7 @@ under the License.
 							<includes>
 								<include>org/apache/flink/streaming/examples/wordcount/WordCount.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/WordCount$*.class</include>
-								<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>				
+								<include>org/apache/flink/streaming/examples/wordcount/util/WordCountData.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -359,7 +358,6 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-
 				</executions>
 			</plugin>
 
@@ -475,26 +473,29 @@ under the License.
 						</goals>
 						<configuration>
 							<target>
-								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-IncrementalLearning.jar" tofile="${project.basedir}/target/IncrementalLearning.jar" />
-								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-Iteration.jar" tofile="${project.basedir}/target/Iteration.jar" />
-								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-SessionWindowing.jar" tofile="${project.basedir}/target/SessionWindowing.jar" />
-								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-TopSpeedWindowing.jar" tofile="${project.basedir}/target/TopSpeedWindowing.jar" />
-								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-WindowJoin.jar" tofile="${project.basedir}/target/WindowJoin.jar" />
-								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-WordCount.jar" tofile="${project.basedir}/target/WordCount.jar" />
-								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-SocketWindowWordCount.jar" tofile="${project.basedir}/target/SocketWindowWordCount.jar" />
+								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-IncrementalLearning.jar" tofile="${project.basedir}/target/IncrementalLearning.jar" />
+								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-Iteration.jar" tofile="${project.basedir}/target/Iteration.jar" />
+								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-SessionWindowing.jar" tofile="${project.basedir}/target/SessionWindowing.jar" />
+								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-TopSpeedWindowing.jar" tofile="${project.basedir}/target/TopSpeedWindowing.jar" />
+								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-WindowJoin.jar" tofile="${project.basedir}/target/WindowJoin.jar" />
+								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-WordCount.jar" tofile="${project.basedir}/target/WordCount.jar" />
+								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-SocketWindowWordCount.jar" tofile="${project.basedir}/target/SocketWindowWordCount.jar" />
 							</target>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
 
+
 			<!-- Use the shade plugin to build a fat jar for the kafka example -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
+
+					<!-- State Machine Example -->
 					<execution>
-						<id>fat-jar-kafka-example</id>
+						<id>state-machine-example</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>
@@ -505,10 +506,41 @@ under the License.
 							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>org.apache.flink.streaming.examples.kafka.ReadFromKafka</mainClass>
+									<mainClass>org.apache.flink.streaming.examples.statemachine.StateMachineExample</mainClass>
 								</transformer>
 							</transformers>
-							<finalName>Kafka</finalName>
+							<finalName>StateMachineExample</finalName>
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<includes>
+										<include>org/apache/flink/streaming/examples/statemachine/**</include>
+										<include>org/apache/flink/streaming/util/serialization/**</include>
+										<include>org/apache/flink/streaming/connectors/kafka/**</include>
+										<include>org/apache/kafka/**</include>
+										<include>kafka/</include>
+									</includes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+
+					<execution>
+						<id>fat-jar-kafka-010-example</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.kafka.Kafka010Example</mainClass>
+								</transformer>
+							</transformers>
+							<finalName>Kafka010Example</finalName>
 							<!-- <outputFile>Kafka.jar</outputFile> -->
 							<filters>
 								<filter>
@@ -529,6 +561,7 @@ under the License.
 							</filters>
 						</configuration>
 					</execution>
+
 					<execution>
 						<id>fat-jar-twitter-example</id>
 						<phase>package</phase>
@@ -549,6 +582,7 @@ under the License.
 								<filter>
 									<artifact>*</artifact>
 									<includes>
+										<include>org/apache/flink/twitter/shaded/com/google/common/**</include>
 										<include>org/apache/flink/streaming/examples/twitter/**</include>
 										<include>org/apache/flink/streaming/connectors/twitter/**</include>
 										<include>org/apache/http/**</include>

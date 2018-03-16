@@ -30,8 +30,12 @@ import java.util.Set;
 
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.hamcrest.core.IsNot.not;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link NetUtils}.
+ */
 public class NetUtilsTest {
 
 	@Test
@@ -62,16 +66,16 @@ public class NetUtilsTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testIPv4URLEncoding() {
 		try {
 			final String addressString = "10.244.243.12";
 			final int port = 23453;
-			
+
 			InetAddress address = InetAddress.getByName(addressString);
 			InetSocketAddress socketAddress = new InetSocketAddress(address, port);
-			
+
 			assertEquals(addressString, NetUtils.ipAddressToUrlString(address));
 			assertEquals(addressString + ':' + port, NetUtils.ipAddressAndPortToUrlString(address, port));
 			assertEquals(addressString + ':' + port, NetUtils.socketAddressToUrlString(socketAddress));
@@ -102,19 +106,17 @@ public class NetUtilsTest {
 		}
 	}
 
-
-
 	@Test
 	public void testFreePortRangeUtility() {
 		// inspired by Hadoop's example for "yarn.app.mapreduce.am.job.client.port-range"
 		String rangeDefinition = "50000-50050, 50100-50200,51234 "; // this also contains some whitespaces
 		Iterator<Integer> portsIter = NetUtils.getPortRangeFromString(rangeDefinition);
 		Set<Integer> ports = new HashSet<>();
-		while(portsIter.hasNext()) {
+		while (portsIter.hasNext()) {
 			Assert.assertTrue("Duplicate element", ports.add(portsIter.next()));
 		}
 
-		Assert.assertEquals(51+101+1, ports.size());
+		Assert.assertEquals(51 + 101 + 1, ports.size());
 		// check first range
 		Assert.assertThat(ports, hasItems(50000, 50001, 50002, 50050));
 		// check second range and last point
@@ -122,46 +124,58 @@ public class NetUtilsTest {
 		// check that only ranges are included
 		Assert.assertThat(ports, not(hasItems(50051, 50052, 1337, 50201, 49999, 50099)));
 
-
 		// test single port "range":
 		portsIter = NetUtils.getPortRangeFromString(" 51234");
 		Assert.assertTrue(portsIter.hasNext());
-		Assert.assertEquals(51234, (int)portsIter.next());
+		Assert.assertEquals(51234, (int) portsIter.next());
 		Assert.assertFalse(portsIter.hasNext());
 
 		// test port list
 		portsIter = NetUtils.getPortRangeFromString("5,1,2,3,4");
 		Assert.assertTrue(portsIter.hasNext());
-		Assert.assertEquals(5, (int)portsIter.next());
-		Assert.assertEquals(1, (int)portsIter.next());
-		Assert.assertEquals(2, (int)portsIter.next());
-		Assert.assertEquals(3, (int)portsIter.next());
-		Assert.assertEquals(4, (int)portsIter.next());
+		Assert.assertEquals(5, (int) portsIter.next());
+		Assert.assertEquals(1, (int) portsIter.next());
+		Assert.assertEquals(2, (int) portsIter.next());
+		Assert.assertEquals(3, (int) portsIter.next());
+		Assert.assertEquals(4, (int) portsIter.next());
 		Assert.assertFalse(portsIter.hasNext());
-
 
 		Throwable error = null;
 
 		// try some wrong values: String
-		try { NetUtils.getPortRangeFromString("localhost"); } catch(Throwable t) { error = t; }
+		try {
+			NetUtils.getPortRangeFromString("localhost");
+		} catch (Throwable t) {
+			error = t;
+		}
 		Assert.assertTrue(error instanceof NumberFormatException);
 		error = null;
 
 		// incomplete range
-		try { NetUtils.getPortRangeFromString("5-"); } catch(Throwable t) { error = t; }
+		try {
+			NetUtils.getPortRangeFromString("5-");
+		} catch (Throwable t) {
+			error = t;
+		}
 		Assert.assertTrue(error instanceof NumberFormatException);
 		error = null;
 
 		// incomplete range
-		try { NetUtils.getPortRangeFromString("-5"); } catch(Throwable t) { error = t; }
+		try {
+			NetUtils.getPortRangeFromString("-5");
+		} catch (Throwable t) {
+			error = t;
+		}
 		Assert.assertTrue(error instanceof NumberFormatException);
 		error = null;
 
 		// empty range
-		try { NetUtils.getPortRangeFromString(",5"); } catch(Throwable t) { error = t; }
+		try {
+			NetUtils.getPortRangeFromString(",5");
+		} catch (Throwable t) {
+			error = t;
+		}
 		Assert.assertTrue(error instanceof NumberFormatException);
-		error = null;
-
 	}
 
 	@Test

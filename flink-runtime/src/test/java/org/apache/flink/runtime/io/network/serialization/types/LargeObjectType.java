@@ -24,7 +24,7 @@ import java.util.Random;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.io.network.api.serialization.types.SerializationTestType;
+import org.apache.flink.testutils.serialization.types.SerializationTestType;
 
 public class LargeObjectType implements SerializationTestType {
 

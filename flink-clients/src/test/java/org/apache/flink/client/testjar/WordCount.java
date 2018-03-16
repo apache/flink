@@ -18,36 +18,35 @@
 
 package org.apache.flink.client.testjar;
 
-import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.Collector;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.Collector;
 
 /**
  * WordCount for placing at least something into the jar file.
  */
 public class WordCount {
-	
+
 	// *************************************************************************
 	//     PROGRAM
 	// *************************************************************************
-	
+
 	public static void main(String[] args) throws Exception {
-		
-		if(!parseParameters(args)) {
+
+		if (!parseParameters(args)) {
 			return;
 		}
-		
+
 		// set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		// get input data
 		DataSet<String> text = getTextDataSet(env);
-		
-		DataSet<Tuple2<String, Integer>> counts = 
+
+		DataSet<Tuple2<String, Integer>> counts =
 				// split up the lines in pairs (2-tuples) containing: (word,1)
 				text.flatMap(new Tokenizer())
 				// group by the tuple field "0" and sum up tuple field "1"
@@ -55,7 +54,7 @@ public class WordCount {
 				.aggregate(Aggregations.SUM, 1);
 
 		// emit result
-		if(fileOutput) {
+		if (fileOutput) {
 			counts.writeAsCsv(outputPath, "\n", " ");
 			// execute program
 			env.execute("WordCount Example");
@@ -63,15 +62,15 @@ public class WordCount {
 			counts.print();
 		}
 	}
-	
+
 	// *************************************************************************
 	//     USER FUNCTIONS
 	// *************************************************************************
-	
+
 	/**
 	 * Implements the string tokenizer that splits sentences into words as a user-defined
-	 * FlatMapFunction. The function takes a line (String) and splits it into 
-	 * multiple pairs in the form of "(word,1)" (Tuple2<String, Integer>).
+	 * FlatMapFunction. The function takes a line (String) and splits it into
+	 * multiple pairs in the form of "(word,1)" (Tuple2&lt;String, Integer&gt;).
 	 */
 	public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
 
@@ -81,7 +80,7 @@ public class WordCount {
 		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
 			// normalize and split the line
 			String[] tokens = value.toLowerCase().split("\\W+");
-			
+
 			// emit the pairs
 			for (String token : tokens) {
 				if (token.length() > 0) {
@@ -90,25 +89,25 @@ public class WordCount {
 			}
 		}
 	}
-	
+
 	// *************************************************************************
 	//     UTIL METHODS
 	// *************************************************************************
-	
+
 	private static boolean fileOutput = false;
-	
+
 	private static String textPath;
 	private static String outputPath;
-	
+
 	private static boolean parseParameters(String[] args) {
-		
-		if(args.length > 0) {
+
+		if (args.length > 0) {
 			// parse input arguments
 			fileOutput = true;
-			if(args.length == 2) { // cli line: program {textPath} {outputPath}
+			if (args.length == 2) { // cli line: program {textPath} {outputPath}
 				textPath = args[0];
 				outputPath = args[1];
-			} else if(args.length == 4 && (args[0].startsWith("-v") || args[0].startsWith("--verbose"))) { // cli line: program {optArg} {optVal} {textPath} {outputPath}
+			} else if (args.length == 4 && (args[0].startsWith("-v") || args[0].startsWith("--verbose"))) { // cli line: program {optArg} {optVal} {textPath} {outputPath}
 				Boolean.valueOf(args[1]); // parse verbosity flag
 				textPath = args[2];
 				outputPath = args[3];
@@ -123,9 +122,9 @@ public class WordCount {
 		}
 		return true;
 	}
-	
+
 	private static DataSet<String> getTextDataSet(ExecutionEnvironment env) {
-		if(fileOutput) {
+		if (fileOutput) {
 			// read the text file from given input path
 			return env.readTextFile(textPath);
 		} else {

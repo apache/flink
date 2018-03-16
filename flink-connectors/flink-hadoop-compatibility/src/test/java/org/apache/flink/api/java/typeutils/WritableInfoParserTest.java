@@ -22,8 +22,8 @@ import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.hadoop.io.Writable;
 
+import org.apache.hadoop.io.Writable;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -31,6 +31,9 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+/**
+ * Tests for the type information parsing of {@link Writable}.
+ */
 public class WritableInfoParserTest {
 
 	@Test
@@ -66,7 +69,7 @@ public class WritableInfoParserTest {
 	//  Test types
 	// ------------------------------------------------------------------------
 
-	public static class MyWritable implements Writable {
+	private static class MyWritable implements Writable {
 
 		@Override
 		public void write(DataOutput out) throws IOException {}
@@ -75,6 +78,9 @@ public class WritableInfoParserTest {
 		public void readFields(DataInput in) throws IOException {}
 	}
 
+	/**
+	 * Test Pojo containing a {@link Writable}.
+	 */
 	public static class MyPojo {
 		public Integer basic;
 		public Tuple2<String, Integer> tuple;

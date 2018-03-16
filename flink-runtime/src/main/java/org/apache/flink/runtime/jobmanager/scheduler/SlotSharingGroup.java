@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 /**
@@ -39,7 +40,8 @@ public class SlotSharingGroup implements java.io.Serializable {
 	
 	/** Mapping of tasks to subslots. This field is only needed inside the JobManager, and is not RPCed. */
 	private transient SlotSharingGroupAssignment taskAssignment;
-	
+
+	private final SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
 	
 	public SlotSharingGroup() {}
 	
@@ -62,8 +64,11 @@ public class SlotSharingGroup implements java.io.Serializable {
 	public Set<JobVertexID> getJobVertexIds() {
 		return Collections.unmodifiableSet(ids);
 	}
-	
-	
+
+	public SlotSharingGroupId getSlotSharingGroupId() {
+		return slotSharingGroupId;
+	}
+
 	public SlotSharingGroupAssignment getTaskAssignment() {
 		if (this.taskAssignment == null) {
 			this.taskAssignment = new SlotSharingGroupAssignment();

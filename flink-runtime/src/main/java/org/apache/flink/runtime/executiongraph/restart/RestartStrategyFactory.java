@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.slf4j.Logger;
@@ -86,11 +87,10 @@ public abstract class RestartStrategyFactory implements Serializable {
 		switch (restartStrategyName.toLowerCase()) {
 			case "none":
 				// support deprecated ConfigConstants values
-				final int numberExecutionRetries = configuration.getInteger(ConfigConstants.EXECUTION_RETRIES_KEY,
+				final int numberExecutionRetries = configuration.getInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
 					ConfigConstants.DEFAULT_EXECUTION_RETRIES);
-				String pauseString = configuration.getString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE,
-					ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT);
-				String delayString = configuration.getString(ConfigConstants.EXECUTION_RETRY_DELAY_KEY,
+				String pauseString = configuration.getString(AkkaOptions.WATCH_HEARTBEAT_PAUSE);
+				String delayString = configuration.getString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY,
 					pauseString);
 
 				long delay;
@@ -100,11 +100,11 @@ public abstract class RestartStrategyFactory implements Serializable {
 				} catch (NumberFormatException nfe) {
 					if (delayString.equals(pauseString)) {
 						throw new Exception("Invalid config value for " +
-							ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE + ": " + pauseString +
+							AkkaOptions.WATCH_HEARTBEAT_PAUSE.key() + ": " + pauseString +
 							". Value must be a valid duration (such as '10 s' or '1 min')");
 					} else {
 						throw new Exception("Invalid config value for " +
-							ConfigConstants.EXECUTION_RETRY_DELAY_KEY + ": " + delayString +
+							ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY + ": " + delayString +
 							". Value must be a valid duration (such as '100 milli' or '10 s')");
 					}
 				}

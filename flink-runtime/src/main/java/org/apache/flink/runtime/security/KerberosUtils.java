@@ -19,11 +19,12 @@
 package org.apache.flink.runtime.security;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.hadoop.security.authentication.util.KerberosUtil;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.security.auth.login.AppConfigurationEntry;
+
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,10 +32,9 @@ import java.util.Map;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- *
  * Provides vendor-specific Kerberos {@link AppConfigurationEntry} instances.
  *
- * The implementation is inspired from Hadoop UGI class.
+ * <p>The implementation is inspired from Hadoop UGI class.
  */
 @Internal
 public class KerberosUtils {
@@ -51,15 +51,22 @@ public class KerberosUtils {
 
 	private static final AppConfigurationEntry userKerberosAce;
 
+	/* Return the Kerberos login module name */
+	public static String getKrb5LoginModuleName() {
+		return System.getProperty("java.vendor").contains("IBM")
+			? "com.ibm.security.auth.module.Krb5LoginModule"
+			: "com.sun.security.auth.module.Krb5LoginModule";
+	}
+
 	static {
 
 		IBM_JAVA = JAVA_VENDOR_NAME.contains("IBM");
 
-		if(LOG.isDebugEnabled()) {
+		if (LOG.isDebugEnabled()) {
 			debugOptions.put("debug", "true");
 		}
 
-		if(IBM_JAVA) {
+		if (IBM_JAVA) {
 			kerberosCacheOptions.put("useDefaultCcache", "true");
 		} else {
 			kerberosCacheOptions.put("doNotPrompt", "true");
@@ -67,8 +74,8 @@ public class KerberosUtils {
 		}
 
 		String ticketCache = System.getenv("KRB5CCNAME");
-		if(ticketCache != null) {
-			if(IBM_JAVA) {
+		if (ticketCache != null) {
+			if (IBM_JAVA) {
 				System.setProperty("KRB5CCNAME", ticketCache);
 			} else {
 				kerberosCacheOptions.put("ticketCache", ticketCache);
@@ -79,7 +86,7 @@ public class KerberosUtils {
 		kerberosCacheOptions.putAll(debugOptions);
 
 		userKerberosAce = new AppConfigurationEntry(
-				KerberosUtil.getKrb5LoginModuleName(),
+				getKrb5LoginModuleName(),
 				AppConfigurationEntry.LoginModuleControlFlag.OPTIONAL,
 				kerberosCacheOptions);
 
@@ -96,7 +103,7 @@ public class KerberosUtils {
 
 		Map<String, String> keytabKerberosOptions = new HashMap<>();
 
-		if(IBM_JAVA) {
+		if (IBM_JAVA) {
 			keytabKerberosOptions.put("useKeytab", prependFileUri(keytab));
 			keytabKerberosOptions.put("credsType", "both");
 		} else {
@@ -111,7 +118,7 @@ public class KerberosUtils {
 		keytabKerberosOptions.putAll(debugOptions);
 
 		AppConfigurationEntry keytabKerberosAce = new AppConfigurationEntry(
-				KerberosUtil.getKrb5LoginModuleName(),
+				getKrb5LoginModuleName(),
 				AppConfigurationEntry.LoginModuleControlFlag.REQUIRED,
 				keytabKerberosOptions);
 

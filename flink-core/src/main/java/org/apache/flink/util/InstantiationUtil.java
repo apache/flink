@@ -20,10 +20,15 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -37,17 +42,19 @@ import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Utility class to create instances from class objects and checking failure reasons.
  */
 @Internal
 public final class InstantiationUtil {
-	
+
+	private static final Logger LOG = LoggerFactory.getLogger(InstantiationUtil.class);
+
 	/**
-	 * A custom ObjectInputStream that can also load user-code using a
-	 * user-code ClassLoader.
-	 *
+	 * A custom ObjectInputStream that can load classes using a specific ClassLoader.
 	 */
 	public static class ClassLoaderObjectInputStream extends ObjectInputStream {
 
@@ -79,11 +86,11 @@ public final class InstantiationUtil {
 
 			return super.resolveClass(desc);
 		}
-		
+
 		// ------------------------------------------------
 
 		private static final HashMap<String, Class<?>> primitiveClasses = new HashMap<>(9);
-		
+
 		static {
 			primitiveClasses.put("boolean", boolean.class);
 			primitiveClasses.put("byte", byte.class);
@@ -96,17 +103,133 @@ public final class InstantiationUtil {
 			primitiveClasses.put("void", void.class);
 		}
 	}
-	
-	
+
+	/**
+	 * This is maintained as a temporary workaround for FLINK-6869.
+	 *
+	 * <p>Before 1.3, the Scala serializers did not specify the serialVersionUID.
+	 * Although since 1.3 they are properly specified, we still have to ignore them for now
+	 * as their previous serialVersionUIDs will vary depending on the Scala version.
+	 *
+	 * <p>This can be removed once 1.2 is no longer supported.
+	 */
+	private static final Set<String> scalaSerializerClassnames = new HashSet<>();
+	static {
+		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.TraversableSerializer");
+		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.CaseClassSerializer");
+		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.EitherSerializer");
+		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.EnumValueSerializer");
+		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.OptionSerializer");
+		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.TrySerializer");
+		scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.UnitSerializer");
+	}
+
+	/**
+	 * The serialVersionUID might change between Scala versions and since those classes are
+	 * part of the tuple serializer config snapshots we need to ignore them.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-8451">FLINK-8451</a>
+	 */
+	private static final Set<String> scalaTypes = new HashSet<>();
+	static {
+		scalaTypes.add("scala.Tuple1");
+		scalaTypes.add("scala.Tuple2");
+		scalaTypes.add("scala.Tuple3");
+		scalaTypes.add("scala.Tuple4");
+		scalaTypes.add("scala.Tuple5");
+		scalaTypes.add("scala.Tuple6");
+		scalaTypes.add("scala.Tuple7");
+		scalaTypes.add("scala.Tuple8");
+		scalaTypes.add("scala.Tuple9");
+		scalaTypes.add("scala.Tuple10");
+		scalaTypes.add("scala.Tuple11");
+		scalaTypes.add("scala.Tuple12");
+		scalaTypes.add("scala.Tuple13");
+		scalaTypes.add("scala.Tuple14");
+		scalaTypes.add("scala.Tuple15");
+		scalaTypes.add("scala.Tuple16");
+		scalaTypes.add("scala.Tuple17");
+		scalaTypes.add("scala.Tuple18");
+		scalaTypes.add("scala.Tuple19");
+		scalaTypes.add("scala.Tuple20");
+		scalaTypes.add("scala.Tuple21");
+		scalaTypes.add("scala.Tuple22");
+		scalaTypes.add("scala.Tuple1$mcJ$sp");
+		scalaTypes.add("scala.Tuple1$mcI$sp");
+		scalaTypes.add("scala.Tuple1$mcD$sp");
+		scalaTypes.add("scala.Tuple2$mcJJ$sp");
+		scalaTypes.add("scala.Tuple2$mcJI$sp");
+		scalaTypes.add("scala.Tuple2$mcJD$sp");
+		scalaTypes.add("scala.Tuple2$mcIJ$sp");
+		scalaTypes.add("scala.Tuple2$mcII$sp");
+		scalaTypes.add("scala.Tuple2$mcID$sp");
+		scalaTypes.add("scala.Tuple2$mcDJ$sp");
+		scalaTypes.add("scala.Tuple2$mcDI$sp");
+		scalaTypes.add("scala.Tuple2$mcDD$sp");
+	}
+
+	/**
+	 * An {@link ObjectInputStream} that ignores serialVersionUID mismatches when deserializing objects of
+	 * anonymous classes or our Scala serializer classes and also replaces occurences of GenericData.Array
+	 * (from Avro) by a dummy class so that the KryoSerializer can still be deserialized without
+	 * Avro being on the classpath.
+	 *
+	 * <p>The {@link TypeSerializerSerializationUtil.TypeSerializerSerializationProxy} uses this specific object input stream to read serializers,
+	 * so that mismatching serialVersionUIDs of anonymous classes / Scala serializers are ignored.
+	 * This is a required workaround to maintain backwards compatibility for our pre-1.3 Scala serializers.
+	 * See FLINK-6869 for details.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-6869">FLINK-6869</a>
+	 */
+	public static class FailureTolerantObjectInputStream extends InstantiationUtil.ClassLoaderObjectInputStream {
+
+		public FailureTolerantObjectInputStream(InputStream in, ClassLoader cl) throws IOException {
+			super(in, cl);
+		}
+
+		@Override
+		protected ObjectStreamClass readClassDescriptor() throws IOException, ClassNotFoundException {
+			ObjectStreamClass streamClassDescriptor = super.readClassDescriptor();
+
+			try {
+				Class.forName(streamClassDescriptor.getName(), false, classLoader);
+			} catch (ClassNotFoundException e) {
+				if (streamClassDescriptor.getName().equals("org.apache.avro.generic.GenericData$Array")) {
+					ObjectStreamClass result = ObjectStreamClass.lookup(
+						KryoRegistrationSerializerConfigSnapshot.DummyRegisteredClass.class);
+					return result;
+				}
+			}
+
+			final Class localClass = resolveClass(streamClassDescriptor);
+			final String name = localClass.getName();
+			if (scalaSerializerClassnames.contains(name) || scalaTypes.contains(name) || localClass.isAnonymousClass()
+				// isAnonymousClass does not work for anonymous Scala classes; additionally check by classname
+				|| name.contains("$anon$") || name.contains("$anonfun")) {
+
+				final ObjectStreamClass localClassDescriptor = ObjectStreamClass.lookup(localClass);
+				if (localClassDescriptor != null
+					&& localClassDescriptor.getSerialVersionUID() != streamClassDescriptor.getSerialVersionUID()) {
+					LOG.warn("Ignoring serialVersionUID mismatch for anonymous class {}; was {}, now {}.",
+						streamClassDescriptor.getName(), streamClassDescriptor.getSerialVersionUID(), localClassDescriptor.getSerialVersionUID());
+
+					streamClassDescriptor = localClassDescriptor;
+				}
+			}
+
+			return streamClassDescriptor;
+		}
+	}
+
 	/**
 	 * Creates a new instance of the given class.
-	 * 
+	 *
 	 * @param <T> The generic type of the class.
 	 * @param clazz The class to instantiate.
 	 * @param castTo Optional parameter, specifying the class that the given class must be a subclass off. This
-	 *               argument is added to prevent class cast exceptions occurring later. 
+	 *               argument is added to prevent class cast exceptions occurring later.
 	 * @return An instance of the given class.
-	 * 
+	 *
 	 * @throws RuntimeException Thrown, if the class could not be instantiated. The exception contains a detailed
 	 *                          message about the reason why the instantiation failed.
 	 */
@@ -114,24 +237,24 @@ public final class InstantiationUtil {
 		if (clazz == null) {
 			throw new NullPointerException();
 		}
-		
+
 		// check if the class is a subclass, if the check is required
 		if (castTo != null && !castTo.isAssignableFrom(clazz)) {
-			throw new RuntimeException("The class '" + clazz.getName() + "' is not a subclass of '" + 
+			throw new RuntimeException("The class '" + clazz.getName() + "' is not a subclass of '" +
 				castTo.getName() + "' as is required.");
 		}
-		
+
 		return instantiate(clazz);
 	}
 
 	/**
 	 * Creates a new instance of the given class.
-	 * 
+	 *
 	 * @param <T> The generic type of the class.
 	 * @param clazz The class to instantiate.
 
 	 * @return An instance of the given class.
-	 * 
+	 *
 	 * @throws RuntimeException Thrown, if the class could not be instantiated. The exception contains a detailed
 	 *                          message about the reason why the instantiation failed.
 	 */
@@ -139,7 +262,7 @@ public final class InstantiationUtil {
 		if (clazz == null) {
 			throw new NullPointerException();
 		}
-		
+
 		// try to instantiate the class
 		try {
 			return clazz.newInstance();
@@ -147,23 +270,23 @@ public final class InstantiationUtil {
 		catch (InstantiationException | IllegalAccessException iex) {
 			// check for the common problem causes
 			checkForInstantiation(clazz);
-			
+
 			// here we are, if non of the common causes was the problem. then the error was
 			// most likely an exception in the constructor or field initialization
-			throw new RuntimeException("Could not instantiate type '" + clazz.getName() + 
+			throw new RuntimeException("Could not instantiate type '" + clazz.getName() +
 					"' due to an unspecified exception: " + iex.getMessage(), iex);
 		}
 		catch (Throwable t) {
 			String message = t.getMessage();
-			throw new RuntimeException("Could not instantiate type '" + clazz.getName() + 
-				"' Most likely the constructor (or a member variable initialization) threw an exception" + 
+			throw new RuntimeException("Could not instantiate type '" + clazz.getName() +
+				"' Most likely the constructor (or a member variable initialization) threw an exception" +
 				(message == null ? "." : ": " + message), t);
 		}
 	}
-	
+
 	/**
 	 * Checks, whether the given class has a public nullary constructor.
-	 * 
+	 *
 	 * @param clazz The class to check.
 	 * @return True, if the class has a public nullary constructor, false if not.
 	 */
@@ -177,20 +300,20 @@ public final class InstantiationUtil {
 		}
 		return false;
 	}
-	
+
 	/**
 	 * Checks, whether the given class is public.
-	 * 
+	 *
 	 * @param clazz The class to check.
 	 * @return True, if the class is public, false if not.
 	 */
 	public static boolean isPublic(Class<?> clazz) {
 		return Modifier.isPublic(clazz.getModifiers());
 	}
-	
+
 	/**
 	 * Checks, whether the class is a proper class, i.e. not abstract or an interface, and not a primitive type.
-	 * 
+	 *
 	 * @param clazz The class to check.
 	 * @return True, if the class is a proper class, false otherwise.
 	 */
@@ -202,29 +325,29 @@ public final class InstantiationUtil {
 	/**
 	 * Checks, whether the class is an inner class that is not statically accessible. That is especially true for
 	 * anonymous inner classes.
-	 * 
+	 *
 	 * @param clazz The class to check.
 	 * @return True, if the class is a non-statically accessible inner class.
 	 */
 	public static boolean isNonStaticInnerClass(Class<?> clazz) {
-		return clazz.getEnclosingClass() != null && 
+		return clazz.getEnclosingClass() != null &&
 			(clazz.getDeclaringClass() == null || !Modifier.isStatic(clazz.getModifiers()));
 	}
-	
+
 	/**
 	 * Performs a standard check whether the class can be instantiated by {@code Class#newInstance()}.
-	 * 
+	 *
 	 * @param clazz The class to check.
 	 * @throws RuntimeException Thrown, if the class cannot be instantiated by {@code Class#newInstance()}.
 	 */
 	public static void checkForInstantiation(Class<?> clazz) {
 		final String errorMessage = checkForInstantiationError(clazz);
-		
+
 		if (errorMessage != null) {
 			throw new RuntimeException("The class '" + clazz.getName() + "' is not instantiable: " + errorMessage);
 		}
 	}
-	
+
 	public static String checkForInstantiationError(Class<?> clazz) {
 		if (!isPublic(clazz)) {
 			return "The class is not public.";
@@ -237,19 +360,19 @@ public final class InstantiationUtil {
 		} else if (!hasPublicNullaryConstructor(clazz)) {
 			return "The class has no (implicit) public nullary constructor, i.e. a constructor without arguments.";
 		} else {
-			return null; 
+			return null;
 		}
 	}
-	
+
 	public static <T> T readObjectFromConfig(Configuration config, String key, ClassLoader cl) throws IOException, ClassNotFoundException {
 		byte[] bytes = config.getBytes(key, null);
 		if (bytes == null) {
 			return null;
 		}
-		
+
 		return deserializeObject(bytes, cl);
 	}
-	
+
 	public static void writeObjectToConfig(Object o, Configuration config, String key) throws IOException {
 		byte[] bytes = serializeObject(o);
 		config.setBytes(key, bytes);
@@ -283,26 +406,33 @@ public final class InstantiationUtil {
 		DataInputViewStreamWrapper inputViewWrapper = new DataInputViewStreamWrapper(new ByteArrayInputStream(buf));
 		return serializer.deserialize(reuse, inputViewWrapper);
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	public static <T> T deserializeObject(byte[] bytes, ClassLoader cl) throws IOException, ClassNotFoundException {
-		final ClassLoader old = Thread.currentThread().getContextClassLoader();
-		try (ObjectInputStream oois = new ClassLoaderObjectInputStream(new ByteArrayInputStream(bytes), cl)) {
-			Thread.currentThread().setContextClassLoader(cl);
-			return (T) oois.readObject();
-		}
-		finally {
-			Thread.currentThread().setContextClassLoader(old);
-		}
+		return deserializeObject(bytes, cl, false);
 	}
 
 	@SuppressWarnings("unchecked")
 	public static <T> T deserializeObject(InputStream in, ClassLoader cl) throws IOException, ClassNotFoundException {
+		return deserializeObject(in, cl, false);
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> T deserializeObject(byte[] bytes, ClassLoader cl, boolean isFailureTolerant)
+			throws IOException, ClassNotFoundException {
+
+		return deserializeObject(new ByteArrayInputStream(bytes), cl, isFailureTolerant);
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> T deserializeObject(InputStream in, ClassLoader cl, boolean isFailureTolerant)
+			throws IOException, ClassNotFoundException {
+
 		final ClassLoader old = Thread.currentThread().getContextClassLoader();
-		ObjectInputStream oois;
 		// not using resource try to avoid AutoClosable's close() on the given stream
-		try {
-			oois = new ClassLoaderObjectInputStream(in, cl);
+		try (ObjectInputStream oois = isFailureTolerant
+				? new InstantiationUtil.FailureTolerantObjectInputStream(in, cl)
+				: new InstantiationUtil.ClassLoaderObjectInputStream(in, cl)) {
 			Thread.currentThread().setContextClassLoader(cl);
 			return (T) oois.readObject();
 		}
@@ -325,14 +455,26 @@ public final class InstantiationUtil {
 		oos.writeObject(o);
 	}
 
+	public static boolean isSerializable(Object o) {
+		try {
+			serializeObject(o);
+		} catch (IOException e) {
+			return false;
+		}
+
+		return true;
+	}
+
 	/**
 	 * Clones the given serializable object using Java serialization.
 	 *
 	 * @param obj Object to clone
 	 * @param <T> Type of the object to clone
-	 * @return Cloned object
-	 * @throws IOException
-	 * @throws ClassNotFoundException
+	 * @return The cloned object
+	 *
+	 * @throws IOException Thrown if the serialization or deserialization process fails.
+	 * @throws ClassNotFoundException Thrown if any of the classes referenced by the object
+	 *                                cannot be resolved during deserialization.
 	 */
 	public static <T extends Serializable> T clone(T obj) throws IOException, ClassNotFoundException {
 		if (obj == null) {
@@ -349,11 +491,12 @@ public final class InstantiationUtil {
 	 * @param obj Object to clone
 	 * @param classLoader The classloader to resolve the classes during deserialization.
 	 * @param <T> Type of the object to clone
-	 * 
+	 *
 	 * @return Cloned object
-	 * 
-	 * @throws IOException
-	 * @throws ClassNotFoundException
+	 *
+	 * @throws IOException Thrown if the serialization or deserialization process fails.
+	 * @throws ClassNotFoundException Thrown if any of the classes referenced by the object
+	 *                                cannot be resolved during deserialization.
 	 */
 	public static <T extends Serializable> T clone(T obj, ClassLoader classLoader) throws IOException, ClassNotFoundException {
 		if (obj == null) {
@@ -391,10 +534,10 @@ public final class InstantiationUtil {
 			return copy;
 		}
 	}
-	
-	
+
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Private constructor to prevent instantiation.
 	 */

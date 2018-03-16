@@ -18,11 +18,13 @@
 package org.apache.flink.graph.scala.test
 
 import java.lang.reflect.Method
-import org.apache.flink.graph.scala._
+
 import org.apache.flink.api.scala.completeness.ScalaAPICompletenessTestBase
+import org.apache.flink.graph.scala._
 import org.apache.flink.graph.{Graph => JavaGraph}
-import scala.language.existentials
 import org.junit.Test
+
+import scala.language.existentials
 
 /**
  * This checks whether the Gelly Scala API is up to feature parity with the Java API.

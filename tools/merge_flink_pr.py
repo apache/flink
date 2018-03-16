@@ -46,7 +46,7 @@ except ImportError:
 
 # Location of your FLINK git development area
 FLINK_HOME = os.environ.get("FLINK_HOME", "/home/patrick/Documents/spark")
-# Remote name which points to the Gihub site
+# Remote name which points to the Github site
 PR_REMOTE_NAME = os.environ.get("PR_REMOTE_NAME", "apache-github")
 # Remote name which points to Apache git
 PUSH_REMOTE_NAME = os.environ.get("PUSH_REMOTE_NAME", "apache")
@@ -274,7 +274,7 @@ def resolve_jira(title, merge_branches, comment):
     asf_jira.transition_issue(
         jira_id, resolve["id"], fixVersions=jira_fix_versions, comment=comment)
 
-    print "Succesfully resolved %s with fixVersions=%s!" % (jira_id, fix_versions)
+    print "Successfully resolved %s with fixVersions=%s!" % (jira_id, fix_versions)
 
 
 #branches = get_json("%s/branches" % GITHUB_API_BASE)

@@ -17,11 +17,10 @@
  */
 package org.apache.flink.runtime.state;
 
-import java.util.concurrent.ExecutionException;
+import javax.annotation.Nullable;
 import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * A {@link Future} that is always done and will just yield the object that was given at creation
@@ -30,10 +29,12 @@ import java.util.concurrent.TimeoutException;
  * @param <T> The type of object in this {@code Future}.
  */
 public class DoneFuture<T> implements RunnableFuture<T> {
-	private final T keyGroupsStateHandle;
 
-	public DoneFuture(T keyGroupsStateHandle) {
-		this.keyGroupsStateHandle = keyGroupsStateHandle;
+	@Nullable
+	private final T payload;
+
+	protected DoneFuture(@Nullable T payload) {
+		this.payload = payload;
 	}
 
 	@Override
@@ -52,19 +53,24 @@ public class DoneFuture<T> implements RunnableFuture<T> {
 	}
 
 	@Override
-	public T get() throws InterruptedException, ExecutionException {
-		return keyGroupsStateHandle;
+	public T get() {
+		return payload;
 	}
 
 	@Override
 	public T get(
 			long timeout,
-			TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+			TimeUnit unit) {
 		return get();
 	}
 
 	@Override
 	public void run() {
 
+	}
+
+
+	public static <T> DoneFuture<T> of(@Nullable T result) {
+		return new DoneFuture<>(result);
 	}
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,19 +25,18 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 /**
  * A test harness for testing a {@link TwoInputStreamOperator}.
  *
- * <p>
- * This mock task provides the operator with a basic runtime context and allows pushing elements
+ * <p>This mock task provides the operator with a basic runtime context and allows pushing elements
  * and watermarks into the operator. {@link java.util.Deque}s containing the emitted elements
  * and watermarks can be retrieved. you are free to modify these.
  */
-public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT>extends AbstractStreamOperatorTestHarness<OUT> {
+public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> extends AbstractStreamOperatorTestHarness<OUT> {
 
 	private final TwoInputStreamOperator<IN1, IN2, OUT> twoInputOperator;
 
 	public TwoInputStreamOperatorTestHarness(TwoInputStreamOperator<IN1, IN2, OUT> operator) throws Exception {
 		this(operator, 1, 1, 0);
 	}
-		
+
 	public TwoInputStreamOperatorTestHarness(
 			TwoInputStreamOperator<IN1, IN2, OUT> operator,
 			int maxParallelism,

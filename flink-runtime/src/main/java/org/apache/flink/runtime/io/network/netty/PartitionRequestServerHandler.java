@@ -18,16 +18,18 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
+import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CancelPartitionRequest;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CloseRequest;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
+
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
+import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,36 +49,28 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 
 	private final PartitionRequestQueue outboundQueue;
 
-	private final NetworkBufferPool networkBufferPool;
-
-	private BufferPool bufferPool;
+	private final boolean creditBasedEnabled;
 
 	PartitionRequestServerHandler(
 		ResultPartitionProvider partitionProvider,
 		TaskEventDispatcher taskEventDispatcher,
 		PartitionRequestQueue outboundQueue,
-		NetworkBufferPool networkBufferPool) {
+		boolean creditBasedEnabled) {
 
 		this.partitionProvider = partitionProvider;
 		this.taskEventDispatcher = taskEventDispatcher;
 		this.outboundQueue = outboundQueue;
-		this.networkBufferPool = networkBufferPool;
+		this.creditBasedEnabled = creditBasedEnabled;
 	}
 
 	@Override
 	public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
 		super.channelRegistered(ctx);
-
-		bufferPool = networkBufferPool.createBufferPool(1, false);
 	}
 
 	@Override
 	public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
 		super.channelUnregistered(ctx);
-
-		if (bufferPool != null) {
-			bufferPool.lazyDestroy();
-		}
 	}
 
 	@Override
@@ -93,15 +87,24 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 				LOG.debug("Read channel on {}: {}.", ctx.channel().localAddress(), request);
 
 				try {
-					SequenceNumberingViewReader reader = new SequenceNumberingViewReader(
-						request.receiverId,
-						outboundQueue);
+					NetworkSequenceViewReader reader;
+					if (creditBasedEnabled) {
+						reader = new CreditBasedSequenceNumberingViewReader(
+							request.receiverId,
+							request.credit,
+							outboundQueue);
+					} else {
+						reader = new SequenceNumberingViewReader(
+							request.receiverId,
+							outboundQueue);
+					}
+
+					outboundQueue.notifyReaderCreated(reader);
 
 					reader.requestSubpartitionView(
 						partitionProvider,
 						request.partitionId,
-						request.queueIndex,
-						bufferPool);
+						request.queueIndex);
 				} catch (PartitionNotFoundException notFound) {
 					respondWithError(ctx, notFound, request.receiverId);
 				}
@@ -121,6 +124,10 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 				outboundQueue.cancel(request.receiverId);
 			} else if (msgClazz == CloseRequest.class) {
 				outboundQueue.close();
+			} else if (msgClazz == AddCredit.class) {
+				AddCredit request = (AddCredit) msg;
+
+				outboundQueue.addCredit(request.receiverId, request.credit);
 			} else {
 				LOG.warn("Received unexpected client request: {}", msg);
 			}

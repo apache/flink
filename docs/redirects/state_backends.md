@@ -1,7 +1,7 @@
 ---
 title: "State Backends"
 layout: redirect
-redirect: /ops/state_backends.html
+redirect: /ops/state/state_backends.html
 permalink: /apis/streaming/state_backends.html
 ---
 <!--

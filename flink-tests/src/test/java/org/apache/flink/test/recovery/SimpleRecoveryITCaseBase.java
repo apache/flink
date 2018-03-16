@@ -24,16 +24,17 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-import org.junit.AfterClass;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * A series of tests (reusing one FlinkMiniCluster) where tasks fail (one or more time)
@@ -42,30 +43,15 @@ import static org.junit.Assert.*;
 @SuppressWarnings("serial")
 public abstract class SimpleRecoveryITCaseBase {
 
-	protected static LocalFlinkMiniCluster cluster;
-
-	@AfterClass
-	public static void teardownCluster() {
-		try {
-			cluster.stop();
-		}
-		catch (Throwable t) {
-			System.err.println("Error stopping cluster on shutdown");
-			t.printStackTrace();
-			fail("ClusterClient shutdown caused an exception: " + t.getMessage());
-		}
-	}
-
 	@Test
-	public void testFailedRunThenSuccessfulRun() {
+	public void testFailedRunThenSuccessfulRun() throws Exception {
 
 		try {
 			List<Long> resultCollection = new ArrayList<Long>();
 
 			// attempt 1
 			{
-				ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-						"localhost", cluster.getLeaderRPCPort());
+				ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 				env.setParallelism(4);
 				env.setRestartStrategy(RestartStrategies.noRestart());
@@ -87,15 +73,14 @@ public abstract class SimpleRecoveryITCaseBase {
 					String msg = res == null ? "null result" : "result in " + res.getNetRuntime() + " ms";
 					fail("The program should have failed, but returned " + msg);
 				}
-				catch (ProgramInvocationException e) {
+				catch (JobExecutionException e) {
 					// expected
 				}
 			}
 
 			// attempt 2
 			{
-				ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-						"localhost", cluster.getLeaderRPCPort());
+				ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 				env.setParallelism(4);
 				env.setRestartStrategy(RestartStrategies.noRestart());
@@ -130,14 +115,14 @@ public abstract class SimpleRecoveryITCaseBase {
 
 	private void executeAndRunAssertions(ExecutionEnvironment env) throws Exception {
 		try {
-            JobExecutionResult result = env.execute();
-            assertTrue(result.getNetRuntime() >= 0);
-            assertNotNull(result.getAllAccumulatorResults());
-            assertTrue(result.getAllAccumulatorResults().isEmpty());
-        }
-        catch (JobExecutionException e) {
-            fail("The program should have succeeded on the second run");
-        }
+			JobExecutionResult result = env.execute();
+			assertTrue(result.getNetRuntime() >= 0);
+			assertNotNull(result.getAllAccumulatorResults());
+			assertTrue(result.getAllAccumulatorResults().isEmpty());
+		}
+		catch (JobExecutionException e) {
+			fail("The program should have succeeded on the second run");
+		}
 	}
 
 	@Test
@@ -145,8 +130,7 @@ public abstract class SimpleRecoveryITCaseBase {
 		try {
 			List<Long> resultCollection = new ArrayList<Long>();
 
-			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 			env.setParallelism(4);
 			// the default restart strategy should be taken
@@ -182,8 +166,7 @@ public abstract class SimpleRecoveryITCaseBase {
 		try {
 			List<Long> resultCollection = new ArrayList<Long>();
 
-			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 			env.setParallelism(4);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, 100));

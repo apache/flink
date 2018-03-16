@@ -18,6 +18,7 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingProxy;
 
@@ -29,9 +30,10 @@ import java.net.URI;
  * {@link ClosingFSDataInputStream} or {@link ClosingFSDataOutputStream} and (ii) registers them to
  * a {@link SafetyNetCloseableRegistry}.
  *
- * Streams obtained by this are therefore managed by the {@link SafetyNetCloseableRegistry} to prevent resource leaks
- * from unclosed streams.
+ * <p>Streams obtained by this are therefore managed by the {@link SafetyNetCloseableRegistry} to
+ * prevent resource leaks from unclosed streams.
  */
+@Internal
 public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingProxy<FileSystem> {
 
 	private final SafetyNetCloseableRegistry registry;
@@ -58,11 +60,6 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	}
 
 	@Override
-	public void initialize(URI name) throws IOException {
-		unsafeFileSystem.initialize(name);
-	}
-
-	@Override
 	public FileStatus getFileStatus(Path f) throws IOException {
 		return unsafeFileSystem.getFileStatus(f);
 	}
@@ -85,6 +82,7 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	}
 
 	@Override
+	@SuppressWarnings("deprecation")
 	public long getDefaultBlockSize() {
 		return unsafeFileSystem.getDefaultBlockSize();
 	}
@@ -110,6 +108,7 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	}
 
 	@Override
+	@SuppressWarnings("deprecation")
 	public FSDataOutputStream create(Path f, boolean overwrite, int bufferSize, short replication, long blockSize)
 			throws IOException {
 
@@ -118,7 +117,7 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	}
 
 	@Override
-	public FSDataOutputStream create(Path f, boolean overwrite) throws IOException {
+	public FSDataOutputStream create(Path f, WriteMode overwrite) throws IOException {
 		FSDataOutputStream innerStream = unsafeFileSystem.create(f, overwrite);
 		return ClosingFSDataOutputStream.wrapSafe(innerStream, registry, String.valueOf(f));
 	}
@@ -141,6 +140,11 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	@Override
 	public boolean isDistributedFS() {
 		return unsafeFileSystem.isDistributedFS();
+	}
+
+	@Override
+	public FileSystemKind getKind() {
+		return unsafeFileSystem.getKind();
 	}
 
 	@Override

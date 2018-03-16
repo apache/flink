@@ -18,22 +18,24 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import akka.actor.{PoisonPill, ActorSystem}
+import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.api.common.restartstrategy.RestartStrategies
+import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.ListeningBehaviour
-import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, DistributionPattern, JobVertex}
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType
+import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph, JobStatus, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingOnceReceiver, FailingOnceReceiver}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
-import org.apache.flink.runtime.messages.JobManagerMessages.{JobSubmitSuccess, JobResultSuccess, SubmitJob}
+import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, JobSubmitSuccess, SubmitJob}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingCluster, TestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.scalatest.junit.JUnitRunner
-import scala.concurrent.duration._
 
+import scala.concurrent.duration._
 import language.postfixOps
 
 @RunWith(classOf[JUnitRunner])
@@ -59,10 +61,7 @@ class RecoveryITCase(_system: ActorSystem)
     val config = new Configuration()
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
     config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers)
-    config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, heartbeatTimeout)
-    config.setString(ConfigConstants.RESTART_STRATEGY, "fixeddelay")
-    config.setInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1)
-    config.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, heartbeatTimeout)
+    config.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, heartbeatTimeout)
     new TestingCluster(config)
   }
 
@@ -81,15 +80,16 @@ class RecoveryITCase(_system: ActorSystem)
       sender.setParallelism(NUM_TASKS)
       receiver.setParallelism(NUM_TASKS)
 
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
 
       val executionConfig = new ExecutionConfig()
-      executionConfig.setNumberOfExecutionRetries(1);
+      executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))
 
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
       jobGraph.setExecutionConfig(executionConfig)
 
-      val cluster = createTestClusterWithHeartbeatTimeout(2 * NUM_TASKS, 1, "2 s")
+      val cluster = createTestClusterWithHeartbeatTimeout(2 * NUM_TASKS, 1, "100 ms")
       cluster.start()
 
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -125,19 +125,20 @@ class RecoveryITCase(_system: ActorSystem)
       sender.setParallelism(NUM_TASKS)
       receiver.setParallelism(NUM_TASKS)
 
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
 
       val sharingGroup = new SlotSharingGroup
       sender.setSlotSharingGroup(sharingGroup)
       receiver.setSlotSharingGroup(sharingGroup)
 
       val executionConfig = new ExecutionConfig()
-      executionConfig.setNumberOfExecutionRetries(1);
+      executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))
 
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
       jobGraph.setExecutionConfig(executionConfig)
 
-      val cluster = createTestClusterWithHeartbeatTimeout(NUM_TASKS, 1, "2 s")
+      val cluster = createTestClusterWithHeartbeatTimeout(NUM_TASKS, 1, "100 ms")
       cluster.start()
 
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -173,19 +174,20 @@ class RecoveryITCase(_system: ActorSystem)
       sender.setParallelism(NUM_TASKS)
       receiver.setParallelism(NUM_TASKS)
 
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
 
       val sharingGroup = new SlotSharingGroup
       sender.setSlotSharingGroup(sharingGroup)
       receiver.setSlotSharingGroup(sharingGroup)
 
       val executionConfig = new ExecutionConfig()
-      executionConfig.setNumberOfExecutionRetries(1);
+      executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))
 
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
       jobGraph.setExecutionConfig(executionConfig)
 
-      val cluster = createTestClusterWithHeartbeatTimeout(NUM_TASKS, 2, "2 s")
+      val cluster = createTestClusterWithHeartbeatTimeout(NUM_TASKS, 2, "100 ms")
       cluster.start()
 
       val jmGateway = cluster.getLeaderGateway(1 seconds)

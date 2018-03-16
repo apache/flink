@@ -23,14 +23,18 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
-import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
+
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertTrue;
 
+@Category(Flip6.class)
 public class MainThreadValidationTest extends TestLogger {
 
 	@Test
@@ -52,7 +56,7 @@ public class MainThreadValidationTest extends TestLogger {
 			testEndpoint.start();
 
 			// this works, because it is executed as an RPC call
-			testEndpoint.getSelf().someConcurrencyCriticalFunction();
+			testEndpoint.getSelfGateway(TestGateway.class).someConcurrencyCriticalFunction();
 
 			// this fails, because it is executed directly
 			boolean exceptionThrown;
@@ -65,10 +69,10 @@ public class MainThreadValidationTest extends TestLogger {
 			}
 			assertTrue("should fail with an assertion error", exceptionThrown);
 
-			akkaRpcService.stopServer(testEndpoint.getSelf());
+			testEndpoint.shutDown();
 		}
 		finally {
-			akkaRpcService.stopService();
+			akkaRpcService.stopService().get();
 		}
 	}
 
@@ -82,13 +86,18 @@ public class MainThreadValidationTest extends TestLogger {
 	}
 
 	@SuppressWarnings("unused")
-	public static class TestEndpoint extends RpcEndpoint<TestGateway> {
+	public static class TestEndpoint extends RpcEndpoint implements TestGateway {
 
 		public TestEndpoint(RpcService rpcService) {
 			super(rpcService);
 		}
 
-		@RpcMethod
+		@Override
+		public CompletableFuture<Void> postStop() {
+			return CompletableFuture.completedFuture(null);
+		}
+
+		@Override
 		public void someConcurrencyCriticalFunction() {
 			validateRunsInMainThread();
 		}

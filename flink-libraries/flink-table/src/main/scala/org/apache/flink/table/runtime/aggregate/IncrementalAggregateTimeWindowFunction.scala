@@ -23,46 +23,51 @@ import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
+import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.util.Collector
 
 /**
-  * Computes the final aggregate value from incrementally computed aggreagtes.
+  * Computes the final aggregate value from incrementally computed aggregates.
   *
-  * @param aggregates   The aggregate functions.
-  * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row
-  *                         and output Row.
-  * @param aggregateMapping The index mapping between aggregate function list and aggregated value
-  *                         index in output Row.
+  * @param numGroupingKey the number of grouping keys
+  * @param numAggregates the number of aggregates
+  * @param windowStartOffset the offset of the window start property
+  * @param windowEndOffset   the offset of the window end property
+  * @param windowRowtimeOffset the offset of the window rowtime property
   * @param finalRowArity  The arity of the final output row.
   */
 class IncrementalAggregateTimeWindowFunction(
-    private val aggregates: Array[Aggregate[_ <: Any]],
-    private val groupKeysMapping: Array[(Int, Int)],
-    private val aggregateMapping: Array[(Int, Int)],
-    private val finalRowArity: Int,
-    private val windowStartPos: Option[Int],
-    private val windowEndPos: Option[Int])
+    private val numGroupingKey: Int,
+    private val numAggregates: Int,
+    private val windowStartOffset: Option[Int],
+    private val windowEndOffset: Option[Int],
+    private val windowRowtimeOffset: Option[Int],
+    private val finalRowArity: Int)
   extends IncrementalAggregateWindowFunction[TimeWindow](
-    aggregates,
-    groupKeysMapping,
-    aggregateMapping, finalRowArity) {
+    numGroupingKey,
+    numAggregates,
+    finalRowArity) {
 
-  private var collector: TimeWindowPropertyCollector = _
+  private var collector: DataStreamTimeWindowPropertyCollector = _
 
   override def open(parameters: Configuration): Unit = {
-    collector = new TimeWindowPropertyCollector(windowStartPos, windowEndPos)
+    collector = new DataStreamTimeWindowPropertyCollector(
+      windowStartOffset,
+      windowEndOffset,
+      windowRowtimeOffset)
     super.open(parameters)
   }
 
   override def apply(
-    key: Tuple,
-    window: TimeWindow,
-    records: Iterable[Row],
-    out: Collector[Row]): Unit = {
+      key: Row,
+      window: TimeWindow,
+      records: Iterable[Row],
+      out: Collector[CRow]): Unit = {
 
     // set collector and window
     collector.wrappedCollector = out
-    collector.timeWindow = window
+    collector.windowStart = window.getStart
+    collector.windowEnd = window.getEnd
 
     super.apply(key, window, records, collector)
   }

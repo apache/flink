@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,12 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.functions.windowing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
+/**
+ * A {@link WindowFunction} that just emits each input element.
+ */
 @Internal
 public class PassThroughWindowFunction<K, W extends Window, T> implements WindowFunction<T, T, K, W> {
 

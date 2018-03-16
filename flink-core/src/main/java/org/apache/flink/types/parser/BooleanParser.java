@@ -19,6 +19,7 @@
 package org.apache.flink.types.parser;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ConfigConstants;
 
 @PublicEvolving
 public class BooleanParser extends FieldParser<Boolean> {
@@ -27,43 +28,34 @@ public class BooleanParser extends FieldParser<Boolean> {
 
 	/** Values for true and false respectively. Must be lower case. */
 	private static final byte[][] TRUE = new byte[][] {
-			"true".getBytes(),
-			"1".getBytes()
+			"true".getBytes(ConfigConstants.DEFAULT_CHARSET),
+			"1".getBytes(ConfigConstants.DEFAULT_CHARSET)
 	};
 	private static final byte[][] FALSE = new byte[][] {
-			"false".getBytes(),
-			"0".getBytes()
+			"false".getBytes(ConfigConstants.DEFAULT_CHARSET),
+			"0".getBytes(ConfigConstants.DEFAULT_CHARSET)
 	};
 
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, byte[] delim, Boolean reuse) {
+	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Boolean reuse) {
 
-		final int delimLimit = limit - delim.length + 1;
+		final int i = nextStringEndPos(bytes, startPos, limit, delimiter);
 
-		int i = startPos;
-
-		while (i < limit) {
-			if (i < delimLimit && delimiterNext(bytes, i, delim)) {
-				if (i == startPos) {
-					setErrorState(ParseErrorState.EMPTY_COLUMN);
-					return -1;
-				}
-				break;
-			}
-			i++;
+		if (i < 0) {
+			return -1;
 		}
 
 		for (byte[] aTRUE : TRUE) {
 			if (byteArrayEquals(bytes, startPos, i - startPos, aTRUE)) {
 				result = true;
-				return (i == limit) ? limit : i + delim.length;
+				return (i == limit) ? limit : i + delimiter.length;
 			}
 		}
 
 		for (byte[] aFALSE : FALSE) {
 			if (byteArrayEquals(bytes, startPos, i - startPos, aFALSE)) {
 				result = false;
-				return (i == limit) ? limit : i + delim.length;
+				return (i == limit) ? limit : i + delimiter.length;
 			}
 		}
 

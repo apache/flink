@@ -23,33 +23,34 @@ import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.functions.FunctionAnnotation;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
+import org.apache.flink.graph.asm.result.PrintableResult;
+import org.apache.flink.graph.asm.result.UnaryResultBase;
 import org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result;
-import org.apache.flink.graph.utils.Murmur3_32;
-import org.apache.flink.graph.utils.proxy.OptionalBoolean;
+import org.apache.flink.graph.utils.MurmurHash;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingBase;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
+import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.Preconditions;
-
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * The local clustering coefficient measures the connectedness of each vertex's
  * neighborhood. Scores range from 0.0 (no edges between neighbors) to 1.0
  * (neighborhood is a clique).
- * <br/>
- * An edge between a vertex's neighbors is a triangle. Counting edges between
+ *
+ * <p>An edge between a vertex's neighbors is a triangle. Counting edges between
  * neighbors is equivalent to counting the number of triangles which include
  * the vertex.
- * <br/>
- * The input graph must be a simple, undirected graph containing no duplicate
+ *
+ * <p>The input graph must be a simple, undirected graph containing no duplicate
  * edges or self-loops.
  *
  * @param <K> graph ID type
@@ -61,8 +62,6 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	// Optional configuration
 	private OptionalBoolean includeZeroDegreeVertices = new OptionalBoolean(true, true);
-
-	private int littleParallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * By default the vertex set is checked for zero degree vertices. When this
@@ -79,49 +78,24 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		return this;
 	}
 
-	/**
-	 * Override the parallelism of operators processing small amounts of data.
-	 *
-	 * @param littleParallelism operator parallelism
-	 * @return this
-	 */
-	public LocalClusteringCoefficient<K, VV, EV> setLittleParallelism(int littleParallelism) {
-		Preconditions.checkArgument(littleParallelism > 0 || littleParallelism == PARALLELISM_DEFAULT,
-			"The parallelism must be greater than zero.");
-
-		this.littleParallelism = littleParallelism;
-
-		return this;
-	}
-
 	@Override
-	protected String getAlgorithmName() {
-		return LocalClusteringCoefficient.class.getName();
-	}
-
-	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
-		Preconditions.checkNotNull(other);
-
-		if (! LocalClusteringCoefficient.class.isAssignableFrom(other.getClass())) {
+	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+		if (!super.canMergeConfigurationWith(other)) {
 			return false;
 		}
 
 		LocalClusteringCoefficient rhs = (LocalClusteringCoefficient) other;
 
-		// verify that configurations can be merged
+		return !includeZeroDegreeVertices.conflictsWith(rhs.includeZeroDegreeVertices);
+	}
 
-		if (includeZeroDegreeVertices.conflictsWith(rhs.includeZeroDegreeVertices)) {
-			return false;
-		}
+	@Override
+	protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
+		super.mergeConfiguration(other);
 
-		// merge configurations
+		LocalClusteringCoefficient rhs = (LocalClusteringCoefficient) other;
 
 		includeZeroDegreeVertices.mergeWith(rhs.includeZeroDegreeVertices);
-		littleParallelism = (littleParallelism == PARALLELISM_DEFAULT) ? rhs.littleParallelism :
-			((rhs.littleParallelism == PARALLELISM_DEFAULT) ? littleParallelism : Math.min(littleParallelism, rhs.littleParallelism));
-
-		return true;
 	}
 
 	/*
@@ -138,35 +112,36 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	public DataSet<Result<K>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// u, v, w
-		DataSet<Tuple3<K, K, K>> triangles = input
+		DataSet<TriangleListing.Result<K>> triangles = input
 			.run(new TriangleListing<K, VV, EV>()
-				.setLittleParallelism(littleParallelism));
+				.setParallelism(parallelism));
 
 		// u, 1
 		DataSet<Tuple2<K, LongValue>> triangleVertices = triangles
-			.flatMap(new SplitTriangles<K>())
+			.flatMap(new SplitTriangles<>())
 				.name("Split triangle vertices");
 
 		// u, triangle count
 		DataSet<Tuple2<K, LongValue>> vertexTriangleCount = triangleVertices
 			.groupBy(0)
-			.reduce(new CountTriangles<K>())
+			.reduce(new CountTriangles<>())
 			.setCombineHint(CombineHint.HASH)
-				.name("Count triangles");
+				.name("Count triangles")
+				.setParallelism(parallelism);
 
 		// u, deg(u)
 		DataSet<Vertex<K, LongValue>> vertexDegree = input
 			.run(new VertexDegree<K, VV, EV>()
 				.setIncludeZeroDegreeVertices(includeZeroDegreeVertices.get())
-				.setParallelism(littleParallelism));
+				.setParallelism(parallelism));
 
 		// u, deg(u), triangle count
 		return vertexDegree
 			.leftOuterJoin(vertexTriangleCount)
 			.where(0)
 			.equalTo(0)
-			.with(new JoinVertexDegreeWithTriangleCount<K>())
-				.setParallelism(littleParallelism)
+			.with(new JoinVertexDegreeWithTriangleCount<>())
+				.setParallelism(parallelism)
 				.name("Clustering coefficient");
 	}
 
@@ -176,19 +151,19 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 * @param <T> ID type
 	 */
 	private static class SplitTriangles<T>
-	implements FlatMapFunction<Tuple3<T, T, T>, Tuple2<T, LongValue>> {
+	implements FlatMapFunction<TriangleListing.Result<T>, Tuple2<T, LongValue>> {
 		private Tuple2<T, LongValue> output = new Tuple2<>(null, new LongValue(1));
 
 		@Override
-		public void flatMap(Tuple3<T, T, T> value, Collector<Tuple2<T, LongValue>> out)
+		public void flatMap(TriangleListing.Result<T> value, Collector<Tuple2<T, LongValue>> out)
 				throws Exception {
-			output.f0 = value.f0;
+			output.f0 = value.getVertexId0();
 			out.collect(output);
 
-			output.f0 = value.f1;
+			output.f0 = value.getVertexId1();
 			out.collect(output);
 
-			output.f0 = value.f2;
+			output.f0 = value.getVertexId2();
 			out.collect(output);
 		}
 	}
@@ -198,7 +173,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFields("0")
+	@ForwardedFields("0")
 	private static class CountTriangles<T>
 	implements ReduceFunction<Tuple2<T, LongValue>> {
 		@Override
@@ -214,8 +189,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFieldsFirst("0; 1->1.0")
-	@FunctionAnnotation.ForwardedFieldsSecond("0")
+	@ForwardedFieldsFirst("0->vertexId0; 1->degree")
+	@ForwardedFieldsSecond("0->vertexId0")
 	private static class JoinVertexDegreeWithTriangleCount<T>
 	implements JoinFunction<Vertex<T, LongValue>, Tuple2<T, LongValue>, Result<T>> {
 		private LongValue zero = new LongValue(0);
@@ -225,28 +200,25 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		@Override
 		public Result<T> join(Vertex<T, LongValue> vertexAndDegree, Tuple2<T, LongValue> vertexAndTriangleCount)
 				throws Exception {
-			output.f0 = vertexAndDegree.f0;
-			output.f1.f0 = vertexAndDegree.f1;
-			output.f1.f1 = (vertexAndTriangleCount == null) ? zero : vertexAndTriangleCount.f1;
+			output.setVertexId0(vertexAndDegree.f0);
+			output.setDegree(vertexAndDegree.f1);
+			output.setTriangleCount((vertexAndTriangleCount == null) ? zero : vertexAndTriangleCount.f1);
 
 			return output;
 		}
 	}
 
 	/**
-	 * Wraps the vertex type to encapsulate results from the Local Clustering Coefficient algorithm.
+	 * A result for the undirected Local Clustering Coefficient algorithm.
 	 *
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Vertex<T, Tuple2<LongValue, LongValue>> {
-		private static final int HASH_SEED = 0xc23937c1;
+	extends UnaryResultBase<T>
+	implements PrintableResult {
+		private LongValue degree;
 
-		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
-
-		public Result() {
-			f1 = new Tuple2<>();
-		}
+		private LongValue triangleCount;
 
 		/**
 		 * Get the vertex degree.
@@ -254,7 +226,16 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return vertex degree
 		 */
 		public LongValue getDegree() {
-			return f1.f0;
+			return degree;
+		}
+
+		/**
+		 * Set the vertex degree.
+		 *
+		 * @param degree vertex degree
+		 */
+		public void setDegree(LongValue degree) {
+			this.degree = degree;
 		}
 
 		/**
@@ -264,7 +245,17 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return triangle count
 		 */
 		public LongValue getTriangleCount() {
-			return f1.f1;
+			return triangleCount;
+		}
+
+		/**
+		 * Set the number of triangles containing this vertex; equivalently,
+		 * this is the number of edges between neighbors of this vertex.
+		 *
+		 * @param triangleCount triangle count
+		 */
+		public void setTriangleCount(LongValue triangleCount) {
+			this.triangleCount = triangleCount;
 		}
 
 		/**
@@ -272,7 +263,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * number of edges between neighbors, equal to the triangle count,
 		 * divided by the number of potential edges between neighbors.
 		 *
-		 * A score of {@code Double.NaN} is returned for a vertex with degree 1
+		 * <p>A score of {@code Double.NaN} is returned for a vertex with degree 1
 		 * for which both the triangle count and number of neighbors are zero.
 		 *
 		 * @return local clustering coefficient score
@@ -281,7 +272,15 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			long degree = getDegree().getValue();
 			long neighborPairs = degree * (degree - 1) / 2;
 
-			return (neighborPairs == 0) ? Double.NaN : getTriangleCount().getValue() / (double)neighborPairs;
+			return (neighborPairs == 0) ? Double.NaN : getTriangleCount().getValue() / (double) neighborPairs;
+		}
+
+		@Override
+		public String toString() {
+			return "(" + getVertexId0()
+				+ "," + degree
+				+ "," + triangleCount
+				+ ")";
 		}
 
 		/**
@@ -289,19 +288,30 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 *
 		 * @return verbose string
 		 */
-		public String toVerboseString() {
-			return "Vertex ID: " + f0
-				+ ", vertex degree: " + getDegree()
-				+ ", triangle count: " + getTriangleCount()
+		@Override
+		public String toPrintableString() {
+			return "Vertex ID: " + getVertexId0()
+				+ ", vertex degree: " + degree
+				+ ", triangle count: " + triangleCount
 				+ ", local clustering coefficient: " + getLocalClusteringCoefficientScore();
 		}
 
+		// ----------------------------------------------------------------------------------------
+
+		public static final int HASH_SEED = 0xc23937c1;
+
+		private transient MurmurHash hasher;
+
 		@Override
 		public int hashCode() {
+			if (hasher == null) {
+				hasher = new MurmurHash(HASH_SEED);
+			}
+
 			return hasher.reset()
-				.hash(f0.hashCode())
-				.hash(f1.f0.getValue())
-				.hash(f1.f1.getValue())
+				.hash(getVertexId0().hashCode())
+				.hash(degree.getValue())
+				.hash(triangleCount.getValue())
 				.hash();
 		}
 	}

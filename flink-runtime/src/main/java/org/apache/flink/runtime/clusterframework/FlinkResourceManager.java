@@ -26,7 +26,7 @@ import akka.dispatch.OnComplete;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
@@ -148,7 +148,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 		}
 		catch (Exception e) {
 			lt = new FiniteDuration(
-				Duration.apply(ConfigConstants.DEFAULT_AKKA_LOOKUP_TIMEOUT).toMillis(),
+				Duration.apply(AkkaOptions.LOOKUP_TIMEOUT.defaultValue()).toMillis(),
 				TimeUnit.MILLISECONDS);
 		}
 		this.messageTimeout = lt;
@@ -410,9 +410,9 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 		// disconnect from the current leader (no-op if no leader yet)
 		jobManagerLostLeadership();
 
-		// a null leader address means that only a leader disconnect
+		// a null leader session id means that only a leader disconnect
 		// happened, without a new leader yet
-		if (leaderAddress != null) {
+		if (leaderSessionID != null && leaderAddress != null) {
 			// the leaderSessionID implicitly filters out success and failure messages
 			// that come after leadership changed again
 			this.leaderSessionID = leaderSessionID;
@@ -738,7 +738,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	 * Starts the resource manager actors.
 	 * @param configuration The configuration for the resource manager
 	 * @param actorSystem The actor system to start the resource manager in
-	 * @param leaderRetriever The leader retriever service to intialize the resource manager
+	 * @param leaderRetriever The leader retriever service to initialize the resource manager
 	 * @param resourceManagerClass The class of the ResourceManager to be started
 	 * @return ActorRef of the resource manager
 	 */
@@ -757,7 +757,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	 * Starts the resource manager actors.
 	 * @param configuration The configuration for the resource manager
 	 * @param actorSystem The actor system to start the resource manager in
-	 * @param leaderRetriever The leader retriever service to intialize the resource manager
+	 * @param leaderRetriever The leader retriever service to initialize the resource manager
 	 * @param resourceManagerClass The class of the ResourceManager to be started
 	 * @param resourceManagerActorName The name of the resource manager actor.
 	 * @return ActorRef of the resource manager

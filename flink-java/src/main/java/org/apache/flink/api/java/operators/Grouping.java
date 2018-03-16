@@ -26,33 +26,33 @@ import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.java.DataSet;
 
 /**
- * Grouping is an intermediate step for a transformation on a grouped DataSet.<br>
- * The following transformation can be applied on Grouping:
+ * Grouping is an intermediate step for a transformation on a grouped DataSet.
+ *
+ * <p>The following transformation can be applied on Grouping:
  * <ul>
- * 	<li>{@link UnsortedGrouping#reduce(org.apache.flink.api.common.functions.ReduceFunction)},</li>
+ * <li>{@link UnsortedGrouping#reduce(org.apache.flink.api.common.functions.ReduceFunction)},</li>
  * <li>{@link UnsortedGrouping#reduceGroup(org.apache.flink.api.common.functions.GroupReduceFunction)}, and</li>
  * <li>{@link UnsortedGrouping#aggregate(org.apache.flink.api.java.aggregation.Aggregations, int)}.</li>
  * </ul>
  *
  * @param <T> The type of the elements of the grouped DataSet.
- * 
+ *
  * @see DataSet
  */
 @Public
 public abstract class Grouping<T> {
-	
+
 	protected final DataSet<T> inputDataSet;
-	
+
 	protected final Keys<T> keys;
-	
+
 	protected Partitioner<?> customPartitioner;
 
-	
 	public Grouping(DataSet<T> set, Keys<T> keys) {
 		if (set == null || keys == null) {
 			throw new NullPointerException();
 		}
-		
+
 		if (keys.isEmpty()) {
 			throw new InvalidProgramException("The grouping keys must not be empty.");
 		}
@@ -60,17 +60,17 @@ public abstract class Grouping<T> {
 		this.inputDataSet = set;
 		this.keys = keys;
 	}
-	
+
 	/**
 	 * Returns the input DataSet of a grouping operation, that is the one before the grouping. This means that
 	 * if it is applied directly to the result of a grouping operation, it will cancel its effect. As an example, in the
 	 * following snippet:
-	 * <pre><code>
+	 * <pre>{@code
 	 * DataSet<X> notGrouped = input.groupBy().getDataSet();
 	 * DataSet<Y> allReduced = notGrouped.reduce()
-	 * </pre></code>
-	 * the <code>groupBy()</code> is as if it never happened, as the <code>notGrouped</code> DataSet corresponds
-	 * to the input of the <code>groupBy()</code> (because of the <code>getDataset()</code>).
+	 * }</pre>
+	 * the {@code groupBy()} is as if it never happened, as the {@code notGrouped} DataSet corresponds
+	 * to the input of the {@code groupBy()} (because of the {@code getDataset()}).
 	 * */
 	@Internal
 	public DataSet<T> getInputDataSet() {
@@ -81,11 +81,11 @@ public abstract class Grouping<T> {
 	public Keys<T> getKeys() {
 		return this.keys;
 	}
-	
+
 	/**
 	 * Gets the custom partitioner to be used for this grouping, or {@code null}, if
 	 * none was defined.
-	 * 
+	 *
 	 * @return The custom partitioner to be used for this grouping.
 	 */
 	@Internal

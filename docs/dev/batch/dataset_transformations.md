@@ -279,6 +279,10 @@ element using a user-defined reduce function.
 For each group of input elements, a reduce function successively combines pairs of elements into one
 element until only a single element for each group remains.
 
+Note that for a `ReduceFunction` the keyed fields of the returned object should match the input
+values. This is because reduce is implicitly combinable and objects emitted from the combine
+operator are again grouped by key when passed to the reduce operator.
+
 #### Reduce on DataSet Grouped by Key Expression
 
 Key expressions specify one or more fields of each element of a DataSet. Each key expression is
@@ -616,6 +620,7 @@ val output = input.groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
         for (t <- in) {
           if (prev == null || prev != t)
             out.collect(t)
+            prev = t
         }
     }
 
@@ -777,7 +782,7 @@ an alternative WordCount implementation.
 DataSet<String> input = [..] // The words received as input
 
 DataSet<Tuple2<String, Integer>> combinedWords = input
-  .groupBy(0); // group identical words
+  .groupBy(0) // group identical words
   .combineGroup(new GroupCombineFunction<String, Tuple2<String, Integer>() {
 
     public void combine(Iterable<String> words, Collector<Tuple2<String, Integer>>) { // combine
@@ -794,7 +799,7 @@ DataSet<Tuple2<String, Integer>> combinedWords = input
 });
 
 DataSet<Tuple2<String, Integer>> output = combinedWords
-  .groupBy(0);                             // group by words again
+  .groupBy(0)                              // group by words again
   .reduceGroup(new GroupReduceFunction() { // group reduce with full data exchange
 
     public void reduce(Iterable<Tuple2<String, Integer>>, Collector<Tuple2<String, Integer>>) {
@@ -2333,3 +2338,5 @@ Not supported.
 
 </div>
 </div>
+
+{% top %}

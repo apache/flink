@@ -19,17 +19,17 @@
 package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.queryablestate.KvStateID;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KvState;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.taskmanager.Task;
 
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * A registry for {@link KvState} instances per task manager.
+ * A registry for {@link InternalKvState} instances per task manager.
  *
  * <p>This is currently only used for KvState queries: KvState instances, which
  * are marked as queryable in their state descriptor are registered here and
@@ -41,40 +41,35 @@ import java.util.concurrent.atomic.AtomicReference;
 public class KvStateRegistry {
 
 	/** All registered KvState instances. */
-	private final ConcurrentHashMap<KvStateID, KvState<?>> registeredKvStates =
+	private final ConcurrentHashMap<KvStateID, InternalKvState<?>> registeredKvStates =
 			new ConcurrentHashMap<>();
 
-	/** Registry listener to be notified on registration/unregistration. */
-	private final AtomicReference<KvStateRegistryListener> listener = new AtomicReference<>();
+	/** Registry listeners to be notified on registration/unregistration. */
+	private final ConcurrentHashMap<JobID, KvStateRegistryListener> listeners = new ConcurrentHashMap<>(4);
 
 	/**
 	 * Registers a listener with the registry.
 	 *
+	 * @param jobId identifying the job for which to register a {@link KvStateRegistryListener}
 	 * @param listener The registry listener.
 	 * @throws IllegalStateException If there is a registered listener
 	 */
-	public void registerListener(KvStateRegistryListener listener) {
-		if (!this.listener.compareAndSet(null, listener)) {
-			throw new IllegalStateException("Listener already registered.");
+	public void registerListener(JobID jobId, KvStateRegistryListener listener) {
+		final KvStateRegistryListener previousValue = listeners.putIfAbsent(jobId, listener);
+
+		if (previousValue != null) {
+			throw new IllegalStateException("Listener already registered under " + jobId + '.');
 		}
 	}
 
 	/**
-	 * Unregisters the listener with the registry
-	 */
-	public void unregisterListener() {
-		listener.set(null);
-	}
-
-	/**
-	 * Registers the KvState instance identified by the given 4-tuple of JobID,
-	 * JobVertexID, key group index, and registration name.
+	 * Unregisters the listener with the registry.
 	 *
-	 * @param kvStateId KvStateID to identify the KvState instance
-	 * @param kvState   KvState instance to register
-	 * @throws IllegalStateException If there is a KvState instance registered
-	 *                               with the same ID.
+	 * @param jobId for which to unregister the {@link KvStateRegistryListener}
 	 */
+	public void unregisterListener(JobID jobId) {
+		listeners.remove(jobId);
+	}
 
 	/**
 	 * Registers the KvState instance and returns the assigned ID.
@@ -91,24 +86,26 @@ public class KvStateRegistry {
 			JobVertexID jobVertexId,
 			KeyGroupRange keyGroupRange,
 			String registrationName,
-			KvState<?> kvState) {
+			InternalKvState<?> kvState) {
 
 		KvStateID kvStateId = new KvStateID();
 
 		if (registeredKvStates.putIfAbsent(kvStateId, kvState) == null) {
-			KvStateRegistryListener listener = this.listener.get();
+			final KvStateRegistryListener listener = getKvStateRegistryListener(jobId);
+
 			if (listener != null) {
 				listener.notifyKvStateRegistered(
-						jobId,
-						jobVertexId,
-						keyGroupRange,
-						registrationName,
-						kvStateId);
+					jobId,
+					jobVertexId,
+					keyGroupRange,
+					registrationName,
+					kvStateId);
 			}
 
 			return kvStateId;
 		} else {
-			throw new IllegalStateException(kvStateId + " is already registered.");
+			throw new IllegalStateException(
+					"State \"" + registrationName + " \"(id=" + kvStateId + ") appears registered although it should not.");
 		}
 	}
 
@@ -127,7 +124,7 @@ public class KvStateRegistry {
 			KvStateID kvStateId) {
 
 		if (registeredKvStates.remove(kvStateId) != null) {
-			KvStateRegistryListener listener = this.listener.get();
+			final KvStateRegistryListener listener = getKvStateRegistryListener(jobId);
 			if (listener != null) {
 				listener.notifyKvStateUnregistered(
 						jobId,
@@ -145,7 +142,7 @@ public class KvStateRegistry {
 	 * @param kvStateId KvStateID to identify the KvState instance
 	 * @return KvState instance identified by the KvStateID or <code>null</code>
 	 */
-	public KvState<?> getKvState(KvStateID kvStateId) {
+	public InternalKvState<?> getKvState(KvStateID kvStateId) {
 		return registeredKvStates.get(kvStateId);
 	}
 
@@ -161,6 +158,21 @@ public class KvStateRegistry {
 	 */
 	public TaskKvStateRegistry createTaskRegistry(JobID jobId, JobVertexID jobVertexId) {
 		return new TaskKvStateRegistry(this, jobId, jobVertexId);
+	}
+
+	// ------------------------------------------------------------------------
+	// Internal methods
+	// ------------------------------------------------------------------------
+
+	private KvStateRegistryListener getKvStateRegistryListener(JobID jobId) {
+		// first check whether we are running the pre-Flip-6 code which registers
+		// a single listener under HighAvailabilityServices.DEFAULT_JOB_ID
+		KvStateRegistryListener listener = listeners.get(HighAvailabilityServices.DEFAULT_JOB_ID);
+
+		if (listener == null) {
+			listener = listeners.get(jobId);
+		}
+		return listener;
 	}
 
 }

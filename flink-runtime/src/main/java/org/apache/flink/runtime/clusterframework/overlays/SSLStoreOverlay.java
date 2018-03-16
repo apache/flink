@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.clusterframework.overlays;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.slf4j.Logger;
@@ -64,7 +64,7 @@ public class SSLStoreOverlay extends AbstractContainerOverlay {
 				.setDest(TARGET_KEYSTORE_PATH)
 				.setCachable(false)
 				.build());
-			container.getDynamicConfiguration().setString(ConfigConstants.SECURITY_SSL_KEYSTORE, TARGET_KEYSTORE_PATH.getPath());
+			container.getDynamicConfiguration().setString(SecurityOptions.SSL_KEYSTORE, TARGET_KEYSTORE_PATH.getPath());
 		}
 		if(truststore != null) {
 			container.getArtifacts().add(ContainerSpecification.Artifact.newBuilder()
@@ -72,7 +72,7 @@ public class SSLStoreOverlay extends AbstractContainerOverlay {
 				.setDest(TARGET_TRUSTSTORE_PATH)
 				.setCachable(false)
 				.build());
-			container.getDynamicConfiguration().setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, TARGET_TRUSTSTORE_PATH.getPath());
+			container.getDynamicConfiguration().setString(SecurityOptions.SSL_TRUSTSTORE, TARGET_TRUSTSTORE_PATH.getPath());
 		}
 	}
 
@@ -98,19 +98,19 @@ public class SSLStoreOverlay extends AbstractContainerOverlay {
 		 */
 		public Builder fromEnvironment(Configuration globalConfiguration)  {
 
-			String keystore = globalConfiguration.getString(ConfigConstants.SECURITY_SSL_KEYSTORE, null);
+			String keystore = globalConfiguration.getString(SecurityOptions.SSL_KEYSTORE);
 			if(keystore != null) {
 				keystorePath = new File(keystore);
 				if(!keystorePath.exists()) {
-					throw new IllegalStateException("Invalid configuration for " + ConfigConstants.SECURITY_SSL_KEYSTORE);
+					throw new IllegalStateException("Invalid configuration for " + SecurityOptions.SSL_KEYSTORE.key());
 				}
 			}
 
-			String truststore = globalConfiguration.getString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, null);
+			String truststore = globalConfiguration.getString(SecurityOptions.SSL_TRUSTSTORE);
 			if(truststore != null) {
 				truststorePath = new File(truststore);
 				if(!truststorePath.exists()) {
-					throw new IllegalStateException("Invalid configuration for " + ConfigConstants.SECURITY_SSL_TRUSTSTORE);
+					throw new IllegalStateException("Invalid configuration for " + SecurityOptions.SSL_TRUSTSTORE.key());
 				}
 			}
 

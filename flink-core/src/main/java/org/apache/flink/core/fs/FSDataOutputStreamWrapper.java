@@ -18,14 +18,16 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingProxy;
 
 import java.io.IOException;
 
 /**
- * Simple forwarding wrapper around {@link FSDataInputStream}
+ * Simple forwarding wrapper around {@link FSDataInputStream}.
  */
+@Internal
 public class FSDataOutputStreamWrapper extends FSDataOutputStream implements WrappingProxy<FSDataOutputStream> {
 
 	protected final FSDataOutputStream outputStream;

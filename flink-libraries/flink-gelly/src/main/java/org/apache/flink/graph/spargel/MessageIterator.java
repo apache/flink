@@ -18,9 +18,9 @@
 
 package org.apache.flink.graph.spargel;
 
-import java.util.Iterator;
-
 import org.apache.flink.api.java.tuple.Tuple2;
+
+import java.util.Iterator;
 
 /**
  * An iterator that returns messages. The iterator is {@link java.lang.Iterable} at the same time to support
@@ -30,17 +30,16 @@ public final class MessageIterator<Message> implements Iterator<Message>, Iterab
 	private static final long serialVersionUID = 1L;
 
 	private transient Iterator<Tuple2<?, Message>> source;
-	
-	
-	final void setSource(Iterator<Tuple2<?, Message>> source) {
+
+	void setSource(Iterator<Tuple2<?, Message>> source) {
 		this.source = source;
 	}
-	
+
 	@Override
 	public final boolean hasNext() {
 		return this.source.hasNext();
 	}
-	
+
 	@Override
 	public final Message next() {
 		return this.source.next().f1;

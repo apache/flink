@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.KeyedStateStore;
-import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -27,17 +28,34 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
+import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.state.TaskStateManagerImpl;
+import org.apache.flink.runtime.state.TestTaskLocalStateStore;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.util.LongArrayList;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -52,7 +70,11 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link StateInitializationContextImpl}.
+ */
 public class StateInitializationContextImplTest {
 
 	static final int NUM_HANDLES = 10;
@@ -66,16 +88,14 @@ public class StateInitializationContextImplTest {
 	@Before
 	public void setUp() throws Exception {
 
-
 		this.writtenKeyGroups = 0;
 		this.writtenOperatorStates = new HashSet<>();
 
 		this.closableRegistry = new CloseableRegistry();
-		OperatorStateStore stateStore = mock(OperatorStateStore.class);
 
 		ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos(64);
 
-		List<KeyGroupsStateHandle> keyGroupsStateHandles = new ArrayList<>(NUM_HANDLES);
+		List<KeyedStateHandle> keyedStateHandles = new ArrayList<>(NUM_HANDLES);
 		int prev = 0;
 		for (int i = 0; i < NUM_HANDLES; ++i) {
 			out.reset();
@@ -91,10 +111,10 @@ public class StateInitializationContextImplTest {
 				++writtenKeyGroups;
 			}
 
-			KeyGroupsStateHandle handle =
+			KeyedStateHandle handle =
 					new KeyGroupsStateHandle(offsets, new ByteStateHandleCloseChecking("kg-" + i, out.toByteArray()));
 
-			keyGroupsStateHandles.add(handle);
+			keyedStateHandles.add(handle);
 		}
 
 		List<OperatorStateHandle> operatorStateHandles = new ArrayList<>(NUM_HANDLES);
@@ -116,18 +136,75 @@ public class StateInitializationContextImplTest {
 					DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME,
 					new OperatorStateHandle.StateMetaInfo(offsets.toArray(), OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
 			OperatorStateHandle operatorStateHandle =
-					new OperatorStateHandle(offsetsMap, new ByteStateHandleCloseChecking("os-" + i, out.toByteArray()));
+					new OperatorStreamStateHandle(offsetsMap, new ByteStateHandleCloseChecking("os-" + i, out.toByteArray()));
 			operatorStateHandles.add(operatorStateHandle);
 		}
 
+		OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
+			StateObjectCollection.empty(),
+			new StateObjectCollection<>(operatorStateHandles),
+			StateObjectCollection.empty(),
+			new StateObjectCollection<>(keyedStateHandles));
+
+		OperatorID operatorID = new OperatorID();
+		TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot();
+		taskStateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
+
+		JobManagerTaskRestore jobManagerTaskRestore = new JobManagerTaskRestore(0L, taskStateSnapshot);
+
+		TaskStateManager manager = new TaskStateManagerImpl(
+			new JobID(),
+			new ExecutionAttemptID(),
+			new TestTaskLocalStateStore(),
+			jobManagerTaskRestore,
+			mock(CheckpointResponder.class));
+
+		DummyEnvironment environment = new DummyEnvironment(
+			"test",
+			1,
+			0,
+			prev);
+
+		environment.setTaskStateManager(manager);
+
+		StateBackend stateBackend = new MemoryStateBackend(1024);
+		StreamTaskStateInitializer streamTaskStateManager = new StreamTaskStateInitializerImpl(
+			environment,
+			stateBackend,
+			mock(ProcessingTimeService.class)) {
+
+			@Override
+			protected <K> InternalTimeServiceManager<?, K> internalTimeServiceManager(
+				AbstractKeyedStateBackend<K> keyedStatedBackend,
+				KeyContext keyContext,
+				Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
+
+				// We do not initialize a timer service manager here, because it would already consume the raw keyed
+				// state as part of initialization. For the purpose of this test, we want an unconsumed raw keyed
+				// stream.
+				return null;
+			}
+		};
+
+		AbstractStreamOperator<?> mockOperator = mock(AbstractStreamOperator.class);
+		when(mockOperator.getOperatorID()).thenReturn(operatorID);
+
+		StreamOperatorStateContext stateContext = streamTaskStateManager.streamOperatorStateContext(
+			operatorID,
+			"TestOperatorClass",
+			mockOperator,
+			// notice that this essentially disables the previous test of the keyed stream because it was and is always
+			// consumed by the timer service.
+			IntSerializer.INSTANCE,
+			closableRegistry);
+
 		this.initializationContext =
 				new StateInitializationContextImpl(
-						true,
-						stateStore,
+						stateContext.isRestored(),
+						stateContext.operatorStateBackend(),
 						mock(KeyedStateStore.class),
-						keyGroupsStateHandles,
-						operatorStateHandles,
-						closableRegistry);
+						stateContext.rawKeyedStateInputs(),
+						stateContext.rawOperatorStateInputs());
 	}
 
 	@Test
@@ -203,14 +280,13 @@ public class StateInitializationContextImplTest {
 		int stopCount = NUM_HANDLES / 2;
 		boolean isClosed = false;
 
-
 		try {
 			for (KeyGroupStatePartitionStreamProvider stateStreamProvider
 					: initializationContext.getRawKeyedStateInputs()) {
 				Assert.assertNotNull(stateStreamProvider);
 
 				if (count == stopCount) {
-					initializationContext.close();
+					closableRegistry.close();
 					isClosed = true;
 				}
 
@@ -248,19 +324,20 @@ public class StateInitializationContextImplTest {
 
 		@Override
 		public FSDataInputStream openInputStream() throws IOException {
+			final FSDataInputStream original = super.openInputStream();
+
 			return new FSDataInputStream() {
-				private int index = 0;
+
 				private boolean closed = false;
 
 				@Override
 				public void seek(long desired) throws IOException {
-					Preconditions.checkArgument(desired >= 0 && desired < Integer.MAX_VALUE);
-					index = (int) desired;
+					original.seek(desired);
 				}
 
 				@Override
 				public long getPos() throws IOException {
-					return index;
+					return original.getPos();
 				}
 
 				@Override
@@ -268,12 +345,12 @@ public class StateInitializationContextImplTest {
 					if (closed) {
 						throw new IOException("Stream closed");
 					}
-					return index < data.length ? data[index++] & 0xFF : -1;
+					return original.read();
 				}
 
 				@Override
 				public void close() throws IOException {
-					super.close();
+					original.close();
 					this.closed = true;
 				}
 			};

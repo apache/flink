@@ -21,31 +21,32 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Integration test for streaming programs using POJOs and key selectors
+ * Integration test for streaming programs using POJOs and key selectors.
  *
- * See FLINK-3697
+ * <p>See FLINK-3697
  */
-public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
+public class DataStreamPojoITCase extends AbstractTestBase {
 	static List<Data> elements = new ArrayList<>();
 	static {
-		elements.add(new Data(0,0,0));
-		elements.add(new Data(0,0,0));
-		elements.add(new Data(1,1,1));
-		elements.add(new Data(1,1,1));
-		elements.add(new Data(2,2,3));
-		elements.add(new Data(2,2,3));
+		elements.add(new Data(0, 0, 0));
+		elements.add(new Data(0, 0, 0));
+		elements.add(new Data(1, 1, 1));
+		elements.add(new Data(1, 1, 1));
+		elements.add(new Data(2, 2, 3));
+		elements.add(new Data(2, 2, 3));
 	}
 
 	/**
-	 * Test composite key on the Data POJO (with nested fields)
+	 * Test composite key on the Data POJO (with nested fields).
 	 */
 	@Test
 	public void testCompositeKeyOnNestedPojo() throws Exception {
@@ -64,22 +65,22 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 					Data[] first = new Data[3];
 					@Override
 					public void flatMap(Data value, Collector<Data> out) throws Exception {
-						if(first[value.aaa] == null) {
+						if (first[value.aaa] == null) {
 							first[value.aaa] = value;
-							if(value.sum != 1) {
+							if (value.sum != 1) {
 								throw new RuntimeException("Expected the sum to be one");
 							}
 						} else {
-							if(value.sum != 2) {
+							if (value.sum != 2) {
 								throw new RuntimeException("Expected the sum to be two");
 							}
-							if(first[value.aaa].aaa != value.aaa) {
+							if (first[value.aaa].aaa != value.aaa) {
 								throw new RuntimeException("aaa key wrong");
 							}
-							if(first[value.aaa].abc != value.abc) {
+							if (first[value.aaa].abc != value.abc) {
 								throw new RuntimeException("abc key wrong");
 							}
-							if(first[value.aaa].wxyz != value.wxyz) {
+							if (first[value.aaa].wxyz != value.wxyz) {
 								throw new RuntimeException("wxyz key wrong");
 							}
 						}
@@ -92,7 +93,7 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 	}
 
 	/**
-	 * Test composite & nested key on the Data POJO
+	 * Test composite & nested key on the Data POJO.
 	 */
 	@Test
 	public void testNestedKeyOnNestedPojo() throws Exception {
@@ -111,25 +112,25 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 					Data[] first = new Data[3];
 					@Override
 					public void flatMap(Data value, Collector<Data> out) throws Exception {
-						if(value.stats.count != 123) {
+						if (value.stats.count != 123) {
 							throw new RuntimeException("Wrong value for value.stats.count");
 						}
-						if(first[value.aaa] == null) {
+						if (first[value.aaa] == null) {
 							first[value.aaa] = value;
-							if(value.sum != 1) {
+							if (value.sum != 1) {
 								throw new RuntimeException("Expected the sum to be one");
 							}
 						} else {
-							if(value.sum != 2) {
+							if (value.sum != 2) {
 								throw new RuntimeException("Expected the sum to be two");
 							}
-							if(first[value.aaa].aaa != value.aaa) {
+							if (first[value.aaa].aaa != value.aaa) {
 								throw new RuntimeException("aaa key wrong");
 							}
-							if(first[value.aaa].abc != value.abc) {
+							if (first[value.aaa].abc != value.abc) {
 								throw new RuntimeException("abc key wrong");
 							}
-							if(first[value.aaa].wxyz != value.wxyz) {
+							if (first[value.aaa].wxyz != value.wxyz) {
 								throw new RuntimeException("wxyz key wrong");
 							}
 						}
@@ -157,13 +158,13 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 				Data[] first = new Data[3];
 				@Override
 				public void flatMap(Data value, Collector<Data> out) throws Exception {
-					if(first[value.aaa] == null) {
+					if (first[value.aaa] == null) {
 						first[value.aaa] = value;
-						if(value.stats.count != 123) {
+						if (value.stats.count != 123) {
 							throw new RuntimeException("Expected stats.count to be 123");
 						}
 					} else {
-						if(value.stats.count != 2 * 123) {
+						if (value.stats.count != 2 * 123) {
 							throw new RuntimeException("Expected stats.count to be 2 * 123");
 						}
 					}
@@ -183,7 +184,9 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 		dataStream.keyBy("aaa", "stats.count").sum("stats.nonExistingField");
 	}
 
-
+	/**
+	 * POJO.
+	 */
 	public static class Data {
 		public int sum; // sum
 		public int aaa; // keyBy
@@ -196,6 +199,7 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 
 		public Data() {
 		}
+
 		public Data(int aaa, int abc, int wxyz) {
 			this.sum = 1;
 			this.aaa = aaa;
@@ -215,6 +219,10 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 					'}';
 		}
 	}
+
+	/**
+	 * POJO.
+	 */
 	public static class Policy {
 		public short a;
 		public short b;
@@ -224,6 +232,9 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 		public Policy() {}
 	}
 
+	/**
+	 * POJO.
+	 */
 	public static class Stats {
 		public long count;
 		public float a;

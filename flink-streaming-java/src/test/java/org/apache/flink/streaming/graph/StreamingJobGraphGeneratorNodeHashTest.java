@@ -32,8 +32,11 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.util.TestLogger;
+
+import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -164,7 +167,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 	 * B (unchained): [ (src0) ] -> [ (map) -> (filter) -> (sink) ]
 	 * </pre>
 	 *
-	 * The hashes for the single vertex in A and the source vertex in B need to be different.
+	 * <p>The hashes for the single vertex in A and the source vertex in B need to be different.
 	 */
 	@Test
 	public void testNodeHashAfterSourceUnchaining() throws Exception {
@@ -206,7 +209,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 	 * B (unchained): [ (src0) ] -> [ (map) -> (filter) -> (sink) ]
 	 * </pre>
 	 *
-	 * The hashes for the single vertex in A and the source vertex in B need to be different.
+	 * <p>The hashes for the single vertex in A and the source vertex in B need to be different.
 	 */
 	@Test
 	public void testNodeHashAfterIntermediateUnchaining() throws Exception {
@@ -389,10 +392,10 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that a manual hash for an intermediate chain node throws an Exception.
+	 * Tests that a manual hash for an intermediate chain node is accepted.
 	 */
-	@Test(expected = UnsupportedOperationException.class)
-	public void testManualHashAssignmentForIntermediateNodeInChainThrowsException() throws Exception {
+	@Test
+	public void testManualHashAssignmentForIntermediateNodeInChain() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 		env.setParallelism(4);
 
@@ -406,9 +409,6 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 
 	/**
 	 * Tests that a manual hash at the beginning of a chain is accepted.
-	 *
-	 * <p>This should work, because the ID is used at the beginning of a chain. This is currently
-	 * not allowed for intermediate nodes (see {@link #testManualHashAssignmentForIntermediateNodeInChainThrowsException()}).
 	 */
 	@Test
 	public void testManualHashAssignmentForStartNodeInInChain() throws Exception {
@@ -418,6 +418,40 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 		env.addSource(new NoOpSourceFunction()).uid("source")
 				.map(new NoOpMapFunction())
 				.addSink(new NoOpSinkFunction());
+
+		env.getStreamGraph().getJobGraph();
+	}
+
+	@Test
+	public void testUserProvidedHashing() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+
+		List<String> userHashes = Arrays.asList("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+
+		env.addSource(new NoOpSourceFunction(), "src").setUidHash(userHashes.get(0))
+				.map(new NoOpMapFunction())
+				.filter(new NoOpFilterFunction())
+				.keyBy(new NoOpKeySelector())
+				.reduce(new NoOpReduceFunction()).name("reduce").setUidHash(userHashes.get(1));
+
+		StreamGraph streamGraph = env.getStreamGraph();
+		int idx = 1;
+		for (JobVertex jobVertex : streamGraph.getJobGraph().getVertices()) {
+			List<JobVertexID> idAlternatives = jobVertex.getIdAlternatives();
+			Assert.assertEquals(idAlternatives.get(idAlternatives.size() - 1).toString(), userHashes.get(idx));
+			--idx;
+		}
+	}
+
+	@Test
+	public void testUserProvidedHashingOnChainSupported() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+
+		env.addSource(new NoOpSourceFunction(), "src").setUidHash("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+				.map(new NoOpMapFunction()).setUidHash("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+				.filter(new NoOpFilterFunction()).setUidHash("cccccccccccccccccccccccccccccccc")
+				.keyBy(new NoOpKeySelector())
+				.reduce(new NoOpReduceFunction()).name("reduce").setUidHash("dddddddddddddddddddddddddddddddd");
 
 		env.getStreamGraph().getJobGraph();
 	}

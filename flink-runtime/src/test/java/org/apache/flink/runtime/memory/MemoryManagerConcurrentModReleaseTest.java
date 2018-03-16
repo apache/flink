@@ -20,15 +20,18 @@ package org.apache.flink.runtime.memory;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.fail;
 
-
+/**
+ * Validate memory release under concurrent modification exceptions.
+ */
 public class MemoryManagerConcurrentModReleaseTest {
 
 	@Test
@@ -49,33 +52,33 @@ public class MemoryManagerConcurrentModReleaseTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testConcurrentModificationWhileReleasing() {
 		try {
 			final int numSegments = 10000;
 			final int segmentSize = 4096;
-			
+
 			MemoryManager memMan = new MemoryManager(numSegments * segmentSize, 1, segmentSize, MemoryType.HEAP, true);
-			
+
 			ArrayList<MemorySegment> segs = new ArrayList<>(numSegments);
 			memMan.allocatePages(this, segs, numSegments);
-			
+
 			// start a thread that performs concurrent modifications
 			Modifier mod = new Modifier(segs);
 			Thread modRunner = new Thread(mod);
 			modRunner.start();
-			
+
 			// give the thread some time to start working
 			Thread.sleep(500);
-			
+
 			try {
 				memMan.release(segs);
 			}
 			finally {
 				mod.cancel();
 			}
-			
+
 			modRunner.join();
 		}
 		catch (Exception e) {
@@ -83,14 +86,13 @@ public class MemoryManagerConcurrentModReleaseTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	private class Modifier implements Runnable {
-		
+
 		private final ArrayList<MemorySegment> toModify;
-		
+
 		private volatile boolean running = true;
 
-		
 		private Modifier(ArrayList<MemorySegment> toModify) {
 			this.toModify = toModify;
 		}
@@ -112,13 +114,13 @@ public class MemoryManagerConcurrentModReleaseTest {
 			}
 		}
 	}
-	
+
 	private class ListWithConcModExceptionOnFirstAccess<E> extends ArrayList<E> {
 
 		private static final long serialVersionUID = -1623249699823349781L;
-		
+
 		private boolean returnedIterator;
-		
+
 		@Override
 		public Iterator<E> iterator() {
 			if (returnedIterator) {
@@ -130,8 +132,7 @@ public class MemoryManagerConcurrentModReleaseTest {
 			}
 		}
 	}
-	
-	
+
 	private class ConcFailingIterator<E> implements Iterator<E> {
 
 		@Override

@@ -19,7 +19,6 @@ package org.apache.flink.table.plan.nodes.dataset
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexNode}
@@ -27,11 +26,13 @@ import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.BatchTableEnvironment
-import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment}
 import org.apache.flink.table.functions.utils.TableSqlFunction
-import org.apache.flink.table.plan.nodes.FlinkCorrelate
-import org.apache.flink.table.typeutils.TypeConverter._
+import org.apache.flink.table.plan.nodes.CommonCorrelate
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
+import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.runtime.CorrelateFlatMapRunner
+import org.apache.flink.types.Row
 
 /**
   * Flink RelNode which matches along with join a user defined table function.
@@ -40,14 +41,14 @@ class DataSetCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputNode: RelNode,
-    scan: LogicalTableFunctionScan,
+    scan: FlinkLogicalTableFunctionScan,
     condition: Option[RexNode],
     relRowType: RelDataType,
     joinRowType: RelDataType,
     joinType: SemiJoinType,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, inputNode)
-  with FlinkCorrelate
+  with CommonCorrelate
   with DataSetRel {
 
   override def deriveRowType() = relRowType
@@ -73,7 +74,7 @@ class DataSetCorrelate(
   override def toString: String = {
     val rexCall = scan.getCall.asInstanceOf[RexCall]
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    correlateToString(rexCall, sqlFunction)
+    correlateToString(joinRowType, rexCall, sqlFunction, getExpressionString)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -81,7 +82,11 @@ class DataSetCorrelate(
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     super.explainTerms(pw)
       .item("invocation", scan.getCall)
-      .item("function", sqlFunction.getTableFunction.getClass.getCanonicalName)
+      .item("correlate", correlateToString(
+        inputNode.getRowType,
+        rexCall, sqlFunction,
+        getExpressionString))
+      .item("select", selectToString(relRowType))
       .item("rowType", relRowType)
       .item("joinType", joinType)
       .itemIf("condition", condition.orNull, condition.isDefined)
@@ -89,51 +94,53 @@ class DataSetCorrelate(
 
   override def translateToPlan(
       tableEnv: BatchTableEnvironment,
-      expectedType: Option[TypeInformation[Any]])
-    : DataSet[Any] = {
+      queryConfig: BatchQueryConfig): DataSet[Row] = {
 
     val config = tableEnv.getConfig
-    val returnType = determineReturnType(
-      getRowType,
-      expectedType,
-      config.getNullCheck,
-      config.getEfficientTypeUsage)
 
     // we do not need to specify input type
-    val inputDS = inputNode.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val inputDS = inputNode.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
 
-    val funcRel = scan.asInstanceOf[LogicalTableFunctionScan]
+    val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    val pojoFieldMapping = sqlFunction.getPojoFieldMapping
+    val pojoFieldMapping = Some(sqlFunction.getPojoFieldMapping)
     val udtfTypeInfo = sqlFunction.getRowTypeInfo.asInstanceOf[TypeInformation[Any]]
 
-    val generator = new CodeGenerator(
+    val flatMap = generateFunction(
       config,
-      false,
-      inputDS.getType,
-      Some(udtfTypeInfo),
-      None,
-      Some(pojoFieldMapping))
-
-    val body = functionBody(
-      generator,
+      new RowSchema(getInput.getRowType),
       udtfTypeInfo,
-      getRowType,
-      rexCall,
-      condition,
-      config,
+      new RowSchema(getRowType),
       joinType,
-      expectedType)
-
-    val genFunction = generator.generateFunction(
+      rexCall,
+      pojoFieldMapping,
       ruleDescription,
-      classOf[FlatMapFunction[Any, Any]],
-      body,
-      returnType)
+      classOf[FlatMapFunction[Row, Row]])
 
-    val mapFunc = correlateMapFunction(genFunction)
+    val collector = generateCollector(
+      config,
+      new RowSchema(getInput.getRowType),
+      udtfTypeInfo,
+      new RowSchema(getRowType),
+      condition,
+      pojoFieldMapping)
 
-    inputDS.flatMap(mapFunc).name(correlateOpName(rexCall, sqlFunction, relRowType))
+    val mapFunc = new CorrelateFlatMapRunner[Row, Row](
+      flatMap.name,
+      flatMap.code,
+      collector.name,
+      collector.code,
+      flatMap.returnType)
+
+    inputDS
+      .flatMap(mapFunc)
+      .name(correlateOpName(
+        inputNode.getRowType,
+        rexCall,
+        sqlFunction,
+        relRowType,
+        getExpressionString)
+      )
   }
 }

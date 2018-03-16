@@ -17,9 +17,10 @@
 
 package org.apache.flink.streaming.test.socket;
 
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
-
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.streaming.examples.socket.SocketWindowWordCount;
 import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
 
@@ -34,37 +35,39 @@ import java.net.Socket;
 
 import static org.junit.Assert.fail;
 
-public class SocketWindowWordCountITCase extends StreamingMultipleProgramsTestBase {
-	
+/**
+ * Tests for {@link SocketWindowWordCount}.
+ */
+public class SocketWindowWordCountITCase extends AbstractTestBase {
+
 	@Test
 	public void testJavaProgram() throws Exception {
 		InetAddress localhost = InetAddress.getByName("localhost");
-		
+
 		// suppress sysout messages from this example
 		final PrintStream originalSysout = System.out;
 		final PrintStream originalSyserr = System.err;
-		
+
 		final ByteArrayOutputStream errorMessages = new ByteArrayOutputStream();
-		
+
 		System.setOut(new PrintStream(new NullStream()));
 		System.setErr(new PrintStream(errorMessages));
-		
+
 		try {
 			try (ServerSocket server = new ServerSocket(0, 10, localhost)) {
-				
+
 				final ServerThread serverThread = new ServerThread(server);
 				serverThread.setDaemon(true);
 				serverThread.start();
-				
+
 				final int serverPort = server.getLocalPort();
 
-				org.apache.flink.streaming.examples.socket.SocketWindowWordCount.main(
-						new String[] { "--port", String.valueOf(serverPort) });
+				SocketWindowWordCount.main(new String[] { "--port", String.valueOf(serverPort) });
 
 				if (errorMessages.size() != 0) {
-					fail("Found error message: " + new String(errorMessages.toByteArray()));
+					fail("Found error message: " + new String(errorMessages.toByteArray(), ConfigConstants.DEFAULT_CHARSET));
 				}
-				
+
 				serverThread.join();
 				serverThread.checkError();
 			}
@@ -101,9 +104,9 @@ public class SocketWindowWordCountITCase extends StreamingMultipleProgramsTestBa
 						new String[] { "--port", String.valueOf(serverPort) });
 
 				if (errorMessages.size() != 0) {
-					fail("Found error message: " + new String(errorMessages.toByteArray()));
+					fail("Found error message: " + new String(errorMessages.toByteArray(), ConfigConstants.DEFAULT_CHARSET));
 				}
-				
+
 				serverThread.join();
 				serverThread.checkError();
 			}
@@ -113,7 +116,7 @@ public class SocketWindowWordCountITCase extends StreamingMultipleProgramsTestBa
 			System.setErr(originalSyserr);
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	private static class ServerThread extends Thread {
@@ -121,19 +124,19 @@ public class SocketWindowWordCountITCase extends StreamingMultipleProgramsTestBa
 		private final ServerSocket serverSocket;
 
 		private volatile Throwable error;
-		
+
 		public ServerThread(ServerSocket serverSocket) {
 			super("Socket Server Thread");
-			
+
 			this.serverSocket = serverSocket;
 		}
 
 		@Override
 		public void run() {
 			try {
-				try (Socket socket = serverSocket.accept(); 
+				try (Socket socket = serverSocket.accept();
 						PrintWriter writer = new PrintWriter(socket.getOutputStream(), true)) {
-					
+
 					writer.println(WordCountData.TEXT);
 				}
 			}
@@ -141,16 +144,16 @@ public class SocketWindowWordCountITCase extends StreamingMultipleProgramsTestBa
 				this.error = t;
 			}
 		}
-		
+
 		public void checkError() throws IOException {
 			if (error != null) {
 				throw new IOException("Error in server thread: " + error.getMessage(), error);
 			}
 		}
 	}
-	
+
 	private static final class NullStream extends OutputStream {
-		
+
 		@Override
 		public void write(int b) {}
 	}

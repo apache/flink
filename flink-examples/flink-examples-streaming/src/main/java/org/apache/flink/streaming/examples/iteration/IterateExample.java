@@ -65,7 +65,7 @@ public class IterateExample {
 		// continuous flushing of the output buffers (lowest latency)
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment()
 				.setBufferTimeout(1);
-		
+
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
 
@@ -115,7 +115,7 @@ public class IterateExample {
 	// *************************************************************************
 
 	/**
-	 * Generate BOUND number of random integer pairs from the range from 0 to BOUND/2
+	 * Generate BOUND number of random integer pairs from the range from 0 to BOUND/2.
 	 */
 	private static class RandomFibonacciSource implements SourceFunction<Tuple2<Integer, Integer>> {
 		private static final long serialVersionUID = 1L;
@@ -145,7 +145,7 @@ public class IterateExample {
 	}
 
 	/**
-	 * Generate random integer pairs from the range from 0 to BOUND/2
+	 * Generate random integer pairs from the range from 0 to BOUND/2.
 	 */
 	private static class FibonacciInputMap implements MapFunction<String, Tuple2<Integer, Integer>> {
 		private static final long serialVersionUID = 1L;
@@ -159,8 +159,8 @@ public class IterateExample {
 	}
 
 	/**
-	 * Map the inputs so that the next Fibonacci numbers can be calculated while preserving the original input tuple A
-	 * counter is attached to the tuple and incremented in every iteration step
+	 * Map the inputs so that the next Fibonacci numbers can be calculated while preserving the original input tuple.
+	 * A counter is attached to the tuple and incremented in every iteration step.
 	 */
 	public static class InputMap implements MapFunction<Tuple2<Integer, Integer>, Tuple5<Integer, Integer, Integer,
 			Integer, Integer>> {
@@ -174,7 +174,7 @@ public class IterateExample {
 	}
 
 	/**
-	 * Iteration step function that calculates the next Fibonacci number
+	 * Iteration step function that calculates the next Fibonacci number.
 	 */
 	public static class Step implements
 			MapFunction<Tuple5<Integer, Integer, Integer, Integer, Integer>, Tuple5<Integer, Integer, Integer,
@@ -207,7 +207,7 @@ public class IterateExample {
 	}
 
 	/**
-	 * Giving back the input pair and the counter
+	 * Giving back the input pair and the counter.
 	 */
 	public static class OutputMap implements MapFunction<Tuple5<Integer, Integer, Integer, Integer, Integer>,
 			Tuple2<Tuple2<Integer, Integer>, Integer>> {

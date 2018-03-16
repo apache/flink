@@ -19,25 +19,27 @@
 package org.apache.flink.graph.asm.degree.annotate.undirected;
 
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.Utils.ChecksumHashCode;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-public class EdgeSourceDegreeTest
-extends AsmTestBase {
+/**
+ * Tests for {@link EdgeSourceDegree}.
+ */
+public class EdgeSourceDegreeTest extends AsmTestBase {
 
 	@Test
-	public void testWithSimpleGraph()
-			throws Exception {
+	public void testWithSimpleGraph() throws Exception {
 		String expectedResult =
 			"(0,1,((null),2))\n" +
 			"(0,2,((null),2))\n" +
@@ -54,31 +56,70 @@ extends AsmTestBase {
 			"(4,3,((null),1))\n" +
 			"(5,3,((null),1))";
 
-		DataSet<Edge<IntValue, Tuple2<NullValue, LongValue>>> sourceDegree = undirectedSimpleGraph
-			.run(new EdgeSourceDegree<IntValue, NullValue, NullValue>());
+		DataSet<Edge<IntValue, Tuple2<NullValue, LongValue>>> sourceDegreeOnSourceId = undirectedSimpleGraph
+			.run(new EdgeSourceDegree<IntValue, NullValue, NullValue>()
+				.setReduceOnTargetId(false));
 
-		TestBaseUtils.compareResultAsText(sourceDegree.collect(), expectedResult);
+		TestBaseUtils.compareResultAsText(sourceDegreeOnSourceId.collect(), expectedResult);
 
-		DataSet<Edge<IntValue, Tuple2<NullValue, LongValue>>> targetDegree = undirectedSimpleGraph
+		DataSet<Edge<IntValue, Tuple2<NullValue, LongValue>>> sourceDegreeOnTargetId = undirectedSimpleGraph
 			.run(new EdgeSourceDegree<IntValue, NullValue, NullValue>()
 				.setReduceOnTargetId(true));
 
-		TestBaseUtils.compareResultAsText(targetDegree.collect(), expectedResult);
+		TestBaseUtils.compareResultAsText(sourceDegreeOnTargetId.collect(), expectedResult);
 	}
 
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
-		ChecksumHashCode sourceDegreeChecksum = DataSetUtils.checksumHashCode(undirectedRMatGraph
-			.run(new EdgeSourceDegree<LongValue, NullValue, NullValue>()));
-
-		assertEquals(20884, sourceDegreeChecksum.getCount());
-		assertEquals(0x000000019d8f0070L, sourceDegreeChecksum.getChecksum());
-
-		ChecksumHashCode targetDegreeChecksum = DataSetUtils.checksumHashCode(undirectedRMatGraph
+	public void testWithEmptyGraphWithVertices() throws Exception {
+		DataSet<Edge<LongValue, Tuple2<NullValue, LongValue>>> sourceDegreeOnSourceId = emptyGraphWithVertices
 			.run(new EdgeSourceDegree<LongValue, NullValue, NullValue>()
-				.setReduceOnTargetId(true)));
+				.setReduceOnTargetId(false));
 
-		assertEquals(sourceDegreeChecksum, targetDegreeChecksum);
+		assertEquals(0, sourceDegreeOnSourceId.collect().size());
+
+		DataSet<Edge<LongValue, Tuple2<NullValue, LongValue>>> sourceDegreeOnTargetId = emptyGraphWithVertices
+			.run(new EdgeSourceDegree<LongValue, NullValue, NullValue>()
+				.setReduceOnTargetId(true));
+
+		assertEquals(0, sourceDegreeOnTargetId.collect().size());
+	}
+
+	@Test
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		DataSet<Edge<LongValue, Tuple2<NullValue, LongValue>>> sourceDegreeOnSourceId = emptyGraphWithoutVertices
+			.run(new EdgeSourceDegree<LongValue, NullValue, NullValue>()
+				.setReduceOnTargetId(false));
+
+		assertEquals(0, sourceDegreeOnSourceId.collect().size());
+
+		DataSet<Edge<LongValue, Tuple2<NullValue, LongValue>>> sourceDegreeOnTargetId = emptyGraphWithoutVertices
+			.run(new EdgeSourceDegree<LongValue, NullValue, NullValue>()
+				.setReduceOnTargetId(true));
+
+		assertEquals(0, sourceDegreeOnTargetId.collect().size());
+	}
+
+	@Test
+	public void testWithRMatGraph() throws Exception {
+		DataSet<Edge<LongValue, Tuple2<NullValue, LongValue>>> sourceDegreeOnSourceId = undirectedRMatGraph(10, 16)
+			.run(new EdgeSourceDegree<LongValue, NullValue, NullValue>()
+				.setReduceOnTargetId(false));
+
+		Checksum checksumOnSourceId = new ChecksumHashCode<Edge<LongValue, Tuple2<NullValue, LongValue>>>()
+			.run(sourceDegreeOnSourceId)
+			.execute();
+
+		assertEquals(20884, checksumOnSourceId.getCount());
+		assertEquals(0x000000019d8f0070L, checksumOnSourceId.getChecksum());
+
+		DataSet<Edge<LongValue, Tuple2<NullValue, LongValue>>> sourceDegreeOnTargetId = undirectedRMatGraph(10, 16)
+			.run(new EdgeSourceDegree<LongValue, NullValue, NullValue>()
+				.setReduceOnTargetId(true));
+
+		Checksum checksumOnTargetId = new ChecksumHashCode<Edge<LongValue, Tuple2<NullValue, LongValue>>>()
+			.run(sourceDegreeOnTargetId)
+			.execute();
+
+		assertEquals(checksumOnTargetId, checksumOnTargetId);
 	}
 }

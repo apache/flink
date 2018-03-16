@@ -29,29 +29,33 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.LongValueSequenceIterator;
+import org.apache.flink.util.Preconditions;
 
-/*
+/**
  * @see <a href="http://mathworld.wolfram.com/StarGraph.html">Star Graph at Wolfram MathWorld</a>
  */
 public class StarGraph
-extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
+extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
+
+	public static final int MINIMUM_VERTEX_COUNT = 2;
 
 	// Required to create the DataSource
 	private final ExecutionEnvironment env;
 
 	// Required configuration
-	private long vertexCount;
+	private final long vertexCount;
 
 	/**
-	 * An undirected {@link Graph} containing a single central {@link Vertex} connected to all other leaf vertices.
+	 * An undirected {@link Graph} with {@code n} vertices where the single
+	 * central node has degree {@code n-1}, connecting to the other {@code n-1}
+	 * vertices which have degree {@code 1}.
 	 *
 	 * @param env the Flink execution environment
 	 * @param vertexCount number of vertices
 	 */
 	public StarGraph(ExecutionEnvironment env, long vertexCount) {
-		if (vertexCount <= 0) {
-			throw new IllegalArgumentException("Vertex count must be greater than zero");
-		}
+		Preconditions.checkArgument(vertexCount >= MINIMUM_VERTEX_COUNT,
+			"Vertex count must be at least " + MINIMUM_VERTEX_COUNT);
 
 		this.env = env;
 		this.vertexCount = vertexCount;
@@ -59,6 +63,8 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 	@Override
 	public Graph<LongValue, NullValue, NullValue> generate() {
+		Preconditions.checkState(vertexCount >= 2);
+
 		// Vertices
 		DataSet<Vertex<LongValue, NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
 
@@ -78,23 +84,23 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	}
 
 	@ForwardedFields("*->f0")
-	public class LinkVertexToCenter
+	private static class LinkVertexToCenter
 	implements FlatMapFunction<LongValue, Edge<LongValue, NullValue>> {
 
 		private LongValue center = new LongValue(0);
 
-		private Edge<LongValue, NullValue> center_to_leaf = new Edge<>(center, null, NullValue.getInstance());
+		private Edge<LongValue, NullValue> centerToLeaf = new Edge<>(center, null, NullValue.getInstance());
 
-		private Edge<LongValue, NullValue> leaf_to_center = new Edge<>(null, center, NullValue.getInstance());
+		private Edge<LongValue, NullValue> leafToCenter = new Edge<>(null, center, NullValue.getInstance());
 
 		@Override
 		public void flatMap(LongValue leaf, Collector<Edge<LongValue, NullValue>> out)
 				throws Exception {
-			center_to_leaf.f1 = leaf;
-			out.collect(center_to_leaf);
+			centerToLeaf.f1 = leaf;
+			out.collect(centerToLeaf);
 
-			leaf_to_center.f0 = leaf;
-			out.collect(leaf_to_center);
+			leafToCenter.f0 = leaf;
+			out.collect(leafToCenter);
 		}
 	}
 }

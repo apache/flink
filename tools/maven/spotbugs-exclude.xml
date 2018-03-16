@@ -1,0 +1,459 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<FindBugsFilter>
+	<!-- Sometimes we have to temporarily fix very long, different formatted Calcite files. -->
+	<Match>
+    	<Package name="~org\.apache\.calcite.*"/>
+  	</Match>
+
+	<Match>
+		<!-- Intentional hack to reduce calls to the OS; locking is required for concurrency -->
+		<Bug pattern="SWL_SLEEP_WITH_LOCK_HELD"/>
+		<Class name="org.apache.flink.util.FileUtils"/>
+		<Method name="guardIfWindows"/>
+	</Match>
+  	
+	<Match>
+		<Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
+	</Match>
+	<Match>
+		<Bug pattern="BC_BAD_CAST_TO_ABSTRACT_COLLECTION"/>
+	</Match>
+	<Match>
+		<Bug pattern="BC_EQUALS_METHOD_SHOULD_WORK_FOR_ALL_OBJECTS"/>
+	</Match>
+	<Match>
+		<Bug pattern="BC_IMPOSSIBLE_INSTANCEOF"/>
+	</Match>
+	<Match>
+		<Bug pattern="BC_UNCONFIRMED_CAST"/>
+	</Match>
+	<Match>
+		<Bug pattern="BC_UNCONFIRMED_CAST_OF_RETURN_VALUE"/>
+	</Match>
+	<Match>
+		<Bug pattern="BC_VACUOUS_INSTANCEOF"/>
+	</Match>
+	<Match>
+		<Bug pattern="BX_BOXING_IMMEDIATELY_UNBOXED"/>
+	</Match>
+	<Match>
+		<Bug pattern="BX_BOXING_IMMEDIATELY_UNBOXED_TO_PERFORM_COERCION"/>
+	</Match>
+	<Match>
+		<Bug pattern="BX_UNBOXING_IMMEDIATELY_REBOXED"/>
+	</Match>
+	<Match>
+		<Bug pattern="BIT_ADD_OF_SIGNED_BYTE"/>
+	</Match>
+	<Match>
+		<Bug pattern="BIT_SIGNED_CHECK"/>
+	</Match>
+	<Match>
+		<Bug pattern="CI_CONFUSED_INHERITANCE"/>
+	</Match>
+	<Match>
+		<Bug pattern="CN_IDIOM"/>
+	</Match>
+	<Match>
+		<Bug pattern="CN_IDIOM_NO_SUPER_CALL"/>
+	</Match>
+	<Match>
+		<Bug pattern="CN_IMPLEMENTS_CLONE_BUT_NOT_CLONEABLE"/>
+	</Match>
+	<Match>
+		<Bug pattern="CO_COMPARETO_INCORRECT_FLOATING"/>
+	</Match>
+	<Match>
+		<Bug pattern="DB_DUPLICATE_BRANCHES"/>
+	</Match>
+	<Match>
+		<Bug pattern="DB_DUPLICATE_SWITCH_CLAUSES"/>
+	</Match>
+	<Match>
+		<Bug pattern="DC_PARTIALLY_CONSTRUCTED"/>
+	</Match>
+	<Match>
+		<Bug pattern="DE_MIGHT_IGNORE"/>
+	</Match>
+	<Match>
+		<Bug pattern="DLS_DEAD_LOCAL_STORE"/>
+	</Match>
+	<Match>
+		<Bug pattern="DM_BOXED_PRIMITIVE_FOR_PARSING"/>
+	</Match>
+	<Match>
+		<Bug pattern="DM_BOXED_PRIMITIVE_TOSTRING"/>
+	</Match>
+	<Match>
+		<Bug pattern="DM_CONVERT_CASE"/>
+	</Match>
+	<Match>
+		<Bug pattern="DM_DEFAULT_ENCODING"/>
+	</Match>
+	<Match>
+		<Bug pattern="DM_EXIT"/>
+	</Match>
+	<Match>
+		<Bug pattern="DM_FP_NUMBER_CTOR"/>
+	</Match>
+	<Match>
+		<Bug pattern="DM_GC"/>
+	</Match>
+	<Match>
+		<Bug pattern="DM_NEW_FOR_GETCLASS"/>
+	</Match>
+	<Match>
+		<Bug pattern="DM_NEXTINT_VIA_NEXTDOUBLE"/>
+	</Match>
+	<Match>
+		<Bug pattern="DM_NUMBER_CTOR"/>
+	</Match>
+	<Match>
+		<Bug pattern="DM_STRING_TOSTRING"/>
+	</Match>
+	<Match>
+		<Bug pattern="DMI_ENTRY_SETS_MAY_REUSE_ENTRY_OBJECTS"/>
+	</Match>
+	<Match>
+		<Bug pattern="DMI_RANDOM_USED_ONLY_ONCE"/>
+	</Match>
+	<Match>
+		<Bug pattern="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED"/>
+	</Match>
+	<Match>
+		<Bug pattern="DP_DO_INSIDE_DO_PRIVILEGED"/>
+	</Match>
+	<Match>
+		<Bug pattern="EI_EXPOSE_REP"/>D
+	</Match>
+	<Match>
+		<Bug pattern="EI_EXPOSE_REP2"/>
+	</Match>
+	<Match>
+		<Bug pattern="EQ_COMPARETO_USE_OBJECT_EQUALS"/>
+	</Match>
+	<Match>
+		<Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
+	</Match>
+	<Match>
+		<Bug pattern="EQ_GETCLASS_AND_CLASS_CONSTANT"/>
+	</Match>
+	<Match>
+		<Bug pattern="EQ_OVERRIDING_EQUALS_NOT_SYMMETRIC"/>
+	</Match>
+	<Match>
+		<Bug pattern="EQ_UNUSUAL"/>
+	</Match>
+	<Match>
+		<Bug pattern="FE_TEST_IF_EQUAL_TO_NOT_A_NUMBER"/>
+	</Match>
+	<Match>
+		<Bug pattern="FE_FLOATING_POINT_EQUALITY"/>
+	</Match>
+	<Match>
+		<Bug pattern="HE_EQUALS_NO_HASHCODE"/>
+	</Match>
+	<Match>
+		<Bug pattern="HE_EQUALS_USE_HASHCODE"/>
+	</Match>
+	<Match>
+		<Bug pattern="HE_HASHCODE_NO_EQUALS"/>
+	</Match>
+	<Match>
+		<Bug pattern="HE_HASHCODE_USE_OBJECT_EQUALS"/>
+	</Match>
+	<Match>
+		<Bug pattern="ICAST_IDIV_CAST_TO_DOUBLE"/>
+	</Match>
+	<Match>
+		<Bug pattern="ICAST_INTEGER_MULTIPLY_CAST_TO_LONG"/>
+	</Match>
+	<Match>
+		<Bug pattern="ICAST_QUESTIONABLE_UNSIGNED_RIGHT_SHIFT"/>
+	</Match>
+	<Match>
+		<Bug pattern="INT_BAD_COMPARISON_WITH_NONNEGATIVE_VALUE"/>
+	</Match>
+	<Match>
+		<Bug pattern="IP_PARAMETER_IS_DEAD_BUT_OVERWRITTEN"/>
+	</Match>
+	<Match>
+		<Bug pattern="IS2_INCONSISTENT_SYNC"/>
+	</Match>
+	<Match>
+		<Bug pattern="IT_NO_SUCH_ELEMENT"/>
+	</Match>
+	<Match>
+		<Bug pattern="JLM_JSR166_UTILCONCURRENT_MONITORENTER"/>
+	</Match>
+	<Match>
+		<Bug pattern="LI_LAZY_INIT_STATIC"/>
+	</Match>
+	<Match>
+		<Bug pattern="MS_MUTABLE_ARRAY"/>
+	</Match>
+	<Match>
+		<Bug pattern="MS_MUTABLE_COLLECTION_PKGPROTECT"/>
+	</Match>
+	<Match>
+		<Bug pattern="MS_PKGPROTECT"/>
+	</Match>
+	<Match>
+		<Bug pattern="MS_SHOULD_BE_FINAL"/>
+	</Match>
+	<Match>
+		<Bug pattern="NM_CLASS_NAMING_CONVENTION"/>
+	</Match>
+	<Match>
+		<Bug pattern="NM_CLASS_NOT_EXCEPTION"/>
+	</Match>
+	<Match>
+		<Bug pattern="NM_CONFUSING"/>
+	</Match>
+	<Match>
+		<Bug pattern="NM_FIELD_NAMING_CONVENTION"/>
+	</Match>
+	<Match>
+		<Bug pattern="NM_FUTURE_KEYWORD_USED_AS_IDENTIFIER"/>
+	</Match>
+	<Match>
+		<Bug pattern="NM_FUTURE_KEYWORD_USED_AS_MEMBER_IDENTIFIER"/>
+	</Match>
+	<Match>
+		<Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS"/>
+	</Match>
+	<Match>
+		<Bug pattern="NO_NOTIFY_NOT_NOTIFYALL"/>
+	</Match>
+	<Match>
+		<Bug pattern="NP_ALWAYS_NULL"/>
+	</Match>
+	<Match>
+		<Bug pattern="NP_DEREFERENCE_OF_READLINE_VALUE"/>
+	</Match>
+	<Match>
+		<Bug pattern="NP_EQUALS_SHOULD_HANDLE_NULL_ARGUMENT"/>
+	</Match>
+	<Match>
+		<Bug pattern="NP_LOAD_OF_KNOWN_NULL_VALUE"/>
+	</Match>
+	<Match>
+		<Bug pattern="NM_METHOD_NAMING_CONVENTION"/>
+	</Match>
+	<Match>
+		<Bug pattern="NM_SAME_SIMPLE_NAME_AS_INTERFACE"/>
+	</Match>
+	<Match>
+		<Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
+	</Match>
+	<Match>
+		<Bug pattern="NP_NULL_ON_SOME_PATH"/>
+	</Match>
+	<Match>
+		<Bug pattern="NP_NULL_ON_SOME_PATH_EXCEPTION"/>
+	</Match>
+	<Match>
+		<Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+	</Match>
+	<Match>
+		<Bug pattern="NP_NULL_ON_SOME_PATH_MIGHT_BE_INFEASIBLE"/>
+	</Match>
+	<Match>
+		<Bug pattern="NP_NULL_PARAM_DEREF"/>
+	</Match>
+	<Match>
+		<Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
+	</Match>
+	<Match>
+		<Bug pattern="NS_DANGEROUS_NON_SHORT_CIRCUIT"/>
+	</Match>
+	<Match>
+		<Bug pattern="NS_NON_SHORT_CIRCUIT"/>
+	</Match>
+	<Match>
+		<Bug pattern="OBL_UNSATISFIED_OBLIGATION"/>
+	</Match>
+	<Match>
+		<Bug pattern="OS_OPEN_STREAM"/>
+	</Match>
+	<Match>
+		<Bug pattern="OS_OPEN_STREAM_EXCEPTION_PATH"/>
+	</Match>
+	<Match>
+		<Bug pattern="PZLA_PREFER_ZERO_LENGTH_ARRAYS"/>
+	</Match>
+	<Match>
+		<Bug pattern="REC_CATCH_EXCEPTION"/>
+	</Match>
+	<Match>
+		<Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"/>
+	</Match>
+	<Match>
+		<Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE"/>
+	</Match>
+	<Match>
+		<Bug pattern="RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE"/>
+	</Match>
+	<Match>
+		<Bug pattern="RI_REDUNDANT_INTERFACES"/>
+	</Match>
+	<Match>
+		<Bug pattern="RpC_REPEATED_CONDITIONAL_TEST"/>
+	</Match>
+	<Match>
+		<Bug pattern="RR_NOT_CHECKED"/>
+	</Match>
+	<Match>
+		<Bug pattern="RV_EXCEPTION_NOT_THROWN"/>
+	</Match>
+	<Match>
+		<Bug pattern="RV_NEGATING_RESULT_OF_COMPARETO"/>
+	</Match>
+	<Match>
+		<Bug pattern="RV_RETURN_VALUE_IGNORED"/>
+	</Match>
+	<Match>
+		<Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE"/>
+	</Match>
+	<Match>
+		<Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+	</Match>
+	<Match>
+		<Bug pattern="SA_LOCAL_SELF_ASSIGNMENT"/>
+	</Match>
+	<Match>
+		<Bug pattern="SBSC_USE_STRINGBUFFER_CONCATENATION"/>
+	</Match>
+	<Match>
+		<Bug pattern="SC_START_IN_CTOR"/>
+	</Match>
+	<Match>
+		<Bug pattern="SE_BAD_FIELD"/>
+	</Match>
+	<Match>
+		<Bug pattern="SE_BAD_FIELD_INNER_CLASS"/>
+	</Match>
+	<Match>
+		<Bug pattern="SE_BAD_FIELD_STORE"/>
+	</Match>
+	<Match>
+		<Bug pattern="SE_COMPARATOR_SHOULD_BE_SERIALIZABLE"/>
+	</Match>
+	<Match>
+		<Bug pattern="SE_INNER_CLASS"/>
+	</Match>
+	<Match>
+		<Bug pattern="SE_NO_SERIALVERSIONID"/>
+	</Match>
+	<Match>
+		<Bug pattern="SE_NO_SUITABLE_CONSTRUCTOR"/>
+	</Match>
+	<Match>
+		<Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+	</Match>
+	<Match>
+		<Bug pattern="SF_SWITCH_NO_DEFAULT"/>
+	</Match>
+	<Match>
+		<Bug pattern="SIC_INNER_SHOULD_BE_STATIC"/>
+	</Match>
+	<Match>
+		<Bug pattern="SIC_INNER_SHOULD_BE_STATIC_ANON"/>
+	</Match>
+	<Match>
+		<Bug pattern="SIC_INNER_SHOULD_BE_STATIC_NEEDS_THIS"/>
+	</Match>
+	<Match>
+		<Bug pattern="SIO_SUPERFLUOUS_INSTANCEOF"/>
+	</Match>
+	<Match>
+		<Bug pattern="SF_SWITCH_FALLTHROUGH"/>
+	</Match>
+	<Match>
+		<Bug pattern="SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"/>
+	</Match>
+	<Match>
+		<Bug pattern="SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING"/>
+	</Match>
+	<Match>
+		<Bug pattern="SR_NOT_CHECKED"/>
+	</Match>
+	<Match>
+		<Bug pattern="SS_SHOULD_BE_STATIC"/>
+	</Match>
+	<Match>
+		<Bug pattern="ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD"/>
+	</Match>
+	<Match>
+		<Bug pattern="UC_USELESS_CONDITION"/>
+	</Match>
+	<Match>
+		<Bug pattern="UC_USELESS_OBJECT"/>
+	</Match>
+	<Match>
+		<Bug pattern="UCF_USELESS_CONTROL_FLOW"/>
+	</Match>
+	<Match>
+		<Bug pattern="UL_UNRELEASED_LOCK"/>
+	</Match>
+	<Match>
+		<Bug pattern="UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS"/>
+	</Match>
+	<Match>
+		<Bug pattern="UPM_UNCALLED_PRIVATE_METHOD"/>
+	</Match>
+	<Match>
+		<Bug pattern="URF_UNREAD_FIELD"/>
+	</Match>
+	<Match>
+		<Bug pattern="URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"/>
+	</Match>
+	<Match>
+		<Bug pattern="UUF_UNUSED_FIELD"/>
+	</Match>
+	<Match>
+		<Bug pattern="UUF_UNUSED_PUBLIC_OR_PROTECTED_FIELD"/>
+	</Match>
+	<Match>
+		<Bug pattern="UW_UNCOND_WAIT"/>
+	</Match>
+	<Match>
+		<Bug pattern="UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR"/>
+	</Match>
+	<Match>
+		<Bug pattern="UWF_UNWRITTEN_FIELD"/>
+	</Match>
+	<Match>
+		<Bug pattern="UWF_UNWRITTEN_PUBLIC_OR_PROTECTED_FIELD"/>
+	</Match>
+	<Match>
+		<Bug pattern="VO_VOLATILE_INCREMENT"/>
+	</Match>
+	<Match>
+		<Bug pattern="VO_VOLATILE_REFERENCE_TO_ARRAY"/>
+	</Match>
+	<Match>
+		<Bug pattern="WA_NOT_IN_LOOP"/>
+	</Match>
+	<Match>
+		<Bug pattern="WMI_WRONG_MAP_ITERATOR"/>
+	</Match>
+</FindBugsFilter>

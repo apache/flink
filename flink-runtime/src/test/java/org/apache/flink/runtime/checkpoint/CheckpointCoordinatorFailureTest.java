@@ -23,12 +23,17 @@ import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
+import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -39,7 +44,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(PendingCheckpoint.class)
@@ -65,14 +72,15 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 			600000,
 			0,
 			Integer.MAX_VALUE,
-			ExternalizedCheckpointSettings.none(),
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 			new ExecutionVertex[]{vertex},
 			new ExecutionVertex[]{vertex},
 			new ExecutionVertex[]{vertex},
 			new StandaloneCheckpointIDCounter(),
 			new FailingCompletedCheckpointStore(),
-			null,
-			Executors.directExecutor());
+			new MemoryStateBackend(),
+			Executors.directExecutor(),
+			SharedStateRegistry.DEFAULT_FACTORY);
 
 		coord.triggerCheckpoint(triggerTimestamp, false);
 
@@ -84,11 +92,23 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 
 		final long checkpointId = coord.getPendingCheckpoints().keySet().iterator().next();
 
-		final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, triggerTimestamp);
-		AcknowledgeCheckpoint acknowledgeMessage = new AcknowledgeCheckpoint(jid, executionAttemptId, checkpointMetaData);
+		KeyedStateHandle managedKeyedHandle = mock(KeyedStateHandle.class);
+		KeyedStateHandle rawKeyedHandle = mock(KeyedStateHandle.class);
+		OperatorStateHandle managedOpHandle = mock(OperatorStreamStateHandle.class);
+		OperatorStateHandle rawOpHandle = mock(OperatorStreamStateHandle.class);
 
-		CompletedCheckpoint completedCheckpoint = mock(CompletedCheckpoint.class);
-		PowerMockito.whenNew(CompletedCheckpoint.class).withAnyArguments().thenReturn(completedCheckpoint);
+		final OperatorSubtaskState operatorSubtaskState = spy(new OperatorSubtaskState(
+			managedOpHandle,
+			rawOpHandle,
+			managedKeyedHandle,
+			rawKeyedHandle));
+
+		TaskStateSnapshot subtaskState = spy(new TaskStateSnapshot());
+		subtaskState.putSubtaskStateByOperatorID(new OperatorID(), operatorSubtaskState);
+
+		when(subtaskState.getSubtaskStateByOperatorID(OperatorID.fromJobVertexID(vertex.getJobvertexId()))).thenReturn(operatorSubtaskState);
+
+		AcknowledgeCheckpoint acknowledgeMessage = new AcknowledgeCheckpoint(jid, executionAttemptId, checkpointId, new CheckpointMetrics(), subtaskState);
 
 		try {
 			coord.receiveAcknowledgeMessage(acknowledgeMessage);
@@ -101,7 +121,12 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		// make sure that the pending checkpoint has been discarded after we could not complete it
 		assertTrue(pendingCheckpoint.isDiscarded());
 
-		verify(completedCheckpoint).discard();
+		// make sure that the subtask state has been discarded after we could not complete it.
+		verify(operatorSubtaskState).discardState();
+		verify(operatorSubtaskState.getManagedOperatorState().iterator().next()).discardState();
+		verify(operatorSubtaskState.getRawOperatorState().iterator().next()).discardState();
+		verify(operatorSubtaskState.getManagedKeyedState().iterator().next()).discardState();
+		verify(operatorSubtaskState.getRawKeyedState().iterator().next()).discardState();
 	}
 
 	private static final class FailingCompletedCheckpointStore implements CompletedCheckpointStore {
@@ -134,6 +159,16 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		@Override
 		public int getNumberOfRetainedCheckpoints() {
 			return -1;
+		}
+
+		@Override
+		public int getMaxNumberOfRetainedCheckpoints() {
+			return 1;
+		}
+
+		@Override
+		public boolean requiresExternalizedCheckpoints() {
+			return false;
 		}
 	}
 }

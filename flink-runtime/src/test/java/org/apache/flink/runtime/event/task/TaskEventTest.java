@@ -18,20 +18,19 @@
 
 package org.apache.flink.runtime.event.task;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.io.IOException;
-
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.Test;
 
+import java.io.IOException;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 /**
  * This class contains serialization tests concerning task events derived from
  * {@link org.apache.flink.runtime.event.AbstractEvent}.
- * 
  */
 public class TaskEventTest {
 	/**

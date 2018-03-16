@@ -15,42 +15,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
 
-import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
+
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 
 /**
  * Cluster client for communication with an standalone (on-premise) cluster or an existing cluster that has been
  * brought up independently of a specific job.
  */
-public class StandaloneClusterClient extends ClusterClient {
+public class StandaloneClusterClient extends ClusterClient<StandaloneClusterId> {
 
-	public StandaloneClusterClient(Configuration config) throws IOException {
+	public StandaloneClusterClient(Configuration config) throws Exception {
 		super(config);
+	}
+
+	public StandaloneClusterClient(Configuration config, HighAvailabilityServices highAvailabilityServices, boolean sharedHaServices) {
+		super(config, highAvailabilityServices, sharedHaServices);
 	}
 
 	@Override
 	public void waitForClusterToBeReady() {}
 
-
 	@Override
 	public String getWebInterfaceURL() {
-		String host = this.getJobManagerAddress().getHostString();
-		int port = getFlinkConfiguration().getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
-			ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+		final InetSocketAddress inetSocketAddressFromAkkaURL;
+
+		try {
+			inetSocketAddressFromAkkaURL = AkkaUtils.getInetSocketAddressFromAkkaURL(getClusterConnectionInfo().getAddress());
+		} catch (Exception e) {
+			throw new RuntimeException("Could not retrieve leader retrieval information.", e);
+		}
+
+		String host = inetSocketAddressFromAkkaURL.getHostName();
+		int port = getFlinkConfiguration().getInteger(WebOptions.PORT);
 		return "http://" +  host + ":" + port;
 	}
 
@@ -67,7 +82,7 @@ public class StandaloneClusterClient extends ClusterClient {
 				throw new RuntimeException("Received the wrong reply " + result + " from cluster.");
 			}
 		} catch (Exception e) {
-			throw new RuntimeException("Couldn't retrieve the Cluster status.", e);
+			throw new RuntimeException("Couldn't retrieve the cluster status.", e);
 		}
 	}
 
@@ -77,9 +92,8 @@ public class StandaloneClusterClient extends ClusterClient {
 	}
 
 	@Override
-	public String getClusterIdentifier() {
-		// Avoid blocking here by getting the address from the config without resolving the address
-		return "Standalone cluster with JobManager at " + this.getJobManagerAddress();
+	public StandaloneClusterId getClusterId() {
+		return StandaloneClusterId.getInstance();
 	}
 
 	@Override
@@ -93,7 +107,7 @@ public class StandaloneClusterClient extends ClusterClient {
 	}
 
 	@Override
-	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
+	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
 			throws ProgramInvocationException {
 		if (isDetached()) {
 			return super.runDetached(jobGraph, classLoader);
@@ -101,8 +115,4 @@ public class StandaloneClusterClient extends ClusterClient {
 			return super.run(jobGraph, classLoader);
 		}
 	}
-
-	@Override
-	protected void finalizeCluster() {}
-
 }

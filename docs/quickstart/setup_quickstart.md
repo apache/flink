@@ -30,7 +30,7 @@ Get a Flink example program up and running in a few simple steps.
 
 ## Setup: Download and Start Flink
 
-Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the only requirement is to have a working __Java 7.x__ (or higher) installation. Windows users, please take a look at the [Flink on Windows]({{ site.baseurl }}/setup/flink_on_windows) guide which describes how to run Flink on Windows for local setups.
+Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the only requirement is to have a working __Java 7.x__ (or higher) installation. Windows users, please take a look at the [Flink on Windows]({{ site.baseurl }}/start/flink_on_windows.html) guide which describes how to run Flink on Windows for local setups.
 
 You can check the correct installation of Java by issuing the following command:
 
@@ -46,9 +46,10 @@ Java(TM) SE Runtime Environment (build 1.8.0_111-b14)
 Java HotSpot(TM) 64-Bit Server VM (build 25.111-b14, mixed mode)
 ~~~
 
-### Download
-
 {% if site.is_stable %}
+<div class="codetabs" markdown="1">
+
+<div data-lang="Download and Unpack" markdown="1">
 1. Download a binary from the [downloads page](http://flink.apache.org/downloads.html). You can pick
    any Hadoop/Scala combination you like. If you plan to just use the local file system, any Hadoop
    version will work fine.
@@ -60,9 +61,24 @@ $ cd ~/Downloads        # Go to download directory
 $ tar xzf flink-*.tgz   # Unpack the downloaded archive
 $ cd flink-{{site.version}}
 ~~~
+</div>
+
+<div data-lang="MacOS X" markdown="1">
+For MacOS X users, Flink can be installed through [Homebrew](https://brew.sh/).
+
+~~~bash
+$ brew install apache-flink
+...
+$ flink --version
+Version: 1.2.0, Commit ID: 1c659cf
+~~~
+</div>
+
+</div>
+
 {% else %}
-Clone the source code from one of our
-[repositories](http://flink.apache.org/community.html#source-code), e.g.:
+### Download and Compile
+Clone the source code from one of our [repositories](http://flink.apache.org/community.html#source-code), e.g.:
 
 ~~~bash
 $ git clone https://github.com/apache/flink.git
@@ -75,7 +91,7 @@ $ cd build-target               # this is where Flink is installed to
 ### Start a Local Flink Cluster
 
 ~~~bash
-$ ./bin/start-local.sh  # Start Flink
+$ ./bin/start-cluster.sh  # Start Flink
 ~~~
 
 Check the __JobManager's web frontend__ at [http://localhost:8081](http://localhost:8081) and make sure everything is up and running. The web frontend should report a single available TaskManager instance.
@@ -253,7 +269,7 @@ window of processing time, as long as words are floating in.
   </div>
 
 * Words are counted in time windows of 5 seconds (processing time, tumbling
-  windows) and are printed to `stdout`. Monitor the JobManager's output file
+  windows) and are printed to `stdout`. Monitor the TaskManager's output file
   and write some text in `nc` (input is sent to Flink line by line after
   hitting <RETURN>):
 
@@ -268,7 +284,7 @@ window of processing time, as long as words are floating in.
   as words are floating in, e.g.:
 
   ~~~bash
-  $ tail -f log/flink-*-jobmanager-*.out
+  $ tail -f log/flink-*-taskmanager-*.out
   lorem : 1
   bye : 1
   ipsum : 4
@@ -283,3 +299,5 @@ window of processing time, as long as words are floating in.
 ## Next Steps
 
 Check out some more [examples]({{ site.baseurl }}/examples) to get a better feel for Flink's programming APIs. When you are done with that, go ahead and read the [streaming guide]({{ site.baseurl }}/dev/datastream_api.html).
+
+{% top %}

@@ -42,7 +42,8 @@ class ArrayRelDataType(
     case that: ArrayRelDataType =>
       super.equals(that) &&
         (that canEqual this) &&
-        typeInfo == that.typeInfo
+        typeInfo == that.typeInfo &&
+        isNullable == that.isNullable
     case _ => false
   }
 

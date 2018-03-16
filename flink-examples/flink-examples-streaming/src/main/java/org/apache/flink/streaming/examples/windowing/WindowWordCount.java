@@ -19,30 +19,26 @@ package org.apache.flink.streaming.examples.windowing;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.examples.wordcount.WordCount;
+import org.apache.flink.streaming.examples.wordcount.util.WordCountData;
 
 /**
  * Implements a windowed version of the streaming "WordCount" program.
  *
- * <p>
- * The input is a plain text file with lines separated by newline characters.
- * 
- * <p>
- * Usage: <code>WordCount --input &lt;path&gt; --output &lt;path&gt; --window &lt;n&gt; --slide &lt;n&gt;</code><br>
- * If no parameters are provided, the program is run with default data from
- * {@link org.apache.flink.examples.java.wordcount.util.WordCountData}.
+ * <p>The input is a plain text file with lines separated by newline characters.
  *
- * <p>
- * This example shows how to:
+ * <p>Usage: <code>WordCount --input &lt;path&gt; --output &lt;path&gt; --window &lt;n&gt; --slide &lt;n&gt;</code><br>
+ * If no parameters are provided, the program is run with default data from
+ * {@link WordCountData}.
+ *
+ * <p>This example shows how to:
  * <ul>
  * <li>write a simple Flink Streaming program,
  * <li>use tuple data types,
  * <li>use basic windowing abstractions.
  * </ul>
- *
  */
 public class WindowWordCount {
 
@@ -72,8 +68,8 @@ public class WindowWordCount {
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
 
-		final int windowSize = params.getInt("window", 250);
-		final int slideSize = params.getInt("slide", 150);
+		final int windowSize = params.getInt("window", 10);
+		final int slideSize = params.getInt("slide", 5);
 
 		DataStream<Tuple2<String, Integer>> counts =
 		// split up the lines in pairs (2-tuples) containing: (word,1)

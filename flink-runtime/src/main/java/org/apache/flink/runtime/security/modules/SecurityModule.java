@@ -15,9 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.security.modules;
 
-import org.apache.flink.runtime.security.SecurityUtils;
+package org.apache.flink.runtime.security.modules;
 
 import java.security.GeneralSecurityException;
 
@@ -29,10 +28,9 @@ public interface SecurityModule {
 	/**
 	 * Install the security module.
 	 *
-	 * @param configuration the security configuration.
 	 * @throws SecurityInstallException if the security module couldn't be installed.
 	 */
-	void install(SecurityUtils.SecurityConfiguration configuration) throws SecurityInstallException;
+	void install() throws SecurityInstallException;
 
 	/**
 	 * Uninstall the security module.

@@ -25,12 +25,10 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinEdgeWithVertexDegree;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingBase;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.LongValue;
-import org.apache.flink.util.Preconditions;
-
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Annotates edges of an undirected graph with degree of the target vertex.
@@ -44,8 +42,6 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Edge<K, Tuple2<EV, LongValue>>>
 
 	// Optional configuration
 	private OptionalBoolean reduceOnSourceId = new OptionalBoolean(false, false);
-
-	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * The degree can be counted from either the edge source or target IDs.
@@ -62,41 +58,13 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Edge<K, Tuple2<EV, LongValue>>>
 		return this;
 	}
 
-	/**
-	 * Override the operator parallelism.
-	 *
-	 * @param parallelism operator parallelism
-	 * @return this
-	 */
-	public EdgeTargetDegree<K, VV, EV> setParallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
-			"The parallelism must be greater than zero.");
-
-		this.parallelism = parallelism;
-
-		return this;
-	}
-
 	@Override
-	protected String getAlgorithmName() {
-		return EdgeTargetDegree.class.getName();
-	}
-
-	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
-		Preconditions.checkNotNull(other);
-
-		if (! EdgeSourceDegree.class.isAssignableFrom(other.getClass())) {
-			return false;
-		}
+	protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
+		super.mergeConfiguration(other);
 
 		EdgeTargetDegree rhs = (EdgeTargetDegree) other;
 
 		reduceOnSourceId.mergeWith(rhs.reduceOnSourceId);
-		parallelism = (parallelism == PARALLELISM_DEFAULT) ? rhs.parallelism :
-			((rhs.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, rhs.parallelism));
-
-		return true;
 	}
 
 	@Override
@@ -113,7 +81,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Edge<K, Tuple2<EV, LongValue>>>
 			.join(vertexDegrees, JoinHint.REPARTITION_HASH_SECOND)
 			.where(1)
 			.equalTo(0)
-			.with(new JoinEdgeWithVertexDegree<K, EV, LongValue>())
+			.with(new JoinEdgeWithVertexDegree<>())
 				.setParallelism(parallelism)
 				.name("Edge target degree");
 	}

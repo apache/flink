@@ -19,21 +19,21 @@
 package org.apache.flink.graph.generator;
 
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-public class GridGraphTest
-extends AbstractGraphTest {
+/**
+ * Tests for {@link GridGraph}.
+ */
+public class GridGraphTest extends GraphGeneratorTestBase {
 
 	@Test
-	public void testGraph()
-			throws Exception {
+	public void testGraph() throws Exception {
 		Graph<LongValue, NullValue, NullValue> graph = new GridGraph(env)
 			.addDimension(2, false)
 			.addDimension(3, false)
@@ -49,8 +49,7 @@ extends AbstractGraphTest {
 	}
 
 	@Test
-	public void testGraphMetrics()
-			throws Exception {
+	public void testGraphMetrics() throws Exception {
 		Graph<LongValue, NullValue, NullValue> graph = new GridGraph(env)
 			.addDimension(2, true)
 			.addDimension(3, true)
@@ -60,8 +59,8 @@ extends AbstractGraphTest {
 
 		// Each vertex is the source of one edge in the first dimension of size 2,
 		// and the source of two edges in each dimension of size greater than 2.
-		assertEquals(2*3*5*7, graph.numberOfVertices());
-		assertEquals(7 * 2*3*5*7, graph.numberOfEdges());
+		assertEquals(2 * 3 * 5 * 7, graph.numberOfVertices());
+		assertEquals(7 * 2 * 3 * 5 * 7, graph.numberOfEdges());
 
 		long minInDegree = graph.inDegrees().min(1).collect().get(0).f1.getValue();
 		long minOutDegree = graph.outDegrees().min(1).collect().get(0).f1.getValue();
@@ -75,8 +74,7 @@ extends AbstractGraphTest {
 	}
 
 	@Test
-	public void testParallelism()
-			throws Exception {
+	public void testParallelism() throws Exception {
 		int parallelism = 2;
 
 		Graph<LongValue, NullValue, NullValue> graph = new GridGraph(env)
@@ -85,8 +83,8 @@ extends AbstractGraphTest {
 			.setParallelism(parallelism)
 			.generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue, NullValue>>());
-		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue, NullValue>>());
+		graph.getVertices().output(new DiscardingOutputFormat<>());
+		graph.getEdges().output(new DiscardingOutputFormat<>());
 
 		TestUtils.verifyParallelism(env, parallelism);
 	}

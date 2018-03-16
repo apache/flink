@@ -19,19 +19,25 @@
 package org.apache.flink.testutils;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.net.URI;
-import java.util.Map;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileStatus;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 
+/**
+ * A test file system. This also has a service entry in the test
+ * resources, to be loaded during tests.
+ */
 public class TestFileSystem extends LocalFileSystem {
-	
+
+	public static final String SCHEME = "test";
+
 	private static int streamOpenCounter;
 	
 	public static int getNumtimeStreamOpened() {
@@ -69,21 +75,27 @@ public class TestFileSystem extends LocalFileSystem {
 		}
 		return newStati;
 	}
-	
-	public static void registerTestFileSysten() throws Exception {
-		Class<FileSystem> fsClass = FileSystem.class;
-		Field dirField = fsClass.getDeclaredField("FSDIRECTORY");
-		
-		dirField.setAccessible(true);
-		@SuppressWarnings("unchecked")
-		Map<String, String> map = (Map<String, String>) dirField.get(null);
-		dirField.setAccessible(false);
-		
-		map.put("test", TestFileSystem.class.getName());
-	}
 
 	@Override
 	public URI getUri() {
-		return URI.create("test:///");
+		return URI.create(SCHEME + ":///");
+	}
+
+	// ------------------------------------------------------------------------
+
+	public static final class TestFileSystemFactory implements FileSystemFactory {
+
+		@Override
+		public String getScheme() {
+			return SCHEME;
+		}
+
+		@Override
+		public void configure(Configuration config) {}
+
+		@Override
+		public FileSystem create(URI fsUri) throws IOException {
+			return new TestFileSystem();
+		}
 	}
 }

@@ -21,9 +21,13 @@ import java.lang.Boolean
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple3
-import org.apache.flink.types.Row
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.functions.TableFunction
+import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.functions.{FunctionContext, TableFunction}
+import org.apache.flink.types.Row
+import org.junit.Assert
+
+import scala.annotation.varargs
 
 
 case class SimpleUser(name: String, age: Int)
@@ -52,7 +56,6 @@ class TableFunc1 extends TableFunction[String] {
   }
 }
 
-
 class TableFunc2 extends TableFunction[Row] {
   def eval(str: String): Unit = {
     if (str.contains("#")) {
@@ -68,6 +71,72 @@ class TableFunc2 extends TableFunction[Row] {
   override def getResultType: TypeInformation[Row] = {
     new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
                     BasicTypeInfo.INT_TYPE_INFO)
+  }
+}
+
+class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[SimpleUser] {
+
+  def this(data: String) {
+    this(data, null)
+  }
+
+  def eval(user: String): Unit = {
+    if (user.contains("#")) {
+      val splits = user.split("#")
+      if (null != data) {
+        if (null != conf && conf.size > 0) {
+          val iter = conf.iterator
+          while (iter.hasNext) {
+            val entry = iter.next()
+            val key = entry._1
+            val value = entry._2
+            collect(
+              SimpleUser(
+                data.concat("_key=")
+                .concat(key)
+                .concat("_value=")
+                .concat(value)
+                .concat("_")
+                .concat(splits(0)),
+                splits(1).toInt))
+          }
+        } else {
+          collect(SimpleUser(data.concat(splits(0)), splits(1).toInt))
+        }
+      } else {
+        collect(SimpleUser(splits(0), splits(1).toInt))
+      }
+    }
+  }
+}
+
+class TableFunc4 extends TableFunction[Row] {
+  def eval(b: Byte, s: Short, f: Float): Unit = {
+    collect(Row.of("Byte=" + b, "Short=" + s, "Float=" + f))
+  }
+
+  override def getResultType: TypeInformation[Row] = {
+    new RowTypeInfo(Types.STRING, Types.STRING, Types.STRING)
+  }
+}
+
+class TableFunc5 extends TableFunction[Row] {
+  def eval(row: Row): Unit = {
+    collect(row)
+  }
+
+  override def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] =
+    Array(Types.ROW(Types.INT, Types.INT, Types.INT))
+
+  override def getResultType: TypeInformation[Row] =
+    Types.ROW(Types.INT, Types.INT, Types.INT)
+
+}
+
+class VarArgsFunc0 extends TableFunction[String] {
+  @varargs
+  def eval(str: String*): Unit = {
+    str.foreach(collect)
   }
 }
 
@@ -113,5 +182,57 @@ object ObjectTableFunction extends TableFunction[Integer] {
   def eval(a: Int, b: Int): Unit = {
     collect(a)
     collect(b)
+  }
+}
+
+class RichTableFunc0 extends TableFunction[String] {
+  var openCalled = false
+  var closeCalled = false
+
+  override def open(context: FunctionContext): Unit = {
+    super.open(context)
+    if (closeCalled) {
+      Assert.fail("Close called before open.")
+    }
+    openCalled = true
+  }
+
+  def eval(str: String): Unit = {
+    if (!openCalled) {
+      Assert.fail("Open was not called before eval.")
+    }
+    if (closeCalled) {
+      Assert.fail("Close called before eval.")
+    }
+
+    if (!str.contains("#")) {
+      collect(str)
+    }
+  }
+
+  override def close(): Unit = {
+    super.close()
+    if (!openCalled) {
+      Assert.fail("Open was not called before close.")
+    }
+    closeCalled = true
+  }
+}
+
+class RichTableFunc1 extends TableFunction[String] {
+  var separator: Option[String] = None
+
+  override def open(context: FunctionContext): Unit = {
+    separator = Some(context.getJobParameter("word_separator", ""))
+  }
+
+  def eval(str: String): Unit = {
+    if (str.contains(separator.getOrElse(throw new ValidationException(s"no separator")))) {
+      str.split(separator.get).foreach(collect)
+    }
+  }
+
+  override def close(): Unit = {
+    separator = None
   }
 }

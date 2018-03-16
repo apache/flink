@@ -15,12 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kafka.testutils;
 
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 
 import java.util.Properties;
 
+/**
+ * Test configuration for a kafka producer.
+ */
 public class FakeStandardProducerConfig {
 
 	public static Properties get() {

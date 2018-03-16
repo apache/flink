@@ -100,7 +100,22 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("LOG10(1)", "0.0")
     testSqlApi("EXP(0)", "1.0")
     testSqlApi("CEIL(2.5)", "3")
+    testSqlApi("CEILING(2.5)", "3")
     testSqlApi("FLOOR(2.5)", "2")
+    testSqlApi("SIN(2.5)", "0.5984721441039564")
+    testSqlApi("COS(2.5)", "-0.8011436155469337")
+    testSqlApi("TAN(2.5)", "-0.7470222972386603")
+    testSqlApi("COT(2.5)", "-1.3386481283041514")
+    testSqlApi("ASIN(0.5)", "0.5235987755982989")
+    testSqlApi("ACOS(0.5)", "1.0471975511965979")
+    testSqlApi("ATAN(0.5)", "0.4636476090008061")
+    testSqlApi("DEGREES(0.5)", "28.64788975654116")
+    testSqlApi("RADIANS(0.5)", "0.008726646259971648")
+    testSqlApi("SIGN(-1.1)", "-1")
+    testSqlApi("ROUND(-12.345, 2)", "-12.35")
+    testSqlApi("PI", "3.141592653589793")
+    testSqlApi("E()", "2.718281828459045")
+    testSqlApi("BIN(12)", "1100")
   }
 
   @Test
@@ -123,6 +138,22 @@ class SqlExpressionTest extends ExpressionTestBase {
   }
 
   @Test
+  def testHashFunctions(): Unit = {
+    testSqlApi("MD5('')", "d41d8cd98f00b204e9800998ecf8427e")
+    testSqlApi("MD5('test')", "098f6bcd4621d373cade4e832627b4f6")
+
+    testSqlApi("SHA1('')", "da39a3ee5e6b4b0d3255bfef95601890afd80709")
+    testSqlApi("SHA1('test')", "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3")
+
+    testSqlApi("SHA256('')", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+    testSqlApi("SHA256('test')", "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08")
+
+    testSqlApi("MD5(CAST(NULL AS VARCHAR))", "null")
+    testSqlApi("SHA1(CAST(NULL AS VARCHAR))", "null")
+    testSqlApi("SHA256(CAST(NULL AS VARCHAR))", "null")
+  }
+
+  @Test
   def testConditionalFunctions(): Unit = {
     testSqlApi("CASE 2 WHEN 1, 2 THEN 2 ELSE 3 END", "2")
     testSqlApi("CASE WHEN 1 = 2 THEN 2 WHEN 1 = 1 THEN 3 ELSE 3 END", "3")
@@ -137,11 +168,13 @@ class SqlExpressionTest extends ExpressionTestBase {
 
   @Test
   def testValueConstructorFunctions(): Unit = {
-    // TODO we need a special code path that flattens ROW types
-    // testSqlApi("ROW('hello world', 12)", "hello world") // test base only returns field 0
-    // testSqlApi("('hello world', 12)", "hello world") // test base only returns field 0
+    testSqlApi("ROW('hello world', 12)", "hello world,12")
+    testSqlApi("('hello world', 12)", "hello world,12")
+    testSqlApi("('foo', ('bar', 12))", "foo,bar,12")
     testSqlApi("ARRAY[TRUE, FALSE][2]", "false")
     testSqlApi("ARRAY[TRUE, TRUE]", "[true, true]")
+    testSqlApi("MAP['k1', 'v1', 'k2', 'v2']['k2']", "v2")
+    testSqlApi("MAP['k1', CAST(true AS VARCHAR(256)), 'k2', 'foo']['k1']", "true")
   }
 
   @Test

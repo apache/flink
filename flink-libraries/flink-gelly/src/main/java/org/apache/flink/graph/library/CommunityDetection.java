@@ -36,14 +36,14 @@ import java.util.TreeMap;
 /**
  * Community Detection Algorithm.
  *
- * The Vertex values of the input Graph provide the initial label assignments.
- * 
- * Initially, each vertex is assigned a tuple formed of its own initial value along with a score equal to 1.0.
+ * <p>The Vertex values of the input Graph provide the initial label assignments.
+ *
+ * <p>Initially, each vertex is assigned a tuple formed of its own initial value along with a score equal to 1.0.
  * The vertices propagate their labels and max scores in iterations, each time adopting the label with the
  * highest score from the list of received messages. The chosen label is afterwards re-scored using the fraction
  * delta/the superstep number. Delta is passed as a parameter and has 0.5 as a default value.
- * 
- * @param <K> the Vertex ID type 
+ *
+ * @param <K> the Vertex ID type
  *
  */
 public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Graph<K, Long, Double>> {
@@ -56,12 +56,12 @@ public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Gr
 	 * Creates a new Community Detection algorithm instance.
 	 * The algorithm converges when vertices no longer update their value
 	 * or when the maximum number of iterations is reached.
-	 * 
+	 *
 	 * @see <a href="http://arxiv.org/pdf/0808.2633.pdf">
 	 * Towards real-time community detection in large networks</a>
-	 * 
+	 *
 	 * @param maxIterations The maximum number of iterations to run.
-	 * @param delta The hop attenuation parameter. Its default value is 0.5.  
+	 * @param delta The hop attenuation parameter. Its default value is 0.5.
 	 */
 	public CommunityDetection(int maxIterations, double delta) {
 
@@ -73,24 +73,24 @@ public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Gr
 	public Graph<K, Long, Double> run(Graph<K, Long, Double> graph) {
 
 		DataSet<Vertex<K, Tuple2<Long, Double>>> initializedVertices = graph.getVertices()
-			.map(new AddScoreToVertexValuesMapper<K>());
+			.map(new AddScoreToVertexValuesMapper<>());
 
 		Graph<K, Tuple2<Long, Double>, Double> graphWithScoredVertices =
 			Graph.fromDataSet(initializedVertices, graph.getEdges(), graph.getContext()).getUndirected();
 
-		return graphWithScoredVertices.runScatterGatherIteration(new LabelMessenger<K>(),
-			new VertexLabelUpdater<K>(delta), maxIterations)
-				.mapVertices(new RemoveScoreFromVertexValuesMapper<K>());
+		return graphWithScoredVertices.runScatterGatherIteration(new LabelMessenger<>(),
+			new VertexLabelUpdater<>(delta), maxIterations)
+				.mapVertices(new RemoveScoreFromVertexValuesMapper<>());
 	}
 
 	@SuppressWarnings("serial")
-	public static final class LabelMessenger<K> extends ScatterFunction<K, Tuple2<Long, Double>,
+	private static final class LabelMessenger<K> extends ScatterFunction<K, Tuple2<Long, Double>,
 			Tuple2<Long, Double>, Double> {
 
 		@Override
 		public void sendMessages(Vertex<K, Tuple2<Long, Double>> vertex) throws Exception {
 
-			for(Edge<K, Double> edge : getEdges()) {
+			for (Edge<K, Double> edge : getEdges()) {
 				sendMessageTo(edge.getTarget(), new Tuple2<>(vertex.getValue().f0,
 					vertex.getValue().f1 * edge.getValue()));
 			}
@@ -98,7 +98,7 @@ public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Gr
 	}
 
 	@SuppressWarnings("serial")
-	public static final class VertexLabelUpdater<K> extends GatherFunction<
+	private static final class VertexLabelUpdater<K> extends GatherFunction<
 			K, Tuple2<Long, Double>, Tuple2<Long, Double>> {
 
 		private double delta;
@@ -142,9 +142,9 @@ public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Gr
 				}
 			}
 
-			if(receivedLabelsWithScores.size() > 0) {
+			if (receivedLabelsWithScores.size() > 0) {
 				// find the label with the highest score from the ones received
-				double maxScore = Double.MIN_VALUE;
+				double maxScore = -Double.MAX_VALUE;
 				long maxScoreLabel = vertex.getValue().f0;
 				for (long curLabel : receivedLabelsWithScores.keySet()) {
 
@@ -169,7 +169,7 @@ public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Gr
 
 	@SuppressWarnings("serial")
 	@ForwardedFields("f0")
-	public static final class AddScoreToVertexValuesMapper<K> implements MapFunction<
+	private static final class AddScoreToVertexValuesMapper<K> implements MapFunction<
 		Vertex<K, Long>, Vertex<K, Tuple2<Long, Double>>> {
 
 		public Vertex<K, Tuple2<Long, Double>> map(Vertex<K, Long> vertex) {
@@ -178,7 +178,7 @@ public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Gr
 	}
 
 	@SuppressWarnings("serial")
-	public static final class RemoveScoreFromVertexValuesMapper<K> implements MapFunction<
+	private static final class RemoveScoreFromVertexValuesMapper<K> implements MapFunction<
 		Vertex<K, Tuple2<Long, Double>>, Long> {
 
 		@Override

@@ -22,6 +22,7 @@ import org.apache.flink.core.memory.MemoryUtils;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.SerializedThrowable;
 
 import org.junit.Test;
 
@@ -174,5 +175,19 @@ public class SerializedThrowableTest {
 
 		assertArrayEquals(root.getStackTrace(), st.getStackTrace());
 		assertEquals(ExceptionUtils.stringifyException(root), ExceptionUtils.stringifyException(st));
+	}
+
+	@Test
+	public void testCopyPreservesCause() {
+		Exception original = new Exception("original message");
+		Exception parent = new Exception("parent message", original);
+
+		SerializedThrowable serialized = new SerializedThrowable(parent);
+		assertNotNull(serialized.getCause());
+
+		SerializedThrowable copy = new SerializedThrowable(serialized);
+		assertEquals("parent message", copy.getMessage());
+		assertNotNull(copy.getCause());
+		assertEquals("original message", copy.getCause().getMessage());
 	}
 }

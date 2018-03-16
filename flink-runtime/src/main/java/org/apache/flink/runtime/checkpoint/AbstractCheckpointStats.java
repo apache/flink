@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import javax.annotation.Nullable;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
 
@@ -30,7 +31,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Base class for checkpoint statistics.
  */
-public abstract class AbstractCheckpointStats {
+public abstract class AbstractCheckpointStats implements Serializable {
+
+	private static final long serialVersionUID = 1041218202028265151L;
 
 	/** ID of this checkpoint. */
 	final long checkpointId;

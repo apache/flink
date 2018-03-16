@@ -18,6 +18,8 @@
 
 package org.apache.flink.cep.nfa;
 
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -25,8 +27,8 @@ import java.util.Objects;
 
 /**
  * Represents a state of the {@link NFA}.
- * <p>
- * Each state is identified by a name and a state type. Furthermore, it contains a collection of
+ *
+ * <p>Each state is identified by a name and a state type. Furthermore, it contains a collection of
  * state transitions. The state transitions describe under which conditions it is possible to enter
  * a new state.
  *
@@ -36,21 +38,27 @@ public class State<T> implements Serializable {
 	private static final long serialVersionUID = 6658700025989097781L;
 
 	private final String name;
-	private final StateType stateType;
+	private StateType stateType;
 	private final Collection<StateTransition<T>> stateTransitions;
 
 	public State(final String name, final StateType stateType) {
 		this.name = name;
 		this.stateType = stateType;
 
-		stateTransitions = new ArrayList<StateTransition<T>>();
+		stateTransitions = new ArrayList<>();
+	}
+
+	public StateType getStateType() {
+		return stateType;
 	}
 
 	public boolean isFinal() {
 		return stateType == StateType.Final;
 	}
 
-	public boolean isStart() { return stateType == StateType.Start; }
+	public boolean isStart() {
+		return stateType == StateType.Start;
+	}
 
 	public String getName() {
 		return name;
@@ -60,15 +68,42 @@ public class State<T> implements Serializable {
 		return stateTransitions;
 	}
 
-	public void addStateTransition(final StateTransition<T> stateTransition) {
-		stateTransitions.add(stateTransition);
+	public void makeStart() {
+		this.stateType = StateType.Start;
+	}
+
+	public void addStateTransition(
+			final StateTransitionAction action,
+			final State<T> targetState,
+			final IterativeCondition<T> condition) {
+		stateTransitions.add(new StateTransition<T>(this, action, targetState, condition));
+	}
+
+	public void addIgnore(final IterativeCondition<T> condition) {
+		addStateTransition(StateTransitionAction.IGNORE, this, condition);
+	}
+
+	public void addIgnore(final State<T> targetState, final IterativeCondition<T> condition) {
+		addStateTransition(StateTransitionAction.IGNORE, targetState, condition);
+	}
+
+	public void addTake(final State<T> targetState, final IterativeCondition<T> condition) {
+		addStateTransition(StateTransitionAction.TAKE, targetState, condition);
+	}
+
+	public void addProceed(final State<T> targetState, final IterativeCondition<T> condition) {
+		addStateTransition(StateTransitionAction.PROCEED, targetState, condition);
+	}
+
+	public void addTake(final IterativeCondition<T> condition) {
+		addStateTransition(StateTransitionAction.TAKE, this, condition);
 	}
 
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof State) {
 			@SuppressWarnings("unchecked")
-			State<T> other = (State<T>)obj;
+			State<T> other = (State<T>) obj;
 
 			return name.equals(other.name) &&
 				stateType == other.stateType &&
@@ -82,12 +117,10 @@ public class State<T> implements Serializable {
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
 
-		builder.append("State(").append(name).append(", ").append(stateType).append(", [\n");
-
+		builder.append(stateType).append(" State ").append(name).append(" [\n");
 		for (StateTransition<T> stateTransition: stateTransitions) {
-			builder.append(stateTransition).append(",\n");
+			builder.append("\t").append(stateTransition).append(",\n");
 		}
-
 		builder.append("])");
 
 		return builder.toString();
@@ -98,12 +131,17 @@ public class State<T> implements Serializable {
 		return Objects.hash(name, stateType, stateTransitions);
 	}
 
+	public boolean isStop() {
+		return stateType == StateType.Stop;
+	}
+
 	/**
 	 * Set of valid state types.
 	 */
 	public enum StateType {
 		Start, // the state is a starting state for the NFA
 		Final, // the state is a final state for the NFA
-		Normal // the state is neither a start nor a final state
+		Normal, // the state is neither a start nor a final state
+		Stop
 	}
 }

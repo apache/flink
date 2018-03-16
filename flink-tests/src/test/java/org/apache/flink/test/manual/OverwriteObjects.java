@@ -25,36 +25,42 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.Utils.ChecksumHashCode;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.types.IntValue;
+
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Random;
 
-/*
+import static org.hamcrest.Matchers.is;
+
+/**
  * These programs demonstrate the effects of user defined functions which modify input objects or return locally created
  * objects that are retained and reused on future calls. The programs do not retain and later modify input objects.
  */
 public class OverwriteObjects {
 
-	public final static Logger LOG = LoggerFactory.getLogger(OverwriteObjects.class);
+	public static final Logger LOG = LoggerFactory.getLogger(OverwriteObjects.class);
 
 	// DataSets are created with this number of elements
-	private static final int NUMBER_OF_ELEMENTS = 3 * 1000 * 1000;
+	private static final int NUMBER_OF_ELEMENTS = 3_000_000;
 
 	// DataSet values are randomly generated over this range
-	private static final int KEY_RANGE = 1 * 1000 * 1000;
+	private static final int KEY_RANGE = 1_000_000;
 
 	private static final int MAX_PARALLELISM = 4;
 
 	private static final long RANDOM_SEED = new Random().nextLong();
+
+	private static final Tuple2Comparator<IntValue, IntValue> comparator = new Tuple2Comparator<>();
 
 	public static void main(String[] args) throws Exception {
 		new OverwriteObjects().run();
@@ -66,7 +72,7 @@ public class OverwriteObjects {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 
-		for (int parallelism = MAX_PARALLELISM ; parallelism > 0 ; parallelism--) {
+		for (int parallelism = MAX_PARALLELISM; parallelism > 0; parallelism--) {
 			LOG.info("Parallelism = {}", parallelism);
 
 			env.setParallelism(parallelism);
@@ -116,17 +122,23 @@ public class OverwriteObjects {
 
 		env.getConfig().enableObjectReuse();
 
-		ChecksumHashCode enabledChecksum = DataSetUtils.checksumHashCode(getDataSet(env)
+		List<Tuple2<IntValue, IntValue>> enabledResult = getDataSet(env)
 			.groupBy(0)
-			.reduce(new OverwriteObjectsReduce(true)));
+			.reduce(new OverwriteObjectsReduce(true))
+			.collect();
+
+		Collections.sort(enabledResult, comparator);
 
 		env.getConfig().disableObjectReuse();
 
-		ChecksumHashCode disabledChecksum = DataSetUtils.checksumHashCode(getDataSet(env)
+		List<Tuple2<IntValue, IntValue>> disabledResult = getDataSet(env)
 			.groupBy(0)
-			.reduce(new OverwriteObjectsReduce(true)));
+			.reduce(new OverwriteObjectsReduce(true))
+			.collect();
 
-		Assert.assertEquals(disabledChecksum, enabledChecksum);
+		Collections.sort(disabledResult, comparator);
+
+		Assert.assertThat(disabledResult, is(enabledResult));
 	}
 
 	private class OverwriteObjectsReduce implements ReduceFunction<Tuple2<IntValue, IntValue>> {
@@ -154,9 +166,9 @@ public class OverwriteObjects {
 				continue;
 			}
 
-			ChecksumHashCode enabledChecksum;
+			List<Tuple2<IntValue, IntValue>> enabledResult;
 
-			ChecksumHashCode disabledChecksum;
+			List<Tuple2<IntValue, IntValue>> disabledResult;
 
 			// Inner join
 
@@ -164,21 +176,27 @@ public class OverwriteObjects {
 
 			env.getConfig().enableObjectReuse();
 
-			enabledChecksum = DataSetUtils.checksumHashCode(getDataSet(env)
+			enabledResult = getDataSet(env)
 				.join(getDataSet(env), joinHint)
 				.where(0)
 				.equalTo(0)
-				.with(new OverwriteObjectsJoin()));
+				.with(new OverwriteObjectsJoin())
+				.collect();
+
+			Collections.sort(enabledResult, comparator);
 
 			env.getConfig().disableObjectReuse();
 
-			disabledChecksum = DataSetUtils.checksumHashCode(getDataSet(env)
+			disabledResult = getDataSet(env)
 				.join(getDataSet(env), joinHint)
 				.where(0)
 				.equalTo(0)
-				.with(new OverwriteObjectsJoin()));
+				.with(new OverwriteObjectsJoin())
+				.collect();
 
-			Assert.assertEquals("JoinHint=" + joinHint, disabledChecksum, enabledChecksum);
+			Collections.sort(disabledResult, comparator);
+
+			Assert.assertEquals("JoinHint=" + joinHint, disabledResult, enabledResult);
 
 			// Left outer join
 
@@ -187,21 +205,27 @@ public class OverwriteObjects {
 
 				env.getConfig().enableObjectReuse();
 
-				enabledChecksum = DataSetUtils.checksumHashCode(getDataSet(env)
+				enabledResult = getDataSet(env)
 					.leftOuterJoin(getFilteredDataSet(env), joinHint)
 					.where(0)
 					.equalTo(0)
-					.with(new OverwriteObjectsJoin()));
+					.with(new OverwriteObjectsJoin())
+					.collect();
+
+				Collections.sort(enabledResult, comparator);
 
 				env.getConfig().disableObjectReuse();
 
-				disabledChecksum = DataSetUtils.checksumHashCode(getDataSet(env)
+				disabledResult = getDataSet(env)
 					.leftOuterJoin(getFilteredDataSet(env), joinHint)
 					.where(0)
 					.equalTo(0)
-					.with(new OverwriteObjectsJoin()));
+					.with(new OverwriteObjectsJoin())
+					.collect();
 
-				Assert.assertEquals("JoinHint=" + joinHint, disabledChecksum, enabledChecksum);
+				Collections.sort(disabledResult, comparator);
+
+				Assert.assertThat("JoinHint=" + joinHint, disabledResult, is(enabledResult));
 			}
 
 			// Right outer join
@@ -211,21 +235,27 @@ public class OverwriteObjects {
 
 				env.getConfig().enableObjectReuse();
 
-				enabledChecksum = DataSetUtils.checksumHashCode(getDataSet(env)
+				enabledResult = getDataSet(env)
 					.rightOuterJoin(getFilteredDataSet(env), joinHint)
 					.where(0)
 					.equalTo(0)
-					.with(new OverwriteObjectsJoin()));
+					.with(new OverwriteObjectsJoin())
+					.collect();
+
+				Collections.sort(enabledResult, comparator);
 
 				env.getConfig().disableObjectReuse();
 
-				disabledChecksum = DataSetUtils.checksumHashCode(getDataSet(env)
+				disabledResult = getDataSet(env)
 					.rightOuterJoin(getFilteredDataSet(env), joinHint)
 					.where(0)
 					.equalTo(0)
-					.with(new OverwriteObjectsJoin()));
+					.with(new OverwriteObjectsJoin())
+					.collect();
 
-				Assert.assertEquals("JoinHint=" + joinHint, disabledChecksum, enabledChecksum);
+				Collections.sort(disabledResult, comparator);
+
+				Assert.assertThat("JoinHint=" + joinHint, disabledResult, is(enabledResult));
 			}
 
 			// Full outer join
@@ -235,21 +265,27 @@ public class OverwriteObjects {
 
 				env.getConfig().enableObjectReuse();
 
-				enabledChecksum = DataSetUtils.checksumHashCode(getDataSet(env)
+				enabledResult = getDataSet(env)
 					.fullOuterJoin(getFilteredDataSet(env), joinHint)
 					.where(0)
 					.equalTo(0)
-					.with(new OverwriteObjectsJoin()));
+					.with(new OverwriteObjectsJoin())
+					.collect();
+
+				Collections.sort(enabledResult, comparator);
 
 				env.getConfig().disableObjectReuse();
 
-				disabledChecksum = DataSetUtils.checksumHashCode(getDataSet(env)
+				disabledResult = getDataSet(env)
 					.fullOuterJoin(getFilteredDataSet(env), joinHint)
 					.where(0)
 					.equalTo(0)
-					.with(new OverwriteObjectsJoin()));
+					.with(new OverwriteObjectsJoin())
+					.collect();
 
-				Assert.assertEquals("JoinHint=" + joinHint, disabledChecksum, enabledChecksum);
+				Collections.sort(disabledResult, comparator);
+
+				Assert.assertThat("JoinHint=" + joinHint, disabledResult, is(enabledResult));
 			}
 		}
 	}
@@ -279,32 +315,37 @@ public class OverwriteObjects {
 
 		env.getConfig().enableObjectReuse();
 
-		ChecksumHashCode enabledChecksumWithHuge = DataSetUtils.checksumHashCode(small
+		List<Tuple2<IntValue, IntValue>> enabledResultWithHuge = small
 			.crossWithHuge(large)
-			.with(new OverwriteObjectsCross()));
+			.with(new OverwriteObjectsCross())
+			.collect();
 
-		ChecksumHashCode enabledChecksumWithTiny = DataSetUtils.checksumHashCode(small
+		List<Tuple2<IntValue, IntValue>> enabledResultWithTiny = small
 			.crossWithTiny(large)
-			.with(new OverwriteObjectsCross()));
+			.with(new OverwriteObjectsCross())
+			.collect();
 
-		Assert.assertEquals(enabledChecksumWithHuge, enabledChecksumWithTiny);
+		Assert.assertThat(enabledResultWithHuge, is(enabledResultWithTiny));
 
 		// test NESTEDLOOP_BLOCKED_OUTER_FIRST and NESTEDLOOP_BLOCKED_OUTER_SECOND with object reuse disabled
 
 		env.getConfig().disableObjectReuse();
 
-		ChecksumHashCode disabledChecksumWithHuge = DataSetUtils.checksumHashCode(small
+		List<Tuple2<IntValue, IntValue>> disabledResultWithHuge = small
 			.crossWithHuge(large)
-			.with(new OverwriteObjectsCross()));
+			.with(new OverwriteObjectsCross())
+			.collect();
 
-		ChecksumHashCode disabledChecksumWithTiny = DataSetUtils.checksumHashCode(small
+		List<Tuple2<IntValue, IntValue>> disabledResultWithTiny = small
 			.crossWithTiny(large)
-			.with(new OverwriteObjectsCross()));
+			.with(new OverwriteObjectsCross())
+			.collect();
 
-		Assert.assertEquals(disabledChecksumWithHuge, disabledChecksumWithTiny);
+		Assert.assertThat(disabledResultWithHuge, is(disabledResultWithTiny));
 
-		// verify that checksums match between object reuse enabled and disabled
-		Assert.assertEquals(enabledChecksumWithHuge, disabledChecksumWithHuge);
+		// verify match between object reuse enabled and disabled
+		Assert.assertThat(disabledResultWithHuge, is(enabledResultWithHuge));
+		Assert.assertThat(disabledResultWithTiny, is(enabledResultWithTiny));
 	}
 
 	private class OverwriteObjectsCross implements CrossFunction<Tuple2<IntValue, IntValue>, Tuple2<IntValue, IntValue>, Tuple2<IntValue, IntValue>> {
@@ -338,8 +379,7 @@ public class OverwriteObjects {
 			});
 	}
 
-	private static final class TupleIntValueIntValueIterator implements Iterator<Tuple2<IntValue, IntValue>>, Serializable {
-
+	private static class TupleIntValueIntValueIterator implements Iterator<Tuple2<IntValue, IntValue>>, Serializable {
 		private int numElements;
 		private final int keyRange;
 		private Tuple2<IntValue, IntValue> ret = new Tuple2<>(new IntValue(), new IntValue());
@@ -370,9 +410,23 @@ public class OverwriteObjects {
 		}
 	}
 
+	private static class Tuple2Comparator<T0 extends Comparable<T0>, T1 extends Comparable<T1>>
+	implements Comparator<Tuple2<T0, T1>> {
+		@Override
+		public int compare(Tuple2<T0, T1> o1, Tuple2<T0, T1> o2) {
+			int cmp = o1.f0.compareTo(o2.f0);
+
+			if (cmp != 0) {
+				return cmp;
+			}
+
+			return o1.f1.compareTo(o2.f1);
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 
-	private static final class Scrambler implements Serializable {
+	private static class Scrambler implements Serializable {
 		private Tuple2<IntValue, IntValue> d = new Tuple2<>(new IntValue(), new IntValue());
 
 		private final boolean keyed;

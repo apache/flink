@@ -35,7 +35,7 @@ public abstract class WriteFormat<IN> implements Serializable {
 
 	/**
 	 * Writes the contents of tupleList to the file specified by path.
-	 * 
+	 *
 	 * @param path
 	 *            is the path to the location where the tuples are written
 	 * @param tupleList

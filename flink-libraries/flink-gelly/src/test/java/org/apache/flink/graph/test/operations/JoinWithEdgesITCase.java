@@ -30,12 +30,17 @@ import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.graph.test.TestGraphUtils.DummyCustomParameterizedType;
 import org.apache.flink.graph.utils.EdgeToTuple3Map;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+/**
+ * Tests for {@link Graph#joinWithEdges}, {@link Graph#joinWithEdgesOnSource},
+ * and {@link Graph#joinWithEdgesOnTarget}.
+ */
 @RunWith(Parameterized.class)
 public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 
@@ -57,7 +62,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 			TestGraphUtils.getLongLongEdgeData(env), env);
 
 		Graph<Long, Long, Long> res = graph.joinWithEdges(graph.getEdges()
-			.map(new EdgeToTuple3Map<Long, Long>()), new AddValuesMapper());
+			.map(new EdgeToTuple3Map<>()), new AddValuesMapper());
 
 		DataSet<Edge<Long, Long>> data = res.getEdges();
 		List<Edge<Long, Long>> result = data.collect();
@@ -85,7 +90,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 			TestGraphUtils.getLongLongEdgeData(env), env);
 
 		Graph<Long, Long, Long> res = graph.joinWithEdges(graph.getEdges().first(3)
-			.map(new EdgeToTuple3Map<Long, Long>()), new AddValuesMapper());
+			.map(new EdgeToTuple3Map<>()), new AddValuesMapper());
 
 		DataSet<Edge<Long, Long>> data = res.getEdges();
 		List<Edge<Long, Long>> result = data.collect();

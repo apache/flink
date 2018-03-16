@@ -18,8 +18,6 @@
 
 package org.apache.flink.examples.java.distcp;
 
-import org.apache.commons.io.IOUtils;
-
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -37,6 +35,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Collector;
 
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,12 +51,12 @@ import java.util.Map;
  * (see <a href="http://hadoop.apache.org/docs/r1.2.1/distcp.html">http://hadoop.apache.org/docs/r1.2.1/distcp.html</a>)
  * with a dynamic input format
  * Note that this tool does not deal with retriability. Additionally, empty directories are not copied over.
- * <p>
- * When running locally, local file systems paths can be used.
+ *
+ * <p>When running locally, local file systems paths can be used.
  * However, in a distributed environment HDFS paths must be provided both as input and output.
  */
 public class DistCp {
-	
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(DistCp.class);
 	public static final String BYTES_COPIED_CNT_NAME = "BYTES_COPIED";
 	public static final String FILES_COPIED_CNT_NAME = "FILES_COPIED";
@@ -100,7 +99,6 @@ public class DistCp {
 				new FileCopyTaskInputFormat(tasks),
 				new GenericTypeInfo<>(FileCopyTask.class), "fileCopyTasks");
 
-
 		FlatMapOperator<FileCopyTask, Object> res = inputTasks.flatMap(new RichFlatMapFunction<FileCopyTask, Object>() {
 
 			private static final long serialVersionUID = 1109254230243989929L;
@@ -131,7 +129,7 @@ public class DistCp {
 				FSDataOutputStream outputStream = null;
 				FSDataInputStream inputStream = null;
 				try {
-					outputStream = targetFs.create(outPath, true);
+					outputStream = targetFs.create(outPath, FileSystem.WriteMode.OVERWRITE);
 					inputStream = task.getPath().getFileSystem().open(task.getPath());
 					int bytes = IOUtils.copy(inputStream, outputStream);
 					bytesCounter.add(bytes);
@@ -139,7 +137,7 @@ public class DistCp {
 					IOUtils.closeQuietly(inputStream);
 					IOUtils.closeQuietly(outputStream);
 				}
-				fileCounter.add(1l);
+				fileCounter.add(1L);
 			}
 		});
 

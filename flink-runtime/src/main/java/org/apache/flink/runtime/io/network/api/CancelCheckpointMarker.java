@@ -31,7 +31,7 @@ import java.io.IOException;
  */
 public class CancelCheckpointMarker extends RuntimeEvent {
 
-	/** The id of the checkpoint to be canceled */
+	/** The id of the checkpoint to be canceled. */
 	private final long checkpointId;
 
 	public CancelCheckpointMarker(long checkpointId) {
@@ -44,7 +44,7 @@ public class CancelCheckpointMarker extends RuntimeEvent {
 
 	// ------------------------------------------------------------------------
 	// These known and common event go through special code paths, rather than
-	// through generic serialization 
+	// through generic serialization.
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
@@ -55,7 +55,7 @@ public class CancelCheckpointMarker extends RuntimeEvent {
 	public void read(DataInputView in) throws IOException {
 		throw new UnsupportedOperationException("this method should never be called");
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	@Override
@@ -65,7 +65,7 @@ public class CancelCheckpointMarker extends RuntimeEvent {
 
 	@Override
 	public boolean equals(Object other) {
-		return other != null && 
+		return other != null &&
 				other.getClass() == CancelCheckpointMarker.class &&
 				this.checkpointId == ((CancelCheckpointMarker) other).checkpointId;
 	}

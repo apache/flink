@@ -23,33 +23,34 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -71,38 +72,28 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 	private static final int PARALLELISM = 4;
 
-	private static LocalFlinkMiniCluster cluster;
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			getConfiguration(),
+			2,
+			PARALLELISM / 2));
 
-
-	@BeforeClass
-	public static void startTestCluster() {
+	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM / 2);
-		config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 48);
-
-		cluster = new LocalFlinkMiniCluster(config, false);
-		cluster.start();
-	}
-
-	@AfterClass
-	public static void stopTestCluster() {
-		if (cluster != null) {
-			cluster.stop();
-		}
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 48L);
+		return config;
 	}
 
 	// ------------------------------------------------------------------------
 
 	@Test
 	public void testTumblingProcessingTimeWindow() {
-		final int NUM_ELEMENTS = 3000;
+		final int numElements = 3000;
 		FailingSource.reset();
-		
+
 		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
-			
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(timeCharacteristic);
 			env.getConfig().setAutoWatermarkInterval(10);
@@ -111,7 +102,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().disableSysoutLogging();
 
 			env
-					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))
+					.addSource(new FailingSource(numElements, numElements / 3))
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(100, MILLISECONDS))
@@ -141,8 +132,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 							}
 						}
 					})
-					.addSink(new ValidatingSink(NUM_ELEMENTS, 1)).setParallelism(1);
-
+					.addSink(new ValidatingSink(numElements, 1)).setParallelism(1);
 
 			tryExecute(env, "Tumbling Window Test");
 		}
@@ -154,13 +144,11 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 	@Test
 	public void testSlidingProcessingTimeWindow() {
-		final int NUM_ELEMENTS = 3000;
+		final int numElements = 3000;
 		FailingSource.reset();
 
 		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
-			
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(timeCharacteristic);
 			env.getConfig().setAutoWatermarkInterval(10);
@@ -169,7 +157,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().disableSysoutLogging();
 
 			env
-					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))
+					.addSource(new FailingSource(numElements, numElements / 3))
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(150, MILLISECONDS), Time.of(50, MILLISECONDS))
@@ -199,8 +187,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 							}
 						}
 					})
-					.addSink(new ValidatingSink(NUM_ELEMENTS, 3)).setParallelism(1);
-
+					.addSink(new ValidatingSink(numElements, 3)).setParallelism(1);
 
 			tryExecute(env, "Tumbling Window Test");
 		}
@@ -212,13 +199,11 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 	@Test
 	public void testAggregatingTumblingProcessingTimeWindow() {
-		final int NUM_ELEMENTS = 3000;
+		final int numElements = 3000;
 		FailingSource.reset();
 
 		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
-
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(timeCharacteristic);
 			env.getConfig().setAutoWatermarkInterval(10);
@@ -227,8 +212,8 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().disableSysoutLogging();
 
 			env
-					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))
-					.map(new MapFunction<Tuple2<Long,IntType>, Tuple2<Long,IntType>>() {
+					.addSource(new FailingSource(numElements, numElements / 3))
+					.map(new MapFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>>() {
 						@Override
 						public Tuple2<Long, IntType> map(Tuple2<Long, IntType> value) {
 							value.f1.value = 1;
@@ -247,8 +232,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 							return new Tuple2<>(a.f0, new IntType(1));
 						}
 					})
-					.addSink(new ValidatingSink(NUM_ELEMENTS, 1)).setParallelism(1);
-
+					.addSink(new ValidatingSink(numElements, 1)).setParallelism(1);
 
 			tryExecute(env, "Tumbling Window Test");
 		}
@@ -260,13 +244,11 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 	@Test
 	public void testAggregatingSlidingProcessingTimeWindow() {
-		final int NUM_ELEMENTS = 3000;
+		final int numElements = 3000;
 		FailingSource.reset();
 
 		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
-
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(timeCharacteristic);
 			env.getConfig().setAutoWatermarkInterval(10);
@@ -275,8 +257,8 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().disableSysoutLogging();
 
 			env
-					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))
-					.map(new MapFunction<Tuple2<Long,IntType>, Tuple2<Long,IntType>>() {
+					.addSource(new FailingSource(numElements, numElements / 3))
+					.map(new MapFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>>() {
 						@Override
 						public Tuple2<Long, IntType> map(Tuple2<Long, IntType> value) {
 							value.f1.value = 1;
@@ -294,8 +276,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 							return new Tuple2<>(a.f0, new IntType(1));
 						}
 					})
-					.addSink(new ValidatingSink(NUM_ELEMENTS, 3)).setParallelism(1);
-
+					.addSink(new ValidatingSink(numElements, 3)).setParallelism(1);
 
 			tryExecute(env, "Tumbling Window Test");
 		}
@@ -310,8 +291,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private static class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
-			implements Checkpointed<Integer>, CheckpointListener
-	{
+			implements ListCheckpointed<Integer>, CheckpointListener {
 		private static volatile boolean failedBefore = false;
 
 		private final int numElementsToEmit;
@@ -373,13 +353,16 @@ public class WindowCheckpointingITCase extends TestLogger {
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
-			return numElementsEmitted;
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.numElementsEmitted);
 		}
 
 		@Override
-		public void restoreState(Integer state) {
-			numElementsEmitted = state;
+		public void restoreState(List<Integer> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.numElementsEmitted = state.get(0);
 		}
 
 		public static void reset() {
@@ -388,7 +371,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 	}
 
 	private static class ValidatingSink extends RichSinkFunction<Tuple2<Long, IntType>>
-			implements Checkpointed<HashMap<Long, Integer>> {
+			implements ListCheckpointed<HashMap<Long, Integer>> {
 
 		private final HashMap<Long, Integer> counts = new HashMap<>();
 
@@ -439,18 +422,20 @@ public class WindowCheckpointingITCase extends TestLogger {
 		}
 
 		@Override
-		public HashMap<Long, Integer> snapshotState(long checkpointId, long checkpointTimestamp) {
-			return this.counts;
+		public List<HashMap<Long, Integer>> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.counts);
 		}
 
 		@Override
-		public void restoreState(HashMap<Long, Integer> state) {
-			this.counts.putAll(state);
+		public void restoreState(List<HashMap<Long, Integer>> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.counts.putAll(state.get(0));
 
-			for (Integer i : state.values()) {
+			for (Integer i : state.get(0).values()) {
 				this.aggCount += i;
 			}
-
 		}
 	}
 
@@ -470,12 +455,17 @@ public class WindowCheckpointingITCase extends TestLogger {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
+	/**
+	 * POJO with int value.
+	 */
 	public static class IntType {
 
 		public int value;
 
 		public IntType() {}
 
-		public IntType(int value) { this.value = value; }
+		public IntType(int value) {
+			this.value = value;
+		}
 	}
 }

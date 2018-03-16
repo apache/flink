@@ -19,9 +19,9 @@
 package org.apache.flink.streaming.api.operators.async.queue;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.streaming.api.operators.async.OperatorActions;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,21 +43,21 @@ public class OrderedStreamElementQueue implements StreamElementQueue {
 
 	private static final Logger LOG = LoggerFactory.getLogger(OrderedStreamElementQueue.class);
 
-	/** Capacity of this queue */
+	/** Capacity of this queue. */
 	private final int capacity;
 
-	/** Executor to run the onCompletion callback */
+	/** Executor to run the onCompletion callback. */
 	private final Executor executor;
 
-	/** Operator actions to signal a failure to the operator */
+	/** Operator actions to signal a failure to the operator. */
 	private final OperatorActions operatorActions;
 
-	/** Lock and conditions for the blocking queue */
+	/** Lock and conditions for the blocking queue. */
 	private final ReentrantLock lock;
 	private final Condition notFull;
 	private final Condition headIsCompleted;
 
-	/** Queue for the inserted StreamElementQueueEntries */
+	/** Queue for the inserted StreamElementQueueEntries. */
 	private final ArrayDeque<StreamElementQueueEntry<?>> queue;
 
 	public OrderedStreamElementQueue(
@@ -192,9 +192,8 @@ public class OrderedStreamElementQueue implements StreamElementQueue {
 
 		queue.addLast(streamElementQueueEntry);
 
-		streamElementQueueEntry.onComplete(new AcceptFunction<StreamElementQueueEntry<T>>() {
-			@Override
-			public void accept(StreamElementQueueEntry<T> value) {
+		streamElementQueueEntry.onComplete(
+			(StreamElementQueueEntry<T> value) -> {
 				try {
 					onCompleteHandler(value);
 				} catch (InterruptedException e) {
@@ -205,8 +204,8 @@ public class OrderedStreamElementQueue implements StreamElementQueue {
 					operatorActions.failOperator(new Exception("Could not complete the " +
 						"stream element queue entry: " + value + '.', t));
 				}
-			}
-		}, executor);
+			},
+			executor);
 	}
 
 	/**

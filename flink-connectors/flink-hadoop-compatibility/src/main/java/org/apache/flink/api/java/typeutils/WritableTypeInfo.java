@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.WritableComparator;
 import org.apache.flink.api.java.typeutils.runtime.WritableSerializer;
+
 import org.apache.hadoop.io.Writable;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -41,9 +42,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Public
 public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> implements AtomicType<T> {
-	
+
 	private static final long serialVersionUID = 1L;
-	
+
 	private final Class<T> typeClass;
 
 	@PublicEvolving
@@ -59,11 +60,11 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	@Override
 	@PublicEvolving
 	public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
-		if(Comparable.class.isAssignableFrom(typeClass)) {
+		if (Comparable.class.isAssignableFrom(typeClass)) {
 			return new WritableComparator(sortOrderAscending, typeClass);
 		}
 		else {
-			throw new UnsupportedOperationException("Cannot create Comparator for "+typeClass.getCanonicalName()+". " +
+			throw new UnsupportedOperationException("Cannot create Comparator for " + typeClass.getCanonicalName() + ". " +
 													"Class does not implement Comparable interface.");
 		}
 	}
@@ -85,7 +86,7 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	public int getArity() {
 		return 1;
 	}
-	
+
 	@Override
 	@PublicEvolving
 	public int getTotalFields() {
@@ -109,17 +110,17 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		return new WritableSerializer<T>(typeClass);
 	}
-	
+
 	@Override
 	public String toString() {
 		return "WritableType<" + typeClass.getName() + ">";
-	}	
-	
+	}
+
 	@Override
 	public int hashCode() {
 		return typeClass.hashCode();
 	}
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof WritableTypeInfo) {
@@ -138,7 +139,7 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	public boolean canEqual(Object obj) {
 		return obj instanceof WritableTypeInfo;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	@PublicEvolving
@@ -150,5 +151,5 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 			throw new InvalidTypesException("The given class is no subclass of " + Writable.class.getName());
 		}
 	}
-	
+
 }

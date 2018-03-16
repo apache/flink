@@ -17,43 +17,42 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * The state that the Flink Kafka Consumer holds for each Kafka partition.
  * Includes the Kafka descriptor for partitions.
- * 
+ *
  * <p>This class describes the most basic state (only the offset), subclasses
  * define more elaborate state, containing current watermarks and timestamp
  * extractors.
- * 
+ *
  * @param <KPH> The type of the Kafka partition descriptor, which varies across Kafka versions.
  */
+@Internal
 public class KafkaTopicPartitionState<KPH> {
 
-	/** Magic number to define an unset offset. Negative offsets are not used by Kafka (invalid),
-	 * and we pick a number that is probably (hopefully) not used by Kafka as a magic number for anything else. */
-	public static final long OFFSET_NOT_SET = -915623761776L;
-	
 	// ------------------------------------------------------------------------
 
-	/** The Flink description of a Kafka partition */
+	/** The Flink description of a Kafka partition. */
 	private final KafkaTopicPartition partition;
 
-	/** The Kafka description of a Kafka partition (varies across different Kafka versions) */
+	/** The Kafka description of a Kafka partition (varies across different Kafka versions). */
 	private final KPH kafkaPartitionHandle;
-	
-	/** The offset within the Kafka partition that we already processed */
+
+	/** The offset within the Kafka partition that we already processed. */
 	private volatile long offset;
 
-	/** The offset of the Kafka partition that has been committed */
+	/** The offset of the Kafka partition that has been committed. */
 	private volatile long committedOffset;
 
 	// ------------------------------------------------------------------------
-	
+
 	public KafkaTopicPartitionState(KafkaTopicPartition partition, KPH kafkaPartitionHandle) {
 		this.partition = partition;
 		this.kafkaPartitionHandle = kafkaPartitionHandle;
-		this.offset = OFFSET_NOT_SET;
-		this.committedOffset = OFFSET_NOT_SET;
+		this.offset = KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
+		this.committedOffset = KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
 	}
 
 	// ------------------------------------------------------------------------
@@ -96,7 +95,7 @@ public class KafkaTopicPartitionState<KPH> {
 	}
 
 	public final boolean isOffsetDefined() {
-		return offset != OFFSET_NOT_SET;
+		return offset != KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
 	}
 
 	public final void setCommittedOffset(long offset) {
@@ -107,7 +106,6 @@ public class KafkaTopicPartitionState<KPH> {
 		return committedOffset;
 	}
 
-	
 	// ------------------------------------------------------------------------
 
 	@Override

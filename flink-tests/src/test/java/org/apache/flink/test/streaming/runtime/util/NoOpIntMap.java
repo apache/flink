@@ -15,10 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.streaming.runtime.util;
 
 import org.apache.flink.api.common.functions.MapFunction;
 
+/**
+ * Identity mapper.
+ */
 public class NoOpIntMap implements MapFunction<Integer, Integer> {
 	private static final long serialVersionUID = 1L;
 

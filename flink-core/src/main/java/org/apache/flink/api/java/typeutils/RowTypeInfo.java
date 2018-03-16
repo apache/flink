@@ -267,6 +267,13 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 		return bld.toString();
 	}
 
+	/**
+	 * Returns the field types of the row. The order matches the order of the field names.
+	 */
+	public TypeInformation<?>[] getFieldTypes() {
+		return types;
+	}
+
 	private boolean hasDuplicateFieldNames(String[] fieldNames) {
 		HashSet<String> names = new HashSet<>();
 		for (String field : fieldNames) {
@@ -347,5 +354,22 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 				(TypeSerializer<Object>[]) fieldSerializers,
 				comparatorOrders);
 		}
+	}
+
+	/**
+	 * Creates a {@link RowTypeInfo} with projected fields.
+	 *
+	 * @param rowType The original RowTypeInfo whose fields are projected
+	 * @param fieldMapping The field mapping of the projection
+	 * @return A RowTypeInfo with projected fields.
+	 */
+	public static RowTypeInfo projectFields(RowTypeInfo rowType, int[] fieldMapping) {
+		TypeInformation[] fieldTypes = new TypeInformation[fieldMapping.length];
+		String[] fieldNames = new String[fieldMapping.length];
+		for (int i = 0; i < fieldMapping.length; i++) {
+			fieldTypes[i] = rowType.getTypeAt(fieldMapping[i]);
+			fieldNames[i] = rowType.getFieldNames()[fieldMapping[i]];
+		}
+		return new RowTypeInfo(fieldTypes, fieldNames);
 	}
 }

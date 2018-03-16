@@ -18,20 +18,20 @@
 
 package org.apache.flink.graph.library.clustering.directed;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.graph.AbstractGraphAnalytic;
-import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.AnalyticHelper;
+import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphAnalyticBase;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient.Result;
 import org.apache.flink.types.CopyableValue;
 
-import java.io.IOException;
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
+import java.io.IOException;
 
 /**
  * The average clustering coefficient measures the mean connectedness of a
@@ -42,28 +42,13 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class AverageClusteringCoefficient<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-extends AbstractGraphAnalytic<K, VV, EV, Result> {
+extends GraphAnalyticBase<K, VV, EV, Result> {
 
 	private static final String VERTEX_COUNT = "vertexCount";
 
 	private static final String SUM_OF_LOCAL_CLUSTERING_COEFFICIENT = "sumOfLocalClusteringCoefficient";
 
 	private AverageClusteringCoefficientHelper<K> averageClusteringCoefficientHelper;
-
-	// Optional configuration
-	private int littleParallelism = PARALLELISM_DEFAULT;
-
-	/**
-	 * Override the parallelism of operators processing small amounts of data.
-	 *
-	 * @param littleParallelism operator parallelism
-	 * @return this
-	 */
-	public AverageClusteringCoefficient<K, VV, EV> setLittleParallelism(int littleParallelism) {
-		this.littleParallelism = littleParallelism;
-
-		return this;
-	}
 
 	/*
 	 * Implementation notes:
@@ -79,7 +64,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		DataSet<LocalClusteringCoefficient.Result<K>> localClusteringCoefficient = input
 			.run(new LocalClusteringCoefficient<K, VV, EV>()
-				.setLittleParallelism(littleParallelism));
+				.setParallelism(parallelism));
 
 		averageClusteringCoefficientHelper = new AverageClusteringCoefficientHelper<>();
 
@@ -129,7 +114,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	/**
 	 * Wraps global clustering coefficient metrics.
 	 */
-	public static class Result {
+	public static class Result
+	implements PrintableResult {
 		private long vertexCount;
 		private double averageLocalClusteringCoefficient;
 
@@ -165,6 +151,11 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public String toString() {
+			return toPrintableString();
+		}
+
+		@Override
+		public String toPrintableString() {
 			return "vertex count: " + vertexCount
 				+ ", average clustering coefficient: " + averageLocalClusteringCoefficient;
 		}
@@ -179,11 +170,19 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (obj == null) { return false; }
-			if (obj == this) { return true; }
-			if (obj.getClass() != getClass()) { return false; }
+			if (obj == null) {
+				return false;
+			}
 
-			Result rhs = (Result)obj;
+			if (obj == this) {
+				return true;
+			}
+
+			if (obj.getClass() != getClass()) {
+				return false;
+			}
+
+			Result rhs = (Result) obj;
 
 			return new EqualsBuilder()
 				.append(vertexCount, rhs.vertexCount)

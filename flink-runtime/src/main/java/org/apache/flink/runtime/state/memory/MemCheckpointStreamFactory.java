@@ -20,10 +20,14 @@ package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StreamStateHandle;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * {@link CheckpointStreamFactory} that produces streams that write to in-memory byte arrays.
@@ -44,11 +48,8 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 	}
 
 	@Override
-	public void close() throws Exception {}
-
-	@Override
 	public CheckpointStateOutputStream createCheckpointStateOutputStream(
-			long checkpointID, long timestamp) throws Exception
+			CheckpointedStateScope scope) throws IOException
 	{
 		return new MemoryCheckpointOutputStream(maxStateSize);
 	}
@@ -78,12 +79,13 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		private final int maxSize;
 
-		private boolean closed;
+		private AtomicBoolean closed;
 
 		boolean isEmpty = true;
 
 		public MemoryCheckpointOutputStream(int maxSize) {
 			this.maxSize = maxSize;
+			this.closed = new AtomicBoolean(false);
 		}
 
 		@Override
@@ -110,10 +112,12 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		@Override
 		public void close() {
-			closed = true;
-			os.reset();
+			if (closed.compareAndSet(false, true)) {
+				closeInternal();
+			}
 		}
 
+		@Nullable
 		@Override
 		public StreamStateHandle closeAndGetHandle() throws IOException {
 			if (isEmpty) {
@@ -128,7 +132,7 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 		}
 
 		public boolean isClosed() {
-			return closed;
+			return closed.get();
 		}
 
 		/**
@@ -137,15 +141,18 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 		 * @throws IOException Thrown if the size of the data exceeds the maximal
 		 */
 		public byte[] closeAndGetBytes() throws IOException {
-			if (!closed) {
+			if (closed.compareAndSet(false, true)) {
 				checkSize(os.size(), maxSize);
 				byte[] bytes = os.toByteArray();
-				close();
+				closeInternal();
 				return bytes;
-			}
-			else {
+			} else {
 				throw new IOException("stream has already been closed");
 			}
+		}
+
+		private void closeInternal() {
+			os.reset();
 		}
 	}
 }

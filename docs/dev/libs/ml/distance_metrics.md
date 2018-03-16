@@ -105,3 +105,5 @@ object MyDistance {
 
 val myMetric = MyDistance()
 {% endhighlight %}
+
+{% top %}

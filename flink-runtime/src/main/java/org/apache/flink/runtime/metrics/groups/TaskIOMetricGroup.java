@@ -24,11 +24,11 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.runtime.executiongraph.IOMetrics;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -110,7 +110,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	// ============================================================================================
 
 	/**
-	 * Initialize Buffer Metrics for a task
+	 * Initialize Buffer Metrics for a task.
 	 */
 	public void initializeBufferMetrics(Task task) {
 		final MetricGroup buffers = addGroup("buffers");

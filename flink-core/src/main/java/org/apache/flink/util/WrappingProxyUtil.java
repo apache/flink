@@ -18,16 +18,28 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
+/**
+ * Utilits for working with {@link WrappingProxy}.
+ */
+@Internal
 public final class WrappingProxyUtil {
 
 	private WrappingProxyUtil() {
 		throw new AssertionError();
 	}
 
+	@SuppressWarnings("unchecked")
 	public static <T> T stripProxy(T object) {
-		while (object instanceof WrappingProxy) {
+
+		T previous = null;
+
+		while (object instanceof WrappingProxy && previous != object) {
+			previous = object;
 			object = ((WrappingProxy<T>) object).getWrappedDelegate();
 		}
+
 		return object;
 	}
 }

@@ -21,6 +21,7 @@ package org.apache.flink.types.parser;
 
 import java.sql.Time;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ConfigConstants;
 
 /**
  * Parses a text field into a {@link Time}.
@@ -39,7 +40,7 @@ public class SqlTimeParser extends FieldParser<Time> {
 			return -1;
 		}
 
-		String str = new String(bytes, startPos, endPos - startPos);
+		String str = new String(bytes, startPos, endPos - startPos, ConfigConstants.DEFAULT_CHARSET);
 		try {
 			this.result = Time.valueOf(str);
 			return (endPos == limit) ? limit : endPos + delimiter.length;
@@ -96,7 +97,7 @@ public class SqlTimeParser extends FieldParser<Time> {
 			throw new NumberFormatException("There is leading or trailing whitespace in the numeric field.");
 		}
 
-		final String str = new String(bytes, startPos, limitedLen);
+		final String str = new String(bytes, startPos, limitedLen, ConfigConstants.DEFAULT_CHARSET);
 		return Time.valueOf(str);
 	}
 }

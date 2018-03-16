@@ -31,7 +31,7 @@ import java.io.OutputStream;
 public class DataOutputViewStreamWrapper extends DataOutputStream implements DataOutputView {
 
 	private byte[] tempBuffer;
-	
+
 	public DataOutputViewStreamWrapper(OutputStream out) {
 		super(out);
 	}
@@ -54,10 +54,10 @@ public class DataOutputViewStreamWrapper extends DataOutputStream implements Dat
 		if (tempBuffer == null) {
 			tempBuffer = new byte[4096];
 		}
-		
+
 		while (numBytes > 0) {
 			int toCopy = Math.min(numBytes, tempBuffer.length);
-			source.read(tempBuffer, 0, toCopy);
+			source.readFully(tempBuffer, 0, toCopy);
 			write(tempBuffer, 0, toCopy);
 			numBytes -= toCopy;
 		}

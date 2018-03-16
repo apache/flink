@@ -219,7 +219,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 
 	@Override
 	public int compareTo(@Nonnull TaskManagerLocation o) {
-		// decide based on address first
+		// decide based on resource ID first
 		int resourceIdCmp = this.resourceID.getResourceIdString().compareTo(o.resourceID.getResourceIdString());
 		if (resourceIdCmp != 0) {
 			return resourceIdCmp;

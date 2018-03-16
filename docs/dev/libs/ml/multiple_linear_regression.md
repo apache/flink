@@ -75,15 +75,7 @@ MultipleLinearRegression is trained on a set of `LabeledVector`:
 
 MultipleLinearRegression predicts for all subtypes of `Vector` the corresponding regression value:
 
-* `predict[T <: Vector]: DataSet[T] => DataSet[LabeledVector]`
-
-If we call predict with a `DataSet[LabeledVector]`, we make a prediction on the regression value
-for each example, and return a `DataSet[(Double, Double)]`. In each tuple the first element
-is the true value, as was provided from the input `DataSet[LabeledVector]` and the second element
-is the predicted value. You can then use these `(truth, prediction)` tuples to evaluate
-the algorithm's performance.
-
-* `predict: DataSet[LabeledVector] => DataSet[(Double, Double)]`
+* `predict[T <: Vector]: DataSet[T] => DataSet[(T, Double)]`
 
 ## Parameters
 
@@ -158,3 +150,5 @@ mlr.fit(trainingDS)
 // Calculate the predictions for the test data
 val predictions = mlr.predict(testingDS)
 {% endhighlight %}
+
+{% top %}

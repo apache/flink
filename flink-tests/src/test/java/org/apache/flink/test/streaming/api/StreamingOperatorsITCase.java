@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.streaming.api;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -29,29 +30,38 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.MathUtils;
-import org.junit.*;
 
-import java.util.*;
+import org.junit.Assert;
+import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase {
-
+/**
+ * Integration tests for streaming operators.
+ */
+public class StreamingOperatorsITCase extends AbstractTestBase {
 
 	/**
 	 * Tests the proper functioning of the streaming fold operator. For this purpose, a stream
-	 * of Tuple2<Integer, Integer> is created. The stream is grouped according to the first tuple
-	 * value. Each group is folded where the second tuple value is summed up.
+	 * of {@code Tuple2<Integer, Integer>} is created. The stream is grouped according to the
+	 * first tuple value. Each group is folded where the second tuple value is summed.
 	 *
-	 * This test relies on the hash function used by the {@link DataStream#keyBy}, which is
+	 * <p>This test relies on the hash function used by the {@link DataStream#keyBy}, which is
 	 * assumed to be {@link MathUtils#murmurHash}.
 	 */
 	@Test
@@ -99,7 +109,7 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		final List<Integer> actualResult1 = new ArrayList<>();
 		MemorySinkFunction.registerCollection(0, actualResult1);
 
-		splittedResult.select("0").map(new MapFunction<Tuple2<Integer,Integer>, Integer>() {
+		splittedResult.select("0").map(new MapFunction<Tuple2<Integer, Integer>, Integer>() {
 			private static final long serialVersionUID = 2114608668010092995L;
 
 			@Override
@@ -188,7 +198,7 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		Collection<Integer> expected = new ArrayList<>(10);
 
 		for (int i = 0; i < numElements; i++) {
-			expected.add(42 + i );
+			expected.add(42 + i);
 		}
 
 		env.execute();
@@ -232,11 +242,11 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 			@Override
 			public void asyncInvoke(final Tuple2<Integer, NonSerializable> input,
-									final AsyncCollector<Integer> collector) throws Exception {
+									final ResultFuture<Integer> resultFuture) throws Exception {
 				executorService.submit(new Runnable() {
 					@Override
 					public void run() {
-						collector.collect(Collections.singletonList(input.f0 + input.f0));
+						resultFuture.complete(Collections.singletonList(input.f0 + input.f0));
 					}
 				});
 			}
@@ -270,11 +280,10 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 		unorderedResult.addSink(sinkFunction2);
 
-
 		Collection<Integer> expected = new ArrayList<>(10);
 
 		for (int i = 0; i < numElements; i++) {
-			expected.add(i+i);
+			expected.add(i + i);
 		}
 
 		env.execute();
@@ -305,7 +314,6 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		public NonSerializableTupleSource(int numElements) {
 			this.numElements = numElements;
 		}
-
 
 		@Override
 		public void run(SourceContext<Tuple2<Integer, NonSerializable>> ctx) throws Exception {
@@ -340,7 +348,6 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 		@Override
 
-
 		public void cancel() {
 		}
 	}
@@ -372,5 +379,19 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		public static void clear() {
 			collections.clear();
 		}
+	}
+
+	@Test
+	public void testOperatorChainWithObjectReuseAndNoOutputOperators() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableObjectReuse();
+		DataStream<Integer> input = env.fromElements(1, 2, 3);
+		input.flatMap(new FlatMapFunction<Integer, Integer>() {
+			@Override
+			public void flatMap(Integer value, Collector<Integer> out) throws Exception {
+				out.collect(value << 1);
+			}
+		});
+		env.execute();
 	}
 }

@@ -19,14 +19,16 @@
 package org.apache.flink.runtime.iterative.task;
 
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatch;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatchBroker;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.apache.flink.runtime.iterative.io.WorksetUpdateOutputCollector;
 import org.apache.flink.util.Collector;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,11 +36,11 @@ import java.io.IOException;
 
 /**
  * An intermediate iteration task, which runs a {@link org.apache.flink.runtime.operators.Driver} inside.
- * <p>
- * It will propagate {@link EndOfSuperstepEvent}s and {@link TerminationEvent}s to its connected tasks. Furthermore
+ *
+ * <p>It will propagate {@link EndOfSuperstepEvent}s and {@link TerminationEvent}s to its connected tasks. Furthermore
  * intermediate tasks can also update the iteration state, either the workset or the solution set.
- * <p>
- * If the iteration state is updated, the output of this task will be send back to the {@link IterationHeadTask} via
+ *
+ * <p>If the iteration state is updated, the output of this task will be send back to the {@link IterationHeadTask} via
  * a {@link BlockingBackChannel} for the workset -XOR- a HashTable for the solution set. In this case
  * this task must be scheduled on the same instance as the head.
  */
@@ -47,6 +49,19 @@ public class IterationIntermediateTask<S extends Function, OT> extends AbstractI
 	private static final Logger log = LoggerFactory.getLogger(IterationIntermediateTask.class);
 
 	private WorksetUpdateOutputCollector<OT> worksetUpdateOutputCollector;
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Create an Invokable task and set its environment.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 */
+	public IterationIntermediateTask(Environment environment) {
+		super(environment);
+	}
+
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	protected void initialize() throws Exception {
@@ -64,7 +79,7 @@ public class IterationIntermediateTask<S extends Function, OT> extends AbstractI
 			if (isSolutionSetUpdate) {
 				throw new IllegalStateException("Plan bug: Intermediate task performs workset and solutions set update.");
 			}
-			
+
 			Collector<OT> outputCollector = createWorksetUpdateOutputCollector(delegate);
 
 			// we need the WorksetUpdateOutputCollector separately to count the collected elements
@@ -80,7 +95,7 @@ public class IterationIntermediateTask<S extends Function, OT> extends AbstractI
 
 	@Override
 	public void run() throws Exception {
-		
+
 		SuperstepKickoffLatch nextSuperstepLatch = SuperstepKickoffLatchBroker.instance().get(brokerKey());
 
 		while (this.running && !terminationRequested()) {
@@ -98,19 +113,19 @@ public class IterationIntermediateTask<S extends Function, OT> extends AbstractI
 				long numCollected = worksetUpdateOutputCollector.getElementsCollectedAndReset();
 				worksetAggregator.aggregate(numCollected);
 			}
-			
+
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
 			}
-			
+
 			// let the successors know that the end of this superstep data is reached
 			sendEndOfSuperstep();
-			
+
 			if (isWorksetUpdate) {
 				// notify iteration head if responsible for workset update
 				worksetBackChannel.notifyOfEndOfSuperstep();
 			}
-			
+
 			boolean terminated = nextSuperstepLatch.awaitStartOfSuperstepOrTermination(currentIteration() + 1);
 
 			if (terminated) {

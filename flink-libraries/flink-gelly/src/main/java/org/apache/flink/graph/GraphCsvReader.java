@@ -85,7 +85,6 @@ public class GraphCsvReader {
 				new Path(Preconditions.checkNotNull(edgePath, "The file path may not be null.")), context);
 	}
 
-
 	public <K, VV> GraphCsvReader(String edgePath, final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
 			this(new Path(Preconditions.checkNotNull(edgePath, "The file path may not be null.")), mapper, context);
 	}
@@ -93,7 +92,7 @@ public class GraphCsvReader {
 	/**
 	 * Creates a Graph from CSV input with vertex values and edge values.
 	 * The vertex values are specified through a vertices input file or a user-defined map function.
-	 * 
+	 *
 	 * @param vertexKey the type of the vertex IDs
 	 * @param vertexValue the type of the vertex values
 	 * @param edgeValue the type of the edge values
@@ -159,7 +158,7 @@ public class GraphCsvReader {
 		DataSet<Edge<K, NullValue>> edges = edgeReader
 			.types(vertexKey, vertexKey)
 				.name(GraphCsvReader.class.getName())
-			.map(new Tuple2ToEdgeMap<K>())
+			.map(new Tuple2ToEdgeMap<>())
 				.name("Type conversion");
 
 		return Graph.fromDataSet(edges, executionContext);
@@ -184,7 +183,7 @@ public class GraphCsvReader {
 		DataSet<Edge<K, NullValue>> edges = edgeReader
 			.types(vertexKey, vertexKey)
 				.name(GraphCsvReader.class.getName())
-			.map(new Tuple2ToEdgeMap<K>())
+			.map(new Tuple2ToEdgeMap<>())
 				.name("To Edge");
 
 		// the vertex value can be provided by an input file or a user-defined mapper
@@ -192,7 +191,7 @@ public class GraphCsvReader {
 			DataSet<Vertex<K, VV>> vertices = vertexReader
 				.types(vertexKey, vertexValue)
 					.name(GraphCsvReader.class.getName())
-				.map(new Tuple2ToVertexMap<K, VV>())
+				.map(new Tuple2ToVertexMap<>())
 					.name("Type conversion");
 
 			return Graph.fromDataSet(vertices, edges, executionContext);
@@ -226,7 +225,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader lineDelimiterVertices(String delimiter) {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.lineDelimiter(delimiter);
 		}
 		return this;
@@ -240,7 +239,7 @@ public class GraphCsvReader {
 	 * @return The GraphCsv reader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader fieldDelimiterVertices(String delimiter) {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.fieldDelimiter(delimiter);
 		}
 		return this;
@@ -280,7 +279,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader parseQuotedStringsVertices(char quoteCharacter) {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.parseQuotedStrings(quoteCharacter);
 		}
 		return this;
@@ -295,7 +294,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader ignoreCommentsVertices(String commentPrefix) {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.ignoreComments(commentPrefix);
 		}
 		return this;
@@ -327,7 +326,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader includeFieldsVertices(boolean ... vertexFields) {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.includeFields(vertexFields);
 		}
 		return this;
@@ -364,7 +363,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader includeFieldsVertices(String mask) {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.includeFields(mask);
 		}
 		return this;
@@ -396,8 +395,8 @@ public class GraphCsvReader {
 	 * non-zero bit.
 	 * The parser will skip over all fields where the character at the corresponding bit is zero, and
 	 * include the fields where the corresponding bit is one.
-	 * <p>
-	 * Examples:
+	 *
+	 * <p>Examples:
 	 * <ul>
 	 *   <li>A mask of {@code 0x7} would include the first three fields.</li>
 	 *   <li>A mask of {@code 0x26} (binary {@code 100110} would skip the first fields, include fields
@@ -408,7 +407,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader includeFieldsVertices(long mask) {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.includeFields(mask);
 		}
 		return this;
@@ -422,8 +421,8 @@ public class GraphCsvReader {
 	 * non-zero bit.
 	 * The parser will skip over all fields where the character at the corresponding bit is zero, and
 	 * include the fields where the corresponding bit is one.
-	 * <p>
-	 * Examples:
+	 *
+	 * <p>Examples:
 	 * <ul>
 	 *   <li>A mask of {@code 0x7} would include the first three fields.</li>
 	 *   <li>A mask of {@code 0x26} (binary {@code 100110} would skip the first fields, include fields
@@ -454,7 +453,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader ignoreFirstLineVertices() {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.ignoreFirstLine();
 		}
 		return this;
@@ -478,7 +477,7 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader ignoreInvalidLinesVertices() {
-		if(this.vertexReader != null) {
+		if (this.vertexReader != null) {
 			this.vertexReader.ignoreInvalidLines();
 		}
 		return this;

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.streaming.runtime.util;
 
 import org.apache.flink.configuration.Configuration;
@@ -25,6 +26,11 @@ import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 
+/**
+ * SinkFunction asserting that at least one record was collected.
+ *
+ * @param <T> element type
+ */
 public final class ReceiveCheckNoOpSink<T> extends RichSinkFunction<T> {
 	private List<T> received;
 

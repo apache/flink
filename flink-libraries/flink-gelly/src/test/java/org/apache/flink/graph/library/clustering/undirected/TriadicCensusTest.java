@@ -18,22 +18,24 @@
 
 package org.apache.flink.graph.library.clustering.undirected;
 
-import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.library.clustering.undirected.TriadicCensus.Result;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
+import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-public class TriadicCensusTest
-extends AsmTestBase {
+/**
+ * Tests for {@link TriadicCensus}.
+ */
+public class TriadicCensusTest extends AsmTestBase {
 
 	@Test
-	public void testWithSimpleGraph()
-			throws Exception {
+	public void testWithSimpleGraph() throws Exception {
 		Result expectedResult = new Result(3, 8, 7, 2);
 
 		Result triadCensus = new TriadicCensus<IntValue, NullValue, NullValue>()
@@ -44,10 +46,9 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testWithCompleteGraph()
-			throws Exception {
+	public void testWithCompleteGraph() throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedCount = completeGraphVertexCount * CombinatoricsUtils.binomialCoefficient((int)expectedDegree, 2) / 3;
+		long expectedCount = completeGraphVertexCount * CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2) / 3;
 
 		Result expectedResult = new Result(0, 0, 0, expectedCount);
 
@@ -59,12 +60,22 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testWithEmptyGraph()
-			throws Exception {
+	public void testWithEmptyGraphWithVertices() throws Exception {
 		Result expectedResult = new Result(0, 0, 0, 0);
 
 		Result triadCensus = new TriadicCensus<LongValue, NullValue, NullValue>()
-			.run(emptyGraph)
+			.run(emptyGraphWithVertices)
+			.execute();
+
+		assertEquals(expectedResult, triadCensus);
+	}
+
+	@Test
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		Result expectedResult = new Result(0, 0, 0, 0);
+
+		Result triadCensus = new TriadicCensus<LongValue, NullValue, NullValue>()
+			.run(emptyGraphWithoutVertices)
 			.execute();
 
 		assertEquals(expectedResult, triadCensus);
@@ -81,12 +92,11 @@ extends AsmTestBase {
 		print('{}: {}'.format(key, census[key]))
 	 */
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
+	public void testWithRMatGraph() throws Exception {
 		Result expectedResult = new Result(113_435_893, 7_616_063, 778_295, 75_049);
 
 		Result triadCensus = new TriadicCensus<LongValue, NullValue, NullValue>()
-			.run(undirectedRMatGraph)
+			.run(undirectedRMatGraph(10, 16))
 			.execute();
 
 		assertEquals(expectedResult, triadCensus);

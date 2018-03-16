@@ -28,8 +28,10 @@ import akka.util.Timeout;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobClientMessages.AttachToJobAndWait;
@@ -73,7 +75,7 @@ public class JobClientActorTest extends TestLogger {
 	 */
 	@Test(expected=JobClientActorSubmissionTimeoutException.class)
 	public void testSubmissionTimeout() throws Exception {
-		FiniteDuration jobClientActorTimeout = new FiniteDuration(5, TimeUnit.SECONDS);
+		FiniteDuration jobClientActorTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
 		FiniteDuration timeout = jobClientActorTimeout.$times(2);
 
 		UUID leaderSessionID = UUID.randomUUID();
@@ -83,13 +85,13 @@ public class JobClientActorTest extends TestLogger {
 				PlainActor.class,
 				leaderSessionID));
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
 			jobManager.path().toString(),
 			leaderSessionID
 		);
 
 		Props jobClientActorProps = JobSubmissionClientActor.createActorProps(
-			testingLeaderRetrievalService,
+			settableLeaderRetrievalService,
 			jobClientActorTimeout,
 			false,
 			clientConfig);
@@ -112,7 +114,7 @@ public class JobClientActorTest extends TestLogger {
 	 */
 	@Test(expected=JobClientActorRegistrationTimeoutException.class)
 	public void testRegistrationTimeout() throws Exception {
-		FiniteDuration jobClientActorTimeout = new FiniteDuration(5, TimeUnit.SECONDS);
+		FiniteDuration jobClientActorTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
 		FiniteDuration timeout = jobClientActorTimeout.$times(2);
 
 		UUID leaderSessionID = UUID.randomUUID();
@@ -122,13 +124,13 @@ public class JobClientActorTest extends TestLogger {
 				PlainActor.class,
 				leaderSessionID));
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
 			jobManager.path().toString(),
 			leaderSessionID
 		);
 
 		Props jobClientActorProps = JobAttachmentClientActor.createActorProps(
-			testingLeaderRetrievalService,
+			settableLeaderRetrievalService,
 			jobClientActorTimeout,
 			false);
 
@@ -142,20 +144,22 @@ public class JobClientActorTest extends TestLogger {
 		Await.result(jobExecutionResult, timeout);
 	}
 
-	/** Tests that a {@link org.apache.flink.runtime.client.JobClientActorConnectionTimeoutException}
+	/** Tests that a {@link JobClientActorConnectionTimeoutException}
 	 * is thrown when the JobSubmissionClientActor wants to submit a job but has not connected to a JobManager.
 	 *
 	 * @throws Exception
 	 */
 	@Test(expected=JobClientActorConnectionTimeoutException.class)
 	public void testConnectionTimeoutWithoutJobManagerForSubmission() throws Exception {
-		FiniteDuration jobClientActorTimeout = new FiniteDuration(5, TimeUnit.SECONDS);
+		FiniteDuration jobClientActorTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
 		FiniteDuration timeout = jobClientActorTimeout.$times(2);
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService();
+		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
+			"localhost",
+			HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 		Props jobClientActorProps = JobSubmissionClientActor.createActorProps(
-			testingLeaderRetrievalService,
+			settableLeaderRetrievalService,
 			jobClientActorTimeout,
 			false,
 			clientConfig);
@@ -170,19 +174,21 @@ public class JobClientActorTest extends TestLogger {
 		Await.result(jobExecutionResult, timeout);
 	}
 
-	/** Tests that a {@link org.apache.flink.runtime.client.JobClientActorConnectionTimeoutException}
+	/** Tests that a {@link JobClientActorConnectionTimeoutException}
 	 * is thrown when the JobAttachmentClientActor attach to a job at the JobManager
 	 * but has not connected to a JobManager.
 	 */
 	@Test(expected=JobClientActorConnectionTimeoutException.class)
 	public void testConnectionTimeoutWithoutJobManagerForRegistration() throws Exception {
-		FiniteDuration jobClientActorTimeout = new FiniteDuration(5, TimeUnit.SECONDS);
+		FiniteDuration jobClientActorTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
 		FiniteDuration timeout = jobClientActorTimeout.$times(2);
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService();
+		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
+			"localhost",
+			HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 		Props jobClientActorProps = JobAttachmentClientActor.createActorProps(
-			testingLeaderRetrievalService,
+			settableLeaderRetrievalService,
 			jobClientActorTimeout,
 			false);
 
@@ -203,7 +209,7 @@ public class JobClientActorTest extends TestLogger {
 	 */
 	@Test(expected=JobClientActorConnectionTimeoutException.class)
 	public void testConnectionTimeoutAfterJobSubmission() throws Exception {
-		FiniteDuration jobClientActorTimeout = new FiniteDuration(5, TimeUnit.SECONDS);
+		FiniteDuration jobClientActorTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
 		FiniteDuration timeout = jobClientActorTimeout.$times(2);
 
 		UUID leaderSessionID = UUID.randomUUID();
@@ -213,13 +219,13 @@ public class JobClientActorTest extends TestLogger {
 				JobAcceptingActor.class,
 				leaderSessionID));
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
 			jobManager.path().toString(),
 			leaderSessionID
 		);
 
 		Props jobClientActorProps = JobSubmissionClientActor.createActorProps(
-			testingLeaderRetrievalService,
+			settableLeaderRetrievalService,
 			jobClientActorTimeout,
 			false,
 			clientConfig);
@@ -245,8 +251,8 @@ public class JobClientActorTest extends TestLogger {
 	 */
 	@Test(expected=JobClientActorConnectionTimeoutException.class)
 	public void testConnectionTimeoutAfterJobRegistration() throws Exception {
-		FiniteDuration jobClientActorTimeout = new FiniteDuration(5, TimeUnit.SECONDS);
-		FiniteDuration timeout = jobClientActorTimeout.$times(2);
+		FiniteDuration jobClientActorTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
+		FiniteDuration timeout = jobClientActorTimeout.$times(2L);
 
 		UUID leaderSessionID = UUID.randomUUID();
 
@@ -255,13 +261,13 @@ public class JobClientActorTest extends TestLogger {
 				JobAcceptingActor.class,
 				leaderSessionID));
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
 			jobManager.path().toString(),
 			leaderSessionID
 		);
 
 		Props jobClientActorProps = JobAttachmentClientActor.createActorProps(
-			testingLeaderRetrievalService,
+			settableLeaderRetrievalService,
 			jobClientActorTimeout,
 			false);
 
@@ -287,7 +293,7 @@ public class JobClientActorTest extends TestLogger {
 	 */
 	@Test
 	public void testGuaranteedAnswerIfJobClientDies() throws Exception {
-		FiniteDuration timeout = new FiniteDuration(2, TimeUnit.SECONDS);
+		FiniteDuration timeout = new FiniteDuration(2L, TimeUnit.SECONDS);
 
 			UUID leaderSessionID = UUID.randomUUID();
 
@@ -296,16 +302,19 @@ public class JobClientActorTest extends TestLogger {
 				JobAcceptingActor.class,
 				leaderSessionID));
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
 			jobManager.path().toString(),
 			leaderSessionID
 		);
+
+		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
+		highAvailabilityServices.setJobMasterLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID, settableLeaderRetrievalService);
 
 		JobListeningContext jobListeningContext =
 			JobClient.submitJob(
 				system,
 				clientConfig,
-				testingLeaderRetrievalService,
+				highAvailabilityServices,
 				testJobGraph,
 				timeout,
 				false,
@@ -323,6 +332,8 @@ public class JobClientActorTest extends TestLogger {
 			Assert.fail();
 		} catch (JobExecutionException e) {
 			// this is what we want
+		} finally {
+			highAvailabilityServices.closeAndCleanupAllData();
 		}
 	}
 
@@ -336,6 +347,9 @@ public class JobClientActorTest extends TestLogger {
 
 		@Override
 		protected void handleMessage(Object message) throws Exception {
+			if (message instanceof RequestBlobManagerPort$) {
+				getSender().tell(1337, getSelf());
+			}
 		}
 
 		@Override
@@ -377,7 +391,9 @@ public class JobClientActorTest extends TestLogger {
 					testFuture.tell(Acknowledge.get(), getSelf());
 				}
 			}
-			else if (message instanceof RegisterTest) {
+			else if (message instanceof RequestBlobManagerPort$) {
+				getSender().tell(1337, getSelf());
+			} else if (message instanceof RegisterTest) {
 				testFuture = getSender();
 
 				if (jobAccepted) {

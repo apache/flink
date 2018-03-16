@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,11 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.transformations;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import java.util.Collection;
 import java.util.List;
@@ -27,21 +29,18 @@ import java.util.List;
 /**
  * This represents a feedback point in a topology.
  *
- * <p>
- * This is different from how iterations work in batch processing. Once a feedback point is defined
- * you can connect one or several {@code StreamTransformations} as a feedback edges. Operations
- * downstream from the feedback point will receive elements from the input of this feedback point
- * and from the feedback edges.
+ * <p>This is different from how iterations work in batch processing. Once a feedback point is
+ * defined you can connect one or several {@code StreamTransformations} as a feedback edges.
+ * Operations downstream from the feedback point will receive elements from the input of this
+ * feedback point and from the feedback edges.
  *
- * <p>
- * Both the partitioning of the input and the feedback edges is preserved. They can also have
+ * <p>Both the partitioning of the input and the feedback edges is preserved. They can also have
  * differing partitioning strategies. This requires, however, that the parallelism of the feedback
  * {@code StreamTransformations} must match the parallelism of the input
  * {@code StreamTransformation}.
  *
- * <p>
- * The type of the input {@code StreamTransformation} and the feedback {@code StreamTransformation}
- * must match.
+ * <p>The type of the input {@code StreamTransformation} and the feedback
+ * {@code StreamTransformation} must match.
  *
  * @param <T> The type of the input elements and the feedback elements.
  */
@@ -88,7 +87,8 @@ public class FeedbackTransformation<T> extends StreamTransformation<T> {
 			throw new UnsupportedOperationException(
 					"Parallelism of the feedback stream must match the parallelism of the original" +
 							" stream. Parallelism of original stream: " + this.getParallelism() +
-							"; parallelism of feedback stream: " + transform.getParallelism());
+							"; parallelism of feedback stream: " + transform.getParallelism() +
+							". Parallelism can be modified using DataStream#setParallelism() method");
 		}
 
 		feedbackEdges.add(transform);

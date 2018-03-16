@@ -21,14 +21,20 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 class SpillableSubpartitionView implements ResultSubpartitionView {
 
@@ -38,7 +44,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	private final SpillableSubpartition parent;
 
 	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
-	private final ArrayDeque<Buffer> buffers;
+	private final ArrayDeque<BufferConsumer> buffers;
 
 	/** IO manager if we need to spill (for spilled case). */
 	private final IOManager ioManager;
@@ -62,13 +68,13 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	 * The next buffer to hand out. Everytime this is set to a non-null value,
 	 * a listener notification happens.
 	 */
-	private Buffer nextBuffer;
+	private BufferConsumer nextBuffer;
 
 	private volatile SpilledSubpartitionView spilledView;
 
 	SpillableSubpartitionView(
 		SpillableSubpartition parent,
-		ArrayDeque<Buffer> buffers,
+		ArrayDeque<BufferConsumer> buffers,
 		IOManager ioManager,
 		int memorySegmentSize,
 		BufferAvailabilityListener listener) {
@@ -85,7 +91,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		}
 
 		if (nextBuffer != null) {
-			listener.notifyBuffersAvailable(1);
+			listener.notifyDataAvailable();
 		}
 	}
 
@@ -106,12 +112,14 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 
 				int numBuffers = buffers.size();
 				for (int i = 0; i < numBuffers; i++) {
-					Buffer buffer = buffers.remove();
-					spilledBytes += buffer.getSize();
-					try {
+					try (BufferConsumer bufferConsumer = buffers.remove()) {
+						Buffer buffer = bufferConsumer.build();
+						checkState(bufferConsumer.isFinished(), "BufferConsumer must be finished before " +
+							"spilling. Otherwise we would not be able to simply remove it from the queue. This should " +
+							"be guaranteed by creating ResultSubpartitionView only once Subpartition isFinished.");
+						parent.updateStatistics(buffer);
+						spilledBytes += buffer.getSize();
 						spillWriter.writeBlock(buffer);
-					} finally {
-						buffer.recycle();
 					}
 				}
 
@@ -132,33 +140,54 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		}
 	}
 
+	@Nullable
 	@Override
-	public Buffer getNextBuffer() throws IOException, InterruptedException {
+	public BufferAndBacklog getNextBuffer() throws IOException, InterruptedException {
+		Buffer current = null;
+		boolean nextBufferIsEvent = false;
+		int newBacklog = 0; // this is always correct if current is non-null!
+		boolean isMoreAvailable = false;
+
 		synchronized (buffers) {
 			if (isReleased.get()) {
 				return null;
 			} else if (nextBuffer != null) {
-				Buffer current = nextBuffer;
+				current = nextBuffer.build();
+				checkState(nextBuffer.isFinished(),
+					"We can only read from SpillableSubpartition after it was finished");
+
+				newBacklog = parent.decreaseBuffersInBacklogUnsafe(nextBuffer.isBuffer());
+				nextBuffer.close();
 				nextBuffer = buffers.poll();
 
 				if (nextBuffer != null) {
-					listener.notifyBuffersAvailable(1);
+					nextBufferIsEvent = !nextBuffer.isBuffer();
+					isMoreAvailable = true;
 				}
 
-				return current;
+				parent.updateStatistics(current);
+				// if we are spilled (but still process a non-spilled nextBuffer), we don't know the
+				// state of nextBufferIsEvent or whether more buffers are available
+				if (spilledView == null) {
+					return new BufferAndBacklog(current, isMoreAvailable, newBacklog, nextBufferIsEvent);
+				}
 			}
 		} // else: spilled
 
 		SpilledSubpartitionView spilled = spilledView;
 		if (spilled != null) {
-			return spilled.getNextBuffer();
+			if (current != null) {
+				return new BufferAndBacklog(current, spilled.isAvailable(), newBacklog, spilled.nextBufferIsEvent());
+			} else {
+				return spilled.getNextBuffer();
+			}
 		} else {
 			throw new IllegalStateException("No in-memory buffers available, but also nothing spilled.");
 		}
 	}
 
 	@Override
-	public void notifyBuffersAvailable(long buffers) throws IOException {
+	public void notifyDataAvailable() {
 		// We do the availability listener notification one by one
 	}
 
@@ -168,6 +197,13 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 			SpilledSubpartitionView spilled = spilledView;
 			if (spilled != null) {
 				spilled.releaseAllResources();
+			}
+			// we are never giving this buffer out in getNextBuffer(), so we need to clean it up
+			synchronized (buffers) {
+				if (nextBuffer != null) {
+					nextBuffer.close();
+					nextBuffer = null;
+				}
 			}
 		}
 	}
@@ -190,6 +226,35 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		} else {
 			return parent.isReleased() || isReleased.get();
 		}
+	}
+
+	@Override
+	public boolean nextBufferIsEvent() {
+		synchronized (buffers) {
+			if (isReleased.get()) {
+				return false;
+			} else if (nextBuffer != null) {
+				return !nextBuffer.isBuffer();
+			}
+		} // else: spilled
+
+		checkState(spilledView != null, "No in-memory buffers available, but also nothing spilled.");
+
+		return spilledView.nextBufferIsEvent();
+	}
+
+	@Override
+	public boolean isAvailable() {
+		synchronized (buffers) {
+			if (nextBuffer != null) {
+				return true;
+			}
+			else if (spilledView == null) {
+				return false;
+			}
+		} // else: spilled
+
+		return spilledView.isAvailable();
 	}
 
 	@Override

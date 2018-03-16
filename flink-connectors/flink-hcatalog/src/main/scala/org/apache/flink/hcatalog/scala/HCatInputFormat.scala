@@ -36,7 +36,7 @@ class HCatInputFormat[T](
                         database: String,
                         table: String,
                         config: Configuration
-                          ) extends HCatInputFormatBase[T](database, table, config) {
+                         ) extends HCatInputFormatBase[T](database, table, config) {
 
   def this(database: String, table: String) {
     this(database, table, new Configuration)

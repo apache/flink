@@ -28,7 +28,10 @@ import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.apache.flink.table.functions.utils.{TableSqlFunction, ScalarSqlFunction}
+import org.apache.flink.table.functions.sql.ScalarSqlFunctions
+import org.apache.flink.table.functions.sql.ScalarSqlFunctions._
+import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 
 import scala.collection.mutable
 
@@ -177,6 +180,12 @@ object FunctionGenerator {
     DOUBLE_TYPE_INFO,
     BuiltInMethods.POWER_DEC)
 
+  addSqlFunctionMethod(
+    POWER,
+    Seq(BIG_DEC_TYPE_INFO, BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.POWER_DEC_DEC)
+
   addSqlFunction(
     ABS,
     Seq(DOUBLE_TYPE_INFO),
@@ -207,21 +216,248 @@ object FunctionGenerator {
     Seq(BIG_DEC_TYPE_INFO),
     new FloorCeilCallGen(BuiltInMethod.CEIL.method))
 
+  addSqlFunctionMethod(
+    SIN,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.SIN)
+
+  addSqlFunctionMethod(
+    SIN,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.SIN_DEC)
+
+  addSqlFunctionMethod(
+    COS,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COS)
+
+  addSqlFunctionMethod(
+    COS,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COS_DEC)
+
+  addSqlFunctionMethod(
+    TAN,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.TAN)
+
+  addSqlFunctionMethod(
+    TAN,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.TAN_DEC)
+
+  addSqlFunctionMethod(
+    COT,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COT)
+
+  addSqlFunctionMethod(
+    COT,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COT_DEC)
+
+  addSqlFunctionMethod(
+    ASIN,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ASIN)
+
+  addSqlFunctionMethod(
+    ASIN,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ASIN_DEC)
+
+  addSqlFunctionMethod(
+    ACOS,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ACOS)
+
+  addSqlFunctionMethod(
+    ACOS,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ACOS_DEC)
+
+  addSqlFunctionMethod(
+    ATAN,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ATAN)
+
+  addSqlFunctionMethod(
+    ATAN,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ATAN_DEC)
+
+  addSqlFunctionMethod(
+    DEGREES,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.DEGREES)
+
+  addSqlFunctionMethod(
+    DEGREES,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.DEGREES_DEC)
+
+  addSqlFunctionMethod(
+    RADIANS,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.RADIANS)
+
+  addSqlFunctionMethod(
+    RADIANS,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.RADIANS_DEC)
+
+  addSqlFunctionMethod(
+    SIGN,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.SIGN_DOUBLE)
+
+  addSqlFunctionMethod(
+    SIGN,
+    Seq(INT_TYPE_INFO),
+    INT_TYPE_INFO,
+    BuiltInMethods.SIGN_INT)
+
+  addSqlFunctionMethod(
+    SIGN,
+    Seq(LONG_TYPE_INFO),
+    LONG_TYPE_INFO,
+    BuiltInMethods.SIGN_LONG)
+
+  addSqlFunctionMethod(
+    SIGN,
+    Seq(BIG_DEC_TYPE_INFO),
+    BIG_DEC_TYPE_INFO,
+    BuiltInMethods.SIGN_DEC)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(LONG_TYPE_INFO, INT_TYPE_INFO),
+    LONG_TYPE_INFO,
+    BuiltInMethods.ROUND_LONG)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(INT_TYPE_INFO, INT_TYPE_INFO),
+    INT_TYPE_INFO,
+    BuiltInMethods.ROUND_INT)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(BIG_DEC_TYPE_INFO, INT_TYPE_INFO),
+    BIG_DEC_TYPE_INFO,
+    BuiltInMethods.ROUND_DEC)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(DOUBLE_TYPE_INFO, INT_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ROUND_DOUBLE)
+
+  addSqlFunction(
+    PI,
+    Seq(),
+    new ConstantCallGen(DOUBLE_TYPE_INFO, Math.PI.toString))
+
+  addSqlFunction(
+    E,
+    Seq(),
+    new ConstantCallGen(DOUBLE_TYPE_INFO, Math.E.toString))
+
+  addSqlFunction(
+    RAND,
+    Seq(),
+    new RandCallGen(isRandInteger = false, hasSeed = false))
+
+  addSqlFunction(
+    RAND,
+    Seq(INT_TYPE_INFO),
+    new RandCallGen(isRandInteger = false, hasSeed = true))
+
+  addSqlFunction(
+    RAND_INTEGER,
+    Seq(INT_TYPE_INFO),
+    new RandCallGen(isRandInteger = true, hasSeed = false))
+
+  addSqlFunction(
+    RAND_INTEGER,
+    Seq(INT_TYPE_INFO, INT_TYPE_INFO),
+    new RandCallGen(isRandInteger = true, hasSeed = true))
+
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.LOG,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.LOG)
+
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.LOG,
+    Seq(DOUBLE_TYPE_INFO, DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.LOG_WITH_BASE)
+
+  addSqlFunction(
+    ScalarSqlFunctions.E,
+    Seq(),
+    new ConstantCallGen(DOUBLE_TYPE_INFO, Math.E.toString))
+
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.BIN,
+    Seq(LONG_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.BIN)
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------
 
-  addSqlFunctionMethod(
-    EXTRACT_DATE,
+  addSqlFunction(
+    EXTRACT,
     Seq(new GenericTypeInfo(classOf[TimeUnitRange]), LONG_TYPE_INFO),
-    LONG_TYPE_INFO,
-    BuiltInMethod.UNIX_DATE_EXTRACT.method)
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
-  addSqlFunctionMethod(
-    EXTRACT_DATE,
+  addSqlFunction(
+    EXTRACT,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), TimeIntervalTypeInfo.INTERVAL_MILLIS),
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
+
+  addSqlFunction(
+    EXTRACT,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), SqlTimeTypeInfo.TIMESTAMP),
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
+
+  addSqlFunction(
+    EXTRACT,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), SqlTimeTypeInfo.TIME),
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
+
+  addSqlFunction(
+    EXTRACT,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), TimeIntervalTypeInfo.INTERVAL_MONTHS),
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
+
+  addSqlFunction(
+    EXTRACT,
     Seq(new GenericTypeInfo(classOf[TimeUnitRange]), SqlTimeTypeInfo.DATE),
-    LONG_TYPE_INFO,
-    BuiltInMethod.UNIX_DATE_EXTRACT.method)
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
   addSqlFunction(
     FLOOR,
@@ -290,6 +526,45 @@ object FunctionGenerator {
     Seq(),
     new CurrentTimePointCallGen(SqlTimeTypeInfo.TIMESTAMP, local = true))
 
+  addSqlFunction(
+    ScalarSqlFunctions.DATE_FORMAT,
+    Seq(SqlTimeTypeInfo.TIMESTAMP, STRING_TYPE_INFO),
+    new DateFormatCallGen
+  )
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.LPAD,
+    Seq(STRING_TYPE_INFO, INT_TYPE_INFO, STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.LPAD)
+
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.RPAD,
+    Seq(STRING_TYPE_INFO, INT_TYPE_INFO, STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.RPAD)
+
+  // ----------------------------------------------------------------------------------------------
+  // Cryptographic Hash functions
+  // ----------------------------------------------------------------------------------------------
+
+  addSqlFunction(
+    ScalarSqlFunctions.MD5,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("MD5")
+  )
+
+  addSqlFunction(
+    ScalarSqlFunctions.SHA1,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("SHA-1")
+  )
+
+  addSqlFunction(
+    ScalarSqlFunctions.SHA256,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("SHA-256")
+  )
+
   // ----------------------------------------------------------------------------------------------
 
   /**
@@ -336,6 +611,7 @@ object FunctionGenerator {
           case (x: BasicTypeInfo[_], y: BasicTypeInfo[_]) => y.shouldAutocastTo(x) || x == y
           case _ => false
         }).map(_._2))
+
   }
 
   // ----------------------------------------------------------------------------------------------

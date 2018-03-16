@@ -22,41 +22,45 @@ import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.google.common.io.Files;
-
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.util.StartupUtils;
 import org.apache.flink.util.NetUtils;
-
 import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /**
  * Tests that verify the startup behavior of the JobManager in failure
  * situations, when the JobManager cannot be started.
  */
-public class JobManagerStartupTest {
+public class JobManagerStartupTest extends TestLogger {
 
 	private final static String DOES_NOT_EXISTS_NO_SIR = "does-not-exist-no-sir";
 
 	private File blobStorageDirectory;
 
-	@Before
-	public void before() {
-		
-		// Prepare test directory
-		blobStorageDirectory = Files.createTempDir();
+	@Rule
+	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+	@Before
+	public void before() throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
+
+		// Prepare test directory
+		blobStorageDirectory = temporaryFolder.newFolder();
 
 		assertTrue(blobStorageDirectory.setExecutable(true, false));
 		assertTrue(blobStorageDirectory.setReadable(true, false));
@@ -101,7 +105,7 @@ public class JobManagerStartupTest {
 					throw (BindException) cause;
 				}	
 			}
-			fail("this should throw a BindException");
+			throw e;
 		}
 		finally {
 			try {
@@ -129,7 +133,7 @@ public class JobManagerStartupTest {
 		}
 		Configuration failConfig = new Configuration();
 		String nonExistDirectory = new File(blobStorageDirectory, DOES_NOT_EXISTS_NO_SIR).getAbsolutePath();
-		failConfig.setString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, nonExistDirectory);
+		failConfig.setString(BlobServerOptions.STORAGE_DIRECTORY, nonExistDirectory);
 
 		try {
 			JobManager.runJobManager(failConfig, JobManagerMode.CLUSTER, "localhost", portNum);

@@ -15,9 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.storm.tests.operators;
 
-import java.util.Map;
+package org.apache.flink.storm.tests.operators;
 
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -26,6 +25,11 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 
+import java.util.Map;
+
+/**
+ * A Bolt implementation that forwards all incoming tuples to a single output stream.
+ */
 public class MergerBolt extends BaseRichBolt {
 	private static final long serialVersionUID = -7966475984592762720L;
 

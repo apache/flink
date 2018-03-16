@@ -19,20 +19,26 @@
 package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
+
 import org.junit.Test;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link KvStateLocation}.
+ */
 public class KvStateLocationTest {
 
 	/**
-	 * Simple test registering/unregistereing state and looking it up again.
+	 * Simple test registering/unregistering state and looking it up again.
 	 */
 	@Test
 	public void testRegisterAndLookup() throws Exception {
@@ -47,23 +53,21 @@ public class KvStateLocationTest {
 		int start = 0;
 		for (int i = 0; i < numRanges; ++i) {
 			int end = start + fract - 1;
-			if(remain > 0) {
+			if (remain > 0) {
 				--remain;
 				++end;
 			}
- 			KeyGroupRange range = new KeyGroupRange(start, end);
+			KeyGroupRange range = new KeyGroupRange(start, end);
 			keyGroupRanges.add(range);
 			start = end + 1;
 		}
-
-		System.out.println(keyGroupRanges);
 
 		String registrationName = "asdasdasdasd";
 
 		KvStateLocation location = new KvStateLocation(jobId, jobVertexId, numKeyGroups, registrationName);
 
 		KvStateID[] kvStateIds = new KvStateID[numRanges];
-		KvStateServerAddress[] serverAddresses = new KvStateServerAddress[numRanges];
+		InetSocketAddress[] serverAddresses = new InetSocketAddress[numRanges];
 
 		InetAddress host = InetAddress.getLocalHost();
 
@@ -71,7 +75,7 @@ public class KvStateLocationTest {
 		int registeredCount = 0;
 		for (int rangeIdx = 0; rangeIdx < numRanges; rangeIdx++) {
 			kvStateIds[rangeIdx] = new KvStateID();
-			serverAddresses[rangeIdx] = new KvStateServerAddress(host, 1024 + rangeIdx);
+			serverAddresses[rangeIdx] = new InetSocketAddress(host, 1024 + rangeIdx);
 			KeyGroupRange keyGroupRange = keyGroupRanges.get(rangeIdx);
 			location.registerKvState(keyGroupRange, kvStateIds[rangeIdx], serverAddresses[rangeIdx]);
 			registeredCount += keyGroupRange.getNumberOfKeyGroups();
@@ -81,7 +85,7 @@ public class KvStateLocationTest {
 		// Lookup
 		for (int rangeIdx = 0; rangeIdx < numRanges; rangeIdx++) {
 			KeyGroupRange keyGroupRange = keyGroupRanges.get(rangeIdx);
-			for(int keyGroup = keyGroupRange.getStartKeyGroup(); keyGroup <= keyGroupRange.getEndKeyGroup(); ++keyGroup) {
+			for (int keyGroup = keyGroupRange.getStartKeyGroup(); keyGroup <= keyGroupRange.getEndKeyGroup(); ++keyGroup) {
 				assertEquals(kvStateIds[rangeIdx], location.getKvStateID(keyGroup));
 				assertEquals(serverAddresses[rangeIdx], location.getKvStateServerAddress(keyGroup));
 			}
@@ -90,7 +94,7 @@ public class KvStateLocationTest {
 		// Overwrite
 		for (int rangeIdx = 0; rangeIdx < numRanges; rangeIdx++) {
 			kvStateIds[rangeIdx] = new KvStateID();
-			serverAddresses[rangeIdx] = new KvStateServerAddress(host, 1024 + rangeIdx);
+			serverAddresses[rangeIdx] = new InetSocketAddress(host, 1024 + rangeIdx);
 
 			location.registerKvState(keyGroupRanges.get(rangeIdx), kvStateIds[rangeIdx], serverAddresses[rangeIdx]);
 			assertEquals(registeredCount, location.getNumRegisteredKeyGroups());
@@ -99,7 +103,7 @@ public class KvStateLocationTest {
 		// Lookup
 		for (int rangeIdx = 0; rangeIdx < numRanges; rangeIdx++) {
 			KeyGroupRange keyGroupRange = keyGroupRanges.get(rangeIdx);
-			for(int keyGroup = keyGroupRange.getStartKeyGroup(); keyGroup <= keyGroupRange.getEndKeyGroup(); ++keyGroup) {
+			for (int keyGroup = keyGroupRange.getStartKeyGroup(); keyGroup <= keyGroupRange.getEndKeyGroup(); ++keyGroup) {
 				assertEquals(kvStateIds[rangeIdx], location.getKvStateID(keyGroup));
 				assertEquals(serverAddresses[rangeIdx], location.getKvStateServerAddress(keyGroup));
 			}
@@ -116,7 +120,7 @@ public class KvStateLocationTest {
 		// Lookup
 		for (int rangeIdx = 0; rangeIdx < numRanges; rangeIdx++) {
 			KeyGroupRange keyGroupRange = keyGroupRanges.get(rangeIdx);
-			for(int keyGroup = keyGroupRange.getStartKeyGroup(); keyGroup <= keyGroupRange.getEndKeyGroup(); ++keyGroup) {
+			for (int keyGroup = keyGroupRange.getStartKeyGroup(); keyGroup <= keyGroupRange.getEndKeyGroup(); ++keyGroup) {
 				assertEquals(null, location.getKvStateID(keyGroup));
 				assertEquals(null, location.getKvStateServerAddress(keyGroup));
 			}

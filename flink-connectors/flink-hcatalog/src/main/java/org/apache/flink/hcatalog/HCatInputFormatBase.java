@@ -18,8 +18,8 @@
 
 package org.apache.flink.hcatalog;
 
-import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
+import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -31,6 +31,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.WritableTypeInfo;
 import org.apache.flink.core.io.InputSplitAssigner;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -39,6 +40,8 @@ import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.apache.hadoop.mapreduce.task.JobContextImpl;
+import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.apache.hive.hcatalog.common.HCatException;
 import org.apache.hive.hcatalog.common.HCatUtil;
 import org.apache.hive.hcatalog.data.DefaultHCatRecord;
@@ -57,9 +60,9 @@ import java.util.Map;
  * A InputFormat to read from HCatalog tables.
  * The InputFormat supports projection (selection and order of fields) and partition filters.
  *
- * Data can be returned as {@link org.apache.hive.hcatalog.data.HCatRecord} or Flink-native tuple.
+ * <p>Data can be returned as {@link org.apache.hive.hcatalog.data.HCatRecord} or Flink-native tuple.
  *
- * Note: Flink tuples might only support a limited number of fields (depending on the API).
+ * <p>Note: Flink tuples might only support a limited number of fields (depending on the API).
  *
  * @param <T>
  */
@@ -132,7 +135,7 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 
 		// build output schema
 		ArrayList<HCatFieldSchema> fieldSchemas = new ArrayList<HCatFieldSchema>(fields.length);
-		for(String field : fields) {
+		for (String field : fields) {
 			fieldSchemas.add(this.outputSchema.get(field));
 		}
 		this.outputSchema = new HCatSchema(fieldSchemas);
@@ -164,7 +167,7 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 	 * Specifies that the InputFormat returns Flink tuples instead of
 	 * {@link org.apache.hive.hcatalog.data.HCatRecord}.
 	 *
-	 * Note: Flink tuples might only support a limited number of fields (depending on the API).
+	 * <p>Note: Flink tuples might only support a limited number of fields (depending on the API).
 	 *
 	 * @return This InputFormat.
 	 * @throws org.apache.hive.hcatalog.common.HCatException
@@ -173,8 +176,8 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 
 		// build type information
 		int numFields = outputSchema.getFields().size();
-		if(numFields > this.getMaxFlinkTupleSize()) {
-			throw new IllegalArgumentException("Only up to "+this.getMaxFlinkTupleSize()+
+		if (numFields > this.getMaxFlinkTupleSize()) {
+			throw new IllegalArgumentException("Only up to " + this.getMaxFlinkTupleSize() +
 					" fields can be returned as Flink tuples.");
 		}
 
@@ -225,7 +228,7 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 			case STRUCT:
 				return new GenericTypeInfo(List.class);
 			default:
-				throw new IllegalArgumentException("Unknown data type \""+fieldSchema.getType()+"\" encountered.");
+				throw new IllegalArgumentException("Unknown data type \"" + fieldSchema.getType() + "\" encountered.");
 		}
 	}
 
@@ -268,12 +271,7 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 			throws IOException {
 		configuration.setInt("mapreduce.input.fileinputformat.split.minsize", minNumSplits);
 
-		JobContext jobContext = null;
-		try {
-			jobContext = HadoopUtils.instantiateJobContext(configuration, new JobID());
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+		JobContext jobContext = new JobContextImpl(configuration, new JobID());
 
 		List<InputSplit> splits;
 		try {
@@ -283,7 +281,7 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 		}
 		HadoopInputSplit[] hadoopInputSplits = new HadoopInputSplit[splits.size()];
 
-		for(int i = 0; i < hadoopInputSplits.length; i++){
+		for (int i = 0; i < hadoopInputSplits.length; i++){
 			hadoopInputSplits[i] = new HadoopInputSplit(i, splits.get(i), jobContext);
 		}
 		return hadoopInputSplits;
@@ -296,12 +294,7 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 
 	@Override
 	public void open(HadoopInputSplit split) throws IOException {
-		TaskAttemptContext context = null;
-		try {
-			context = HadoopUtils.instantiateTaskAttemptContext(configuration, new TaskAttemptID());
-		} catch(Exception e) {
-			throw new RuntimeException(e);
-		}
+		TaskAttemptContext context = new TaskAttemptContextImpl(configuration, new TaskAttemptID());
 
 		try {
 			this.recordReader = this.hCatInputFormat
@@ -316,7 +309,7 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 
 	@Override
 	public boolean reachedEnd() throws IOException {
-		if(!this.fetched) {
+		if (!this.fetched) {
 			fetchNext();
 		}
 		return !this.hasNext;
@@ -334,11 +327,11 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 
 	@Override
 	public T nextRecord(T record) throws IOException {
-		if(!this.fetched) {
+		if (!this.fetched) {
 			// first record
 			fetchNext();
 		}
-		if(!this.hasNext) {
+		if (!this.hasNext) {
 			return null;
 		}
 		try {
@@ -347,13 +340,13 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 			HCatRecord v = this.recordReader.getCurrentValue();
 			this.fetched = false;
 
-			if(this.fieldNames.length > 0) {
+			if (this.fieldNames.length > 0) {
 				// return as Flink tuple
 				return this.buildFlinkTuple(record, v);
 
 			} else {
 				// return as HCatRecord
-				return (T)v;
+				return (T) v;
 			}
 
 		} catch (InterruptedException e) {
@@ -374,7 +367,7 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		out.writeInt(this.fieldNames.length);
-		for(String fieldName : this.fieldNames) {
+		for (String fieldName : this.fieldNames) {
 			out.writeUTF(fieldName);
 		}
 		this.configuration.write(out);
@@ -383,19 +376,19 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		this.fieldNames = new String[in.readInt()];
-		for(int i=0; i<this.fieldNames.length; i++) {
+		for (int i = 0; i < this.fieldNames.length; i++) {
 			this.fieldNames[i] = in.readUTF();
 		}
 
 		Configuration configuration = new Configuration();
 		configuration.readFields(in);
 
-		if(this.configuration == null) {
+		if (this.configuration == null) {
 			this.configuration = configuration;
 		}
 
 		this.hCatInputFormat = new org.apache.hive.hcatalog.mapreduce.HCatInputFormat();
-		this.outputSchema = (HCatSchema)HCatUtil.deserialize(this.configuration.get("mapreduce.lib.hcat.output.schema"));
+		this.outputSchema = (HCatSchema) HCatUtil.deserialize(this.configuration.get("mapreduce.lib.hcat.output.schema"));
 	}
 
 	// --------------------------------------------------------------------------------------------

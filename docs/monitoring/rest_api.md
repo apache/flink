@@ -1,5 +1,5 @@
 ---
-title:  "Monitoring REST API"
+title: "Monitoring REST API"
 nav-parent_id: monitoring
 nav-pos: 10
 ---
@@ -55,9 +55,7 @@ Values in angle brackets are variables, for example `http://hostname:8081/jobs/<
 
   - `/config`
   - `/overview`
-  - `/jobs`
-  - `/joboverview/running`
-  - `/joboverview/completed`
+  - `/jobs/overview`
   - `/jobs/<jobid>`
   - `/jobs/<jobid>/vertices`
   - `/jobs/<jobid>/config`
@@ -117,31 +115,15 @@ Sample Result:
 
 ### Overview of Jobs
 
-**`/jobs`**
+**`/jobs/overview`**
 
-IDs of the jobs, grouped by status *running*, *finished*, *failed*, *canceled*.
-
-Sample Result:
-
-~~~
-{
-  "jobs-running": [],
-  "jobs-finished": ["7684be6004e4e955c2a558a9bc463f65","49306f94d0920216b636e8dd503a6409"],
-  "jobs-cancelled":[],
-  "jobs-failed":[]
-}
-~~~
-
-**`/joboverview`**
-
-Jobs, groupes by status, each with a small summary of its status.
+Jobs, grouped by status, each with a small summary of its status.
 
 Sample Result:
 
 ~~~
 {
-  "running":[],
-  "finished":[
+  "jobs":[
     {
       "jid": "7684be6004e4e955c2a558a9bc463f65",
       "name": "Flink Java Job at Wed Sep 16 18:08:21 CEST 2015",
@@ -167,15 +149,6 @@ Sample Result:
     }]
 }
 ~~~
-
-**`/joboverview/running`**
-
-Jobs, grouped by status, each with a small summary of its status. The same as `/joboverview`, but containing only currently running jobs.
-
-**`/joboverview/completed`**
-
-Jobs, grouped by status, each with a small summary of its status. The same as `/joboverview`, but containing only completed (finished, canceled, or failed) jobs.
-
 
 ### Details of a Running or Completed Job
 
@@ -660,6 +633,19 @@ The `savepointPath` points to the external path of the savepoint, which can be u
 
 It is possible to upload, run, and list Flink programs via the REST APIs and web frontend.
 
+#### Upload a new JAR file
+
+Send a `POST` request to `/jars/upload` with your jar file sent as multi-part data under the `jarfile` file.
+Also make sure that the multi-part data includes the `Content-Type` of the file itself, some http libraries do not add the header by default.
+
+The multi-part payload should start like
+
+```
+------BoundaryXXXX
+Content-Disposition: form-data; name="jarfile"; filename="YourFileName.jar"
+Content-Type: application/x-java-archive
+```
+
 #### Run a Program (POST)
 
 Send a `POST` request to `/jars/:jarid/run`. The `jarid` parameter is the file name of the program JAR in the configured web frontend upload directory (configuration key `jobmanager.web.upload.dir`).
@@ -677,12 +663,23 @@ If the call succeeds, you will get a response with the ID of the submitted job.
 **Example:** Run program with a savepoint
 
 Request:
+
 ~~~
 POST: /jars/MyProgram.jar/run?savepointPath=/my-savepoints/savepoint-1bae02a80464&allowNonRestoredState=true
 ~~~
 
 Response:
+
 ~~~
 {"jobid": "869a9868d49c679e7355700e0857af85"}
 ~~~
 
+## FLIP-6
+
+The following is the REST API documentation for FLIP-6.
+
+### Dispatcher
+
+{% include generated/rest_dispatcher.html %}
+
+{% top %}

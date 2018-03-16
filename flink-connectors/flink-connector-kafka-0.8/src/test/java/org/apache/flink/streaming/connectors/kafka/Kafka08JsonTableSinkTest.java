@@ -15,34 +15,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.formats.json.JsonRowSerializationSchema;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.types.Row;
-import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
-import org.apache.flink.streaming.util.serialization.JsonRowSerializationSchema;
-import org.apache.flink.streaming.util.serialization.SerializationSchema;
 
 import java.util.Properties;
 
+/**
+ * Tests for the {@link Kafka08JsonTableSink}.
+ */
 public class Kafka08JsonTableSinkTest extends KafkaTableSinkTestBase {
 
 	@Override
-	protected KafkaTableSink createTableSink(String topic, Properties properties, KafkaPartitioner<Row> partitioner,
-			final FlinkKafkaProducerBase<Row> kafkaProducer) {
+	protected KafkaTableSink createTableSink(
+			String topic,
+			Properties properties,
+			FlinkKafkaPartitioner<Row> partitioner) {
 
-		return new Kafka08JsonTableSink(topic, properties, partitioner) {
-			@Override
-			protected FlinkKafkaProducerBase<Row> createKafkaProducer(String topic, Properties properties,
-					SerializationSchema<Row> serializationSchema, KafkaPartitioner<Row> partitioner) {
-				return kafkaProducer;
-			}
-		};
+		return new Kafka08JsonTableSink(topic, properties, partitioner);
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	protected SerializationSchema<Row> getSerializationSchema() {
-		return new JsonRowSerializationSchema(FIELD_NAMES);
+	protected Class<? extends SerializationSchema<Row>> getSerializationSchemaClass() {
+		return JsonRowSerializationSchema.class;
+	}
+
+	@Override
+	protected Class<? extends FlinkKafkaProducerBase> getProducerClass() {
+		return FlinkKafkaProducer08.class;
 	}
 }
 

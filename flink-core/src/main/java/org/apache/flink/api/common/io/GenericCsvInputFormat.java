@@ -106,6 +106,11 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		super(filePath, null);
 	}
 
+	@Override
+	public boolean supportsMultiPaths() {
+		return true;
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	public int getNumberOfFieldsTotal() {
@@ -336,13 +341,13 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	public void close() throws IOException {
 		if (this.invalidLineCount > 0) {
 			if (LOG.isWarnEnabled()) {
-				LOG.warn("In file \""+ this.filePath + "\" (split start: " + this.splitStart + ") " + this.invalidLineCount +" invalid line(s) were skipped.");
+				LOG.warn("In file \"" + currentSplit.getPath() + "\" (split start: " + this.splitStart + ") " + this.invalidLineCount +" invalid line(s) were skipped.");
 			}
 		}
 
 		if (this.commentCount > 0) {
 			if (LOG.isInfoEnabled()) {
-				LOG.info("In file \""+ this.filePath + "\" (split start: " + this.splitStart + ") " + this.commentCount +" comment line(s) were skipped.");
+				LOG.info("In file \"" + currentSplit.getPath() + "\" (split start: " + this.splitStart + ") " + this.commentCount +" comment line(s) were skipped.");
 			}
 		}
 		super.close();
@@ -358,14 +363,14 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		for (int field = 0, output = 0; field < fieldIncluded.length; field++) {
 			
 			// check valid start position
-			if (startPos >= limit) {
+			if (startPos > limit || (startPos == limit && field != fieldIncluded.length - 1)) {
 				if (lenient) {
 					return false;
 				} else {
-					throw new ParseException("Row too short: " + new String(bytes, offset, numBytes));
+					throw new ParseException("Row too short: " + new String(bytes, offset, numBytes, getCharset()));
 				}
 			}
-			
+
 			if (fieldIncluded[field]) {
 				// parse field
 				@SuppressWarnings("unchecked")
@@ -373,18 +378,29 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				Object reuse = holders[output];
 				startPos = parser.resetErrorStateAndParse(bytes, startPos, limit, this.fieldDelim, reuse);
 				holders[output] = parser.getLastResult();
-				
+
 				// check parse result
 				if (startPos < 0) {
 					// no good
 					if (lenient) {
 						return false;
 					} else {
-						String lineAsString = new String(bytes, offset, numBytes);
+						String lineAsString = new String(bytes, offset, numBytes, getCharset());
 						throw new ParseException("Line could not be parsed: '" + lineAsString + "'\n"
 								+ "ParserError " + parser.getErrorState() + " \n"
 								+ "Expect field types: "+fieldTypesToString() + " \n"
-								+ "in file: " + filePath);
+								+ "in file: " + currentSplit.getPath());
+					}
+				}
+				else if (startPos == limit
+						&& field != fieldIncluded.length - 1
+						&& !FieldParser.endsWithDelimiter(bytes, startPos - 1, fieldDelim)) {
+					// We are at the end of the record, but not all fields have been read
+					// and the end is not a field delimiter indicating an empty last field.
+					if (lenient) {
+						return false;
+					} else {
+						throw new ParseException("Row too short: " + new String(bytes, offset, numBytes));
 					}
 				}
 				output++;
@@ -394,10 +410,23 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				startPos = skipFields(bytes, startPos, limit, this.fieldDelim);
 				if (startPos < 0) {
 					if (!lenient) {
-						String lineAsString = new String(bytes, offset, numBytes);
+						String lineAsString = new String(bytes, offset, numBytes, getCharset());
 						throw new ParseException("Line could not be parsed: '" + lineAsString+"'\n"
 								+ "Expect field types: "+fieldTypesToString()+" \n"
-								+ "in file: "+filePath);
+								+ "in file: " + currentSplit.getPath());
+					} else {
+						return false;
+					}
+				}
+				else if (startPos == limit
+						&& field != fieldIncluded.length - 1
+						&& !FieldParser.endsWithDelimiter(bytes, startPos - 1, fieldDelim)) {
+					// We are at the end of the record, but not all fields have been read
+					// and the end is not a field delimiter indicating an empty last field.
+					if (lenient) {
+						return false;
+					} else {
+						throw new ParseException("Row too short: " + new String(bytes, offset, numBytes));
 					}
 				}
 			}

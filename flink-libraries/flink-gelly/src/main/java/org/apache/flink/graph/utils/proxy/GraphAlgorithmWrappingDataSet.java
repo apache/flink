@@ -18,12 +18,13 @@
 
 package org.apache.flink.graph.utils.proxy;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.NoOpOperator;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
+
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,21 +33,18 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A {@link GraphAlgorithm} transforms an input {@link Graph} into an output of
- * type {@code T}. A {@code GraphAlgorithmWrappingDataSet} wraps the resultant
- * {@link DataSet} with a {@code NoOpOperator}. The input to the wrapped
- * operator can be replaced when the same algorithm is run on the same input
- * with a mergeable configuration. This allows algorithms to be composed of
- * implicitly reusable algorithms without publicly sharing intermediate
- * {@link DataSet}s.
+ * Base class for a mergeable {@link GraphAlgorithm} which wraps and returns a
+ * result {@link DataSet}.
  *
  * @param <K> ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type
- * @param <T> output type
+ * @param <T> output DataSet type
+ *
+ * @see GraphAlgorithmWrappingBase
  */
 public abstract class GraphAlgorithmWrappingDataSet<K, VV, EV, T>
-implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
+extends GraphAlgorithmWrappingBase<K, VV, EV, DataSet<T>> {
 
 	// each algorithm and input pair may map to multiple configurations
 	private static Map<GraphAlgorithmWrappingDataSet, List<GraphAlgorithmWrappingDataSet>> cache =
@@ -55,24 +53,6 @@ implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 	private Graph<K, VV, EV> input;
 
 	private NoOpOperator<T> wrappingOperator;
-
-	/**
-	 * Algorithms are identified by name rather than by class to allow subclassing.
-	 *
-	 * @return name of the algorithm, which may be shared by multiple classes
-	 *		 implementing the same algorithm and generating the same output
-	 */
-	protected abstract String getAlgorithmName();
-
-	/**
-	 * An algorithm must first test whether the configurations can be merged
-	 * before merging individual fields.
-	 *
-	 * @param other the algorithm with which to compare and merge
-	 * @return true if and only if configuration has been merged and the
-	 *          algorithm's output can be reused
-	 */
-	protected abstract boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other);
 
 	/**
 	 * The implementation of the algorithm, renamed from {@link GraphAlgorithm#run(Graph)}.
@@ -101,7 +81,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 			return true;
 		}
 
-		if (! GraphAlgorithmWrappingDataSet.class.isAssignableFrom(obj.getClass())) {
+		if (!GraphAlgorithmWrappingDataSet.class.isAssignableFrom(obj.getClass())) {
 			return false;
 		}
 
@@ -121,7 +101,9 @@ implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 
 		if (cache.containsKey(this)) {
 			for (GraphAlgorithmWrappingDataSet<K, VV, EV, T> other : cache.get(this)) {
-				if (mergeConfiguration(other)) {
+				if (canMergeConfigurationWith(other)) {
+					mergeConfiguration(other);
+
 					// configuration has been merged so generate new output
 					DataSet<T> output = runInternal(input);
 

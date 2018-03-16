@@ -32,8 +32,8 @@ import java.util.Map;
  * Implements the word counter that counts the occurrence of each unique word. The bolt takes a pair (input tuple
  * schema: {@code <String,Integer>}) and sums the given word count for each unique word (output tuple schema:
  * {@code <String,Integer>} ).
- * <p>
- * Same as {@link BoltCounterByName}, but accesses input attribute by index (instead of name).
+ *
+ * <p>Same as {@link BoltCounterByName}, but accesses input attribute by index (instead of name).
  */
 public class BoltCounter implements IRichBolt {
 	private static final long serialVersionUID = 399619605462625934L;

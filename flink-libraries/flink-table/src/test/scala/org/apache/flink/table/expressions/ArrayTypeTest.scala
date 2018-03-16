@@ -20,80 +20,12 @@ package org.apache.flink.table.expressions
 
 import java.sql.Date
 
-import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.types.Row
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.ExpressionTestBase
-import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.expressions.utils.ArrayTypeTestBase
 import org.junit.Test
 
-class ArrayTypeTest extends ExpressionTestBase {
-
-  @Test(expected = classOf[ValidationException])
-  def testObviousInvalidIndexTableApi(): Unit = {
-    testTableApi('f2.at(0), "FAIL", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testEmptyArraySql(): Unit = {
-    testSqlApi("ARRAY[]", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testEmptyArrayTableApi(): Unit = {
-    testTableApi("FAIL", "array()", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testNullArraySql(): Unit = {
-    testSqlApi("ARRAY[NULL]", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testDifferentTypesArraySql(): Unit = {
-    testSqlApi("ARRAY[1, TRUE]", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testDifferentTypesArrayTableApi(): Unit = {
-    testTableApi("FAIL", "array(1, true)", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testUnsupportedComparison(): Unit = {
-    testAllApis(
-      'f2 <= 'f5.at(1),
-      "f2 <= f5.at(1)",
-      "f2 <= f5[1]",
-      "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testElementNonArray(): Unit = {
-    testTableApi(
-      'f0.element(),
-      "FAIL",
-      "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testElementNonArraySql(): Unit = {
-    testSqlApi(
-      "ELEMENT(f0)",
-      "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testCardinalityOnNonArray(): Unit = {
-    testTableApi('f0.cardinality(), "FAIL", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testCardinalityOnNonArraySql(): Unit = {
-    testSqlApi("CARDINALITY(f0)", "FAIL")
-  }
+class ArrayTypeTest extends ArrayTypeTestBase {
 
   @Test
   def testArrayLiterals(): Unit = {
@@ -167,6 +99,9 @@ class ArrayTypeTest extends ExpressionTestBase {
       "Array(Array(1, 2, 3), Array(3, 2, 1))",
       "ARRAY[ARRAY[1, 2, 3], ARRAY[3, 2, 1]]",
       "[[1, 2, 3], [3, 2, 1]]")
+
+    // implicit type cast only works on SQL APIs.
+    testSqlApi("ARRAY[CAST(1 AS DOUBLE), CAST(2 AS FLOAT)]", "[1.0, 2.0]")
   }
 
   @Test
@@ -248,6 +183,12 @@ class ArrayTypeTest extends ExpressionTestBase {
       "f4.at(2).at(2)",
       "f4[2][2]",
       "null")
+
+    testAllApis(
+      'f11.at(1),
+      "f11.at(1)",
+      "f11[1]",
+      "1")
   }
 
   @Test
@@ -264,6 +205,12 @@ class ArrayTypeTest extends ExpressionTestBase {
       "f4.cardinality()",
       "CARDINALITY(f4)",
       "null")
+
+    testAllApis(
+      'f11.cardinality(),
+      "f11.cardinality()",
+      "CARDINALITY(f11)",
+      "1")
 
     // element
     testAllApis(
@@ -289,6 +236,12 @@ class ArrayTypeTest extends ExpressionTestBase {
       "f4.element()",
       "ELEMENT(f4)",
       "null")
+
+    testAllApis(
+      'f11.element(),
+      "f11.element()",
+      "ELEMENT(f11)",
+      "1")
 
     // comparison
     testAllApis(
@@ -320,41 +273,38 @@ class ArrayTypeTest extends ExpressionTestBase {
       "f2 !== f7",
       "f2 <> f7",
       "true")
+
+    testAllApis(
+      'f11 === 'f11,
+      "f11 === f11",
+      "f11 = f11",
+      "true")
+
+    testAllApis(
+      'f11 === 'f9,
+      "f11 === f9",
+      "f11 = f9",
+      "true")
+
+    testAllApis(
+      'f11 !== 'f11,
+      "f11 !== f11",
+      "f11 <> f11",
+      "false")
+
+    testAllApis(
+      'f11 !== 'f9,
+      "f11 !== f9",
+      "f11 <> f9",
+      "false")
   }
 
-  // ----------------------------------------------------------------------------------------------
-
-  case class MyCaseClass(string: String, int: Int)
-
-  override def testData: Any = {
-    val testData = new Row(11)
-    testData.setField(0, null)
-    testData.setField(1, 42)
-    testData.setField(2, Array(1, 2, 3))
-    testData.setField(3, Array(Date.valueOf("1984-03-12"), Date.valueOf("1984-02-10")))
-    testData.setField(4, null)
-    testData.setField(5, Array(Array(1, 2, 3), null))
-    testData.setField(6, Array[Integer](1, null, null, 4))
-    testData.setField(7, Array(1, 2, 3, 4))
-    testData.setField(8, Array(4.0))
-    testData.setField(9, Array[Integer](1))
-    testData.setField(10, Array[Integer]())
-    testData
-  }
-
-  override def typeInfo: TypeInformation[Any] = {
-    new RowTypeInfo(
-      Types.INT,
-      Types.INT,
-      PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
-      ObjectArrayTypeInfo.getInfoFor(Types.DATE),
-      ObjectArrayTypeInfo.getInfoFor(ObjectArrayTypeInfo.getInfoFor(Types.INT)),
-      ObjectArrayTypeInfo.getInfoFor(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO),
-      ObjectArrayTypeInfo.getInfoFor(Types.INT),
-      PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
-      PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
-      ObjectArrayTypeInfo.getInfoFor(Types.INT),
-      ObjectArrayTypeInfo.getInfoFor(Types.INT)
-    ).asInstanceOf[TypeInformation[Any]]
+  @Test
+  def testArrayTypeCasting(): Unit = {
+    testTableApi(
+      'f3.cast(Types.OBJECT_ARRAY(Types.SQL_DATE)),
+      "f3.cast(OBJECT_ARRAY(SQL_DATE))",
+      "[1984-03-12, 1984-02-10]"
+    )
   }
 }

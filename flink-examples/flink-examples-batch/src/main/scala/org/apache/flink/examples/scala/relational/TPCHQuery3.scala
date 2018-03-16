@@ -18,10 +18,9 @@
 
 package org.apache.flink.examples.scala.relational
 
+import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
-
-import org.apache.flink.api.java.aggregation.Aggregations
 
 /**
  * This program implements a modified version of the TPC-H query 3. The
@@ -103,7 +102,7 @@ object TPCHQuery3 {
       getCustomerDataSet(env, params.get("customer")).
         filter( c => c.mktSegment.equals("AUTOMOBILE"))
     // read orders
-    val orders = getOrdersDataSet(env, params.get("order"))
+    val orders = getOrdersDataSet(env, params.get("orders"))
 
                       // filter orders by order date
     val items = orders.filter( o => dateFormat.parse(o.orderDate).before(date) )

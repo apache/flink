@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.SubtaskState;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
@@ -42,11 +42,12 @@ public class ActorGatewayCheckpointResponder implements CheckpointResponder {
 	public void acknowledgeCheckpoint(
 			JobID jobID,
 			ExecutionAttemptID executionAttemptID,
-			CheckpointMetaData checkpointMetaData,
-			SubtaskState checkpointStateHandles) {
+			long checkpointId,
+			CheckpointMetrics checkpointMetrics,
+			TaskStateSnapshot checkpointStateHandles) {
 
 		AcknowledgeCheckpoint message = new AcknowledgeCheckpoint(
-				jobID, executionAttemptID, checkpointMetaData,
+				jobID, executionAttemptID, checkpointId, checkpointMetrics,
 				checkpointStateHandles);
 
 		actorGateway.tell(message);

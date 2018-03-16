@@ -18,11 +18,12 @@
 
 package org.apache.flink.runtime.testutils;
 
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -64,7 +65,7 @@ public class ZooKeeperTestUtils {
 		checkNotNull(fsStateHandlePath, "File state handle backend path");
 
 		// Web frontend, you have been dismissed. Sorry.
-		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1);
+		config.setInteger(WebOptions.PORT, -1);
 
 		// ZooKeeper recovery mode
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
@@ -80,15 +81,15 @@ public class ZooKeeperTestUtils {
 		config.setInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, connTimeout);
 
 		// File system state backend
-		config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
-		config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY, fsStateHandlePath + "/checkpoints");
+		config.setString(CheckpointingOptions.STATE_BACKEND, "FILESYSTEM");
+		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, fsStateHandlePath + "/checkpoints");
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, fsStateHandlePath + "/recovery");
 
 		// Akka failure detection and execution retries
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms");
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "6 s");
-		config.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 9);
-		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
+		config.setString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL, "1000 ms");
+		config.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, "6 s");
+		config.setInteger(AkkaOptions.WATCH_THRESHOLD, 9);
+		config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
 		config.setString(HighAvailabilityOptions.HA_JOB_DELAY, "10 s");
 
 		return config;

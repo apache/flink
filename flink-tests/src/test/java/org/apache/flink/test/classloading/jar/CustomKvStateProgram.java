@@ -37,21 +37,18 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * A streaming program with a custom reducing KvState.
  *
- * <p>This is used to test proper usage of the user code class laoder when
+ * <p>This is used to test proper usage of the user code class loader when
  * disposing savepoints.
  */
 public class CustomKvStateProgram {
 
 	public static void main(String[] args) throws Exception {
-		final String jarFile = args[0];
-		final String host = args[1];
-		final int port = Integer.parseInt(args[2]);
-		final int parallelism = Integer.parseInt(args[3]);
-		final String checkpointPath = args[4];
-		final int checkpointingInterval = Integer.parseInt(args[5]);
-		final String outputPath = args[6];
+		final int parallelism = Integer.parseInt(args[0]);
+		final String checkpointPath = args[1];
+		final int checkpointingInterval = Integer.parseInt(args[2]);
+		final String outputPath = args[3];
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.getConfig().disableSysoutLogging();
 		env.enableCheckpointing(checkpointingInterval);
@@ -67,7 +64,7 @@ public class CustomKvStateProgram {
 						return new Tuple2<>(ThreadLocalRandom.current().nextInt(parallelism), value);
 					}
 				})
-				.keyBy(new KeySelector<Tuple2<Integer,Integer>, Integer>() {
+				.keyBy(new KeySelector<Tuple2<Integer, Integer>, Integer>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
@@ -114,7 +111,6 @@ public class CustomKvStateProgram {
 
 			this.kvState = getRuntimeContext().getReducingState(stateDescriptor);
 		}
-
 
 		@Override
 		public void flatMap(Tuple2<Integer, Integer> value, Collector<Integer> out) throws Exception {

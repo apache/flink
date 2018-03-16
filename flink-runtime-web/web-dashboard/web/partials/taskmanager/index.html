@@ -32,7 +32,7 @@ limitations under the License.
         <th>Free Slots</th>
         <th>CPU Cores</th>
         <th>Physical Memory</th>
-        <th>Free Memory</th>
+        <th>JVM Heap Size</th>
         <th>Flink Managed Memory</th>
       </tr>
     </thead>
@@ -47,10 +47,10 @@ limitations under the License.
         <td>{{ manager.timeSinceLastHeartbeat | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</td>
         <td>{{ manager.slotsNumber }}</td>
         <td>{{ manager.freeSlots }}</td>
-        <td>{{ manager.cpuCores }}</td>
-        <td title="{{manager.physicalMemory}} bytes">{{ manager.physicalMemory | humanizeBytes }}</td>
-        <td title="{{manager.freeMemory}} bytes">{{ manager.freeMemory | humanizeBytes }}</td>
-        <td title="{{manager.managedMemory}} bytes">{{ manager.managedMemory | humanizeBytes }}</td>
+        <td>{{ manager.hardware.cpuCores }}</td>
+        <td title="{{manager.hardware.physicalMemory}} bytes">{{ manager.hardware.physicalMemory | humanizeBytes }}</td>
+        <td title="{{manager.hardware.freeMemory}} bytes">{{ manager.hardware.freeMemory | humanizeBytes }}</td>
+        <td title="{{manager.hardware.managedMemory}} bytes">{{ manager.hardware.managedMemory | humanizeBytes }}</td>
       </tr>
     </tbody>
   </table>

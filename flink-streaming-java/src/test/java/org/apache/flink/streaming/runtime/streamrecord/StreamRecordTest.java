@@ -20,20 +20,27 @@ package org.apache.flink.streaming.runtime.streamrecord;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link StreamRecord}.
+ */
 public class StreamRecordTest {
-	
+
 	@Test
 	public void testWithNoTimestamp() {
 		StreamRecord<String> record = new StreamRecord<>("test");
-		
+
 		assertTrue(record.isRecord());
 		assertFalse(record.isWatermark());
-		
+
 		assertFalse(record.hasTimestamp());
 		assertEquals("test", record.getValue());
-		
+
 //		try {
 //			record.getTimestamp();
 //			fail("should throw an exception");
@@ -42,13 +49,13 @@ public class StreamRecordTest {
 //		}
 		// for now, the "no timestamp case" returns Long.MIN_VALUE
 		assertEquals(Long.MIN_VALUE, record.getTimestamp());
-		
+
 		assertNotNull(record.toString());
 		assertTrue(record.hashCode() == new StreamRecord<>("test").hashCode());
 		assertTrue(record.equals(new StreamRecord<>("test")));
-		
+
 		assertEquals(record, record.asRecord());
-		
+
 		try {
 			record.asWatermark();
 			fail("should throw an exception");
@@ -66,11 +73,11 @@ public class StreamRecordTest {
 
 		assertTrue(record.hasTimestamp());
 		assertEquals(42L, record.getTimestamp());
-		
+
 		assertEquals("foo", record.getValue());
-		
+
 		assertNotNull(record.toString());
-		
+
 		assertTrue(record.hashCode() == new StreamRecord<>("foo", 42).hashCode());
 		assertTrue(record.hashCode() != new StreamRecord<>("foo").hashCode());
 
@@ -95,7 +102,7 @@ public class StreamRecordTest {
 		assertEquals(Long.MIN_VALUE, new StreamRecord<>("test", Long.MIN_VALUE).getTimestamp());
 		assertEquals(Long.MAX_VALUE, new StreamRecord<>("test", Long.MAX_VALUE).getTimestamp());
 	}
-	
+
 	@Test
 	public void testReplacePreservesTimestamp() {
 		StreamRecord<String> recNoTimestamp = new StreamRecord<>("o sole mio");
@@ -104,7 +111,7 @@ public class StreamRecordTest {
 
 		StreamRecord<String> recWithTimestamp = new StreamRecord<>("la dolce vita", 99);
 		StreamRecord<Integer> newRecWithTimestamp = recWithTimestamp.replace(17);
-		
+
 		assertTrue(newRecWithTimestamp.hasTimestamp());
 		assertEquals(99L, newRecWithTimestamp.getTimestamp());
 	}
@@ -113,12 +120,12 @@ public class StreamRecordTest {
 	public void testReplaceWithTimestampOverridesTimestamp() {
 		StreamRecord<String> record = new StreamRecord<>("la divina comedia");
 		assertFalse(record.hasTimestamp());
-		
+
 		StreamRecord<Double> newRecord = record.replace(3.14, 123);
 		assertTrue(newRecord.hasTimestamp());
 		assertEquals(123L, newRecord.getTimestamp());
 	}
-	
+
 	@Test
 	public void testCopy() {
 		StreamRecord<String> recNoTimestamp = new StreamRecord<String>("test");
@@ -142,16 +149,16 @@ public class StreamRecordTest {
 		recWithTimestamp.copyTo("test", recWithTimestampCopy);
 		assertEquals(recWithTimestamp, recWithTimestampCopy);
 	}
-	
+
 	@Test
 	public void testSetAndEraseTimestamps() {
 		StreamRecord<String> rec = new StreamRecord<String>("hello");
 		assertFalse(rec.hasTimestamp());
-		
+
 		rec.setTimestamp(13456L);
 		assertTrue(rec.hasTimestamp());
 		assertEquals(13456L, rec.getTimestamp());
-		
+
 		rec.eraseTimestamp();
 		assertFalse(rec.hasTimestamp());
 	}

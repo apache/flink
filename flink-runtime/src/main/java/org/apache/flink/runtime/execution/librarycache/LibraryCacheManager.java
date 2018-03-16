@@ -18,16 +18,16 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
-import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
 
 public interface LibraryCacheManager {
+
 	/**
 	 * Returns the user code class loader associated with id.
 	 *
@@ -37,54 +37,63 @@ public interface LibraryCacheManager {
 	ClassLoader getClassLoader(JobID id);
 
 	/**
-	 * Returns a file handle to the file identified by the blob key.
-	 *
-	 * @param blobKey identifying the requested file
-	 * @return File handle
-	 * @throws IOException
-	 */
-	File getFile(BlobKey blobKey) throws IOException;
-
-	/**
-	 * Registers a job with its required jar files and classpaths. The jar files are identified by their blob keys.
+	 * Registers a job with its required jar files and classpaths. The jar files are identified by
+	 * their blob keys and downloaded for use by a {@link ClassLoader}.
 	 *
 	 * @param id job ID
 	 * @param requiredJarFiles collection of blob keys identifying the required jar files
 	 * @param requiredClasspaths collection of classpaths that are added to the user code class loader
-	 * @throws IOException
+	 *
+	 * @throws IOException if any error occurs when retrieving the required jar files
+	 *
+	 * @see #unregisterJob(JobID) counterpart of this method
 	 */
-	void registerJob(JobID id, Collection<BlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
-			throws IOException;
-	
+	void registerJob(JobID id, Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
+		throws IOException;
+
 	/**
-	 * Registers a job task execution with its required jar files and classpaths. The jar files are identified by their blob keys.
+	 * Registers a job task execution with its required jar files and classpaths. The jar files are
+	 * identified by their blob keys and downloaded for use by a {@link ClassLoader}.
 	 *
 	 * @param id job ID
 	 * @param requiredJarFiles collection of blob keys identifying the required jar files
 	 * @param requiredClasspaths collection of classpaths that are added to the user code class loader
-	 * @throws IOException
+	 *
+	 * @throws IOException if any error occurs when retrieving the required jar files
+	 *
+	 * @see #unregisterTask(JobID, ExecutionAttemptID) counterpart of this method
 	 */
-	void registerTask(JobID id, ExecutionAttemptID execution, Collection<BlobKey> requiredJarFiles,
-			Collection<URL> requiredClasspaths) throws IOException;
+	void registerTask(JobID id, ExecutionAttemptID execution, Collection<PermanentBlobKey> requiredJarFiles,
+		Collection<URL> requiredClasspaths) throws IOException;
 
 	/**
-	 * Unregisters a job from the library cache manager.
+	 * Unregisters a job task execution from the library cache manager.
+	 * <p>
+	 * <strong>Note:</strong> this is the counterpart of {@link #registerTask(JobID,
+	 * ExecutionAttemptID, Collection, Collection)} and it will not remove any job added via
+	 * {@link #registerJob(JobID, Collection, Collection)}!
 	 *
 	 * @param id job ID
+	 *
+	 * @see #registerTask(JobID, ExecutionAttemptID, Collection, Collection) counterpart of this method
 	 */
 	void unregisterTask(JobID id, ExecutionAttemptID execution);
-	
+
 	/**
 	 * Unregisters a job from the library cache manager.
+	 * <p>
+	 * <strong>Note:</strong> this is the counterpart of {@link #registerJob(JobID, Collection,
+	 * Collection)} and it will not remove any job task execution added via {@link
+	 * #registerTask(JobID, ExecutionAttemptID, Collection, Collection)}!
 	 *
 	 * @param id job ID
+	 *
+	 * @see #registerJob(JobID, Collection, Collection) counterpart of this method
 	 */
 	void unregisterJob(JobID id);
 
 	/**
-	 * Shutdown method
-	 *
-	 * @throws IOException
+	 * Shutdown method which may release created class loaders.
 	 */
-	void shutdown() throws IOException;
+	void shutdown();
 }

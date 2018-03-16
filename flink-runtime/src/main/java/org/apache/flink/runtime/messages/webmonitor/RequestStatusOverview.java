@@ -21,7 +21,7 @@ package org.apache.flink.runtime.messages.webmonitor;
 /**
  * This message requests an overview of the status, such as how many TaskManagers
  * are currently connected, how many slots are available, how many are free, ...
- * The response to this message is a {@link StatusOverview} message.
+ * The response to this message is a {@link ClusterOverview} message.
  */
 public class RequestStatusOverview implements InfoMessage {
 

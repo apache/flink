@@ -218,3 +218,5 @@ val testingDS: DataSet[Vector] = env.readLibSVM(pathToTestingFile).map(_.vector)
 val predictionDS: DataSet[(Vector, Double)] = svm.predict(testingDS)
 
 {% endhighlight %}
+
+{% top %}

@@ -18,8 +18,12 @@
 package org.apache.flink.api.java.io;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
+
 import org.junit.Test;
 
+/**
+ * Tests for {@link ExecutionEnvironment#fromElements}.
+ */
 public class FromElementsTest {
 
 	@Test
@@ -34,7 +38,7 @@ public class FromElementsTest {
 		executionEnvironment.fromElements(SubType.class, new SubType(1, "Java"), new ParentType(1, "hello"));
 	}
 
-	public static class ParentType {
+	private static class ParentType {
 		int num;
 		String string;
 		public ParentType(int num, String string) {
@@ -43,7 +47,7 @@ public class FromElementsTest {
 		}
 	}
 
-	public static class SubType extends ParentType{
+	private static class SubType extends ParentType{
 		public SubType(int num, String string) {
 			super(num, string);
 		}

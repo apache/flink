@@ -38,12 +38,12 @@ public class IncrementalSSSPData {
 
 	public static DataSet<Vertex<Long, Double>> getDefaultVertexDataSet(ExecutionEnvironment env) {
 
-		List<Vertex<Long, Double>> vertices = new ArrayList<Vertex<Long, Double>>();
-		vertices.add(new Vertex<Long, Double>(1L, 6.0));
-		vertices.add(new Vertex<Long, Double>(2L, 2.0));
-		vertices.add(new Vertex<Long, Double>(3L, 3.0));
-		vertices.add(new Vertex<Long, Double>(4L, 1.0));
-		vertices.add(new Vertex<Long, Double>(5L, 0.0));
+		List<Vertex<Long, Double>> vertices = new ArrayList<>();
+		vertices.add(new Vertex<>(1L, 6.0));
+		vertices.add(new Vertex<>(2L, 2.0));
+		vertices.add(new Vertex<>(3L, 3.0));
+		vertices.add(new Vertex<>(4L, 1.0));
+		vertices.add(new Vertex<>(5L, 0.0));
 
 		return env.fromCollection(vertices);
 	}
@@ -53,13 +53,13 @@ public class IncrementalSSSPData {
 
 	public static final DataSet<Edge<Long, Double>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 
-		List<Edge<Long, Double>> edges = new ArrayList<Edge<Long, Double>>();
-		edges.add(new Edge<Long, Double>(1L, 3L, 3.0));
-		edges.add(new Edge<Long, Double>(2L, 4L, 3.0));
-		edges.add(new Edge<Long, Double>(2L, 5L, 2.0));
-		edges.add(new Edge<Long, Double>(3L, 2L, 1.0));
-		edges.add(new Edge<Long, Double>(3L, 5L, 5.0));
-		edges.add(new Edge<Long, Double>(4L, 5L, 1.0));
+		List<Edge<Long, Double>> edges = new ArrayList<>();
+		edges.add(new Edge<>(1L, 3L, 3.0));
+		edges.add(new Edge<>(2L, 4L, 3.0));
+		edges.add(new Edge<>(2L, 5L, 2.0));
+		edges.add(new Edge<>(3L, 2L, 1.0));
+		edges.add(new Edge<>(3L, 5L, 5.0));
+		edges.add(new Edge<>(4L, 5L, 1.0));
 
 		return env.fromCollection(edges);
 	}
@@ -68,11 +68,11 @@ public class IncrementalSSSPData {
 
 	public static final DataSet<Edge<Long, Double>> getDefaultEdgesInSSSP(ExecutionEnvironment env) {
 
-		List<Edge<Long, Double>> edges = new ArrayList<Edge<Long, Double>>();
-		edges.add(new Edge<Long, Double>(1L, 3L, 3.0));
-		edges.add(new Edge<Long, Double>(2L, 5L, 2.0));
-		edges.add(new Edge<Long, Double>(3L, 2L, 1.0));
-		edges.add(new Edge<Long, Double>(4L, 5L, 1.0));
+		List<Edge<Long, Double>> edges = new ArrayList<>();
+		edges.add(new Edge<>(1L, 3L, 3.0));
+		edges.add(new Edge<>(2L, 5L, 2.0));
+		edges.add(new Edge<>(3L, 2L, 1.0));
+		edges.add(new Edge<>(4L, 5L, 1.0));
 
 		return env.fromCollection(edges);
 	}
@@ -85,10 +85,10 @@ public class IncrementalSSSPData {
 
 	public static final Edge<Long, Double> getDefaultEdgeToBeRemoved() {
 
-		return new Edge<Long, Double>(2L, 5L, 2.0);
+		return new Edge<>(2L, 5L, 2.0);
 	}
 
-	public static final String RESULTED_VERTICES = "1," + Double.MAX_VALUE + "\n" + "2," + Double.MAX_VALUE+ "\n"
+	public static final String RESULTED_VERTICES = "1," + Double.MAX_VALUE + "\n" + "2," + Double.MAX_VALUE + "\n"
 			+ "3," + Double.MAX_VALUE + "\n" + "4,1.0\n" + "5,0.0";
 
 	private IncrementalSSSPData() {}

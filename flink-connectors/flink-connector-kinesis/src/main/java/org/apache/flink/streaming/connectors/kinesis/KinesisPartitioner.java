@@ -14,22 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kinesis;
 
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.Serializable;
 
+/**
+ * An interface for partitioning records.
+ *
+ * @param <T> record type
+ */
+@PublicEvolving
 public abstract class KinesisPartitioner<T> implements Serializable {
 
+	private static final long serialVersionUID = -7467294664702189780L;
+
 	/**
-	 * Return a partition id based on the input
+	 * Return a partition id based on the input.
 	 * @param element Element to partition
 	 * @return A string representing the partition id
 	 */
 	public abstract String getPartitionId(T element);
 
 	/**
-	 * Optional method for setting an explicit hash key
+	 * Optional method for setting an explicit hash key.
 	 * @param element Element to get the hash key for
 	 * @return the hash key for the element
 	 */
@@ -44,6 +54,5 @@ public abstract class KinesisPartitioner<T> implements Serializable {
 	 * @param numberOfParallelSubtasks Total number of parallel instances
 	 */
 	public void initialize(int indexOfThisSubtask, int numberOfParallelSubtasks) {
-		//
 	}
 }

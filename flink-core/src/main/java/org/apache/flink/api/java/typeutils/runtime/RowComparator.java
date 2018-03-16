@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -37,6 +38,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * Comparator for {@link Row}
  */
+@Internal
 public class RowComparator extends CompositeTypeComparator<Row> {
 
 	private static final long serialVersionUID = 1L;

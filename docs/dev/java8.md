@@ -46,8 +46,8 @@ env.fromElements(1, 2, 3)
 ~~~
 
 The next two examples show different implementations of a function that uses a `Collector` for output.
-Functions, such as `flatMap()`, require a output type (in this case `String`) to be defined for the `Collector` in order to be type-safe.
-If the `Collector` type can not be inferred from the surrounding context, it need to be declared in the Lambda Expression's parameter list manually.
+Functions, such as `flatMap()`, require an output type (in this case `String`) to be defined for the `Collector` in order to be type-safe.
+If the `Collector` type can not be inferred from the surrounding context, it needs to be declared in the Lambda Expression's parameter list manually.
 Otherwise the output will be treated as type `Object` which can lead to undesired behaviour.
 
 ~~~java
@@ -104,7 +104,7 @@ input.filter(line -> !line.contains("not"))
 Currently, Flink only supports jobs containing Lambda Expressions completely if they are **compiled with the Eclipse JDT compiler contained in Eclipse Luna 4.4.2 (and above)**.
 
 Only the Eclipse JDT compiler preserves the generic type information necessary to use the entire Lambda Expressions feature type-safely.
-Other compilers such as the OpenJDK's and Oracle JDK's `javac` throw away all generic parameters related to Lambda Expressions. This means that types such as `Tuple2<String,Integer` or `Collector<String>` declared as a Lambda function input or output parameter will be pruned to `Tuple2` or `Collector` in the compiled `.class` files, which is too little information for the Flink Compiler.
+Other compilers such as the OpenJDK's and Oracle JDK's `javac` throw away all generic parameters related to Lambda Expressions. This means that types such as `Tuple2<String, Integer>` or `Collector<String>` declared as a Lambda function input or output parameter will be pruned to `Tuple2` or `Collector` in the compiled `.class` files, which is too little information for the Flink compiler.
 
 How to compile a Flink job that contains Lambda Expressions with the JDT compiler will be covered in the next section.
 
@@ -169,7 +169,7 @@ Create/Import your Eclipse project.
 
 If you are using Maven, you also need to change the Java version in your `pom.xml` for the `maven-compiler-plugin`. Otherwise right click the `JRE System Library` section of your project and open the `Properties` window in order to switch to a Java 8 JRE (or above) that supports Lambda Expressions.
 
-The Eclipse JDT compiler needs a special compiler flag in order to store type information in `.class` files. Open the JDT configuration file at `{project directoy}/.settings/org.eclipse.jdt.core.prefs` with your favorite text editor and add the following line:
+The Eclipse JDT compiler needs a special compiler flag in order to store type information in `.class` files. Open the JDT configuration file at `{project directory}/.settings/org.eclipse.jdt.core.prefs` with your favorite text editor and add the following line:
 
 ~~~
 org.eclipse.jdt.core.compiler.codegen.lambda.genericSignature=generate
@@ -194,3 +194,5 @@ final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 env.fromElements(1, 2, 3).map((in) -> new Tuple1<String>(" " + in)).print();
 env.execute();
 ~~~
+
+{% top %}

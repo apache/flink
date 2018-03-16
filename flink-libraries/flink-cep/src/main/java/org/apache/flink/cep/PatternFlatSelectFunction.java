@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -50,5 +51,5 @@ public interface PatternFlatSelectFunction<IN, OUT> extends Function, Serializab
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the
 	 * 					 operation to fail and may trigger recovery.
 	 */
-	void flatSelect(Map<String, IN> pattern, Collector<OUT> out) throws Exception;
+	void flatSelect(Map<String, List<IN>> pattern, Collector<OUT> out) throws Exception;
 }

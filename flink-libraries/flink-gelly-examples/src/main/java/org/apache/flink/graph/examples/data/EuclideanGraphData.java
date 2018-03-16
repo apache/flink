@@ -40,10 +40,10 @@ public class EuclideanGraphData {
 
 	public static DataSet<Vertex<Long, EuclideanGraphWeighing.Point>> getDefaultVertexDataSet(ExecutionEnvironment env) {
 
-		List<Vertex<Long, EuclideanGraphWeighing.Point>> vertices = new ArrayList<Vertex<Long, EuclideanGraphWeighing.Point>>();
-		for(int i=1; i<=NUM_VERTICES; i++) {
-			vertices.add(new Vertex<Long, EuclideanGraphWeighing.Point>(new Long(i),
-					new EuclideanGraphWeighing.Point(new Double(i), new Double(i))));
+		List<Vertex<Long, EuclideanGraphWeighing.Point>> vertices = new ArrayList<>();
+		for (int i = 1; i <= NUM_VERTICES; i++) {
+			vertices.add(new Vertex<>(new Long(i),
+				new EuclideanGraphWeighing.Point(new Double(i), new Double(i))));
 		}
 
 		return env.fromCollection(vertices);
@@ -55,23 +55,23 @@ public class EuclideanGraphData {
 
 	public static DataSet<Edge<Long, Double>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 
-		List<Edge<Long, Double>> edges = new ArrayList<Edge<Long, Double>>();
-		edges.add(new Edge<Long, Double>(1L, 2L, 0.0));
-		edges.add(new Edge<Long, Double>(1L, 4L, 0.0));
-		edges.add(new Edge<Long, Double>(2L, 3L, 0.0));
-		edges.add(new Edge<Long, Double>(2L, 4L, 0.0));
-		edges.add(new Edge<Long, Double>(2L, 5L, 0.0));
-		edges.add(new Edge<Long, Double>(3L, 5L, 0.0));
-		edges.add(new Edge<Long, Double>(4L, 5L, 0.0));
-		edges.add(new Edge<Long, Double>(4L, 6L, 0.0));
-		edges.add(new Edge<Long, Double>(5L, 7L, 0.0));
-		edges.add(new Edge<Long, Double>(5L, 9L, 0.0));
-		edges.add(new Edge<Long, Double>(6L, 7L, 0.0));
-		edges.add(new Edge<Long, Double>(6L, 8L, 0.0));
-		edges.add(new Edge<Long, Double>(6L, 8L, 0.0));
-		edges.add(new Edge<Long, Double>(7L, 8L, 0.0));
-		edges.add(new Edge<Long, Double>(7L, 9L, 0.0));
-		edges.add(new Edge<Long, Double>(8L, 9L, 0.0));
+		List<Edge<Long, Double>> edges = new ArrayList<>();
+		edges.add(new Edge<>(1L, 2L, 0.0));
+		edges.add(new Edge<>(1L, 4L, 0.0));
+		edges.add(new Edge<>(2L, 3L, 0.0));
+		edges.add(new Edge<>(2L, 4L, 0.0));
+		edges.add(new Edge<>(2L, 5L, 0.0));
+		edges.add(new Edge<>(3L, 5L, 0.0));
+		edges.add(new Edge<>(4L, 5L, 0.0));
+		edges.add(new Edge<>(4L, 6L, 0.0));
+		edges.add(new Edge<>(5L, 7L, 0.0));
+		edges.add(new Edge<>(5L, 9L, 0.0));
+		edges.add(new Edge<>(6L, 7L, 0.0));
+		edges.add(new Edge<>(6L, 8L, 0.0));
+		edges.add(new Edge<>(6L, 8L, 0.0));
+		edges.add(new Edge<>(7L, 8L, 0.0));
+		edges.add(new Edge<>(7L, 9L, 0.0));
+		edges.add(new Edge<>(8L, 9L, 0.0));
 
 		return env.fromCollection(edges);
 	}

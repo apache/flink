@@ -18,131 +18,88 @@
 
 package org.apache.flink.runtime.highavailability.nonha;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
-import org.apache.flink.runtime.highavailability.ServicesThreadFactory;
+import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
 import org.apache.flink.runtime.jobmanager.StandaloneSubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Base for all {@link HighAvailabilityServices} that are not highly available, but are backed
- * by storage that has no availability guarantees and leader election services that cannot
- * elect among multiple distributed leader contenders.
+ * Abstract base class for non high-availability services.
+ *
+ * This class returns the standalone variants for the checkpoint recovery factory, the submitted
+ * job graph store, the running jobs registry and the blob store.
  */
 public abstract class AbstractNonHaServices implements HighAvailabilityServices {
+	protected final Object lock = new Object();
 
-	private final Object lock = new Object();
+	private final RunningJobsRegistry runningJobsRegistry;
 
-	private final ExecutorService executor;
-
-	private final HashMap<JobID, EmbeddedLeaderService> jobManagerLeaderServices;
-
-	private final NonHaRegistry runningJobsRegistry;
+	private final VoidBlobStore voidBlobStore;
 
 	private boolean shutdown;
 
-	// ------------------------------------------------------------------------
-
 	public AbstractNonHaServices() {
-		this.executor = Executors.newCachedThreadPool(new ServicesThreadFactory());
-		this.jobManagerLeaderServices = new HashMap<>();
-		this.runningJobsRegistry = new NonHaRegistry();
+		this.runningJobsRegistry = new StandaloneRunningJobsRegistry();
+		this.voidBlobStore = new VoidBlobStore();
+
+		shutdown = false;
 	}
 
-	// ------------------------------------------------------------------------
-	//  services
-	// ------------------------------------------------------------------------
-
-	@Override
-	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
-		checkNotNull(jobID);
-
-		synchronized (lock) {
-			checkNotShutdown();
-			EmbeddedLeaderService service = getOrCreateJobManagerService(jobID);
-			return service.createLeaderRetrievalService();
-		}
-	}
-
-	@Override
-	public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
-		checkNotNull(jobID);
-
-		synchronized (lock) {
-			checkNotShutdown();
-			EmbeddedLeaderService service = getOrCreateJobManagerService(jobID);
-			return service.createLeaderElectionService();
-		}
-	}
-
-	@GuardedBy("lock")
-	private EmbeddedLeaderService getOrCreateJobManagerService(JobID jobID) {
-		EmbeddedLeaderService service = jobManagerLeaderServices.get(jobID);
-		if (service == null) {
-			service = new EmbeddedLeaderService(executor);
-			jobManagerLeaderServices.put(jobID, service);
-		}
-		return service;
-	}
+	// ----------------------------------------------------------------------
+	// HighAvailabilityServices method implementations
+	// ----------------------------------------------------------------------
 
 	@Override
 	public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
-		checkNotShutdown();
-		return new StandaloneCheckpointRecoveryFactory();
+		synchronized (lock) {
+			checkNotShutdown();
+
+			return new StandaloneCheckpointRecoveryFactory();
+		}
 	}
 
 	@Override
-	public SubmittedJobGraphStore getSubmittedJobGraphStore() {
-		checkNotShutdown();
-		return new StandaloneSubmittedJobGraphStore();
+	public SubmittedJobGraphStore getSubmittedJobGraphStore() throws Exception {
+		synchronized (lock) {
+			checkNotShutdown();
+
+			return new StandaloneSubmittedJobGraphStore();
+		}
 	}
 
 	@Override
-	public RunningJobsRegistry getRunningJobsRegistry() {
-		checkNotShutdown();
-		return runningJobsRegistry;
+	public RunningJobsRegistry getRunningJobsRegistry() throws Exception {
+		synchronized (lock) {
+			checkNotShutdown();
+
+			return runningJobsRegistry;
+		}
 	}
 
 	@Override
 	public BlobStore createBlobStore() throws IOException {
-		checkNotShutdown();
-		return new VoidBlobStore();
-	}
+		synchronized (lock) {
+			checkNotShutdown();
 
-	// ------------------------------------------------------------------------
-	//  shutdown
-	// ------------------------------------------------------------------------
+			return voidBlobStore;
+		}
+	}
 
 	@Override
 	public void close() throws Exception {
 		synchronized (lock) {
 			if (!shutdown) {
 				shutdown = true;
-
-				// no further calls should be dispatched
-				executor.shutdownNow();
-
-				// stop all job manager leader services
-				for (EmbeddedLeaderService service : jobManagerLeaderServices.values()) {
-					service.shutdown();
-				}
-				jobManagerLeaderServices.clear();
 			}
 		}
 	}
@@ -153,15 +110,16 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
 		close();
 	}
 
-	private void checkNotShutdown() {
+	// ----------------------------------------------------------------------
+	// Helper methods
+	// ----------------------------------------------------------------------
+
+	@GuardedBy("lock")
+	protected void checkNotShutdown() {
 		checkState(!shutdown, "high availability services are shut down");
 	}
 
-	// ------------------------------------------------------------------------
-	//  utilities
-	// ------------------------------------------------------------------------
-
-	protected ExecutorService getExecutorService() {
-		return executor;
+	protected boolean isShutDown() {
+		return shutdown;
 	}
 }

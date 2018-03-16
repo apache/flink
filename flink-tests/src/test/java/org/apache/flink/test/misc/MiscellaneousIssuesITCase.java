@@ -25,70 +25,45 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the system behavior in multiple corner cases
  *   - when null records are passed through the system.
  *   - when disjoint dataflows are executed
  *   - when accumulators are used chained after a non-udf operator.
- *   
- * The tests are bundled into one class to reuse the same test cluster. This speeds
+ *
+ * <p>The tests are bundled into one class to reuse the same test cluster. This speeds
  * up test execution, as the majority of the test time goes usually into starting/stopping the
  * test cluster.
  */
 @SuppressWarnings("serial")
-public class MiscellaneousIssuesITCase {
+public class MiscellaneousIssuesITCase extends TestLogger {
 
-	private static LocalFlinkMiniCluster cluster;
-	
-	@BeforeClass
-	public static void startCluster() {
-		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 3);
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
-			cluster = new LocalFlinkMiniCluster(config, false);
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			new Configuration(),
+			2,
+			3));
 
-			cluster.start();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to start test cluster: " + e.getMessage());
-		}
-	}
-	
-	@AfterClass
-	public static void shutdownCluster() {
-		try {
-			cluster.shutdown();
-			cluster = null;
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to stop test cluster: " + e.getMessage());
-		}
-	}
-	
 	@Test
 	public void testNullValues() {
 		try {
-			ExecutionEnvironment env =
-					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
-
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(1);
 			env.getConfig().disableSysoutLogging();
 
@@ -105,10 +80,9 @@ public class MiscellaneousIssuesITCase {
 				env.execute();
 				fail("this should fail due to null values.");
 			}
-			catch (ProgramInvocationException e) {
+			catch (JobExecutionException e) {
 				assertNotNull(e.getCause());
-				assertNotNull(e.getCause().getCause());
-				assertTrue(e.getCause().getCause() instanceof NullPointerException);
+				assertTrue(e.getCause() instanceof NullPointerException);
 			}
 		}
 		catch (Exception e) {
@@ -120,9 +94,7 @@ public class MiscellaneousIssuesITCase {
 	@Test
 	public void testDisjointDataflows() {
 		try {
-			ExecutionEnvironment env =
-					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
-
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(5);
 			env.getConfig().disableSysoutLogging();
 
@@ -139,16 +111,14 @@ public class MiscellaneousIssuesITCase {
 
 	@Test
 	public void testAccumulatorsAfterNoOp() {
-		
-		final String ACC_NAME = "test_accumulator";
-		
-		try {
-			ExecutionEnvironment env =
-					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
 
+		final String accName = "test_accumulator";
+
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(6);
 			env.getConfig().disableSysoutLogging();
-			
+
 			env.generateSequence(1, 1000000)
 					.rebalance()
 					.flatMap(new RichFlatMapFunction<Long, Long>() {
@@ -157,7 +127,7 @@ public class MiscellaneousIssuesITCase {
 
 						@Override
 						public void open(Configuration parameters) {
-							counter = getRuntimeContext().getLongCounter(ACC_NAME);
+							counter = getRuntimeContext().getLongCounter(accName);
 						}
 
 						@Override
@@ -168,8 +138,8 @@ public class MiscellaneousIssuesITCase {
 					.output(new DiscardingOutputFormat<Long>());
 
 			JobExecutionResult result = env.execute();
-			
-			assertEquals(1000000L, result.getAllAccumulatorResults().get(ACC_NAME));
+
+			assertEquals(1000000L, result.getAllAccumulatorResults().get(accName));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

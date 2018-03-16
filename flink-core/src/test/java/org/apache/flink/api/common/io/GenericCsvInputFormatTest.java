@@ -522,14 +522,14 @@ public class GenericCsvInputFormatTest {
 									"kkz|777|foobar|hhg\n" +  // wrong data type in field
 									"kkz|777foobarhhg  \n" +  // too short, a skipped field never ends
 									"xyx|ignored|42|\n";      // another good line
-			final FileInputSplit split = createTempFile(fileContent);	
+			final FileInputSplit split = createTempFile(fileContent);
 		
 			final Configuration parameters = new Configuration();
 
 			format.setFieldDelimiter("|");
 			format.setFieldTypesGeneric(StringValue.class, null, IntValue.class);
 			format.setLenient(true);
-			
+
 			format.configure(parameters);
 			format.open(split);
 			

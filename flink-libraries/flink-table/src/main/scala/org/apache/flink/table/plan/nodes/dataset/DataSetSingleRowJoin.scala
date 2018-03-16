@@ -20,16 +20,18 @@ package org.apache.flink.table.plan.nodes.dataset
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment, TableConfig}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.runtime.{MapJoinLeftRunner, MapJoinRightRunner}
-import org.apache.flink.table.typeutils.TypeConverter.determineReturnType
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig}
+import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -46,6 +48,7 @@ class DataSetSingleRowJoin(
     rowRelDataType: RelDataType,
     joinCondition: RexNode,
     joinRowType: RelDataType,
+    joinType: JoinRelType,
     ruleDescription: String)
   extends BiRel(cluster, traitSet, leftNode, rightNode)
   with DataSetRel {
@@ -62,6 +65,7 @@ class DataSetSingleRowJoin(
       getRowType,
       joinCondition,
       joinRowType,
+      joinType,
       ruleDescription)
   }
 
@@ -89,19 +93,17 @@ class DataSetSingleRowJoin(
 
   override def translateToPlan(
       tableEnv: BatchTableEnvironment,
-      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+      queryConfig: BatchQueryConfig): DataSet[Row] = {
 
-    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
-    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
+    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
     val broadcastSetName = "joinSet"
     val mapSideJoin = generateMapFunction(
       tableEnv.getConfig,
       leftDataSet.getType,
       rightDataSet.getType,
-      leftIsSingle,
       joinCondition,
-      broadcastSetName,
-      expectedType)
+      broadcastSetName)
 
     val (multiRowDataSet, singleRowDataSet) =
       if (leftIsSingle) {
@@ -114,29 +116,28 @@ class DataSetSingleRowJoin(
       .flatMap(mapSideJoin)
       .withBroadcastSet(singleRowDataSet, broadcastSetName)
       .name(getMapOperatorName)
-      .asInstanceOf[DataSet[Any]]
   }
 
   private def generateMapFunction(
       config: TableConfig,
-      inputType1: TypeInformation[Any],
-      inputType2: TypeInformation[Any],
-      firstIsSingle: Boolean,
+      inputType1: TypeInformation[Row],
+      inputType2: TypeInformation[Row],
       joinCondition: RexNode,
-      broadcastInputSetName: String,
-      expectedType: Option[TypeInformation[Any]]): FlatMapFunction[Any, Any] = {
+      broadcastInputSetName: String)
+    : FlatMapFunction[Row, Row] = {
 
-    val codeGenerator = new CodeGenerator(
+    val isOuterJoin = joinType match {
+      case JoinRelType.LEFT | JoinRelType.RIGHT => true
+      case _ => false
+    }
+
+    val codeGenerator = new FunctionCodeGenerator(
       config,
-      false,
+      isOuterJoin,
       inputType1,
       Some(inputType2))
 
-    val returnType = determineReturnType(
-      getRowType,
-      expectedType,
-      config.getNullCheck,
-      config.getEfficientTypeUsage)
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
     val conversion = codeGenerator.generateConverterResultExpression(
       returnType,
@@ -144,30 +145,58 @@ class DataSetSingleRowJoin(
 
     val condition = codeGenerator.generateExpression(joinCondition)
 
-    val joinMethodBody = s"""
-                  |${condition.code}
-                  |if (${condition.resultTerm}) {
-                  |  ${conversion.code}
-                  |  ${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
-                  |}
-                  |""".stripMargin
+    val joinMethodBody =
+      if (joinType == JoinRelType.INNER) {
+        s"""
+         |${condition.code}
+         |if (${condition.resultTerm}) {
+         |  ${conversion.code}
+         |  ${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
+         |}
+         |""".stripMargin
+    } else {
+      val singleNode =
+        if (!leftIsSingle) {
+          rightNode
+        }
+        else {
+          leftNode
+        }
+
+      val notSuitedToCondition = singleNode
+        .getRowType
+        .getFieldList
+        .map(field => getRowType.getFieldNames.indexOf(field.getName))
+        .map(i => s"${conversion.resultTerm}.setField($i,null);")
+
+        s"""
+           |${condition.code}
+           |${conversion.code}
+           |if(!${condition.resultTerm}){
+           |${notSuitedToCondition.mkString("\n")}
+           |}
+           |${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
+           |""".stripMargin
+    }
 
     val genFunction = codeGenerator.generateFunction(
       ruleDescription,
-      classOf[FlatJoinFunction[Any, Any, Any]],
+      classOf[FlatJoinFunction[Row, Row, Row]],
       joinMethodBody,
       returnType)
 
-    if (firstIsSingle) {
-      new MapJoinRightRunner[Any, Any, Any](
+    if (leftIsSingle) {
+      new MapJoinRightRunner[Row, Row, Row](
         genFunction.name,
         genFunction.code,
+        isOuterJoin,
         genFunction.returnType,
         broadcastInputSetName)
     } else {
-      new MapJoinLeftRunner[Any, Any, Any](
+      new MapJoinLeftRunner[Row, Row, Row](
         genFunction.name,
         genFunction.code,
+        isOuterJoin,
         genFunction.returnType,
         broadcastInputSetName)
     }
@@ -187,7 +216,7 @@ class DataSetSingleRowJoin(
   }
 
   private def joinTypeToString: String = {
-    "NestedLoopJoin"
+    "NestedLoop" + joinType.toString.toLowerCase.capitalize + "Join"
   }
 
 }

@@ -21,15 +21,14 @@ package org.apache.flink.table.plan.nodes.datastream
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rex.RexLiteral
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.codegen.CodeGenerator
-import org.apache.flink.table.runtime.io.ValuesInputFormat
-import org.apache.flink.table.typeutils.TypeConverter._
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
+import org.apache.flink.table.codegen.InputFormatCodeGenerator
+import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.runtime.io.CRowValuesInputFormat
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 import scala.collection.JavaConverters._
 
@@ -39,19 +38,19 @@ import scala.collection.JavaConverters._
 class DataStreamValues(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    rowRelDataType: RelDataType,
+    schema: RowSchema,
     tuples: ImmutableList[ImmutableList[RexLiteral]],
     ruleDescription: String)
-  extends Values(cluster, rowRelDataType, tuples, traitSet)
+  extends Values(cluster, schema.relDataType, tuples, traitSet)
   with DataStreamRel {
 
-  override def deriveRowType() = rowRelDataType
+  override def deriveRowType() = schema.relDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamValues(
       cluster,
       traitSet,
-      getRowType,
+      schema,
       getTuples,
       ruleDescription
     )
@@ -59,24 +58,18 @@ class DataStreamValues(
 
   override def translateToPlan(
       tableEnv: StreamTableEnvironment,
-      expectedType: Option[TypeInformation[Any]])
-    : DataStream[Any] = {
+      queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     val config = tableEnv.getConfig
 
-    val returnType = determineReturnType(
-      getRowType,
-      expectedType,
-      config.getNullCheck,
-      config.getEfficientTypeUsage)
-
-    val generator = new CodeGenerator(config)
+    val returnType = CRowTypeInfo(schema.typeInfo)
+    val generator = new InputFormatCodeGenerator(config)
 
     // generate code for every record
     val generatedRecords = getTuples.asScala.map { r =>
       generator.generateResultExpression(
-        returnType,
-        getRowType.getFieldNames.asScala,
+        schema.typeInfo,
+        schema.fieldNames,
         r.asScala)
     }
 
@@ -84,14 +77,14 @@ class DataStreamValues(
     val generatedFunction = generator.generateValuesInputFormat(
       ruleDescription,
       generatedRecords.map(_.code),
-      returnType)
+      schema.typeInfo)
 
-    val inputFormat = new ValuesInputFormat[Any](
+    val inputFormat = new CRowValuesInputFormat(
       generatedFunction.name,
       generatedFunction.code,
-      generatedFunction.returnType)
+      returnType)
 
-    tableEnv.execEnv.createInput(inputFormat, returnType).asInstanceOf[DataStream[Any]]
+    tableEnv.execEnv.createInput(inputFormat, returnType)
   }
 
 }

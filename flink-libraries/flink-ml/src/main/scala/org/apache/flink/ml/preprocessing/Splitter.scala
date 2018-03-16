@@ -140,7 +140,7 @@ object Splitter {
    * @param kFolds          The number of TrainTest DataSets to be returns. Each 'testing' will be
    *                        1/k of the dataset, randomly sampled, the training will be the remainder
    *                        of the dataset.  The DataSet is split into kFolds first, so that no
-   *                        observation will occurin in multiple folds.
+   *                        observation will occuring in multiple folds.
    * @param seed            Random number generator seed.
    * @return An array of TrainTestDataSets
    */

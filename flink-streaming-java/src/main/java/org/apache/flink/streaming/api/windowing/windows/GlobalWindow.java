@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,19 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.windowing.windows;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
+/**
+ * The default window into which all data is placed (via
+ * {@link org.apache.flink.streaming.api.windowing.assigners.GlobalWindows}).
+ */
 @PublicEvolving
 public class GlobalWindow extends Window {
 
-	private static GlobalWindow INSTANCE = new GlobalWindow();
+	private static final GlobalWindow INSTANCE = new GlobalWindow();
 
 	private GlobalWindow() { }
 
@@ -55,17 +61,15 @@ public class GlobalWindow extends Window {
 		return "GlobalWindow";
 	}
 
-	public static class Serializer extends TypeSerializer<GlobalWindow> {
+	/**
+	 * A {@link TypeSerializer} for {@link GlobalWindow}.
+	 */
+	public static class Serializer extends TypeSerializerSingleton<GlobalWindow> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public boolean isImmutableType() {
 			return true;
-		}
-
-		@Override
-		public TypeSerializer<GlobalWindow> duplicate() {
-			return this;
 		}
 
 		@Override
@@ -113,18 +117,8 @@ public class GlobalWindow extends Window {
 		}
 
 		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof Serializer;
-		}
-
-		@Override
 		public boolean canEqual(Object obj) {
 			return obj instanceof Serializer;
-		}
-
-		@Override
-		public int hashCode() {
-			return 0;
 		}
 	}
 }

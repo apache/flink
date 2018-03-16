@@ -29,7 +29,7 @@ import java.io.IOException;
  * <p>The state is accessed and modified by user functions, and checkpointed consistently
  * by the system as part of the distributed snapshots.
  * 
- * <p>The state is only accessible by functions applied on a KeyedDataStream. The key is
+ * <p>The state is only accessible by functions applied on a {@code KeyedStream}. The key is
  * automatically supplied by the system, so the function always sees the value mapped to the
  * key of the current element. That way, the system can handle stream and state partitioning
  * consistently together.
@@ -63,9 +63,10 @@ public interface AppendingState<IN, OUT> extends State {
 	 * Updates the operator state accessible by {@link #get()} by adding the given value
 	 * to the list of values. The next time {@link #get()} is called (for the same state
 	 * partition) the returned state will represent the updated list.
+	 *
+	 * If `null` is passed in, the state value will remain unchanged
 	 * 
-	 * @param value
-	 *            The new value for the state.
+	 * @param value The new value for the state.
 	 *            
 	 * @throws IOException Thrown if the system cannot access the state.
 	 */

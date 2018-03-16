@@ -15,9 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.fs;
 
 import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -58,7 +60,7 @@ public interface Writer<T> extends Serializable {
 	 * taken. The call should close all state related to the current output file,
 	 * including the output stream opened in {@code open}.
 	 */
-	void close() throws IOException ;
+	void close() throws IOException;
 
 	/**
 	 * Writes one element to the bucket file.

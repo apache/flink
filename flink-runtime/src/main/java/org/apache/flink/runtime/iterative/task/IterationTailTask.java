@@ -18,9 +18,8 @@
 
 package org.apache.flink.runtime.iterative.task;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrier;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrierBroker;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatch;
@@ -28,15 +27,18 @@ import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatchBroker
 import org.apache.flink.runtime.iterative.io.WorksetUpdateOutputCollector;
 import org.apache.flink.util.Collector;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * An iteration tail, which runs a driver inside.
- * <p>
- * If the iteration state is updated, the output of this task will be send back to the {@link IterationHeadTask} via
+ *
+ * <p>If the iteration state is updated, the output of this task will be send back to the {@link IterationHeadTask} via
  * a BackChannel for the workset -OR- a HashTable for the solution set. Therefore this
  * task must be scheduled on the same instance as the head. It's also possible for the tail to update *both* the workset
  * and the solution set.
- * <p>
- * If there is a separate solution set tail, the iteration head has to make sure to wait for it to finish.
+ *
+ * <p>If there is a separate solution set tail, the iteration head has to make sure to wait for it to finish.
  */
 public class IterationTailTask<S extends Function, OT> extends AbstractIterativeTask<S, OT> {
 
@@ -45,7 +47,19 @@ public class IterationTailTask<S extends Function, OT> extends AbstractIterative
 	private SolutionSetUpdateBarrier solutionSetUpdateBarrier;
 
 	private WorksetUpdateOutputCollector<OT> worksetUpdateOutputCollector;
-	
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Create an Invokable task and set its environment.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 */
+	public IterationTailTask(Environment environment) {
+		super(environment);
+	}
+
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	protected void initialize() throws Exception {
@@ -80,6 +94,7 @@ public class IterationTailTask<S extends Function, OT> extends AbstractIterative
 				outputCollector = new Collector<OT>() {
 					@Override
 					public void collect(OT record) {}
+
 					@Override
 					public void close() {}
 				};
@@ -95,9 +110,9 @@ public class IterationTailTask<S extends Function, OT> extends AbstractIterative
 
 	@Override
 	public void run() throws Exception {
-		
+
 		SuperstepKickoffLatch nextSuperStepLatch = SuperstepKickoffLatchBroker.instance().get(brokerKey());
-		
+
 		while (this.running && !terminationRequested()) {
 
 			if (log.isInfoEnabled()) {
@@ -119,7 +134,7 @@ public class IterationTailTask<S extends Function, OT> extends AbstractIterative
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
 			}
-			
+
 			if (isWorksetUpdate) {
 				// notify iteration head if responsible for workset update
 				worksetBackChannel.notifyOfEndOfSuperstep();

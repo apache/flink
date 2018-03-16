@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.examples;
 
-import org.apache.flink.graph.examples.data.EuclideanGraphData;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -30,19 +29,19 @@ import org.apache.flink.graph.EdgeJoinFunction;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Triplet;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.examples.data.EuclideanGraphData;
 
 import java.io.Serializable;
 
 /**
  * This example shows how to use Gelly's {@link Graph#getTriplets()} and
  * {@link Graph#joinWithEdges(DataSet, EdgeJoinFunction)} methods.
- * 
- * Given a directed, unweighted graph, with vertex values representing points in a plain,
+ *
+ * <p>Given a directed, unweighted graph, with vertex values representing points in a plain,
  * return a weighted graph where the edge weights are equal to the Euclidean distance between the
  * src and the trg vertex values.
  *
- * <p>
- * Input files are plain text files and must be formatted as follows:
+ * <p>Input files are plain text files and must be formatted as follows:
  * <ul>
  * 	<li> Vertices are represented by their vertexIds and vertex values and are separated by newlines,
  * 	the value being formed of two doubles separated by a comma.
@@ -52,7 +51,7 @@ import java.io.Serializable;
  * 	For example: <code>1,2\n1,3\n</code> defines two edges 1-2 and 1-3.
  * </ul>
  *
- * Usage <code>EuclideanGraphWeighing &lt;vertex path&gt; &lt;edge path&gt; &lt;result path&gt;</code><br>
+ * <p>Usage <code>EuclideanGraphWeighing &lt;vertex path&gt; &lt;edge path&gt; &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from
  * {@link EuclideanGraphData}
  */
@@ -84,8 +83,8 @@ public class EuclideanGraphWeighing implements ProgramDescription {
 						Vertex<Long, Point> srcVertex = triplet.getSrcVertex();
 						Vertex<Long, Point> trgVertex = triplet.getTrgVertex();
 
-						return new Tuple3<Long, Long, Double>(srcVertex.getId(), trgVertex.getId(),
-								srcVertex.getValue().euclideanDistance(trgVertex.getValue()));
+						return new Tuple3<>(srcVertex.getId(), trgVertex.getId(),
+							srcVertex.getValue().euclideanDistance(trgVertex.getValue()));
 					}
 				});
 
@@ -137,7 +136,7 @@ public class EuclideanGraphWeighing implements ProgramDescription {
 		}
 
 		public double euclideanDistance(Point other) {
-			return Math.sqrt((x-other.x)*(x-other.x) + (y-other.y)*(y-other.y));
+			return Math.sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y));
 		}
 
 		@Override
@@ -187,7 +186,7 @@ public class EuclideanGraphWeighing implements ProgramDescription {
 
 						@Override
 						public Vertex<Long, Point> map(Tuple3<Long, Double, Double> value) throws Exception {
-							return new Vertex<Long, Point>(value.f0, new Point(value.f1, value.f2));
+							return new Vertex<>(value.f0, new Point(value.f1, value.f2));
 						}
 					});
 		} else {
@@ -204,7 +203,7 @@ public class EuclideanGraphWeighing implements ProgramDescription {
 
 						@Override
 						public Edge<Long, Double> map(Tuple2<Long, Long> tuple2) throws Exception {
-							return new Edge<Long, Double>(tuple2.f0, tuple2.f1, 0.0);
+							return new Edge<>(tuple2.f0, tuple2.f1, 0.0);
 						}
 					});
 		} else {

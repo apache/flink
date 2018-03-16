@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.core.fs;
 
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.util.WrappingProxyUtil;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -27,6 +29,9 @@ import java.net.URISyntaxException;
 
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the {@link FileSystem} base class.
+ */
 public class FileSystemTest {
 
 	@Test

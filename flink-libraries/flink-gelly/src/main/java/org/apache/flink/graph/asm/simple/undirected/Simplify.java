@@ -19,15 +19,13 @@
 package org.apache.flink.graph.asm.simple.undirected;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingBase;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingGraph;
-import org.apache.flink.types.CopyableValue;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.Preconditions;
-
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Add symmetric edges and remove self-loops and duplicate edges from an
@@ -37,20 +35,17 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
-public class Simplify<K extends Comparable<K> & CopyableValue<K>, VV, EV>
+public class Simplify<K extends Comparable<K>, VV, EV>
 extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 
 	// Required configuration
 	private boolean clipAndFlip;
 
-	// Optional configuration
-	private int parallelism = PARALLELISM_DEFAULT;
-
 	/**
 	 * Simplifies an undirected graph by adding reverse edges and removing
 	 * self-loops and duplicate edges.
 	 *
-	 * When clip-and-flip is set, edges where source < target are removed
+	 * <p>When clip-and-flip is set, edges where source < target are removed
 	 * before symmetrizing the graph.
 	 *
 	 * @param clipAndFlip method for generating simple graph
@@ -59,48 +54,15 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 		this.clipAndFlip = clipAndFlip;
 	}
 
-	/**
-	 * Override the operator parallelism.
-	 *
-	 * @param parallelism operator parallelism
-	 * @return this
-	 */
-	public Simplify<K, VV, EV> setParallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
-			"The parallelism must be greater than zero.");
-
-		this.parallelism = parallelism;
-
-		return this;
-	}
-
 	@Override
-	protected String getAlgorithmName() {
-		return Simplify.class.getName();
-	}
-
-	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingGraph other) {
-		Preconditions.checkNotNull(other);
-
-		if (! Simplify.class.isAssignableFrom(other.getClass())) {
+	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+		if (!super.canMergeConfigurationWith(other)) {
 			return false;
 		}
 
 		Simplify rhs = (Simplify) other;
 
-		// verify that configurations can be merged
-
-		if (clipAndFlip != rhs.clipAndFlip) {
-			return false;
-		}
-
-		// merge configurations
-
-		parallelism = (parallelism == PARALLELISM_DEFAULT) ? rhs.parallelism :
-			((rhs.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, rhs.parallelism));
-
-		return true;
+		return clipAndFlip == rhs.clipAndFlip;
 	}
 
 	@Override
@@ -109,10 +71,11 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 		// Edges
 		DataSet<Edge<K, EV>> edges = input
 			.getEdges()
-			.flatMap(new SymmetrizeAndRemoveSelfLoops<K, EV>(clipAndFlip))
+			.flatMap(new SymmetrizeAndRemoveSelfLoops<>(clipAndFlip))
 				.setParallelism(parallelism)
 				.name("Remove self-loops")
 			.distinct(0, 1)
+				.setCombineHint(CombineHint.NONE)
 				.setParallelism(parallelism)
 				.name("Remove duplicate edges");
 

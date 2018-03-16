@@ -16,18 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.event.task;
-
-import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.event.TaskEvent;
 
+import java.io.IOException;
+
 /**
  * This class provides a simple implementation of an event that holds an integer value.
- * 
  */
 public class IntegerTaskEvent extends TaskEvent {
 
@@ -46,9 +44,8 @@ public class IntegerTaskEvent extends TaskEvent {
 
 	/**
 	 * Constructs a new integer task event.
-	 * 
-	 * @param value
-	 *        the integer value to be transported inside this integer task event
+	 *
+	 * @param value the integer value to be transported inside this integer task event
 	 */
 	public IntegerTaskEvent(final int value) {
 		this.value = value;
@@ -56,32 +53,28 @@ public class IntegerTaskEvent extends TaskEvent {
 
 	/**
 	 * Returns the stored integer value.
-	 * 
+	 *
 	 * @return the stored integer value or <code>-1</code> if no value has been set
 	 */
 	public int getInteger() {
 		return this.value;
 	}
 
-
 	@Override
 	public void write(final DataOutputView out) throws IOException {
 		out.writeInt(this.value);
 	}
-
 
 	@Override
 	public void read(final DataInputView in) throws IOException {
 		this.value = in.readInt();
 	}
 
-
 	@Override
 	public int hashCode() {
 
 		return this.value;
 	}
-
 
 	@Override
 	public boolean equals(final Object obj) {

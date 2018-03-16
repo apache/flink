@@ -23,38 +23,89 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.util.Preconditions;
+
+import com.netflix.fenzo.ConstraintEvaluator;
+import com.netflix.fenzo.functions.Func1;
+import com.netflix.fenzo.plugins.HostAttrValueConstraint;
+import org.apache.mesos.Protos;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.regex.Pattern;
+
 import scala.Option;
 
-import static java.util.Objects.requireNonNull;
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
  * This class describes the Mesos-specific parameters for launching a TaskManager process.
  *
- * These parameters are in addition to the common parameters
+ * <p>These parameters are in addition to the common parameters
  * provided by {@link ContaineredTaskManagerParameters}.
  */
 public class MesosTaskManagerParameters {
 
+	/** Pattern replaced in the {@link #MESOS_TM_HOSTNAME} by the actual task id of the Mesos task. */
+	public static final Pattern TASK_ID_PATTERN = Pattern.compile("_TASK_", Pattern.LITERAL);
+
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_SLOTS =
-			key(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS)
-			.defaultValue(1);
+		key(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS)
+		.defaultValue(1);
 
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_MEMORY_MB =
-			key("mesos.resourcemanager.tasks.mem")
-			.defaultValue(1024);
+		key("mesos.resourcemanager.tasks.mem")
+		.defaultValue(1024)
+		.withDescription("Memory to assign to the Mesos workers in MB.");
 
 	public static final ConfigOption<Double> MESOS_RM_TASKS_CPUS =
-			key("mesos.resourcemanager.tasks.cpus")
-			.defaultValue(0.0);
+		key("mesos.resourcemanager.tasks.cpus")
+		.defaultValue(0.0)
+		.withDescription("CPUs to assign to the Mesos workers.");
+
+	public static final ConfigOption<Integer> MESOS_RM_TASKS_GPUS =
+		key("mesos.resourcemanager.tasks.gpus")
+		.defaultValue(0);
 
 	public static final ConfigOption<String> MESOS_RM_CONTAINER_TYPE =
 		key("mesos.resourcemanager.tasks.container.type")
-			.defaultValue("mesos");
+		.defaultValue("mesos")
+		.withDescription("Type of the containerization used: “mesos” or “docker”.");
 
 	public static final ConfigOption<String> MESOS_RM_CONTAINER_IMAGE_NAME =
 		key("mesos.resourcemanager.tasks.container.image.name")
-			.noDefaultValue();
+		.noDefaultValue()
+		.withDescription("Image name to use for the container.");
+
+	public static final ConfigOption<String> MESOS_TM_HOSTNAME =
+		key("mesos.resourcemanager.tasks.hostname")
+		.noDefaultValue();
+
+	public static final ConfigOption<String> MESOS_TM_CMD =
+		key("mesos.resourcemanager.tasks.taskmanager-cmd")
+		.defaultValue("$FLINK_HOME/bin/mesos-taskmanager.sh"); // internal
+
+	public static final ConfigOption<String> MESOS_TM_BOOTSTRAP_CMD =
+		key("mesos.resourcemanager.tasks.bootstrap-cmd")
+		.noDefaultValue();
+
+	public static final ConfigOption<String> MESOS_RM_CONTAINER_VOLUMES =
+		key("mesos.resourcemanager.tasks.container.volumes")
+		.noDefaultValue()
+		.withDescription("A comma separated list of [host_path:]container_path[:RO|RW]. This allows for mounting" +
+			" additional volumes into your container.");
+
+	public static final ConfigOption<String> MESOS_RM_CONTAINER_DOCKER_PARAMETERS =
+		key("mesos.resourcemanager.tasks.container.docker.parameters")
+		.noDefaultValue()
+		.withDescription("Custom parameters to be passed into docker run command when using the docker containerizer." +
+			" Comma separated list of \"key=value\" pairs. The \"value\" may contain '='.");
+
+	public static final ConfigOption<String> MESOS_CONSTRAINTS_HARD_HOSTATTR =
+		key("mesos.constraints.hard.hostattribute")
+		.noDefaultValue()
+		.withDescription("Constraints for task placement on mesos.");
 
 	/**
 	 * Value for {@code MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE} setting. Tells to use the Mesos containerizer.
@@ -67,70 +118,156 @@ public class MesosTaskManagerParameters {
 
 	private final double cpus;
 
+	private final int gpus;
+
 	private final ContainerType containerType;
 
 	private final Option<String> containerImageName;
 
 	private final ContaineredTaskManagerParameters containeredParameters;
 
+	private final List<Protos.Volume> containerVolumes;
+
+	private final List<Protos.Parameter> dockerParameters;
+
+	private final List<ConstraintEvaluator> constraints;
+
+	private final String command;
+
+	private final Option<String> bootstrapCommand;
+
+	private final Option<String> taskManagerHostname;
+
 	public MesosTaskManagerParameters(
-		double cpus,
-		ContainerType containerType,
-		Option<String> containerImageName,
-		ContaineredTaskManagerParameters containeredParameters) {
-		requireNonNull(containeredParameters);
+			double cpus,
+			int gpus,
+			ContainerType containerType,
+			Option<String> containerImageName,
+			ContaineredTaskManagerParameters containeredParameters,
+			List<Protos.Volume> containerVolumes,
+			List<Protos.Parameter> dockerParameters,
+			List<ConstraintEvaluator> constraints,
+			String command,
+			Option<String> bootstrapCommand,
+			Option<String> taskManagerHostname) {
+
 		this.cpus = cpus;
-		this.containerType = containerType;
-		this.containerImageName = containerImageName;
-		this.containeredParameters = containeredParameters;
+		this.gpus = gpus;
+		this.containerType = Preconditions.checkNotNull(containerType);
+		this.containerImageName = Preconditions.checkNotNull(containerImageName);
+		this.containeredParameters = Preconditions.checkNotNull(containeredParameters);
+		this.containerVolumes = Preconditions.checkNotNull(containerVolumes);
+		this.dockerParameters = Preconditions.checkNotNull(dockerParameters);
+		this.constraints = Preconditions.checkNotNull(constraints);
+		this.command = Preconditions.checkNotNull(command);
+		this.bootstrapCommand = Preconditions.checkNotNull(bootstrapCommand);
+		this.taskManagerHostname = Preconditions.checkNotNull(taskManagerHostname);
 	}
 
 	/**
 	 * Get the CPU units to use for the TaskManager process.
-     */
+	 */
 	public double cpus() {
 		return cpus;
 	}
 
 	/**
+	 * Get the GPU units to use for the TaskManager Process.
+	 */
+	public int gpus() {
+		return gpus;
+	}
+
+	/**
 	 * Get the container type (Mesos or Docker).  The default is Mesos.
 	 *
-	 * Mesos provides a facility for a framework to specify which containerizer to use.
-     */
+	 * <p>Mesos provides a facility for a framework to specify which containerizer to use.
+	 */
 	public ContainerType containerType() {
 		return containerType;
 	}
 
 	/**
 	 * Get the container image name.
-     */
+	 */
 	public Option<String> containerImageName() {
 		return containerImageName;
 	}
 
 	/**
 	 * Get the common containered parameters.
-     */
+	 */
 	public ContaineredTaskManagerParameters containeredParameters() {
 		return containeredParameters;
+	}
+
+	/**
+	 * Get the container volumes string.
+	 */
+	public List<Protos.Volume> containerVolumes() {
+		return containerVolumes;
+	}
+
+	/**
+	 * Get Docker runtime parameters.
+	 */
+	public List<Protos.Parameter> dockerParameters() {
+		return dockerParameters;
+	}
+
+	/**
+	 * Get the placement constraints.
+	 */
+	public List<ConstraintEvaluator> constraints() {
+		return constraints;
+	}
+
+	/**
+	 * Get the taskManager hostname.
+	 */
+	public Option<String> getTaskManagerHostname() {
+		return taskManagerHostname;
+	}
+
+	/**
+	 * Get the command.
+	 */
+	public String command() {
+		return command;
+	}
+
+	/**
+	 * Get the bootstrap command.
+	 */
+	public Option<String> bootstrapCommand() {
+		return bootstrapCommand;
 	}
 
 	@Override
 	public String toString() {
 		return "MesosTaskManagerParameters{" +
 			"cpus=" + cpus +
+			", gpus=" + gpus +
 			", containerType=" + containerType +
 			", containerImageName=" + containerImageName +
 			", containeredParameters=" + containeredParameters +
+			", containerVolumes=" + containerVolumes +
+			", dockerParameters=" + dockerParameters +
+			", constraints=" + constraints +
+			", taskManagerHostName=" + taskManagerHostname +
+			", command=" + command +
+			", bootstrapCommand=" + bootstrapCommand +
 			'}';
 	}
 
 	/**
 	 * Create the Mesos TaskManager parameters.
+	 *
 	 * @param flinkConfig the TM configuration.
-     */
+	 */
 	public static MesosTaskManagerParameters create(Configuration flinkConfig) {
 
+		List<ConstraintEvaluator> constraints = parseConstraints(flinkConfig.getString(MESOS_CONSTRAINTS_HARD_HOSTATTR));
 		// parse the common parameters
 		ContaineredTaskManagerParameters containeredParameters = ContaineredTaskManagerParameters.create(
 			flinkConfig,
@@ -138,8 +275,15 @@ public class MesosTaskManagerParameters {
 			flinkConfig.getInteger(MESOS_RM_TASKS_SLOTS));
 
 		double cpus = flinkConfig.getDouble(MESOS_RM_TASKS_CPUS);
-		if(cpus <= 0.0) {
+		if (cpus <= 0.0) {
 			cpus = Math.max(containeredParameters.numSlots(), 1.0);
+		}
+
+		int gpus = flinkConfig.getInteger(MESOS_RM_TASKS_GPUS);
+
+		if (gpus < 0) {
+			throw new IllegalConfigurationException(MESOS_RM_TASKS_GPUS.key() +
+				" cannot be negative");
 		}
 
 		// parse the containerization parameters
@@ -147,13 +291,13 @@ public class MesosTaskManagerParameters {
 
 		ContainerType containerType;
 		String containerTypeString = flinkConfig.getString(MESOS_RM_CONTAINER_TYPE);
-		switch(containerTypeString) {
+		switch (containerTypeString) {
 			case MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_MESOS:
 				containerType = ContainerType.MESOS;
 				break;
 			case MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_DOCKER:
 				containerType = ContainerType.DOCKER;
-				if(imageName == null || imageName.length() == 0) {
+				if (imageName == null || imageName.length() == 0) {
 					throw new IllegalConfigurationException(MESOS_RM_CONTAINER_IMAGE_NAME.key() +
 						" must be specified for docker container type");
 				}
@@ -162,13 +306,148 @@ public class MesosTaskManagerParameters {
 				throw new IllegalConfigurationException("invalid container type: " + containerTypeString);
 		}
 
+		Option<String> containerVolOpt = Option.<String>apply(flinkConfig.getString(MESOS_RM_CONTAINER_VOLUMES));
+
+		Option<String> dockerParamsOpt = Option.<String>apply(flinkConfig.getString(MESOS_RM_CONTAINER_DOCKER_PARAMETERS));
+
+		List<Protos.Volume> containerVolumes = buildVolumes(containerVolOpt);
+
+		List<Protos.Parameter> dockerParameters = buildDockerParameters(dockerParamsOpt);
+
+		//obtain Task Manager Host Name from the configuration
+		Option<String> taskManagerHostname = Option.apply(flinkConfig.getString(MESOS_TM_HOSTNAME));
+
+		//obtain command-line from the configuration
+		String tmCommand = flinkConfig.getString(MESOS_TM_CMD);
+		Option<String> tmBootstrapCommand = Option.apply(flinkConfig.getString(MESOS_TM_BOOTSTRAP_CMD));
+
 		return new MesosTaskManagerParameters(
 			cpus,
+			gpus,
 			containerType,
 			Option.apply(imageName),
-			containeredParameters);
+			containeredParameters,
+			containerVolumes,
+			dockerParameters,
+			constraints,
+			tmCommand,
+			tmBootstrapCommand,
+			taskManagerHostname);
 	}
 
+	private static List<ConstraintEvaluator> parseConstraints(String mesosConstraints) {
+
+		if (mesosConstraints == null || mesosConstraints.isEmpty()) {
+			return Collections.emptyList();
+		} else {
+			List<ConstraintEvaluator> constraints = new ArrayList<>();
+
+			for (String constraint : mesosConstraints.split(",")) {
+				if (constraint.isEmpty()) {
+					continue;
+				}
+				final String[] constraintList = constraint.split(":");
+				if (constraintList.length != 2) {
+					continue;
+				}
+				addHostAttrValueConstraint(constraints, constraintList[0], constraintList[1]);
+			}
+
+			return constraints;
+		}
+	}
+
+	private static void addHostAttrValueConstraint(List<ConstraintEvaluator> constraints, String constraintKey, final String constraintValue) {
+		constraints.add(new HostAttrValueConstraint(constraintKey, new Func1<String, String>() {
+			@Override
+			public String call(String s) {
+				return constraintValue;
+			}
+		}));
+	}
+
+	/**
+	 * Used to build volume specs for mesos. This allows for mounting additional volumes into a container
+	 *
+	 * @param containerVolumes a comma delimited optional string of [host_path:]container_path[:RO|RW] that
+	 *                         defines mount points for a container volume. If None or empty string, returns
+	 *                         an empty iterator
+	 */
+	public static List<Protos.Volume> buildVolumes(Option<String> containerVolumes) {
+		if (containerVolumes.isEmpty()) {
+			return Collections.emptyList();
+		} else {
+			String[] volumeSpecifications = containerVolumes.get().split(",");
+
+			List<Protos.Volume> volumes = new ArrayList<>(volumeSpecifications.length);
+
+			for (String volumeSpecification : volumeSpecifications) {
+				if (!volumeSpecification.trim().isEmpty()) {
+					Protos.Volume.Builder volume = Protos.Volume.newBuilder();
+					volume.setMode(Protos.Volume.Mode.RW);
+
+					String[] parts = volumeSpecification.split(":");
+
+					switch (parts.length) {
+						case 1:
+							volume.setContainerPath(parts[0]);
+							break;
+						case 2:
+							try {
+								Protos.Volume.Mode mode = Protos.Volume.Mode.valueOf(parts[1].trim().toUpperCase());
+								volume.setMode(mode)
+									.setContainerPath(parts[0]);
+							} catch (IllegalArgumentException e) {
+								volume.setHostPath(parts[0])
+									.setContainerPath(parts[1]);
+							}
+							break;
+						case 3:
+							Protos.Volume.Mode mode = Protos.Volume.Mode.valueOf(parts[2].trim().toUpperCase());
+							volume.setMode(mode)
+								.setHostPath(parts[0])
+								.setContainerPath(parts[1]);
+							break;
+						default:
+							throw new IllegalArgumentException("volume specification is invalid, given: " + volumeSpecification);
+					}
+
+					volumes.add(volume.build());
+				}
+			}
+			return volumes;
+		}
+	}
+
+	public static List<Protos.Parameter> buildDockerParameters(Option<String> dockerParameters) {
+		if (dockerParameters.isEmpty()) {
+			return Collections.emptyList();
+		} else {
+			String[] dockerParameterSpecifications = dockerParameters.get().split(",");
+
+			List<Protos.Parameter> parameters = new ArrayList<>(dockerParameterSpecifications.length);
+
+			for (String dockerParameterSpecification : dockerParameterSpecifications) {
+				if (!dockerParameterSpecification.trim().isEmpty()) {
+					// split with the limit of 2 in case the value includes '='
+					String[] match = dockerParameterSpecification.split("=", 2);
+					if (match.length != 2) {
+						throw new IllegalArgumentException("Docker parameter specification is invalid, given: "
+							+ dockerParameterSpecification);
+					}
+					Protos.Parameter.Builder parameter = Protos.Parameter.newBuilder();
+					parameter.setKey(match[0]);
+					parameter.setValue(match[1]);
+					parameters.add(parameter.build());
+				}
+			}
+			return parameters;
+		}
+	}
+
+	/**
+	 * The supported containerizers.
+	 */
 	public enum ContainerType {
 		MESOS,
 		DOCKER

@@ -31,6 +31,9 @@ import org.apache.flink.types.NullValue;
 
 import java.io.BufferedReader;
 
+/**
+ * Test {@link ConnectedComponents} with a randomly generated graph.
+ */
 @SuppressWarnings("serial")
 public class ConnectedComponentsWithRandomisedEdgesITCase extends JavaProgramTestBase {
 
@@ -59,7 +62,7 @@ public class ConnectedComponentsWithRandomisedEdgesITCase extends JavaProgramTes
 
 		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
 
-		DataSet<Vertex<Long, Long>> result = graph.run(new ConnectedComponents<Long, Long, NullValue>(100));
+		DataSet<Vertex<Long, Long>> result = graph.run(new ConnectedComponents<>(100));
 
 		result.writeAsCsv(resultPath, "\n", " ");
 		env.execute();
@@ -67,7 +70,7 @@ public class ConnectedComponentsWithRandomisedEdgesITCase extends JavaProgramTes
 
 	/**
 	 * A map function that takes a Long value and creates a 2-tuple out of it:
-	 * <pre>(Long value) -> (value, value)</pre>
+	 * <pre>(Long value) -> (value, value)</pre>.
 	 */
 	public static final class IdAssigner implements MapFunction<Long, Vertex<Long, Long>> {
 		@Override
@@ -83,7 +86,7 @@ public class ConnectedComponentsWithRandomisedEdgesITCase extends JavaProgramTes
 		}
 	}
 
-	public static final class EdgeParser extends RichMapFunction<String, Edge<Long, NullValue>> {
+	private static final class EdgeParser extends RichMapFunction<String, Edge<Long, NullValue>> {
 		public Edge<Long, NullValue> map(String value) {
 			String[] nums = value.split(" ");
 			return new Edge<>(Long.parseLong(nums[0]), Long.parseLong(nums[1]),

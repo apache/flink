@@ -57,7 +57,7 @@ public class HashLeftOuterJoinBuildSecondDescriptor extends AbstractJoinDescript
 	@Override
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
 
-		String nodeName = "LeftOuterJoin("+node.getOperator().getName()+")";
+		String nodeName = "LeftOuterJoin ("+node.getOperator().getName()+")";
 		return new DualInputPlanNode(node, nodeName, in1, in2, getStrategy(), this.keys1, this.keys2);
 	}
 	

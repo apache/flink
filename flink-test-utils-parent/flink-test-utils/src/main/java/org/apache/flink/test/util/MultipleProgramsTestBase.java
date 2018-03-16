@@ -18,9 +18,8 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
@@ -32,7 +31,7 @@ import java.util.Collection;
  * shutdown of the Flink clusters (including actor systems, etc) usually dominates
  * the execution of the actual tests.
  *
- * To write a unit test against this test base, simply extend it and add
+ * <p>To write a unit test against this test base, simply extend it and add
  * one or more regular test methods and retrieve the ExecutionEnvironment from
  * the context:
  *
@@ -54,7 +53,7 @@ import java.util.Collection;
  *
  * }</pre>
  */
-public class MultipleProgramsTestBase extends TestBaseUtils {
+public class MultipleProgramsTestBase extends AbstractTestBase {
 
 	/**
 	 * Enum that defines which execution environment to run the next test on:
@@ -62,62 +61,63 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	 */
 	public enum TestExecutionMode {
 		CLUSTER,
-		COLLECTION
+		CLUSTER_OBJECT_REUSE,
+		COLLECTION,
 	}
-	
-	// ------------------------------------------------------------------------
-	//  The mini cluster that is shared across tests
+
 	// ------------------------------------------------------------------------
 
-	protected static final int DEFAULT_PARALLELISM = 4;
-
-	protected static boolean startWebServer = false;
-
-	protected static LocalFlinkMiniCluster cluster = null;
-	
-	// ------------------------------------------------------------------------
-	
 	protected final TestExecutionMode mode;
 
-	
 	public MultipleProgramsTestBase(TestExecutionMode mode) {
 		this.mode = mode;
-		
+	}
+
+	// ------------------------------------------------------------------------
+	//  Environment setup & teardown
+	// ------------------------------------------------------------------------
+
+	@Before
+	public void setupEnvironment() {
+		TestEnvironment testEnvironment;
 		switch(mode){
 			case CLUSTER:
-				TestEnvironment clusterEnv = new TestEnvironment(cluster, 4);
-				clusterEnv.setAsContext();
+				// This only works because of the quirks we built in the TestEnvironment.
+				// We should refactor this in the future!!!
+				testEnvironment = miniClusterResource.getTestEnvironment();
+				testEnvironment.getConfig().disableObjectReuse();
+				testEnvironment.setAsContext();
+				break;
+			case CLUSTER_OBJECT_REUSE:
+				// This only works because of the quirks we built in the TestEnvironment.
+				// We should refactor this in the future!!!
+				testEnvironment = miniClusterResource.getTestEnvironment();
+				testEnvironment.getConfig().enableObjectReuse();
+				testEnvironment.setAsContext();
 				break;
 			case COLLECTION:
-				CollectionTestEnvironment collectionEnv = new CollectionTestEnvironment();
-				collectionEnv.setAsContext();
+				new CollectionTestEnvironment().setAsContext();
+				break;
+		}
+	}
+
+	@After
+	public void teardownEnvironment() {
+		switch(mode) {
+			case CLUSTER:
+			case CLUSTER_OBJECT_REUSE:
+				TestEnvironment.unsetAsContext();
+				break;
+			case COLLECTION:
+				CollectionTestEnvironment.unsetAsContext();
 				break;
 		}
 	}
 
 	// ------------------------------------------------------------------------
-	//  Cluster setup & teardown
-	// ------------------------------------------------------------------------
-
-	@BeforeClass
-	public static void setup() throws Exception {
-		cluster = TestBaseUtils.startCluster(
-			1,
-			DEFAULT_PARALLELISM,
-			startWebServer,
-			false,
-			true);
-	}
-
-	@AfterClass
-	public static void teardown() throws Exception {
-		stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
-	}
-	
-	// ------------------------------------------------------------------------
 	//  Parametrization lets the tests run in cluster and collection mode
 	// ------------------------------------------------------------------------
-	
+
 	@Parameterized.Parameters(name = "Execution mode = {0}")
 	public static Collection<Object[]> executionModes() {
 		return Arrays.asList(

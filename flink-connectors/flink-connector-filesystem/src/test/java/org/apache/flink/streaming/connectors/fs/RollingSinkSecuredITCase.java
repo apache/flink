@@ -18,16 +18,19 @@
 
 package org.apache.flink.streaming.connectors.fs;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.runtime.security.SecurityUtils;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.runtime.security.modules.HadoopModule;
+import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.test.util.SecureTestEnvironment;
-import org.apache.flink.test.util.TestingSecurityContext;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.test.util.TestingSecurityContext;
 import org.apache.flink.util.NetUtils;
+
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.http.HttpConfig;
@@ -42,25 +45,25 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_HTTP_ADDRESS_KEY;
-import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_KEYTAB_FILE_KEY;
-import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_USER_NAME_KEY;
-import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_USER_NAME_KEY;
-import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_KEYTAB_FILE_KEY;
-import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_WEB_AUTHENTICATION_KERBEROS_PRINCIPAL_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_BLOCK_ACCESS_TOKEN_ENABLE_KEY;
-import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_HTTP_POLICY_KEY;
-import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_ENCRYPT_DATA_TRANSFER_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_ADDRESS_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_HOST_NAME_KEY;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_HTTP_ADDRESS_KEY;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_KEYTAB_FILE_KEY;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_USER_NAME_KEY;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_ENCRYPT_DATA_TRANSFER_KEY;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_HTTP_POLICY_KEY;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_KEYTAB_FILE_KEY;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_USER_NAME_KEY;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_WEB_AUTHENTICATION_KERBEROS_PRINCIPAL_KEY;
 
 /**
  * Tests for running {@link RollingSinkSecuredITCase} which is an extension of {@link RollingSink} in secure environment
- * Note: only executed for Hadoop version > 3.x.x
+ * Note: only executed for Hadoop version > 3.x.x.
  */
 public class RollingSinkSecuredITCase extends RollingSinkITCase {
 
@@ -90,19 +93,7 @@ public class RollingSinkSecuredITCase extends RollingSinkITCase {
 	 * and out-of-order sequence for secure cluster
 	 */
 	@BeforeClass
-	public static void setup() throws Exception {}
-
-	@AfterClass
-	public static void teardown() throws Exception {}
-
-	@BeforeClass
-	public static void createHDFS() throws IOException {}
-
-	@AfterClass
-	public static void destroyHDFS() {}
-
-	@BeforeClass
-	public static void startSecureCluster() throws Exception {
+	public static void setup() throws Exception {
 
 		skipIfHadoopVersionIsNotAppropriate();
 
@@ -122,7 +113,10 @@ public class RollingSinkSecuredITCase extends RollingSinkITCase {
 		flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL,
 				SecureTestEnvironment.getHadoopServicePrincipal());
 
-		SecurityUtils.SecurityConfiguration ctx = new SecurityUtils.SecurityConfiguration(flinkConfig, conf);
+		SecurityConfiguration ctx =
+			new SecurityConfiguration(
+				flinkConfig,
+				Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, conf)));
 		try {
 			TestingSecurityContext.install(ctx, SecureTestEnvironment.getClientSecurityConfigurationMap());
 		} catch (Exception e) {
@@ -140,7 +134,6 @@ public class RollingSinkSecuredITCase extends RollingSinkITCase {
 		map.put("HADOOP_CONF_DIR", hdfsSiteXML.getParentFile().getAbsolutePath());
 		TestBaseUtils.setEnv(map);
 
-
 		MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
 		builder.checkDataNodeAddrConfig(true);
 		builder.checkDataNodeHostConfig(true);
@@ -152,18 +145,27 @@ public class RollingSinkSecuredITCase extends RollingSinkITCase {
 				+ NetUtils.hostAndPortToUrlString(hdfsCluster.getURI().getHost(), hdfsCluster.getNameNodePort())
 				+ "/";
 
-		startSecureFlinkClusterWithRecoveryModeEnabled();
+		Configuration configuration = startSecureFlinkClusterWithRecoveryModeEnabled();
+
+		miniClusterResource = new MiniClusterResource(new MiniClusterResource.MiniClusterResourceConfiguration(
+			configuration,
+			1,
+			4));
+
+		miniClusterResource.before();
 	}
 
 	@AfterClass
-	public static void teardownSecureCluster() throws Exception {
+	public static void teardown() throws Exception {
 		LOG.info("tearing down secure cluster environment");
-
-		TestStreamEnvironment.unsetAsContext();
-		stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
 
 		if (hdfsCluster != null) {
 			hdfsCluster.shutdown();
+		}
+
+		if (miniClusterResource != null) {
+			miniClusterResource.after();
+			miniClusterResource = null;
 		}
 
 		SecureTestEnvironment.cleanup();
@@ -202,30 +204,26 @@ public class RollingSinkSecuredITCase extends RollingSinkITCase {
 		conf.set(DFS_DATANODE_HTTP_ADDRESS_KEY, "localhost:1003");
 	}
 
-	private static void startSecureFlinkClusterWithRecoveryModeEnabled() {
+	private static Configuration startSecureFlinkClusterWithRecoveryModeEnabled() {
 		try {
 			LOG.info("Starting Flink and ZK in secure mode");
 
 			dfs.mkdirs(new Path("/flink/checkpoints"));
 			dfs.mkdirs(new Path("/flink/recovery"));
 
-			org.apache.flink.configuration.Configuration config = new org.apache.flink.configuration.Configuration();
+			final Configuration result = new Configuration();
 
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, DEFAULT_PARALLELISM);
-			config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false);
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 3);
-			config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-			config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
-			config.setString(ConfigConstants.ZOOKEEPER_CHECKPOINTS_PATH, hdfsURI + "/flink/checkpoints");
-			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI + "/flink/recovery");
-			config.setString("state.backend.fs.checkpointdir", hdfsURI + "/flink/checkpoints");
+			result.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false);
+			result.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 3);
+			result.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+			result.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
+			result.setString(HighAvailabilityOptions.HA_ZOOKEEPER_CHECKPOINTS_PATH, hdfsURI + "/flink/checkpoints");
+			result.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI + "/flink/recovery");
+			result.setString("state.backend.fs.checkpointdir", hdfsURI + "/flink/checkpoints");
 
-			SecureTestEnvironment.populateFlinkSecureConfigurations(config);
+			SecureTestEnvironment.populateFlinkSecureConfigurations(result);
 
-			cluster = TestBaseUtils.startCluster(config, false);
-			TestStreamEnvironment.setAsContext(cluster, DEFAULT_PARALLELISM);
-
+			return result;
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

@@ -22,10 +22,10 @@ import java.util.Map;
 
 /**
  * A MetricGroup is a named container for {@link Metric Metrics} and further metric subgroups.
- * 
+ *
  * <p>Instances of this class can be used to register new metrics with Flink and to create a nested
  * hierarchy based on the group names.
- * 
+ *
  * <p>A MetricGroup is uniquely identified by it's place in the hierarchy and name.
  */
 public interface MetricGroup {
@@ -69,7 +69,7 @@ public interface MetricGroup {
 	 * @return the given counter
 	 */
 	<C extends Counter> C counter(String name, C counter);
-	
+
 	/**
 	 * Registers a new {@link org.apache.flink.metrics.Gauge} with Flink.
 	 *
@@ -95,7 +95,7 @@ public interface MetricGroup {
 	 *
 	 * @param name name of the histogram
 	 * @param histogram histogram to register
-	 * @param <H> histogram type   
+	 * @param <H> histogram type
 	 * @return the registered histogram
 	 */
 	<H extends Histogram> H histogram(String name, H histogram);
@@ -105,7 +105,7 @@ public interface MetricGroup {
 	 *
 	 * @param name name of the histogram
 	 * @param histogram histogram to register
-	 * @param <H> histogram type   
+	 * @param <H> histogram type
 	 * @return the registered histogram
 	 */
 	<H extends Histogram> H histogram(int name, H histogram);
@@ -150,13 +150,26 @@ public interface MetricGroup {
 	 */
 	MetricGroup addGroup(String name);
 
+	/**
+	 * Creates a new key-value MetricGroup pair. The key group is added to this groups sub-groups, while the value group
+	 * is added to the key group's sub-groups. This method returns the value group.
+	 *
+	 * <p>The only difference between calling this method and {@code group.addGroup(key).addGroup(value)} is that
+	 * {@link #getAllVariables()} of the value group return an additional {@code "<key>"="value"} pair.
+	 *
+	 * @param key name of the first group
+	 * @param value name of the second group
+	 * @return the second created group
+	 */
+	MetricGroup addGroup(String key, String value);
+
 	// ------------------------------------------------------------------------
 	// Scope
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Gets the scope as an array of the scope components, for example
-	 * {@code ["host-7", "taskmanager-2", "window_word_count", "my-mapper"]}
+	 * {@code ["host-7", "taskmanager-2", "window_word_count", "my-mapper"]}.
 	 *
 	 * @see #getMetricIdentifier(String)
 	 * @see #getMetricIdentifier(String, CharacterFilter)
@@ -165,15 +178,15 @@ public interface MetricGroup {
 
 	/**
 	 * Returns a map of all variables and their associated value, for example
-	 * {@code {"<host>"="host-7", "<tm_id>"="taskmanager-2"}}
-	 * 
+	 * {@code {"<host>"="host-7", "<tm_id>"="taskmanager-2"}}.
+	 *
 	 * @return map of all variables and their associated value
      */
 	Map<String, String> getAllVariables();
 
 	/**
 	 * Returns the fully qualified metric name, for example
-	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
+	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}.
 	 *
 	 * @param metricName metric name
 	 * @return fully qualified metric name
@@ -182,7 +195,7 @@ public interface MetricGroup {
 
 	/**
 	 * Returns the fully qualified metric name, for example
-	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
+	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}.
 	 *
 	 * @param metricName metric name
 	 * @param filter character filter which is applied to the scope components if not null.

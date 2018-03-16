@@ -32,16 +32,19 @@ import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.AggregatingState;
+import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Preconditions;
 
@@ -55,11 +58,10 @@ import java.util.Map;
  * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
  * {@link RichFunction#close()}.
  *
- * <p>
- * State related apis in {@link RuntimeContext} are not supported yet because the key may get
+ * <p>State related apis in {@link RuntimeContext} are not supported yet because the key may get
  * changed while accessing states in the working thread.
- * <p>
- * {@link IterationRuntimeContext#getIterationAggregator(String)} is not supported since the
+ *
+ * <p>{@link IterationRuntimeContext#getIterationAggregator(String)} is not supported since the
  * aggregator may be modified by multiple threads.
  *
  * @param <IN> The type of the input elements.
@@ -84,7 +86,7 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction im
 	}
 
 	@Override
-	public abstract void asyncInvoke(IN input, AsyncCollector<OUT> collector) throws Exception;
+	public abstract void asyncInvoke(IN input, ResultFuture<OUT> resultFuture) throws Exception;
 
 	// -----------------------------------------------------------------------------------------
 	// Wrapper classes
@@ -115,6 +117,11 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction im
 		@Override
 		public int getNumberOfParallelSubtasks() {
 			return runtimeContext.getNumberOfParallelSubtasks();
+		}
+
+		@Override
+		public int getMaxNumberOfParallelSubtasks() {
+			return runtimeContext.getMaxNumberOfParallelSubtasks();
 		}
 
 		@Override
@@ -167,10 +174,19 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction im
 		}
 
 		@Override
+		public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
+			throw new UnsupportedOperationException("State is not supported in rich async functions.");
+		}
+
+		@Override
 		public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
 			throw new UnsupportedOperationException("State is not supported in rich async functions.");
 		}
 
+		@Override
+		public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
+			throw new UnsupportedOperationException("State is not supported in rich async functions.");
+		}
 
 		@Override
 		public <V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> accumulator) {

@@ -31,187 +31,156 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
+/**
+ * Test the creation of a {@link ScatterGatherIteration} program.
+ */
 @SuppressWarnings("serial")
 public class SpargelTranslationTest {
 
+	private static final String ITERATION_NAME = "Test Name";
+
+	private static final String AGGREGATOR_NAME = "AggregatorName";
+
+	private static final String BC_SET_MESSAGES_NAME = "borat messages";
+
+	private static final String BC_SET_UPDATES_NAME = "borat updates";
+
+	private static final int NUM_ITERATIONS = 13;
+
+	private static final int ITERATION_parallelism = 77;
+
 	@Test
 	public void testTranslationPlainEdges() {
-		try {
-			final String ITERATION_NAME = "Test Name";
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			final String AGGREGATOR_NAME = "AggregatorName";
+		DataSet<Long> bcMessaging = env.fromElements(1L);
+		DataSet<Long> bcUpdate = env.fromElements(1L);
 
-			final String BC_SET_MESSAGES_NAME = "borat messages";
+		DataSet<Vertex<String, Double>> result;
 
-			final String BC_SET_UPDATES_NAME = "borat updates";
+		// ------------ construct the test program ------------------
 
-			final int NUM_ITERATIONS = 13;
+		DataSet<Tuple2<String, Double>> initialVertices = env.fromElements(new Tuple2<>("abc", 3.44));
 
-			final int ITERATION_parallelism = 77;
+		DataSet<Tuple2<String, String>> edges = env.fromElements(new Tuple2<>("a", "c"));
 
+		Graph<String, Double, NullValue> graph = Graph.fromTupleDataSet(initialVertices,
+			edges.map(new MapFunction<Tuple2<String, String>, Tuple3<String, String, NullValue>>() {
 
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				public Tuple3<String, String, NullValue> map(
+					Tuple2<String, String> edge) {
+					return new Tuple3<>(edge.f0, edge.f1, NullValue.getInstance());
+				}
+			}), env);
 
-			DataSet<Long> bcMessaging = env.fromElements(1L);
-			DataSet<Long> bcUpdate = env.fromElements(1L);
+		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
-			DataSet<Vertex<String, Double>> result;
+		parameters.addBroadcastSetForScatterFunction(BC_SET_MESSAGES_NAME, bcMessaging);
+		parameters.addBroadcastSetForGatherFunction(BC_SET_UPDATES_NAME, bcUpdate);
+		parameters.setName(ITERATION_NAME);
+		parameters.setParallelism(ITERATION_parallelism);
+		parameters.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
 
-			// ------------ construct the test program ------------------
-			{
+		result = graph.runScatterGatherIteration(new MessageFunctionNoEdgeValue(), new UpdateFunction(),
+			NUM_ITERATIONS, parameters).getVertices();
 
-				DataSet<Tuple2<String, Double>> initialVertices = env.fromElements(new Tuple2<>("abc", 3.44));
+		result.output(new DiscardingOutputFormat<>());
 
-				DataSet<Tuple2<String, String>> edges = env.fromElements(new Tuple2<>("a", "c"));
+		// ------------- validate the java program ----------------
 
-				Graph<String, Double, NullValue> graph = Graph.fromTupleDataSet(initialVertices,
-						edges.map(new MapFunction<Tuple2<String, String>, Tuple3<String, String, NullValue>>() {
+		assertTrue(result instanceof DeltaIterationResultSet);
 
-							public Tuple3<String, String, NullValue> map(
-									Tuple2<String, String> edge) {
-								return new Tuple3<>(edge.f0, edge.f1, NullValue.getInstance());
-							}
-						}), env);
+		DeltaIterationResultSet<?, ?> resultSet = (DeltaIterationResultSet<?, ?>) result;
+		DeltaIteration<?, ?> iteration = resultSet.getIterationHead();
 
-				ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
+		// check the basic iteration properties
+		assertEquals(NUM_ITERATIONS, resultSet.getMaxIterations());
+		assertArrayEquals(new int[]{0}, resultSet.getKeyPositions());
+		assertEquals(ITERATION_parallelism, iteration.getParallelism());
+		assertEquals(ITERATION_NAME, iteration.getName());
 
-				parameters.addBroadcastSetForScatterFunction(BC_SET_MESSAGES_NAME, bcMessaging);
-				parameters.addBroadcastSetForGatherFunction(BC_SET_UPDATES_NAME, bcUpdate);
-				parameters.setName(ITERATION_NAME);
-				parameters.setParallelism(ITERATION_parallelism);
-				parameters.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
+		assertEquals(AGGREGATOR_NAME, iteration.getAggregators().getAllRegisteredAggregators().iterator().next().getName());
 
-				result = graph.runScatterGatherIteration(new MessageFunctionNoEdgeValue(), new UpdateFunction(),
-						NUM_ITERATIONS, parameters).getVertices();
+		// validate that the semantic properties are set as they should
+		TwoInputUdfOperator<?, ?, ?, ?> solutionSetJoin = (TwoInputUdfOperator<?, ?, ?, ?>) resultSet.getNextWorkset();
+		assertTrue(solutionSetJoin.getSemanticProperties().getForwardingTargetFields(0, 0).contains(0));
+		assertTrue(solutionSetJoin.getSemanticProperties().getForwardingTargetFields(1, 0).contains(0));
 
-				result.output(new DiscardingOutputFormat<Vertex<String, Double>>());
-			}
+		TwoInputUdfOperator<?, ?, ?, ?> edgesJoin = (TwoInputUdfOperator<?, ?, ?, ?>) solutionSetJoin.getInput1();
 
-
-			// ------------- validate the java program ----------------
-
-			assertTrue(result instanceof DeltaIterationResultSet);
-
-			DeltaIterationResultSet<?, ?> resultSet = (DeltaIterationResultSet<?, ?>) result;
-			DeltaIteration<?, ?> iteration = resultSet.getIterationHead();
-
-			// check the basic iteration properties
-			assertEquals(NUM_ITERATIONS, resultSet.getMaxIterations());
-			assertArrayEquals(new int[] {0}, resultSet.getKeyPositions());
-			assertEquals(ITERATION_parallelism, iteration.getParallelism());
-			assertEquals(ITERATION_NAME, iteration.getName());
-
-			assertEquals(AGGREGATOR_NAME, iteration.getAggregators().getAllRegisteredAggregators().iterator().next().getName());
-
-			// validate that the semantic properties are set as they should
-			TwoInputUdfOperator<?, ?, ?, ?> solutionSetJoin = (TwoInputUdfOperator<?, ?, ?, ?>) resultSet.getNextWorkset();
-			assertTrue(solutionSetJoin.getSemanticProperties().getForwardingTargetFields(0, 0).contains(0));
-			assertTrue(solutionSetJoin.getSemanticProperties().getForwardingTargetFields(1, 0).contains(0));
-
-			TwoInputUdfOperator<?, ?, ?, ?> edgesJoin = (TwoInputUdfOperator<?, ?, ?, ?>) solutionSetJoin.getInput1();
-
-			// validate that the broadcast sets are forwarded
-			assertEquals(bcUpdate, solutionSetJoin.getBroadcastSets().get(BC_SET_UPDATES_NAME));
-			assertEquals(bcMessaging, edgesJoin.getBroadcastSets().get(BC_SET_MESSAGES_NAME));
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		// validate that the broadcast sets are forwarded
+		assertEquals(bcUpdate, solutionSetJoin.getBroadcastSets().get(BC_SET_UPDATES_NAME));
+		assertEquals(bcMessaging, edgesJoin.getBroadcastSets().get(BC_SET_MESSAGES_NAME));
 	}
 
 	@Test
 	public void testTranslationPlainEdgesWithForkedBroadcastVariable() {
-		try {
-			final String ITERATION_NAME = "Test Name";
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			final String AGGREGATOR_NAME = "AggregatorName";
+		DataSet<Long> bcVar = env.fromElements(1L);
 
-			final String BC_SET_MESSAGES_NAME = "borat messages";
+		DataSet<Vertex<String, Double>> result;
 
-			final String BC_SET_UPDATES_NAME = "borat updates";
+		// ------------ construct the test program ------------------
 
-			final int NUM_ITERATIONS = 13;
+		DataSet<Tuple2<String, Double>> initialVertices = env.fromElements(new Tuple2<>("abc", 3.44));
 
-			final int ITERATION_parallelism = 77;
+		DataSet<Tuple2<String, String>> edges = env.fromElements(new Tuple2<>("a", "c"));
 
+		Graph<String, Double, NullValue> graph = Graph.fromTupleDataSet(initialVertices,
+			edges.map(new MapFunction<Tuple2<String, String>, Tuple3<String, String, NullValue>>() {
 
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				public Tuple3<String, String, NullValue> map(
+					Tuple2<String, String> edge) {
+					return new Tuple3<>(edge.f0, edge.f1, NullValue.getInstance());
+				}
+			}), env);
 
-			DataSet<Long> bcVar = env.fromElements(1L);
+		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
-			DataSet<Vertex<String, Double>> result;
+		parameters.addBroadcastSetForScatterFunction(BC_SET_MESSAGES_NAME, bcVar);
+		parameters.addBroadcastSetForGatherFunction(BC_SET_UPDATES_NAME, bcVar);
+		parameters.setName(ITERATION_NAME);
+		parameters.setParallelism(ITERATION_parallelism);
+		parameters.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
 
-			// ------------ construct the test program ------------------
-			{
+		result = graph.runScatterGatherIteration(new MessageFunctionNoEdgeValue(), new UpdateFunction(),
+			NUM_ITERATIONS, parameters).getVertices();
 
-				DataSet<Tuple2<String, Double>> initialVertices = env.fromElements(new Tuple2<>("abc", 3.44));
+		result.output(new DiscardingOutputFormat<>());
 
-				DataSet<Tuple2<String, String>> edges = env.fromElements(new Tuple2<>("a", "c"));
+		// ------------- validate the java program ----------------
 
-				Graph<String, Double, NullValue> graph = Graph.fromTupleDataSet(initialVertices,
-						edges.map(new MapFunction<Tuple2<String, String>, Tuple3<String, String, NullValue>>() {
+		assertTrue(result instanceof DeltaIterationResultSet);
 
-							public Tuple3<String, String, NullValue> map(
-									Tuple2<String, String> edge) {
-								return new Tuple3<>(edge.f0, edge.f1, NullValue.getInstance());
-							}
-						}), env);
+		DeltaIterationResultSet<?, ?> resultSet = (DeltaIterationResultSet<?, ?>) result;
+		DeltaIteration<?, ?> iteration = resultSet.getIterationHead();
 
-				ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
+		// check the basic iteration properties
+		assertEquals(NUM_ITERATIONS, resultSet.getMaxIterations());
+		assertArrayEquals(new int[]{0}, resultSet.getKeyPositions());
+		assertEquals(ITERATION_parallelism, iteration.getParallelism());
+		assertEquals(ITERATION_NAME, iteration.getName());
 
-				parameters.addBroadcastSetForScatterFunction(BC_SET_MESSAGES_NAME, bcVar);
-				parameters.addBroadcastSetForGatherFunction(BC_SET_UPDATES_NAME, bcVar);
-				parameters.setName(ITERATION_NAME);
-				parameters.setParallelism(ITERATION_parallelism);
-				parameters.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
+		assertEquals(AGGREGATOR_NAME, iteration.getAggregators().getAllRegisteredAggregators().iterator().next().getName());
 
-				result = graph.runScatterGatherIteration(new MessageFunctionNoEdgeValue(), new UpdateFunction(),
-						NUM_ITERATIONS, parameters).getVertices();
+		// validate that the semantic properties are set as they should
+		TwoInputUdfOperator<?, ?, ?, ?> solutionSetJoin = (TwoInputUdfOperator<?, ?, ?, ?>) resultSet.getNextWorkset();
+		assertTrue(solutionSetJoin.getSemanticProperties().getForwardingTargetFields(0, 0).contains(0));
+		assertTrue(solutionSetJoin.getSemanticProperties().getForwardingTargetFields(1, 0).contains(0));
 
-				result.output(new DiscardingOutputFormat<Vertex<String, Double>>());
-			}
+		TwoInputUdfOperator<?, ?, ?, ?> edgesJoin = (TwoInputUdfOperator<?, ?, ?, ?>) solutionSetJoin.getInput1();
 
-
-			// ------------- validate the java program ----------------
-
-			assertTrue(result instanceof DeltaIterationResultSet);
-
-			DeltaIterationResultSet<?, ?> resultSet = (DeltaIterationResultSet<?, ?>) result;
-			DeltaIteration<?, ?> iteration = resultSet.getIterationHead();
-
-			// check the basic iteration properties
-			assertEquals(NUM_ITERATIONS, resultSet.getMaxIterations());
-			assertArrayEquals(new int[] {0}, resultSet.getKeyPositions());
-			assertEquals(ITERATION_parallelism, iteration.getParallelism());
-			assertEquals(ITERATION_NAME, iteration.getName());
-
-			assertEquals(AGGREGATOR_NAME, iteration.getAggregators().getAllRegisteredAggregators().iterator().next().getName());
-
-			// validate that the semantic properties are set as they should
-			TwoInputUdfOperator<?, ?, ?, ?> solutionSetJoin = (TwoInputUdfOperator<?, ?, ?, ?>) resultSet.getNextWorkset();
-			assertTrue(solutionSetJoin.getSemanticProperties().getForwardingTargetFields(0, 0).contains(0));
-			assertTrue(solutionSetJoin.getSemanticProperties().getForwardingTargetFields(1, 0).contains(0));
-
-			TwoInputUdfOperator<?, ?, ?, ?> edgesJoin = (TwoInputUdfOperator<?, ?, ?, ?>) solutionSetJoin.getInput1();
-
-			// validate that the broadcast sets are forwarded
-			assertEquals(bcVar, solutionSetJoin.getBroadcastSets().get(BC_SET_UPDATES_NAME));
-			assertEquals(bcVar, edgesJoin.getBroadcastSets().get(BC_SET_MESSAGES_NAME));
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		// validate that the broadcast sets are forwarded
+		assertEquals(bcVar, solutionSetJoin.getBroadcastSets().get(BC_SET_UPDATES_NAME));
+		assertEquals(bcVar, edgesJoin.getBroadcastSets().get(BC_SET_MESSAGES_NAME));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -219,12 +188,14 @@ public class SpargelTranslationTest {
 	private static class MessageFunctionNoEdgeValue extends ScatterFunction<String, Double, Long, NullValue> {
 
 		@Override
-		public void sendMessages(Vertex<String, Double> vertex) {}
+		public void sendMessages(Vertex<String, Double> vertex) {
+		}
 	}
 
 	private static class UpdateFunction extends GatherFunction<String, Double, Long> {
 
 		@Override
-		public void updateVertex(Vertex<String, Double> vertex, MessageIterator<Long> inMessages) {}
+		public void updateVertex(Vertex<String, Double> vertex, MessageIterator<Long> inMessages) {
+		}
 	}
 }

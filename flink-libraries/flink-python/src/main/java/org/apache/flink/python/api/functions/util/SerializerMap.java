@@ -10,17 +10,18 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.functions.util;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.python.api.streaming.util.SerializationUtils;
 import org.apache.flink.python.api.streaming.util.SerializationUtils.Serializer;
 
-/*
-Utility function to serialize values, usually directly from data sources.
-*/
+/**
+ * Utility function to serialize values, usually directly from data sources.
+ */
 public class SerializerMap<IN> implements MapFunction<IN, byte[]> {
-	private Serializer<IN> serializer = null;
+	private transient Serializer<IN> serializer;
 
 	@Override
 	@SuppressWarnings("unchecked")

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.PublicEvolving;
@@ -42,7 +43,7 @@ import java.util.Deque;
  */
 @PublicEvolving
 public class StatefulSequenceSource extends RichParallelSourceFunction<Long> implements CheckpointedFunction {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	private final long start;
@@ -71,7 +72,7 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> imp
 		Preconditions.checkState(this.checkpointedState == null,
 			"The " + getClass().getSimpleName() + " has already been initialized.");
 
-		this.checkpointedState = context.getOperatorStateStore().getOperatorState(
+		this.checkpointedState = context.getOperatorStateStore().getListState(
 			new ListStateDescriptor<>(
 				"stateful-sequence-source-state",
 				LongSerializer.INSTANCE

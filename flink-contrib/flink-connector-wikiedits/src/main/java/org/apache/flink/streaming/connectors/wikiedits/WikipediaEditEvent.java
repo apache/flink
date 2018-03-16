@@ -21,6 +21,9 @@ package org.apache.flink.streaming.connectors.wikiedits;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Instances of this class represent edits made on Wikipedia.
+ */
 public class WikipediaEditEvent {
 
 	// Metadata

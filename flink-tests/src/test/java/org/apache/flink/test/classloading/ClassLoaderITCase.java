@@ -21,11 +21,11 @@ package org.apache.flink.test.classloading;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.blob.BlobClient;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -34,33 +34,47 @@ import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepointFail
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
-import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.test.util.SuccessException;
+import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.TestLogger;
+
+import org.hamcrest.Matchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.util.Collections;
+import java.util.concurrent.TimeUnit;
+
 import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.File;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.isA;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertTrue;
 
+/**
+ * Test job classloader.
+ */
 public class ClassLoaderITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClassLoaderITCase.class);
@@ -81,7 +95,11 @@ public class ClassLoaderITCase extends TestLogger {
 
 	private static final String CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH = "checkpointing_custom_kv_state-test-jar.jar";
 
+	@ClassRule
 	public static final TemporaryFolder FOLDER = new TemporaryFolder();
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
 	private static TestingCluster testCluster;
 
@@ -89,20 +107,18 @@ public class ClassLoaderITCase extends TestLogger {
 
 	@BeforeClass
 	public static void setUp() throws Exception {
-		FOLDER.create();
-
 		Configuration config = new Configuration();
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
 		parallelism = 4;
 
 		// we need to use the "filesystem" state backend to ensure FLINK-2543 is not happening again.
-		config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
-		config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,
+		config.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
+		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY,
 				FOLDER.newFolder().getAbsoluteFile().toURI().toString());
 
 		// Savepoint path
-		config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
+		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY,
 				FOLDER.newFolder().getAbsoluteFile().toURI().toString());
 
 		testCluster = new TestingCluster(config, false);
@@ -112,115 +128,153 @@ public class ClassLoaderITCase extends TestLogger {
 	@AfterClass
 	public static void tearDown() throws Exception {
 		if (testCluster != null) {
-			testCluster.shutdown();
+			testCluster.stop();
 		}
 
-		FOLDER.delete();
+		TestStreamEnvironment.unsetAsContext();
+		TestEnvironment.unsetAsContext();
 	}
 
 	@Test
-	public void testJobsWithCustomClassLoader() {
-		try {
-			int port = testCluster.getLeaderRPCPort();
+	public void testCustomSplitJobWithCustomClassLoaderJar() throws IOException, ProgramInvocationException {
 
-			PackagedProgram inputSplitTestProg = new PackagedProgram(
-					new File(INPUT_SPLITS_PROG_JAR_FILE),
-					new String[] { INPUT_SPLITS_PROG_JAR_FILE,
-							"", // classpath
-							"localhost",
-							String.valueOf(port),
-							"4" // parallelism
-					});
-			inputSplitTestProg.invokeInteractiveModeForExecution();
+		PackagedProgram inputSplitTestProg = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE));
 
-			PackagedProgram streamingInputSplitTestProg = new PackagedProgram(
-					new File(STREAMING_INPUT_SPLITS_PROG_JAR_FILE),
-					new String[] { STREAMING_INPUT_SPLITS_PROG_JAR_FILE,
-							"localhost",
-							String.valueOf(port),
-							"4" // parallelism
-					});
-			streamingInputSplitTestProg.invokeInteractiveModeForExecution();
+		TestEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.singleton(new Path(INPUT_SPLITS_PROG_JAR_FILE)),
+			Collections.<URL>emptyList());
 
-			String classpath = new File(INPUT_SPLITS_PROG_JAR_FILE).toURI().toURL().toString();
-			PackagedProgram inputSplitTestProg2 = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE),
-					new String[] { "",
-							classpath, // classpath
-							"localhost",
-							String.valueOf(port),
-							"4" // parallelism
-					});
-			inputSplitTestProg2.invokeInteractiveModeForExecution();
+		inputSplitTestProg.invokeInteractiveModeForExecution();
+	}
 
-			// regular streaming job
-			PackagedProgram streamingProg = new PackagedProgram(
-					new File(STREAMING_PROG_JAR_FILE),
-					new String[] {
-							STREAMING_PROG_JAR_FILE,
-							"localhost",
-							String.valueOf(port)
-					});
-			streamingProg.invokeInteractiveModeForExecution();
+	@Test
+	public void testStreamingCustomSplitJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		PackagedProgram streamingInputSplitTestProg = new PackagedProgram(new File(STREAMING_INPUT_SPLITS_PROG_JAR_FILE));
 
-			// checkpointed streaming job with custom classes for the checkpoint (FLINK-2543)
-			// the test also ensures that user specific exceptions are serializable between JobManager <--> JobClient.
-			try {
-				PackagedProgram streamingCheckpointedProg = new PackagedProgram(
-						new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE),
-						new String[] {
-								STREAMING_CHECKPOINTED_PROG_JAR_FILE,
-								"localhost",
-								String.valueOf(port) });
-				streamingCheckpointedProg.invokeInteractiveModeForExecution();
-			} catch (Exception e) {
-				// we can not access the SuccessException here when executing the tests with maven, because its not available in the jar.
-				assertEquals("Program should terminate with a 'SuccessException'",
-						"org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram.SuccessException",
-						e.getCause().getCause().getClass().getCanonicalName());
-			}
+		TestStreamEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.singleton(new Path(STREAMING_INPUT_SPLITS_PROG_JAR_FILE)),
+			Collections.<URL>emptyList());
 
-			PackagedProgram kMeansProg = new PackagedProgram(
-					new File(KMEANS_JAR_PATH),
-					new String[] { KMEANS_JAR_PATH,
-							"localhost",
-							String.valueOf(port),
-							"4", // parallelism
-							KMeansData.DATAPOINTS,
-							KMeansData.INITIAL_CENTERS,
-							"25"
-					});
-			kMeansProg.invokeInteractiveModeForExecution();
+		streamingInputSplitTestProg.invokeInteractiveModeForExecution();
+	}
 
-			// test FLINK-3633
-			final PackagedProgram userCodeTypeProg = new PackagedProgram(
-					new File(USERCODETYPE_JAR_PATH),
-					new String[] { USERCODETYPE_JAR_PATH,
-							"localhost",
-							String.valueOf(port),
-					});
+	@Test
+	public void testCustomSplitJobWithCustomClassLoaderPath() throws IOException, ProgramInvocationException {
+		URL classpath = new File(INPUT_SPLITS_PROG_JAR_FILE).toURI().toURL();
+		PackagedProgram inputSplitTestProg2 = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE));
 
-			userCodeTypeProg.invokeInteractiveModeForExecution();
+		TestEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.<Path>emptyList(),
+			Collections.singleton(classpath));
 
-			File checkpointDir = FOLDER.newFolder();
-			File outputDir = FOLDER.newFolder();
+		inputSplitTestProg2.invokeInteractiveModeForExecution();
+	}
 
-			final PackagedProgram program = new PackagedProgram(
-					new File(CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH),
-					new String[] {
-							CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH,
-							"localhost",
-							String.valueOf(port),
-							checkpointDir.toURI().toString(),
-							outputDir.toURI().toString()
-					});
+	@Test
+	public void testStreamingClassloaderJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		// regular streaming job
+		PackagedProgram streamingProg = new PackagedProgram(new File(STREAMING_PROG_JAR_FILE));
 
-			program.invokeInteractiveModeForExecution();
+		TestStreamEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.singleton(new Path(STREAMING_PROG_JAR_FILE)),
+			Collections.<URL>emptyList());
 
-		} catch (Exception e) {
-			if (!(e.getCause().getCause() instanceof SuccessException)) {
-				fail(e.getMessage());
-			}
-		}
+		streamingProg.invokeInteractiveModeForExecution();
+	}
+
+	@Test
+	public void testCheckpointedStreamingClassloaderJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		// checkpointed streaming job with custom classes for the checkpoint (FLINK-2543)
+		// the test also ensures that user specific exceptions are serializable between JobManager <--> JobClient.
+		PackagedProgram streamingCheckpointedProg = new PackagedProgram(new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE));
+
+		TestStreamEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.singleton(new Path(STREAMING_CHECKPOINTED_PROG_JAR_FILE)),
+			Collections.<URL>emptyList());
+
+		// Program should terminate with a 'SuccessException':
+		// we can not access the SuccessException here when executing the tests with maven, because its not available in the jar.
+		expectedException.expectCause(
+			Matchers.<Throwable>hasProperty("cause",
+				hasProperty("class",
+					hasProperty("canonicalName", equalTo(
+						"org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram.SuccessException")))));
+
+		streamingCheckpointedProg.invokeInteractiveModeForExecution();
+	}
+
+	@Test
+	public void testKMeansJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		PackagedProgram kMeansProg = new PackagedProgram(
+			new File(KMEANS_JAR_PATH),
+			new String[] {
+				KMeansData.DATAPOINTS,
+				KMeansData.INITIAL_CENTERS,
+				"25"
+			});
+
+		TestEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.singleton(new Path(KMEANS_JAR_PATH)),
+			Collections.<URL>emptyList());
+
+		kMeansProg.invokeInteractiveModeForExecution();
+	}
+
+	@Test
+	public void testUserCodeTypeJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		int port = testCluster.getLeaderRPCPort();
+
+		// test FLINK-3633
+		final PackagedProgram userCodeTypeProg = new PackagedProgram(
+			new File(USERCODETYPE_JAR_PATH),
+			new String[] { USERCODETYPE_JAR_PATH,
+				"localhost",
+				String.valueOf(port),
+			});
+
+		TestEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.singleton(new Path(USERCODETYPE_JAR_PATH)),
+			Collections.<URL>emptyList());
+
+		userCodeTypeProg.invokeInteractiveModeForExecution();
+	}
+
+	@Test
+	public void testCheckpointingCustomKvStateJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
+		File checkpointDir = FOLDER.newFolder();
+		File outputDir = FOLDER.newFolder();
+
+		final PackagedProgram program = new PackagedProgram(
+			new File(CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH),
+			new String[] {
+				checkpointDir.toURI().toString(),
+				outputDir.toURI().toString()
+			});
+
+		TestStreamEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.singleton(new Path(CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH)),
+			Collections.<URL>emptyList());
+
+		expectedException.expectCause(
+			Matchers.<Throwable>hasProperty("cause", isA(SuccessException.class)));
+
+		program.invokeInteractiveModeForExecution();
 	}
 
 	/**
@@ -230,22 +284,24 @@ public class ClassLoaderITCase extends TestLogger {
 	public void testDisposeSavepointWithCustomKvState() throws Exception {
 		Deadline deadline = new FiniteDuration(100, TimeUnit.SECONDS).fromNow();
 
-		int port = testCluster.getLeaderRPCPort();
-
 		File checkpointDir = FOLDER.newFolder();
 		File outputDir = FOLDER.newFolder();
 
 		final PackagedProgram program = new PackagedProgram(
 				new File(CUSTOM_KV_STATE_JAR_PATH),
 				new String[] {
-						CUSTOM_KV_STATE_JAR_PATH,
-						"localhost",
-						String.valueOf(port),
 						String.valueOf(parallelism),
 						checkpointDir.toURI().toString(),
 						"5000",
 						outputDir.toURI().toString()
 				});
+
+		TestStreamEnvironment.setAsContext(
+			testCluster,
+			parallelism,
+			Collections.singleton(new Path(CUSTOM_KV_STATE_JAR_PATH)),
+			Collections.<URL>emptyList()
+		);
 
 		// Execute detached
 		Thread invokeThread = new Thread(new Runnable() {
@@ -254,7 +310,10 @@ public class ClassLoaderITCase extends TestLogger {
 				try {
 					program.invokeInteractiveModeForExecution();
 				} catch (ProgramInvocationException ignored) {
-					ignored.printStackTrace();
+					if (ignored.getCause() == null ||
+						!(ignored.getCause() instanceof JobCancellationException)) {
+						ignored.printStackTrace();
+					}
 				}
 			}
 		});
@@ -282,7 +341,7 @@ public class ClassLoaderITCase extends TestLogger {
 
 			// Retry if job is not available yet
 			if (jobId == null) {
-				Thread.sleep(100);
+				Thread.sleep(100L);
 			}
 		}
 
@@ -294,7 +353,7 @@ public class ClassLoaderITCase extends TestLogger {
 		// Trigger savepoint
 		String savepointPath = null;
 		for (int i = 0; i < 20; i++) {
-			LOG.info("Triggering savepoint (" + (i+1) + "/20).");
+			LOG.info("Triggering savepoint (" + (i + 1) + "/20).");
 			Future<Object> savepointFuture = jm.ask(new TriggerSavepoint(jobId, Option.<String>empty()), deadline.timeLeft());
 
 			Object savepointResponse = Await.result(savepointFuture, deadline.timeLeft());
@@ -314,11 +373,6 @@ public class ClassLoaderITCase extends TestLogger {
 
 		assertNotNull("Failed to trigger savepoint", savepointPath);
 
-		// Upload JAR
-		LOG.info("Uploading JAR " + CUSTOM_KV_STATE_JAR_PATH + " for savepoint disposal.");
-		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(jm, deadline.timeLeft(), testCluster.userConfiguration(),
-				Collections.singletonList(new Path(CUSTOM_KV_STATE_JAR_PATH)));
-
 		// Dispose savepoint
 		LOG.info("Disposing savepoint at " + savepointPath);
 		Future<Object> disposeFuture = jm.ask(new DisposeSavepoint(savepointPath), deadline.timeLeft());
@@ -332,5 +386,14 @@ public class ClassLoaderITCase extends TestLogger {
 		} else {
 			throw new IllegalStateException("Unexpected response to DisposeSavepoint");
 		}
+
+		// Cancel job, wait for success
+		Future<?> cancelFuture = jm.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft());
+		Object response = Await.result(cancelFuture, deadline.timeLeft());
+		assertTrue("Unexpected response: " + response, response instanceof JobManagerMessages.CancellationSuccess);
+
+		// make sure, the execution is finished to not influence other test methods
+		invokeThread.join(deadline.timeLeft().toMillis());
+		assertFalse("Program invoke thread still running", invokeThread.isAlive());
 	}
 }

@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.util;
+
+import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
-import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
-import org.apache.flink.api.java.tuple.Tuple2;
 
 /**
  * Writes records that contain an id and a CoordVector. The output format is line-based, i.e. one record is written to a

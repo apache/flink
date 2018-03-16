@@ -20,9 +20,12 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -36,15 +39,18 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhe
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
+
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
-
+import static org.apache.flink.runtime.io.network.buffer.LocalBufferPoolDestroyTest.isInBlockingBufferRequest;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -77,8 +83,8 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY, 4096);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 8);
+			config.setInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE, 4096);
+			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 9);
 
 			flink = new TestingCluster(config, true);
 			flink.start();
@@ -91,7 +97,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			JobVertex consumer = new JobVertex("AsyncConsumer");
 			consumer.setParallelism(1);
 			consumer.setInvokableClass(AsyncConsumer.class);
-			consumer.connectNewDataSetAsInput(producer, DistributionPattern.POINTWISE);
+			consumer.connectNewDataSetAsInput(producer, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
 			SlotSharingGroup slot = new SlotSharingGroup(producer.getID(), consumer.getID());
 			producer.setSlotSharingGroup(slot);
@@ -124,12 +130,12 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 					break;
 				} else {
 					// Retry
-					Thread.sleep(500);
+					Thread.sleep(500L);
 				}
 			}
 
 			// Verify that async producer is in blocking request
-			assertTrue("Producer thread is not blocked: " + Arrays.toString(ASYNC_CONSUMER_THREAD.getStackTrace()), producerBlocked);
+			assertTrue("Producer thread is not blocked: " + Arrays.toString(ASYNC_PRODUCER_THREAD.getStackTrace()), producerBlocked);
 
 			boolean consumerWaiting = false;
 			for (int i = 0; i < 50; i++) {
@@ -143,7 +149,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 					break;
 				} else {
 					// Retry
-					Thread.sleep(500);
+					Thread.sleep(500L);
 				}
 			}
 
@@ -164,24 +170,9 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			assertEquals(IllegalStateException.class, ASYNC_CONSUMER_EXCEPTION.getClass());
 		} finally {
 			if (flink != null) {
-				flink.shutdown();
+				flink.stop();
 			}
 		}
-	}
-
-	/**
-	 * Returns whether the stack trace represents a Thread in a blocking buffer
-	 * request.
-	 *
-	 * @param stackTrace Stack trace of the Thread to check
-	 *
-	 * @return Flag indicating whether the Thread is in a blocking buffer
-	 * request or not
-	 */
-	private boolean isInBlockingBufferRequest(StackTraceElement[] stackTrace) {
-		return stackTrace.length >= 3 && stackTrace[0].getMethodName().equals("wait") &&
-				stackTrace[1].getMethodName().equals("requestBuffer") &&
-				stackTrace[2].getMethodName().equals("requestBufferBlocking");
 	}
 
 	/**
@@ -189,6 +180,10 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 	 * thread).
 	 */
 	public static class AsyncProducer extends AbstractInvokable {
+
+		public AsyncProducer(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {
@@ -228,7 +223,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 					while (true) {
 						current.setValue(current.getValue() + 1);
 						recordWriter.emit(current);
-						recordWriter.flush();
+						recordWriter.flushAll();
 					}
 				} catch (Exception e) {
 					ASYNC_PRODUCER_EXCEPTION = e;
@@ -242,6 +237,10 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 	 * thread).
 	 */
 	public static class AsyncConsumer extends AbstractInvokable {
+
+		public AsyncConsumer(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {

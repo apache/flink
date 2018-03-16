@@ -15,16 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.functions;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.ClosureCleaner;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.Serializable;
 
+/**
+ * Tests for {@link ClosureCleaner}.
+ */
 public class ClosureCleanerTest {
 
 	@Test(expected = InvalidProgramException.class)
@@ -194,5 +199,4 @@ class NestedNonSerializableMapCreator implements MapCreator {
 	}
 
 }
-
 

@@ -14,13 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.util.serialization;
+
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 
 /**
  * A simple wrapper for using the SerializationSchema with the KeyedDeserializationSchema
- * interface
+ * interface.
  * @param <T> The type to serialize
  */
+@Internal
 public class KeyedSerializationSchemaWrapper<T> implements KeyedSerializationSchema<T> {
 
 	private static final long serialVersionUID = 1351665280744549933L;

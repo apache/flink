@@ -25,12 +25,10 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.DegreeCount;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinVertexWithVertexDegree;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.MapEdgeToSourceId;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingBase;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.LongValue;
-import org.apache.flink.util.Preconditions;
-
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Annotates vertices of a directed graph with the out-degree.
@@ -44,8 +42,6 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 
 	// Optional configuration
 	private OptionalBoolean includeZeroDegreeVertices = new OptionalBoolean(false, true);
-
-	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * By default only the edge set is processed for the computation of degree.
@@ -62,49 +58,24 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 		return this;
 	}
 
-	/**
-	 * Override the operator parallelism.
-	 *
-	 * @param parallelism operator parallelism
-	 * @return this
-	 */
-	public VertexOutDegree<K, VV, EV> setParallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
-			"The parallelism must be greater than zero.");
-
-		this.parallelism = parallelism;
-
-		return this;
-	}
-
 	@Override
-	protected String getAlgorithmName() {
-		return VertexOutDegree.class.getName();
-	}
-
-	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
-		Preconditions.checkNotNull(other);
-
-		if (! VertexOutDegree.class.isAssignableFrom(other.getClass())) {
+	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+		if (!super.canMergeConfigurationWith(other)) {
 			return false;
 		}
 
 		VertexOutDegree rhs = (VertexOutDegree) other;
 
-		// verify that configurations can be merged
+		return !includeZeroDegreeVertices.conflictsWith(rhs.includeZeroDegreeVertices);
+	}
 
-		if (includeZeroDegreeVertices.conflictsWith(rhs.includeZeroDegreeVertices)) {
-			return false;
-		}
+	@Override
+	protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
+		super.mergeConfiguration(other);
 
-		// merge configurations
+		VertexOutDegree rhs = (VertexOutDegree) other;
 
 		includeZeroDegreeVertices.mergeWith(rhs.includeZeroDegreeVertices);
-		parallelism = (parallelism == PARALLELISM_DEFAULT) ? rhs.parallelism :
-			((rhs.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, rhs.parallelism));
-
-		return true;
 	}
 
 	@Override
@@ -113,14 +84,14 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 		// s
 		DataSet<Vertex<K, LongValue>> sourceIds = input
 			.getEdges()
-			.map(new MapEdgeToSourceId<K, EV>())
+			.map(new MapEdgeToSourceId<>())
 				.setParallelism(parallelism)
 				.name("Edge to source ID");
 
 		// s, d(s)
 		DataSet<Vertex<K, LongValue>> sourceDegree = sourceIds
 			.groupBy(0)
-			.reduce(new DegreeCount<K>())
+			.reduce(new DegreeCount<>())
 			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Degree count");
@@ -130,7 +101,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 				.leftOuterJoin(sourceDegree)
 				.where(0)
 				.equalTo(0)
-				.with(new JoinVertexWithVertexDegree<K, VV>())
+				.with(new JoinVertexWithVertexDegree<>())
 					.setParallelism(parallelism)
 					.name("Zero degree vertices");
 		}

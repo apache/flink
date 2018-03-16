@@ -18,21 +18,27 @@
 
 package org.apache.flink.runtime.jobmanager
 
+import java.io.IOException
+import java.net.URI
 import java.util
 
 import akka.actor.ActorRef
 import grizzled.slf4j.Logger
 import org.apache.flink.api.common.JobID
+import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils
 import org.apache.flink.runtime.{FlinkActor, LogMessages}
 import org.apache.flink.runtime.messages.webmonitor._
 import org.apache.flink.runtime.executiongraph.{ArchivedExecutionGraph, ExecutionGraph}
+import org.apache.flink.runtime.history.FsJobArchivist
 import org.apache.flink.runtime.messages.ArchiveMessages._
 import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview.JobIdWithStatus
 
 import scala.collection.mutable
+import scala.concurrent.future
 
 /**
  * Actor which stores terminated Flink jobs. The number of stored Flink jobs is set by max_entries.
@@ -54,9 +60,12 @@ import scala.collection.mutable
  *
  *  - [[RequestJobCounts]] returns the number of finished, canceled, and failed jobs as a Tuple3
  *
- * @param max_entries Maximum number of stored Flink jobs
+ * @param maxEntries Maximum number of stored Flink jobs
+ * @param archivePath Optional path of the job archive directory
  */
-class MemoryArchivist(private val max_entries: Int)
+class MemoryArchivist(
+    private val maxEntries: Int,
+    private val archivePath: Option[Path])
   extends FlinkActor
   with LogMessages {
 
@@ -78,7 +87,7 @@ class MemoryArchivist(private val max_entries: Int)
   }
 
   override def handleMessage: Receive = {
-    
+
     /* Receive Execution Graph to archive */
     case ArchiveExecutionGraph(jobID, graph) =>
       // Keep lru order in case we override a graph (from multiple job submission in one session).
@@ -96,10 +105,12 @@ class MemoryArchivist(private val max_entries: Int)
         case _ =>
       }
 
+      archiveJsonFiles(graph)
+
       trimHistory()
 
     case msg : InfoMessage => handleWebServerInfoMessage(msg, sender())
-      
+
     case RequestArchivedJob(jobID: JobID) =>
       val graph = graphs.get(jobID)
       sender ! decorateMessage(ArchivedJob(graph))
@@ -155,7 +166,7 @@ class MemoryArchivist(private val max_entries: Int)
     throw new RuntimeException("Received unknown message " + message)
   }
 
-  
+
   private def handleWebServerInfoMessage(message: InfoMessage, theSender: ActorRef): Unit = {
     message match {
       case _ : RequestJobsOverview =>
@@ -165,7 +176,7 @@ class MemoryArchivist(private val max_entries: Int)
         catch {
           case t: Throwable => log.error("Exception while creating the jobs overview", t)
         }
-  
+
       case _ : RequestJobsWithIDsOverview =>
         try {
           sender ! decorateMessage(createJobsWithIDsOverview())
@@ -178,37 +189,52 @@ class MemoryArchivist(private val max_entries: Int)
         val details = graphs.values.map {
           v => WebMonitorUtils.createDetailsForJob(v)
         }.toArray[JobDetails]
-        
-        theSender ! decorateMessage(new MultipleJobsDetails(null, details))
+
+        theSender ! decorateMessage(new MultipleJobsDetails(util.Arrays.asList(details: _*)))
+    }
+  }
+
+  private def archiveJsonFiles(graph: ArchivedExecutionGraph) {
+    // a suspended job is expected to continue on another job manager,
+    // so we aren't archiving it yet.
+    if (archivePath.isDefined && graph.getState.isGloballyTerminalState) {
+      try {
+        val p = validateAndNormalizeUri(archivePath.get.toUri)
+        future {
+          try {
+            FsJobArchivist.archiveJob(p, graph)
+          } catch {
+            case e: Exception =>
+              log.error("Failed to archive job.", e)
+          }
+        }(context.dispatcher)
+      } catch {
+        case e: Exception =>
+          log.warn(s"Failed to create Path for $archivePath. Job will not be archived.", e)
+      }
     }
   }
 
   // --------------------------------------------------------------------------
   //  Request Responses
   // --------------------------------------------------------------------------
-  
+
   private def createJobsOverview() : JobsOverview = {
     new JobsOverview(0, finishedCnt, canceledCnt, failedCnt)
   }
 
-  private def createJobsWithIDsOverview() : JobsWithIDsOverview = {
-    val runningOrPending = new util.ArrayList[JobID]()
-    val finished = new util.ArrayList[JobID]()
-    val canceled = new util.ArrayList[JobID]()
-    val failed = new util.ArrayList[JobID]()
+  private def createJobsWithIDsOverview() : JobIdsWithStatusOverview = {
+    val jobIdsWithStatuses =
+      new java.util.ArrayList[JobIdWithStatus](graphs.size)
 
     graphs.values.foreach { graph =>
-      graph.getState() match {
-        case JobStatus.FINISHED => finished.add(graph.getJobID)
-        case JobStatus.CANCELED => canceled.add(graph.getJobID)
-        case JobStatus.FAILED => failed.add(graph.getJobID)
-        case _ => runningOrPending.add(graph.getJobID)
-      }
+      jobIdsWithStatuses.add(
+        new JobIdWithStatus(graph.getJobID, graph.getState))
     }
 
-    new JobsWithIDsOverview(runningOrPending, finished, canceled, failed)
+    new JobIdsWithStatusOverview(jobIdsWithStatuses)
   }
-  
+
   // --------------------------------------------------------------------------
   //  Utilities
   // --------------------------------------------------------------------------
@@ -218,10 +244,55 @@ class MemoryArchivist(private val max_entries: Int)
    * * if more than max_entries are in the queue.
    */
   private def trimHistory(): Unit = {
-    while (graphs.size > max_entries) {
+    while (graphs.size > maxEntries) {
       // get first graph inserted
       val (jobID, value) = graphs.head
       graphs.remove(jobID)
     }
+  }
+
+  /**
+    * Checks and normalizes the archive path URI. This method first checks the validity of the
+    * URI (scheme, path, availability of a matching file system) and then normalizes the URL
+    * to a path.
+    *
+    * If the URI does not include an authority, but the file system configured for the URI has an
+    * authority, then the normalized path will include this authority.
+    *
+    * @param archivePathUri The URI to check and normalize.
+    * @return a normalized URI as a Path.
+    *
+    * @throws IllegalArgumentException Thrown, if the URI misses schema or path.
+    * @throws IOException Thrown, if no file system can be found for the URI's scheme.
+    */
+  @throws[IOException]
+  private def validateAndNormalizeUri(archivePathUri: URI): Path = {
+    val scheme = archivePathUri.getScheme
+    val path = archivePathUri.getPath
+
+    // some validity checks
+    if (scheme == null) {
+      throw new IllegalArgumentException("The scheme (hdfs://, file://, etc) is null. " +
+        "Please specify the file system scheme explicitly in the URI: " + archivePathUri)
+    }
+
+    if (path == null) {
+      throw new IllegalArgumentException("The path to store the job archives is null. " +
+        "Please specify a directory path for storing job archives. and the URI is: " +
+        archivePathUri)
+    }
+
+    if (path.length == 0 || path == "/") {
+      throw new IllegalArgumentException("Cannot use the root directory for storing job archives.")
+    }
+
+    try {
+      FileSystem.get(archivePathUri)
+    }
+    catch {
+      case e: Exception =>
+          throw new IllegalArgumentException(s"No file system found for URI '${archivePathUri}'.")
+    }
+    new Path(archivePathUri)
   }
 }

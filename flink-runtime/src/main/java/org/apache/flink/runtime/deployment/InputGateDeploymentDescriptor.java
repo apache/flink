@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.deployment;
 
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -31,7 +32,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Deployment descriptor for a single input gate instance.
  *
- * <p> Each input gate consumes partitions of a single intermediate result. The consumed
+ * <p>Each input gate consumes partitions of a single intermediate result. The consumed
  * subpartition index is the same for each consumed partition.
  *
  * @see SingleInputGate
@@ -46,6 +47,9 @@ public class InputGateDeploymentDescriptor implements Serializable {
 	 */
 	private final IntermediateDataSetID consumedResultId;
 
+	/** The type of the partition the input gate is going to consume. */
+	private final ResultPartitionType consumedPartitionType;
+
 	/**
 	 * The index of the consumed subpartition of each consumed partition. This index depends on the
 	 * {@link DistributionPattern} and the subtask indices of the producing and consuming task.
@@ -57,10 +61,12 @@ public class InputGateDeploymentDescriptor implements Serializable {
 
 	public InputGateDeploymentDescriptor(
 			IntermediateDataSetID consumedResultId,
+			ResultPartitionType consumedPartitionType,
 			int consumedSubpartitionIndex,
 			InputChannelDeploymentDescriptor[] inputChannels) {
 
 		this.consumedResultId = checkNotNull(consumedResultId);
+		this.consumedPartitionType = checkNotNull(consumedPartitionType);
 
 		checkArgument(consumedSubpartitionIndex >= 0);
 		this.consumedSubpartitionIndex = consumedSubpartitionIndex;
@@ -70,6 +76,15 @@ public class InputGateDeploymentDescriptor implements Serializable {
 
 	public IntermediateDataSetID getConsumedResultId() {
 		return consumedResultId;
+	}
+
+	/**
+	 * Returns the type of this input channel's consumed result partition.
+	 *
+	 * @return consumed result partition type
+	 */
+	public ResultPartitionType getConsumedPartitionType() {
+		return consumedPartitionType;
 	}
 
 	public int getConsumedSubpartitionIndex() {

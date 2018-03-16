@@ -23,23 +23,23 @@ import java.util
 import org.apache.calcite.plan.RelOptPlanner
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.typeutils.TypeConverter
 import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
 
 /**
-  * Evaluates constant expressions using Flink's [[CodeGenerator]].
+  * Evaluates constant expressions using Flink's [[FunctionCodeGenerator]].
   */
 class ExpressionReducer(config: TableConfig)
   extends RelOptPlanner.Executor with Compiler[MapFunction[Row, Row]] {
 
-  private val EMPTY_ROW_INFO = TypeConverter.DEFAULT_ROW_TYPE
+  private val EMPTY_ROW_INFO = new RowTypeInfo()
   private val EMPTY_ROW = new Row(0)
 
   override def reduce(
@@ -54,19 +54,29 @@ class ExpressionReducer(config: TableConfig)
       // we need to cast here for RexBuilder.makeLiteral
       case (SqlTypeName.DATE, e) =>
         Some(
-          rexBuilder.makeCast(typeFactory.createTypeFromTypeInfo(BasicTypeInfo.INT_TYPE_INFO), e)
+          rexBuilder.makeCast(
+            typeFactory.createTypeFromTypeInfo(BasicTypeInfo.INT_TYPE_INFO, e.getType.isNullable),
+            e)
         )
       case (SqlTypeName.TIME, e) =>
         Some(
-          rexBuilder.makeCast(typeFactory.createTypeFromTypeInfo(BasicTypeInfo.INT_TYPE_INFO), e)
+          rexBuilder.makeCast(
+            typeFactory.createTypeFromTypeInfo(BasicTypeInfo.INT_TYPE_INFO, e.getType.isNullable),
+            e)
         )
       case (SqlTypeName.TIMESTAMP, e) =>
         Some(
-          rexBuilder.makeCast(typeFactory.createTypeFromTypeInfo(BasicTypeInfo.LONG_TYPE_INFO), e)
+          rexBuilder.makeCast(
+            typeFactory.createTypeFromTypeInfo(BasicTypeInfo.LONG_TYPE_INFO, e.getType.isNullable),
+            e)
         )
 
       // we don't support object literals yet, we skip those constant expressions
-      case (SqlTypeName.ANY, _) | (SqlTypeName.ROW, _) | (SqlTypeName.ARRAY, _) => None
+      case (SqlTypeName.ANY, _) |
+           (SqlTypeName.ROW, _) |
+           (SqlTypeName.ARRAY, _) |
+           (SqlTypeName.MAP, _) |
+           (SqlTypeName.MULTISET, _) => None
 
       case (_, e) => Some(e)
     }
@@ -75,21 +85,21 @@ class ExpressionReducer(config: TableConfig)
     val resultType = new RowTypeInfo(literalTypes: _*)
 
     // generate MapFunction
-    val generator = new CodeGenerator(config, false, EMPTY_ROW_INFO)
+    val generator = new FunctionCodeGenerator(config, false, EMPTY_ROW_INFO)
 
     val result = generator.generateResultExpression(
       resultType,
       resultType.getFieldNames,
       literals)
 
-    val generatedFunction = generator.generateFunction[MapFunction[Row, Row]](
+    val generatedFunction = generator.generateFunction[MapFunction[Row, Row], Row](
       "ExpressionReducer",
       classOf[MapFunction[Row, Row]],
       s"""
         |${result.code}
         |return ${result.resultTerm};
         |""".stripMargin,
-      resultType.asInstanceOf[TypeInformation[Any]])
+      resultType)
 
     val clazz = compile(getClass.getClassLoader, generatedFunction.name, generatedFunction.code)
     val function = clazz.newInstance()
@@ -104,11 +114,29 @@ class ExpressionReducer(config: TableConfig)
       val unreduced = constExprs.get(i)
       unreduced.getType.getSqlTypeName match {
         // we insert the original expression for object literals
-        case SqlTypeName.ANY | SqlTypeName.ROW | SqlTypeName.ARRAY =>
+        case SqlTypeName.ANY |
+             SqlTypeName.ROW |
+             SqlTypeName.ARRAY |
+             SqlTypeName.MAP |
+             SqlTypeName.MULTISET =>
           reducedValues.add(unreduced)
+        // after expression reduce, the literal string has to be escaped
+        case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
+          val escapeVarchar = StringEscapeUtils
+            .escapeJava(reduced.getField(reducedIdx).asInstanceOf[String])
+          reducedValues.add(rexBuilder.makeLiteral(escapeVarchar, unreduced.getType, true))
+          reducedIdx += 1
         case _ =>
+          val reducedValue = reduced.getField(reducedIdx)
+          // RexBuilder handle double literal incorrectly, convert it into BigDecimal manually
+          val value = if (unreduced.getType.getSqlTypeName == SqlTypeName.DOUBLE) {
+            new java.math.BigDecimal(reducedValue.asInstanceOf[Number].doubleValue())
+          } else {
+            reducedValue
+          }
+
           val literal = rexBuilder.makeLiteral(
-            reduced.getField(reducedIdx),
+            value,
             unreduced.getType,
             true)
           reducedValues.add(literal)

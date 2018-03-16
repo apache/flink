@@ -18,49 +18,49 @@
 
 package org.apache.flink.mesos.util;
 
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.handler.codec.http.router.Handler;
-import io.netty.handler.codec.http.router.Routed;
-import io.netty.handler.codec.http.router.Router;
-import io.netty.handler.stream.ChunkedStream;
-
-import io.netty.handler.stream.ChunkedWriteHandler;
-import io.netty.handler.ssl.SslHandler;
-import io.netty.util.CharsetUtil;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.mesos.configuration.MesosOptions;
 import org.apache.flink.runtime.net.SSLUtils;
-import org.jets3t.service.utils.Mimetypes;
+
+import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
+import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
+import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
+import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
+import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpResponse;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultHttpResponse;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Handler;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedStream;
+import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
+import org.apache.flink.shaded.netty4.io.netty.util.CharsetUtil;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -69,23 +69,24 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
-import static io.netty.handler.codec.http.HttpHeaders.Names.CACHE_CONTROL;
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpMethod.GET;
-import static io.netty.handler.codec.http.HttpMethod.HEAD;
-import static io.netty.handler.codec.http.HttpResponseStatus.GONE;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import scala.Option;
 
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CACHE_CONTROL;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod.GET;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod.HEAD;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.GONE;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 /**
  * A generic Mesos artifact server, designed specifically for use by the Mesos Fetcher.
  *
- * More information:
+ * <p>More information:
  * http://mesos.apache.org/documentation/latest/fetcher/
  * http://mesos.apache.org/documentation/latest/fetcher-cache-internals/
  */
@@ -101,7 +102,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 
 	private final URL baseURL;
 
-	private final Map<Path,URL> paths = new HashMap<>();
+	private final Map<Path, URL> paths = new HashMap<>();
 
 	private final SSLContext serverSSLContext;
 
@@ -113,8 +114,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 
 		// Config to enable https access to the artifact server
 		boolean enableSSL = config.getBoolean(
-				ConfigConstants.MESOS_ARTIFACT_SERVER_SSL_ENABLED,
-				ConfigConstants.DEFAULT_MESOS_ARTIFACT_SERVER_SSL_ENABLED) &&
+				MesosOptions.ARTIFACT_SERVER_SSL_ENABLED) &&
 				SSLUtils.getSSLEnabled(config);
 
 		if (enableSSL) {
@@ -130,6 +130,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 
 		router = new Router();
 
+		final Configuration sslConfig = config;
 		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 
 			@Override
@@ -139,6 +140,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 				// SSL should be the first handler in the pipeline
 				if (serverSSLContext != null) {
 					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
+					SSLUtils.setSSLVerAndCipherSuites(sslEngine, sslConfig);
 					sslEngine.setUseClientMode(false);
 					ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}
@@ -151,7 +153,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 			}
 		};
 
-		NioEventLoopGroup bossGroup   = new NioEventLoopGroup(1);
+		NioEventLoopGroup bossGroup = new NioEventLoopGroup(1);
 		NioEventLoopGroup workerGroup = new NioEventLoopGroup();
 
 		this.bootstrap = new ServerBootstrap();
@@ -167,7 +169,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 		String address = bindAddress.getAddress().getHostAddress();
 		int port = bindAddress.getPort();
 
-		String httpProtocol = (serverSSLContext != null) ? "https": "http";
+		String httpProtocol = (serverSSLContext != null) ? "https" : "http";
 
 		baseURL = new URL(httpProtocol, serverHostname, port, "/" + prefix + "/");
 
@@ -199,7 +201,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 	 * @param remoteFile the remote path with which to locate the file.
 	 * @return the fully-qualified remote path to the file.
 	 * @throws MalformedURLException if the remote path is invalid.
-     */
+	 */
 	public synchronized URL addFile(File localFile, String remoteFile) throws IOException, MalformedURLException {
 		return addPath(new Path(localFile.toURI()), new Path(remoteFile));
 	}
@@ -212,10 +214,10 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 	 * @throws MalformedURLException if the remote path is invalid.
 	 */
 	public synchronized URL addPath(Path path, Path remoteFile) throws IOException, MalformedURLException {
-		if(paths.containsKey(remoteFile)) {
+		if (paths.containsKey(remoteFile)) {
 			throw new IllegalArgumentException("duplicate path registered");
 		}
-		if(remoteFile.isAbsolute()) {
+		if (remoteFile.isAbsolute()) {
 			throw new IllegalArgumentException("not expecting an absolute path");
 		}
 		URL fileURL = new URL(baseURL, remoteFile.toString());
@@ -227,7 +229,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 	}
 
 	public synchronized void removePath(Path remoteFile) {
-		if(paths.containsKey(remoteFile)) {
+		if (paths.containsKey(remoteFile)) {
 			URL fileURL = null;
 			try {
 				fileURL = new URL(baseURL, remoteFile.toString());
@@ -272,11 +274,11 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 
 		public VirtualFileServerHandler(Path path) throws IOException {
 			this.path = path;
-			if(!path.isAbsolute()) {
+			if (!path.isAbsolute()) {
 				throw new IllegalArgumentException("path must be absolute: " + path.toString());
 			}
 			this.fs = path.getFileSystem();
-			if(!fs.exists(path) || fs.getFileStatus(path).isDir()) {
+			if (!fs.exists(path) || fs.getFileStatus(path).isDir()) {
 				throw new IllegalArgumentException("no such file: " + path.toString());
 			}
 		}
@@ -290,11 +292,10 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 				LOG.debug("{} request for file '{}'", request.getMethod(), path);
 			}
 
-			if(!(request.getMethod() == GET || request.getMethod() == HEAD)) {
+			if (!(request.getMethod() == GET || request.getMethod() == HEAD)) {
 				sendMethodNotAllowed(ctx);
 				return;
 			}
-
 
 			final FileStatus status;
 			try {
@@ -310,7 +311,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 			HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
 			HttpHeaders.setHeader(response, CONNECTION, HttpHeaders.Values.CLOSE);
 			HttpHeaders.setHeader(response, CACHE_CONTROL, "private");
-			HttpHeaders.setHeader(response, CONTENT_TYPE, Mimetypes.MIMETYPE_OCTET_STREAM);
+			HttpHeaders.setHeader(response, CONTENT_TYPE, "application/octet-stream");
 			HttpHeaders.setContentLength(response, status.getLen());
 
 			ctx.write(response);
@@ -320,8 +321,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 				final FSDataInputStream stream = fs.open(path);
 				try {
 					ctx.write(new ChunkedStream(stream));
-				}
-				catch(Exception e) {
+				} catch (Exception e) {
 					stream.close();
 					throw e;
 				}
@@ -366,7 +366,6 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 			ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
 		}
 	}
-
 
 	/**
 	 * Handle a request for a non-existent file.

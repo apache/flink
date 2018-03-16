@@ -76,7 +76,12 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 		 * Use a hash-based strategy. This should be faster in most cases, especially if the number
 		 * of different keys is small compared to the number of input elements (eg. 1/10).
 		 */
-		HASH
+		HASH,
+
+		/**
+		 * Disable the use of a combiner.
+		 */
+		NONE
 	}
 
 	private CombineHint hint;

@@ -63,7 +63,8 @@ public class EnvironmentInformationTest {
 			assertNotNull(EnvironmentInformation.getJvmVersion());
 			assertNotNull(EnvironmentInformation.getRevisionInformation());
 			assertNotNull(EnvironmentInformation.getVersion());
-			assertNotNull(EnvironmentInformation.getUserRunning());
+			EnvironmentInformation.getHadoopVersionString();
+			assertNotNull(EnvironmentInformation.getHadoopUser());
 			assertTrue(EnvironmentInformation.getOpenFileHandlesLimit() >= -1);
 		}
 		catch (Exception e) {

@@ -27,7 +27,7 @@ import java.util.List;
  * This harness uses multiple aggregators and variously aggregates and combines against
  * a list of values while calling a compareResults() method.
  *
- * This method breaks the rule of "testing only one thing" by aggregating and combining
+ * <p>This method breaks the rule of "testing only one thing" by aggregating and combining
  * a bunch of different ways but can help uncover various kinds of bugs that can show
  * up in aggregators.
  *
@@ -35,12 +35,12 @@ import java.util.List;
  * @param <R> the type of the results of the aggregation
  * @param <A> the aggregator to use
  */
-public abstract class AggregateCombineHarness<T,R,A extends Aggregator<T,R>> {
+public abstract class AggregateCombineHarness<T, R, A extends Aggregator<T, R>> {
 
 	/**
 	 * Compare results from different runs of aggregate/combine to make sure they are the same.
 	 *
-	 * Subclasses should cause an Assertion failure or throw an Exception if the results aren't
+	 * <p>Subclasses should cause an Assertion failure or throw an Exception if the results aren't
 	 * equal or at least close enough.
 	 */
 	protected abstract void compareResults(R result1, R result2);
@@ -50,7 +50,7 @@ public abstract class AggregateCombineHarness<T,R,A extends Aggregator<T,R>> {
 	 */
 	@SafeVarargs
 	public final R summarize(T... values) {
-		if (values.length == 0 ) {
+		if (values.length == 0) {
 			// when there is nothing to aggregate just combine two empty aggregators and get the result.
 			A agg1 = initAggregator();
 			agg1.combine(initAggregator());
@@ -65,7 +65,7 @@ public abstract class AggregateCombineHarness<T,R,A extends Aggregator<T,R>> {
 			List<T> list = Arrays.asList(values);
 			Collections.shuffle(list);
 
-			for (int i = 0; i < values.length; i++ ) {
+			for (int i = 0; i < values.length; i++) {
 
 				// Two aggregators are used so that combine() can be tested also.
 				// It shouldn't matter which aggregator is used because they are combined at the end so
@@ -100,7 +100,7 @@ public abstract class AggregateCombineHarness<T,R,A extends Aggregator<T,R>> {
 		try {
 			// Instantiate a generic type
 			// http://stackoverflow.com/questions/75175/create-instance-of-generic-type-in-java
-			return (A) ((Class)((ParameterizedType)this.getClass().getGenericSuperclass()).getActualTypeArguments()[2]).newInstance();
+			return (A) ((Class) ((ParameterizedType) this.getClass().getGenericSuperclass()).getActualTypeArguments()[2]).newInstance();
 		}
 		catch (Exception e) {
 			throw new RuntimeException("Could not initialize aggregator", e);

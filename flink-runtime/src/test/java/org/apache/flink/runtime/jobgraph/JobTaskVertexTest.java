@@ -18,19 +18,25 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import org.apache.commons.lang3.SerializationUtils;
+import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.InitializeOnMaster;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.util.InstantiationUtil;
+
 import org.junit.Test;
 
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 
 import static org.junit.Assert.*;
 
@@ -41,7 +47,7 @@ public class JobTaskVertexTest {
 	public void testConnectDirectly() {
 		JobVertex source = new JobVertex("source");
 		JobVertex target = new JobVertex("target");
-		target.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE);
+		target.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 		
 		assertTrue(source.isInputVertex());
 		assertFalse(source.isOutputVertex());
@@ -62,7 +68,7 @@ public class JobTaskVertexTest {
 		JobVertex source = new JobVertex("source");
 		JobVertex target1= new JobVertex("target1");
 		JobVertex target2 = new JobVertex("target2");
-		target1.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE);
+		target1.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 		target2.connectDataSetAsInput(source.getProducedDataSets().get(0), DistributionPattern.ALL_TO_ALL);
 		
 		assertTrue(source.isInputVertex());
@@ -82,10 +88,10 @@ public class JobTaskVertexTest {
 	@Test
 	public void testOutputFormatVertex() {
 		try {
-			final TestingOutputFormat outputFormat = new TestingOutputFormat();
+			final OutputFormat outputFormat = new TestingOutputFormat();
 			final OutputFormatVertex of = new OutputFormatVertex("Name");
 			new TaskConfig(of.getConfiguration()).setStubWrapper(new UserCodeObjectWrapper<OutputFormat<?>>(outputFormat));
-			final ClassLoader cl = getClass().getClassLoader();
+			final ClassLoader cl = new TestClassLoader();
 			
 			try {
 				of.initializeOnMaster(cl);
@@ -94,20 +100,30 @@ public class JobTaskVertexTest {
 				// all good
 			}
 			
-			OutputFormatVertex copy = SerializationUtils.clone(of);
+			OutputFormatVertex copy = InstantiationUtil.clone(of);
+			ClassLoader ctxCl = Thread.currentThread().getContextClassLoader();
 			try {
 				copy.initializeOnMaster(cl);
 				fail("Did not throw expected exception.");
 			} catch (TestException e) {
 				// all good
 			}
+			assertEquals("Previous classloader was not restored.", ctxCl, Thread.currentThread().getContextClassLoader());
+
+			try {
+				copy.finalizeOnMaster(cl);
+				fail("Did not throw expected exception.");
+			} catch (TestException e) {
+				// all good
+			}
+			assertEquals("Previous classloader was not restored.", ctxCl, Thread.currentThread().getContextClassLoader());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testInputFormatVertex() {
 		try {
@@ -132,16 +148,7 @@ public class JobTaskVertexTest {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static final class TestingOutputFormat extends DiscardingOutputFormat<Object> implements InitializeOnMaster {
-		@Override
-		public void initializeGlobal(int parallelism) throws IOException {
-			throw new TestException();
-		}
-	}
-	
 	private static final class TestException extends IOException {}
-	
-	// --------------------------------------------------------------------------------------------
 	
 	private static final class TestSplit extends GenericInputSplit {
 		
@@ -165,6 +172,53 @@ public class JobTaskVertexTest {
 		@Override
 		public GenericInputSplit[] createInputSplits(int numSplits) throws IOException {
 			return new GenericInputSplit[] { new TestSplit(0, 1) };
+		}
+	}
+
+	private static final class TestingOutputFormat extends DiscardingOutputFormat<Object> implements InitializeOnMaster, FinalizeOnMaster {
+
+		private boolean isConfigured = false;
+
+		@Override
+		public void initializeGlobal(int parallelism) throws IOException {
+			if (!isConfigured) {
+				throw new IllegalStateException("OutputFormat was not configured before initializeGlobal was called.");
+			}
+			if (!(Thread.currentThread().getContextClassLoader() instanceof TestClassLoader)) {
+				throw new IllegalStateException("Context ClassLoader was not correctly switched.");
+			}
+			// notify we have been here.
+			throw new TestException();
+		}
+
+		@Override
+		public void finalizeGlobal(int parallelism) throws IOException {
+			if (!isConfigured) {
+				throw new IllegalStateException("OutputFormat was not configured before finalizeGlobal was called.");
+			}
+			if (!(Thread.currentThread().getContextClassLoader() instanceof TestClassLoader)) {
+				throw new IllegalStateException("Context ClassLoader was not correctly switched.");
+			}
+			// notify we have been here.
+			throw new TestException();
+		}
+
+		@Override
+		public void configure(Configuration parameters) {
+			if (isConfigured) {
+				throw new IllegalStateException("OutputFormat is already configured.");
+			}
+			if (!(Thread.currentThread().getContextClassLoader() instanceof TestClassLoader)) {
+				throw new IllegalStateException("Context ClassLoader was not correctly switched.");
+			}
+			isConfigured = true;
+		}
+
+	}
+
+	private static class TestClassLoader extends URLClassLoader {
+		public TestClassLoader() {
+			super(new URL[0], Thread.currentThread().getContextClassLoader());
 		}
 	}
 }

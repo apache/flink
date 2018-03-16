@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.security;
 
 import org.apache.flink.util.Preconditions;
+
 import org.apache.hadoop.security.UserGroupInformation;
 
 import java.security.PrivilegedExceptionAction;
@@ -30,19 +31,14 @@ import java.util.concurrent.Callable;
  */
 class HadoopSecurityContext implements SecurityContext {
 
-	private UserGroupInformation ugi;
+	private final UserGroupInformation ugi;
 
 	HadoopSecurityContext(UserGroupInformation ugi) {
 		this.ugi = Preconditions.checkNotNull(ugi, "UGI passed cannot be null");
 	}
 
 	public <T> T runSecured(final Callable<T> securedCallable) throws Exception {
-		return ugi.doAs(new PrivilegedExceptionAction<T>() {
-			@Override
-			public T run() throws Exception {
-				return securedCallable.call();
-			}
-		});
+		return ugi.doAs((PrivilegedExceptionAction<T>) securedCallable::call);
 	}
 
 }

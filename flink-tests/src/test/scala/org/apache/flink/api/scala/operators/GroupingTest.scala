@@ -71,7 +71,7 @@ class GroupingTest {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tupleDs = env.fromCollection(emptyTupleData)
 
-    // should not work, fiels position out of range
+    // should not work, field position out of range
     tupleDs.groupBy(5)
   }
 

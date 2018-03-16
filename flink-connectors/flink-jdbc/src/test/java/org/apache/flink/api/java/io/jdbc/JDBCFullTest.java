@@ -18,49 +18,50 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Types;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat.JDBCInputFormatBuilder;
 import org.apache.flink.api.java.io.jdbc.split.NumericBetweenParametersProvider;
 import org.apache.flink.types.Row;
+
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.sql.Types;
+
+/**
+ * Tests using both {@link JDBCInputFormat} and {@link JDBCOutputFormat}.
+ */
 public class JDBCFullTest extends JDBCTestBase {
 
 	@Test
-	public void testJdbcInOut() throws Exception {
-		//run without parallelism
+	public void testWithoutParallelism() throws Exception {
 		runTest(false);
-
-		//cleanup
-		JDBCTestBase.tearDownClass();
-		JDBCTestBase.prepareTestDb();
-		
-		//run expliting parallelism
-		runTest(true);
-		
 	}
 
-	private void runTest(boolean exploitParallelism) {
+	@Test
+	public void testWithParallelism() throws Exception {
+		runTest(true);
+	}
+
+	private void runTest(boolean exploitParallelism) throws Exception {
 		ExecutionEnvironment environment = ExecutionEnvironment.getExecutionEnvironment();
 		JDBCInputFormatBuilder inputBuilder = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(JDBCTestBase.DRIVER_CLASS)
 				.setDBUrl(JDBCTestBase.DB_URL)
 				.setQuery(JDBCTestBase.SELECT_ALL_BOOKS)
-				.setRowTypeInfo(rowTypeInfo);
+				.setRowTypeInfo(ROW_TYPE_INFO);
 
-		if(exploitParallelism) {
+		if (exploitParallelism) {
 			final int fetchSize = 1;
-			final Long min = new Long(JDBCTestBase.testData[0][0].toString());
-			final Long max = new Long(JDBCTestBase.testData[JDBCTestBase.testData.length - fetchSize][0].toString());
+			final long min = JDBCTestBase.TEST_DATA[0].id;
+			final long max = JDBCTestBase.TEST_DATA[JDBCTestBase.TEST_DATA.length - fetchSize].id;
 			//use a "splittable" query to exploit parallelism
 			inputBuilder = inputBuilder
 					.setQuery(JDBCTestBase.SELECT_ALL_BOOKS_SPLIT_BY_ID)
@@ -69,19 +70,16 @@ public class JDBCFullTest extends JDBCTestBase {
 		DataSet<Row> source = environment.createInput(inputBuilder.finish());
 
 		//NOTE: in this case (with Derby driver) setSqlTypes could be skipped, but
-		//some database, doens't handle correctly null values when no column type specified
+		//some databases don't null values correctly when no column type was specified
 		//in PreparedStatement.setObject (see its javadoc for more details)
 		source.output(JDBCOutputFormat.buildJDBCOutputFormat()
 				.setDrivername(JDBCTestBase.DRIVER_CLASS)
 				.setDBUrl(JDBCTestBase.DB_URL)
-				.setQuery("insert into newbooks (id,title,author,price,qty) values (?,?,?,?,?)")
-				.setSqlTypes(new int[]{Types.INTEGER, Types.VARCHAR, Types.VARCHAR,Types.DOUBLE,Types.INTEGER})
+				.setQuery("insert into newbooks (id, title, author, price, qty) values (?,?,?,?,?)")
+				.setSqlTypes(new int[]{Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.DOUBLE, Types.INTEGER})
 				.finish());
-		try {
-			environment.execute();
-		} catch (Exception e) {
-			Assert.fail("JDBC full test failed. " + e.getMessage());
-		}
+
+		environment.execute();
 
 		try (
 			Connection dbConn = DriverManager.getConnection(JDBCTestBase.DB_URL);
@@ -92,9 +90,20 @@ public class JDBCFullTest extends JDBCTestBase {
 			while (resultSet.next()) {
 				count++;
 			}
-			Assert.assertEquals(JDBCTestBase.testData.length, count);
-		} catch (SQLException e) {
-			Assert.fail("JDBC full test failed. " + e.getMessage());
+			Assert.assertEquals(JDBCTestBase.TEST_DATA.length, count);
+		}
+	}
+
+	@After
+	public void clearOutputTable() throws Exception {
+		Class.forName(DRIVER_CLASS);
+		try (
+			Connection conn = DriverManager.getConnection(DB_URL);
+			Statement stat = conn.createStatement()) {
+			stat.execute("DELETE FROM " + OUTPUT_TABLE);
+
+			stat.close();
+			conn.close();
 		}
 	}
 

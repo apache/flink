@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -22,13 +23,16 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.datastream.LegacyWindowOperatorType;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
@@ -48,44 +52,63 @@ import org.apache.flink.streaming.runtime.operators.windowing.functions.Internal
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.migration.MigrationTestUtil;
+import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.apache.flink.util.Collector;
-import org.junit.Test;
 
-import java.net.URL;
+import org.junit.Ignore;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
  * Tests for checking whether {@link WindowOperator} can restore from snapshots that were done
- * using the Flink 1.1 {@link WindowOperator}.
+ * using previous Flink versions' {@link WindowOperator}.
  *
- * <p>
- * This also checks whether {@link WindowOperator} can restore from a checkpoint of the Flink 1.1
- * aligned processing-time windows operator.
+ * <p>This also checks whether {@link WindowOperator} can restore from a checkpoint of the
+ * aligned processing-time windows operator of previous Flink versions.
  *
- * <p>For regenerating the binary snapshot file you have to run the commented out portion
- * of each test on a checkout of the Flink 1.1 branch.
+ * <p>For regenerating the binary snapshot file you have to run the {@code write*()} method on
+ * the corresponding Flink release-* branch.
  */
+@RunWith(Parameterized.class)
 public class WindowOperatorMigrationTest {
 
-	private static String getResourceFilename(String filename) {
-		ClassLoader cl = WindowOperatorTest.class.getClassLoader();
-		URL resource = cl.getResource(filename);
-		if (resource == null) {
-			throw new NullPointerException("Missing snapshot resource.");
-		}
-		return resource.getFile();
+	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
+	public static Collection<MigrationVersion> parameters () {
+		return Arrays.asList(MigrationVersion.v1_2, MigrationVersion.v1_3, MigrationVersion.v1_4);
 	}
 
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testRestoreSessionWindowsWithCountTriggerFromFlink11() throws Exception {
+	/**
+	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
+	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
+	 */
+	private final MigrationVersion flinkGenerateSavepointVersion = null;
 
-		final int SESSION_SIZE = 3;
+	private final MigrationVersion testMigrateVersion;
+
+	public WindowOperatorMigrationTest(MigrationVersion testMigrateVersion) {
+		this.testMigrateVersion = testMigrateVersion;
+	}
+
+	/**
+	 * Manually run this to write binary snapshot data.
+	 */
+	@Ignore
+	@Test
+	public void writeSessionWindowsWithCountTriggerSnapshot() throws Exception {
+		final int sessionSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -93,24 +116,18 @@ public class WindowOperatorMigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
-				EventTimeSessionWindows.withGap(Time.seconds(SESSION_SIZE)),
+				EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
 				new TimeWindow.Serializer(),
-				new TupleKeySelector(),
+				new TupleKeySelector<String>(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalIterableWindowFunction<>(new SessionWindowFunction()),
 				PurgingTrigger.of(CountTrigger.of(4)),
-				0);
-
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
-		/*
-		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
+				0,
+				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
-
-		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
 		testHarness.open();
@@ -125,18 +142,49 @@ public class WindowOperatorMigrationTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 2), 1000));
 
 		// do snapshot and save to file
-		StreamTaskState snapshot = testHarness.snapshot(0, 0);
-		testHarness.snaphotToFile(snapshot, "src/test/resources/win-op-migration-test-session-with-stateful-trigger-flink1.1-snapshot");
-		testHarness.close();
-        */
+		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0L);
 
+		OperatorSnapshotUtil.writeStateHandle(
+			snapshot,
+			"src/test/resources/win-op-migration-test-session-with-stateful-trigger-flink" + flinkGenerateSavepointVersion + "-snapshot");
+
+		testHarness.close();
+	}
+
+	@Test
+	public void testRestoreSessionWindowsWithCountTrigger() throws Exception {
+
+		final int sessionSize = 3;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
+				inputType.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
+				EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
+				new TimeWindow.Serializer(),
+				new TupleKeySelector<String>(),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+				stateDesc,
+				new InternalIterableWindowFunction<>(new SessionWindowFunction()),
+				PurgingTrigger.of(CountTrigger.of(4)),
+				0,
+				null /* late data output tag */);
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
-		testHarness.initializeStateFromLegacyCheckpoint(getResourceFilename(
-				"win-op-migration-test-session-with-stateful-trigger-flink1.1-snapshot"));
+
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"win-op-migration-test-session-with-stateful-trigger-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 3), 2500));
@@ -145,10 +193,9 @@ public class WindowOperatorMigrationTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 2), 6500));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 3), 7000));
 
-
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
 
-		// add an element that merges the two "key1" sessions, they should now have count 6, and therfore fire
+		// add an element that merges the two "key1" sessions, they should now have count 6, and therefore fire
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 10), 4500));
 
 		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-22", 10L, 10000L), 9999L));
@@ -159,14 +206,13 @@ public class WindowOperatorMigrationTest {
 	}
 
 	/**
-	 * This checks that we can restore from a virgin {@code WindowOperator} that has never seen
-	 * any elements.
+	 * Manually run this to write binary snapshot data.
 	 */
+	@Ignore
 	@Test
-	@SuppressWarnings("unchecked")
-	public void testRestoreSessionWindowsWithCountTriggerInMintConditionFromFlink11() throws Exception {
+	public void writeSessionWindowsWithCountTriggerInMintConditionSnapshot() throws Exception {
 
-		final int SESSION_SIZE = 3;
+		final int sessionSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -174,40 +220,69 @@ public class WindowOperatorMigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
-				EventTimeSessionWindows.withGap(Time.seconds(SESSION_SIZE)),
+				EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
 				new TimeWindow.Serializer(),
-				new TupleKeySelector(),
+				new TupleKeySelector<String>(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalIterableWindowFunction<>(new SessionWindowFunction()),
 				PurgingTrigger.of(CountTrigger.of(4)),
-				0);
-
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
-		/*
-		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
+				0,
+				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
-
-		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
 		testHarness.open();
 
 		// do snapshot and save to file
-		StreamTaskState snapshot = testHarness.snapshot(0, 0);
-		testHarness.snaphotToFile(snapshot, "src/test/resources/win-op-migration-test-session-with-stateful-trigger-mint-flink1.1-snapshot");
+		OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
+		OperatorSnapshotUtil.writeStateHandle(
+			snapshot,
+			"src/test/resources/win-op-migration-test-session-with-stateful-trigger-mint-flink" + flinkGenerateSavepointVersion + "-snapshot");
+
 		testHarness.close();
-		*/
+	}
+
+	/**
+	 * This checks that we can restore from a virgin {@code WindowOperator} that has never seen
+	 * any elements.
+	 */
+	@Test
+	public void testRestoreSessionWindowsWithCountTriggerInMintCondition() throws Exception {
+
+		final int sessionSize = 3;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
+				inputType.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
+				EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
+				new TimeWindow.Serializer(),
+				new TupleKeySelector<String>(),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+				stateDesc,
+				new InternalIterableWindowFunction<>(new SessionWindowFunction()),
+				PurgingTrigger.of(CountTrigger.of(4)),
+				0,
+				null /* late data output tag */);
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
-		testHarness.initializeStateFromLegacyCheckpoint(getResourceFilename(
-				"win-op-migration-test-session-with-stateful-trigger-mint-flink1.1-snapshot"));
+
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"win-op-migration-test-session-with-stateful-trigger-mint-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
 		// add elements out-of-order
@@ -229,7 +304,7 @@ public class WindowOperatorMigrationTest {
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
 
-		// add an element that merges the two "key1" sessions, they should now have count 6, and therfore fire
+		// add an element that merges the two "key1" sessions, they should now have count 6, and therefore fire
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 10), 4500));
 
 		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-22", 10L, 10000L), 9999L));
@@ -239,37 +314,36 @@ public class WindowOperatorMigrationTest {
 		testHarness.close();
 	}
 
+
+	/**
+	 * Manually run this to write binary snapshot data.
+	 */
+	@Ignore
 	@Test
-	@SuppressWarnings("unchecked")
-	public void testRestoreReducingEventTimeWindowsFromFlink11() throws Exception {
-		final int WINDOW_SIZE = 3;
+	public void writeReducingEventTimeWindowsSnapshot() throws Exception {
+		final int windowSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
-				new SumReducer(),
+				new SumReducer<>(),
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
-				new TupleKeySelector(),
+				new TupleKeySelector<>(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
 				EventTimeTrigger.create(),
-				0);
+				0,
+				null /* late data output tag */);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		/*
-
-		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
-
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
-
-		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
 		testHarness.open();
@@ -288,25 +362,55 @@ public class WindowOperatorMigrationTest {
 
 		testHarness.processWatermark(new Watermark(999));
 		expectedOutput.add(new Watermark(999));
-		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator<>());
 
 		testHarness.processWatermark(new Watermark(1999));
 		expectedOutput.add(new Watermark(1999));
-		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator<>());
 
 		// do snapshot and save to file
-		StreamTaskState snapshot = testHarness.snapshot(0L, 0L);
-		testHarness.snaphotToFile(snapshot, "src/test/resources/win-op-migration-test-reduce-event-time-flink1.1-snapshot");
-		testHarness.close();
+		OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
+		OperatorSnapshotUtil.writeStateHandle(
+			snapshot,
+			"src/test/resources/win-op-migration-test-reduce-event-time-flink" + flinkGenerateSavepointVersion + "-snapshot");
 
-		*/
+		testHarness.close();
+	}
+
+	@Test
+	public void testRestoreReducingEventTimeWindows() throws Exception {
+		final int windowSize = 3;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
+				new SumReducer<>(),
+				inputType.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
+				TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+				new TimeWindow.Serializer(),
+				new TupleKeySelector<>(),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+				stateDesc,
+				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
+				EventTimeTrigger.create(),
+				0,
+				null /* late data output tag */);
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
-		testHarness.initializeStateFromLegacyCheckpoint(getResourceFilename(
-				"win-op-migration-test-reduce-event-time-flink1.1-snapshot"));
+
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"win-op-migration-test-reduce-event-time-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
 		testHarness.processWatermark(new Watermark(2999));
@@ -324,14 +428,17 @@ public class WindowOperatorMigrationTest {
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 5999));
 		expectedOutput.add(new Watermark(5999));
 
-		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator<>());
 		testHarness.close();
 	}
 
+	/**
+	 * Manually run this to write binary snapshot data.
+	 */
+	@Ignore
 	@Test
-	@SuppressWarnings("unchecked")
-	public void testRestoreApplyEventTimeWindowsFromFlink11() throws Exception {
-		final int WINDOW_SIZE = 3;
+	public void writeApplyEventTimeWindowsSnapshot() throws Exception {
+		final int windowSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -339,25 +446,20 @@ public class WindowOperatorMigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
-				new TupleKeySelector(),
+				new TupleKeySelector<>(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>()),
 				EventTimeTrigger.create(),
-				0);
+				0,
+				null /* late data output tag */);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		/*
-
-		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
-
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
-
-		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
 		testHarness.open();
@@ -376,25 +478,54 @@ public class WindowOperatorMigrationTest {
 
 		testHarness.processWatermark(new Watermark(999));
 		expectedOutput.add(new Watermark(999));
-		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator<>());
 
 		testHarness.processWatermark(new Watermark(1999));
 		expectedOutput.add(new Watermark(1999));
-		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator<>());
 
 		// do snapshot and save to file
-		StreamTaskState snapshot = testHarness.snapshot(0L, 0L);
-		testHarness.snaphotToFile(snapshot, "src/test/resources/win-op-migration-test-apply-event-time-flink1.1-snapshot");
-		testHarness.close();
+		OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
+		OperatorSnapshotUtil.writeStateHandle(
+			snapshot,
+			"src/test/resources/win-op-migration-test-apply-event-time-flink" + flinkGenerateSavepointVersion + "-snapshot");
 
-		*/
+		testHarness.close();
+	}
+
+	@Test
+	public void testRestoreApplyEventTimeWindows() throws Exception {
+		final int windowSize = 3;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
+				inputType.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
+				TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+				new TimeWindow.Serializer(),
+				new TupleKeySelector<>(),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+				stateDesc,
+				new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>()),
+				EventTimeTrigger.create(),
+				0,
+				null /* late data output tag */);
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
-		testHarness.initializeStateFromLegacyCheckpoint(getResourceFilename(
-				"win-op-migration-test-apply-event-time-flink1.1-snapshot"));
+
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"win-op-migration-test-apply-event-time-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
 		testHarness.processWatermark(new Watermark(2999));
@@ -412,70 +543,100 @@ public class WindowOperatorMigrationTest {
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 5999));
 		expectedOutput.add(new Watermark(5999));
 
-		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator<>());
 		testHarness.close();
 	}
 
+	/**
+	 * Manually run this to write binary snapshot data.
+	 */
+	@Ignore
 	@Test
-	@SuppressWarnings("unchecked")
-	public void testRestoreReducingProcessingTimeWindowsFromFlink11() throws Exception {
-		final int WINDOW_SIZE = 3;
+	public void writeReducingProcessingTimeWindowsSnapshot() throws Exception {
+		final int windowSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
-				new WindowOperatorTest.SumReducer(),
+				new SumReducer<>(),
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingProcessingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				TumblingProcessingTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
-				new TupleKeySelector(),
+				new TupleKeySelector<>(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
 				ProcessingTimeTrigger.create(),
-				0);
+				0,
+				null /* late data output tag */);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		/*
-		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
-
-		TestTimeServiceProvider timeServiceProvider = new TestTimeServiceProvider();
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator, new ExecutionConfig(), timeServiceProvider);
-
-		testHarness.configureForKeyedStream(new WindowOperatorTest.TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
 		testHarness.open();
 
-		timeServiceProvider.setCurrentTime(10);
+		testHarness.setProcessingTime(10);
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1)));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1)));
 
-		timeServiceProvider.setCurrentTime(3010);
+		testHarness.setProcessingTime(3010);
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1)));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key3", 1)));
 
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 1), 2999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 1), 2999));
 
-		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new WindowOperatorTest.Tuple2ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator<>());
 
 		// do snapshot and save to file
-		StreamTaskState snapshot = testHarness.snapshot(0L, 0L);
-		testHarness.snaphotToFile(snapshot, "src/test/resources/win-op-migration-test-reduce-processing-time-flink1.1-snapshot");
+		OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
+		OperatorSnapshotUtil.writeStateHandle(
+			snapshot,
+			"src/test/resources/win-op-migration-test-reduce-processing-time-flink" + flinkGenerateSavepointVersion + "-snapshot");
+
 		testHarness.close();
-		*/
+
+	}
+
+	@Test
+	public void testRestoreReducingProcessingTimeWindows() throws Exception {
+		final int windowSize = 3;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
+				new SumReducer<>(),
+				inputType.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
+				TumblingProcessingTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+				new TimeWindow.Serializer(),
+				new TupleKeySelector<>(),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+				stateDesc,
+				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
+				ProcessingTimeTrigger.create(),
+				0,
+				null /* late data output tag */);
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
-		testHarness.initializeStateFromLegacyCheckpoint(getResourceFilename(
-				"win-op-migration-test-reduce-processing-time-flink1.1-snapshot"));
+
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"win-op-migration-test-reduce-processing-time-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
 		testHarness.setProcessingTime(3020);
@@ -488,14 +649,17 @@ public class WindowOperatorMigrationTest {
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 4), 5999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key3", 1), 5999));
 
-		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator<>());
 		testHarness.close();
 	}
 
+	/**
+	 * Manually run this to write binary snapshot data.
+	 */
+	@Ignore
 	@Test
-	@SuppressWarnings("unchecked")
-	public void testRestoreApplyProcessingTimeWindowsFromFlink11() throws Exception {
-		final int WINDOW_SIZE = 3;
+	public void writeApplyProcessingTimeWindowsSnapshot() throws Exception {
+		final int windowSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -503,54 +667,79 @@ public class WindowOperatorMigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingProcessingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				TumblingProcessingTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
-				new TupleKeySelector(),
+				new TupleKeySelector<>(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
-				new InternalIterableWindowFunction<>(new WindowOperatorTest.RichSumReducer<TimeWindow>()),
+				new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>()),
 				ProcessingTimeTrigger.create(),
-				0);
+				0,
+				null /* late data output tag */);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		/*
-		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
-
-		TestTimeServiceProvider timeServiceProvider = new TestTimeServiceProvider();
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator, new ExecutionConfig(), timeServiceProvider);
-
-		testHarness.configureForKeyedStream(new WindowOperatorTest.TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
 		testHarness.open();
 
-		timeServiceProvider.setCurrentTime(10);
+		testHarness.setProcessingTime(10);
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1)));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1)));
 
-		timeServiceProvider.setCurrentTime(3010);
+		testHarness.setProcessingTime(3010);
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1)));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key3", 1)));
 
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 1), 2999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 1), 2999));
 
-		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new WindowOperatorTest.Tuple2ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator<>());
 
 		// do snapshot and save to file
-		StreamTaskState snapshot = testHarness.snapshot(0L, 0L);
-		testHarness.snaphotToFile(snapshot, "src/test/resources/win-op-migration-test-apply-processing-time-flink1.1-snapshot");
+		OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
+		OperatorSnapshotUtil.writeStateHandle(
+			snapshot,
+			"src/test/resources/win-op-migration-test-apply-processing-time-flink" + flinkGenerateSavepointVersion + "-snapshot");
+
 		testHarness.close();
-		*/
+	}
+
+	@Test
+	public void testRestoreApplyProcessingTimeWindows() throws Exception {
+		final int windowSize = 3;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
+				inputType.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
+				TumblingProcessingTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+				new TimeWindow.Serializer(),
+				new TupleKeySelector<>(),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+				stateDesc,
+				new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>()),
+				ProcessingTimeTrigger.create(),
+				0,
+				null /* late data output tag */);
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
-		testHarness.initializeStateFromLegacyCheckpoint(getResourceFilename(
-				"win-op-migration-test-apply-processing-time-flink1.1-snapshot"));
+
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"win-op-migration-test-apply-processing-time-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
 		testHarness.setProcessingTime(3020);
@@ -563,228 +752,151 @@ public class WindowOperatorMigrationTest {
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 4), 5999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key3", 1), 5999));
 
-		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator<>());
 		testHarness.close();
 	}
 
+	/**
+	 * Manually run this to write binary snapshot data.
+	 */
+	@Ignore
 	@Test
-	public void testRestoreAggregatingAlignedProcessingTimeWindowsFromFlink11() throws Exception {
-		/*
-		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+	public void writeWindowsWithKryoSerializedKeysSnapshot() throws Exception {
+		final int windowSize = 3;
 
-		AggregatingProcessingTimeWindowOperator<String, Tuple2<String, Integer>> operator =
-			new AggregatingProcessingTimeWindowOperator<>(
-				new ReduceFunction<Tuple2<String, Integer>>() {
-					private static final long serialVersionUID = -8913160567151867987L;
+		TypeInformation<Tuple2<NonPojoType, Integer>> inputType = new TypeHint<Tuple2<NonPojoType, Integer>>() {}.getTypeInfo();
 
-					@Override
-					public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1, Tuple2<String, Integer> value2) throws Exception {
-						return new Tuple2<>(value1.f0, value1.f1 + value2.f1);
-					}
-				},
-				new TupleKeySelector(),
-				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
-				inputType.createSerializer(new ExecutionConfig()),
-				3000,
-				3000);
+		ReducingStateDescriptor<Tuple2<NonPojoType, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
+			new SumReducer<>(),
+			inputType.createSerializer(new ExecutionConfig()));
 
-		TestTimeServiceProvider testTimeProvider = new TestTimeServiceProvider();
+		TypeSerializer<NonPojoType> keySerializer = TypeInformation.of(NonPojoType.class).createSerializer(new ExecutionConfig());
+		assertTrue(keySerializer instanceof KryoSerializer);
 
-		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator, new ExecutionConfig(), testTimeProvider);
-
-		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+		WindowOperator<NonPojoType, Tuple2<NonPojoType, Integer>, Tuple2<NonPojoType, Integer>, Tuple2<NonPojoType, Integer>, TimeWindow> operator = new WindowOperator<>(
+			TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+			new TimeWindow.Serializer(),
+			new TupleKeySelector<>(),
+			keySerializer,
+			stateDesc,
+			new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<>()),
+			EventTimeTrigger.create(),
+			0,
+			null /* late data output tag */);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
-
-		testTimeProvider.setCurrentTime(3);
-
-		// timestamp is ignored in processing time
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), Long.MAX_VALUE));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 7000));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 7000));
-
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 7000));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 7000));
-
-		// do a snapshot, close and restore again
-		StreamTaskState snapshot = testHarness.snapshot(0L, 0L);
-		testHarness.snaphotToFile(snapshot, "src/test/resources/win-op-migration-test-aggr-aligned-flink1.1-snapshot");
-		testHarness.close();
-
-		*/
-
-		final int WINDOW_SIZE = 3;
-
-		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
-
-		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
-				new WindowOperatorTest.SumReducer(),
-				inputType.createSerializer(new ExecutionConfig()));
-
-		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingProcessingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
-				new TimeWindow.Serializer(),
-				new TupleKeySelector(),
-				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
-				stateDesc,
-				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
-				ProcessingTimeTrigger.create(),
-				0,
-				LegacyWindowOperatorType.FAST_AGGREGATING);
-
-		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+		OneInputStreamOperatorTestHarness<Tuple2<NonPojoType, Integer>, Tuple2<NonPojoType, Integer>> testHarness =
+			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), TypeInformation.of(NonPojoType.class));
 
 		testHarness.setup();
-		testHarness.initializeStateFromLegacyCheckpoint("src/test/resources/win-op-migration-test-aggr-aligned-flink1.1-snapshot");
 		testHarness.open();
 
-		testHarness.setProcessingTime(5000);
+		// add elements out-of-order
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>(new NonPojoType("key2"), 1), 3999));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>(new NonPojoType("key2"), 1), 3000));
 
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 2999));
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), 2999));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>(new NonPojoType("key1"), 1), 20));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>(new NonPojoType("key1"), 1), 0));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>(new NonPojoType("key1"), 1), 999));
 
-		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>(new NonPojoType("key2"), 1), 1998));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>(new NonPojoType("key2"), 1), 1999));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>(new NonPojoType("key2"), 1), 1000));
 
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 7000));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 7000));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 7000));
+		testHarness.processWatermark(new Watermark(999));
+		expectedOutput.add(new Watermark(999));
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator<>());
 
-		testHarness.setProcessingTime(7000);
+		testHarness.processWatermark(new Watermark(1999));
+		expectedOutput.add(new Watermark(1999));
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator<>());
 
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 5999));
-
-		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+		// do snapshot and save to file
+		OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
+		OperatorSnapshotUtil.writeStateHandle(
+			snapshot,
+			"src/test/resources/win-op-migration-test-kryo-serialized-key-flink" + flinkGenerateSavepointVersion + "-snapshot");
 
 		testHarness.close();
 	}
 
 	@Test
-	public void testRestoreAccumulatingAlignedProcessingTimeWindowsFromFlink11() throws Exception {
-		/*
+	public void testRestoreKryoSerializedKeysWindows() throws Exception {
+		final int windowSize = 3;
 
-		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+		TypeInformation<Tuple2<NonPojoType, Integer>> inputType = new TypeHint<Tuple2<NonPojoType, Integer>>() {}.getTypeInfo();
 
-		AccumulatingProcessingTimeWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-			new AccumulatingProcessingTimeWindowOperator<>(
-				new WindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String, TimeWindow>() {
+		ReducingStateDescriptor<Tuple2<NonPojoType, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
+			new SumReducer<>(),
+			inputType.createSerializer(new ExecutionConfig()));
 
-					private static final long serialVersionUID = 6551516443265733803L;
+		TypeSerializer<NonPojoType> keySerializer = TypeInformation.of(NonPojoType.class).createSerializer(new ExecutionConfig());
+		assertTrue(keySerializer instanceof KryoSerializer);
 
-					@Override
-					public void apply(String s, TimeWindow window, Iterable<Tuple2<String, Integer>> input, Collector<Tuple2<String, Integer>> out) throws Exception {
-						int sum = 0;
-						for (Tuple2<String, Integer> anInput : input) {
-							sum += anInput.f1;
-						}
-						out.collect(new Tuple2<>(s, sum));
-					}
-				},
-				new TupleKeySelector(),
-				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
-				inputType.createSerializer(new ExecutionConfig()),
-				3000,
-				3000);
-
-		TestTimeServiceProvider testTimeProvider = new TestTimeServiceProvider();
-
-		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator, new ExecutionConfig(), testTimeProvider);
-
-		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+		WindowOperator<NonPojoType, Tuple2<NonPojoType, Integer>, Tuple2<NonPojoType, Integer>, Tuple2<NonPojoType, Integer>, TimeWindow> operator = new WindowOperator<>(
+			TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+			new TimeWindow.Serializer(),
+			new TupleKeySelector<>(),
+			keySerializer,
+			stateDesc,
+			new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<>()),
+			EventTimeTrigger.create(),
+			0,
+			null /* late data output tag */);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
-
-		testTimeProvider.setCurrentTime(3);
-
-		// timestamp is ignored in processing time
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), Long.MAX_VALUE));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 7000));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 7000));
-
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 7000));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 7000));
-
-		// do a snapshot, close and restore again
-		StreamTaskState snapshot = testHarness.snapshot(0L, 0L);
-		testHarness.snaphotToFile(snapshot, "src/test/resources/win-op-migration-test-accum-aligned-flink1.1-snapshot");
-		testHarness.close();
-
-		*/
-		final int WINDOW_SIZE = 3;
-
-		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
-
-		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
-				new WindowOperatorTest.SumReducer(),
-				inputType.createSerializer(new ExecutionConfig()));
-
-		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingProcessingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
-				new TimeWindow.Serializer(),
-				new TupleKeySelector(),
-				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
-				stateDesc,
-				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
-				ProcessingTimeTrigger.create(),
-				0,
-				LegacyWindowOperatorType.FAST_ACCUMULATING);
-
-		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+		OneInputStreamOperatorTestHarness<Tuple2<NonPojoType, Integer>, Tuple2<NonPojoType, Integer>> testHarness =
+			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector<>(), TypeInformation.of(NonPojoType.class));
 
 		testHarness.setup();
-		testHarness.initializeStateFromLegacyCheckpoint("src/test/resources/win-op-migration-test-accum-aligned-flink1.1-snapshot");
+
+		MigrationTestUtil.restoreFromSnapshot(
+			testHarness,
+			OperatorSnapshotUtil.getResourceFilename(
+				"win-op-migration-test-kryo-serialized-key-flink" + testMigrateVersion + "-snapshot"),
+			testMigrateVersion);
+
 		testHarness.open();
 
-		testHarness.setProcessingTime(5000);
+		testHarness.processWatermark(new Watermark(2999));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>(new NonPojoType("key1"), 3), 2999));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>(new NonPojoType("key2"), 3), 2999));
+		expectedOutput.add(new Watermark(2999));
 
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 2999));
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), 2999));
+		testHarness.processWatermark(new Watermark(3999));
+		expectedOutput.add(new Watermark(3999));
 
-		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+		testHarness.processWatermark(new Watermark(4999));
+		expectedOutput.add(new Watermark(4999));
 
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 7000));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 7000));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 7000));
+		testHarness.processWatermark(new Watermark(5999));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>(new NonPojoType("key2"), 2), 5999));
+		expectedOutput.add(new Watermark(5999));
 
-		testHarness.setProcessingTime(7000);
-
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 5999));
-
-		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
-
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator<>());
 		testHarness.close();
 	}
 
-
-	private static class TupleKeySelector implements KeySelector<Tuple2<String, Integer>, String> {
+	private static class TupleKeySelector<K> implements KeySelector<Tuple2<K, Integer>, K> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public String getKey(Tuple2<String, Integer> value) throws Exception {
+		public K getKey(Tuple2<K, Integer> value) throws Exception {
 			return value.f0;
 		}
 	}
 
 	@SuppressWarnings("unchecked")
-	private static class Tuple2ResultSortComparator implements Comparator<Object> {
+	private static class Tuple2ResultSortComparator<K extends Comparable> implements Comparator<Object> {
 		@Override
 		public int compare(Object o1, Object o2) {
 			if (o1 instanceof Watermark || o2 instanceof Watermark) {
 				return 0;
 			} else {
-				StreamRecord<Tuple2<String, Integer>> sr0 = (StreamRecord<Tuple2<String, Integer>>) o1;
-				StreamRecord<Tuple2<String, Integer>> sr1 = (StreamRecord<Tuple2<String, Integer>>) o2;
+				StreamRecord<Tuple2<K, Integer>> sr0 = (StreamRecord<Tuple2<K, Integer>>) o1;
+				StreamRecord<Tuple2<K, Integer>> sr1 = (StreamRecord<Tuple2<K, Integer>>) o2;
 				if (sr0.getTimestamp() != sr1.getTimestamp()) {
 					return (int) (sr0.getTimestamp() - sr1.getTimestamp());
 				}
@@ -824,16 +936,16 @@ public class WindowOperatorMigrationTest {
 		}
 	}
 
-	public static class SumReducer implements ReduceFunction<Tuple2<String, Integer>> {
+	private static class SumReducer<K> implements ReduceFunction<Tuple2<K, Integer>> {
 		private static final long serialVersionUID = 1L;
 		@Override
-		public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1,
-				Tuple2<String, Integer> value2) throws Exception {
+		public Tuple2<K, Integer> reduce(Tuple2<K, Integer> value1,
+				Tuple2<K, Integer> value2) throws Exception {
 			return new Tuple2<>(value2.f0, value1.f1 + value2.f1);
 		}
 	}
 
-	public static class RichSumReducer<W extends Window> extends RichWindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String, W> {
+	private static class RichSumReducer<W extends Window> extends RichWindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String, W> {
 		private static final long serialVersionUID = 1L;
 
 		private boolean openCalled = false;
@@ -869,7 +981,7 @@ public class WindowOperatorMigrationTest {
 
 	}
 
-	public static class SessionWindowFunction implements WindowFunction<Tuple2<String, Integer>, Tuple3<String, Long, Long>, String, TimeWindow> {
+	private static class SessionWindowFunction implements WindowFunction<Tuple2<String, Integer>, Tuple3<String, Long, Long>, String, TimeWindow> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

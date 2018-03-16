@@ -20,19 +20,21 @@ package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.streaming.connectors.kafka.internal.Handover.WakeupException;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 /**
- * Tests for the {@link Handover} between Kafka Consumer Thread and the fetcher's main thread. 
+ * Tests for the {@link Handover} between Kafka Consumer Thread and the fetcher's main thread.
  */
 public class HandoverTest {
 
@@ -217,7 +219,7 @@ public class HandoverTest {
 
 		// empty the handover
 		assertNotNull(handover.pollNext());
-		
+
 		// producing into an empty handover should work
 		try {
 			handover.produce(createTestRecords());
@@ -290,7 +292,7 @@ public class HandoverTest {
 
 	// ------------------------------------------------------------------------
 
-	private static abstract class CheckedThread extends Thread {
+	private abstract static class CheckedThread extends Thread {
 
 		private volatile Throwable error;
 
@@ -315,7 +317,7 @@ public class HandoverTest {
 
 		public void waitUntilThreadHoldsLock(long timeoutMillis) throws InterruptedException, TimeoutException {
 			final long deadline = System.nanoTime() + timeoutMillis * 1_000_000;
-			
+
 			while (!isBlockedOrWaiting() && (System.nanoTime() < deadline)) {
 				Thread.sleep(1);
 			}

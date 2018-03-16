@@ -29,6 +29,7 @@ import org.apache.flink.api.java.operators.ReduceOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -36,13 +37,16 @@ import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link DataSet#reduce(ReduceFunction)}.
+ */
 @SuppressWarnings("serial")
 public class ReduceOperatorTest {
 
 	private final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData =
 			new ArrayList<Tuple5<Integer, Long, String, Long, Integer>>();
-	
-	private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo = new 
+
+	private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo = new
 			TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>>(
 					BasicTypeInfo.INT_TYPE_INFO,
 					BasicTypeInfo.LONG_TYPE_INFO,
@@ -50,10 +54,10 @@ public class ReduceOperatorTest {
 					BasicTypeInfo.LONG_TYPE_INFO,
 					BasicTypeInfo.INT_TYPE_INFO
 			);
-	
+
 	@Test
 	public void testSemanticPropsWithKeySelector1() {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
@@ -190,7 +194,7 @@ public class ReduceOperatorTest {
 		assertTrue(semProps.getReadFields(0) == null);
 	}
 
-	public static class DummyTestKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Tuple2<Long, Integer>> {
+	private static class DummyTestKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Tuple2<Long, Integer>> {
 		@Override
 		public Tuple2<Long, Integer> getKey(Tuple5<Integer, Long, String, Long, Integer> value) throws Exception {
 			return new Tuple2<Long, Integer>();
@@ -199,7 +203,7 @@ public class ReduceOperatorTest {
 
 	@FunctionAnnotation.ForwardedFields("0->4;1;1->3;2")
 	@FunctionAnnotation.ReadFields("0;3;4")
-	public static class DummyReduceFunction1 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
+	private static class DummyReduceFunction1 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
 		@Override
 		public Tuple5<Integer, Long, String, Long, Integer> reduce(Tuple5<Integer, Long, String, Long, Integer> v1,
 																	Tuple5<Integer, Long, String, Long, Integer> v2) throws Exception {
@@ -208,27 +212,27 @@ public class ReduceOperatorTest {
 	}
 
 	@FunctionAnnotation.ReadFields("0;3;4")
-	public static class DummyReduceFunction2 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
+	private static class DummyReduceFunction2 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
 		@Override
 		public Tuple5<Integer, Long, String, Long, Integer> reduce(Tuple5<Integer, Long, String, Long, Integer> v1,
-																   Tuple5<Integer, Long, String, Long, Integer> v2) throws Exception {
+																	Tuple5<Integer, Long, String, Long, Integer> v2) throws Exception {
 			return new Tuple5<Integer, Long, String, Long, Integer>();
 		}
 	}
 
-	public static class DummyReduceFunction3 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
+	private static class DummyReduceFunction3 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
 		@Override
 		public Tuple5<Integer, Long, String, Long, Integer> reduce(Tuple5<Integer, Long, String, Long, Integer> v1,
-																   Tuple5<Integer, Long, String, Long, Integer> v2) throws Exception {
+																	Tuple5<Integer, Long, String, Long, Integer> v2) throws Exception {
 			return new Tuple5<Integer, Long, String, Long, Integer>();
 		}
 	}
 
 	@FunctionAnnotation.NonForwardedFields("2;4")
-	public static class DummyReduceFunction4 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
+	private static class DummyReduceFunction4 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
 		@Override
 		public Tuple5<Integer, Long, String, Long, Integer> reduce(Tuple5<Integer, Long, String, Long, Integer> v1,
-																   Tuple5<Integer, Long, String, Long, Integer> v2) throws Exception {
+																	Tuple5<Integer, Long, String, Long, Integer> v2) throws Exception {
 			return new Tuple5<Integer, Long, String, Long, Integer>();
 		}
 	}

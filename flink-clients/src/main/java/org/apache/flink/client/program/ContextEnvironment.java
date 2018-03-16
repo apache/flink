@@ -35,17 +35,17 @@ import java.util.List;
  */
 public class ContextEnvironment extends ExecutionEnvironment {
 
-	protected final ClusterClient client;
+	protected final ClusterClient<?> client;
 
 	protected final List<URL> jarFilesToAttach;
 
 	protected final List<URL> classpathsToAttach;
-	
+
 	protected final ClassLoader userCodeClassLoader;
 
 	protected final SavepointRestoreSettings savepointSettings;
-	
-	public ContextEnvironment(ClusterClient remoteConnection, List<URL> jarFiles, List<URL> classpaths,
+
+	public ContextEnvironment(ClusterClient<?> remoteConnection, List<URL> jarFiles, List<URL> classpaths,
 				ClassLoader userCodeClassLoader, SavepointRestoreSettings savepointSettings) {
 		this.client = remoteConnection;
 		this.jarFilesToAttach = jarFiles;
@@ -83,11 +83,11 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism())
 				+ ") : " + getIdString();
 	}
-	
-	public ClusterClient getClient() {
+
+	public ClusterClient<?> getClient() {
 		return this.client;
 	}
-	
+
 	public List<URL> getJars(){
 		return jarFilesToAttach;
 	}
@@ -105,11 +105,11 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	static void setAsContext(ContextEnvironmentFactory factory) {
 		initializeContextEnvironment(factory);
 	}
-	
+
 	static void unsetContext() {
 		resetContextEnvironment();
 	}

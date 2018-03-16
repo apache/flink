@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.nifi;
 
 import java.util.Map;
 
 /**
- * <p>
  * The NiFiDataPacket provides a packaging around a NiFi FlowFile. It wraps both
  * a FlowFile's content and its attributes so that they can be processed by Flink.
- * </p>
  */
 public interface NiFiDataPacket {
 

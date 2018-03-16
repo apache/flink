@@ -23,6 +23,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -31,6 +32,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link DataSet#cross(DataSet)}.
+ */
 public class CrossOperatorTest {
 
 	// TUPLE DATA
@@ -64,11 +68,11 @@ public class CrossOperatorTest {
 		try {
 			ds1.cross(ds2)
 				.projectFirst(0);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
-	
+
 	@Test
 	public void testCrossProjection21() {
 
@@ -80,7 +84,7 @@ public class CrossOperatorTest {
 		try {
 			ds1.cross(ds2)
 				.projectFirst(0);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
@@ -95,12 +99,12 @@ public class CrossOperatorTest {
 		// should work
 		try {
 			ds1.cross(ds2)
-				.projectFirst(0,3);
-		} catch(Exception e) {
+				.projectFirst(0, 3);
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
-	
+
 	@Test
 	public void testCrossProjection22() {
 
@@ -111,8 +115,8 @@ public class CrossOperatorTest {
 		// should work
 		try {
 			ds1.cross(ds2)
-				.projectFirst(0,3);
-		} catch(Exception e) {
+				.projectFirst(0, 3);
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
@@ -129,11 +133,11 @@ public class CrossOperatorTest {
 			ds1.cross(ds2)
 				.projectFirst(0)
 				.projectSecond(3);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
-	
+
 	@Test
 	public void testCrossProjection23() {
 
@@ -146,7 +150,7 @@ public class CrossOperatorTest {
 			ds1.cross(ds2)
 				.projectFirst(0)
 				.projectSecond(3);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
@@ -161,15 +165,15 @@ public class CrossOperatorTest {
 		// should work
 		try {
 			ds1.cross(ds2)
-				.projectFirst(0,2)
-				.projectSecond(1,4)
+				.projectFirst(0, 2)
+				.projectSecond(1, 4)
 				.projectFirst(1);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Assert.fail();
 		}
 
 	}
-	
+
 	@Test
 	public void testCrossProjection24() {
 
@@ -180,10 +184,10 @@ public class CrossOperatorTest {
 		// should work
 		try {
 			ds1.cross(ds2)
-				.projectFirst(0,2)
-				.projectSecond(1,4)
+				.projectFirst(0, 2)
+				.projectSecond(1, 4)
 				.projectFirst(1);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Assert.fail();
 		}
 
@@ -199,14 +203,14 @@ public class CrossOperatorTest {
 		// should work
 		try {
 			ds1.cross(ds2)
-				.projectSecond(0,2)
-				.projectFirst(1,4)
+				.projectSecond(0, 2)
+				.projectFirst(1, 4)
 				.projectFirst(1);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
-	
+
 	@Test
 	public void testCrossProjection25() {
 
@@ -217,10 +221,10 @@ public class CrossOperatorTest {
 		// should work
 		try {
 			ds1.cross(ds2)
-				.projectSecond(0,2)
-				.projectFirst(1,4)
+				.projectSecond(0, 2)
+				.projectFirst(1, 4)
 				.projectFirst(1);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
@@ -237,11 +241,11 @@ public class CrossOperatorTest {
 			ds1.cross(ds2)
 				.projectFirst()
 				.projectSecond();
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
-	
+
 	@Test
 	public void testCrossProjection26() {
 
@@ -254,7 +258,7 @@ public class CrossOperatorTest {
 			ds1.cross(ds2)
 				.projectFirst()
 				.projectSecond();
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
@@ -270,12 +274,12 @@ public class CrossOperatorTest {
 		try {
 			ds1.cross(ds2)
 				.projectSecond()
-				.projectFirst(1,4);
-		} catch(Exception e) {
+				.projectFirst(1, 4);
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
-	
+
 	@Test
 	public void testCrossProjection27() {
 
@@ -287,13 +291,13 @@ public class CrossOperatorTest {
 		try {
 			ds1.cross(ds2)
 				.projectSecond()
-				.projectFirst(1,4);
-		} catch(Exception e) {
+				.projectFirst(1, 4);
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
 
-	@Test(expected=IndexOutOfBoundsException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testCrossProjection8() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -304,8 +308,8 @@ public class CrossOperatorTest {
 		ds1.cross(ds2)
 			.projectFirst(5);
 	}
-	
-	@Test(expected=IndexOutOfBoundsException.class)
+
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testCrossProjection28() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -317,7 +321,7 @@ public class CrossOperatorTest {
 			.projectFirst(5);
 	}
 
-	@Test(expected=IndexOutOfBoundsException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testCrossProjection9() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -329,7 +333,7 @@ public class CrossOperatorTest {
 			.projectSecond(5);
 	}
 
-	@Test(expected=IndexOutOfBoundsException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testCrossProjection29() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -351,8 +355,8 @@ public class CrossOperatorTest {
 		ds1.cross(ds2)
 			.projectFirst(2);
 	}
-	
-	@Test(expected=IndexOutOfBoundsException.class)
+
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testCrossProjection30() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -375,7 +379,7 @@ public class CrossOperatorTest {
 			.projectSecond(2);
 	}
 
-	@Test(expected=IndexOutOfBoundsException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testCrossProjection31() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -386,7 +390,7 @@ public class CrossOperatorTest {
 		ds1.cross(ds2)
 			.projectSecond(-1);
 	}
-	
+
 	public void testCrossProjection12() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -398,8 +402,8 @@ public class CrossOperatorTest {
 			.projectSecond(2)
 			.projectFirst(1);
 	}
-	
-	@Test(expected=IndexOutOfBoundsException.class)
+
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testCrossProjection32() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -412,7 +416,7 @@ public class CrossOperatorTest {
 			.projectFirst(-1);
 	}
 
-	@Test(expected=IndexOutOfBoundsException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testCrossProjection13() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -425,7 +429,7 @@ public class CrossOperatorTest {
 			.projectFirst(5);
 	}
 
-	@Test(expected=IndexOutOfBoundsException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testCrossProjection14() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -437,12 +441,12 @@ public class CrossOperatorTest {
 			.projectFirst(0)
 			.projectSecond(5);
 	}
-	
+
 	/*
 	 * ####################################################################
 	 */
 
-	public static class CustomType implements Serializable {
+	private static class CustomType implements Serializable {
 
 		private static final long serialVersionUID = 1L;
 
@@ -450,7 +454,8 @@ public class CrossOperatorTest {
 		public long myLong;
 		public String myString;
 
-		public CustomType() {}
+		public CustomType() {
+		}
 
 		public CustomType(int i, long l, String s) {
 			myInt = i;
@@ -460,7 +465,7 @@ public class CrossOperatorTest {
 
 		@Override
 		public String toString() {
-			return myInt+","+myLong+","+myString;
+			return myInt + "," + myLong + "," + myString;
 		}
 	}
 

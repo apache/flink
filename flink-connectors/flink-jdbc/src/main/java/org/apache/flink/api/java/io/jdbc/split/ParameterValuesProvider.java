@@ -15,21 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.java.io.jdbc.split;
 
-import java.io.Serializable;
+package org.apache.flink.api.java.io.jdbc.split;
 
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
 
+import java.io.Serializable;
+
 /**
- * 
  * This interface is used by the {@link JDBCInputFormat} to compute the list of parallel query to run (i.e. splits).
- * Each query will be parameterized using a row of the matrix provided by each {@link ParameterValuesProvider} implementation
- * 
- * */
+ * Each query will be parameterized using a row of the matrix provided by each {@link ParameterValuesProvider}
+ * implementation.
+ */
 public interface ParameterValuesProvider {
 
-	/** Returns the necessary parameters array to use for query in parallel a table */
-	public Serializable[][] getParameterValues();
-	
+	/** Returns the necessary parameters array to use for query in parallel a table. */
+	Serializable[][] getParameterValues();
 }

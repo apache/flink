@@ -22,6 +22,9 @@ import org.apache.flink.storm.exclamation.util.ExclamationData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
+/**
+ * Test for the ExclamationWithBolt example.
+ */
 public class ExclamationWithBoltITCase extends StreamingProgramTestBase {
 
 	protected String textPath;

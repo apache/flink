@@ -39,7 +39,7 @@ public class SingleSourceShortestPaths<K, VV> implements GraphAlgorithm<K, VV, D
 
 	/**
 	 * Creates an instance of the SingleSourceShortestPaths algorithm.
-	 * 
+	 *
 	 * @param srcVertexId The ID of the source vertex.
 	 * @param maxIterations The maximum number of iterations to run.
 	 */
@@ -51,12 +51,12 @@ public class SingleSourceShortestPaths<K, VV> implements GraphAlgorithm<K, VV, D
 	@Override
 	public DataSet<Vertex<K, Double>> run(Graph<K, VV, Double> input) {
 
-		return input.mapVertices(new InitVerticesMapper<K, VV>(srcVertexId))
-				.runScatterGatherIteration(new MinDistanceMessenger<K>(), new VertexDistanceUpdater<K>(),
+		return input.mapVertices(new InitVerticesMapper<>(srcVertexId))
+				.runScatterGatherIteration(new MinDistanceMessenger<>(), new VertexDistanceUpdater<>(),
 				maxIterations).getVertices();
 	}
 
-	public static final class InitVerticesMapper<K, VV> implements MapFunction<Vertex<K, VV>, Double> {
+	private static final class InitVerticesMapper<K, VV> implements MapFunction<Vertex<K, VV>, Double> {
 
 		private K srcVertexId;
 
@@ -94,7 +94,7 @@ public class SingleSourceShortestPaths<K, VV> implements GraphAlgorithm<K, VV, D
 	/**
 	 * Function that updates the value of a vertex by picking the minimum
 	 * distance from all incoming messages.
-	 * 
+	 *
 	 * @param <K>
 	 */
 	public static final class VertexDistanceUpdater<K> extends GatherFunction<K, Double, Double> {

@@ -20,19 +20,22 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.testtasks.FailingBlockingInvokable;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -48,7 +51,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class CoordinatorShutdownTest {
+public class CoordinatorShutdownTest extends TestLogger {
 	
 	@Test
 	public void testCoordinatorShutsDownOnFailure() {
@@ -66,8 +69,19 @@ public class CoordinatorShutdownTest {
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 			
 			JobGraph testGraph = new JobGraph("test job", vertex);
-			testGraph.setSnapshotSettings(new JobSnapshottingSettings(vertexIdList, vertexIdList, vertexIdList, 
-					5000, 60000, 0L, Integer.MAX_VALUE, ExternalizedCheckpointSettings.none(), true));
+			testGraph.setSnapshotSettings(
+				new JobCheckpointingSettings(
+					vertexIdList,
+					vertexIdList,
+					vertexIdList,
+					new CheckpointCoordinatorConfiguration(
+						5000,
+						60000,
+						0L,
+						Integer.MAX_VALUE,
+						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+						true),
+					null));
 			
 			ActorGateway jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
 
@@ -91,7 +105,7 @@ public class CoordinatorShutdownTest {
 
 			FailingBlockingInvokable.unblock();
 
-			graph.waitUntilFinished();
+			graph.waitUntilTerminal();
 			
 			// verify that the coordinator was shut down
 			CheckpointCoordinator coord = graph.getCheckpointCoordinator();
@@ -103,8 +117,7 @@ public class CoordinatorShutdownTest {
 		}
 		finally {
 			if (cluster != null) {
-				cluster.shutdown();
-				cluster.awaitTermination();
+				cluster.stop();
 			}
 		}
 	}
@@ -125,8 +138,19 @@ public class CoordinatorShutdownTest {
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 
 			JobGraph testGraph = new JobGraph("test job", vertex);
-			testGraph.setSnapshotSettings(new JobSnapshottingSettings(vertexIdList, vertexIdList, vertexIdList,
-					5000, 60000, 0L, Integer.MAX_VALUE, ExternalizedCheckpointSettings.none(), true));
+			testGraph.setSnapshotSettings(
+				new JobCheckpointingSettings(
+					vertexIdList,
+					vertexIdList,
+					vertexIdList,
+					new CheckpointCoordinatorConfiguration(
+						5000,
+						60000,
+						0L,
+						Integer.MAX_VALUE,
+						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+						true),
+					null));
 			
 			ActorGateway jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
 
@@ -150,7 +174,7 @@ public class CoordinatorShutdownTest {
 
 			BlockingInvokable.unblock();
 			
-			graph.waitUntilFinished();
+			graph.waitUntilTerminal();
 
 			// verify that the coordinator was shut down
 			CheckpointCoordinator coord = graph.getCheckpointCoordinator();
@@ -162,54 +186,27 @@ public class CoordinatorShutdownTest {
 		}
 		finally {
 			if (cluster != null) {
-				cluster.shutdown();
-				cluster.awaitTermination();
+				cluster.stop();
 			}
 		}
 	}
 
 	public static class BlockingInvokable extends AbstractInvokable {
-		private static boolean blocking = true;
-		private static final Object lock = new Object();
+
+		private static final OneShotLatch LATCH = new OneShotLatch();
+
+		public BlockingInvokable(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {
-			while (blocking) {
-				synchronized (lock) {
-					lock.wait();
-				}
-			}
+			LATCH.await();
 		}
 
 		public static void unblock() {
-			blocking = false;
-
-			synchronized (lock) {
-				lock.notifyAll();
-			}
+			LATCH.trigger();
 		}
 	}
 
-	public static class FailingBlockingInvokable extends AbstractInvokable {
-		private static boolean blocking = true;
-		private static final Object lock = new Object();
-
-		@Override
-		public void invoke() throws Exception {
-			while (blocking) {
-				synchronized (lock) {
-					lock.wait();
-				}
-			}
-			throw new RuntimeException("This exception is expected.");
-		}
-
-		public static void unblock() {
-			blocking = false;
-
-			synchronized (lock) {
-				lock.notifyAll();
-			}
-		}
-	}
 }

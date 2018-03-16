@@ -18,30 +18,30 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
-import java.io.IOException;
-import java.util.Map;
-import java.util.concurrent.Callable;
+import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.mesos.entrypoint.MesosEntrypointUtils;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.taskmanager.TaskManager;
+import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.JvmShutdownSafeguard;
+import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.security.SecurityUtils;
-import org.apache.flink.runtime.taskmanager.TaskManager;
-import org.apache.flink.runtime.util.EnvironmentInformation;
-
-import org.apache.flink.runtime.util.JvmShutdownSafeguard;
-import org.apache.flink.runtime.util.SignalHandler;
-import org.apache.flink.util.Preconditions;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.Callable;
 
 /**
  * The entry point for running a TaskManager in a Mesos container.
@@ -58,7 +58,7 @@ public class MesosTaskManagerRunner {
 				.addOption(BootstrapTools.newDynamicPropertiesOption());
 	}
 
-	/** The process environment variables */
+	/** The process environment variables. */
 	private static final Map<String, String> ENV = System.getenv();
 
 	public static void runTaskManager(String[] args, final Class<? extends TaskManager> taskManager) throws Exception {
@@ -73,10 +73,9 @@ public class MesosTaskManagerRunner {
 		final Configuration configuration;
 		try {
 			final Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
-			GlobalConfiguration.setDynamicProperties(dynamicProperties);
 			LOG.debug("Mesos dynamic properties: {}", dynamicProperties);
 
-			configuration = GlobalConfiguration.loadConfiguration();
+			configuration = MesosEntrypointUtils.loadConfiguration(dynamicProperties, LOG);
 		}
 		catch (Throwable t) {
 			LOG.error("Failed to load the TaskManager configuration and dynamic properties.", t);
@@ -84,31 +83,17 @@ public class MesosTaskManagerRunner {
 			return;
 		}
 
-		// read the environment variables
 		final Map<String, String> envs = System.getenv();
-		final String tmpDirs = envs.get(MesosConfigKeys.ENV_FLINK_TMP_DIR);
 
-		// configure local directory
-		String flinkTempDirs = configuration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, null);
-		if (flinkTempDirs != null) {
-			LOG.info("Overriding Mesos temporary file directories with those " +
-				"specified in the Flink config: {}", flinkTempDirs);
-		}
-		else if (tmpDirs != null) {
-			LOG.info("Setting directories for temporary files to: {}", tmpDirs);
-			configuration.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, tmpDirs);
-		}
-
-		// configure the default filesystem
+		// configure the filesystems
 		try {
-			FileSystem.setDefaultScheme(configuration);
+			FileSystem.initialize(configuration);
 		} catch (IOException e) {
-			throw new IOException("Error while setting the default " +
-				"filesystem scheme from configuration.", e);
+			throw new IOException("Error while confoguring the filesystems.", e);
 		}
 
 		// tell akka to die in case of an error
-		configuration.setBoolean(ConfigConstants.AKKA_JVM_EXIT_ON_FATAL_ERROR, true);
+		configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
 
 		// Infer the resource identifier from the environment variable
 		String containerID = Preconditions.checkNotNull(envs.get(MesosConfigKeys.ENV_FLINK_CONTAINER_ID));
@@ -116,7 +101,7 @@ public class MesosTaskManagerRunner {
 		LOG.info("ResourceID assigned for this container: {}", resourceId);
 
 		// Run the TM in the security context
-		SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(configuration);
+		SecurityConfiguration sc = new SecurityConfiguration(configuration);
 		SecurityUtils.install(sc);
 
 		try {

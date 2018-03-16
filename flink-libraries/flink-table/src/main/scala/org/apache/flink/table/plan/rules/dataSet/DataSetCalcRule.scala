@@ -18,24 +18,24 @@
 
 package org.apache.flink.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalCalc
-import org.apache.flink.table.plan.nodes.dataset.{DataSetCalc, DataSetConvention}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetCalc
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalCalc
 
 class DataSetCalcRule
   extends ConverterRule(
-      classOf[LogicalCalc],
-      Convention.NONE,
-      DataSetConvention.INSTANCE,
-      "DataSetCalcRule")
-  {
+    classOf[FlinkLogicalCalc],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
+    "DataSetCalcRule") {
 
     def convert(rel: RelNode): RelNode = {
-      val calc: LogicalCalc = rel.asInstanceOf[LogicalCalc]
-      val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-      val convInput: RelNode = RelOptRule.convert(calc.getInput, DataSetConvention.INSTANCE)
+      val calc: FlinkLogicalCalc = rel.asInstanceOf[FlinkLogicalCalc]
+      val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
+      val convInput: RelNode = RelOptRule.convert(calc.getInput, FlinkConventions.DATASET)
 
       new DataSetCalc(
         rel.getCluster,

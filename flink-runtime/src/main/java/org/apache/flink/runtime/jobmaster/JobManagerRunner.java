@@ -19,27 +19,39 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobSchedulingStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -48,108 +60,78 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The runner for the job manager. It deals with job level leader election and make underlying job manager
  * properly reacted.
  */
-public class JobManagerRunner implements LeaderContender, OnCompletionActions, FatalErrorHandler {
+public class JobManagerRunner implements LeaderContender, OnCompletionActions, FatalErrorHandler, AutoCloseableAsync {
 
 	private static final Logger log = LoggerFactory.getLogger(JobManagerRunner.class);
 
 	// ------------------------------------------------------------------------
 
-	/** Lock to ensure that this runner can deal with leader election event and job completion notifies simultaneously */
+	/** Lock to ensure that this runner can deal with leader election event and job completion notifies simultaneously. */
 	private final Object lock = new Object();
 
-	/** The job graph needs to run */
+	/** The job graph needs to run. */
 	private final JobGraph jobGraph;
 
-	/** The listener to notify once the job completes - either successfully or unsuccessfully */
-	private final OnCompletionActions toNotifyOnComplete;
-
-	/** The handler to call in case of fatal (unrecoverable) errors */ 
-	private final FatalErrorHandler errorHandler;
-
-	/** Used to check whether a job needs to be run */
+	/** Used to check whether a job needs to be run. */
 	private final RunningJobsRegistry runningJobsRegistry;
 
-	/** Leader election for this job */
+	/** Leader election for this job. */
 	private final LeaderElectionService leaderElectionService;
 
-	private final JobManagerServices jobManagerServices;
+	private final JobManagerSharedServices jobManagerSharedServices;
 
 	private final JobMaster jobManager;
 
 	private final JobManagerMetricGroup jobManagerMetricGroup;
 
-	/** flag marking the runner as shut down */
+	private final Time rpcTimeout;
+
+	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
+
+	private final CompletableFuture<Void> terminationFuture;
+
+	/** flag marking the runner as shut down. */
 	private volatile boolean shutdown;
 
 	// ------------------------------------------------------------------------
 
-	public JobManagerRunner(
-			final JobGraph jobGraph,
-			final Configuration configuration,
-			final RpcService rpcService,
-			final HighAvailabilityServices haServices,
-			final OnCompletionActions toNotifyOnComplete,
-			final FatalErrorHandler errorHandler) throws Exception
-	{
-		this(jobGraph, configuration, rpcService, haServices,
-				new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(configuration)),
-				toNotifyOnComplete, errorHandler);
-	}
-
-	public JobManagerRunner(
-			final JobGraph jobGraph,
-			final Configuration configuration,
-			final RpcService rpcService,
-			final HighAvailabilityServices haServices,
-			final MetricRegistry metricRegistry,
-			final OnCompletionActions toNotifyOnComplete,
-			final FatalErrorHandler errorHandler) throws Exception
-	{
-		this(jobGraph, configuration, rpcService, haServices,
-				JobManagerServices.fromConfiguration(configuration, haServices),
-				metricRegistry,
-				toNotifyOnComplete, errorHandler);
-	}
-
 	/**
-	 * 
-	 * <p>Exceptions that occur while creating the JobManager or JobManagerRunner are directly
+	 * Exceptions that occur while creating the JobManager or JobManagerRunner are directly
 	 * thrown and not reported to the given {@code FatalErrorHandler}.
-	 * 
-	 * <p>This JobManagerRunner assumes that it owns the given {@code JobManagerServices}.
-	 * It will shut them down on error and on calls to {@link #shutdown()}.
-	 * 
+	 *
 	 * @throws Exception Thrown if the runner cannot be set up, because either one of the
 	 *                   required services could not be started, ot the Job could not be initialized.
 	 */
 	public JobManagerRunner(
+			final ResourceID resourceId,
 			final JobGraph jobGraph,
 			final Configuration configuration,
 			final RpcService rpcService,
 			final HighAvailabilityServices haServices,
-			final JobManagerServices jobManagerServices,
+			final HeartbeatServices heartbeatServices,
+			final BlobServer blobServer,
+			final JobManagerSharedServices jobManagerSharedServices,
 			final MetricRegistry metricRegistry,
-			final OnCompletionActions toNotifyOnComplete,
-			final FatalErrorHandler errorHandler) throws Exception
-	{
+			@Nullable final String restAddress) throws Exception {
 
 		JobManagerMetricGroup jobManagerMetrics = null;
+
+		this.resultFuture = new CompletableFuture<>();
+		this.terminationFuture = new CompletableFuture<>();
 
 		// make sure we cleanly shut down out JobManager services if initialization fails
 		try {
 			this.jobGraph = checkNotNull(jobGraph);
-			this.toNotifyOnComplete = checkNotNull(toNotifyOnComplete);
-			this.errorHandler = checkNotNull(errorHandler);
-			this.jobManagerServices = checkNotNull(jobManagerServices);
+			this.jobManagerSharedServices = checkNotNull(jobManagerSharedServices);
 
 			checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
 
 			final String hostAddress = rpcService.getAddress().isEmpty() ? "localhost" : rpcService.getAddress();
-			jobManagerMetrics = new JobManagerMetricGroup(metricRegistry, hostAddress);
+			jobManagerMetrics = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, hostAddress);
 			this.jobManagerMetricGroup = jobManagerMetrics;
 
 			// libraries and class loader first
-			final BlobLibraryCacheManager libraryCacheManager = jobManagerServices.libraryCacheManager;
+			final LibraryCacheManager libraryCacheManager = jobManagerSharedServices.getLibraryCacheManager();
 			try {
 				libraryCacheManager.registerJob(
 						jobGraph.getJobID(), jobGraph.getUserJarBlobKeys(), jobGraph.getClasspaths());
@@ -166,34 +148,54 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			this.runningJobsRegistry = haServices.getRunningJobsRegistry();
 			this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
+			final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+
+			this.rpcTimeout = jobMasterConfiguration.getRpcTimeout();
+
 			// now start the JobManager
 			this.jobManager = new JobMaster(
-					jobGraph, configuration,
-					rpcService,
-					haServices,
-					jobManagerServices.executorService,
-					jobManagerServices.libraryCacheManager,
-					jobManagerServices.restartStrategyFactory,
-					jobManagerServices.rpcAskTimeout,
-					jobManagerMetrics,
-					this,
-					this,
-					userCodeLoader);
+				rpcService,
+				jobMasterConfiguration,
+				resourceId,
+				jobGraph,
+				haServices,
+				jobManagerSharedServices,
+				heartbeatServices,
+				blobServer,
+				jobManagerMetrics,
+				this,
+				this,
+				userCodeLoader,
+				restAddress,
+				metricRegistry.getMetricQueryServicePath());
 		}
 		catch (Throwable t) {
 			// clean up everything
-			try {
-				jobManagerServices.shutdown();
-			} catch (Throwable tt) {
-				log.error("Error while shutting down JobManager services", tt);
-			}
-
 			if (jobManagerMetrics != null) {
 				jobManagerMetrics.close();
 			}
 
+			terminationFuture.completeExceptionally(t);
+			resultFuture.completeExceptionally(t);
+
 			throw new JobExecutionException(jobGraph.getJobID(), "Could not set up JobManager", t);
 		}
+	}
+
+	//----------------------------------------------------------------------------------------------
+	// Getter
+	//----------------------------------------------------------------------------------------------
+
+	public JobMasterGateway getJobManagerGateway() {
+		return jobManager.getSelfGateway(JobMasterGateway.class);
+	}
+
+	public JobGraph getJobGraph() {
+		return jobGraph;
+	}
+
+	public CompletableFuture<ArchivedExecutionGraph> getResultFuture() {
+		return resultFuture;
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -210,40 +212,46 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 		}
 	}
 
-	public void shutdown() {
-		shutdownInternally();
-	}
-
-	private void shutdownInternally() {
+	@Override
+	public CompletableFuture<Void> closeAsync() {
 		synchronized (lock) {
-			shutdown = true;
+			if (!shutdown) {
+				shutdown = true;
 
-			if (leaderElectionService != null) {
-				try {
-					leaderElectionService.stop();
-				} catch (Throwable t) {
-					log.error("Could not properly shutdown the leader election service", t);
-				}
-			}
-
-			try {
 				jobManager.shutDown();
-			} catch (Throwable t) {
-				log.error("Error shutting down JobManager", t);
+
+				final CompletableFuture<Void> jobManagerTerminationFuture = jobManager.getTerminationFuture();
+
+				jobManagerTerminationFuture.whenComplete(
+					(Void ignored, Throwable throwable) -> {
+						try {
+							leaderElectionService.stop();
+						} catch (Throwable t) {
+							throwable = ExceptionUtils.firstOrSuppressed(t, ExceptionUtils.stripCompletionException(throwable));
+						}
+
+						// make all registered metrics go away
+						try {
+							jobManagerMetricGroup.close();
+						} catch (Throwable t) {
+							throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
+						}
+
+						if (throwable != null) {
+							terminationFuture.completeExceptionally(
+								new FlinkException("Could not properly shut down the JobManagerRunner", throwable));
+						} else {
+							terminationFuture.complete(null);
+						}
+					});
+
+				terminationFuture.whenComplete(
+					(Void ignored, Throwable throwable) -> {
+						resultFuture.completeExceptionally(new JobNotFinishedException(jobGraph.getJobID()));
+					});
 			}
 
-			try {
-				jobManagerServices.shutdown();
-			} catch (Throwable t) {
-				log.error("Error shutting down JobManager services", t);
-			}
-
-			// make all registered metrics go away
-			try {
-				jobManagerMetricGroup.close();
-			} catch (Throwable t) {
-				log.error("Error while unregistering metrics", t);
-			}
+			return terminationFuture;
 		}
 	}
 
@@ -252,54 +260,25 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	//----------------------------------------------------------------------------------------------
 
 	/**
-	 * Job completion notification triggered by JobManager
+	 * Job completion notification triggered by JobManager.
 	 */
 	@Override
-	public void jobFinished(JobExecutionResult result) {
-		try {
-			unregisterJobFromHighAvailability();
-			shutdownInternally();
-		}
-		finally {
-			if (toNotifyOnComplete != null) {
-				toNotifyOnComplete.jobFinished(result);
-			}
-		}
+	public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
+		// complete the result future with the terminal execution graph
+		unregisterJobFromHighAvailability();
+		resultFuture.complete(executionGraph);
 	}
 
 	/**
-	 * Job completion notification triggered by JobManager
-	 */
-	@Override
-	public void jobFailed(Throwable cause) {
-		try {
-			unregisterJobFromHighAvailability();
-			shutdownInternally();
-		}
-		finally {
-			if (toNotifyOnComplete != null) {
-				toNotifyOnComplete.jobFailed(cause);
-			}
-		}
-	}
-
-	/**
-	 * Job completion notification triggered by self
+	 * Job completion notification triggered by self.
 	 */
 	@Override
 	public void jobFinishedByOther() {
-		try {
-			shutdownInternally();
-		}
-		finally {
-			if (toNotifyOnComplete != null) {
-				toNotifyOnComplete.jobFinishedByOther();
-			}
-		}
+		resultFuture.completeExceptionally(new JobNotFinishedException(jobGraph.getJobID()));
 	}
 
 	/**
-	 * Job completion notification triggered by JobManager or self
+	 * Job completion notification triggered by JobManager or self.
 	 */
 	@Override
 	public void onFatalError(Throwable exception) {
@@ -310,23 +289,13 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			log.error("JobManager runner encountered a fatal error.", exception);
 		} catch (Throwable ignored) {}
 
-		// in any case, notify our handler, so it can react fast
-		try {
-			if (errorHandler != null) {
-				errorHandler.onFatalError(exception);
-			}
-		}
-		finally {
-			// the shutdown may not even needed any more, if the fatal error
-			// handler kills the process. that is fine, a process kill cleans up better than anything.
-			shutdownInternally();
-		}
+		resultFuture.completeExceptionally(exception);
 	}
 
 	/**
 	 * Marks this runner's job as not running. Other JobManager will not recover the job
 	 * after this call.
-	 * 
+	 *
 	 * <p>This method never throws an exception.
 	 */
 	private void unregisterJobFromHighAvailability() {
@@ -359,29 +328,45 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			// it's okay that job manager wait for the operation complete
 			leaderElectionService.confirmLeaderSessionID(leaderSessionID);
 
-			boolean jobRunning;
+			final JobSchedulingStatus schedulingStatus;
 			try {
-				jobRunning = runningJobsRegistry.isJobRunning(jobGraph.getJobID());
-			} catch (Throwable t) {
-				log.error("Could not access status (running/finished) of job {}. " +
-						"Falling back to assumption that job is running and attempting recovery...",
-						jobGraph.getJobID(), t);
-				jobRunning = true;
+				schedulingStatus = runningJobsRegistry.getJobSchedulingStatus(jobGraph.getJobID());
+			}
+			catch (Throwable t) {
+				log.error("Could not access status (running/finished) of job {}. ", jobGraph.getJobID(), t);
+				onFatalError(t);
+				return;
+			}
+
+			if (schedulingStatus == JobSchedulingStatus.DONE) {
+				log.info("Granted leader ship but job {} has been finished. ", jobGraph.getJobID());
+				jobFinishedByOther();
+				return;
 			}
 
 			// Double check the leadership after we confirm that, there is a small chance that multiple
 			// job managers schedule the same job after if they try to recover at the same time.
 			// This will eventually be noticed, but can not be ruled out from the beginning.
 			if (leaderElectionService.hasLeadership()) {
-				if (jobRunning) {
-					try {
-						jobManager.start(leaderSessionID);
-					} catch (Exception e) {
-						onFatalError(new Exception("Could not start the job manager.", e));
+				try {
+					// Now set the running status is after getting leader ship and
+					// set finished status after job in terminated status.
+					// So if finding the job is running, it means someone has already run the job, need recover.
+					if (schedulingStatus == JobSchedulingStatus.PENDING) {
+						runningJobsRegistry.setJobRunning(jobGraph.getJobID());
 					}
-				} else {
-					log.info("Job {} ({}) already finished by others.", jobGraph.getName(), jobGraph.getJobID());
-					jobFinishedByOther();
+
+					CompletableFuture<Acknowledge> startingFuture = jobManager.start(new JobMasterId(leaderSessionID), rpcTimeout);
+
+					startingFuture.whenCompleteAsync(
+						(Acknowledge ack, Throwable throwable) -> {
+							if (throwable != null) {
+								onFatalError(new Exception("Could not start the job manager.", throwable));
+							}
+						},
+						jobManagerSharedServices.getScheduledExecutorService());
+				} catch (Exception e) {
+					onFatalError(new Exception("Could not start the job manager.", e));
 				}
 			}
 		}
@@ -398,7 +383,15 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			log.info("JobManager for job {} ({}) was revoked leadership at {}.",
 				jobGraph.getName(), jobGraph.getJobID(), getAddress());
 
-			jobManager.getSelf().suspendExecution(new Exception("JobManager is no longer the leader."));
+			CompletableFuture<Acknowledge>  suspendFuture = jobManager.suspend(new FlinkException("JobManager is no longer the leader."), rpcTimeout);
+
+			suspendFuture.whenCompleteAsync(
+				(Acknowledge ack, Throwable throwable) -> {
+					if (throwable != null) {
+						onFatalError(new Exception("Could not start the job manager.", throwable));
+					}
+				},
+				jobManagerSharedServices.getScheduledExecutorService());
 		}
 	}
 

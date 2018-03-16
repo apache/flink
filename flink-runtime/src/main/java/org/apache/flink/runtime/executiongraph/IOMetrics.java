@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.metrics.Meter;
@@ -25,20 +26,22 @@ import java.io.Serializable;
  * An instance of this class represents a snapshot of the io-related metrics of a single task.
  */
 public class IOMetrics implements Serializable {
+
 	private static final long serialVersionUID = -7208093607556457183L;
-	private final long numRecordsIn;
-	private final long numRecordsOut;
 
-	private final double numRecordsInPerSecond;
-	private final double numRecordsOutPerSecond;
+	protected long numRecordsIn;
+	protected long numRecordsOut;
 
-	private final long numBytesInLocal;
-	private final long numBytesInRemote;
-	private final long numBytesOut;
+	protected double numRecordsInPerSecond;
+	protected double numRecordsOutPerSecond;
 
-	private final double numBytesInLocalPerSecond;
-	private final double numBytesInRemotePerSecond;
-	private final double numBytesOutPerSecond;
+	protected long numBytesInLocal;
+	protected long numBytesInRemote;
+	protected long numBytesOut;
+
+	protected double numBytesInLocalPerSecond;
+	protected double numBytesInRemotePerSecond;
+	protected double numBytesOutPerSecond;
 
 	public IOMetrics(Meter recordsIn, Meter recordsOut, Meter bytesLocalIn, Meter bytesRemoteIn, Meter bytesOut) {
 		this.numRecordsIn = recordsIn.getCount();
@@ -51,6 +54,29 @@ public class IOMetrics implements Serializable {
 		this.numBytesInRemotePerSecond = bytesRemoteIn.getRate();
 		this.numBytesOut = bytesOut.getCount();
 		this.numBytesOutPerSecond = bytesOut.getRate();
+	}
+
+	public IOMetrics(
+			long numBytesInLocal,
+			long numBytesInRemote,
+			long numBytesOut,
+			long numRecordsIn,
+			long numRecordsOut,
+			double numBytesInLocalPerSecond,
+			double numBytesInRemotePerSecond,
+			double numBytesOutPerSecond,
+			double numRecordsInPerSecond,
+			double numRecordsOutPerSecond) {
+		this.numBytesInLocal = numBytesInLocal;
+		this.numBytesInRemote = numBytesInRemote;
+		this.numBytesOut = numBytesOut;
+		this.numRecordsIn = numRecordsIn;
+		this.numRecordsOut = numRecordsOut;
+		this.numBytesInLocalPerSecond = numBytesInLocalPerSecond;
+		this.numBytesInRemotePerSecond = numBytesInRemotePerSecond;
+		this.numBytesOutPerSecond = numBytesOutPerSecond;
+		this.numRecordsInPerSecond = numRecordsInPerSecond;
+		this.numRecordsOutPerSecond = numRecordsOutPerSecond;
 	}
 
 	public long getNumRecordsIn() {

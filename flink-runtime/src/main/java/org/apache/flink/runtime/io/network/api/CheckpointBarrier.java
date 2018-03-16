@@ -18,37 +18,40 @@
 
 package org.apache.flink.runtime.io.network.api;
 
-import java.io.IOException;
-
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.event.RuntimeEvent;
+
+import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Checkpoint barriers are used to align checkpoints throughout the streaming topology. The
  * barriers are emitted by the sources when instructed to do so by the JobManager. When
- * operators receive a CheckpointBarrier on one of its inputs, it knows that this is the point 
+ * operators receive a CheckpointBarrier on one of its inputs, it knows that this is the point
  * between the pre-checkpoint and post-checkpoint data.
- * 
+ *
  * <p>Once an operator has received a checkpoint barrier from all its input channels, it
  * knows that a certain checkpoint is complete. It can trigger the operator specific checkpoint
- * behavior and broadcast the barrier to downstream operators.</p>
- * 
+ * behavior and broadcast the barrier to downstream operators.
+ *
  * <p>Depending on the semantic guarantees, may hold off post-checkpoint data until the checkpoint
- * is complete (exactly once)</p>
- * 
- * <p>The checkpoint barrier IDs are strictly monotonous increasing.</p>
+ * is complete (exactly once).
+ *
+ * <p>The checkpoint barrier IDs are strictly monotonous increasing.
  */
 public class CheckpointBarrier extends RuntimeEvent {
 
-	private long id;
-	private long timestamp;
+	private final long id;
+	private final long timestamp;
+	private final CheckpointOptions checkpointOptions;
 
-	public CheckpointBarrier() {}
-
-	public CheckpointBarrier(long id, long timestamp) {
+	public CheckpointBarrier(long id, long timestamp, CheckpointOptions checkpointOptions) {
 		this.id = id;
 		this.timestamp = timestamp;
+		this.checkpointOptions = checkNotNull(checkpointOptions);
 	}
 
 	public long getId() {
@@ -59,40 +62,55 @@ public class CheckpointBarrier extends RuntimeEvent {
 		return timestamp;
 	}
 
+	public CheckpointOptions getCheckpointOptions() {
+		return checkpointOptions;
+	}
+
 	// ------------------------------------------------------------------------
-	
+	// Serialization
+	// ------------------------------------------------------------------------
+
+	//
+	//  These methods are inherited form the generic serialization of AbstractEvent
+	//  but would require the CheckpointBarrier to be mutable. Since all serialization
+	//  for events goes through the EventSerializer class, which has special serialization
+	//  for the CheckpointBarrier, we don't need these methods
+	//
+
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		out.writeLong(id);
-		out.writeLong(timestamp);
+		throw new UnsupportedOperationException("This method should never be called");
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		id = in.readLong();
-		timestamp = in.readLong();
+		throw new UnsupportedOperationException("This method should never be called");
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
-		return (int) (id ^ (id >>> 32) ^ timestamp ^(timestamp >>> 32));
+		return (int) (id ^ (id >>> 32) ^ timestamp ^ (timestamp >>> 32));
 	}
 
 	@Override
 	public boolean equals(Object other) {
-		if (other == null || !(other instanceof CheckpointBarrier)) {
+		if (other == this) {
+			return true;
+		}
+		else if (other == null || other.getClass() != CheckpointBarrier.class) {
 			return false;
 		}
 		else {
 			CheckpointBarrier that = (CheckpointBarrier) other;
-			return that.id == this.id && that.timestamp == this.timestamp;
+			return that.id == this.id && that.timestamp == this.timestamp &&
+					this.checkpointOptions.equals(that.checkpointOptions);
 		}
 	}
 
 	@Override
 	public String toString() {
-		return String.format("CheckpointBarrier %d @ %d", id, timestamp);
+		return String.format("CheckpointBarrier %d @ %d Options: %s", id, timestamp, checkpointOptions);
 	}
 }

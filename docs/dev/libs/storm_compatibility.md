@@ -54,10 +54,10 @@ Add the following dependency to your `pom.xml` if you want to execute Storm code
 **Please note**: Do not add `storm-core` as a dependency. It is already included via `flink-storm`.
 
 **Please note**: `flink-storm` is not part of the provided binary Flink distribution.
-Thus, you need to include `flink-storm` classes (and their dependencies) in your program jar (also called ueber-jar or fat-jar) that is submitted to Flink's JobManager.
+Thus, you need to include `flink-storm` classes (and their dependencies) in your program jar (also called uber-jar or fat-jar) that is submitted to Flink's JobManager.
 See *WordCount Storm* within `flink-storm-examples/pom.xml` for an example how to package a jar correctly.
 
-If you want to avoid large ueber-jars, you can manually copy `storm-core-0.9.4.jar`, `json-simple-1.1.jar` and `flink-storm-{{site.version}}.jar` into Flink's `lib/` folder of each cluster node (*before* the cluster is started).
+If you want to avoid large uber-jars, you can manually copy `storm-core-0.9.4.jar`, `json-simple-1.1.jar` and `flink-storm-{{site.version}}.jar` into Flink's `lib/` folder of each cluster node (*before* the cluster is started).
 For this case, it is sufficient to include only your own Spout and Bolt classes (and their internal dependencies) into the program jar.
 
 # Execute Storm Topologies
@@ -134,7 +134,7 @@ DataStream<String> rawInput = env.addSource(
 
 If a Spout emits a finite number of tuples, `SpoutWrapper` can be configures to terminate automatically by setting `numberOfInvocations` parameter in its constructor.
 This allows the Flink program to shut down automatically after all data is processed.
-Per default the program will run until it is [canceled]({{site.baseurl}}/setup/cli.html) manually.
+Per default the program will run until it is [canceled]({{site.baseurl}}/ops/cli.html) manually.
 
 
 ## Embed Bolts
@@ -285,3 +285,5 @@ Compare `pom.xml` to see how both jars are built.
 Furthermore, there is one example for whole Storm topologies (`WordCount-StormTopology.jar`).
 
 You can run each of those examples via `bin/flink run <jarname>.jar`. The correct entry point class is contained in each jar's manifest file.
+
+{% top %}

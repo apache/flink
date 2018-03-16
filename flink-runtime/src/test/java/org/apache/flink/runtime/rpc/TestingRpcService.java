@@ -21,18 +21,18 @@ package org.apache.flink.runtime.rpc;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 
-import java.net.UnknownHostException;
+import java.io.Serializable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An RPC Service implementation for testing. This RPC service acts as a replacement for
- * teh regular RPC service for cases where tests need to return prepared mock gateways instead of
+ * the regular RPC service for cases where tests need to return prepared mock gateways instead of
  * proper RPC gateways.
  * 
  * <p>The TestingRpcService can be used for example in the following fashion,
@@ -58,14 +58,14 @@ public class TestingRpcService extends AkkaRpcService {
 	/**
 	 * Creates a new {@code TestingRpcService}. 
 	 */
-	public TestingRpcService() throws UnknownHostException {
+	public TestingRpcService() {
 		this(new Configuration());
 	}
 
 	/**
 	 * Creates a new {@code TestingRpcService}, using the given configuration. 
 	 */
-	public TestingRpcService(Configuration configuration) throws UnknownHostException {
+	public TestingRpcService(Configuration configuration) {
 		super(AkkaUtils.createLocalActorSystem(configuration), Time.seconds(10));
 
 		this.registeredConnections = new ConcurrentHashMap<>();
@@ -74,9 +74,15 @@ public class TestingRpcService extends AkkaRpcService {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void stopService() {
-		super.stopService();
-		registeredConnections.clear();
+	public CompletableFuture<Void> stopService() {
+		final CompletableFuture<Void> terminationFuture = super.stopService();
+
+		terminationFuture.whenComplete(
+			(Void ignored, Throwable throwable) -> {
+				registeredConnections.clear();
+			});
+
+		return terminationFuture;
 	}
 
 	// ------------------------------------------------------------------------
@@ -93,20 +99,39 @@ public class TestingRpcService extends AkkaRpcService {
 	}
 
 	@Override
-	public <C extends RpcGateway> Future<C> connect(String address, Class<C> clazz) {
+	public <C extends RpcGateway> CompletableFuture<C> connect(String address, Class<C> clazz) {
 		RpcGateway gateway = registeredConnections.get(address);
 
 		if (gateway != null) {
 			if (clazz.isAssignableFrom(gateway.getClass())) {
 				@SuppressWarnings("unchecked")
 				C typedGateway = (C) gateway;
-				return FlinkCompletableFuture.completed(typedGateway);
+				return CompletableFuture.completedFuture(typedGateway);
 			} else {
-				return FlinkCompletableFuture.completedExceptionally(
-					new Exception("Gateway registered under " + address + " is not of type " + clazz));
+				return FutureUtils.completedExceptionally(new Exception("Gateway registered under " + address + " is not of type " + clazz));
 			}
 		} else {
-			return FlinkCompletableFuture.completedExceptionally(new Exception("No gateway registered under that name"));
+			return super.connect(address, clazz);
+		}
+	}
+
+	@Override
+	public <F extends Serializable, C extends FencedRpcGateway<F>> CompletableFuture<C> connect(
+			String address,
+			F fencingToken,
+			Class<C> clazz) {
+		RpcGateway gateway = registeredConnections.get(address);
+
+		if (gateway != null) {
+			if (clazz.isAssignableFrom(gateway.getClass())) {
+				@SuppressWarnings("unchecked")
+				C typedGateway = (C) gateway;
+				return CompletableFuture.completedFuture(typedGateway);
+			} else {
+				return FutureUtils.completedExceptionally(new Exception("Gateway registered under " + address + " is not of type " + clazz));
+			}
+		} else {
+			return super.connect(address, fencingToken, clazz);
 		}
 	}
 

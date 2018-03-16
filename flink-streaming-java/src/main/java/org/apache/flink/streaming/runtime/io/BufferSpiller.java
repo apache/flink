@@ -17,6 +17,18 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.util.StringUtils;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -26,112 +38,103 @@ import java.nio.channels.FileChannel;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.runtime.event.AbstractEvent;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
-import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.util.StringUtils;
-
 /**
  * The buffer spiller takes the buffers and events from a data stream and adds them to a spill file.
  * After a number of elements have been spilled, the spiller can "roll over": It presents the spilled
  * elements as a readable sequence, and opens a new spill file.
- * 
+ *
  * <p>This implementation buffers data effectively in the OS cache, which gracefully extends to the
  * disk. Most data is written and re-read milliseconds later. The file is deleted after the read.
- * Consequently, in most cases, the data will never actually hit the physical disks.</p>
- * 
+ * Consequently, in most cases, the data will never actually hit the physical disks.
+ *
  * <p>IMPORTANT: The SpilledBufferOrEventSequences created by this spiller all reuse the same
- * reading memory (to reduce overhead) and can consequently not be read concurrently.</p>
+ * reading memory (to reduce overhead) and can consequently not be read concurrently.
  */
 @Internal
-public class BufferSpiller {
+@Deprecated
+public class BufferSpiller implements BufferBlocker {
 
 	/** Size of header in bytes (see add method). */
 	static final int HEADER_SIZE = 9;
 
-	/** The counter that selects the next directory to spill into */
+	/** The counter that selects the next directory to spill into. */
 	private static final AtomicInteger DIRECTORY_INDEX = new AtomicInteger(0);
-	
-	/** The size of the buffer with which data is read back in */
+
+	/** The size of the buffer with which data is read back in. */
 	private static final int READ_BUFFER_SIZE = 1024 * 1024;
-	
-	/** The directories to spill to */
+
+	/** The directories to spill to. */
 	private final File tempDir;
-	
-	/** The name prefix for spill files */
+
+	/** The name prefix for spill files. */
 	private final String spillFilePrefix;
-	
-	/** The buffer used for bulk reading data (used in the SpilledBufferOrEventSequence) */
+
+	/** The buffer used for bulk reading data (used in the SpilledBufferOrEventSequence). */
 	private final ByteBuffer readBuffer;
-	
-	/** The buffer that encodes the spilled header */
+
+	/** The buffer that encodes the spilled header. */
 	private final ByteBuffer headBuffer;
-	
-	/** The reusable array that holds header and contents buffers */
+
+	/** The reusable array that holds header and contents buffers. */
 	private final ByteBuffer[] sources;
-	
-	/** The file that we currently spill to */
+
+	/** The file that we currently spill to. */
 	private File currentSpillFile;
-	
-	/** The channel of the file we currently spill to */
+
+	/** The channel of the file we currently spill to. */
 	private FileChannel currentChannel;
 
-	/** The page size, to let this reader instantiate properly sized memory segments */
+	/** The page size, to let this reader instantiate properly sized memory segments. */
 	private final int pageSize;
-	
-	/** A counter, to created numbered spill files */
+
+	/** A counter, to created numbered spill files. */
 	private int fileCounter;
-	
-	/** The number of bytes written since the last roll over */
+
+	/** The number of bytes written since the last roll over. */
 	private long bytesWritten;
-	
+
 	/**
 	 * Creates a new buffer spiller, spilling to one of the I/O manager's temp directories.
-	 * 
+	 *
 	 * @param ioManager The I/O manager for access to teh temp directories.
 	 * @param pageSize The page size used to re-create spilled buffers.
 	 * @throws IOException Thrown if the temp files for spilling cannot be initialized.
 	 */
 	public BufferSpiller(IOManager ioManager, int pageSize) throws IOException {
 		this.pageSize = pageSize;
-		
+
 		this.readBuffer = ByteBuffer.allocateDirect(READ_BUFFER_SIZE);
 		this.readBuffer.order(ByteOrder.LITTLE_ENDIAN);
-		
+
 		this.headBuffer = ByteBuffer.allocateDirect(16);
 		this.headBuffer.order(ByteOrder.LITTLE_ENDIAN);
-		
+
 		this.sources = new ByteBuffer[] { this.headBuffer, null };
-		
+
 		File[] tempDirs = ioManager.getSpillingDirectories();
 		this.tempDir = tempDirs[DIRECTORY_INDEX.getAndIncrement() % tempDirs.length];
-		
+
 		byte[] rndBytes = new byte[32];
 		new Random().nextBytes(rndBytes);
 		this.spillFilePrefix = StringUtils.byteToHexString(rndBytes) + '.';
-		
+
 		// prepare for first contents
 		createSpillingChannel();
 	}
 
 	/**
 	 * Adds a buffer or event to the sequence of spilled buffers and events.
-	 * 
+	 *
 	 * @param boe The buffer or event to add and spill.
 	 * @throws IOException Thrown, if the buffer of event could not be spilled.
 	 */
+	@Override
 	public void add(BufferOrEvent boe) throws IOException {
 		try {
 			ByteBuffer contents;
 			if (boe.isBuffer()) {
 				Buffer buf = boe.getBuffer();
-				contents = buf.getMemorySegment().wrap(0, buf.getSize());
+				contents = buf.getNioBufferReadable();
 			}
 			else {
 				contents = EventSerializer.toSerializedEvent(boe.getEvent());
@@ -150,46 +153,41 @@ public class BufferSpiller {
 		}
 		finally {
 			if (boe.isBuffer()) {
-				boe.getBuffer().recycle();
+				boe.getBuffer().recycleBuffer();
 			}
 		}
 	}
 
 	/**
-	 * Starts a new sequence of spilled buffers and event and returns the current sequence of spilled buffers
-	 * for reading. This method returns {@code null}, if nothing was added since the creation of the spiller, or the
-	 * last call to this method.
-	 * 
-	 * <p>NOTE: The SpilledBufferOrEventSequences created by this method all reuse the same
-	 * reading memory (to reduce overhead) and can consequently not be read concurrently with each other.
-	 * To create a sequence that can be read concurrently with the previous SpilledBufferOrEventSequence, use the
-	 * {@link #rollOverWithNewBuffer()} method.</p>
-	 * 
-	 * @return The readable sequence of spilled buffers and events, or 'null', if nothing was added.
-	 * @throws IOException Thrown, if the readable sequence could not be created, or no new spill
-	 *                     file could be created.
-	 */
-	public SpilledBufferOrEventSequence rollOver() throws IOException {
-		return rollOverInternal(false);
-	}
-
-	/**
-	 * Starts a new sequence of spilled buffers and event and returns the current sequence of spilled buffers
-	 * for reading. This method returns {@code null}, if nothing was added since the creation of the spiller, or the
-	 * last call to this method.
-	 * 
-	 * <p>The SpilledBufferOrEventSequence returned by this method is safe for concurrent consumption with
-	 * any previously returned sequence.</p>
+	 * NOTE: The BufferOrEventSequences created by this method all reuse the same reading memory
+	 * (to reduce overhead) and can consequently not be read concurrently with each other.
+	 *
+	 * <p>To create a sequence that can be read concurrently with the previous BufferOrEventSequence,
+	 * use the {@link #rollOverWithoutReusingResources()} ()} method.
 	 *
 	 * @return The readable sequence of spilled buffers and events, or 'null', if nothing was added.
 	 * @throws IOException Thrown, if the readable sequence could not be created, or no new spill
 	 *                     file could be created.
 	 */
-	public SpilledBufferOrEventSequence rollOverWithNewBuffer() throws IOException {
-		return rollOverInternal(true);
+	@Override
+	public BufferOrEventSequence rollOverReusingResources() throws IOException {
+		return rollOver(false);
 	}
-	
-	private SpilledBufferOrEventSequence rollOverInternal(boolean newBuffer) throws IOException {
+
+	/**
+	 * The BufferOrEventSequence returned by this method is safe for concurrent consumption with
+	 * any previously returned sequence.
+	 *
+	 * @return The readable sequence of spilled buffers and events, or 'null', if nothing was added.
+	 * @throws IOException Thrown, if the readable sequence could not be created, or no new spill
+	 *                     file could be created.
+	 */
+	@Override
+	public BufferOrEventSequence rollOverWithoutReusingResources() throws IOException {
+		return rollOver(true);
+	}
+
+	private BufferOrEventSequence rollOver(boolean newBuffer) throws IOException {
 		if (bytesWritten == 0) {
 			return null;
 		}
@@ -204,7 +202,7 @@ public class BufferSpiller {
 
 		// create a reader for the spilled data
 		currentChannel.position(0L);
-		SpilledBufferOrEventSequence seq = 
+		SpilledBufferOrEventSequence seq =
 				new SpilledBufferOrEventSequence(currentSpillFile, currentChannel, buf, pageSize);
 
 		// create ourselves a new spill file
@@ -216,12 +214,13 @@ public class BufferSpiller {
 
 	/**
 	 * Cleans up the current spilling channel and file.
-	 * 
-	 * Does not clean up the SpilledBufferOrEventSequences generated by calls to 
-	 * {@link #rollOver()}.
-	 * 
+	 *
+	 * <p>Does not clean up the SpilledBufferOrEventSequences generated by calls to
+	 * {@link #rollOver(boolean false)}.
+	 *
 	 * @throws IOException Thrown if channel closing or file deletion fail.
 	 */
+	@Override
 	public void close() throws IOException {
 		currentChannel.close();
 		if (!currentSpillFile.delete()) {
@@ -231,9 +230,11 @@ public class BufferSpiller {
 
 	/**
 	 * Gets the number of bytes written in the current spill file.
+	 *
 	 * @return the number of bytes written in the current spill file
 	 */
-	public long getBytesWritten() {
+	@Override
+	public long getBytesBlocked() {
 		return bytesWritten;
 	}
 
@@ -244,18 +245,18 @@ public class BufferSpiller {
 	File getCurrentSpillFile() {
 		return currentSpillFile;
 	}
-	
+
 	FileChannel getCurrentChannel() {
 		return currentChannel;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	@SuppressWarnings("resource")
 	private void createSpillingChannel() throws IOException {
-		currentSpillFile = new File(tempDir, spillFilePrefix + (fileCounter++) +".buffer");
+		currentSpillFile = new File(tempDir, spillFilePrefix + (fileCounter++) + ".buffer");
 		currentChannel = new RandomAccessFile(currentSpillFile, "rw").getChannel();
 	}
 
@@ -263,35 +264,35 @@ public class BufferSpiller {
 
 	/**
 	 * This class represents a sequence of spilled buffers and events, created by the
-	 * {@link BufferSpiller}. The sequence of buffers and events can be read back using the
-	 * method {@link #getNext()}.
+	 * {@link BufferSpiller}.
 	 */
-	public static class SpilledBufferOrEventSequence {
+	@Deprecated
+	public static class SpilledBufferOrEventSequence implements BufferOrEventSequence {
 
-		/** Header is "channel index" (4 bytes) + length (4 bytes) + buffer/event (1 byte) */
+		/** Header is "channel index" (4 bytes) + length (4 bytes) + buffer/event (1 byte). */
 		private static final int HEADER_LENGTH = 9;
 
-		/** The file containing the data */
+		/** The file containing the data. */
 		private final File file;
 
-		/** The file channel to draw the data from */
+		/** The file channel to draw the data from. */
 		private final FileChannel fileChannel;
 
-		/** The byte buffer for bulk reading */
+		/** The byte buffer for bulk reading. */
 		private final ByteBuffer buffer;
 
-		/** We store this size as a constant because it is crucial it never changes */
+		/** We store this size as a constant because it is crucial it never changes. */
 		private final long size;
 
-		/** The page size to instantiate properly sized memory segments */
+		/** The page size to instantiate properly sized memory segments. */
 		private final int pageSize;
 
-		/** Flag to track whether the sequence has been opened already */
+		/** Flag to track whether the sequence has been opened already. */
 		private boolean opened = false;
 
 		/**
 		 * Create a reader that reads a sequence of spilled buffers and events.
-		 * 
+		 *
 		 * @param file The file with the data.
 		 * @param fileChannel The file channel to read the data from.
 		 * @param buffer The buffer used for bulk reading.
@@ -307,10 +308,10 @@ public class BufferSpiller {
 		}
 
 		/**
-		 * Initializes the sequence for reading.
-		 * This method needs to be called before the first call to {@link #getNext()}. Otherwise
-		 * the results of {@link #getNext()} are not predictable.
+		 * This method needs to be called before the first call to {@link #getNext()}.
+		 * Otherwise the results of {@link #getNext()} are not predictable.
 		 */
+		@Override
 		public void open() {
 			if (!opened) {
 				opened = true;
@@ -319,17 +320,11 @@ public class BufferSpiller {
 			}
 		}
 
-		/**
-		 * Gets the next BufferOrEvent from the spilled sequence, or {@code null}, if the
-		 * sequence is exhausted.
-		 *         
-		 * @return The next BufferOrEvent from the spilled sequence, or {@code null} (end of sequence).
-		 * @throws IOException Thrown, if the reads failed, of if the byte stream is corrupt.
-		 */
+		@Override
 		public BufferOrEvent getNext() throws IOException {
 			if (buffer.remaining() < HEADER_LENGTH) {
 				buffer.compact();
-				
+
 				while (buffer.position() < HEADER_LENGTH) {
 					if (fileChannel.read(buffer) == -1) {
 						if (buffer.position() == 0) {
@@ -340,15 +335,14 @@ public class BufferSpiller {
 						}
 					}
 				}
-				
+
 				buffer.flip();
 			}
-			
+
 			final int channel = buffer.getInt();
 			final int length = buffer.getInt();
 			final boolean isBuffer = buffer.get() == 0;
-			
-			
+
 			if (isBuffer) {
 				// deserialize buffer
 				if (length > pageSize) {
@@ -357,10 +351,10 @@ public class BufferSpiller {
 				}
 
 				MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(pageSize);
-				
+
 				int segPos = 0;
 				int bytesRemaining = length;
-				
+
 				while (true) {
 					int toCopy = Math.min(buffer.remaining(), bytesRemaining);
 					if (toCopy > 0) {
@@ -368,7 +362,7 @@ public class BufferSpiller {
 						segPos += toCopy;
 						bytesRemaining -= toCopy;
 					}
-					
+
 					if (bytesRemaining == 0) {
 						break;
 					}
@@ -380,11 +374,10 @@ public class BufferSpiller {
 						buffer.flip();
 					}
 				}
-				
-				
-				Buffer buf = new Buffer(seg, FreeingBufferRecycler.INSTANCE);
+
+				Buffer buf = new NetworkBuffer(seg, FreeingBufferRecycler.INSTANCE);
 				buf.setSize(length);
-				
+
 				return new BufferOrEvent(buf, channel);
 			}
 			else {
@@ -409,16 +402,12 @@ public class BufferSpiller {
 				buffer.limit(buffer.position() + length);
 				AbstractEvent evt = EventSerializer.fromSerializedEvent(buffer, getClass().getClassLoader());
 				buffer.limit(oldLimit);
-				
+
 				return new BufferOrEvent(evt, channel);
 			}
 		}
 
-		/**
-		 * Cleans up all file resources held by this spilled sequence.
-		 * 
-		 * @throws IOException Thrown, if file channel closing or file deletion fail. 
-		 */
+		@Override
 		public void cleanup() throws IOException {
 			fileChannel.close();
 			if (!file.delete()) {
@@ -426,10 +415,8 @@ public class BufferSpiller {
 			}
 		}
 
-		/**
-		 * Gets the size of this spilled sequence.
-		 */
-		public long size() throws IOException {
+		@Override
+		public long size() {
 			return size;
 		}
 	}

@@ -17,10 +17,11 @@
  */
 package org.apache.flink.table.api.scala
 
+import org.apache.flink.api.scala._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{TableEnvironment, Table, TableConfig}
-import org.apache.flink.table.functions.TableFunction
+import org.apache.flink.table.api.{StreamQueryConfig, Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.asScalaStream
 
@@ -60,7 +61,7 @@ class StreamTableEnvironment(
 
     val name = createUniqueTableName()
     registerDataStreamInternal(name, dataStream.javaStream)
-    ingest(name)
+    scan(name)
   }
 
   /**
@@ -82,7 +83,7 @@ class StreamTableEnvironment(
 
     val name = createUniqueTableName()
     registerDataStreamInternal(name, dataStream.javaStream, fields.toArray)
-    ingest(name)
+    scan(name)
   }
 
   /**
@@ -127,19 +128,130 @@ class StreamTableEnvironment(
   }
 
   /**
-    * Converts the given [[Table]] into a [[DataStream]] of a specified type.
+    * Converts the given [[Table]] into an append [[DataStream]] of a specified type.
+    *
+    * The [[Table]] must only have insert (append) changes. If the [[Table]] is also modified
+    * by update or delete changes, the conversion will fail.
     *
     * The fields of the [[Table]] are mapped to [[DataStream]] fields as follows:
-    * - [[org.apache.flink.types.Row]] and [[org.apache.flink.api.java.tuple.Tuple]]
-    * types: Fields are mapped by position, field types must match.
+    * - [[org.apache.flink.types.Row]] and Scala Tuple types: Fields are mapped by position, field
+    * types must match.
+    * - POJO [[DataStream]] types: Fields are mapped by field name, field types must match.
+    *
+    * NOTE: This method only supports conversion of append-only tables. In order to make this
+    * more explicit in the future, please use [[toAppendStream()]] instead.
+    * If add and retract messages are required, use [[toRetractStream()]].
+    *
+    * @param table The [[Table]] to convert.
+    * @tparam T The type of the resulting [[DataStream]].
+    * @return The converted [[DataStream]].
+    */
+  @deprecated("This method only supports conversion of append-only tables. In order to make this" +
+    " more explicit in the future, please use toAppendStream() instead.")
+  def toDataStream[T: TypeInformation](table: Table): DataStream[T] = toAppendStream(table)
+
+  /**
+    * Converts the given [[Table]] into an append [[DataStream]] of a specified type.
+    *
+    * The [[Table]] must only have insert (append) changes. If the [[Table]] is also modified
+    * by update or delete changes, the conversion will fail.
+    *
+    * The fields of the [[Table]] are mapped to [[DataStream]] fields as follows:
+    * - [[org.apache.flink.types.Row]] and Scala Tuple types: Fields are mapped by position, field
+    * types must match.
+    * - POJO [[DataStream]] types: Fields are mapped by field name, field types must match.
+    *
+    * NOTE: This method only supports conversion of append-only tables. In order to make this
+    * more explicit in the future, please use [[toAppendStream()]] instead.
+    * If add and retract messages are required, use [[toRetractStream()]].
+    *
+    * @param table The [[Table]] to convert.
+    * @param queryConfig The configuration of the query to generate.
+    * @tparam T The type of the resulting [[DataStream]].
+    * @return The converted [[DataStream]].
+    */
+  @deprecated("This method only supports conversion of append-only tables. In order to make this" +
+    " more explicit in the future, please use toAppendStream() instead.")
+  def toDataStream[T: TypeInformation](
+    table: Table,
+    queryConfig: StreamQueryConfig): DataStream[T] = toAppendStream(table, queryConfig)
+
+  /**
+    * Converts the given [[Table]] into an append [[DataStream]] of a specified type.
+    *
+    * The [[Table]] must only have insert (append) changes. If the [[Table]] is also modified
+    * by update or delete changes, the conversion will fail.
+    *
+    * The fields of the [[Table]] are mapped to [[DataStream]] fields as follows:
+    * - [[org.apache.flink.types.Row]] and Scala Tuple types: Fields are mapped by position, field
+    * types must match.
     * - POJO [[DataStream]] types: Fields are mapped by field name, field types must match.
     *
     * @param table The [[Table]] to convert.
     * @tparam T The type of the resulting [[DataStream]].
     * @return The converted [[DataStream]].
     */
-  def toDataStream[T: TypeInformation](table: Table): DataStream[T] = {
-    asScalaStream(translate(table))
+  def toAppendStream[T: TypeInformation](table: Table): DataStream[T] = {
+    toAppendStream(table, queryConfig)
+  }
+
+  /**
+    * Converts the given [[Table]] into an append [[DataStream]] of a specified type.
+    *
+    * The [[Table]] must only have insert (append) changes. If the [[Table]] is also modified
+    * by update or delete changes, the conversion will fail.
+    *
+    * The fields of the [[Table]] are mapped to [[DataStream]] fields as follows:
+    * - [[org.apache.flink.types.Row]] and Scala Tuple types: Fields are mapped by position, field
+    * types must match.
+    * - POJO [[DataStream]] types: Fields are mapped by field name, field types must match.
+    *
+    * @param table The [[Table]] to convert.
+    * @param queryConfig The configuration of the query to generate.
+    * @tparam T The type of the resulting [[DataStream]].
+    * @return The converted [[DataStream]].
+    */
+  def toAppendStream[T: TypeInformation](
+    table: Table,
+    queryConfig: StreamQueryConfig): DataStream[T] = {
+    val returnType = createTypeInformation[T]
+    asScalaStream(translate(
+      table, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(returnType))
+  }
+
+/**
+  * Converts the given [[Table]] into a [[DataStream]] of add and retract messages.
+  * The message will be encoded as [[Tuple2]]. The first field is a [[Boolean]] flag,
+  * the second field holds the record of the specified type [[T]].
+  *
+  * A true [[Boolean]] flag indicates an add message, a false flag indicates a retract message.
+  *
+  * @param table The [[Table]] to convert.
+  * @tparam T The type of the requested data type.
+  * @return The converted [[DataStream]].
+  */
+  def toRetractStream[T: TypeInformation](table: Table): DataStream[(Boolean, T)] = {
+    toRetractStream(table, queryConfig)
+  }
+
+  /**
+    * Converts the given [[Table]] into a [[DataStream]] of add and retract messages.
+    * The message will be encoded as [[Tuple2]]. The first field is a [[Boolean]] flag,
+    * the second field holds the record of the specified type [[T]].
+    *
+    * A true [[Boolean]] flag indicates an add message, a false flag indicates a retract message.
+    *
+    * @param table The [[Table]] to convert.
+    * @param queryConfig The configuration of the query to generate.
+    * @tparam T The type of the requested data type.
+    * @return The converted [[DataStream]].
+    */
+  def toRetractStream[T: TypeInformation](
+      table: Table,
+      queryConfig: StreamQueryConfig): DataStream[(Boolean, T)] = {
+    val returnType = createTypeInformation[(Boolean, T)]
+    asScalaStream(
+      translate(table, queryConfig, updatesAsRetraction = true, withChangeFlag = true)(returnType))
   }
 
   /**
@@ -151,5 +263,21 @@ class StreamTableEnvironment(
     */
   def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
     registerTableFunctionInternal(name, tf)
+  }
+
+  /**
+    * Registers an [[AggregateFunction]] under a unique name in the TableEnvironment's catalog.
+    * Registered functions can be referenced in Table API and SQL queries.
+    *
+    * @param name The name under which the function is registered.
+    * @param f The AggregateFunction to register.
+    * @tparam T The type of the output value.
+    * @tparam ACC The type of aggregate accumulator.
+    */
+  def registerFunction[T: TypeInformation, ACC: TypeInformation](
+      name: String,
+      f: AggregateFunction[T, ACC])
+  : Unit = {
+    registerAggregateFunctionInternal[T, ACC](name, f)
   }
 }

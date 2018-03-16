@@ -25,8 +25,8 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.{RelNode, RelShuttle}
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkRelBuilder}
-import FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.logical.LogicalWindow
 
 class LogicalWindowAggregate(
@@ -35,22 +35,15 @@ class LogicalWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     child: RelNode,
-    indicator: Boolean,
+    indicatorFlag: Boolean,
     groupSet: ImmutableBitSet,
     groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall])
-  extends Aggregate(
-    cluster,
-    traitSet,
-    child,
-    indicator,
-    groupSet,
-    groupSets,
-    aggCalls) {
+  extends Aggregate(cluster, traitSet, child, indicatorFlag, groupSet, groupSets, aggCalls) {
 
-  def getWindow = window
+  def getWindow: LogicalWindow = window
 
-  def getNamedProperties = namedProperties
+  def getNamedProperties: Seq[NamedWindowProperty] = namedProperties
 
   override def copy(
       traitSet: RelTraitSet,
@@ -73,6 +66,19 @@ class LogicalWindowAggregate(
       aggCalls)
   }
 
+  def copy(namedProperties: Seq[NamedWindowProperty]): LogicalWindowAggregate = {
+    new LogicalWindowAggregate(
+      window,
+      namedProperties,
+      cluster,
+      traitSet,
+      input,
+      indicator,
+      getGroupSet,
+      getGroupSets,
+      aggCalls)
+  }
+
   override def accept(shuttle: RelShuttle): RelNode = shuttle.visit(this)
 
   override def deriveRowType(): RelDataType = {
@@ -83,7 +89,7 @@ class LogicalWindowAggregate(
     namedProperties.foreach { namedProp =>
       builder.add(
         namedProp.name,
-        typeFactory.createTypeFromTypeInfo(namedProp.property.resultType)
+        typeFactory.createTypeFromTypeInfo(namedProp.property.resultType, isNullable = false)
       )
     }
     builder.build()

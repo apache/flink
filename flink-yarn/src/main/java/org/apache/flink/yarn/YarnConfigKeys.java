@@ -27,9 +27,9 @@ public class YarnConfigKeys {
 	//  Environment variable names
 	// ------------------------------------------------------------------------
 
-	public final static String ENV_TM_MEMORY = "_CLIENT_TM_MEMORY";
-	public final static String ENV_TM_COUNT = "_CLIENT_TM_COUNT";
-	public final static String ENV_APP_ID = "_APP_ID";
+	public static final String ENV_TM_MEMORY = "_CLIENT_TM_MEMORY";
+	public static final String ENV_TM_COUNT = "_CLIENT_TM_COUNT";
+	public static final String ENV_APP_ID = "_APP_ID";
 	public static final String ENV_CLIENT_HOME_DIR = "_CLIENT_HOME_DIR";
 	public static final String ENV_CLIENT_SHIP_FILES = "_CLIENT_SHIP_FILES";
 	public static final String ENV_SLOTS = "_SLOTS";
@@ -38,11 +38,12 @@ public class YarnConfigKeys {
 
 	public static final String ENV_FLINK_CLASSPATH = "_FLINK_CLASSPATH";
 
-	public final static String FLINK_JAR_PATH = "_FLINK_JAR_PATH"; // the Flink jar resource location (in HDFS).
+	public static final String FLINK_JAR_PATH = "_FLINK_JAR_PATH"; // the Flink jar resource location (in HDFS).
+	public static final String FLINK_YARN_FILES = "_FLINK_YARN_FILES"; // the root directory for all yarn application files
 
-	public final static String KEYTAB_PATH = "_KEYTAB_PATH";
-	public final static String KEYTAB_PRINCIPAL = "_KEYTAB_PRINCIPAL";
-	public final static String ENV_HADOOP_USER_NAME = "HADOOP_USER_NAME";
+	public static final String KEYTAB_PATH = "_KEYTAB_PATH";
+	public static final String KEYTAB_PRINCIPAL = "_KEYTAB_PRINCIPAL";
+	public static final String ENV_HADOOP_USER_NAME = "HADOOP_USER_NAME";
 	public static final String ENV_ZOOKEEPER_NAMESPACE = "_ZOOKEEPER_NAMESPACE";
 
 	public static final String ENV_KRB5_PATH = "_KRB5_PATH";
@@ -50,7 +51,7 @@ public class YarnConfigKeys {
 
 	// ------------------------------------------------------------------------
 
-	/** Private constructor to prevent instantiation */
+	/** Private constructor to prevent instantiation. */
 	private YarnConfigKeys() {}
 
 }

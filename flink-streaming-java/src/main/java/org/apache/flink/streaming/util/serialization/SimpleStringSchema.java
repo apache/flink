@@ -18,34 +18,35 @@
 package org.apache.flink.streaming.util.serialization;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+
+import java.nio.charset.Charset;
 
 /**
  * Very simple serialization schema for strings.
+ *
+ * <p>By default, the serializer uses "UTF-8" for string/byte conversion.
+ *
+ * @deprecated Use {@link org.apache.flink.api.common.serialization.SimpleStringSchema} instead.
  */
 @PublicEvolving
-public class SimpleStringSchema implements DeserializationSchema<String>, SerializationSchema<String> {
+@Deprecated
+@SuppressWarnings("deprecation")
+public class SimpleStringSchema
+		extends org.apache.flink.api.common.serialization.SimpleStringSchema
+		implements SerializationSchema<String>, DeserializationSchema<String> {
 
 	private static final long serialVersionUID = 1L;
 
-	@Override
-	public String deserialize(byte[] message) {
-		return new String(message);
+	public SimpleStringSchema() {
+		super();
 	}
 
-	@Override
-	public boolean isEndOfStream(String nextElement) {
-		return false;
-	}
-
-	@Override
-	public byte[] serialize(String element) {
-		return element.getBytes();
-	}
-
-	@Override
-	public TypeInformation<String> getProducedType() {
-		return BasicTypeInfo.STRING_TYPE_INFO;
+	/**
+	 * Creates a new SimpleStringSchema that uses the given charset to convert between strings and bytes.
+	 *
+	 * @param charset The charset to use to convert between strings and bytes.
+	 */
+	public SimpleStringSchema(Charset charset) {
+		super(charset);
 	}
 }

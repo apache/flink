@@ -36,7 +36,7 @@ public final class SessionEvent<K, V> {
 
 	// event timestamp (in ms)
 	private long eventTimestamp;
-	
+
 	public SessionEvent() {
 	}
 

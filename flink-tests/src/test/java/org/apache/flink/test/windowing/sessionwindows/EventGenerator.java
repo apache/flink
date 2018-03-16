@@ -19,7 +19,7 @@
 package org.apache.flink.test.windowing.sessionwindows;
 
 /**
- * Basic interface for event generators
+ * Basic interface for event generators.
  *
  * @param <K> session key type
  * @param <E> session event type

@@ -20,19 +20,23 @@ package org.apache.flink.streaming.connectors.kinesis.testutils;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.BitSet;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -40,7 +44,7 @@ import static org.apache.flink.test.util.TestUtils.tryExecute;
 
 /**
  * A thread that runs a topology with the FlinkKinesisConsumer as source, followed by two flat map
- * functions, one that performs artificial failures and another that validates exactly-once guarantee
+ * functions, one that performs artificial failures and another that validates exactly-once guarantee.
  */
 public class ExactlyOnceValidatingConsumerThread {
 
@@ -94,7 +98,7 @@ public class ExactlyOnceValidatingConsumerThread {
 		return new Thread(exactlyOnceValidationConsumer);
 	}
 
-	private static class ExactlyOnceValidatingMapper implements FlatMapFunction<String,String>, Checkpointed<BitSet> {
+	private static class ExactlyOnceValidatingMapper implements FlatMapFunction<String, String>, ListCheckpointed<BitSet> {
 
 		private static final Logger LOG = LoggerFactory.getLogger(ExactlyOnceValidatingMapper.class);
 
@@ -111,31 +115,36 @@ public class ExactlyOnceValidatingConsumerThread {
 			LOG.info("Consumed {}", value);
 
 			int id = Integer.parseInt(value.split("-")[0]);
-			if(validator.get(id)) {
-				throw new RuntimeException("Saw id " + id +" twice!");
+			if (validator.get(id)) {
+				throw new RuntimeException("Saw id " + id + " twice!");
 			}
 			validator.set(id);
-			if(id > totalEventCount-1) {
+			if (id > totalEventCount - 1) {
 				throw new RuntimeException("Out of bounds ID observed");
 			}
 
-			if(validator.nextClearBit(0) == totalEventCount) {
+			if (validator.nextClearBit(0) == totalEventCount) {
 				throw new SuccessException();
 			}
 		}
 
 		@Override
-		public BitSet snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return validator;
+		public List<BitSet> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(validator);
 		}
 
 		@Override
-		public void restoreState(BitSet state) throws Exception {
-			this.validator = state;
+		public void restoreState(List<BitSet> state) throws Exception {
+			// we expect either 1 or 0 elements
+			if (state.size() == 1) {
+				validator = state.get(0);
+			} else {
+				Preconditions.checkState(state.isEmpty());
+			}
 		}
 	}
 
-	private static class ArtificialFailOnceFlatMapper extends RichFlatMapFunction<String,String> {
+	private static class ArtificialFailOnceFlatMapper extends RichFlatMapFunction<String, String> {
 		int count = 0;
 
 		private final int failAtRecordCount;

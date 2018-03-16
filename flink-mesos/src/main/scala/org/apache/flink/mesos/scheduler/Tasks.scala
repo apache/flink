@@ -34,6 +34,7 @@ import scala.collection.mutable.{Map => MutableMap}
   * Routes messages between the scheduler and individual task monitor actors.
   */
 class Tasks(
+     manager: ActorRef,
      flinkConfig: Configuration,
      schedulerDriver: SchedulerDriver,
      taskMonitorCreator: (ActorRefFactory,TaskGoalState) => ActorRef) extends Actor {
@@ -92,11 +93,11 @@ class Tasks(
       }
 
     case msg: Reconcile =>
-      context.parent.forward(msg)
+      manager.forward(msg)
 
     case msg: TaskTerminated =>
       taskMap.remove(msg.taskID)
-      context.parent.forward(msg)
+      manager.forward(msg)
   }
 
   private def createTask(task: TaskGoalState): ActorRef = {
@@ -113,6 +114,7 @@ object Tasks {
     */
   def createActorProps[T <: Tasks, M <: TaskMonitor](
       actorClass: Class[T],
+      manager: ActorRef,
       flinkConfig: Configuration,
       schedulerDriver: SchedulerDriver,
       taskMonitorClass: Class[M]): Props = {
@@ -122,6 +124,6 @@ object Tasks {
       factory.actorOf(props)
     }
 
-    Props.create(actorClass, flinkConfig, schedulerDriver, taskMonitorCreator)
+    Props.create(actorClass, manager, flinkConfig, schedulerDriver, taskMonitorCreator)
   }
 }

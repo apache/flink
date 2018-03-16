@@ -18,8 +18,9 @@
 
 package org.apache.flink.hadoopcompatibility;
 
-import org.apache.commons.cli.Option;
 import org.apache.flink.api.java.utils.ParameterTool;
+
+import org.apache.commons.cli.Option;
 import org.apache.hadoop.util.GenericOptionsParser;
 
 import java.io.IOException;
@@ -31,7 +32,7 @@ import java.util.Map;
  */
 public class HadoopUtils {
 	/**
-	 * Returns {@link ParameterTool} for the arguments parsed by {@link GenericOptionsParser}
+	 * Returns {@link ParameterTool} for the arguments parsed by {@link GenericOptionsParser}.
 	 *
 	 * @param args Input array arguments. It should be parsable by {@link GenericOptionsParser}
 	 * @return A {@link ParameterTool}
@@ -48,5 +49,4 @@ public class HadoopUtils {
 		return ParameterTool.fromMap(map);
 	}
 }
-
 

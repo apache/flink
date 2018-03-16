@@ -17,21 +17,24 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
-import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.SerializableObject;
+
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -44,25 +47,26 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.ArrayList;
-import java.util.Map;
-import java.util.Properties;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 import static java.util.Objects.requireNonNull;
-
 
 /**
  * Flink Sink to produce data into a Kafka topic.
  *
- * Please note that this producer provides at-least-once reliability guarantees when
+ * <p>Please note that this producer provides at-least-once reliability guarantees when
  * checkpoints are enabled and setFlushOnCheckpoint(true) is set.
  * Otherwise, the producer doesn't provide any reliability guarantees.
  *
  * @param <IN> Type of the messages to write into Kafka.
  */
+@Internal
 public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> implements CheckpointedFunction {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaProducerBase.class);
@@ -70,66 +74,62 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * Configuration key for disabling the metrics reporting
+	 * Configuration key for disabling the metrics reporting.
 	 */
 	public static final String KEY_DISABLE_METRICS = "flink.disable-metrics";
 
 	/**
-	 * Array with the partition ids of the given defaultTopicId
-	 * The size of this array is the number of partitions
-	 */
-	protected int[] partitions;
-
-	/**
-	 * User defined properties for the Producer
+	 * User defined properties for the Producer.
 	 */
 	protected final Properties producerConfig;
 
 	/**
-	 * The name of the default topic this producer is writing data to
+	 * The name of the default topic this producer is writing data to.
 	 */
 	protected final String defaultTopicId;
 
 	/**
-	 * (Serializable) SerializationSchema for turning objects used with Flink into
+	 * (Serializable) SerializationSchema for turning objects used with Flink into.
 	 * byte[] for Kafka.
 	 */
 	protected final KeyedSerializationSchema<IN> schema;
 
 	/**
-	 * User-provided partitioner for assigning an object to a Kafka partition.
+	 * User-provided partitioner for assigning an object to a Kafka partition for each topic.
 	 */
-	protected final KafkaPartitioner<IN> partitioner;
+	protected final FlinkKafkaPartitioner<IN> flinkKafkaPartitioner;
 
 	/**
-	 * Flag indicating whether to accept failures (and log them), or to fail on failures
+	 * Partitions of each topic.
+	 */
+	protected final Map<String, int[]> topicPartitionsMap;
+
+	/**
+	 * Flag indicating whether to accept failures (and log them), or to fail on failures.
 	 */
 	protected boolean logFailuresOnly;
 
 	/**
 	 * If true, the producer will wait until all outstanding records have been send to the broker.
 	 */
-	protected boolean flushOnCheckpoint;
-	
+	protected boolean flushOnCheckpoint = true;
+
 	// -------------------------------- Runtime fields ------------------------------------------
 
-	/** KafkaProducer instance */
+	/** KafkaProducer instance. */
 	protected transient KafkaProducer<byte[], byte[]> producer;
 
-	/** The callback than handles error propagation or logging callbacks */
+	/** The callback than handles error propagation or logging callbacks. */
 	protected transient Callback callback;
 
-	/** Errors encountered in the async producer are stored here */
+	/** Errors encountered in the async producer are stored here. */
 	protected transient volatile Exception asyncException;
 
-	/** Lock for accessing the pending records */
+	/** Lock for accessing the pending records. */
 	protected final SerializableObject pendingRecordsLock = new SerializableObject();
 
 	/** Number of unacknowledged records. */
 	protected long pendingRecords;
-
-	protected OperatorStateStore stateStore;
-
 
 	/**
 	 * The main constructor for creating a FlinkKafkaProducer.
@@ -137,9 +137,9 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	 * @param defaultTopicId The default topic to write data to
 	 * @param serializationSchema A serializable serialization schema for turning user objects into a kafka-consumable byte[] supporting key/value messages
 	 * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is the only required argument.
-	 * @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions. Passing null will use Kafka's partitioner
+	 * @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions. Passing null will use Kafka's partitioner.
 	 */
-	public FlinkKafkaProducerBase(String defaultTopicId, KeyedSerializationSchema<IN> serializationSchema, Properties producerConfig, KafkaPartitioner<IN> customPartitioner) {
+	public FlinkKafkaProducerBase(String defaultTopicId, KeyedSerializationSchema<IN> serializationSchema, Properties producerConfig, FlinkKafkaPartitioner<IN> customPartitioner) {
 		requireNonNull(defaultTopicId, "TopicID not set");
 		requireNonNull(serializationSchema, "serializationSchema not set");
 		requireNonNull(producerConfig, "producerConfig not set");
@@ -149,16 +149,17 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		this.defaultTopicId = defaultTopicId;
 		this.schema = serializationSchema;
 		this.producerConfig = producerConfig;
+		this.flinkKafkaPartitioner = customPartitioner;
 
 		// set the producer configuration properties for kafka record key value serializers.
 		if (!producerConfig.containsKey(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)) {
-			this.producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getCanonicalName());
+			this.producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
 		} else {
 			LOG.warn("Overwriting the '{}' is not recommended", ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG);
 		}
 
 		if (!producerConfig.containsKey(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG)) {
-			this.producerConfig.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getCanonicalName());
+			this.producerConfig.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
 		} else {
 			LOG.warn("Overwriting the '{}' is not recommended", ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG);
 		}
@@ -168,7 +169,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 			throw new IllegalArgumentException(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG + " must be supplied in the producer config properties.");
 		}
 
-		this.partitioner = customPartitioner;
+		this.topicPartitionsMap = new HashMap<>();
 	}
 
 	// ---------------------------------- Properties --------------------------
@@ -176,9 +177,9 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	/**
 	 * Defines whether the producer should fail on errors, or only log them.
 	 * If this is set to true, then exceptions will be only logged, if set to false,
-	 * exceptions will be eventually thrown and cause the streaming program to 
+	 * exceptions will be eventually thrown and cause the streaming program to
 	 * fail (and enter recovery).
-	 * 
+	 *
 	 * @param logFailuresOnly The flag to indicate logging-only on exceptions.
 	 */
 	public void setLogFailuresOnly(boolean logFailuresOnly) {
@@ -197,14 +198,15 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	}
 
 	/**
-	 * Used for testing only
+	 * Used for testing only.
 	 */
-	protected <K,V> KafkaProducer<K,V> getKafkaProducer(Properties props) {
+	@VisibleForTesting
+	protected <K, V> KafkaProducer<K, V> getKafkaProducer(Properties props) {
 		return new KafkaProducer<>(props);
 	}
 
 	// ----------------------------------- Utilities --------------------------
-	
+
 	/**
 	 * Initializes the connection to Kafka.
 	 */
@@ -213,27 +215,16 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		producer = getKafkaProducer(this.producerConfig);
 
 		RuntimeContext ctx = getRuntimeContext();
-		if (partitioner != null) {
-			// the fetched list is immutable, so we're creating a mutable copy in order to sort it
-			List<PartitionInfo> partitionsList = new ArrayList<>(producer.partitionsFor(defaultTopicId));
 
-			// sort the partitions by partition id to make sure the fetched partition list is the same across subtasks
-			Collections.sort(partitionsList, new Comparator<PartitionInfo>() {
-				@Override
-				public int compare(PartitionInfo o1, PartitionInfo o2) {
-					return Integer.compare(o1.partition(), o2.partition());
-				}
-			});
-
-			partitions = new int[partitionsList.size()];
-			for (int i = 0; i < partitions.length; i++) {
-				partitions[i] = partitionsList.get(i).partition();
+		if (null != flinkKafkaPartitioner) {
+			if (flinkKafkaPartitioner instanceof FlinkKafkaDelegatePartitioner) {
+				((FlinkKafkaDelegatePartitioner) flinkKafkaPartitioner).setPartitions(
+						getPartitionsByTopic(this.defaultTopicId, this.producer));
 			}
-
-			partitioner.open(ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks(), partitions);
+			flinkKafkaPartitioner.open(ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks());
 		}
 
-		LOG.info("Starting FlinkKafkaProducer ({}/{}) to produce into topic {}", 
+		LOG.info("Starting FlinkKafkaProducer ({}/{}) to produce into default topic {}",
 				ctx.getIndexOfThisSubtask() + 1, ctx.getNumberOfParallelSubtasks(), defaultTopicId);
 
 		// register Kafka metrics to Flink accumulators
@@ -251,7 +242,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 			}
 		}
 
-		if (flushOnCheckpoint && !((StreamingRuntimeContext)this.getRuntimeContext()).isCheckpointingEnabled()) {
+		if (flushOnCheckpoint && !((StreamingRuntimeContext) this.getRuntimeContext()).isCheckpointingEnabled()) {
 			LOG.warn("Flushing on checkpoint is enabled, but checkpointing is not enabled. Disabling flushing.");
 			flushOnCheckpoint = false;
 		}
@@ -287,7 +278,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	 * 		The incoming data
 	 */
 	@Override
-	public void invoke(IN next) throws Exception {
+	public void invoke(IN next, Context context) throws Exception {
 		// propagate asynchronous errors
 		checkErroneous();
 
@@ -298,11 +289,21 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 			targetTopic = defaultTopicId;
 		}
 
+		int[] partitions = this.topicPartitionsMap.get(targetTopic);
+		if (null == partitions) {
+			partitions = getPartitionsByTopic(targetTopic, producer);
+			this.topicPartitionsMap.put(targetTopic, partitions);
+		}
+
 		ProducerRecord<byte[], byte[]> record;
-		if (partitioner == null) {
+		if (flinkKafkaPartitioner == null) {
 			record = new ProducerRecord<>(targetTopic, serializedKey, serializedValue);
 		} else {
-			record = new ProducerRecord<>(targetTopic, partitioner.partition(next, serializedKey, serializedValue, partitions.length), serializedKey, serializedValue);
+			record = new ProducerRecord<>(
+					targetTopic,
+					flinkKafkaPartitioner.partition(next, serializedKey, serializedValue, targetTopic, partitions),
+					serializedKey,
+					serializedValue);
 		}
 		if (flushOnCheckpoint) {
 			synchronized (pendingRecordsLock) {
@@ -312,13 +313,12 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		producer.send(record, callback);
 	}
 
-
 	@Override
 	public void close() throws Exception {
 		if (producer != null) {
 			producer.close();
 		}
-		
+
 		// make sure we propagate pending errors
 		checkErroneous();
 	}
@@ -343,11 +343,14 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
-		this.stateStore = context.getOperatorStateStore();
+		// nothing to do
 	}
 
 	@Override
 	public void snapshotState(FunctionSnapshotContext ctx) throws Exception {
+		// check for asynchronous errors and fail the checkpoint if necessary
+		checkErroneous();
+
 		if (flushOnCheckpoint) {
 			// flushing is activated: We need to wait until pendingRecords is 0
 			flush();
@@ -355,7 +358,9 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 				if (pendingRecords != 0) {
 					throw new IllegalStateException("Pending record count must be zero at this point: " + pendingRecords);
 				}
-				// pending records count is 0. We can now confirm the checkpoint
+
+				// if the flushed requests has errors, we should propagate it also and fail the checkpoint
+				checkErroneous();
 			}
 		}
 	}
@@ -370,17 +375,44 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 			throw new Exception("Failed to send data to Kafka: " + e.getMessage(), e);
 		}
 	}
-	
+
 	public static Properties getPropertiesFromBrokerList(String brokerList) {
 		String[] elements = brokerList.split(",");
-		
+
 		// validate the broker addresses
 		for (String broker: elements) {
 			NetUtils.getCorrectHostnamePort(broker);
 		}
-		
+
 		Properties props = new Properties();
 		props.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
 		return props;
+	}
+
+	protected static int[] getPartitionsByTopic(String topic, KafkaProducer<byte[], byte[]> producer) {
+		// the fetched list is immutable, so we're creating a mutable copy in order to sort it
+		List<PartitionInfo> partitionsList = new ArrayList<>(producer.partitionsFor(topic));
+
+		// sort the partitions by partition id to make sure the fetched partition list is the same across subtasks
+		Collections.sort(partitionsList, new Comparator<PartitionInfo>() {
+			@Override
+			public int compare(PartitionInfo o1, PartitionInfo o2) {
+				return Integer.compare(o1.partition(), o2.partition());
+			}
+		});
+
+		int[] partitions = new int[partitionsList.size()];
+		for (int i = 0; i < partitions.length; i++) {
+			partitions[i] = partitionsList.get(i).partition();
+		}
+
+		return partitions;
+	}
+
+	@VisibleForTesting
+	protected long numPendingRecords() {
+		synchronized (pendingRecordsLock) {
+			return pendingRecords;
+		}
 	}
 }

@@ -10,11 +10,25 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.streaming.data;
+
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.python.api.PythonOptions;
+import org.apache.flink.python.api.streaming.util.SerializationUtils.IntSerializer;
+import org.apache.flink.python.api.streaming.util.SerializationUtils.StringSerializer;
+import org.apache.flink.python.api.streaming.util.StreamPrinter;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.ShutdownHookUtil;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import org.apache.flink.python.api.streaming.util.StreamPrinter;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
@@ -23,63 +37,57 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.Iterator;
-import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.api.PythonPlanBinder;
-import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON2_BINARY_PATH;
-import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON3_BINARY_PATH;
+import java.util.concurrent.atomic.AtomicReference;
+
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON_DC_ID;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON_PLAN_NAME;
-import static org.apache.flink.python.api.PythonPlanBinder.FLINK_TMP_DATA_DIR;
 import static org.apache.flink.python.api.PythonPlanBinder.PLANBINDER_CONFIG_BCVAR_COUNT;
 import static org.apache.flink.python.api.PythonPlanBinder.PLANBINDER_CONFIG_BCVAR_NAME_PREFIX;
-import org.apache.flink.python.api.streaming.util.SerializationUtils.IntSerializer;
-import org.apache.flink.python.api.streaming.util.SerializationUtils.StringSerializer;
-import org.apache.flink.util.Collector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.apache.flink.python.api.PythonPlanBinder.PLAN_ARGUMENTS_KEY;
 
 /**
  * This streamer is used by functions to send/receive data to/from an external python process.
  */
-public class PythonStreamer implements Serializable {
+public class PythonStreamer<S extends PythonSender, OUT> implements Serializable {
 	protected static final Logger LOG = LoggerFactory.getLogger(PythonStreamer.class);
-	private static final int SIGNAL_BUFFER_REQUEST = 0;
-	private static final int SIGNAL_BUFFER_REQUEST_G0 = -3;
-	private static final int SIGNAL_BUFFER_REQUEST_G1 = -4;
-	private static final int SIGNAL_FINISHED = -1;
-	private static final int SIGNAL_ERROR = -2;
-	private static final byte SIGNAL_LAST = 32;
+	private static final long serialVersionUID = -2342256613658373170L;
 
-	private final int id;
-	private final boolean usePython3;
-	private final String planArguments;
+	protected static final int SIGNAL_BUFFER_REQUEST = 0;
+	protected static final int SIGNAL_BUFFER_REQUEST_G0 = -3;
+	protected static final int SIGNAL_BUFFER_REQUEST_G1 = -4;
+	protected static final int SIGNAL_FINISHED = -1;
+	protected static final int SIGNAL_ERROR = -2;
+	protected static final byte SIGNAL_LAST = 32;
 
-	private String inputFilePath;
-	private String outputFilePath;
+	private final Configuration config;
+	private final int envID;
+	private final int setID;
 
-	private Process process;
-	private Thread shutdownThread;
-	protected ServerSocket server;
-	protected Socket socket;
-	protected DataInputStream in;
-	protected DataOutputStream out;
+	private transient Process process;
+	private transient Thread shutdownThread;
+	protected transient ServerSocket server;
+	protected transient Socket socket;
+	protected transient DataInputStream in;
+	protected transient DataOutputStream out;
 	protected int port;
 
-	protected PythonSender sender;
-	protected PythonReceiver receiver;
+	protected S sender;
+	protected PythonReceiver<OUT> receiver;
 
-	protected StringBuilder msg = new StringBuilder();
+	protected AtomicReference<String> msg = new AtomicReference<>();
 
 	protected final AbstractRichFunction function;
 
-	public PythonStreamer(AbstractRichFunction function, int id, boolean usesByteArray) {
-		this.id = id;
-		this.usePython3 = PythonPlanBinder.usePython3;
-		planArguments = PythonPlanBinder.arguments.toString();
-		sender = new PythonSender();
-		receiver = new PythonReceiver(usesByteArray);
+	protected transient Thread outPrinter;
+	protected transient Thread errorPrinter;
+
+	public PythonStreamer(AbstractRichFunction function, Configuration config, int envID, int setID, boolean usesByteArray, S sender) {
+		this.config = config;
+		this.envID = envID;
+		this.setID = setID;
+		this.receiver = new PythonReceiver<>(config, usesByteArray);
 		this.function = function;
+		this.sender = sender;
 	}
 
 	/**
@@ -89,65 +97,85 @@ public class PythonStreamer implements Serializable {
 	 */
 	public void open() throws IOException {
 		server = new ServerSocket(0);
+		server.setSoTimeout(50);
 		startPython();
 	}
 
 	private void startPython() throws IOException {
-		this.outputFilePath = FLINK_TMP_DATA_DIR + "/" + id + this.function.getRuntimeContext().getIndexOfThisSubtask() + "output";
-		this.inputFilePath = FLINK_TMP_DATA_DIR + "/" + id + this.function.getRuntimeContext().getIndexOfThisSubtask() + "input";
+		String tmpDir = config.getString(PythonOptions.DATA_TMP_DIR);
+		if (tmpDir == null) {
+			tmpDir = System.getProperty("java.io.tmpdir");
+		}
+		File outputFile = new File(tmpDir, envID + "_" + setID + this.function.getRuntimeContext().getIndexOfThisSubtask() + "_output");
+		File inputFile = new File(tmpDir, envID + "_" + setID + this.function.getRuntimeContext().getIndexOfThisSubtask() + "_input)");
 
-		sender.open(inputFilePath);
-		receiver.open(outputFilePath);
+		sender.open(inputFile);
+		receiver.open(outputFile);
 
 		String path = function.getRuntimeContext().getDistributedCache().getFile(FLINK_PYTHON_DC_ID).getAbsolutePath();
+
 		String planPath = path + FLINK_PYTHON_PLAN_NAME;
 
-		String pythonBinaryPath = usePython3 ? FLINK_PYTHON3_BINARY_PATH : FLINK_PYTHON2_BINARY_PATH;
+		String pythonBinaryPath = config.getString(PythonOptions.PYTHON_BINARY_PATH);
 
-		try {
-			Runtime.getRuntime().exec(pythonBinaryPath);
-		} catch (IOException ex) {
-			throw new RuntimeException(pythonBinaryPath + " does not point to a valid python binary.");
-		}
+		String arguments = config.getString(PLAN_ARGUMENTS_KEY, "");
+		process = Runtime.getRuntime().exec(pythonBinaryPath + " -O -B " + planPath + arguments);
+		outPrinter = new Thread(new StreamPrinter(process.getInputStream()));
+		outPrinter.start();
+		errorPrinter = new Thread(new StreamPrinter(process.getErrorStream(), msg));
+		errorPrinter.start();
 
-		process = Runtime.getRuntime().exec(pythonBinaryPath + " -O -B " + planPath + planArguments);
-		new StreamPrinter(process.getInputStream()).start();
-		new StreamPrinter(process.getErrorStream(), true, msg).start();
-
-		shutdownThread = new Thread() {
-			@Override
-			public void run() {
-				try {
-					destroyProcess();
-				} catch (IOException ex) {
-				}
-			}
-		};
-
-		Runtime.getRuntime().addShutdownHook(shutdownThread);
+		shutdownThread = ShutdownHookUtil.addShutdownHook(
+			() -> destroyProcess(process),
+			getClass().getSimpleName(),
+			LOG);
 
 		OutputStream processOutput = process.getOutputStream();
-		processOutput.write("operator\n".getBytes());
-		processOutput.write(("" + server.getLocalPort() + "\n").getBytes());
-		processOutput.write((id + "\n").getBytes());
-		processOutput.write((this.function.getRuntimeContext().getIndexOfThisSubtask() + "\n").getBytes());
-		processOutput.write((inputFilePath + "\n").getBytes());
-		processOutput.write((outputFilePath + "\n").getBytes());
+		processOutput.write("operator\n".getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write((envID + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write((setID + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write(("" + server.getLocalPort() + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write((this.function.getRuntimeContext().getIndexOfThisSubtask() + "\n")
+			.getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write(((config.getLong(PythonOptions.MMAP_FILE_SIZE) << 10) + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write((inputFile + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write((outputFile + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
 		processOutput.flush();
 
-		try { // wait a bit to catch syntax errors
-			Thread.sleep(2000);
-		} catch (InterruptedException ex) {
+		while (true) {
+			try {
+				socket = server.accept();
+				break;
+			} catch (SocketTimeoutException ignored) {
+				checkPythonProcessHealth();
+			}
 		}
-		try {
-			process.exitValue();
-			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " terminated prematurely." + msg);
-		} catch (IllegalThreadStateException ise) { //process still active -> start receiving data
-		}
-
-		socket = server.accept();
 		in = new DataInputStream(socket.getInputStream());
 		out = new DataOutputStream(socket.getOutputStream());
+	}
+
+	private void checkPythonProcessHealth() {
+		try {
+			int value = process.exitValue();
+			try {
+				outPrinter.join();
+			} catch (InterruptedException ignored) {
+				outPrinter.interrupt();
+				Thread.interrupted();
+			}
+			try {
+				errorPrinter.join();
+			} catch (InterruptedException ignored) {
+				errorPrinter.interrupt();
+				Thread.interrupted();
+			}
+			if (value != 0) {
+				throw new RuntimeException("Plan file caused an error. Check log-files for details." + msg.get());
+			} else {
+				throw new RuntimeException("Plan file exited prematurely without an error." + msg.get());
+			}
+		} catch (IllegalThreadStateException ignored) {//Process still running
+		}
 	}
 
 	/**
@@ -156,34 +184,42 @@ public class PythonStreamer implements Serializable {
 	 * @throws IOException
 	 */
 	public void close() throws IOException {
+		Throwable throwable = null;
+
 		try {
 			socket.close();
 			sender.close();
 			receiver.close();
-		} catch (Exception e) {
-			LOG.error("Exception occurred while closing Streamer. :" + e.getMessage());
+		} catch (Throwable t) {
+			throwable = t;
 		}
-		destroyProcess();
-		if (shutdownThread != null) {
-			Runtime.getRuntime().removeShutdownHook(shutdownThread);
+
+		try {
+			destroyProcess(process);
+		} catch (Throwable t) {
+			throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
 		}
+
+		ShutdownHookUtil.removeShutdownHook(shutdownThread, getClass().getSimpleName(), LOG);
+
+		ExceptionUtils.tryRethrowIOException(throwable);
 	}
 
-	private void destroyProcess() throws IOException {
+	public static void destroyProcess(Process process) throws IOException {
 		try {
 			process.exitValue();
-		} catch (IllegalThreadStateException ise) { //process still active
+		} catch (IllegalThreadStateException ignored) { //process still active
 			if (process.getClass().getName().equals("java.lang.UNIXProcess")) {
 				int pid;
 				try {
 					Field f = process.getClass().getDeclaredField("pid");
 					f.setAccessible(true);
 					pid = f.getInt(process);
-				} catch (Throwable e) {
+				} catch (Throwable ignore) {
 					process.destroy();
 					return;
 				}
-				String[] args = new String[]{"kill", "-9", "" + pid};
+				String[] args = new String[]{"kill", "-9", String.valueOf(pid)};
 				Runtime.getRuntime().exec(args);
 			} else {
 				process.destroy();
@@ -191,13 +227,13 @@ public class PythonStreamer implements Serializable {
 		}
 	}
 
-	private void sendWriteNotification(int size, boolean hasNext) throws IOException {
+	protected void sendWriteNotification(int size, boolean hasNext) throws IOException {
 		out.writeInt(size);
 		out.writeByte(hasNext ? 0 : SIGNAL_LAST);
 		out.flush();
 	}
 
-	private void sendReadConfirmation() throws IOException {
+	protected void sendReadConfirmation() throws IOException {
 		out.writeByte(1);
 		out.flush();
 	}
@@ -222,108 +258,17 @@ public class PythonStreamer implements Serializable {
 
 			StringSerializer stringSerializer = new StringSerializer();
 			for (String name : names) {
-				Iterator bcv = function.getRuntimeContext().getBroadcastVariable(name).iterator();
+				Iterator<byte[]> bcv = function.getRuntimeContext().<byte[]>getBroadcastVariable(name).iterator();
 
 				out.write(stringSerializer.serializeWithoutTypeInfo(name));
 
 				while (bcv.hasNext()) {
 					out.writeByte(1);
-					out.write((byte[]) bcv.next());
+					out.write(bcv.next());
 				}
 				out.writeByte(0);
 			}
-		} catch (SocketTimeoutException ste) {
-			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " stopped responding." + msg);
-		}
-	}
-
-	/**
-	 * Sends all values contained in the iterator to the external process and collects all results.
-	 *
-	 * @param i iterator
-	 * @param c collector
-	 * @throws IOException
-	 */
-	public final void streamBufferWithoutGroups(Iterator i, Collector c) throws IOException {
-		try {
-			int size;
-			if (i.hasNext()) {
-				while (true) {
-					int sig = in.readInt();
-					switch (sig) {
-						case SIGNAL_BUFFER_REQUEST:
-							if (i.hasNext() || sender.hasRemaining(0)) {
-								size = sender.sendBuffer(i, 0);
-								sendWriteNotification(size, sender.hasRemaining(0) || i.hasNext());
-							} else {
-								throw new RuntimeException("External process requested data even though none is available.");
-							}
-							break;
-						case SIGNAL_FINISHED:
-							return;
-						case SIGNAL_ERROR:
-							try { //wait before terminating to ensure that the complete error message is printed
-								Thread.sleep(2000);
-							} catch (InterruptedException ex) {
-							}
-							throw new RuntimeException(
-									"External process for task " + function.getRuntimeContext().getTaskName() + " terminated prematurely due to an error." + msg);
-						default:
-							receiver.collectBuffer(c, sig);
-							sendReadConfirmation();
-							break;
-					}
-				}
-			}
-		} catch (SocketTimeoutException ste) {
-			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " stopped responding." + msg);
-		}
-	}
-
-	/**
-	 * Sends all values contained in both iterators to the external process and collects all results.
-	 *
-	 * @param i1 iterator
-	 * @param i2 iterator
-	 * @param c collector
-	 * @throws IOException
-	 */
-	public final void streamBufferWithGroups(Iterator i1, Iterator i2, Collector c) throws IOException {
-		try {
-			int size;
-			if (i1.hasNext() || i2.hasNext()) {
-				while (true) {
-					int sig = in.readInt();
-					switch (sig) {
-						case SIGNAL_BUFFER_REQUEST_G0:
-							if (i1.hasNext() || sender.hasRemaining(0)) {
-								size = sender.sendBuffer(i1, 0);
-								sendWriteNotification(size, sender.hasRemaining(0) || i1.hasNext());
-							}
-							break;
-						case SIGNAL_BUFFER_REQUEST_G1:
-							if (i2.hasNext() || sender.hasRemaining(1)) {
-								size = sender.sendBuffer(i2, 1);
-								sendWriteNotification(size, sender.hasRemaining(1) || i2.hasNext());
-							}
-							break;
-						case SIGNAL_FINISHED:
-							return;
-						case SIGNAL_ERROR:
-							try { //wait before terminating to ensure that the complete error message is printed
-								Thread.sleep(2000);
-							} catch (InterruptedException ex) {
-							}
-							throw new RuntimeException(
-									"External process for task " + function.getRuntimeContext().getTaskName() + " terminated prematurely due to an error." + msg);
-						default:
-							receiver.collectBuffer(c, sig);
-							sendReadConfirmation();
-							break;
-					}
-				}
-			}
-		} catch (SocketTimeoutException ste) {
+		} catch (SocketTimeoutException ignored) {
 			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " stopped responding." + msg);
 		}
 	}

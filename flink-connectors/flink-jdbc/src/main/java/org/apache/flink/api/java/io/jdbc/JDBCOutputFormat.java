@@ -18,52 +18,53 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.api.common.io.RichOutputFormat;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.types.Row;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-import org.apache.flink.api.common.io.RichOutputFormat;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.types.Row;
-import org.apache.flink.configuration.Configuration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
- * OutputFormat to write tuples into a database.
+ * OutputFormat to write Rows into a JDBC database.
  * The OutputFormat has to be configured using the supplied OutputFormatBuilder.
- * 
- * @see Tuple
+ *
+ * @see Row
  * @see DriverManager
  */
 public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private static final long serialVersionUID = 1L;
-	
+	static final int DEFAULT_BATCH_INTERVAL = 5000;
+
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
-	
+
 	private String username;
 	private String password;
 	private String drivername;
 	private String dbURL;
 	private String query;
-	private int batchInterval = 5000;
-	
+	private int batchInterval = DEFAULT_BATCH_INTERVAL;
+
 	private Connection dbConn;
 	private PreparedStatement upload;
-	
+
 	private int batchCount = 0;
-	
-	public int[] typesArray;
-	
+
+	private int[] typesArray;
+
 	public JDBCOutputFormat() {
 	}
-	
+
 	@Override
 	public void configure(Configuration parameters) {
 	}
-	
+
 	/**
 	 * Connects to the target database and initializes the prepared statement.
 	 *
@@ -82,7 +83,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			throw new IllegalArgumentException("JDBC driver class not found.", cnfe);
 		}
 	}
-	
+
 	private void establishConnection() throws SQLException, ClassNotFoundException {
 		Class.forName(drivername);
 		if (username == null) {
@@ -91,14 +92,13 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			dbConn = DriverManager.getConnection(dbURL, username, password);
 		}
 	}
-	
+
 	/**
 	 * Adds a record to the prepared statement.
-	 * <p>
-	 * When this method is called, the output format is guaranteed to be opened.
-	 * </p>
-	 * 
-	 * WARNING: this may fail when no column types specified (because a best effort approach is attempted in order to
+	 *
+	 * <p>When this method is called, the output format is guaranteed to be opened.
+	 *
+	 * <p>WARNING: this may fail when no column types specified (because a best effort approach is attempted in order to
 	 * insert a null value but it's not guaranteed that the JDBC driver handles PreparedStatement.setObject(pos, null))
 	 *
 	 * @param row The records to add to the output.
@@ -110,13 +110,13 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 
 		if (typesArray != null && typesArray.length > 0 && typesArray.length != row.getArity()) {
 			LOG.warn("Column SQL types array doesn't match arity of passed Row! Check the passed array...");
-		} 
+		}
 		try {
 
-			if (typesArray == null ) {
+			if (typesArray == null) {
 				// no types provided
 				for (int index = 0; index < row.getArity(); index++) {
-					LOG.warn("Unknown column type for column %s. Best effort approach to set its value: %s.", index + 1, row.getField(index));
+					LOG.warn("Unknown column type for column {}. Best effort approach to set its value: {}.", index + 1, row.getField(index));
 					upload.setObject(index + 1, row.getField(index));
 				}
 			} else {
@@ -181,7 +181,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 								break;
 							default:
 								upload.setObject(index + 1, row.getField(index));
-								LOG.warn("Unmanaged sql type (%s) for column %s. Best effort approach to set its value: %s.",
+								LOG.warn("Unmanaged sql type ({}) for column {}. Best effort approach to set its value: {}.",
 									typesArray[index], index + 1, row.getField(index));
 								// case java.sql.Types.SQLXML
 								// case java.sql.Types.ARRAY:
@@ -201,15 +201,29 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			}
 			upload.addBatch();
 			batchCount++;
-			if (batchCount >= batchInterval) {
-				upload.executeBatch();
-				batchCount = 0;
-			}
-		} catch (SQLException | IllegalArgumentException e) {
-			throw new IllegalArgumentException("writeRecord() failed", e);
+		} catch (SQLException e) {
+			throw new RuntimeException("Preparation of JDBC statement failed.", e);
+		}
+
+		if (batchCount >= batchInterval) {
+			// execute batch
+			flush();
 		}
 	}
-	
+
+	void flush() {
+		try {
+			upload.executeBatch();
+			batchCount = 0;
+		} catch (SQLException e) {
+			throw new RuntimeException("Execution of JDBC statement failed.", e);
+		}
+	}
+
+	int[] getTypesArray() {
+		return typesArray;
+	}
+
 	/**
 	 * Executes prepared statement and closes all resources of this instance.
 	 *
@@ -217,99 +231,102 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	 */
 	@Override
 	public void close() throws IOException {
-		try {
-			if (upload != null) {
-				upload.executeBatch();
+		if (upload != null) {
+			flush();
+			// close the connection
+			try {
 				upload.close();
+			} catch (SQLException e) {
+				LOG.info("JDBC statement could not be closed: " + e.getMessage());
+			} finally {
+				upload = null;
 			}
-		} catch (SQLException se) {
-			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
-		} finally {
-			upload = null;
-			batchCount = 0;
 		}
-		
-		try {
-			if (dbConn != null) {
+
+		if (dbConn != null) {
+			try {
 				dbConn.close();
+			} catch (SQLException se) {
+				LOG.info("JDBC connection could not be closed: " + se.getMessage());
+			} finally {
+				dbConn = null;
 			}
-		} catch (SQLException se) {
-			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
-		} finally {
-			dbConn = null;
 		}
 	}
-	
+
 	public static JDBCOutputFormatBuilder buildJDBCOutputFormat() {
 		return new JDBCOutputFormatBuilder();
 	}
-	
+
+	/**
+	 * Builder for a {@link JDBCOutputFormat}.
+	 */
 	public static class JDBCOutputFormatBuilder {
 		private final JDBCOutputFormat format;
-		
+
 		protected JDBCOutputFormatBuilder() {
 			this.format = new JDBCOutputFormat();
 		}
-		
+
 		public JDBCOutputFormatBuilder setUsername(String username) {
 			format.username = username;
 			return this;
 		}
-		
+
 		public JDBCOutputFormatBuilder setPassword(String password) {
 			format.password = password;
 			return this;
 		}
-		
+
 		public JDBCOutputFormatBuilder setDrivername(String drivername) {
 			format.drivername = drivername;
 			return this;
 		}
-		
+
 		public JDBCOutputFormatBuilder setDBUrl(String dbURL) {
 			format.dbURL = dbURL;
 			return this;
 		}
-		
+
 		public JDBCOutputFormatBuilder setQuery(String query) {
 			format.query = query;
 			return this;
 		}
-		
+
 		public JDBCOutputFormatBuilder setBatchInterval(int batchInterval) {
 			format.batchInterval = batchInterval;
 			return this;
 		}
-		
+
 		public JDBCOutputFormatBuilder setSqlTypes(int[] typesArray) {
 			format.typesArray = typesArray;
 			return this;
 		}
-		
+
 		/**
 		 * Finalizes the configuration and checks validity.
-		 * 
+		 *
 		 * @return Configured JDBCOutputFormat
 		 */
 		public JDBCOutputFormat finish() {
 			if (format.username == null) {
-				LOG.info("Username was not supplied separately.");
+				LOG.info("Username was not supplied.");
 			}
 			if (format.password == null) {
-				LOG.info("Password was not supplied separately.");
+				LOG.info("Password was not supplied.");
 			}
 			if (format.dbURL == null) {
-				throw new IllegalArgumentException("No dababase URL supplied.");
+				throw new IllegalArgumentException("No database URL supplied.");
 			}
 			if (format.query == null) {
-				throw new IllegalArgumentException("No query suplied");
+				throw new IllegalArgumentException("No query supplied.");
 			}
 			if (format.drivername == null) {
-				throw new IllegalArgumentException("No driver supplied");
+				throw new IllegalArgumentException("No driver supplied.");
 			}
-			
+
 			return format;
 		}
 	}
-	
+
 }

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.state;
 
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -27,11 +28,14 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
+
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
+import java.util.Random;
 
 /**
  * A collection of manual tests that serve to assess the performance of windowed operations. These
@@ -45,7 +49,7 @@ import org.junit.rules.TemporaryFolder;
  * been processed in each window. This gives an estimate of the throughput.
  */
 @Ignore
-public class ManualWindowSpeedITCase extends StreamingMultipleProgramsTestBase {
+public class ManualWindowSpeedITCase extends AbstractTestBase {
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -60,7 +64,7 @@ public class ManualWindowSpeedITCase extends StreamingMultipleProgramsTestBase {
 		String checkpoints = tempFolder.newFolder().toURI().toString();
 		env.setStateBackend(new FsStateBackend(checkpoints));
 
-		env.addSource(new InfiniteTupleSource(10_000))
+		env.addSource(new InfiniteTupleSource(1_000))
 				.keyBy(0)
 				.timeWindow(Time.seconds(3))
 				.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
@@ -127,7 +131,7 @@ public class ManualWindowSpeedITCase extends StreamingMultipleProgramsTestBase {
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.setParallelism(1);
-		
+
 		env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
 
 		env.addSource(new InfiniteTupleSource(10_000))
@@ -241,11 +245,10 @@ public class ManualWindowSpeedITCase extends StreamingMultipleProgramsTestBase {
 
 		@Override
 		public void run(SourceContext<Tuple2<String, Integer>> out) throws Exception {
-			long index = 0;
+			Random random = new Random(42);
 			while (running) {
-				Tuple2<String, Integer> tuple = new Tuple2<String, Integer>("Tuple " + (index % numKeys), 1);
+				Tuple2<String, Integer> tuple = new Tuple2<String, Integer>("Tuple " + (random.nextInt(numKeys)), 1);
 				out.collect(tuple);
-				index++;
 			}
 		}
 

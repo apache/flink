@@ -18,20 +18,20 @@
 
 package org.apache.flink.runtime.io.network;
 
-import static org.junit.Assert.assertEquals;
-
 import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
 import org.apache.flink.types.StringValue;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * This class checks the functionality of the {@link RoundRobinChannelSelector} class.
- * 
  */
 public class DefaultChannelSelectorTest {
 
 	/**
-	 * This test checks the channel selection
+	 * This test checks the channel selection.
 	 */
 	@Test
 	public void channelSelect() {

@@ -20,7 +20,6 @@ package org.apache.flink.util;
 
 import org.slf4j.Logger;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -29,20 +28,19 @@ import java.net.Socket;
 
 /**
  * An utility class for I/O related functionality.
- * 
  */
 public final class IOUtils {
 
 	/** The block size for byte operations in byte. */
 	private static final int BLOCKSIZE = 4096;
-	
+
 	// ------------------------------------------------------------------------
 	//  Byte copy operations
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Copies from one stream to another.
-	 * 
+	 *
 	 * @param in
 	 *        InputStream to read from
 	 * @param out
@@ -81,7 +79,7 @@ public final class IOUtils {
 	/**
 	 * Copies from one stream to another. <strong>closes the input and output
 	 * streams at the end</strong>.
-	 * 
+	 *
 	 * @param in
 	 *        InputStream to read from
 	 * @param out
@@ -95,7 +93,7 @@ public final class IOUtils {
 
 	/**
 	 * Copies from one stream to another.
-	 * 
+	 *
 	 * @param in
 	 *        InputStream to read from
 	 * @param out
@@ -113,10 +111,10 @@ public final class IOUtils {
 	// ------------------------------------------------------------------------
 	//  Stream input skipping
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Reads len bytes in a loop.
-	 * 
+	 *
 	 * @param in
 	 *        The InputStream to read from
 	 * @param buf
@@ -143,7 +141,7 @@ public final class IOUtils {
 
 	/**
 	 * Similar to readFully(). Skips bytes in a loop.
-	 * 
+	 *
 	 * @param in
 	 *        The InputStream to skip bytes from
 	 * @param len
@@ -164,22 +162,22 @@ public final class IOUtils {
 	// ------------------------------------------------------------------------
 	//  Silent I/O cleanup / closing
 	// ------------------------------------------------------------------------
-	
+
 	/**
-	 * Close the Closeable objects and <b>ignore</b> any {@link IOException} or
+	 * Close the AutoCloseable objects and <b>ignore</b> any {@link Exception} or
 	 * null pointers. Must only be used for cleanup in exception handlers.
-	 * 
+	 *
 	 * @param log
 	 *        the log to record problems to at debug level. Can be <code>null</code>.
 	 * @param closeables
 	 *        the objects to close
 	 */
-	public static void cleanup(final Logger log, final java.io.Closeable... closeables) {
-		for (java.io.Closeable c : closeables) {
+	public static void cleanup(final Logger log, final AutoCloseable... closeables) {
+		for (AutoCloseable c : closeables) {
 			if (c != null) {
 				try {
 					c.close();
-				} catch (IOException e) {
+				} catch (Exception e) {
 					if (log != null && log.isDebugEnabled()) {
 						log.debug("Exception in closing " + c, e);
 					}
@@ -191,7 +189,7 @@ public final class IOUtils {
 	/**
 	 * Closes the stream ignoring {@link IOException}. Must only be called in
 	 * cleaning up from exception handlers.
-	 * 
+	 *
 	 * @param stream
 	 *        the stream to close
 	 */
@@ -201,7 +199,7 @@ public final class IOUtils {
 
 	/**
 	 * Closes the socket ignoring {@link IOException}.
-	 * 
+	 *
 	 * @param sock
 	 *        the socket to close
 	 */
@@ -216,16 +214,57 @@ public final class IOUtils {
 	}
 
 	/**
+	 * Closes all {@link AutoCloseable} objects in the parameter, suppressing exceptions. Exception will be emitted
+	 * after calling close() on every object.
+	 *
+	 * @param closeables iterable with closeables to close.
+	 * @throws Exception collected exceptions that occurred during closing
+	 */
+	public static void closeAll(Iterable<? extends AutoCloseable> closeables) throws Exception {
+		if (null != closeables) {
+
+			Exception collectedExceptions = null;
+
+			for (AutoCloseable closeable : closeables) {
+				try {
+					if (null != closeable) {
+						closeable.close();
+					}
+				} catch (Exception e) {
+					collectedExceptions = ExceptionUtils.firstOrSuppressed(collectedExceptions, e);
+				}
+			}
+
+			if (null != collectedExceptions) {
+				throw collectedExceptions;
+			}
+		}
+	}
+
+	/**
+	 * Closes all elements in the iterable with closeQuietly().
+	 */
+	public static void closeAllQuietly(Iterable<? extends AutoCloseable> closeables) {
+		if (null != closeables) {
+			for (AutoCloseable closeable : closeables) {
+				closeQuietly(closeable);
+			}
+		}
+	}
+
+	/**
+	 * Closes the given AutoCloseable.
+	 *
 	 * <p><b>Important:</b> This method is expected to never throw an exception.
 	 */
-	public static void closeQuietly(Closeable closeable) {
+	public static void closeQuietly(AutoCloseable closeable) {
 		try {
 			if (closeable != null) {
 				closeable.close();
 			}
 		} catch (Throwable ignored) {}
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	/**

@@ -15,19 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.fs;
 
+package org.apache.flink.streaming.connectors.fs;
 
 /**
  * A clock that can provide the current time.
  *
- * <p>
- * Normally this would be system time, but for testing a custom {@code Clock} can be provided.
+ *
+ * <p>Normally this would be system time, but for testing a custom {@code Clock} can be provided.
  */
 public interface Clock {
 
 	/**
 	 * Return the current system time in milliseconds.
 	 */
-	public long currentTimeMillis();
+	long currentTimeMillis();
 }

@@ -28,24 +28,31 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Collector;
 
+/**
+ * Validate that the edge set vertex IDs exist in the vertex set.
+ *
+ * @param <K> graph ID type
+ * @param <VV> vertex value type
+ * @param <EV> edge value type
+ */
 @SuppressWarnings("serial")
 public class InvalidVertexIdsValidator<K, VV, EV> extends GraphValidator<K, VV, EV> {
 
 	/**
 	 * Checks that the edge set input contains valid vertex Ids, i.e. that they
 	 * also exist in the vertex input set.
-	 * 
+	 *
 	 * @return a boolean stating whether a graph is valid
 	 *         with respect to its vertex ids.
 	 */
 	@Override
 	public boolean validate(Graph<K, VV, EV> graph) throws Exception {
 		DataSet<Tuple1<K>> edgeIds = graph.getEdges()
-				.flatMap(new MapEdgeIds<K, EV>()).distinct();
+				.flatMap(new MapEdgeIds<>()).distinct();
 		DataSet<K> invalidIds = graph.getVertices().coGroup(edgeIds).where(0)
-				.equalTo(0).with(new GroupInvalidIds<K, VV>()).first(1);
+				.equalTo(0).with(new GroupInvalidIds<>()).first(1);
 
-		return invalidIds.map(new KToTupleMap<K>()).count() == 0;
+		return invalidIds.map(new KToTupleMap<>()).count() == 0;
 	}
 
 	private static final class MapEdgeIds<K, EV> implements FlatMapFunction<Edge<K, EV>, Tuple1<K>> {

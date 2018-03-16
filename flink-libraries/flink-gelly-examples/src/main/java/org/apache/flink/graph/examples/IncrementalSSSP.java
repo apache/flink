@@ -33,26 +33,26 @@ import org.apache.flink.graph.spargel.ScatterFunction;
 import org.apache.flink.graph.spargel.ScatterGatherConfiguration;
 
 /**
- * This example illustrates how to 
+ * This example illustrates how to
  * <ul>
  *  <li> create a Graph directly from CSV files
  *  <li> use the scatter-gather iteration's messaging direction configuration option
  * </ul>
- * 
- * Incremental Single Sink Shortest Paths Example. Shortest Paths are incrementally updated
+ *
+ * <p>Incremental Single Sink Shortest Paths Example. Shortest Paths are incrementally updated
  * upon edge removal.
  *
- * The program takes as input the resulted graph after a SSSP computation,
- * an edge to be removed and the initial graph(i.e. before SSSP was computed).
+ * <p>The program takes as input the resultant graph after a SSSP computation,
+ * an edge to be removed and the initial graph (i.e. before SSSP was computed).
  * In the following description, SP-graph is used as an abbreviation for
  * the graph resulted from the SSSP computation. We denote the edges that belong to this
  * graph by SP-edges.
- *
- * - If the removed edge does not belong to the SP-graph, no computation is necessary.
- * The edge is simply removed from the graph.
+ * - If the removed edge does not belong to the SP-graph then no computation is necessary
+ * and the edge is simply removed from the graph.
  * - If the removed edge is an SP-edge, then all nodes, whose shortest path contains the removed edge,
  * potentially require re-computation.
- * When the edge {@code <u, v>} is removed, v checks if it has another out-going SP-edge.
+ *
+ * <p>When the edge <code>&lt;u, v&gt;</code> is removed, v checks if it has another out-going SP-edge.
  * If yes, no further computation is required.
  * If v has no other out-going SP-edge, it invalidates its current value, by setting it to INF.
  * Then, it informs all its SP-in-neighbors by sending them an INVALIDATE message.
@@ -61,7 +61,7 @@ import org.apache.flink.graph.spargel.ScatterGatherConfiguration;
  * The propagation stops when a vertex with an alternative shortest path is reached
  * or when we reach a vertex with no SP-in-neighbors.
  *
- * Usage <code>IncrementalSSSP &lt;vertex path&gt; &lt;edge path&gt; &lt;edges in SSSP&gt;
+ * <p>Usage <code>IncrementalSSSP &lt;vertex path&gt; &lt;edge path&gt; &lt;edges in SSSP&gt;
  * &lt;src id edge to be removed&gt; &lt;trg id edge to be removed&gt; &lt;val edge to be removed&gt;
  * &lt;result path&gt; &lt;number of iterations&gt;</code><br>
  * If no parameters are provided, the program is run with default data from
@@ -72,7 +72,7 @@ public class IncrementalSSSP implements ProgramDescription {
 
 	public static void main(String [] args) throws Exception {
 
-		if(!parseParameters(args)) {
+		if (!parseParameters(args)) {
 			return;
 		}
 
@@ -91,7 +91,7 @@ public class IncrementalSSSP implements ProgramDescription {
 		// configure the iteration
 		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
-		if(isInSSSP(edgeToBeRemoved, ssspGraph.getEdges())) {
+		if (isInSSSP(edgeToBeRemoved, ssspGraph.getEdges())) {
 
 			parameters.setDirection(EdgeDirection.IN);
 			parameters.setOptDegrees(true);
@@ -103,7 +103,7 @@ public class IncrementalSSSP implements ProgramDescription {
 			DataSet<Vertex<Long, Double>> resultedVertices = result.getVertices();
 
 			// Emit results
-			if(fileOutput) {
+			if (fileOutput) {
 				resultedVertices.writeAsCsv(outputPath, "\n", ",");
 				env.execute("Incremental SSSP Example");
 			} else {
@@ -111,7 +111,7 @@ public class IncrementalSSSP implements ProgramDescription {
 			}
 		} else {
 			// print the vertices
-			if(fileOutput) {
+			if (fileOutput) {
 				graph.getVertices().writeAsCsv(outputPath, "\n", ",");
 				env.execute("Incremental SSSP Example");
 			} else {
@@ -147,6 +147,9 @@ public class IncrementalSSSP implements ProgramDescription {
 		}).count() > 0;
 	}
 
+	/**
+	 * Initiate or propagate INVALIDATE messages.
+	 */
 	public static final class InvalidateMessenger extends ScatterFunction<Long, Double, Double, Double> {
 
 		private Edge<Long, Double> edgeToBeRemoved;
@@ -158,23 +161,27 @@ public class IncrementalSSSP implements ProgramDescription {
 		@Override
 		public void sendMessages(Vertex<Long, Double> vertex) throws Exception {
 
-
-			if(getSuperstepNumber() == 1) {
-				if(vertex.getId().equals(edgeToBeRemoved.getSource())) {
+			if (getSuperstepNumber() == 1) {
+				if (vertex.getId().equals(edgeToBeRemoved.getSource())) {
 					// activate the edge target
 					sendMessageTo(edgeToBeRemoved.getSource(), Double.MAX_VALUE);
 				}
 			}
 
-			if(getSuperstepNumber() > 1) {
+			if (getSuperstepNumber() > 1) {
 				// invalidate all edges
-				for(Edge<Long, Double> edge : getEdges()) {
+				for (Edge<Long, Double> edge : getEdges()) {
 					sendMessageTo(edge.getSource(), Double.MAX_VALUE);
 				}
 			}
 		}
 	}
 
+	/**
+	 * When an INVALIDATE message indicates that the only shortest path
+	 * containing this vertex has been removed then set the vertex distance to
+	 * infinity.
+	 */
 	public static final class VertexDistanceUpdater extends GatherFunction<Long, Double, Double> {
 
 		@Override
@@ -239,7 +246,7 @@ public class IncrementalSSSP implements ProgramDescription {
 	}
 
 	private static Graph<Long, Double, Double> getGraph(ExecutionEnvironment env) {
-		if(fileOutput) {
+		if (fileOutput) {
 			return Graph.fromCsvReader(verticesInputPath, edgesInputPath, env).lineDelimiterEdges("\n")
 					.types(Long.class, Double.class, Double.class);
 		} else {
@@ -248,7 +255,7 @@ public class IncrementalSSSP implements ProgramDescription {
 	}
 
 	private static Graph<Long, Double, Double> getSSSPGraph(ExecutionEnvironment env) {
-		if(fileOutput) {
+		if (fileOutput) {
 			return Graph.fromCsvReader(verticesInputPath, edgesInSSSPInputPath, env).lineDelimiterEdges("\n")
 					.types(Long.class, Double.class, Double.class);
 		} else {
@@ -258,7 +265,7 @@ public class IncrementalSSSP implements ProgramDescription {
 
 	private static Edge<Long, Double> getEdgeToBeRemoved() {
 		if (fileOutput) {
-			return new Edge<Long, Double>(srcEdgeToBeRemoved, trgEdgeToBeRemoved, valEdgeToBeRemoved);
+			return new Edge<>(srcEdgeToBeRemoved, trgEdgeToBeRemoved, valEdgeToBeRemoved);
 		} else {
 			return IncrementalSSSPData.getDefaultEdgeToBeRemoved();
 		}

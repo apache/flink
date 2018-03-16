@@ -22,6 +22,9 @@ import org.apache.flink.storm.exclamation.util.ExclamationData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
+/**
+ * Test for the ExclamationLocal example.
+ */
 public class StormExclamationLocalITCase extends StreamingProgramTestBase {
 
 	protected String textPath;

@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-
-/**
- * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
- * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
- * additional information regarding copyright ownership. 
+/*
+ * Parts of earlier versions of this file were based on source code from the
+ * Hadoop Project (http://hadoop.apache.org/), licensed by the Apache Software Foundation (ASF)
+ * under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership.
  */
 
 package org.apache.flink.core.fs.local;
@@ -31,6 +31,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.OperatingSystem;
 
@@ -43,9 +44,17 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.DirectoryNotEmptyException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.StandardCopyOption;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The class <code>LocalFile</code> provides an implementation of the {@link FileSystem} interface
+ * The class {@code LocalFileSystem} is an implementation of the {@link FileSystem} interface
  * for the local file system of the machine where the JVM runs.
  */
 @Internal
@@ -54,25 +63,28 @@ public class LocalFileSystem extends FileSystem {
 	private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
 
 	/** The URI representing the local file system. */
-	private static final URI uri = OperatingSystem.isWindows() ? URI.create("file:/") : URI.create("file:///");
+	private static final URI LOCAL_URI = OperatingSystem.isWindows() ? URI.create("file:/") : URI.create("file:///");
+
+	/** The shared instance of the local file system. */
+	private static final LocalFileSystem INSTANCE = new LocalFileSystem();
 
 	/** Path pointing to the current working directory.
 	 * Because Paths are not immutable, we cannot cache the proper path here */
-	private final String workingDir;
+	private final URI workingDir;
 
 	/** Path pointing to the current working directory.
-	 * Because Paths are not immutable, we cannot cache the proper path here */
-	private final String homeDir;
+	 * Because Paths are not immutable, we cannot cache the proper path here. */
+	private final URI homeDir;
 
-	/** The host name of this machine */
+	/** The host name of this machine. */
 	private final String hostName;
 
 	/**
 	 * Constructs a new <code>LocalFileSystem</code> object.
 	 */
 	public LocalFileSystem() {
-		this.workingDir = new Path(System.getProperty("user.dir")).makeQualified(this).toString();
-		this.homeDir = new Path(System.getProperty("user.home")).toString();
+		this.workingDir = new File(System.getProperty("user.dir")).toURI();
+		this.homeDir = new File(System.getProperty("user.home")).toURI();
 
 		String tmp = "unknownHost";
 		try {
@@ -96,17 +108,17 @@ public class LocalFileSystem extends FileSystem {
 	public FileStatus getFileStatus(Path f) throws IOException {
 		final File path = pathToFile(f);
 		if (path.exists()) {
-			return new LocalFileStatus(pathToFile(f), this);
+			return new LocalFileStatus(path, this);
 		}
 		else {
 			throw new FileNotFoundException("File " + f + " does not exist or the user running "
-					+ "Flink ('"+System.getProperty("user.name")+"') has insufficient permissions to access it.");
+					+ "Flink ('" + System.getProperty("user.name") + "') has insufficient permissions to access it.");
 		}
 	}
 
 	@Override
 	public URI getUri() {
-		return uri;
+		return LOCAL_URI;
 	}
 
 	@Override
@@ -118,9 +130,6 @@ public class LocalFileSystem extends FileSystem {
 	public Path getHomeDirectory() {
 		return new Path(homeDir);
 	}
-
-	@Override
-	public void initialize(final URI name) throws IOException {}
 
 	@Override
 	public FSDataInputStream open(final Path f, final int bufferSize) throws IOException {
@@ -140,6 +149,11 @@ public class LocalFileSystem extends FileSystem {
 		return new File(path.toUri().getPath());
 	}
 
+	@Override
+	public boolean exists(Path f) throws IOException {
+		final File path = pathToFile(f);
+		return path.exists();
+	}
 
 	@Override
 	public FileStatus[] listStatus(final Path f) throws IOException {
@@ -166,7 +180,6 @@ public class LocalFileSystem extends FileSystem {
 		return results;
 	}
 
-
 	@Override
 	public boolean delete(final Path f, final boolean recursive) throws IOException {
 
@@ -187,7 +200,7 @@ public class LocalFileSystem extends FileSystem {
 
 	/**
 	 * Deletes the given file or directory.
-	 * 
+	 *
 	 * @param f
 	 *        the file to be deleted
 	 * @return <code>true</code> if all files were deleted successfully, <code>false</code> otherwise
@@ -198,10 +211,12 @@ public class LocalFileSystem extends FileSystem {
 
 		if (f.isDirectory()) {
 			final File[] files = f.listFiles();
-			for (File file : files) {
-				final boolean del = delete(file);
-				if (!del) {
-					return false;
+			if (files != null) {
+				for (File file : files) {
+					final boolean del = delete(file);
+					if (!del) {
+						return false;
+					}
 				}
 			}
 		} else {
@@ -214,58 +229,102 @@ public class LocalFileSystem extends FileSystem {
 
 	/**
 	 * Recursively creates the directory specified by the provided path.
-	 * 
+	 *
 	 * @return <code>true</code>if the directories either already existed or have been created successfully,
 	 *         <code>false</code> otherwise
 	 * @throws IOException
 	 *         thrown if an error occurred while creating the directory/directories
 	 */
+	@Override
 	public boolean mkdirs(final Path f) throws IOException {
-		final File p2f = pathToFile(f);
-
-		if(p2f.isDirectory()) {
-			return true;
-		}
-
-		final Path parent = f.getParent();
-		return (parent == null || mkdirs(parent)) && (p2f.mkdir() || p2f.isDirectory());
+		checkNotNull(f, "path is null");
+		return mkdirsInternal(pathToFile(f));
 	}
 
+	private boolean mkdirsInternal(File file) throws IOException {
+		if (file.isDirectory()) {
+				return true;
+		}
+		else if (file.exists() && !file.isDirectory()) {
+			// Important: The 'exists()' check above must come before the 'isDirectory()' check to
+			//            be safe when multiple parallel instances try to create the directory
+
+			// exists and is not a directory -> is a regular file
+			throw new FileAlreadyExistsException(file.getAbsolutePath());
+		}
+		else {
+			File parent = file.getParentFile();
+			return (parent == null || mkdirsInternal(parent)) && file.mkdir();
+		}
+	}
 
 	@Override
-	public FSDataOutputStream create(final Path f, final boolean overwrite, final int bufferSize,
-			final short replication, final long blockSize) throws IOException {
+	public FSDataOutputStream create(final Path filePath, final WriteMode overwrite) throws IOException {
+		checkNotNull(filePath, "filePath");
 
-		if (exists(f) && !overwrite) {
-			throw new IOException("File already exists:" + f);
+		if (exists(filePath) && overwrite == WriteMode.NO_OVERWRITE) {
+			throw new FileAlreadyExistsException("File already exists: " + filePath);
 		}
 
-		final Path parent = f.getParent();
+		final Path parent = filePath.getParent();
 		if (parent != null && !mkdirs(parent)) {
-			throw new IOException("Mkdirs failed to create " + parent.toString());
+			throw new IOException("Mkdirs failed to create " + parent);
 		}
 
-		final File file = pathToFile(f);
+		final File file = pathToFile(filePath);
 		return new LocalDataOutputStream(file);
 	}
-
-
-	@Override
-	public FSDataOutputStream create(final Path f, final boolean overwrite) throws IOException {
-		return create(f, overwrite, 0, (short) 0, 0);
-	}
-
 
 	@Override
 	public boolean rename(final Path src, final Path dst) throws IOException {
 		final File srcFile = pathToFile(src);
 		final File dstFile = pathToFile(dst);
 
-		return srcFile.renameTo(dstFile);
+		final File dstParent = dstFile.getParentFile();
+
+		// Files.move fails if the destination directory doesn't exist
+		//noinspection ResultOfMethodCallIgnored -- we don't care if the directory existed or was created
+		dstParent.mkdirs();
+
+		try {
+			Files.move(srcFile.toPath(), dstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+			return true;
+		}
+		catch (NoSuchFileException | AccessDeniedException | DirectoryNotEmptyException | SecurityException ex) {
+			// catch the errors that are regular "move failed" exceptions and return false
+			return false;
+		}
 	}
 
 	@Override
 	public boolean isDistributedFS() {
 		return false;
+	}
+
+	@Override
+	public FileSystemKind getKind() {
+		return FileSystemKind.FILE_SYSTEM;
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Gets the URI that represents the local file system.
+	 * That URI is {@code "file:/"} on Windows platforms and {@code "file:///"} on other
+	 * UNIX family platforms.
+	 *
+	 * @return The URI that represents the local file system.
+	 */
+	public static URI getLocalFsURI() {
+		return LOCAL_URI;
+	}
+
+	/**
+	 * Gets the shared instance of this file system.
+	 *
+	 * @return The shared instance of this file system.
+	 */
+	public static LocalFileSystem getSharedInstance() {
+		return INSTANCE;
 	}
 }

@@ -26,17 +26,18 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -44,6 +45,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -73,7 +75,6 @@ public class TimestampITCase extends TestLogger {
 	// this is used in some tests to synchronize
 	static MultiShotLatch latch;
 
-
 	private static LocalFlinkMiniCluster cluster;
 
 	@Before
@@ -82,64 +83,52 @@ public class TimestampITCase extends TestLogger {
 		latch = new MultiShotLatch();
 	}
 
-
 	@BeforeClass
 	public static void startCluster() {
-		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TASK_MANAGERS);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_TASK_SLOTS);
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
+		Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TASK_MANAGERS);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_TASK_SLOTS);
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 12L);
 
-			cluster = new LocalFlinkMiniCluster(config, false);
+		cluster = new LocalFlinkMiniCluster(config, false);
 
-			cluster.start();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to start test cluster: " + e.getMessage());
-		}
+		cluster.start();
+
+		TestStreamEnvironment.setAsContext(cluster, PARALLELISM);
 	}
 
 	@AfterClass
 	public static void shutdownCluster() {
-		try {
-			cluster.shutdown();
-			cluster = null;
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to stop test cluster: " + e.getMessage());
-		}
+		cluster.stop();
+		cluster = null;
+
+		TestStreamEnvironment.unsetAsContext();
 	}
 
 	/**
 	 * These check whether custom timestamp emission works at sources and also whether timestamps
 	 * arrive at operators throughout a topology.
 	 *
-	 * <p>
-	 * This also checks whether watermarks keep propagating if a source closes early.
+	 * <p>This also checks whether watermarks keep propagating if a source closes early.
 	 *
-	 * <p>
-	 * This only uses map to test the workings of watermarks in a complete, running topology. All
+	 * <p>This only uses map to test the workings of watermarks in a complete, running topology. All
 	 * tasks and stream operators have dedicated tests that test the watermark propagation
 	 * behaviour.
 	 */
 	@Test
 	public void testWatermarkPropagation() throws Exception {
-		final int NUM_WATERMARKS = 10;
+		final int numWatermarks = 10;
 
 		long initialTime = 0L;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
-		
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
-		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(initialTime, NUM_WATERMARKS));
-		DataStream<Integer> source2 = env.addSource(new MyTimestampSource(initialTime, NUM_WATERMARKS / 2));
+		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(initialTime, numWatermarks));
+		DataStream<Integer> source2 = env.addSource(new MyTimestampSource(initialTime, numWatermarks / 2));
 
 		source1.union(source2)
 				.map(new IdentityMap())
@@ -153,43 +142,42 @@ public class TimestampITCase extends TestLogger {
 		for (int i = 0; i < PARALLELISM; i++) {
 			// we are only guaranteed to see NUM_WATERMARKS / 2 watermarks because the
 			// other source stops emitting after that
-			for (int j = 0; j < NUM_WATERMARKS / 2; j++) {
+			for (int j = 0; j < numWatermarks / 2; j++) {
 				if (!CustomOperator.finalWatermarks[i].get(j).equals(new Watermark(initialTime + j))) {
 					System.err.println("All Watermarks: ");
-					for (int k = 0; k <= NUM_WATERMARKS / 2; k++) {
+					for (int k = 0; k <= numWatermarks / 2; k++) {
 						System.err.println(CustomOperator.finalWatermarks[i].get(k));
 					}
 
 					fail("Wrong watermark.");
 				}
 			}
-			
+
 			assertEquals(Watermark.MAX_WATERMARK,
-					CustomOperator.finalWatermarks[i].get(CustomOperator.finalWatermarks[i].size()-1));
+					CustomOperator.finalWatermarks[i].get(CustomOperator.finalWatermarks[i].size() - 1));
 		}
 	}
 
 	@Test
 	public void testWatermarkPropagationNoFinalWatermarkOnStop() throws Exception {
-		
+
 		// for this test to work, we need to be sure that no other jobs are being executed
 		while (!cluster.getCurrentlyRunningJobsJava().isEmpty()) {
 			Thread.sleep(100);
 		}
-		
-		final int NUM_WATERMARKS = 10;
+
+		final int numWatermarks = 10;
 
 		long initialTime = 0L;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
-		DataStream<Integer> source1 = env.addSource(new MyTimestampSourceInfinite(initialTime, NUM_WATERMARKS));
-		DataStream<Integer> source2 = env.addSource(new MyTimestampSourceInfinite(initialTime, NUM_WATERMARKS / 2));
+		DataStream<Integer> source1 = env.addSource(new MyTimestampSourceInfinite(initialTime, numWatermarks));
+		DataStream<Integer> source2 = env.addSource(new MyTimestampSourceInfinite(initialTime, numWatermarks / 2));
 
 		source1.union(source2)
 				.map(new IdentityMap())
@@ -208,7 +196,7 @@ public class TimestampITCase extends TestLogger {
 					}
 
 					JobID id = running.get(0);
-					
+
 					// send stop until the job is stopped
 					do {
 						try {
@@ -218,7 +206,7 @@ public class TimestampITCase extends TestLogger {
 							if (e.getCause() instanceof IllegalStateException) {
 								// this means the job is not yet ready to be stopped,
 								// for example because it is still in CREATED state
-								// we ignore the exception 
+								// we ignore the exception
 							} else {
 								// other problem
 								throw e;
@@ -233,29 +221,29 @@ public class TimestampITCase extends TestLogger {
 				}
 			}
 		}.start();
-		
+
 		env.execute();
 
 		// verify that all the watermarks arrived at the final custom operator
 		for (List<Watermark> subtaskWatermarks : CustomOperator.finalWatermarks) {
-			
+
 			// we are only guaranteed to see NUM_WATERMARKS / 2 watermarks because the
 			// other source stops emitting after that
 			for (int j = 0; j < subtaskWatermarks.size(); j++) {
 				if (subtaskWatermarks.get(j).getTimestamp() != initialTime + j) {
 					System.err.println("All Watermarks: ");
-					for (int k = 0; k <= NUM_WATERMARKS / 2; k++) {
+					for (int k = 0; k <= numWatermarks / 2; k++) {
 						System.err.println(subtaskWatermarks.get(k));
 					}
 
 					fail("Wrong watermark.");
 				}
 			}
-			
+
 			// if there are watermarks, the final one must not be the MAX watermark
 			if (subtaskWatermarks.size() > 0) {
 				assertNotEquals(Watermark.MAX_WATERMARK,
-						subtaskWatermarks.get(subtaskWatermarks.size()-1));
+						subtaskWatermarks.get(subtaskWatermarks.size() - 1));
 			}
 		}
 	}
@@ -266,25 +254,22 @@ public class TimestampITCase extends TestLogger {
 	 */
 	@Test
 	public void testTimestampHandling() throws Exception {
-		final int NUM_ELEMENTS = 10;
+		final int numElements = 10;
 
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
-		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(0L, NUM_ELEMENTS));
-		DataStream<Integer> source2 = env.addSource(new MyTimestampSource(0L, NUM_ELEMENTS));
+		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(0L, numElements));
+		DataStream<Integer> source2 = env.addSource(new MyTimestampSource(0L, numElements));
 
 		source1
 				.map(new IdentityMap())
 				.connect(source2).map(new IdentityCoMap())
 				.transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new TimestampCheckingOperator())
 				.addSink(new DiscardingSink<Integer>());
-
 
 		env.execute();
 	}
@@ -294,49 +279,47 @@ public class TimestampITCase extends TestLogger {
 	 */
 	@Test
 	public void testDisabledTimestamps() throws Exception {
-		final int NUM_ELEMENTS = 10;
-		
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
-		
+		final int numElements = 10;
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
-		
-		DataStream<Integer> source1 = env.addSource(new MyNonWatermarkingSource(NUM_ELEMENTS));
-		DataStream<Integer> source2 = env.addSource(new MyNonWatermarkingSource(NUM_ELEMENTS));
+
+		DataStream<Integer> source1 = env.addSource(new MyNonWatermarkingSource(numElements));
+		DataStream<Integer> source2 = env.addSource(new MyNonWatermarkingSource(numElements));
 
 		source1
 				.map(new IdentityMap())
 				.connect(source2).map(new IdentityCoMap())
 				.transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new DisabledTimestampCheckingOperator())
 				.addSink(new DiscardingSink<Integer>());
-		
+
 		env.execute();
 	}
 
 	/**
 	 * This tests whether timestamps are properly extracted in the timestamp
-	 * extractor and whether watermarks are also correctly forwared from this with the auto watermark
+	 * extractor and whether watermarks are also correctly forwarded from this with the auto watermark
 	 * interval.
 	 */
 	@Test
 	public void testTimestampExtractorWithAutoInterval() throws Exception {
-		final int NUM_ELEMENTS = 10;
+		final int numElements = 10;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(10);
 		env.setParallelism(1);
 		env.getConfig().disableSysoutLogging();
 
-
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
 			public void run(SourceContext<Integer> ctx) throws Exception {
 				int index = 1;
-				while (index <= NUM_ELEMENTS) {
+				while (index <= numElements) {
 					ctx.collect(index);
 					latch.await();
 					index++;
@@ -367,40 +350,39 @@ public class TimestampITCase extends TestLogger {
 		env.execute();
 
 		// verify that we get NUM_ELEMENTS watermarks
-		for (int j = 0; j < NUM_ELEMENTS; j++) {
+		for (int j = 0; j < numElements; j++) {
 			if (!CustomOperator.finalWatermarks[0].get(j).equals(new Watermark(j))) {
 				long wm = CustomOperator.finalWatermarks[0].get(j).getTimestamp();
 				Assert.fail("Wrong watermark. Expected: " + j + " Found: " + wm + " All: " + CustomOperator.finalWatermarks[0]);
 			}
 		}
-		
+
 		// the input is finite, so it should have a MAX Watermark
-		assertEquals(Watermark.MAX_WATERMARK, 
+		assertEquals(Watermark.MAX_WATERMARK,
 				CustomOperator.finalWatermarks[0].get(CustomOperator.finalWatermarks[0].size() - 1));
 	}
 
 	/**
-	 * This thests whether timestamps are properly extracted in the timestamp
+	 * This tests whether timestamps are properly extracted in the timestamp
 	 * extractor and whether watermark are correctly forwarded from the custom watermark emit
 	 * function.
 	 */
 	@Test
 	public void testTimestampExtractorWithCustomWatermarkEmit() throws Exception {
-		final int NUM_ELEMENTS = 10;
+		final int numElements = 10;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(10);
 		env.setParallelism(1);
 		env.getConfig().disableSysoutLogging();
 
-
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
 			public void run(SourceContext<Integer> ctx) throws Exception {
 				int index = 1;
-				while (index <= NUM_ELEMENTS) {
+				while (index <= numElements) {
 					ctx.collect(index);
 					latch.await();
 					index++;
@@ -413,7 +395,7 @@ public class TimestampITCase extends TestLogger {
 
 		source1
 				.assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Integer>() {
-					
+
 					@Override
 					public long extractTimestamp(Integer element, long currentTimestamp) {
 						return element;
@@ -427,11 +409,10 @@ public class TimestampITCase extends TestLogger {
 				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
 				.transform("Timestamp Check", BasicTypeInfo.INT_TYPE_INFO, new TimestampCheckingOperator());
 
-
 		env.execute();
 
 		// verify that we get NUM_ELEMENTS watermarks
-		for (int j = 0; j < NUM_ELEMENTS; j++) {
+		for (int j = 0; j < numElements; j++) {
 			if (!CustomOperator.finalWatermarks[0].get(j).equals(new Watermark(j))) {
 				Assert.fail("Wrong watermark.");
 			}
@@ -443,26 +424,24 @@ public class TimestampITCase extends TestLogger {
 	}
 
 	/**
-	 * This test verifies that the timestamp extractor does not emit decreasing watermarks even
-	 *
+	 * This test verifies that the timestamp extractor does not emit decreasing watermarks.
 	 */
 	@Test
 	public void testTimestampExtractorWithDecreasingCustomWatermarkEmit() throws Exception {
-		final int NUM_ELEMENTS = 10;
+		final int numElements = 10;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(1);
 		env.setParallelism(1);
 		env.getConfig().disableSysoutLogging();
 
-
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
 			public void run(SourceContext<Integer> ctx) throws Exception {
 				int index = 1;
-				while (index <= NUM_ELEMENTS) {
+				while (index <= numElements) {
 					ctx.collect(index);
 					Thread.sleep(100);
 					ctx.collect(index - 1);
@@ -491,11 +470,10 @@ public class TimestampITCase extends TestLogger {
 				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
 				.transform("Timestamp Check", BasicTypeInfo.INT_TYPE_INFO, new TimestampCheckingOperator());
 
-
 		env.execute();
 
 		// verify that we get NUM_ELEMENTS watermarks
-		for (int j = 0; j < NUM_ELEMENTS; j++) {
+		for (int j = 0; j < numElements; j++) {
 			if (!CustomOperator.finalWatermarks[0].get(j).equals(new Watermark(j))) {
 				Assert.fail("Wrong watermark.");
 			}
@@ -510,25 +488,24 @@ public class TimestampITCase extends TestLogger {
 	 */
 	@Test
 	public void testTimestampExtractorWithLongMaxWatermarkFromSource() throws Exception {
-		final int NUM_ELEMENTS = 10;
+		final int numElements = 10;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(1);
 		env.setParallelism(2);
 		env.getConfig().disableSysoutLogging();
 
-
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
 			public void run(SourceContext<Integer> ctx) throws Exception {
 				int index = 1;
-				while (index <= NUM_ELEMENTS) {
+				while (index <= numElements) {
 					ctx.collectWithTimestamp(index, index);
 					ctx.collectWithTimestamp(index - 1, index - 1);
 					index++;
-					ctx.emitWatermark(new Watermark(index-2));
+					ctx.emitWatermark(new Watermark(index - 2));
 				}
 
 				// emit the final Long.MAX_VALUE watermark, do it twice and verify that
@@ -556,7 +533,6 @@ public class TimestampITCase extends TestLogger {
 				})
 			.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true));
 
-
 		env.execute();
 
 		Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 1);
@@ -565,15 +541,15 @@ public class TimestampITCase extends TestLogger {
 
 	/**
 	 * This test verifies that the timestamp extractor forwards Long.MAX_VALUE watermarks.
-	 * 
-	 * Same test as before, but using a different timestamp extractor
+	 *
+	 * <p>Same test as before, but using a different timestamp extractor.
 	 */
 	@Test
 	public void testTimestampExtractorWithLongMaxWatermarkFromSource2() throws Exception {
-		final int NUM_ELEMENTS = 10;
+		final int numElements = 10;
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+				.getExecutionEnvironment();
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(10);
@@ -584,11 +560,11 @@ public class TimestampITCase extends TestLogger {
 			@Override
 			public void run(SourceContext<Integer> ctx) throws Exception {
 				int index = 1;
-				while (index <= NUM_ELEMENTS) {
+				while (index <= numElements) {
 					ctx.collectWithTimestamp(index, index);
 					ctx.collectWithTimestamp(index - 1, index - 1);
 					index++;
-					ctx.emitWatermark(new Watermark(index-2));
+					ctx.emitWatermark(new Watermark(index - 2));
 				}
 
 				// emit the final Long.MAX_VALUE watermark, do it twice and verify that
@@ -615,7 +591,7 @@ public class TimestampITCase extends TestLogger {
 					}
 				})
 				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true));
-		
+
 		env.execute();
 
 		Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 1);
@@ -628,9 +604,9 @@ public class TimestampITCase extends TestLogger {
 	 */
 	@Test
 	public void testEventTimeSourceWithProcessingTime() throws Exception {
-		StreamExecutionEnvironment env = 
-				StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
-		
+		StreamExecutionEnvironment env =
+				StreamExecutionEnvironment.getExecutionEnvironment();
+
 		env.setParallelism(2);
 		env.getConfig().disableSysoutLogging();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
@@ -647,17 +623,16 @@ public class TimestampITCase extends TestLogger {
 		// other tests, so it normally emits watermarks
 		Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 0);
 	}
-	
+
 	@Test
 	public void testErrorOnEventTimeOverProcessingTime() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(2);
 		env.getConfig().disableSysoutLogging();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
-		DataStream<Tuple2<String, Integer>> source1 = 
+		DataStream<Tuple2<String, Integer>> source1 =
 				env.fromElements(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
 
 		source1
@@ -681,8 +656,7 @@ public class TimestampITCase extends TestLogger {
 
 	@Test
 	public void testErrorOnEventTimeWithoutTimestamps() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(2);
 		env.getConfig().disableSysoutLogging();
@@ -713,9 +687,9 @@ public class TimestampITCase extends TestLogger {
 	// ------------------------------------------------------------------------
 	//  Custom Operators and Functions
 	// ------------------------------------------------------------------------
-	
+
 	@SuppressWarnings("unchecked")
-	public static class CustomOperator extends AbstractStreamOperator<Integer> implements OneInputStreamOperator<Integer, Integer> {
+	private static class CustomOperator extends AbstractStreamOperator<Integer> implements OneInputStreamOperator<Integer, Integer> {
 
 		List<Watermark> watermarks;
 		public static List<Watermark>[] finalWatermarks = new List[PARALLELISM];
@@ -761,7 +735,7 @@ public class TimestampITCase extends TestLogger {
 		}
 	}
 
-	public static class TimestampCheckingOperator extends AbstractStreamOperator<Integer> implements OneInputStreamOperator<Integer, Integer> {
+	private static class TimestampCheckingOperator extends AbstractStreamOperator<Integer> implements OneInputStreamOperator<Integer, Integer> {
 
 		public TimestampCheckingOperator() {
 			setChainingStrategy(ChainingStrategy.ALWAYS);
@@ -776,7 +750,7 @@ public class TimestampITCase extends TestLogger {
 		}
 	}
 
-	public static class DisabledTimestampCheckingOperator extends AbstractStreamOperator<Integer> implements OneInputStreamOperator<Integer, Integer> {
+	private static class DisabledTimestampCheckingOperator extends AbstractStreamOperator<Integer> implements OneInputStreamOperator<Integer, Integer> {
 
 		@Override
 		public void processElement(StreamRecord<Integer> element) throws Exception {
@@ -787,7 +761,7 @@ public class TimestampITCase extends TestLogger {
 		}
 	}
 
-	public static class IdentityCoMap implements CoMapFunction<Integer, Integer, Integer> {
+	private static class IdentityCoMap implements CoMapFunction<Integer, Integer, Integer> {
 		@Override
 		public Integer map1(Integer value) throws Exception {
 			return value;
@@ -799,14 +773,14 @@ public class TimestampITCase extends TestLogger {
 		}
 	}
 
-	public static class IdentityMap implements MapFunction<Integer, Integer> {
+	private static class IdentityMap implements MapFunction<Integer, Integer> {
 		@Override
 		public Integer map(Integer value) throws Exception {
 			return value;
 		}
 	}
 
-	public static class MyTimestampSource implements SourceFunction<Integer> {
+	private static class MyTimestampSource implements SourceFunction<Integer> {
 
 		private final long initialTime;
 		private final int numWatermarks;
@@ -828,13 +802,13 @@ public class TimestampITCase extends TestLogger {
 		public void cancel() {}
 	}
 
-	public static class MyTimestampSourceInfinite implements SourceFunction<Integer>, StoppableFunction {
+	private static class MyTimestampSourceInfinite implements SourceFunction<Integer>, StoppableFunction {
 
 		private final long initialTime;
 		private final int numWatermarks;
 
 		private volatile boolean running = true;
-		
+
 		public MyTimestampSourceInfinite(long initialTime, int numWatermarks) {
 			this.initialTime = initialTime;
 			this.numWatermarks = numWatermarks;
@@ -846,7 +820,7 @@ public class TimestampITCase extends TestLogger {
 				ctx.collectWithTimestamp(i, initialTime + i);
 				ctx.emitWatermark(new Watermark(initialTime + i));
 			}
-			
+
 			while (running) {
 				Thread.sleep(20);
 			}
@@ -863,7 +837,7 @@ public class TimestampITCase extends TestLogger {
 		}
 	}
 
-	public static class MyNonWatermarkingSource implements SourceFunction<Integer> {
+	private static class MyNonWatermarkingSource implements SourceFunction<Integer> {
 
 		int numWatermarks;
 

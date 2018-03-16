@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.concurrent;
-
-import com.google.common.collect.Lists;
-import org.junit.Test;
 
 import org.apache.flink.util.Preconditions;
 
+import org.junit.Test;
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -35,6 +34,9 @@ import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link Broker}.
+ */
 public class BrokerTest {
 
 	@Test
@@ -50,7 +52,7 @@ public class BrokerTest {
 		final ExecutorService executorService = Executors.newFixedThreadPool(subtasks * 2);
 
 		try {
-			List<Callable<StringPair>> tasks = Lists.newArrayList();
+			List<Callable<StringPair>> tasks = new ArrayList<>();
 			Broker<String> broker = new Broker<String>();
 
 			for (int subtask = 0; subtask < subtasks; subtask++) {

@@ -18,27 +18,26 @@
 
 package org.apache.flink.examples.java.clustering;
 
-import java.io.Serializable;
-import java.util.Collection;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.examples.java.clustering.util.KMeansData;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.operators.IterativeDataSet;
+
+import java.io.Serializable;
+import java.util.Collection;
 
 /**
  * This example implements a basic K-Means clustering algorithm.
  *
- * <p>
- * K-Means is an iterative clustering algorithm and works as follows:<br>
+ * <p>K-Means is an iterative clustering algorithm and works as follows:<br>
  * K-Means is given a set of data points to be clustered and an initial set of <i>K</i> cluster centers.
  * In each iteration, the algorithm computes the distance of each data point to each cluster center.
  * Each point is assigned to the cluster center which is closest to it.
@@ -48,13 +47,11 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
  * or if cluster centers do not (significantly) move in an iteration.<br>
  * This is the Wikipedia entry for the <a href="http://en.wikipedia.org/wiki/K-means_clustering">K-Means Clustering algorithm</a>.
  *
- * <p>
- * This implementation works on two-dimensional data points. <br>
+ * <p>This implementation works on two-dimensional data points. <br>
  * It computes an assignment of data points to cluster centers, i.e.,
  * each data point is annotated with the id of the final cluster (center) it belongs to.
  *
- * <p>
- * Input files are plain text files and must be formatted as follows:
+ * <p>Input files are plain text files and must be formatted as follows:
  * <ul>
  * <li>Data points are represented as two double values separated by a blank character.
  * Data points are separated by newline characters.<br>
@@ -63,12 +60,10 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
  * For example <code>"1 6.2 3.2\n2 2.9 5.7\n"</code> gives two centers (id=1, x=6.2, y=3.2) and (id=2, x=2.9, y=5.7).
  * </ul>
  *
- * <p>
- * Usage: <code>KMeans --points &lt;path&gt; --centroids &lt;path&gt; --output &lt;path&gt; --iterations &lt;n&gt;</code><br>
+ * <p>Usage: <code>KMeans --points &lt;path&gt; --centroids &lt;path&gt; --output &lt;path&gt; --iterations &lt;n&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link org.apache.flink.examples.java.clustering.util.KMeansData} and 10 iterations.
  *
- * <p>
- * This example shows how to use:
+ * <p>This example shows how to use:
  * <ul>
  * <li>Bulk iterations
  * <li>Broadcast variables in bulk iterations
@@ -187,7 +182,7 @@ public class KMeans {
 		}
 
 		public double euclideanDistance(Point other) {
-			return Math.sqrt((x-other.x)*(x-other.x) + (y-other.y)*(y-other.y));
+			return Math.sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y));
 		}
 
 		public void clear() {
@@ -210,7 +205,7 @@ public class KMeans {
 		public Centroid() {}
 
 		public Centroid(int id, double x, double y) {
-			super(x,y);
+			super(x, y);
 			this.id = id;
 		}
 

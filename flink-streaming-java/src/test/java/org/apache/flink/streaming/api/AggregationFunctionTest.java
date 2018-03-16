@@ -17,23 +17,16 @@
 
 package org.apache.flink.streaming.api;
 
-import static org.junit.Assert.assertEquals;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-
-import com.google.common.collect.ImmutableList;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
@@ -41,8 +34,19 @@ import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
 import org.apache.flink.streaming.util.MockContext;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
+
 import org.junit.Test;
 
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+
+/**
+ * Tests for {@link AggregationFunction}.
+ */
 public class AggregationFunctionTest {
 
 	@Test
@@ -166,7 +170,7 @@ public class AggregationFunctionTest {
 				new StreamGroupedReduce<>(sumFunction, typeInfo.createSerializer(config)),
 				getInputPojoList(),
 				keySelector, keyType);
-		
+
 		List<MyPojo> groupedMinList = MockContext.createAndExecuteForKeyedStream(
 				new StreamGroupedReduce<>(minFunction, typeInfo.createSerializer(config)),
 				getInputPojoList(),
@@ -181,16 +185,16 @@ public class AggregationFunctionTest {
 		assertEquals(expectedGroupMinList, groupedMinList);
 		assertEquals(expectedGroupMaxList, groupedMaxList);
 	}
-	
+
 	@Test
 	public void minMaxByTest() throws Exception {
 		// Tuples are grouped on field 0, aggregated on field 1
-		
+
 		// preparing expected outputs
 		List<Tuple3<Integer, Integer, Integer>> maxByFirstExpected = ImmutableList.of(
-				Tuple3.of(0,0,0), Tuple3.of(0,1,1), Tuple3.of(0,2,2),
-				Tuple3.of(0,2,2), Tuple3.of(0,2,2), Tuple3.of(0,2,2),
-				Tuple3.of(0,2,2), Tuple3.of(0,2,2), Tuple3.of(0,2,2));
+				Tuple3.of(0, 0, 0), Tuple3.of(0, 1, 1), Tuple3.of(0, 2, 2),
+				Tuple3.of(0, 2, 2), Tuple3.of(0, 2, 2), Tuple3.of(0, 2, 2),
+				Tuple3.of(0, 2, 2), Tuple3.of(0, 2, 2), Tuple3.of(0, 2, 2));
 
 		List<Tuple3<Integer, Integer, Integer>> maxByLastExpected = ImmutableList.of(
 				Tuple3.of(0, 0, 0), Tuple3.of(0, 1, 1), Tuple3.of(0, 2, 2),
@@ -198,9 +202,9 @@ public class AggregationFunctionTest {
 				Tuple3.of(0, 2, 5), Tuple3.of(0, 2, 5), Tuple3.of(0, 2, 8));
 
 		List<Tuple3<Integer, Integer, Integer>> minByFirstExpected = ImmutableList.of(
-				Tuple3.of(0,0,0), Tuple3.of(0,0,0), Tuple3.of(0,0,0),
-				Tuple3.of(0,0,0), Tuple3.of(0,0,0), Tuple3.of(0,0,0),
-				Tuple3.of(0,0,0), Tuple3.of(0,0,0), Tuple3.of(0,0,0));
+				Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0),
+				Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0),
+				Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0));
 
 		List<Tuple3<Integer, Integer, Integer>> minByLastExpected = ImmutableList.of(
 				Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0),
@@ -209,7 +213,7 @@ public class AggregationFunctionTest {
 
 		// some necessary boiler plate
 		TypeInformation<Tuple3<Integer, Integer, Integer>> typeInfo = TypeExtractor
-				.getForObject(Tuple3.of(0,0,0));
+				.getForObject(Tuple3.of(0, 0, 0));
 
 		ExecutionConfig config = new ExecutionConfig();
 
@@ -217,7 +221,7 @@ public class AggregationFunctionTest {
 				new Keys.ExpressionKeys<>(new int[]{0}, typeInfo),
 				typeInfo, config);
 		TypeInformation<Tuple> keyType = TypeExtractor.getKeySelectorTypes(keySelector, typeInfo);
-		
+
 		// aggregations tested
 		ReduceFunction<Tuple3<Integer, Integer, Integer>> maxByFunctionFirst =
 				new ComparableAggregator<>(1, typeInfo, AggregationType.MAXBY, true, config);
@@ -232,17 +236,17 @@ public class AggregationFunctionTest {
 				new StreamGroupedReduce<>(maxByFunctionFirst, typeInfo.createSerializer(config)),
 				getInputByList(),
 				keySelector, keyType));
-		
+
 		assertEquals(maxByLastExpected, MockContext.createAndExecuteForKeyedStream(
 				new StreamGroupedReduce<>(maxByFunctionLast, typeInfo.createSerializer(config)),
 				getInputByList(),
 				keySelector, keyType));
-		
+
 		assertEquals(minByLastExpected, MockContext.createAndExecuteForKeyedStream(
 				new StreamGroupedReduce<>(minByFunctionLast, typeInfo.createSerializer(config)),
 				getInputByList(),
 				keySelector, keyType));
-		
+
 		assertEquals(minByFirstExpected, MockContext.createAndExecuteForKeyedStream(
 				new StreamGroupedReduce<>(minByFunctionFirst, typeInfo.createSerializer(config)),
 				getInputByList(),
@@ -298,12 +302,12 @@ public class AggregationFunctionTest {
 						new StreamGroupedReduce<>(maxByFunctionFirst, typeInfo.createSerializer(config)),
 						getInputByPojoList(),
 						keySelector, keyType));
-		
+
 		assertEquals(maxByLastExpected, MockContext.createAndExecuteForKeyedStream(
 				new StreamGroupedReduce<>(maxByFunctionLast, typeInfo.createSerializer(config)),
 				getInputByPojoList(),
 				keySelector, keyType));
-		
+
 		assertEquals(minByLastExpected, MockContext.createAndExecuteForKeyedStream(
 				new StreamGroupedReduce<>(minByFunctionLast, typeInfo.createSerializer(config)),
 				getInputByPojoList(),
@@ -351,8 +355,11 @@ public class AggregationFunctionTest {
 		return inputList;
 	}
 
+	/**
+	 * POJO.
+	 */
 	public static class MyPojo implements Serializable {
-		
+
 		private static final long serialVersionUID = 1L;
 		public int f0;
 		public int f1;
@@ -380,6 +387,9 @@ public class AggregationFunctionTest {
 		}
 	}
 
+	/**
+	 * POJO.
+	 */
 	public static class MyPojo3 implements Serializable {
 
 		private static final long serialVersionUID = 1L;

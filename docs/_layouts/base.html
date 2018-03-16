@@ -23,7 +23,7 @@ under the License.
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    <title>Apache Flink {{ site.version}} Documentation: {{ page.title }}</title>
+    <title>Apache Flink {{ site.version_title }} Documentation: {{ page.title }}</title>
     <link rel="shortcut icon" href="{{ site.baseurl }}/page/favicon.ico" type="image/x-icon">
     <link rel="icon" href="{{ site.baseurl }}/page/favicon.ico" type="image/x-icon">
 
@@ -54,29 +54,23 @@ under the License.
     <![endif]-->
   </head>
   <body>
+    {% if site.show_outdated_warning %}
+    <div style="position:fixed; bottom:0; left:0; z-index:99999; width:100%; text-align:center; padding:15px; border-top:5px solid #ECCCD1; background:#F2DEDE; color:#AD433F; font-weight:bold">
+       This documentation is for an out-of-date version of Apache Flink. We recommend you use <a href="https://ci.apache.org/projects/flink/flink-docs-stable/">the latest stable version</a>.
+    </div>
+    {% endif %}
+
     <!-- Main content. -->
     <div class="container">
-      {% if site.is_stable %}
-      {% unless site.is_latest %}
-      <div class="row">
-        <div class="col-sm-12">
-          <div class="alert alert-info">
-              <strong>Note</strong>: This documentation is for Flink version <strong>{{ site.version }}</strong>. There is a more recent stable version available. Please consider updating and <a href="{{ site.latest_stable_url }}">check out the documentation for that version</a>.
-          </div>
-        </div>
-      </div>
-      {% endunless %}
-      {% endif %}
-
       {% comment %}
       This is the base for all content. The content from the layouts found in
       the _layouts directory goes here.
       {% endcomment %}
       <div class="row">
-        <div class="col-lg-3">
+        <div class="col-lg-3" id="sidenavcol">
           {% include sidenav.html %}
         </div>
-        <div class="col-lg-9 content">
+        <div class="col-lg-9 content" id="contentcol">
           {% if page.mathjax %}
           {% include latex_commands.html %}
           {% endif %}

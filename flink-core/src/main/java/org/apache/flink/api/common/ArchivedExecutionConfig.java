@@ -15,7 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.common;
+
+import org.apache.flink.annotation.Internal;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -26,7 +29,10 @@ import java.util.Map;
  * It can be used to display job information on the web interface
  * without having to keep the classloader around after job completion.
  */
+@Internal
 public class ArchivedExecutionConfig implements Serializable {
+
+	private static final long serialVersionUID = 2126156250920316528L;
 
 	private final String executionMode;
 	private final String restartStrategyDescription;
@@ -49,6 +55,19 @@ public class ArchivedExecutionConfig implements Serializable {
 		} else {
 			globalJobParameters = Collections.emptyMap();
 		}
+	}
+
+	public ArchivedExecutionConfig(
+			String executionMode,
+			String restartStrategyDescription,
+			int parallelism,
+			boolean objectReuseEnabled,
+			Map<String, String> globalJobParameters) {
+		this.executionMode = executionMode;
+		this.restartStrategyDescription = restartStrategyDescription;
+		this.parallelism = parallelism;
+		this.objectReuseEnabled = objectReuseEnabled;
+		this.globalJobParameters = globalJobParameters;
 	}
 
 	public String getExecutionMode() {

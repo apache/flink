@@ -53,6 +53,7 @@ import org.apache.flink.runtime.util.ResettableMutableObjectIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -66,7 +67,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-public abstract class AbstractSortMergeOuterJoinIteratorITCase {
+public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogger {
 
 	// total memory
 	private static final int MEMORY_SIZE = 1024 * 1024 * 16;
@@ -298,9 +299,6 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase {
 		);
 
 		TypePairComparator<Tuple2<Integer, String>, Tuple2<Integer, String>> pairComparator = new GenericPairComparator<>(comparator1, comparator2);
-
-		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1);
-		this.ioManager = new IOManagerAsync();
 
 		final int DUPLICATE_KEY = 13;
 

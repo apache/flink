@@ -30,6 +30,11 @@ body {
 	background: #f8f8f8;
 }
 
+@media (min-width: 992px) and (max-width: 1200px) {
+    #contentcol { float: left; width: 70%; }
+    #sidenavcol { float: left; width: 30%; }
+}
+
 /*=============================================================================
  Per page TOC
 =============================================================================*/
@@ -97,7 +102,7 @@ h2 {
 	border-bottom: 1px solid #e5e5e5;
 }
 
-h2, h3, h4, h5, h6, h7 {
+h2, h3, h4 {
 	padding-top: 1em;
 }
 

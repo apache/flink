@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.examples.windowing.util;
 
+/**
+ * Data for TopSpeedWindowingExampleITCase.
+ */
 public class TopSpeedWindowingExampleData {
 
 	public static final String CAR_DATA =

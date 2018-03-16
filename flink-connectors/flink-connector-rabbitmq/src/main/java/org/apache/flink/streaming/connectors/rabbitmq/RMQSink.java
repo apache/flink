@@ -17,21 +17,22 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq;
 
-import java.io.IOException;
-
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
-import org.apache.flink.streaming.util.serialization.SerializationSchema;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.concurrent.TimeoutException;
 
 /**
- * A Sink for publishing data into RabbitMQ
+ * A Sink for publishing data into RabbitMQ.
  * @param <IN>
  */
 public class RMQSink<IN> extends RichSinkFunction<IN> {
@@ -78,7 +79,6 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 		this.logFailuresOnly = logFailuresOnly;
 	}
 
-
 	@Override
 	public void open(Configuration config) throws Exception {
 		ConnectionFactory factory = rmqConnectionConfig.getConnectionFactory();
@@ -110,7 +110,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 			if (logFailuresOnly) {
 				LOG.error("Cannot send RMQ message {} at {}", queueName, rmqConnectionConfig.getHost(), e);
 			} else {
-				throw new RuntimeException("Cannot send RMQ message " + queueName +" at " + rmqConnectionConfig.getHost(), e);
+				throw new RuntimeException("Cannot send RMQ message " + queueName + " at " + rmqConnectionConfig.getHost(), e);
 			}
 		}
 
@@ -118,22 +118,26 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 	@Override
 	public void close() {
-		IOException t = null;
+		Exception t = null;
 		try {
-			channel.close();
-		} catch (IOException e) {
+			if (channel != null) {
+				channel.close();
+			}
+		} catch (IOException | TimeoutException e) {
 			t = e;
 		}
 
 		try {
-			connection.close();
+			if (connection != null) {
+				connection.close();
+			}
 		} catch (IOException e) {
-			if(t != null) {
+			if (t != null) {
 				LOG.warn("Both channel and connection closing failed. Logging channel exception and failing with connection exception", t);
 			}
 			t = e;
 		}
-		if(t != null) {
+		if (t != null) {
 			throw new RuntimeException("Error while closing RMQ connection with " + queueName
 					+ " at " + rmqConnectionConfig.getHost(), t);
 		}

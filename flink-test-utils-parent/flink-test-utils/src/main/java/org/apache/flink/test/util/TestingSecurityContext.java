@@ -21,37 +21,44 @@ package org.apache.flink.test.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.security.DynamicConfiguration;
 import org.apache.flink.runtime.security.KerberosUtils;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
-import org.apache.flink.runtime.security.modules.JaasModule;
+import org.apache.flink.runtime.security.modules.JaasModuleFactory;
+import org.apache.flink.runtime.security.modules.SecurityModuleFactory;
 
 import javax.security.auth.login.AppConfigurationEntry;
+
 import java.util.Map;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-
-/*
- * Test security context to support handling both client and server principals in MiniKDC
+/**
+ * Test security context to support handling both client and server principals in MiniKDC.
  * This class is used only in integration test code for connectors like Kafka, HDFS etc.,
  */
 @Internal
 public class TestingSecurityContext {
 
-	public static void install(SecurityUtils.SecurityConfiguration config,
+	public static void install(SecurityConfiguration config,
 						Map<String, ClientSecurityConfiguration> clientSecurityConfigurationMap)
 			throws Exception {
 
 		SecurityUtils.install(config);
 
 		// install dynamic JAAS entries
-		checkArgument(config.getSecurityModules().contains(JaasModule.class));
-		DynamicConfiguration jaasConf = (DynamicConfiguration) javax.security.auth.login.Configuration.getConfiguration();
-		for(Map.Entry<String,ClientSecurityConfiguration> e : clientSecurityConfigurationMap.entrySet()) {
-			AppConfigurationEntry entry = KerberosUtils.keytabEntry(e.getValue().getKeytab(), e.getValue().getPrincipal());
-			jaasConf.addAppConfigurationEntry(e.getKey(), entry);
+		for (SecurityModuleFactory factory : config.getSecurityModuleFactories()) {
+			if (factory instanceof JaasModuleFactory) {
+				DynamicConfiguration jaasConf = (DynamicConfiguration) javax.security.auth.login.Configuration.getConfiguration();
+				for (Map.Entry<String, ClientSecurityConfiguration> e : clientSecurityConfigurationMap.entrySet()) {
+					AppConfigurationEntry entry = KerberosUtils.keytabEntry(
+						e.getValue().getKeytab(),
+						e.getValue().getPrincipal());
+					jaasConf.addAppConfigurationEntry(e.getKey(), entry);
+				}
+				break;
+			}
 		}
 	}
 
-	public static class ClientSecurityConfiguration {
+	static class ClientSecurityConfiguration {
 
 		private final String principal;
 

@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-shaded-hadoop</artifactId>
-		<version>1.3-SNAPSHOT</version>
+		<version>1.6-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -40,6 +40,13 @@ under the License.
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-compress</artifactId>
+			<!-- managed version -->
+		</dependency>
+
+		<!-- explicitly include avro to force Flink's managed version -->
+		<dependency>
+			<groupId>org.apache.avro</groupId>
+			<artifactId>avro</artifactId>
 			<!-- managed version -->
 		</dependency>
 
@@ -70,20 +77,23 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jetty-util</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jsp-api-2.1</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jsp-2.1</artifactId>
 				</exclusion>
-
 				<exclusion>
 					<groupId>org.eclipse.jdt</groupId>
 					<artifactId>core</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty</artifactId>
+					<groupId>com.sun.jersey</groupId>
+					<artifactId>jersey-core</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -161,7 +171,8 @@ under the License.
 		commons-collections dependency-->
 		<dependency>
 			<groupId>commons-beanutils</groupId>
-			<artifactId>commons-beanutils-bean-collections</artifactId>
+			<artifactId>commons-beanutils</artifactId>
+			<version>1.9.3</version>
 		</dependency>
 
 		<dependency>
@@ -191,6 +202,10 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jetty-util</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jsp-api-2.1</artifactId>
 				</exclusion>
 				<exclusion>
@@ -202,8 +217,8 @@ under the License.
 					<artifactId>core</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty</artifactId>
+					<groupId>com.sun.jersey</groupId>
+					<artifactId>jersey-core</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -299,6 +314,10 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jetty-util</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jsp-api-2.1</artifactId>
 				</exclusion>
 				<exclusion>
@@ -322,8 +341,8 @@ under the License.
 					<artifactId>netty</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty</artifactId>
+					<groupId>com.sun.jersey</groupId>
+					<artifactId>jersey-core</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -419,6 +438,10 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jetty-util</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jsp-api-2.1</artifactId>
 				</exclusion>
 				<exclusion>
@@ -442,8 +465,8 @@ under the License.
 					<artifactId>netty</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty</artifactId>
+					<groupId>com.sun.jersey</groupId>
+					<artifactId>jersey-core</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -539,6 +562,10 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jetty-util</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jsp-api-2.1</artifactId>
 				</exclusion>
 				<exclusion>
@@ -562,8 +589,8 @@ under the License.
 					<artifactId>netty</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty</artifactId>
+					<groupId>com.sun.jersey</groupId>
+					<artifactId>jersey-core</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -637,19 +664,159 @@ under the License.
 		</dependency>
 	</dependencies>
 
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>org.apache.httpcomponents</groupId>
-				<artifactId>httpcore</artifactId>
-				<version>4.2.5</version>
-			</dependency>
-			
-			<dependency>
-				<groupId>org.apache.httpcomponents</groupId>
-				<artifactId>httpclient</artifactId>
-				<version>4.2.6</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
+	<profiles>
+		<profile>
+			<!-- MapR build profile -->
+			<id>mapr</id>
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-common</artifactId>
+					<version>${hadoop.version}</version>
+					<exclusions>
+						<!--
+							for MapR builds, we additionally exclude the MapR dependencies to not be
+							bundled with Flink, ensuring that the native MapR libraries will be used
+							and avoid incompatibitilies
+						-->
+						<exclusion>
+							<groupId>com.mapr.hadoop</groupId>
+							<artifactId>maprfs-core</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.mapr.hadoop</groupId>
+							<artifactId>hadoop2</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.mapr.hadoop</groupId>
+							<artifactId>maprfs</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.mapr.hadoop</groupId>
+							<artifactId>maprfs-diagnostic-tools</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.mapr.hadoop</groupId>
+							<artifactId>maprfs-jni</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.mapr.fs</groupId>
+							<artifactId>libprotodefs</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.mapr.fs</groupId>
+							<artifactId>mapr-hbase</artifactId>
+						</exclusion>
+
+						<exclusion>
+							<groupId>asm</groupId>
+							<artifactId>asm</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.ow2.asm</groupId>
+							<artifactId>asm</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>tomcat</groupId>
+							<artifactId>jasper-compiler</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>tomcat</groupId>
+							<artifactId>jasper-runtime</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.mortbay.jetty</groupId>
+							<artifactId>jetty</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.mortbay.jetty</groupId>
+							<artifactId>jsp-api-2.1</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.mortbay.jetty</groupId>
+							<artifactId>jsp-2.1</artifactId>
+						</exclusion>
+
+						<exclusion>
+							<groupId>org.eclipse.jdt</groupId>
+							<artifactId>core</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.mortbay.jetty</groupId>
+							<artifactId>jetty</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.sun.jersey</groupId>
+							<artifactId>jersey-json</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.codehaus.jettison</groupId>
+							<artifactId>jettison</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.sun.jersey</groupId>
+							<artifactId>jersey-server</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>tomcat</groupId>
+							<artifactId>jasper-compiler</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>tomcat</groupId>
+							<artifactId>jasper-runtime</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>javax.servlet.jsp</groupId>
+							<artifactId>jsp-api</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.sun.jersey.jersey-test-framework</groupId>
+							<artifactId>jersey-test-framework-grizzly2</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.sun.jersey.jersey-test-framework</groupId>
+							<artifactId>jersey-test-framework-core</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.sun.jersey</groupId>
+							<artifactId>jersey-grizzly2</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.glassfish.grizzly</groupId>
+							<artifactId>grizzly-http</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.glassfish.grizzly</groupId>
+							<artifactId>grizzly-framework</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.glassfish.grizzly</groupId>
+							<artifactId>grizzly-http-server</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.glassfish.grizzly</groupId>
+							<artifactId>grizzly-rcm</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.glassfish.grizzly</groupId>
+							<artifactId>grizzly-http-servlet</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.glassfish</groupId>
+							<artifactId>javax.servlet</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.sun.jersey.contribs</groupId>
+							<artifactId>jersey-guice</artifactId>
+						</exclusion>
+						<!--We have to exclude beanutils because it is overlapping with commons-collections-->
+						<exclusion>
+							<groupId>commons-beanutils</groupId>
+							<artifactId>commons-beanutils</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 </project>

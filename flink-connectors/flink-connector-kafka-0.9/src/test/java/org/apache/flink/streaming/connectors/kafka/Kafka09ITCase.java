@@ -19,6 +19,9 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.junit.Test;
 
+/**
+ * IT cases for Kafka 0.9 .
+ */
 public class Kafka09ITCase extends KafkaConsumerTestBase {
 
 	// ------------------------------------------------------------------------
@@ -34,7 +37,6 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 	public void testConcurrentProducerConsumerTopology() throws Exception {
 		runSimpleConcurrentProducerConsumerTopology();
 	}
-
 
 	@Test(timeout = 60000)
 	public void testKeyValueSupport() throws Exception {
@@ -57,7 +59,6 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 	public void testFailOnDeploy() throws Exception {
 		runFailOnDeployTest();
 	}
-
 
 	// --- source to partition mappings and exactly once ---
 
@@ -110,16 +111,33 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		runMetricsTest();
 	}
 
+	// --- startup mode ---
+
+	@Test(timeout = 60000)
+	public void testStartFromEarliestOffsets() throws Exception {
+		runStartFromEarliestOffsets();
+	}
+
+	@Test(timeout = 60000)
+	public void testStartFromLatestOffsets() throws Exception {
+		runStartFromLatestOffsets();
+	}
+
+	@Test(timeout = 60000)
+	public void testStartFromGroupOffsets() throws Exception {
+		runStartFromGroupOffsets();
+	}
+
+	@Test(timeout = 60000)
+	public void testStartFromSpecificOffsets() throws Exception {
+		runStartFromSpecificOffsets();
+	}
+
 	// --- offset committing ---
 
 	@Test(timeout = 60000)
 	public void testCommitOffsetsToKafka() throws Exception {
 		runCommitOffsetsToKafka();
-	}
-
-	@Test(timeout = 60000)
-	public void testStartFromKafkaCommitOffsets() throws Exception {
-		runStartFromKafkaCommitOffsets();
 	}
 
 	@Test(timeout = 60000)

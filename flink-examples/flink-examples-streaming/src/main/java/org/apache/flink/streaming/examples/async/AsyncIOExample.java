@@ -29,10 +29,11 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.util.Collector;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +46,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Example to illustrates how to use {@link AsyncFunction}
+ * Example to illustrates how to use {@link AsyncFunction}.
  */
 public class AsyncIOExample {
 
@@ -73,8 +74,9 @@ public class AsyncIOExample {
 
 		@Override
 		public void restoreState(List<Integer> state) throws Exception {
-			for (Integer i : state)
+			for (Integer i : state) {
 				this.start = i;
+			}
 		}
 
 		public SimpleSource(int maxNum) {
@@ -107,8 +109,8 @@ public class AsyncIOExample {
 	/**
 	 * An sample of {@link AsyncFunction} using a thread pool and executing working threads
 	 * to simulate multiple async operations.
-	 * <p>
-	 * For the real use case in production environment, the thread pool may stay in the
+	 *
+	 * <p>For the real use case in production environment, the thread pool may stay in the
 	 * async client.
 	 */
 	private static class SampleAsyncFunction extends RichAsyncFunction<Integer, String> {
@@ -138,7 +140,6 @@ public class AsyncIOExample {
 			this.failRatio = failRatio;
 			this.shutdownWaitTS = shutdownWaitTS;
 		}
-
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
@@ -177,7 +178,7 @@ public class AsyncIOExample {
 		}
 
 		@Override
-		public void asyncInvoke(final Integer input, final AsyncCollector<String> collector) throws Exception {
+		public void asyncInvoke(final Integer input, final ResultFuture<String> resultFuture) throws Exception {
 			this.executorService.submit(new Runnable() {
 				@Override
 				public void run() {
@@ -187,13 +188,13 @@ public class AsyncIOExample {
 						Thread.sleep(sleep);
 
 						if (random.nextFloat() < failRatio) {
-							collector.collect(new Exception("wahahahaha..."));
+							resultFuture.completeExceptionally(new Exception("wahahahaha..."));
 						} else {
-							collector.collect(
+							resultFuture.complete(
 								Collections.singletonList("key-" + (input % 10)));
 						}
 					} catch (InterruptedException e) {
-						collector.collect(new ArrayList<String>(0));
+						resultFuture.complete(new ArrayList<String>(0));
 					}
 				}
 			});

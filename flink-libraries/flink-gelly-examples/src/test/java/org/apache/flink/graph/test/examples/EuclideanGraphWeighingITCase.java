@@ -18,12 +18,12 @@
 
 package org.apache.flink.graph.test.examples;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 import org.apache.flink.graph.examples.EuclideanGraphWeighing;
 import org.apache.flink.graph.examples.data.EuclideanGraphData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.util.FileUtils;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -34,6 +34,9 @@ import org.junit.runners.Parameterized;
 
 import java.io.File;
 
+/**
+ * Tests for {@link EuclideanGraphWeighing}.
+ */
 @RunWith(Parameterized.class)
 public class EuclideanGraphWeighingITCase extends MultipleProgramsTestBase {
 
@@ -56,10 +59,10 @@ public class EuclideanGraphWeighingITCase extends MultipleProgramsTestBase {
 	public void before() throws Exception {
 		resultPath = tempFolder.newFile().toURI().toString();
 		File verticesFile = tempFolder.newFile();
-		Files.write(EuclideanGraphData.VERTICES, verticesFile, Charsets.UTF_8);
+		FileUtils.writeFileUtf8(verticesFile, EuclideanGraphData.VERTICES);
 
 		File edgesFile = tempFolder.newFile();
-		Files.write(EuclideanGraphData.EDGES, edgesFile, Charsets.UTF_8);
+		FileUtils.writeFileUtf8(edgesFile, EuclideanGraphData.EDGES);
 
 		verticesPath = verticesFile.toURI().toString();
 		edgesPath = edgesFile.toURI().toString();

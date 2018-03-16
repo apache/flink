@@ -18,8 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import com.google.common.collect.Lists;
-
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -30,6 +29,9 @@ import org.apache.flink.runtime.jobmanager.SlotCountExceedingParallelismTest;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.types.IntValue;
+import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -39,11 +41,11 @@ import java.util.List;
 
 import static org.apache.flink.runtime.jobmanager.SlotCountExceedingParallelismTest.SubtaskIndexReceiver.CONFIG_KEY;
 
-public class ScheduleOrUpdateConsumersTest {
+public class ScheduleOrUpdateConsumersTest extends TestLogger {
 
-	private final static int NUMBER_OF_TMS = 2;
-	private final static int NUMBER_OF_SLOTS_PER_TM = 2;
-	private final static int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
+	private static final int NUMBER_OF_TMS = 2;
+	private static final int NUMBER_OF_SLOTS_PER_TM = 2;
+	private static final int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
 
 	private static TestingCluster flink;
 
@@ -123,7 +125,11 @@ public class ScheduleOrUpdateConsumersTest {
 
 	public static class BinaryRoundRobinSubtaskIndexSender extends AbstractInvokable {
 
-		public final static String CONFIG_KEY = "number-of-times-to-send";
+		public static final String CONFIG_KEY = "number-of-times-to-send";
+
+		public BinaryRoundRobinSubtaskIndexSender(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {
@@ -151,7 +157,7 @@ public class ScheduleOrUpdateConsumersTest {
 					for (int i = 0; i < numberOfTimesToSend; i++) {
 						writer.emit(subtaskIndex);
 					}
-					writer.flush();
+					writer.flushAll();
 				}
 				finally {
 					writer.clearBuffers();

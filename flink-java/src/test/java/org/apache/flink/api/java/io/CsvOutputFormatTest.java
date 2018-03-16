@@ -37,13 +37,16 @@ import java.util.List;
 
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link CsvOutputFormat}.
+ */
 public class CsvOutputFormatTest {
 
 	private String path = null;
 
 	@Before
 	public void createFile() throws Exception {
-		path = File.createTempFile("csv_output_test_file",".csv").getAbsolutePath();
+		path = File.createTempFile("csv_output_test_file", ".csv").getAbsolutePath();
 	}
 
 	@Test
@@ -80,7 +83,7 @@ public class CsvOutputFormatTest {
 			} catch (RuntimeException e) {
 				// expected
 			}
-			
+
 		}
 		finally {
 			csvOutputFormat.close();

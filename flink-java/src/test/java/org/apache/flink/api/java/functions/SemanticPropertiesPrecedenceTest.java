@@ -29,6 +29,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;
@@ -36,7 +37,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests the precedence of semantic properties: annotation > API > static code analyzer
+ * Tests the precedence of semantic properties: annotation > API > static code analyzer.
  */
 public class SemanticPropertiesPrecedenceTest {
 
@@ -46,7 +47,7 @@ public class SemanticPropertiesPrecedenceTest {
 		env.getConfig().setCodeAnalysisMode(CodeAnalysisMode.OPTIMIZE);
 
 		@SuppressWarnings("unchecked")
-		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3l, "test", 42));
+		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3L, "test", 42));
 		input
 				.map(new WildcardForwardedMapperWithForwardAnnotation<Tuple3<Long, String, Integer>>())
 				.output(new DiscardingOutputFormat<Tuple3<Long, String, Integer>>());
@@ -74,7 +75,7 @@ public class SemanticPropertiesPrecedenceTest {
 		env.getConfig().setCodeAnalysisMode(CodeAnalysisMode.OPTIMIZE);
 
 		@SuppressWarnings("unchecked")
-		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3l, "test", 42));
+		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3L, "test", 42));
 		input
 				.map(new WildcardForwardedMapperWithSkipAnnotation<Tuple3<Long, String, Integer>>())
 				.output(new DiscardingOutputFormat<Tuple3<Long, String, Integer>>());
@@ -102,7 +103,7 @@ public class SemanticPropertiesPrecedenceTest {
 		env.getConfig().setCodeAnalysisMode(CodeAnalysisMode.OPTIMIZE);
 
 		@SuppressWarnings("unchecked")
-		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3l, "test", 42));
+		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3L, "test", 42));
 		input
 				.map(new WildcardForwardedMapper<Tuple3<Long, String, Integer>>())
 				.withForwardedFields("f0")
@@ -131,7 +132,7 @@ public class SemanticPropertiesPrecedenceTest {
 		env.getConfig().setCodeAnalysisMode(CodeAnalysisMode.OPTIMIZE);
 
 		@SuppressWarnings("unchecked")
-		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3l, "test", 42));
+		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3L, "test", 42));
 		input
 				.map(new WildcardForwardedMapper<Tuple3<Long, String, Integer>>())
 				.output(new DiscardingOutputFormat<Tuple3<Long, String, Integer>>());
@@ -156,7 +157,7 @@ public class SemanticPropertiesPrecedenceTest {
 	// --------------------------------------------------------------------------------------------
 
 	@FunctionAnnotation.ForwardedFields("f0")
-	public static class WildcardForwardedMapperWithForwardAnnotation<T> implements MapFunction<T, T> {
+	private static class WildcardForwardedMapperWithForwardAnnotation<T> implements MapFunction<T, T> {
 
 		@Override
 		public T map(T value)  {
@@ -165,7 +166,7 @@ public class SemanticPropertiesPrecedenceTest {
 	}
 
 	@FunctionAnnotation.SkipCodeAnalysis
-	public static class WildcardForwardedMapperWithSkipAnnotation<T> implements MapFunction<T, T> {
+	private static class WildcardForwardedMapperWithSkipAnnotation<T> implements MapFunction<T, T> {
 
 		@Override
 		public T map(T value)  {
@@ -173,7 +174,7 @@ public class SemanticPropertiesPrecedenceTest {
 		}
 	}
 
-	public static class WildcardForwardedMapper<T> implements MapFunction<T, T> {
+	private static class WildcardForwardedMapper<T> implements MapFunction<T, T> {
 
 		@Override
 		public T map(T value)  {

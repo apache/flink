@@ -21,20 +21,23 @@ package org.apache.flink.metrics.statsd;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
-import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.metrics.util.TestMeter;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -52,6 +55,9 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the StatsDReporter.
+ */
 public class StatsDReporterTest extends TestLogger {
 
 	@Test
@@ -67,7 +73,7 @@ public class StatsDReporterTest extends TestLogger {
 	 * Tests that the registered metrics' names don't contain invalid characters.
 	 */
 	@Test
-	public void testAddingMetrics() throws NoSuchFieldException, IllegalAccessException {
+	public void testAddingMetrics() throws Exception {
 		Configuration configuration = new Configuration();
 		String taskName = "testTask";
 		String jobName = "testJob:-!ax..?";
@@ -75,21 +81,20 @@ public class StatsDReporterTest extends TestLogger {
 		String taskManagerId = "tas:kMana::ger";
 		String counterName = "testCounter";
 
-		configuration.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
 		configuration.setString(
 				ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
 				"org.apache.flink.metrics.statsd.StatsDReporterTest$TestingStatsDReporter");
 
-		configuration.setString(ConfigConstants.METRICS_SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
-		configuration.setString(ConfigConstants.METRICS_SCOPE_DELIMITER, "_");
+		configuration.setString(MetricOptions.SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
+		configuration.setString(MetricOptions.SCOPE_DELIMITER, "_");
 
-		MetricRegistry metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(configuration));
+		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
 
 		char delimiter = metricRegistry.getDelimiter();
 
 		TaskManagerMetricGroup tmMetricGroup = new TaskManagerMetricGroup(metricRegistry, hostname, taskManagerId);
 		TaskManagerJobMetricGroup tmJobMetricGroup = new TaskManagerJobMetricGroup(metricRegistry, tmMetricGroup, new JobID(), jobName);
-		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(metricRegistry, tmJobMetricGroup, new AbstractID(), new AbstractID(), taskName, 0, 0);
+		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(metricRegistry, tmJobMetricGroup, new JobVertexID(), new AbstractID(), taskName, 0, 0);
 
 		SimpleCounter myCounter = new SimpleCounter();
 
@@ -119,15 +124,15 @@ public class StatsDReporterTest extends TestLogger {
 
 		assertEquals(expectedCounterName, counters.get(myCounter));
 
-		metricRegistry.shutdown();
+		metricRegistry.shutdown().get();
 	}
 
 	/**
-	 * Tests that histograms are properly reported via the StatsD reporter
+	 * Tests that histograms are properly reported via the StatsD reporter.
 	 */
 	@Test
 	public void testStatsDHistogramReporting() throws Exception {
-		MetricRegistry registry = null;
+		MetricRegistryImpl registry = null;
 		DatagramSocketReceiver receiver = null;
 		Thread receiverThread = null;
 		long timeout = 5000;
@@ -145,13 +150,12 @@ public class StatsDReporterTest extends TestLogger {
 			int port = receiver.getPort();
 
 			Configuration config = new Configuration();
-			config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, StatsDReporter.class.getName());
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
 
-			registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+			registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
 
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 
@@ -183,7 +187,7 @@ public class StatsDReporterTest extends TestLogger {
 
 		} finally {
 			if (registry != null) {
-				registry.shutdown();
+				registry.shutdown().get();
 			}
 
 			if (receiver != null) {
@@ -197,11 +201,11 @@ public class StatsDReporterTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that meters are properly reported via the StatsD reporter
+	 * Tests that meters are properly reported via the StatsD reporter.
 	 */
 	@Test
 	public void testStatsDMetersReporting() throws Exception {
-		MetricRegistry registry = null;
+		MetricRegistryImpl registry = null;
 		DatagramSocketReceiver receiver = null;
 		Thread receiverThread = null;
 		long timeout = 5000;
@@ -219,13 +223,12 @@ public class StatsDReporterTest extends TestLogger {
 			int port = receiver.getPort();
 
 			Configuration config = new Configuration();
-			config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, StatsDReporter.class.getName());
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
 
-			registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+			registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 			TestMeter meter = new TestMeter();
 			metricGroup.meter(meterName, meter);
@@ -240,12 +243,11 @@ public class StatsDReporterTest extends TestLogger {
 
 			Set<String> lines = receiver.getLines();
 
-
 			assertEquals(expectedLines, lines);
 
 		} finally {
 			if (registry != null) {
-				registry.shutdown();
+				registry.shutdown().get();
 			}
 
 			if (receiver != null) {
@@ -259,7 +261,7 @@ public class StatsDReporterTest extends TestLogger {
 	}
 
 	/**
-	 * Testing StatsDReporter which disables the socket creation
+	 * Testing StatsDReporter which disables the socket creation.
 	 */
 	public static class TestingStatsDReporter extends StatsDReporter {
 		@Override
@@ -272,7 +274,7 @@ public class StatsDReporterTest extends TestLogger {
 		}
 	}
 
-	public static class TestingHistogram implements Histogram {
+	private static class TestingHistogram implements Histogram {
 
 		@Override
 		public void update(long value) {
@@ -325,7 +327,7 @@ public class StatsDReporterTest extends TestLogger {
 		}
 	}
 
-	public static class DatagramSocketReceiver implements Runnable {
+	private static class DatagramSocketReceiver implements Runnable {
 		private static final Object obj = new Object();
 
 		private final DatagramSocket socket;
@@ -382,7 +384,7 @@ public class StatsDReporterTest extends TestLogger {
 
 					socket.receive(packet);
 
-					String line = new String(packet.getData(), 0, packet.getLength());
+					String line = new String(packet.getData(), 0, packet.getLength(), ConfigConstants.DEFAULT_CHARSET);
 
 					lines.put(line, obj);
 

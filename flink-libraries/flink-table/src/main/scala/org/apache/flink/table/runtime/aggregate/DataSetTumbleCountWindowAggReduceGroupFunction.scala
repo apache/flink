@@ -21,69 +21,66 @@ import java.lang.Iterable
 
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
-import org.apache.flink.util.{Collector, Preconditions}
+import org.apache.flink.util.Collector
 
 /**
   * It wraps the aggregate logic inside of
   * [[org.apache.flink.api.java.operators.GroupReduceOperator]].
   * It is only used for tumbling count-window on batch.
   *
-  * @param windowSize Tumble count window size
-  * @param aggregates The aggregate functions.
-  * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row
-  *                         and output Row.
-  * @param aggregateMapping The index mapping between aggregate function list and aggregated value
-  *                         index in output Row.
-  * @param intermediateRowArity The intermediate row field count
-  * @param finalRowArity The output row field count
+  * @param genAggregations  Code-generated [[GeneratedAggregations]]
+  * @param windowSize       Tumble count window size
   */
 class DataSetTumbleCountWindowAggReduceGroupFunction(
-    private val windowSize: Long,
-    private val aggregates: Array[Aggregate[_ <: Any]],
-    private val groupKeysMapping: Array[(Int, Int)],
-    private val aggregateMapping: Array[(Int, Int)],
-    private val intermediateRowArity: Int,
-    private val finalRowArity: Int)
-  extends RichGroupReduceFunction[Row, Row] {
+    private val genAggregations: GeneratedAggregationsFunction,
+    private val windowSize: Long)
+  extends RichGroupReduceFunction[Row, Row]
+    with Compiler[GeneratedAggregations]
+    with Logging {
 
-  private var aggregateBuffer: Row = _
   private var output: Row = _
+  private var accumulators: Row = _
+
+  private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
-    Preconditions.checkNotNull(aggregates)
-    Preconditions.checkNotNull(groupKeysMapping)
-    aggregateBuffer = new Row(intermediateRowArity)
-    output = new Row(finalRowArity)
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getRuntimeContext.getUserCodeClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
+
+    output = function.createOutputRow()
+    accumulators = function.createAccumulators()
   }
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
     var count: Long = 0
-
     val iterator = records.iterator()
 
     while (iterator.hasNext) {
-      val record = iterator.next()
-      if (count == 0) {
-        // initiate intermediate aggregate value.
-        aggregates.foreach(_.initiate(aggregateBuffer))
-      }
-      // merge intermediate aggregate value to buffer.
-      aggregates.foreach(_.merge(record, aggregateBuffer))
 
+      if (count == 0) {
+        function.resetAccumulator(accumulators)
+      }
+
+      val record = iterator.next()
       count += 1
+
+      accumulators = function.mergeAccumulatorsPair(accumulators, record)
+
       if (windowSize == count) {
         // set group keys value to final output.
-        groupKeysMapping.foreach {
-          case (after, previous) =>
-            output.setField(after, record.getField(previous))
-        }
-        // evaluate final aggregate value and set to output.
-        aggregateMapping.foreach {
-          case (after, previous) =>
-            output.setField(after, aggregates(previous).evaluate(aggregateBuffer))
-        }
+        function.setForwardedFields(record, output)
+
+        function.setAggregationResults(accumulators, output)
         // emit the output
         out.collect(output)
         count = 0

@@ -21,11 +21,13 @@ package org.apache.flink.runtime.io.network;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 
-import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Wrapper class to get a mocked {@link NetworkEnvironment}.
+ */
 public class MockNetworkEnvironment {
 
 	private static NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
@@ -36,7 +38,7 @@ public class MockNetworkEnvironment {
 
 	static {
 		try {
-			when(networkBufferPool.createBufferPool(anyInt(), anyBoolean())).thenReturn(mock(BufferPool.class));
+			when(networkBufferPool.createBufferPool(anyInt(), anyInt())).thenReturn(mock(BufferPool.class));
 			when(networkEnvironment.getNetworkBufferPool()).thenReturn(networkBufferPool);
 
 			when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);

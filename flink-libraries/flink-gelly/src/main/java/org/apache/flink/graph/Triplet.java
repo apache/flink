@@ -35,7 +35,7 @@ public class Triplet <K, VV, EV> extends Tuple5<K, K, VV, VV, EV> {
 	public Triplet() {}
 
 	/**
-	 * Constructs a Triplet from a given source vertex, target vertex and edge
+	 * Constructs a Triplet from a given source vertex, target vertex, and edge.
 	 *
 	 * @param srcVertex
 	 * @param trgVertex

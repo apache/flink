@@ -19,9 +19,9 @@
 package org.apache.flink.streaming.api.operators.async.queue;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.streaming.api.operators.async.OperatorActions;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,22 +47,22 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 
 	private static final Logger LOG = LoggerFactory.getLogger(UnorderedStreamElementQueue.class);
 
-	/** Capacity of this queue */
+	/** Capacity of this queue. */
 	private final int capacity;
 
-	/** Executor to run the onComplete callbacks */
+	/** Executor to run the onComplete callbacks. */
 	private final Executor executor;
 
-	/** OperatorActions to signal the owning operator a failure */
+	/** OperatorActions to signal the owning operator a failure. */
 	private final OperatorActions operatorActions;
 
-	/** Queue of uncompleted stream element queue entries segmented by watermarks */
+	/** Queue of uncompleted stream element queue entries segmented by watermarks. */
 	private final ArrayDeque<Set<StreamElementQueueEntry<?>>> uncompletedQueue;
 
-	/** Queue of completed stream element queue entries */
+	/** Queue of completed stream element queue entries. */
 	private final ArrayDeque<StreamElementQueueEntry<?>> completedQueue;
 
-	/** First (chronologically oldest) uncompleted set of stream element queue entries */
+	/** First (chronologically oldest) uncompleted set of stream element queue entries. */
 	private Set<StreamElementQueueEntry<?>> firstSet;
 
 	// Last (chronologically youngest) uncompleted set of stream element queue entries. New
@@ -70,7 +70,7 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 	private Set<StreamElementQueueEntry<?>> lastSet;
 	private volatile int numberEntries;
 
-	/** Locks and conditions for the blocking queue */
+	/** Locks and conditions for the blocking queue. */
 	private final ReentrantLock lock;
 	private final Condition notFull;
 	private final Condition hasCompletedEntries;
@@ -123,12 +123,12 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 			if (numberEntries < capacity) {
 				addEntry(streamElementQueueEntry);
 
-				LOG.debug("Put element into ordered stream element queue. New filling degree " +
+				LOG.debug("Put element into unordered stream element queue. New filling degree " +
 					"({}/{}).", numberEntries, capacity);
 
 				return true;
 			} else {
-				LOG.debug("Failed to put element into ordered stream element queue because it " +
+				LOG.debug("Failed to put element into unordered stream element queue because it " +
 					"was full ({}/{}).", numberEntries, capacity);
 
 				return false;
@@ -147,7 +147,7 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 				hasCompletedEntries.await();
 			}
 
-			LOG.debug("Peeked head element from ordered stream element queue with filling degree " +
+			LOG.debug("Peeked head element from unordered stream element queue with filling degree " +
 				"({}/{}).", numberEntries, capacity);
 
 			return completedQueue.peek();
@@ -219,7 +219,7 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 
 	/**
 	 * Callback for onComplete events for the given stream element queue entry. Whenever a queue
-	 * entry is completed, it is checked whether this entry belogns to the first set. If this is the
+	 * entry is completed, it is checked whether this entry belongs to the first set. If this is the
 	 * case, then the element is added to the completed entries queue from where it can be consumed.
 	 * If the first set becomes empty, then the next set is polled from the uncompleted entries
 	 * queue. Completed entries from this new set are then added to the completed entries queue.
@@ -284,9 +284,8 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 			lastSet.add(streamElementQueueEntry);
 		}
 
-		streamElementQueueEntry.onComplete(new AcceptFunction<StreamElementQueueEntry<T>>() {
-			@Override
-			public void accept(StreamElementQueueEntry<T> value) {
+		streamElementQueueEntry.onComplete(
+			(StreamElementQueueEntry<T> value) -> {
 				try {
 					onCompleteHandler(value);
 				} catch (InterruptedException e) {
@@ -298,8 +297,8 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 					operatorActions.failOperator(new Exception("Could not complete the " +
 						"stream element queue entry: " + value + '.', t));
 				}
-			}
-		}, executor);
+			},
+			executor);
 
 		numberEntries++;
 	}

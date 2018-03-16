@@ -61,7 +61,7 @@ data.map {
 {% endhighlight %}
 
 This extension introduces new methods in both the DataSet and DataStream Scala API
-that have a one-to-one correspondance in the extended API. These delegating methods
+that have a one-to-one correspondence in the extended API. These delegating methods
 do support anonymous pattern matching functions.
 
 #### DataSet API
@@ -316,7 +316,7 @@ data.keyingBy(
     </tr>
     <tr>
       <td><strong>reduceWith</strong></td>
-      <td><strong>reduce (KeyedDataStream, WindowedDataStream)</strong></td>
+      <td><strong>reduce (KeyedStream, WindowedStream)</strong></td>
       <td>
 {% highlight scala %}
 data.reduceWith {
@@ -327,7 +327,7 @@ data.reduceWith {
     </tr>
     <tr>
       <td><strong>foldWith</strong></td>
-      <td><strong>fold (KeyedDataStream, WindowedDataStream)</strong></td>
+      <td><strong>fold (KeyedStream, WindowedStream)</strong></td>
       <td>
 {% highlight scala %}
 data.foldWith(User(bought = 0)) {
@@ -338,7 +338,7 @@ data.foldWith(User(bought = 0)) {
     </tr>
     <tr>
       <td><strong>applyWith</strong></td>
-      <td><strong>apply (WindowedDataStream)</strong></td>
+      <td><strong>apply (WindowedStream)</strong></td>
       <td>
 {% highlight scala %}
 data.applyWith(0)(
@@ -350,7 +350,7 @@ data.applyWith(0)(
     </tr>
     <tr>
       <td><strong>projecting</strong></td>
-      <td><strong>apply (JoinedDataStream)</strong></td>
+      <td><strong>apply (JoinedStream)</strong></td>
       <td>
 {% highlight scala %}
 data1.join(data2).
@@ -406,3 +406,5 @@ object Main {
   }
 }
 {% endhighlight %}
+
+{% top %}

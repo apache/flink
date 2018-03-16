@@ -24,12 +24,16 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.examples.data.LabelPropagationData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+/**
+ * Tests for {@link LabelPropagation}.
+ */
 @RunWith(Parameterized.class)
 public class LabelPropagationITCase extends MultipleProgramsTestBase {
 
@@ -51,7 +55,7 @@ public class LabelPropagationITCase extends MultipleProgramsTestBase {
 			LabelPropagationData.getDefaultEdgeDataSet(env), env);
 
 		List<Vertex<Long, Long>> result = inputGraph
-			.run(new LabelPropagation<Long, Long, NullValue>(1))
+			.run(new LabelPropagation<>(1))
 			.collect();
 
 		expectedResult = LabelPropagationData.LABELS_AFTER_1_ITERATION;
@@ -70,7 +74,7 @@ public class LabelPropagationITCase extends MultipleProgramsTestBase {
 			LabelPropagationData.getTieEdgeDataSet(env), env);
 
 		List<Vertex<Long, Long>> result = inputGraph
-			.run(new LabelPropagation<Long, Long, NullValue>(1))
+			.run(new LabelPropagation<>(1))
 			.collect();
 
 		expectedResult = LabelPropagationData.LABELS_WITH_TIE;

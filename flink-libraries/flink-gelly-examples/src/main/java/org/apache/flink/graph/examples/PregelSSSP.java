@@ -33,18 +33,18 @@ import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
  * This example shows how to use Gelly's Vertex-Centric iterations.
- * 
- * It is an implementation of the Single-Source-Shortest-Paths algorithm.
- * For a scatter-gather implementation of the same algorithm, please refer to {@link SingleSourceShortestPaths}
- * and for a gather-sum-apply implementation see {@link GSASingleSourceShortestPaths}.  
  *
- * The input file is a plain text file and must be formatted as follows:
+ * <p>It is an implementation of the Single-Source-Shortest-Paths algorithm.
+ * For a scatter-gather implementation of the same algorithm, please refer to {@link SingleSourceShortestPaths}
+ * and for a gather-sum-apply implementation see {@link GSASingleSourceShortestPaths}.
+ *
+ * <p>The input file is a plain text file and must be formatted as follows:
  * Edges are represented by tuples of srcVertexId, trgVertexId, distance which are
  * separated by tabs. Edges themselves are separated by newlines.
  * For example: <code>1\t2\t0.1\n1\t3\t1.4\n</code> defines two edges,
  * edge 1-2 with distance 0.1, and edge 1-3 with distance 1.4.
  *
- * If no parameters are provided, the program is run with default data from
+ * <p>If no parameters are provided, the program is run with default data from
  * {@link org.apache.flink.graph.examples.data.SingleSourceShortestPathsData}
  */
 public class PregelSSSP implements ProgramDescription {
@@ -63,7 +63,7 @@ public class PregelSSSP implements ProgramDescription {
 
 		// Execute the vertex-centric iteration
 		Graph<Long, Double, Double> result = graph.runVertexCentricIteration(
-				new SSSPComputeFunction(srcVertexId), new SSSPCombiner(), 
+				new SSSPComputeFunction(srcVertexId), new SSSPCombiner(),
 				maxIterations);
 
 		// Extract the vertices as the result
@@ -86,11 +86,13 @@ public class PregelSSSP implements ProgramDescription {
 	@SuppressWarnings("serial")
 	private static final class InitVertices implements MapFunction<Long, Double> {
 
-		public Double map(Long id) { return Double.POSITIVE_INFINITY; }
+		public Double map(Long id) {
+			return Double.POSITIVE_INFINITY;
+		}
 	}
 
 	/**
-	 * The compute function for SSSP
+	 * The compute function for SSSP.
 	 */
 	@SuppressWarnings("serial")
 	public static final class SSSPComputeFunction extends ComputeFunction<Long, Double, Double, Double> {
@@ -141,7 +143,7 @@ public class PregelSSSP implements ProgramDescription {
 
 	private static boolean fileOutput = false;
 
-	private static Long srcVertexId = 1l;
+	private static Long srcVertexId = 1L;
 
 	private static String edgesInputPath = null;
 
@@ -151,8 +153,8 @@ public class PregelSSSP implements ProgramDescription {
 
 	private static boolean parseParameters(String[] args) {
 
-		if(args.length > 0) {
-			if(args.length != 4) {
+		if (args.length > 0) {
+			if (args.length != 4) {
 				System.err.println("Usage: PregelSSSP <source vertex id>" +
 						" <input edges path> <output path> <num iterations>");
 				return false;
@@ -181,7 +183,7 @@ public class PregelSSSP implements ProgramDescription {
 					.fieldDelimiter("\t")
 					.ignoreComments("%")
 					.types(Long.class, Long.class, Double.class)
-					.map(new Tuple3ToEdgeMap<Long, Double>());
+					.map(new Tuple3ToEdgeMap<>());
 		} else {
 			return SingleSourceShortestPathsData.getDefaultEdgeDataSet(env);
 		}

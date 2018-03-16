@@ -28,31 +28,28 @@ import org.apache.flink.util.Collector;
 
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram
- * over text files. 
- * 
- * <p>
- * The input is a plain text file with lines separated by newline characters.
- * 
- * <p>
- * Usage: <code>WordCount --input &lt;path&gt; --output &lt;path&gt;</code><br>
+ * over text files.
+ *
+ * <p>The input is a plain text file with lines separated by newline characters.
+ *
+ * <p>Usage: <code>WordCount --input &lt;path&gt; --output &lt;path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData}.
- * 
- * <p>
- * This example shows how to:
+ *
+ * <p>This example shows how to:
  * <ul>
  * <li>write a simple Flink program.
  * <li>use Tuple data types.
- * <li>write and use user-defined functions. 
+ * <li>write and use user-defined functions.
  * </ul>
- * 
+ *
  */
 @SuppressWarnings("serial")
 public class WordCount {
-	
+
 	// *************************************************************************
 	//     PROGRAM
 	// *************************************************************************
-	
+
 	public static void main(String[] args) throws Exception {
 
 		final ParameterTool params = ParameterTool.fromArgs(args);
@@ -75,7 +72,7 @@ public class WordCount {
 			text = WordCountData.getDefaultTextLineDataSet(env);
 		}
 
-		DataSet<Tuple2<String, Integer>> counts = 
+		DataSet<Tuple2<String, Integer>> counts =
 				// split up the lines in pairs (2-tuples) containing: (word,1)
 				text.flatMap(new Tokenizer())
 				// group by the tuple field "0" and sum up tuple field "1"
@@ -97,10 +94,10 @@ public class WordCount {
 	// *************************************************************************
 	//     USER FUNCTIONS
 	// *************************************************************************
-	
+
 	/**
 	 * Implements the string tokenizer that splits sentences into words as a user-defined
-	 * FlatMapFunction. The function takes a line (String) and splits it into 
+	 * FlatMapFunction. The function takes a line (String) and splits it into
 	 * multiple pairs in the form of "(word,1)" ({@code Tuple2<String, Integer>}).
 	 */
 	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
@@ -109,7 +106,7 @@ public class WordCount {
 		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
 			// normalize and split the line
 			String[] tokens = value.toLowerCase().split("\\W+");
-			
+
 			// emit the pairs
 			for (String token : tokens) {
 				if (token.length() > 0) {

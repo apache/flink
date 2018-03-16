@@ -29,12 +29,16 @@ import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.graph.test.TestGraphUtils.DummyCustomParameterizedType;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+/**
+ * Tests for {@link Graph#joinWithVertices}.
+ */
 @RunWith(Parameterized.class)
 public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
 
@@ -56,7 +60,7 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
 			TestGraphUtils.getLongLongEdgeData(env), env);
 
 		Graph<Long, Long, Long> res = graph.joinWithVertices(graph.getVertices()
-			.map(new VertexToTuple2Map<Long, Long>()), new AddValuesMapper());
+			.map(new VertexToTuple2Map<>()), new AddValuesMapper());
 
 		DataSet<Vertex<Long, Long>> data = res.getVertices();
 		List<Vertex<Long, Long>> result = data.collect();
@@ -82,7 +86,7 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
 			TestGraphUtils.getLongLongEdgeData(env), env);
 
 		Graph<Long, Long, Long> res = graph.joinWithVertices(graph.getVertices().first(3)
-			.map(new VertexToTuple2Map<Long, Long>()), new AddValuesMapper());
+			.map(new VertexToTuple2Map<>()), new AddValuesMapper());
 
 		DataSet<Vertex<Long, Long>> data = res.getVertices();
 		List<Vertex<Long, Long>> result = data.collect();

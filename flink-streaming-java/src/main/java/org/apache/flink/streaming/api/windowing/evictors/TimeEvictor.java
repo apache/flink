@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.windowing.evictors;
 
 import org.apache.flink.annotation.PublicEvolving;
@@ -49,18 +50,17 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 		this.doEvictAfter = doEvictAfter;
 	}
 
-
 	@Override
 	public void evictBefore(Iterable<TimestampedValue<Object>> elements, int size, W window, EvictorContext ctx) {
-		if(!doEvictAfter) {
-			evict(elements,size,ctx);
+		if (!doEvictAfter) {
+			evict(elements, size, ctx);
 		}
 	}
 
 	@Override
 	public void evictAfter(Iterable<TimestampedValue<Object>> elements, int size, W window, EvictorContext ctx) {
-		if(doEvictAfter) {
-			evict(elements,size,ctx);
+		if (doEvictAfter) {
+			evict(elements, size, ctx);
 		}
 	}
 
@@ -132,6 +132,6 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 	 * @param doEvictAfter Whether eviction is done after window function.
      */
 	public static <W extends Window> TimeEvictor<W> of(Time windowSize, boolean doEvictAfter) {
-		return new TimeEvictor<>(windowSize.toMilliseconds(),doEvictAfter);
+		return new TimeEvictor<>(windowSize.toMilliseconds(), doEvictAfter);
 	}
 }

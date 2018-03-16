@@ -1,7 +1,7 @@
 ---
 title: "Best Practices"
 layout: redirect
-redirect: /monitoring/best_practices.html
+redirect: /dev/best_practices.html
 permalink: /apis/best_practices.html
 ---
 <!--

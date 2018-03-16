@@ -31,6 +31,6 @@ public interface FiniteSpout extends IRichSpout {
 	 *
 	 * @return true, if the spout's stream reached its end, false otherwise
 	 */
-	public boolean reachedEnd();
+	boolean reachedEnd();
 
 }

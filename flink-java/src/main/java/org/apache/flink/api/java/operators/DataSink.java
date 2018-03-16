@@ -29,27 +29,36 @@ import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
 
+/**
+ * An operation that allows storing data results.
+ * @param <T>
+ */
 @Public
 public class DataSink<T> {
-	
+
 	private final OutputFormat<T> format;
-	
+
 	private final TypeInformation<T> type;
-	
+
 	private final DataSet<T> data;
-	
+
 	private String name;
-	
+
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+
+	private ResourceSpec minResources = ResourceSpec.DEFAULT;
+
+	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
 
 	private Configuration parameters;
 
@@ -67,13 +76,11 @@ public class DataSink<T> {
 		if (data == null) {
 			throw new IllegalArgumentException("The data set must not be null.");
 		}
-		
-		
+
 		this.format = format;
 		this.data = data;
 		this.type = type;
 	}
-
 
 	@Internal
 	public OutputFormat<T> getFormat() {
@@ -91,7 +98,7 @@ public class DataSink<T> {
 	}
 
 	/**
-	 * Pass a configuration to the OutputFormat
+	 * Pass a configuration to the OutputFormat.
 	 * @param parameters Configuration parameters
 	 */
 	public DataSink<T> withParameters(Configuration parameters) {
@@ -101,9 +108,11 @@ public class DataSink<T> {
 
 	/**
 	 * Sorts each local partition of a {@link org.apache.flink.api.java.tuple.Tuple} data set
-	 * on the specified field in the specified {@link Order} before it is emitted by the output format.<br>
-	 * <b>Note: Only tuple data sets can be sorted using integer field indices.</b><br>
-	 * The tuple data set can be sorted on multiple fields in different orders
+	 * on the specified field in the specified {@link Order} before it is emitted by the output format.
+	 *
+	 * <p><b>Note: Only tuple data sets can be sorted using integer field indices.</b>
+	 *
+	 * <p>The tuple data set can be sorted on multiple fields in different orders
 	 * by chaining {@link #sortLocalOutput(int, Order)} calls.
 	 *
 	 * @param field The Tuple field on which the data set is locally sorted.
@@ -112,6 +121,8 @@ public class DataSink<T> {
 	 *
 	 * @see org.apache.flink.api.java.tuple.Tuple
 	 * @see Order
+	 *
+	 * @deprecated Use {@link DataSet#sortPartition(int, Order)} instead
 	 */
 	@Deprecated
 	@PublicEvolving
@@ -125,7 +136,7 @@ public class DataSink<T> {
 			throw new InvalidProgramException("Selected sort key is not a sortable type");
 		}
 
-		if(this.sortKeyPositions == null) {
+		if (this.sortKeyPositions == null) {
 			// set sorting info
 			this.sortKeyPositions = flatKeys;
 			this.sortOrders = new Order[flatKeys.length];
@@ -137,9 +148,9 @@ public class DataSink<T> {
 			this.sortKeyPositions = Arrays.copyOf(this.sortKeyPositions, newLength);
 			this.sortOrders = Arrays.copyOf(this.sortOrders, newLength);
 
-			for(int i=0; i<flatKeys.length; i++) {
-				this.sortKeyPositions[oldLength+i] = flatKeys[i];
-				this.sortOrders[oldLength+i] = order;
+			for (int i = 0; i < flatKeys.length; i++) {
+				this.sortKeyPositions[oldLength + i] = flatKeys[i];
+				this.sortOrders[oldLength + i] = order;
 			}
 		}
 
@@ -148,10 +159,12 @@ public class DataSink<T> {
 
 	/**
 	 * Sorts each local partition of a data set on the field(s) specified by the field expression
-	 * in the specified {@link Order} before it is emitted by the output format.<br>
-	 * <b>Note: Non-composite types can only be sorted on the full element which is specified by
-	 * a wildcard expression ("*" or "_").</b><br>
-	 * Data sets of composite types (Tuple or Pojo) can be sorted on multiple fields in different orders
+	 * in the specified {@link Order} before it is emitted by the output format.
+	 *
+	 * <p><b>Note: Non-composite types can only be sorted on the full element which is specified by
+	 * a wildcard expression ("*" or "_").</b>
+	 *
+	 * <p>Data sets of composite types (Tuple or Pojo) can be sorted on multiple fields in different orders
 	 * by chaining {@link #sortLocalOutput(String, Order)} calls.
 	 *
 	 * @param fieldExpression The field expression for the field(s) on which the data set is locally sorted.
@@ -159,6 +172,8 @@ public class DataSink<T> {
 	 * @return This data sink operator with specified output order.
 	 *
 	 * @see Order
+	 *
+	 * @deprecated Use {@link DataSet#sortPartition(String, Order)} instead
 	 */
 	@Deprecated
 	@PublicEvolving
@@ -180,7 +195,7 @@ public class DataSink<T> {
 		orders = new Order[numFields];
 		Arrays.fill(orders, order);
 
-		if(this.sortKeyPositions == null) {
+		if (this.sortKeyPositions == null) {
 			// set sorting info
 			this.sortKeyPositions = fields;
 			this.sortOrders = orders;
@@ -190,9 +205,9 @@ public class DataSink<T> {
 			int newLength = oldLength + numFields;
 			this.sortKeyPositions = Arrays.copyOf(this.sortKeyPositions, newLength);
 			this.sortOrders = Arrays.copyOf(this.sortOrders, newLength);
-			for(int i=0; i<numFields; i++) {
-				this.sortKeyPositions[oldLength+i] = fields[i];
-				this.sortOrders[oldLength+i] = orders[i];
+			for (int i = 0; i < numFields; i++) {
+				this.sortKeyPositions[oldLength + i] = fields[i];
+				this.sortOrders[oldLength + i] = orders[i];
 			}
 		}
 
@@ -205,16 +220,16 @@ public class DataSink<T> {
 	public Configuration getParameters() {
 		return this.parameters;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public DataSink<T> name(String name) {
 		this.name = name;
 		return this;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	protected GenericDataSinkBase<T> translateToDataFlow(Operator<T> input) {
 		// select the name (or create a default one)
 		String name = this.name != null ? this.name : this.format.toString();
@@ -222,11 +237,11 @@ public class DataSink<T> {
 		// set input
 		sink.setInput(input);
 		// set parameters
-		if(this.parameters != null) {
+		if (this.parameters != null) {
 			sink.getParameters().addAll(this.parameters);
 		}
 		// set parallelism
-		if(this.parallelism > 0) {
+		if (this.parallelism > 0) {
 			// use specified parallelism
 			sink.setParallelism(this.parallelism);
 		} else {
@@ -234,34 +249,34 @@ public class DataSink<T> {
 			sink.setParallelism(input.getParallelism());
 		}
 
-		if(this.sortKeyPositions != null) {
+		if (this.sortKeyPositions != null) {
 			// configure output sorting
 			Ordering ordering = new Ordering();
-			for(int i=0; i<this.sortKeyPositions.length; i++) {
+			for (int i = 0; i < this.sortKeyPositions.length; i++) {
 				ordering.appendOrdering(this.sortKeyPositions[i], null, this.sortOrders[i]);
 			}
 			sink.setLocalOrder(ordering);
 		}
-		
+
 		return sink;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return "DataSink '" + (this.name == null ? "<unnamed>" : this.name) + "' (" + this.format.toString() + ")";
 	}
-	
+
 	/**
 	 * Returns the parallelism of this data sink.
-	 * 
+	 *
 	 * @return The parallelism of this data sink.
 	 */
 	public int getParallelism() {
 		return this.parallelism;
 	}
-	
+
 	/**
 	 * Sets the parallelism for this data sink.
 	 * The degree must be 1 or more.
@@ -278,4 +293,68 @@ public class DataSink<T> {
 
 		return this;
 	}
+
+	/**
+	 * Returns the minimum resources of this data sink. If no minimum resources have been set,
+	 * this returns the default resource profile.
+	 *
+	 * @return The minimum resources of this data sink.
+	 */
+	@PublicEvolving
+	public ResourceSpec getMinResources() {
+		return this.minResources;
+	}
+
+	/**
+	 * Returns the preferred resources of this data sink. If no preferred resources have been set,
+	 * this returns the default resource profile.
+	 *
+	 * @return The preferred resources of this data sink.
+	 */
+	@PublicEvolving
+	public ResourceSpec getPreferredResources() {
+		return this.preferredResources;
+	}
+
+	//	---------------------------------------------------------------------------
+	//	 Fine-grained resource profiles are an incomplete work-in-progress feature
+	//	 The setters are hence private at this point.
+	//	---------------------------------------------------------------------------
+
+	/**
+	 * Sets the minimum and preferred resources for this data sink. and the lower and upper resource limits
+	 * will be considered in resource resize feature for future plan.
+	 *
+	 * @param minResources The minimum resources for this data sink.
+	 * @param preferredResources The preferred resources for this data sink.
+	 * @return The data sink with set minimum and preferred resources.
+	 */
+	private DataSink<T> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
+		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
+		Preconditions.checkArgument(minResources.isValid() && preferredResources.isValid() && minResources.lessThanOrEqual(preferredResources),
+				"The values in resources must be not less than 0 and the preferred resources must be greater than the min resources.");
+
+		this.minResources = minResources;
+		this.preferredResources = preferredResources;
+
+		return this;
+	}
+
+	/**
+	 * Sets the resources for this data sink, and the minimum and preferred resources are the same by default.
+	 *
+	 * @param resources The resources for this data sink.
+	 * @return The data sink with set minimum and preferred resources.
+	 */
+	private DataSink<T> setResources(ResourceSpec resources) {
+		Preconditions.checkNotNull(resources, "The resources must be not null.");
+		Preconditions.checkArgument(resources.isValid(), "The values in resources must be not less than 0.");
+
+		this.minResources = resources;
+		this.preferredResources = resources;
+
+		return this;
+	}
+
 }

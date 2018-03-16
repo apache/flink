@@ -26,16 +26,16 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.3-SNAPSHOT</version>
+		<version>1.6-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-kinesis_2.10</artifactId>
+	<artifactId>flink-connector-kinesis_${scala.binary.version}</artifactId>
 	<name>flink-connector-kinesis</name>
 	<properties>
-		<aws.sdk.version>1.10.71</aws.sdk.version>
-		<aws.kinesis-kcl.version>1.6.2</aws.kinesis-kcl.version>
-		<aws.kinesis-kpl.version>0.10.2</aws.kinesis-kpl.version>
+		<aws.sdk.version>1.11.171</aws.sdk.version>
+		<aws.kinesis-kcl.version>1.8.1</aws.kinesis-kcl.version>
+		<aws.kinesis-kpl.version>0.12.6</aws.kinesis-kpl.version>
 	</properties>
 
 	<packaging>jar</packaging>
@@ -44,7 +44,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_2.10</artifactId>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -57,7 +57,15 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests_2.10</artifactId>
+			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-tests_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -65,7 +73,15 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_2.10</artifactId>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -138,14 +154,11 @@ under the License.
 								<includes>
 									<include>com.amazonaws:*</include>
 									<include>com.google.protobuf:*</include>
+									<include>org.apache.httpcomponents:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="override">
 								<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
-								<relocation>
-									<pattern>org.objectweb.asm</pattern>
-									<shadedPattern>org.apache.flink.shaded.org.objectweb.asm</shadedPattern>
-								</relocation>
 								<relocation>
 									<pattern>com.google.protobuf</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.com.google.protobuf</shadedPattern>
@@ -153,6 +166,10 @@ under the License.
 								<relocation>
 									<pattern>com.amazonaws</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.com.amazonaws</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.http</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.org.apache.http</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

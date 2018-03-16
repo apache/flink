@@ -16,27 +16,27 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.plugable;
-
-import java.io.IOException;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
 
+/**
+ * A {@link DeserializationDelegate} that reuses an existing instance upon deserialization.
+ */
 public class ReusingDeserializationDelegate<T> implements DeserializationDelegate<T> {
-	
+
 	private T instance;
-	
+
 	private final TypeSerializer<T> serializer;
-	
 
 	public ReusingDeserializationDelegate(TypeSerializer<T> serializer) {
 		this.serializer = serializer;
 	}
-	
+
 	@Override
 	public void setInstance(T instance) {
 		this.instance = instance;

@@ -18,10 +18,10 @@
 
 package org.apache.flink.dropwizard;
 
-import com.codahale.metrics.ScheduledReporter;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.dropwizard.metrics.DropwizardMeterWrapper;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -33,12 +33,15 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.util.AbstractID;
+
+import com.codahale.metrics.ScheduledReporter;
 import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
@@ -48,6 +51,9 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the ScheduledDropwizardReporter.
+ */
 public class ScheduledDropwizardReporterTest {
 
 	@Test
@@ -68,7 +74,7 @@ public class ScheduledDropwizardReporterTest {
 	 * Tests that the registered metrics' names don't contain invalid characters.
 	 */
 	@Test
-	public void testAddingMetrics() throws NoSuchFieldException, IllegalAccessException {
+	public void testAddingMetrics() throws Exception {
 		Configuration configuration = new Configuration();
 		String taskName = "test\"Ta\"..sk";
 		String jobName = "testJ\"ob:-!ax..?";
@@ -76,23 +82,22 @@ public class ScheduledDropwizardReporterTest {
 		String taskManagerId = "tas:kMana::ger";
 		String counterName = "testCounter";
 
-		configuration.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
 		configuration.setString(
 				ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
 				"org.apache.flink.dropwizard.ScheduledDropwizardReporterTest$TestingScheduledDropwizardReporter");
 
-		configuration.setString(ConfigConstants.METRICS_SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
-		configuration.setString(ConfigConstants.METRICS_SCOPE_DELIMITER, "_");
+		configuration.setString(MetricOptions.SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
+		configuration.setString(MetricOptions.SCOPE_DELIMITER, "_");
 
 		MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(configuration);
 
-		MetricRegistry metricRegistry = new MetricRegistry(metricRegistryConfiguration);
+		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(metricRegistryConfiguration);
 
 		char delimiter = metricRegistry.getDelimiter();
 
 		TaskManagerMetricGroup tmMetricGroup = new TaskManagerMetricGroup(metricRegistry, hostname, taskManagerId);
 		TaskManagerJobMetricGroup tmJobMetricGroup = new TaskManagerJobMetricGroup(metricRegistry, tmMetricGroup, new JobID(), jobName);
-		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(metricRegistry, tmJobMetricGroup, new AbstractID(), new AbstractID(), taskName, 0, 0);
+		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(metricRegistry, tmJobMetricGroup, new JobVertexID(), new AbstractID(), taskName, 0, 0);
 
 		SimpleCounter myCounter = new SimpleCounter();
 		com.codahale.metrics.Meter dropwizardMeter = new com.codahale.metrics.Meter();
@@ -126,7 +131,7 @@ public class ScheduledDropwizardReporterTest {
 
 		assertEquals(expectedCounterName, counters.get(myCounter));
 
-		metricRegistry.shutdown();
+		metricRegistry.shutdown().get();
 	}
 
 	/**
@@ -198,7 +203,6 @@ public class ScheduledDropwizardReporterTest {
 		assertEquals(1, rep.getGauges().size());
 		assertEquals(1, rep.registry.getGauges().size());
 
-
 		rep.notifyOfRemovedMetric(c, "counter", mp);
 		assertEquals(0, rep.getCounters().size());
 		assertEquals(0, rep.registry.getCounters().size());
@@ -216,6 +220,9 @@ public class ScheduledDropwizardReporterTest {
 		assertEquals(0, rep.registry.getGauges().size());
 	}
 
+	/**
+	 * Dummy test reporter.
+	 */
 	public static class TestingScheduledDropwizardReporter extends ScheduledDropwizardReporter {
 
 		@Override

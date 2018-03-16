@@ -17,19 +17,20 @@
 
 package org.apache.flink.streaming.api.graph;
 
-import static org.junit.Assert.*;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.util.TestLogger;
+
+import org.junit.Test;
 
 import java.util.List;
 
-import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-
-import org.apache.flink.streaming.api.functions.co.CoMapFunction;
-import org.apache.flink.util.TestLogger;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 /**
  * This verifies that slot sharing groups are correctly forwarded from user job to JobGraph.
@@ -39,14 +40,16 @@ import org.junit.Test;
  */
 @SuppressWarnings("serial")
 public class SlotAllocationTest extends TestLogger {
-	
+
 	@Test
 	public void testTwoPipelines() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		FilterFunction<Long> dummyFilter = new FilterFunction<Long>() {
 			@Override
-			public boolean filter(Long value) { return false; }
+			public boolean filter(Long value) {
+				return false;
+			}
 		};
 
 		env.generateSequence(1, 10)
@@ -89,7 +92,9 @@ public class SlotAllocationTest extends TestLogger {
 
 		FilterFunction<Long> dummyFilter = new FilterFunction<Long>() {
 			@Override
-			public boolean filter(Long value) { return false; }
+			public boolean filter(Long value) {
+				return false;
+			}
 		};
 
 		DataStream<Long> src1 = env.generateSequence(1, 10);
@@ -127,7 +132,9 @@ public class SlotAllocationTest extends TestLogger {
 
 		FilterFunction<Long> dummyFilter = new FilterFunction<Long>() {
 			@Override
-			public boolean filter(Long value) { return false; }
+			public boolean filter(Long value) {
+				return false;
+			}
 		};
 
 		DataStream<Long> src1 = env.generateSequence(1, 10).slotSharingGroup("group-1");
@@ -143,7 +150,6 @@ public class SlotAllocationTest extends TestLogger {
 		assertNotEquals(vertices.get(0).getSlotSharingGroup(), vertices.get(2).getSlotSharingGroup());
 		assertNotEquals(vertices.get(1).getSlotSharingGroup(), vertices.get(2).getSlotSharingGroup());
 	}
-
 
 	@Test
 	public void testCoOperation() {

@@ -205,54 +205,58 @@ public class HashTableTest {
 	public void testSpillingWhenBuildingTableWithoutOverflow() throws Exception {
 		final IOManager ioMan = new IOManagerAsync();
 
-		final TypeSerializer<byte[]> serializer = BytePrimitiveArraySerializer.INSTANCE;
-		final TypeComparator<byte[]> buildComparator = new BytePrimitiveArrayComparator(true);
-		final TypeComparator<byte[]> probeComparator = new BytePrimitiveArrayComparator(true);
+		try {
+			final TypeSerializer<byte[]> serializer = BytePrimitiveArraySerializer.INSTANCE;
+			final TypeComparator<byte[]> buildComparator = new BytePrimitiveArrayComparator(true);
+			final TypeComparator<byte[]> probeComparator = new BytePrimitiveArrayComparator(true);
 
-		@SuppressWarnings("unchecked")
-		final TypePairComparator<byte[], byte[]> pairComparator = new GenericPairComparator<>(
-			new BytePrimitiveArrayComparator(true), new BytePrimitiveArrayComparator(true));
+			@SuppressWarnings("unchecked") final TypePairComparator<byte[], byte[]> pairComparator =
+				new GenericPairComparator<>(
+					new BytePrimitiveArrayComparator(true), new BytePrimitiveArrayComparator(true));
 
-		final int pageSize = 128;
-		final int numSegments = 33;
+			final int pageSize = 128;
+			final int numSegments = 33;
 
-		List<MemorySegment> memory = getMemory(numSegments, pageSize);
+			List<MemorySegment> memory = getMemory(numSegments, pageSize);
 
-		MutableHashTable<byte[], byte[]> table = new MutableHashTable<byte[], byte[]>(
-			serializer,
-			serializer,
-			buildComparator,
-			probeComparator,
-			pairComparator,
-			memory,
-			ioMan,
-			1,
-			false);
+			MutableHashTable<byte[], byte[]> table = new MutableHashTable<byte[], byte[]>(
+				serializer,
+				serializer,
+				buildComparator,
+				probeComparator,
+				pairComparator,
+				memory,
+				ioMan,
+				1,
+				false);
 
-		int numElements = 9;
+			int numElements = 9;
 
-		table.open(
-			new CombiningIterator<byte[]>(
-				new ByteArrayIterator(numElements, 128,(byte) 0),
-				new ByteArrayIterator(numElements, 128,(byte) 1)),
-			new CombiningIterator<byte[]>(
-				new ByteArrayIterator(1, 128,(byte) 0),
-				new ByteArrayIterator(1, 128,(byte) 1)));
+			table.open(
+				new CombiningIterator<byte[]>(
+					new ByteArrayIterator(numElements, 128, (byte) 0),
+					new ByteArrayIterator(numElements, 128, (byte) 1)),
+				new CombiningIterator<byte[]>(
+					new ByteArrayIterator(1, 128, (byte) 0),
+					new ByteArrayIterator(1, 128, (byte) 1)));
 
-		while(table.nextRecord()) {
-			MutableObjectIterator<byte[]> iterator = table.getBuildSideIterator();
+			while (table.nextRecord()) {
+				MutableObjectIterator<byte[]> iterator = table.getBuildSideIterator();
 
-			int counter = 0;
+				int counter = 0;
 
-			while(iterator.next() != null) {
-				counter++;
+				while (iterator.next() != null) {
+					counter++;
+				}
+
+				// check that we retrieve all our elements
+				Assert.assertEquals(numElements, counter);
 			}
 
-			// check that we retrieve all our elements
-			Assert.assertEquals(numElements, counter);
+			table.close();
+		} finally {
+			ioMan.shutdown();
 		}
-
-		table.close();
 	}
 	
 	// ------------------------------------------------------------------------

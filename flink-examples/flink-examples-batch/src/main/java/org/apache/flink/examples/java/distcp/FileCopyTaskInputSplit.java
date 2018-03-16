@@ -21,12 +21,12 @@ package org.apache.flink.examples.java.distcp;
 import org.apache.flink.core.io.InputSplit;
 
 /**
- * Implementation of {@code InputSplit} for copying files
+ * Implementation of {@code InputSplit} for copying files.
  */
 public class FileCopyTaskInputSplit implements InputSplit {
-	
+
 	private static final long serialVersionUID = -7621656017747660450L;
-	
+
 	private final FileCopyTask task;
 	private final int splitNumber;
 

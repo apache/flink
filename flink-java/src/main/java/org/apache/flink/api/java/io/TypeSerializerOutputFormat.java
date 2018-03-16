@@ -36,16 +36,16 @@ import java.io.IOException;
 public class TypeSerializerOutputFormat<T> extends BinaryOutputFormat<T> implements InputTypeConfigurable {
 
 	private static final long serialVersionUID = -6653022644629315158L;
-	
+
 	private TypeSerializer<T> serializer;
 
 	@Override
 	protected void serialize(T record, DataOutputView dataOutput) throws IOException {
-		if(serializer == null){
+		if (serializer == null){
 			throw new RuntimeException("TypeSerializerOutputFormat requires a type serializer to " +
 					"be defined.");
 		}
-		
+
 		serializer.serialize(record, dataOutput);
 	}
 

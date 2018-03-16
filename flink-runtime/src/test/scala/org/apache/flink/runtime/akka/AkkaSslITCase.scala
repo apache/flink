@@ -20,8 +20,8 @@ package org.apache.flink.runtime.akka
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.testingUtils.{TestingCluster, TestingUtils, ScalaTestingUtils}
+import org.apache.flink.configuration._
+import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingCluster, TestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.scalatest.junit.JUnitRunner
@@ -49,20 +49,20 @@ class AkkaSslITCase(_system: ActorSystem)
     "start with akka ssl enabled" in {
 
       val config = new Configuration()
-      config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "127.0.0.1")
+      config.setString(JobManagerOptions.ADDRESS, "127.0.0.1")
       config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "127.0.0.1")
       config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1)
       config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
 
-      config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true)
-      config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE,
+      config.setBoolean(SecurityOptions.SSL_ENABLED, true)
+      config.setString(SecurityOptions.SSL_KEYSTORE,
         getClass.getResource("/local127.keystore").getPath)
-      config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password")
-      config.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password")
-      config.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE,
+      config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password")
+      config.setString(SecurityOptions.SSL_KEY_PASSWORD, "password")
+      config.setString(SecurityOptions.SSL_TRUSTSTORE,
         getClass.getResource("/local127.truststore").getPath)
 
-      config.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD, "password")
+      config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password")
 
       val cluster = new TestingCluster(config, false)
 
@@ -71,12 +71,39 @@ class AkkaSslITCase(_system: ActorSystem)
       assert(cluster.running)
     }
 
+    "Failed to start ssl enabled akka with two protocols set" in {
+
+      an[Exception] should be thrownBy {
+
+        val config = new Configuration()
+        config.setString(JobManagerOptions.ADDRESS, "127.0.0.1")
+        config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "127.0.0.1")
+        config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1)
+        config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
+
+        config.setBoolean(SecurityOptions.SSL_ENABLED, true)
+        config.setString(SecurityOptions.SSL_KEYSTORE,
+          getClass.getResource("/local127.keystore").getPath)
+        config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password")
+        config.setString(SecurityOptions.SSL_KEY_PASSWORD, "password")
+        config.setString(SecurityOptions.SSL_TRUSTSTORE,
+          getClass.getResource("/local127.truststore").getPath)
+
+        config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password")
+        config.setString(SecurityOptions.SSL_ALGORITHMS, "TLSv1,TLSv1.1")
+
+        val cluster = new TestingCluster(config, false)
+
+        cluster.start(true)
+      }
+    }
+
     "start with akka ssl disabled" in {
 
       val config = new Configuration()
       config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1)
       config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
-      config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, false)
+      config.setBoolean(SecurityOptions.SSL_ENABLED, false)
 
       val cluster = new TestingCluster(config, false)
 
@@ -92,14 +119,14 @@ class AkkaSslITCase(_system: ActorSystem)
         val config = new Configuration()
         config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1)
         config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
-        config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "2 s")
+        config.setString(AkkaOptions.ASK_TIMEOUT, "2 s")
 
-        config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true)
-        config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "invalid.keystore")
-        config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password")
-        config.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password")
-        config.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, "invalid.keystore")
-        config.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD, "password")
+        config.setBoolean(SecurityOptions.SSL_ENABLED, true)
+        config.setString(SecurityOptions.SSL_KEYSTORE, "invalid.keystore")
+        config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password")
+        config.setString(SecurityOptions.SSL_KEY_PASSWORD, "password")
+        config.setString(SecurityOptions.SSL_TRUSTSTORE, "invalid.keystore")
+        config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password")
 
         val cluster = new TestingCluster(config, false)
 
@@ -114,9 +141,9 @@ class AkkaSslITCase(_system: ActorSystem)
         val config = new Configuration()
         config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1)
         config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
-        config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "2 s")
+        config.setString(AkkaOptions.ASK_TIMEOUT, "2 s")
 
-        config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true)
+        config.setBoolean(SecurityOptions.SSL_ENABLED, true)
 
         val cluster = new TestingCluster(config, false)
 

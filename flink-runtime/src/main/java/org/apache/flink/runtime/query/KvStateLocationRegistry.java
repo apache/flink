@@ -19,18 +19,20 @@
 package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KvState;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
 
+import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Simple registry, which maps {@link KvState} registration notifications to
+ * Simple registry, which maps {@link InternalKvState} registration notifications to
  * {@link KvStateLocation} instances.
  */
 public class KvStateLocationRegistry {
@@ -89,7 +91,7 @@ public class KvStateLocationRegistry {
 			KeyGroupRange keyGroupRange,
 			String registrationName,
 			KvStateID kvStateId,
-			KvStateServerAddress kvStateServerAddress) {
+			InetSocketAddress kvStateServerAddress) {
 
 		KvStateLocation location = lookupTable.get(registrationName);
 

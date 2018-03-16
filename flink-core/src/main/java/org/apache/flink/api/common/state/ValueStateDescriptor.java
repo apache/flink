@@ -124,8 +124,8 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public ValueState<T> bind(StateBackend stateBackend) throws Exception {
-		return stateBackend.createValueState(this);
+	public ValueState<T> bind(StateBinder stateBinder) throws Exception {
+		return stateBinder.createValueState(this);
 	}
 
 	@Override

@@ -26,6 +26,7 @@ import static org.junit.Assert.fail;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -85,9 +86,9 @@ public abstract class ParserTestBase<T> extends TestLogger {
 				FieldParser<T> parser2 = getParser();
 				FieldParser<T> parser3 = getParser();
 				
-				byte[] bytes1 = testValues[i].getBytes();
-				byte[] bytes2 = testValues[i].getBytes();
-				byte[] bytes3 = testValues[i].getBytes();
+				byte[] bytes1 = testValues[i].getBytes(ConfigConstants.DEFAULT_CHARSET);
+				byte[] bytes2 = testValues[i].getBytes(ConfigConstants.DEFAULT_CHARSET);
+				byte[] bytes3 = testValues[i].getBytes(ConfigConstants.DEFAULT_CHARSET);
 
 				int numRead1 = parser1.parseField(bytes1, 0, bytes1.length, new byte[] {'|'}, parser1.createValue());
 				int numRead2 = parser2.parseField(bytes2, 0, bytes2.length, new byte[] {'&', '&'}, parser2.createValue());
@@ -132,8 +133,8 @@ public abstract class ParserTestBase<T> extends TestLogger {
 				String testVal1 = testValues[i] + "|";
 				String testVal2 = testValues[i] + "&&&&";
 
-				byte[] bytes1 = testVal1.getBytes();
-				byte[] bytes2 = testVal2.getBytes();
+				byte[] bytes1 = testVal1.getBytes(ConfigConstants.DEFAULT_CHARSET);
+				byte[] bytes2 = testVal2.getBytes(ConfigConstants.DEFAULT_CHARSET);
 
 				int numRead1 = parser1.parseField(bytes1, 0, bytes1.length, new byte[] {'|'}, parser1.createValue());
 				int numRead2 = parser2.parseField(bytes2, 0, bytes2.length, new byte[] {'&', '&','&', '&'}, parser2.createValue());
@@ -243,7 +244,7 @@ public abstract class ParserTestBase<T> extends TestLogger {
 				
 				FieldParser<T> parser = getParser();
 				
-				byte[] bytes = testValues[i].getBytes();
+				byte[] bytes = testValues[i].getBytes(ConfigConstants.DEFAULT_CHARSET);
 				int numRead = parser.parseField(bytes, 0, bytes.length, new byte[]{'|'}, parser.createValue());
 				
 				assertTrue("Parser accepted the invalid value " + testValues[i] + ".", numRead == -1);
@@ -318,7 +319,7 @@ public abstract class ParserTestBase<T> extends TestLogger {
 			
 			for (int i = 0; i < testValues.length; i++) {
 				
-				byte[] bytes = testValues[i].getBytes();
+				byte[] bytes = testValues[i].getBytes(ConfigConstants.DEFAULT_CHARSET);
 				
 				
 				T result;
@@ -355,7 +356,7 @@ public abstract class ParserTestBase<T> extends TestLogger {
 			
 			for (int i = 0; i < testValues.length; i++) {
 				
-				byte[] bytes = testValues[i].getBytes();
+				byte[] bytes = testValues[i].getBytes(ConfigConstants.DEFAULT_CHARSET);
 				
 				try {
 					parseMethod.invoke(null, bytes, 0, bytes.length, '|');
@@ -389,7 +390,7 @@ public abstract class ParserTestBase<T> extends TestLogger {
 		for (int i = 0; i < values.length; i++) {
 			String s = values[i];
 			
-			byte[] bytes = s.getBytes();
+			byte[] bytes = s.getBytes(ConfigConstants.DEFAULT_CHARSET);
 			int numBytes = bytes.length;
 			System.arraycopy(bytes, 0, result, currPos, numBytes);
 			currPos += numBytes;
@@ -404,28 +405,31 @@ public abstract class ParserTestBase<T> extends TestLogger {
 	}
 
 	@Test
-	public void testEmptyFieldInIsolation() {
+	public void testTrailingEmptyField() {
 		try {
-			String [] emptyStrings = new String[] {"|"};
-
 			FieldParser<T> parser = getParser();
 
-			for (String emptyString : emptyStrings) {
-				byte[] bytes = emptyString.getBytes();
-				int numRead = parser.parseField(bytes, 0, bytes.length, new byte[]{'|'}, parser.createValue());
+			byte[] bytes = "||".getBytes(ConfigConstants.DEFAULT_CHARSET);
+
+			for (int i = 0; i < 2; i++) {
+
+				// test empty field with trailing delimiter when i = 0,
+				// test empty field with out trailing delimiter when i= 1.
+				int numRead = parser.parseField(bytes, i, bytes.length, new byte[]{'|'}, parser.createValue());
 
 				assertEquals(FieldParser.ParseErrorState.EMPTY_COLUMN, parser.getErrorState());
 
-				if(this.allowsEmptyField()) {
+				if (this.allowsEmptyField()) {
 					assertTrue("Parser declared the empty string as invalid.", numRead != -1);
-					assertEquals("Invalid number of bytes read returned.", bytes.length, numRead);
-				}
-				else {
+					assertEquals("Invalid number of bytes read returned.", i + 1, numRead);
+				} else {
 					assertTrue("Parser accepted the empty string.", numRead == -1);
 				}
+
+				parser.resetParserState();
 			}
-		}
-		catch (Exception e) {
+
+		} catch (Exception e) {
 			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail("Test erroneous: " + e.getMessage());

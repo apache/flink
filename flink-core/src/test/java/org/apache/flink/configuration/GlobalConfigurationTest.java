@@ -18,8 +18,11 @@
 
 package org.apache.flink.configuration;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import org.apache.flink.util.TestLogger;
+
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -27,10 +30,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.UUID;
 
-import org.apache.flink.util.TestLogger;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /**
  * This class contains tests for the global configuration (parsing configuration directory information).
@@ -56,7 +57,8 @@ public class GlobalConfigurationTest extends TestLogger {
 				pw.println("mykey3:myvalue3"); // SKIP, missing white space after colon
 				pw.println(" some nonsense without colon and whitespace separator"); // SKIP
 				pw.println(" :  "); // SKIP
-				pw.println("   "); // SKIP
+				pw.println("   "); // SKIP (silently)
+				pw.println(" "); // SKIP (silently)
 				pw.println("mykey4: myvalue4# some comments"); // OK, skip comments only
 				pw.println("   mykey5    :    myvalue5    "); // OK, trim unnecessary whitespace
 				pw.println("mykey6: my: value6"); // OK, only use first ': ' as separator
@@ -111,7 +113,7 @@ public class GlobalConfigurationTest extends TestLogger {
 	public void testInvalidYamlFile() throws IOException {
 		final File confFile = tempFolder.newFile(GlobalConfiguration.FLINK_CONF_FILENAME);
 
-		try (PrintWriter pw = new PrintWriter(confFile);) {
+		try (PrintWriter pw = new PrintWriter(confFile)) {
 			pw.append("invalid");
 		}
 

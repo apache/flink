@@ -262,7 +262,7 @@ public class ChannelViewsTest
 		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, true);
 		generator.reset();
 		
-		// read and re-generate all records and cmpare them
+		// read and re-generate all records and compare them
 		final Tuple2<Integer, String> readRec = new Tuple2<>();
 		for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
 			generator.next(rec);

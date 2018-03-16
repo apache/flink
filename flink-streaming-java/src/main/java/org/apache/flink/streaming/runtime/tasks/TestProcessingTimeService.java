@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * */
 public class TestProcessingTimeService extends ProcessingTimeService {
 
-	private volatile long currentTime = 0L;
+	private volatile long currentTime = Long.MIN_VALUE;
 
 	private volatile boolean isTerminated;
 	private volatile boolean isQuiesced;
@@ -67,7 +67,7 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 					callbackTask.onProcessingTime(entry.f0);
 
 					if (callbackTask instanceof PeriodicCallbackTask) {
-						priorityQueue.offer(Tuple2.of(((PeriodicCallbackTask)callbackTask).nextTimestamp(entry.f0), callbackTask));
+						priorityQueue.offer(Tuple2.of(((PeriodicCallbackTask) callbackTask).nextTimestamp(entry.f0), callbackTask));
 					}
 				}
 			}
@@ -117,7 +117,7 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 	}
 
 	@Override
-	public void quiesceAndAwaitPending() {
+	public void quiesce() {
 		if (!isTerminated) {
 			isQuiesced = true;
 			priorityQueue.clear();
@@ -125,8 +125,19 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 	}
 
 	@Override
+	public void awaitPendingAfterQuiesce() throws InterruptedException {
+		// do nothing.
+	}
+
+	@Override
 	public void shutdownService() {
 		this.isTerminated = true;
+	}
+
+	@Override
+	public boolean shutdownAndAwaitPending(long time, TimeUnit timeUnit) throws InterruptedException {
+		shutdownService();
+		return true;
 	}
 
 	public int getNumActiveTimers() {

@@ -28,8 +28,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A helper class to apply {@link AsyncFunction} to a data stream.
- * <p>
- * <pre>{@code
+ *
+ * <p><pre>{@code
  * DataStream<String> input = ...
  * AsyncFunction<String, Tuple<String, String>> asyncFunc = ...
  *
@@ -40,6 +40,10 @@ import java.util.concurrent.TimeUnit;
 
 @PublicEvolving
 public class AsyncDataStream {
+
+	/**
+	 * Output mode for asynchronous operations.
+	 */
 	public enum OutputMode { ORDERED, UNORDERED }
 
 	private static final int DEFAULT_QUEUE_CAPACITY = 100;
@@ -63,9 +67,16 @@ public class AsyncDataStream {
 			int bufSize,
 			OutputMode mode) {
 
-		TypeInformation<OUT> outTypeInfo =
-			TypeExtractor.getUnaryOperatorReturnType(func, AsyncFunction.class, false,
-				true, in.getType(), Utils.getCallLocationName(), true);
+		TypeInformation<OUT> outTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
+			func,
+			AsyncFunction.class,
+			0,
+			1,
+			new int[]{0},
+			new int[]{1, 0},
+			in.getType(),
+			Utils.getCallLocationName(),
+			true);
 
 		// create transform
 		AsyncWaitOperator<IN, OUT> operator = new AsyncWaitOperator<>(

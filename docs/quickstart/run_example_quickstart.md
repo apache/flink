@@ -36,7 +36,7 @@ give you a good foundation from which to start building more complex analysis pr
 
 ## Setting up a Maven Project
 
-We are going to use a Flink Maven Archetype for creating our project stucture. Please
+We are going to use a Flink Maven Archetype for creating our project structure. Please
 see [Java API Quickstart]({{ site.baseurl }}/quickstart/java_api_quickstart.html) for more details
 about this. For our purposes, the command to run is this:
 
@@ -52,6 +52,12 @@ $ mvn archetype:generate \
     -Dpackage=wikiedits \
     -DinteractiveMode=false
 {% endhighlight %}
+
+{% unless site.is_stable %}
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">
+    <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the commandline. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
+</p>
+{% endunless %}
 
 You can edit the `groupId`, `artifactId` and `package` if you like. With the above parameters,
 Maven will create a project structure that looks like this:
@@ -278,10 +284,10 @@ similar to this:
 The number in front of each line tells you on which parallel instance of the print sink the output
 was produced.
 
-This should get you started with writing your own Flink programs. To learn more 
+This should get you started with writing your own Flink programs. To learn more
 you can check out our guides
-about [basic concepts]({{ site.baseurl }}/dev/api_concepts) and the
-[DataStream API]({{ site.baseurl }}/dev/datastream_api). Stick
+about [basic concepts]({{ site.baseurl }}/dev/api_concepts.html) and the
+[DataStream API]({{ site.baseurl }}/dev/datastream_api.html). Stick
 around for the bonus exercise if you want to learn about setting up a Flink cluster on
 your own machine and writing results to [Kafka](http://kafka.apache.org).
 
@@ -320,7 +326,7 @@ result
 The related classes also need to be imported:
 {% highlight java %}
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer08;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.functions.MapFunction;
 {% endhighlight %}
 
@@ -342,7 +348,7 @@ to the location where you installed Flink and start a local cluster:
 
 {% highlight bash %}
 $ cd my/flink/directory
-$ bin/start-local.sh
+$ bin/start-cluster.sh
 {% endhighlight %}
 
 We also have to create the Kafka Topic, so that our program can write to it:
@@ -392,3 +398,5 @@ and, for example, see the number of processed elements:
 <a href="{{ site.baseurl }}/page/img/quickstart-example/jobmanager-job.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/jobmanager-job.png" alt="Example Job View"/></a>
 
 This concludes our little tour of Flink. If you have any questions, please don't hesitate to ask on our [Mailing Lists](http://flink.apache.org/community.html#mailing-lists).
+
+{% top %}

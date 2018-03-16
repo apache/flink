@@ -18,21 +18,14 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import kafka.consumer.Consumer;
-import kafka.consumer.ConsumerConfig;
-import kafka.consumer.ConsumerIterator;
-import kafka.consumer.KafkaStream;
-import kafka.javaapi.consumer.ConsumerConnector;
-import kafka.message.MessageAndMetadata;
-import kafka.server.KafkaServer;
-import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -51,41 +44,43 @@ import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.testutils.DataGenerators;
 import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.JobManagerCommunicationUtils;
 import org.apache.flink.streaming.connectors.kafka.testutils.PartitionValidatingMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.ThrottledMapper;
-import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2Partitioner;
+import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2FlinkPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ValidatingExactlyOnceSink;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationKeyValueSerializationSchema;
-import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.testutils.junit.RetryOnException;
 import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.Collector;
+
+import kafka.consumer.Consumer;
+import kafka.consumer.ConsumerConfig;
+import kafka.consumer.ConsumerIterator;
+import kafka.consumer.KafkaStream;
+import kafka.javaapi.consumer.ConsumerConnector;
+import kafka.message.MessageAndMetadata;
+import kafka.server.KafkaServer;
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.junit.Assert;
@@ -94,6 +89,7 @@ import org.junit.Rule;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -118,13 +114,14 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-
+/**
+ * Abstract test base for all Kafka consumer tests.
+ */
 @SuppressWarnings("serial")
 public abstract class KafkaConsumerTestBase extends KafkaTestBase {
-	
+
 	@Rule
 	public RetryRule retryRule = new RetryRule();
-
 
 	// ------------------------------------------------------------------------
 	//  Common Test Preparation
@@ -138,8 +135,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	public void ensureNoJobIsLingering() throws Exception {
 		JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
 	}
-	
-	
+
 	// ------------------------------------------------------------------------
 	//  Suite of Tests
 	//
@@ -150,7 +146,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 	/**
 	 * Test that ensures the KafkaConsumer is properly failing if the topic doesnt exist
-	 * and a wrong broker was specified
+	 * and a wrong broker was specified.
 	 *
 	 * @throws Exception
 	 */
@@ -158,7 +154,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		try {
 			Properties properties = new Properties();
 
-			StreamExecutionEnvironment see = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+			StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 			see.getConfig().disableSysoutLogging();
 			see.setRestartStrategy(RestartStrategies.noRestart());
 			see.setParallelism(1);
@@ -177,33 +173,25 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			DataStream<String> stream = see.addSource(source);
 			stream.print();
 			see.execute("No broker test");
-		} catch(ProgramInvocationException pie) {
-			if(kafkaServer.getVersion().equals("0.9") || kafkaServer.getVersion().equals("0.10")) {
-				assertTrue(pie.getCause() instanceof JobExecutionException);
-
-				JobExecutionException jee = (JobExecutionException) pie.getCause();
-
+		} catch (JobExecutionException jee) {
+			if (kafkaServer.getVersion().equals("0.9") || kafkaServer.getVersion().equals("0.10") || kafkaServer.getVersion().equals("0.11")) {
 				assertTrue(jee.getCause() instanceof TimeoutException);
 
 				TimeoutException te = (TimeoutException) jee.getCause();
 
 				assertEquals("Timeout expired while fetching topic metadata", te.getMessage());
 			} else {
-				assertTrue(pie.getCause() instanceof JobExecutionException);
-
-				JobExecutionException jee = (JobExecutionException) pie.getCause();
-
 				assertTrue(jee.getCause() instanceof RuntimeException);
 
 				RuntimeException re = (RuntimeException) jee.getCause();
 
-				assertTrue(re.getMessage().contains("Unable to retrieve any partitions for the requested topics [doesntexist]"));
+				assertTrue(re.getMessage().contains("Unable to retrieve any partitions"));
 			}
 		}
 	}
 
 	/**
-	 * Ensures that the committed offsets to Kafka are the offsets of "the next record to process"
+	 * Ensures that the committed offsets to Kafka are the offsets of "the next record to process".
 	 */
 	public void runCommitOffsetsToKafka() throws Exception {
 		// 3 partitions with 50 records each (0-49, so the expected commit offset of each partition should be 50)
@@ -212,7 +200,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		final String topicName = writeSequence("testCommitOffsetsToKafkaTopic", recordsInEachPartition, parallelism, 1);
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env.setParallelism(parallelism);
@@ -229,7 +217,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					env.execute();
 				}
 				catch (Throwable t) {
-					if (!(t.getCause() instanceof JobCancellationException)) {
+					if (!(t instanceof JobCancellationException)) {
 						errorRef.set(t);
 					}
 				}
@@ -238,9 +226,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		runner.start();
 
 		final Long l50 = 50L; // the final committed offset in Kafka should be 50
-		final long deadline = 30000 + System.currentTimeMillis();
+		final long deadline = 30_000_000_000L + System.nanoTime();
 
-		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(standardProps);
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
 
 		do {
 			Long o1 = kafkaOffsetHandler.getCommittedOffset(topicName, 0);
@@ -253,10 +241,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			Thread.sleep(100);
 		}
-		while (System.currentTimeMillis() < deadline);
+		while (System.nanoTime() < deadline);
 
-		// cancel the job
+		// cancel the job & wait for the job to finish
 		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+		runner.join();
 
 		final Throwable t = errorRef.get();
 		if (t != null) {
@@ -276,101 +265,16 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	}
 
 	/**
-	 * This test first writes a total of 300 records to a test topic, reads the first 150 so that some offsets are
-	 * committed to Kafka, and then startup the consumer again to read the remaining records starting from the committed offsets.
-	 * The test ensures that whatever offsets were committed to Kafka, the consumer correctly picks them up
-	 * and starts at the correct position.
-	 */
-	public void runStartFromKafkaCommitOffsets() throws Exception {
-		final int parallelism = 3;
-		final int recordsInEachPartition = 300;
-
-		final String topicName = writeSequence("testStartFromKafkaCommitOffsetsTopic", recordsInEachPartition, parallelism, 1);
-
-		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(standardProps);
-
-		Long o1;
-		Long o2;
-		Long o3;
-		int attempt = 0;
-		// make sure that o1, o2, o3 are not all null before proceeding
-		do {
-			attempt++;
-			LOG.info("Attempt " + attempt + " to read records and commit some offsets to Kafka");
-
-			final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-			env.getConfig().disableSysoutLogging();
-			env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-			env.setParallelism(parallelism);
-			env.enableCheckpointing(20); // fast checkpoints to make sure we commit some offsets
-
-			env
-				.addSource(kafkaServer.getConsumer(topicName, new SimpleStringSchema(), standardProps))
-				.map(new ThrottledMapper<String>(50))
-				.map(new MapFunction<String, Object>() {
-					int count = 0;
-					@Override
-					public Object map(String value) throws Exception {
-						count++;
-						if (count == 150) {
-							throw new SuccessException();
-						}
-						return null;
-					}
-				})
-				.addSink(new DiscardingSink<>());
-
-			tryExecute(env, "Read some records to commit offsets to Kafka");
-
-			o1 = kafkaOffsetHandler.getCommittedOffset(topicName, 0);
-			o2 = kafkaOffsetHandler.getCommittedOffset(topicName, 1);
-			o3 = kafkaOffsetHandler.getCommittedOffset(topicName, 2);
-		} while (o1 == null && o2 == null && o3 == null && attempt < 3);
-
-		if (o1 == null && o2 == null && o3 == null) {
-			throw new RuntimeException("No offsets have been committed after 3 attempts");
-		}
-
-		LOG.info("Got final committed offsets from Kafka o1={}, o2={}, o3={}", o1, o2, o3);
-
-		final StreamExecutionEnvironment env2 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-		env2.getConfig().disableSysoutLogging();
-		env2.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env2.setParallelism(parallelism);
-
-		// whatever offsets were committed for each partition, the consumer should pick
-		// them up and start from the correct position so that the remaining records are all read
-		HashMap<Integer, Tuple2<Integer, Integer>> partitionsToValuesCountAndStartOffset = new HashMap<>();
-		partitionsToValuesCountAndStartOffset.put(0, new Tuple2<>(
-			(o1 != null) ? (int) (recordsInEachPartition - o1) : recordsInEachPartition,
-			(o1 != null) ? o1.intValue() : 0
-		));
-		partitionsToValuesCountAndStartOffset.put(1, new Tuple2<>(
-			(o2 != null) ? (int) (recordsInEachPartition - o2) : recordsInEachPartition,
-			(o2 != null) ? o2.intValue() : 0
-		));
-		partitionsToValuesCountAndStartOffset.put(2, new Tuple2<>(
-			(o3 != null) ? (int) (recordsInEachPartition - o3) : recordsInEachPartition,
-			(o3 != null) ? o3.intValue() : 0
-		));
-
-		readSequence(env2, standardProps, topicName, partitionsToValuesCountAndStartOffset);
-
-		kafkaOffsetHandler.close();
-		deleteTestTopic(topicName);
-	}
-
-	/**
 	 * This test ensures that when the consumers retrieve some start offset from kafka (earliest, latest), that this offset
 	 * is committed to Kafka, even if some partitions are not read.
 	 *
-	 * Test:
+	 * <p>Test:
 	 * - Create 3 partitions
 	 * - write 50 messages into each.
 	 * - Start three consumers with auto.offset.reset='latest' and wait until they committed into Kafka.
 	 * - Check if the offsets in Kafka are set to 50 for the three partitions
 	 *
-	 * See FLINK-3440 as well
+	 * <p>See FLINK-3440 as well
 	 */
 	public void runAutoOffsetRetrievalAndCommitToKafka() throws Exception {
 		// 3 partitions with 50 records each (0-49, so the expected commit offset of each partition should be 50)
@@ -379,7 +283,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		final String topicName = writeSequence("testAutoOffsetRetrievalAndCommitToKafkaTopic", recordsInEachPartition, parallelism, 1);
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env.setParallelism(parallelism);
@@ -400,7 +304,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					env.execute();
 				}
 				catch (Throwable t) {
-					if (!(t.getCause() instanceof JobCancellationException)) {
+					if (!(t instanceof JobCancellationException)) {
 						errorRef.set(t);
 					}
 				}
@@ -408,10 +312,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		};
 		runner.start();
 
-		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(standardProps);
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
 
 		final Long l50 = 50L; // the final committed offset in Kafka should be 50
-		final long deadline = 30000 + System.currentTimeMillis();
+		final long deadline = 30_000_000_000L + System.nanoTime();
 		do {
 			Long o1 = kafkaOffsetHandler.getCommittedOffset(topicName, 0);
 			Long o2 = kafkaOffsetHandler.getCommittedOffset(topicName, 1);
@@ -423,10 +327,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			Thread.sleep(100);
 		}
-		while (System.currentTimeMillis() < deadline);
+		while (System.nanoTime() < deadline);
 
-		// cancel the job
+		// cancel the job & wait for the job to finish
 		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+		runner.join();
 
 		final Throwable t = errorRef.get();
 		if (t != null) {
@@ -444,7 +349,327 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		kafkaOffsetHandler.close();
 		deleteTestTopic(topicName);
 	}
-	
+
+	/**
+	 * This test ensures that when explicitly set to start from earliest record, the consumer
+	 * ignores the "auto.offset.reset" behaviour as well as any committed group offsets in Kafka.
+	 */
+	public void runStartFromEarliestOffsets() throws Exception {
+		// 3 partitions with 50 records each (0-49, so the expected commit offset of each partition should be 50)
+		final int parallelism = 3;
+		final int recordsInEachPartition = 50;
+
+		final String topicName = writeSequence("testStartFromEarliestOffsetsTopic", recordsInEachPartition, parallelism, 1);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
+		env.setParallelism(parallelism);
+
+		Properties readProps = new Properties();
+		readProps.putAll(standardProps);
+		readProps.setProperty("auto.offset.reset", "latest"); // this should be ignored
+
+		// the committed offsets should be ignored
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
+		kafkaOffsetHandler.setCommittedOffset(topicName, 0, 23);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 1, 31);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
+
+		readSequence(env, StartupMode.EARLIEST, null, null, readProps, parallelism, topicName, recordsInEachPartition, 0);
+
+		kafkaOffsetHandler.close();
+		deleteTestTopic(topicName);
+	}
+
+	/**
+	 * This test ensures that when explicitly set to start from latest record, the consumer
+	 * ignores the "auto.offset.reset" behaviour as well as any committed group offsets in Kafka.
+	 */
+	public void runStartFromLatestOffsets() throws Exception {
+		// 50 records written to each of 3 partitions before launching a latest-starting consuming job
+		final int parallelism = 3;
+		final int recordsInEachPartition = 50;
+
+		// each partition will be written an extra 200 records
+		final int extraRecordsInEachPartition = 200;
+
+		// all already existing data in the topic, before the consuming topology has started, should be ignored
+		final String topicName = writeSequence("testStartFromLatestOffsetsTopic", recordsInEachPartition, parallelism, 1);
+
+		// the committed offsets should be ignored
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
+		kafkaOffsetHandler.setCommittedOffset(topicName, 0, 23);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 1, 31);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
+
+		// job names for the topologies for writing and consuming the extra records
+		final String consumeExtraRecordsJobName = "Consume Extra Records Job";
+		final String writeExtraRecordsJobName = "Write Extra Records Job";
+
+		// serialization / deserialization schemas for writing and consuming the extra records
+		final TypeInformation<Tuple2<Integer, Integer>> resultType =
+			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {});
+
+		final KeyedSerializationSchema<Tuple2<Integer, Integer>> serSchema =
+			new KeyedSerializationSchemaWrapper<>(
+				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
+
+		final KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
+			new KeyedDeserializationSchemaWrapper<>(
+				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
+
+		// setup and run the latest-consuming job
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
+		env.setParallelism(parallelism);
+
+		final Properties readProps = new Properties();
+		readProps.putAll(standardProps);
+		readProps.setProperty("auto.offset.reset", "earliest"); // this should be ignored
+
+		FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> latestReadingConsumer =
+			kafkaServer.getConsumer(topicName, deserSchema, readProps);
+		latestReadingConsumer.setStartFromLatest();
+
+		env
+			.addSource(latestReadingConsumer).setParallelism(parallelism)
+			.flatMap(new FlatMapFunction<Tuple2<Integer, Integer>, Object>() {
+				@Override
+				public void flatMap(Tuple2<Integer, Integer> value, Collector<Object> out) throws Exception {
+					if (value.f1 - recordsInEachPartition < 0) {
+						throw new RuntimeException("test failed; consumed a record that was previously written: " + value);
+					}
+				}
+			}).setParallelism(1)
+			.addSink(new DiscardingSink<>());
+
+		final AtomicReference<Throwable> error = new AtomicReference<>();
+		Thread consumeThread = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					env.execute(consumeExtraRecordsJobName);
+				} catch (Throwable t) {
+					if (!(t instanceof JobCancellationException)) {
+						error.set(t);
+					}
+				}
+			}
+		});
+		consumeThread.start();
+
+		// wait until the consuming job has started, to be extra safe
+		JobManagerCommunicationUtils.waitUntilJobIsRunning(
+			flink.getLeaderGateway(timeout),
+			consumeExtraRecordsJobName);
+
+		// setup the extra records writing job
+		final StreamExecutionEnvironment env2 = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		env2.setParallelism(parallelism);
+
+		DataStream<Tuple2<Integer, Integer>> extraRecordsStream = env2
+			.addSource(new RichParallelSourceFunction<Tuple2<Integer, Integer>>() {
+
+				private boolean running = true;
+
+				@Override
+				public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
+					int count = recordsInEachPartition; // the extra records should start from the last written value
+					int partition = getRuntimeContext().getIndexOfThisSubtask();
+
+					while (running && count < recordsInEachPartition + extraRecordsInEachPartition) {
+						ctx.collect(new Tuple2<>(partition, count));
+						count++;
+					}
+				}
+
+				@Override
+				public void cancel() {
+					running = false;
+				}
+			});
+
+		kafkaServer.produceIntoKafka(extraRecordsStream, topicName, serSchema, readProps, null);
+
+		try {
+			env2.execute(writeExtraRecordsJobName);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Writing extra records failed", e);
+		}
+
+		// cancel the consume job after all extra records are written
+		JobManagerCommunicationUtils.cancelCurrentJob(
+			flink.getLeaderGateway(timeout),
+			consumeExtraRecordsJobName);
+		consumeThread.join();
+
+		kafkaOffsetHandler.close();
+		deleteTestTopic(topicName);
+
+		// check whether the consuming thread threw any test errors;
+		// test will fail here if the consume job had incorrectly read any records other than the extra records
+		final Throwable consumerError = error.get();
+		if (consumerError != null) {
+			throw new Exception("Exception in the consuming thread", consumerError);
+		}
+	}
+
+	/**
+	 * This test ensures that the consumer correctly uses group offsets in Kafka, and defaults to "auto.offset.reset"
+	 * behaviour when necessary, when explicitly configured to start from group offsets.
+	 *
+	 * <p>The partitions and their committed group offsets are setup as:
+	 * 	partition 0 --> committed offset 23
+	 * 	partition 1 --> no commit offset
+	 * 	partition 2 --> committed offset 43
+	 *
+	 * <p>When configured to start from group offsets, each partition should read:
+	 * 	partition 0 --> start from offset 23, read to offset 49 (27 records)
+	 * 	partition 1 --> default to "auto.offset.reset" (set to earliest), so start from offset 0, read to offset 49 (50 records)
+	 * 	partition 2 --> start from offset 43, read to offset 49 (7 records)
+	 */
+	public void runStartFromGroupOffsets() throws Exception {
+		// 3 partitions with 50 records each (offsets 0-49)
+		final int parallelism = 3;
+		final int recordsInEachPartition = 50;
+
+		final String topicName = writeSequence("testStartFromGroupOffsetsTopic", recordsInEachPartition, parallelism, 1);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
+		env.setParallelism(parallelism);
+
+		Properties readProps = new Properties();
+		readProps.putAll(standardProps);
+		readProps.setProperty("auto.offset.reset", "earliest");
+
+		// the committed group offsets should be used as starting points
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
+
+		// only partitions 0 and 2 have group offsets committed
+		kafkaOffsetHandler.setCommittedOffset(topicName, 0, 23);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
+
+		Map<Integer, Tuple2<Integer, Integer>> partitionsToValueCountAndStartOffsets = new HashMap<>();
+		partitionsToValueCountAndStartOffsets.put(0, new Tuple2<>(27, 23)); // partition 0 should read offset 23-49
+		partitionsToValueCountAndStartOffsets.put(1, new Tuple2<>(50, 0)); // partition 1 should read offset 0-49
+		partitionsToValueCountAndStartOffsets.put(2, new Tuple2<>(7, 43));	// partition 2 should read offset 43-49
+
+		readSequence(env, StartupMode.GROUP_OFFSETS, null, null, readProps, topicName, partitionsToValueCountAndStartOffsets);
+
+		kafkaOffsetHandler.close();
+		deleteTestTopic(topicName);
+	}
+
+	/**
+	 * This test ensures that the consumer correctly uses user-supplied specific offsets when explicitly configured to
+	 * start from specific offsets. For partitions which a specific offset can not be found for, the starting position
+	 * for them should fallback to the group offsets behaviour.
+	 *
+	 * <p>4 partitions will have 50 records with offsets 0 to 49. The supplied specific offsets map is:
+	 * 	partition 0 --> start from offset 19
+	 * 	partition 1 --> not set
+	 * 	partition 2 --> start from offset 22
+	 * 	partition 3 --> not set
+	 * 	partition 4 --> start from offset 26 (this should be ignored because the partition does not exist)
+	 *
+	 * <p>The partitions and their committed group offsets are setup as:
+	 * 	partition 0 --> committed offset 23
+	 * 	partition 1 --> committed offset 31
+	 * 	partition 2 --> committed offset 43
+	 * 	partition 3 --> no commit offset
+	 *
+	 * <p>When configured to start from these specific offsets, each partition should read:
+	 * 	partition 0 --> start from offset 19, read to offset 49 (31 records)
+	 * 	partition 1 --> fallback to group offsets, so start from offset 31, read to offset 49 (19 records)
+	 * 	partition 2 --> start from offset 22, read to offset 49 (28 records)
+	 * 	partition 3 --> fallback to group offsets, but since there is no group offset for this partition,
+	 * 	                will default to "auto.offset.reset" (set to "earliest"),
+	 * 	                so start from offset 0, read to offset 49 (50 records)
+	 */
+	public void runStartFromSpecificOffsets() throws Exception {
+		// 4 partitions with 50 records each (offsets 0-49)
+		final int parallelism = 4;
+		final int recordsInEachPartition = 50;
+
+		final String topicName = writeSequence("testStartFromSpecificOffsetsTopic", recordsInEachPartition, parallelism, 1);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
+		env.setParallelism(parallelism);
+
+		Properties readProps = new Properties();
+		readProps.putAll(standardProps);
+		readProps.setProperty("auto.offset.reset", "earliest"); // partition 3 should default back to this behaviour
+
+		Map<KafkaTopicPartition, Long> specificStartupOffsets = new HashMap<>();
+		specificStartupOffsets.put(new KafkaTopicPartition(topicName, 0), 19L);
+		specificStartupOffsets.put(new KafkaTopicPartition(topicName, 2), 22L);
+		specificStartupOffsets.put(new KafkaTopicPartition(topicName, 4), 26L); // non-existing partition, should be ignored
+
+		// only the committed offset for partition 1 should be used, because partition 1 has no entry in specific offset map
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
+		kafkaOffsetHandler.setCommittedOffset(topicName, 0, 23);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 1, 31);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
+
+		Map<Integer, Tuple2<Integer, Integer>> partitionsToValueCountAndStartOffsets = new HashMap<>();
+		partitionsToValueCountAndStartOffsets.put(0, new Tuple2<>(31, 19)); // partition 0 should read offset 19-49
+		partitionsToValueCountAndStartOffsets.put(1, new Tuple2<>(19, 31)); // partition 1 should read offset 31-49
+		partitionsToValueCountAndStartOffsets.put(2, new Tuple2<>(28, 22));	// partition 2 should read offset 22-49
+		partitionsToValueCountAndStartOffsets.put(3, new Tuple2<>(50, 0));	// partition 3 should read offset 0-49
+
+		readSequence(env, StartupMode.SPECIFIC_OFFSETS, specificStartupOffsets, null, readProps, topicName, partitionsToValueCountAndStartOffsets);
+
+		kafkaOffsetHandler.close();
+		deleteTestTopic(topicName);
+	}
+
+	/**
+	 * This test ensures that the consumer correctly uses user-supplied timestamp when explicitly configured to
+	 * start from timestamp.
+	 *
+	 * <p>The validated Kafka data is written in 2 steps: first, an initial 50 records is written to each partition.
+	 * After that, another 30 records is appended to each partition. Before each step, a timestamp is recorded.
+	 * For the validation, when the read job is configured to start from the first timestamp, each partition should start
+	 * from offset 0 and read a total of 80 records. When configured to start from the second timestamp,
+	 * each partition should start from offset 50 and read on the remaining 30 appended records.
+	 */
+	public void runStartFromTimestamp() throws Exception {
+		// 4 partitions with 50 records each
+		final int parallelism = 4;
+		final int initialRecordsInEachPartition = 50;
+		final int appendRecordsInEachPartition = 30;
+
+		// attempt to create an appended test sequence, where the timestamp of writing the appended sequence
+		// is assured to be larger than the timestamp of the original sequence.
+		long firstTimestamp = System.currentTimeMillis();
+		String topic = writeSequence("runStartFromTimestamp", initialRecordsInEachPartition, parallelism, 1);
+
+		long secondTimestamp = 0;
+		while (secondTimestamp <= firstTimestamp) {
+			Thread.sleep(1000);
+			secondTimestamp = System.currentTimeMillis();
+		}
+		writeAppendSequence(topic, initialRecordsInEachPartition, appendRecordsInEachPartition, parallelism);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
+		env.setParallelism(parallelism);
+
+		Properties readProps = new Properties();
+		readProps.putAll(standardProps);
+
+		readSequence(env, StartupMode.TIMESTAMP, null, firstTimestamp,
+			readProps, parallelism, topic, initialRecordsInEachPartition + appendRecordsInEachPartition, 0);
+		readSequence(env, StartupMode.TIMESTAMP, null, secondTimestamp,
+			readProps, parallelism, topic, appendRecordsInEachPartition, initialRecordsInEachPartition);
+
+		deleteTestTopic(topic);
+	}
+
 	/**
 	 * Ensure Kafka is working on both producer and consumer side.
 	 * This executes a job that contains two Flink pipelines.
@@ -452,22 +677,22 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 * <pre>
 	 * (generator source) --> (kafka sink)-[KAFKA-TOPIC]-(kafka source) --> (validating sink)
 	 * </pre>
-	 * 
-	 * We need to externally retry this test. We cannot let Flink's retry mechanism do it, because the Kafka producer
+	 *
+	 * <p>We need to externally retry this test. We cannot let Flink's retry mechanism do it, because the Kafka producer
 	 * does not guarantee exactly-once output. Hence a recovery would introduce duplicates that
 	 * cause the test to fail.
 	 *
-	 * This test also ensures that FLINK-3156 doesn't happen again:
+	 * <p>This test also ensures that FLINK-3156 doesn't happen again:
 	 *
-	 * The following situation caused a NPE in the FlinkKafkaConsumer
+	 * <p>The following situation caused a NPE in the FlinkKafkaConsumer
 	 *
-	 * topic-1 <-- elements are only produced into topic1.
+	 * <p>topic-1 <-- elements are only produced into topic1.
 	 * topic-2
 	 *
-	 * Therefore, this test is consuming as well from an empty topic.
+	 * <p>Therefore, this test is consuming as well from an empty topic.
 	 *
 	 */
-	@RetryOnException(times=2, exception=kafka.common.NotLeaderForPartitionException.class)
+	@RetryOnException(times = 2, exception = kafka.common.NotLeaderForPartitionException.class)
 	public void runSimpleConcurrentProducerConsumerTopology() throws Exception {
 		final String topic = "concurrentProducerConsumerTopic_" + UUID.randomUUID().toString();
 		final String additionalEmptyTopic = "additionalEmptyTopic_" + UUID.randomUUID().toString();
@@ -480,7 +705,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		createTestTopic(additionalEmptyTopic, parallelism, 1); // create an empty topic which will remain empty all the time
 
 		final StreamExecutionEnvironment env =
-				StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+				StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.enableCheckpointing(500);
 		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
@@ -496,7 +721,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		// ----------- add producer dataflow ----------
 
-		DataStream<Tuple2<Long, String>> stream = env.addSource(new RichParallelSourceFunction<Tuple2<Long,String>>() {
+		DataStream<Tuple2<Long, String>> stream = env.addSource(new RichParallelSourceFunction<Tuple2<Long, String>>() {
 
 			private boolean running = true;
 
@@ -504,7 +729,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			public void run(SourceContext<Tuple2<Long, String>> ctx) throws InterruptedException {
 				int cnt = getRuntimeContext().getIndexOfThisSubtask() * elementsPerPartition;
 				int limit = cnt + elementsPerPartition;
-
 
 				while (running && cnt < limit) {
 					ctx.collect(new Tuple2<>(1000L + cnt, "kafka-" + cnt));
@@ -607,16 +831,19 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		createTestTopic(topic, parallelism, 1);
 
 		DataGenerators.generateRandomizedIntegerSequence(
-				StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort),
+				StreamExecutionEnvironment.getExecutionEnvironment(),
 				kafkaServer,
-				topic, parallelism, numElementsPerPartition, true);
+				topic,
+				parallelism,
+				numElementsPerPartition,
+				true);
 
 		// run the topology that fails and recovers
 
 		DeserializationSchema<Integer> schema =
 				new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.enableCheckpointing(500);
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
@@ -656,16 +883,19 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		createTestTopic(topic, numPartitions, 1);
 
 		DataGenerators.generateRandomizedIntegerSequence(
-				StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort),
+				StreamExecutionEnvironment.getExecutionEnvironment(),
 				kafkaServer,
-				topic, numPartitions, numElementsPerPartition, false);
+				topic,
+				numPartitions,
+				numElementsPerPartition,
+				true);
 
 		// run the topology that fails and recovers
 
 		DeserializationSchema<Integer> schema =
 				new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.enableCheckpointing(500);
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
@@ -704,16 +934,19 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		createTestTopic(topic, numPartitions, 1);
 
 		DataGenerators.generateRandomizedIntegerSequence(
-				StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort),
+				StreamExecutionEnvironment.getExecutionEnvironment(),
 				kafkaServer,
-				topic, numPartitions, numElementsPerPartition, true);
+				topic,
+				numPartitions,
+				numElementsPerPartition,
+				true);
 
 		// run the topology that fails and recovers
 
 		DeserializationSchema<Integer> schema =
 				new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.enableCheckpointing(500);
 		env.setParallelism(parallelism);
 		// set the number of restarts to one. The failing mapper will fail once, then it's only success exceptions.
@@ -735,13 +968,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		FailingIdentityMapper.failedBefore = false;
 		tryExecute(env, "multi-source-one-partitions exactly once test");
 
-
 		deleteTestTopic(topic);
 	}
-	
-	
+
 	/**
-	 * Tests that the source can be properly canceled when reading full partitions. 
+	 * Tests that the source can be properly canceled when reading full partitions.
 	 */
 	public void runCancelingOnFullInputTest() throws Exception {
 		final String topic = "cancelingOnFullTopic";
@@ -762,7 +993,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			@Override
 			public void run() {
 				try {
-					final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+					final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 					env.setParallelism(parallelism);
 					env.enableCheckpointing(100);
 					env.getConfig().disableSysoutLogging();
@@ -789,7 +1020,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		Thread.sleep(2000);
 
 		Throwable failueCause = jobError.get();
-		if(failueCause != null) {
+		if (failueCause != null) {
 			failueCause.printStackTrace();
 			Assert.fail("Test failed prematurely with: " + failueCause.getMessage());
 		}
@@ -822,7 +1053,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	}
 
 	/**
-	 * Tests that the source can be properly canceled when reading empty partitions. 
+	 * Tests that the source can be properly canceled when reading empty partitions.
 	 */
 	public void runCancelingOnEmptyInputTest() throws Exception {
 		final String topic = "cancelingOnEmptyInputTopic";
@@ -836,7 +1067,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			@Override
 			public void run() {
 				try {
-					final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+					final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 					env.setParallelism(parallelism);
 					env.enableCheckpointing(100);
 					env.getConfig().disableSysoutLogging();
@@ -882,7 +1113,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	}
 
 	/**
-	 * Tests that the source can be properly canceled when reading full partitions. 
+	 * Tests that the source can be properly canceled when reading full partitions.
 	 */
 	public void runFailOnDeployTest() throws Exception {
 		final String topic = "failOnDeployTopic";
@@ -892,7 +1123,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		DeserializationSchema<Integer> schema =
 				new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(12); // needs to be more that the mini cluster has slots
 		env.getConfig().disableSysoutLogging();
 
@@ -909,7 +1140,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			env.execute("test fail on deploy");
 			fail("this test should fail with an exception");
 		}
-		catch (ProgramInvocationException e) {
+		catch (JobExecutionException e) {
 
 			// validate that we failed due to a NoResourceAvailableException
 			Throwable cause = e.getCause();
@@ -931,24 +1162,28 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	}
 
 	/**
-	 * Test producing and consuming into multiple topics
-	 * @throws java.lang.Exception
+	 * Test producing and consuming into multiple topics.
+	 * @throws Exception
 	 */
-	public void runProduceConsumeMultipleTopics() throws java.lang.Exception {
-		final int NUM_TOPICS = 5;
-		final int NUM_ELEMENTS = 20;
+	public void runProduceConsumeMultipleTopics() throws Exception {
+		final int numTopics = 5;
+		final int numElements = 20;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
-		
+
 		// create topics with content
 		final List<String> topics = new ArrayList<>();
-		for (int i = 0; i < NUM_TOPICS; i++) {
+		for (int i = 0; i < numTopics; i++) {
 			final String topic = "topic-" + i;
 			topics.add(topic);
 			// create topic
 			createTestTopic(topic, i + 1 /*partitions*/, 1);
 		}
+
+		// before FLINK-6078 the RemoteExecutionEnvironment set the parallelism to 1 as well
+		env.setParallelism(1);
+
 		// run first job, producing into all topics
 		DataStream<Tuple3<Integer, Integer, String>> stream = env.addSource(new RichParallelSourceFunction<Tuple3<Integer, Integer, String>>() {
 
@@ -956,8 +1191,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			public void run(SourceContext<Tuple3<Integer, Integer, String>> ctx) throws Exception {
 				int partition = getRuntimeContext().getIndexOfThisSubtask();
 
-				for (int topicId = 0; topicId < NUM_TOPICS; topicId++) {
-					for (int i = 0; i < NUM_ELEMENTS; i++) {
+				for (int topicId = 0; topicId < numTopics; topicId++) {
+					for (int i = 0; i < numElements; i++) {
 						ctx.collect(new Tuple3<>(partition, i, "topic-" + topicId));
 					}
 				}
@@ -978,13 +1213,13 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env.execute("Write to topics");
 
 		// run second job consuming from multiple topics
-		env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 
 		stream = env.addSource(kafkaServer.getConsumer(topics, schema, props));
 
 		stream.flatMap(new FlatMapFunction<Tuple3<Integer, Integer, String>, Integer>() {
-			Map<String, Integer> countPerTopic = new HashMap<>(NUM_TOPICS);
+			Map<String, Integer> countPerTopic = new HashMap<>(numTopics);
 			@Override
 			public void flatMap(Tuple3<Integer, Integer, String> value, Collector<Integer> out) throws Exception {
 				Integer count = countPerTopic.get(value.f2);
@@ -997,10 +1232,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 				// check map:
 				for (Map.Entry<String, Integer> el: countPerTopic.entrySet()) {
-					if (el.getValue() < NUM_ELEMENTS) {
+					if (el.getValue() < numElements) {
 						break; // not enough yet
 					}
-					if (el.getValue() > NUM_ELEMENTS) {
+					if (el.getValue() > numElements) {
 						throw new RuntimeException("There is a failure in the test. I've read " +
 								el.getValue() + " from topic " + el.getKey());
 					}
@@ -1012,87 +1247,17 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		tryExecute(env, "Count elements from the topics");
 
-
 		// delete all topics again
-		for (int i = 0; i < NUM_TOPICS; i++) {
+		for (int i = 0; i < numTopics; i++) {
 			final String topic = "topic-" + i;
 			deleteTestTopic(topic);
 		}
 	}
 
 	/**
-	 * Serialization scheme forwarding byte[] records.
-	 */
-	private static class ByteArraySerializationSchema implements KeyedSerializationSchema<byte[]> {
-
-		@Override
-		public byte[] serializeKey(byte[] element) {
-			return null;
-		}
-
-		@Override
-		public byte[] serializeValue(byte[] element) {
-			return element;
-		}
-
-		@Override
-		public String getTargetTopic(byte[] element) {
-			return null;
-		}
-	}
-
-	private static class Tuple2WithTopicSchema implements KeyedDeserializationSchema<Tuple3<Integer, Integer, String>>,
-			KeyedSerializationSchema<Tuple3<Integer, Integer, String>> {
-
-		private final TypeSerializer<Tuple2<Integer, Integer>> ts;
-		
-		public Tuple2WithTopicSchema(ExecutionConfig ec) {
-			ts = TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>").createSerializer(ec);
-		}
-
-		@Override
-		public Tuple3<Integer, Integer, String> deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
-			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(message));
-			Tuple2<Integer, Integer> t2 = ts.deserialize(in);
-			return new Tuple3<>(t2.f0, t2.f1, topic);
-		}
-
-		@Override
-		public boolean isEndOfStream(Tuple3<Integer, Integer, String> nextElement) {
-			return false;
-		}
-
-		@Override
-		public TypeInformation<Tuple3<Integer, Integer, String>> getProducedType() {
-			return TypeInfoParser.parse("Tuple3<Integer, Integer, String>");
-		}
-
-		@Override
-		public byte[] serializeKey(Tuple3<Integer, Integer, String> element) {
-			return null;
-		}
-
-		@Override
-		public byte[] serializeValue(Tuple3<Integer, Integer, String> element) {
-			ByteArrayOutputStream by = new ByteArrayOutputStream();
-			DataOutputView out = new DataOutputViewStreamWrapper(by);
-			try {
-				ts.serialize(new Tuple2<>(element.f0, element.f1), out);
-			} catch (IOException e) {
-				throw new RuntimeException("Error" ,e);
-			}
-			return by.toByteArray();
-		}
-
-		@Override
-		public String getTargetTopic(Tuple3<Integer, Integer, String> element) {
-			return element.f2;
-		}
-	}
-
-	/**
-	 * Test Flink's Kafka integration also with very big records (30MB)
-	 * see http://stackoverflow.com/questions/21020347/kafka-sending-a-15mb-message
+	 * Test Flink's Kafka integration also with very big records (30MB).
+	 *
+	 * <p>see http://stackoverflow.com/questions/21020347/kafka-sending-a-15mb-message
 	 *
 	 */
 	public void runBigRecordTestTopology() throws Exception {
@@ -1107,7 +1272,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final TypeInformationSerializationSchema<Tuple2<Long, byte[]>> serSchema =
 				new TypeInformationSerializationSchema<>(longBytesInfo, new ExecutionConfig());
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
 		env.enableCheckpointing(100);
@@ -1136,11 +1301,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					if (elCnt == 11) {
 						throw new SuccessException();
 					} else {
-						throw new RuntimeException("There have been "+elCnt+" elements");
+						throw new RuntimeException("There have been " + elCnt + " elements");
 					}
 				}
 				if (elCnt > 10) {
-					throw new RuntimeException("More than 10 elements seen: "+elCnt);
+					throw new RuntimeException("More than 10 elements seen: " + elCnt);
 				}
 			}
 		});
@@ -1194,7 +1359,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		deleteTestTopic(topic);
 	}
 
-	
 	public void runBrokerFailureTest() throws Exception {
 		final String topic = "brokerFailureTestTopic";
 
@@ -1203,11 +1367,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final int totalElements = parallelism * numElementsPerPartition;
 		final int failAfterElements = numElementsPerPartition / 3;
 
-
 		createTestTopic(topic, parallelism, 2);
 
 		DataGenerators.generateRandomizedIntegerSequence(
-				StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort),
+				StreamExecutionEnvironment.getExecutionEnvironment(),
 				kafkaServer,
 				topic, parallelism, numElementsPerPartition, true);
 
@@ -1216,13 +1379,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		LOG.info("Leader to shutdown {}", leaderId);
 
-
 		// run the topology (the consumers must handle the failures)
 
 		DeserializationSchema<Integer> schema =
 				new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.enableCheckpointing(500);
 		env.setRestartStrategy(RestartStrategies.noRestart());
@@ -1249,11 +1411,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	public void runKeyValueTest() throws Exception {
 		final String topic = "keyvaluetest";
 		createTestTopic(topic, 1, 1);
-		final int ELEMENT_COUNT = 5000;
+		final int elementCount = 5000;
 
 		// ----------- Write some data into Kafka -------------------
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
@@ -1262,7 +1424,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			@Override
 			public void run(SourceContext<Tuple2<Long, PojoValue>> ctx) throws Exception {
 				Random rnd = new Random(1337);
-				for (long i = 0; i < ELEMENT_COUNT; i++) {
+				for (long i = 0; i < elementCount; i++) {
 					PojoValue pojo = new PojoValue();
 					pojo.when = new Date(rnd.nextLong());
 					pojo.lon = rnd.nextLong();
@@ -1272,6 +1434,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					ctx.collect(new Tuple2<>(key, pojo));
 				}
 			}
+
 			@Override
 			public void cancel() {
 			}
@@ -1285,11 +1448,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		// ----------- Read the data again -------------------
 
-		env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
-
 
 		KeyedDeserializationSchema<Tuple2<Long, PojoValue>> readSchema = new TypeInformationKeyValueSerializationSchema<>(Long.class, PojoValue.class, env.getConfig());
 
@@ -1297,19 +1459,19 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		props.putAll(standardProps);
 		props.putAll(secureProps);
 		DataStream<Tuple2<Long, PojoValue>> fromKafka = env.addSource(kafkaServer.getConsumer(topic, readSchema, props));
-		fromKafka.flatMap(new RichFlatMapFunction<Tuple2<Long,PojoValue>, Object>() {
+		fromKafka.flatMap(new RichFlatMapFunction<Tuple2<Long, PojoValue>, Object>() {
 			long counter = 0;
 			@Override
 			public void flatMap(Tuple2<Long, PojoValue> value, Collector<Object> out) throws Exception {
 				// the elements should be in order.
-				Assert.assertTrue("Wrong value " + value.f1.lat, value.f1.lat == counter );
+				Assert.assertTrue("Wrong value " + value.f1.lat, value.f1.lat == counter);
 				if (value.f1.lat % 2 == 0) {
 					assertNull("key was not null", value.f0);
 				} else {
 					Assert.assertTrue("Wrong value " + value.f0, value.f0 == counter);
 				}
 				counter++;
-				if (counter == ELEMENT_COUNT) {
+				if (counter == elementCount) {
 					// we got the right number of elements
 					throw new SuccessException();
 				}
@@ -1321,26 +1483,25 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		deleteTestTopic(topic);
 	}
 
-	public static class PojoValue {
+	private static class PojoValue {
 		public Date when;
 		public long lon;
 		public long lat;
 		public PojoValue() {}
 	}
 
-
 	/**
-	 * Test delete behavior and metrics for producer
+	 * Test delete behavior and metrics for producer.
 	 * @throws Exception
 	 */
 	public void runAllDeletesTest() throws Exception {
 		final String topic = "alldeletestest";
 		createTestTopic(topic, 1, 1);
-		final int ELEMENT_COUNT = 300;
+		final int elementCount = 300;
 
 		// ----------- Write some data into Kafka -------------------
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
@@ -1349,12 +1510,13 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			@Override
 			public void run(SourceContext<Tuple2<byte[], PojoValue>> ctx) throws Exception {
 				Random rnd = new Random(1337);
-				for (long i = 0; i < ELEMENT_COUNT; i++) {
+				for (long i = 0; i < elementCount; i++) {
 					final byte[] key = new byte[200];
 					rnd.nextBytes(key);
 					ctx.collect(new Tuple2<>(key, (PojoValue) null));
 				}
 			}
+
 			@Override
 			public void cancel() {
 			}
@@ -1371,7 +1533,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		// ----------- Read the data again -------------------
 
-		env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
@@ -1388,7 +1550,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				// ensure that deleted messages are passed as nulls
 				assertNull(value.f1);
 				counter++;
-				if (counter == ELEMENT_COUNT) {
+				if (counter == elementCount) {
 					// we got the right number of elements
 					throw new SuccessException();
 				}
@@ -1407,11 +1569,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 */
 	public void runEndOfStreamTest() throws Exception {
 
-		final int ELEMENT_COUNT = 300;
-		final String topic = writeSequence("testEndOfStream", ELEMENT_COUNT, 1, 1);
+		final int elementCount = 300;
+		final String topic = writeSequence("testEndOfStream", elementCount, 1, 1);
 
 		// read using custom schema
-		final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.getExecutionEnvironment();
 		env1.setParallelism(1);
 		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env1.getConfig().disableSysoutLogging();
@@ -1420,21 +1582,21 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		props.putAll(standardProps);
 		props.putAll(secureProps);
 
-		DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, new FixedNumberDeserializationSchema(ELEMENT_COUNT), props));
-		fromKafka.flatMap(new FlatMapFunction<Tuple2<Integer,Integer>, Void>() {
+		DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, new FixedNumberDeserializationSchema(elementCount), props));
+		fromKafka.flatMap(new FlatMapFunction<Tuple2<Integer, Integer>, Void>() {
 			@Override
 			public void flatMap(Tuple2<Integer, Integer> value, Collector<Void> out) throws Exception {
 				// noop ;)
 			}
 		});
 
-		JobExecutionResult result = tryExecute(env1, "Consume " + ELEMENT_COUNT + " elements from Kafka");
+		tryExecute(env1, "Consume " + elementCount + " elements from Kafka");
 
 		deleteTestTopic(topic);
 	}
 
 	/**
-	 * Test metrics reporting for consumer
+	 * Test metrics reporting for consumer.
 	 *
 	 * @throws Exception
 	 */
@@ -1450,7 +1612,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			public void run() {
 				try {
 					// start job writing & reading data.
-					final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+					final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.getExecutionEnvironment();
 					env1.setParallelism(1);
 					env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 					env1.getConfig().disableSysoutLogging();
@@ -1489,9 +1651,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					kafkaServer.produceIntoKafka(fromGen, topic, new KeyedSerializationSchemaWrapper<>(schema), standardProps, null);
 
 					env1.execute("Metrics test job");
-				} catch(Throwable t) {
-					LOG.warn("Got exception during execution", t);
-					if(!(t.getCause() instanceof JobCancellationException)) { // we'll cancel the job
+				} catch (Throwable t) {
+					if (!(t instanceof JobCancellationException)) { // we'll cancel the job
+						LOG.warn("Got exception during execution", t);
 						error.f0 = t;
 					}
 				}
@@ -1522,7 +1684,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				// check that offsets are correctly reported
 				for (ObjectName object : offsetMetrics) {
 					Object offset = mBeanServer.getAttribute(object, "Value");
-					if((long) offset >= 0) {
+					if ((long) offset >= 0) {
 						numPosOffsets++;
 					}
 				}
@@ -1537,16 +1699,14 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			Set<ObjectName> producerMetrics = mBeanServer.queryNames(new ObjectName("*KafkaProducer*:*"), null);
 			Assert.assertTrue("No producer metrics found", producerMetrics.size() > 30);
 
-
 			LOG.info("Found all JMX metrics. Cancelling job.");
 		} finally {
 			// cancel
 			JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+			// wait for the job to finish (it should due to the cancel command above)
+			jobThread.join();
 		}
 
-		while (jobThread.isAlive()) {
-			Thread.sleep(50);
-		}
 		if (error.f0 != null) {
 			throw error.f0;
 		}
@@ -1554,12 +1714,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		deleteTestTopic(topic);
 	}
 
+	private static class FixedNumberDeserializationSchema implements DeserializationSchema<Tuple2<Integer, Integer>> {
 
-	public static class FixedNumberDeserializationSchema implements DeserializationSchema<Tuple2<Integer, Integer>> {
-		
 		final int finalCount;
 		int count = 0;
-		
+
 		TypeInformation<Tuple2<Integer, Integer>> ti = TypeInfoParser.parse("Tuple2<Integer, Integer>");
 		TypeSerializer<Tuple2<Integer, Integer>> ser = ti.createSerializer(new ExecutionConfig());
 
@@ -1584,7 +1743,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 	}
 
-
 	// ------------------------------------------------------------------------
 	//  Reading writing test data sets
 	// ------------------------------------------------------------------------
@@ -1594,7 +1752,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 * The method allows to individually specify the expected starting offset and total read value count of each partition.
 	 * The job will be considered successful only if all partition read results match the start offset and value count criteria.
 	 */
-	protected void readSequence(StreamExecutionEnvironment env, Properties cc,
+	protected void readSequence(final StreamExecutionEnvironment env,
+								final StartupMode startupMode,
+								final Map<KafkaTopicPartition, Long> specificStartupOffsets,
+								final Long startupTimestamp,
+								final Properties cc,
 								final String topicName,
 								final Map<Integer, Tuple2<Integer, Integer>> partitionsToValuesCountAndStartOffset) throws Exception {
 		final int sourceParallelism = partitionsToValuesCountAndStartOffset.keySet().size();
@@ -1613,6 +1775,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		// create the consumer
 		cc.putAll(secureProps);
 		FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer = kafkaServer.getConsumer(topicName, deser, cc);
+		setKafkaConsumerOffset(startupMode, consumer, specificStartupOffsets, startupTimestamp);
 
 		DataStream<Tuple2<Integer, Integer>> source = env
 			.addSource(consumer).setParallelism(sourceParallelism)
@@ -1676,31 +1839,58 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	}
 
 	/**
-	 * Variant of {@link KafkaConsumerTestBase#readSequence(StreamExecutionEnvironment, Properties, String, Map)} to
+	 * Variant of {@link KafkaConsumerTestBase#readSequence(StreamExecutionEnvironment, StartupMode, Map, Long, Properties, String, Map)} to
 	 * expect reading from the same start offset and the same value count for all partitions of a single Kafka topic.
 	 */
-	protected void readSequence(StreamExecutionEnvironment env, Properties cc,
+	protected void readSequence(final StreamExecutionEnvironment env,
+								final StartupMode startupMode,
+								final Map<KafkaTopicPartition, Long> specificStartupOffsets,
+								final Long startupTimestamp,
+								final Properties cc,
 								final int sourceParallelism,
 								final String topicName,
-								final int valuesCount, final int startFrom) throws Exception {
+								final int valuesCount,
+								final int startFrom) throws Exception {
 		HashMap<Integer, Tuple2<Integer, Integer>> partitionsToValuesCountAndStartOffset = new HashMap<>();
 		for (int i = 0; i < sourceParallelism; i++) {
 			partitionsToValuesCountAndStartOffset.put(i, new Tuple2<>(valuesCount, startFrom));
 		}
-		readSequence(env, cc, topicName, partitionsToValuesCountAndStartOffset);
+		readSequence(env, startupMode, specificStartupOffsets, startupTimestamp, cc, topicName, partitionsToValuesCountAndStartOffset);
+	}
+
+	protected void setKafkaConsumerOffset(final StartupMode startupMode,
+										final FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer,
+										final Map<KafkaTopicPartition, Long> specificStartupOffsets,
+										final Long startupTimestamp) {
+		switch (startupMode) {
+			case EARLIEST:
+				consumer.setStartFromEarliest();
+				break;
+			case LATEST:
+				consumer.setStartFromLatest();
+				break;
+			case SPECIFIC_OFFSETS:
+				consumer.setStartFromSpecificOffsets(specificStartupOffsets);
+				break;
+			case GROUP_OFFSETS:
+				consumer.setStartFromGroupOffsets();
+				break;
+			case TIMESTAMP:
+				consumer.setStartFromTimestamp(startupTimestamp);
+				break;
+		}
 	}
 
 	protected String writeSequence(
 			String baseTopicName,
 			final int numElements,
 			final int parallelism,
-			final int replicationFactor) throws Exception
-	{
+			final int replicationFactor) throws Exception {
 		LOG.info("\n===================================\n" +
 				"== Writing sequence of " + numElements + " into " + baseTopicName + " with p=" + parallelism + "\n" +
 				"===================================");
 
-		final TypeInformation<Tuple2<Integer, Integer>> resultType = 
+		final TypeInformation<Tuple2<Integer, Integer>> resultType =
 				TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {});
 
 		final KeyedSerializationSchema<Tuple2<Integer, Integer>> serSchema =
@@ -1710,50 +1900,50 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
 				new KeyedDeserializationSchemaWrapper<>(
 						new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
-		
+
 		final int maxNumAttempts = 10;
 
 		for (int attempt = 1; attempt <= maxNumAttempts; attempt++) {
-			
+
 			final String topicName = baseTopicName + '-' + attempt;
-			
-			LOG.info("Writing attempt #1");
-			
+
+			LOG.info("Writing attempt #" + attempt);
+
 			// -------- Write the Sequence --------
 
 			createTestTopic(topicName, parallelism, replicationFactor);
 
-			StreamExecutionEnvironment writeEnv = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+			StreamExecutionEnvironment writeEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 			writeEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 			writeEnv.getConfig().disableSysoutLogging();
-			
+
 			DataStream<Tuple2<Integer, Integer>> stream = writeEnv.addSource(new RichParallelSourceFunction<Tuple2<Integer, Integer>>() {
-	
+
 				private boolean running = true;
-	
+
 				@Override
 				public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
 					int cnt = 0;
 					int partition = getRuntimeContext().getIndexOfThisSubtask();
-	
+
 					while (running && cnt < numElements) {
 						ctx.collect(new Tuple2<>(partition, cnt));
 						cnt++;
 					}
 				}
-	
+
 				@Override
 				public void cancel() {
 					running = false;
 				}
 			}).setParallelism(parallelism);
-	
+
 			// the producer must not produce duplicates
 			Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
 			producerProperties.setProperty("retries", "0");
 			producerProperties.putAll(secureProps);
-			
-			kafkaServer.produceIntoKafka(stream, topicName, serSchema, producerProperties, new Tuple2Partitioner(parallelism))
+
+			kafkaServer.produceIntoKafka(stream, topicName, serSchema, producerProperties, new Tuple2FlinkPartitioner(parallelism))
 					.setParallelism(parallelism);
 
 			try {
@@ -1765,86 +1955,17 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
 				continue;
 			}
-			
+
 			LOG.info("Finished writing sequence");
 
 			// -------- Validate the Sequence --------
-			
+
 			// we need to validate the sequence, because kafka's producers are not exactly once
 			LOG.info("Validating sequence");
 
 			JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
-			
-			final StreamExecutionEnvironment readEnv = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-			readEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-			readEnv.getConfig().disableSysoutLogging();
-			readEnv.setParallelism(parallelism);
-			
-			Properties readProps = (Properties) standardProps.clone();
-			readProps.setProperty("group.id", "flink-tests-validator");
-			readProps.putAll(secureProps);
-			FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer = kafkaServer.getConsumer(topicName, deserSchema, readProps);
 
-			readEnv
-					.addSource(consumer)
-					.map(new RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
-						
-						private final int totalCount = parallelism * numElements;
-						private int count = 0;
-						
-						@Override
-						public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
-							if (++count == totalCount) {
-								throw new SuccessException();
-							} else {
-								return value;
-							}
-						}
-					}).setParallelism(1)
-					.addSink(new DiscardingSink<Tuple2<Integer, Integer>>()).setParallelism(1);
-			
-			final AtomicReference<Throwable> errorRef = new AtomicReference<>();
-			
-			Thread runner = new Thread() {
-				@Override
-				public void run() {
-					try {
-						tryExecute(readEnv, "sequence validation");
-					} catch (Throwable t) {
-						errorRef.set(t);
-					}
-				}
-			};
-			runner.start();
-			
-			final long deadline = System.currentTimeMillis() + 10000;
-			long delay;
-			while (runner.isAlive() && (delay = deadline - System.currentTimeMillis()) > 0) {
-				runner.join(delay);
-			}
-			
-			boolean success;
-			
-			if (runner.isAlive()) {
-				// did not finish in time, maybe the producer dropped one or more records and
-				// the validation did not reach the exit point
-				success = false;
-				JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
-			}
-			else {
-				Throwable error = errorRef.get();
-				if (error != null) {
-					success = false;
-					LOG.info("Attempt " + attempt + " failed with exception", error);
-				}
-				else {
-					success = true;
-				}
-			}
-
-			JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
-			
-			if (success) {
+			if (validateSequence(topicName, parallelism, deserSchema, numElements)) {
 				// everything is good!
 				return topicName;
 			}
@@ -1853,8 +1974,161 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				// fall through the loop
 			}
 		}
-		
+
 		throw new Exception("Could not write a valid sequence to Kafka after " + maxNumAttempts + " attempts");
+	}
+
+	protected void writeAppendSequence(
+			String topicName,
+			final int originalNumElements,
+			final int numElementsToAppend,
+			final int parallelism) throws Exception {
+
+		LOG.info("\n===================================\n" +
+			"== Appending sequence of " + numElementsToAppend + " into " + topicName +
+			"===================================");
+
+		final TypeInformation<Tuple2<Integer, Integer>> resultType =
+			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {});
+
+		final KeyedSerializationSchema<Tuple2<Integer, Integer>> serSchema =
+			new KeyedSerializationSchemaWrapper<>(
+				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
+
+		final KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
+			new KeyedDeserializationSchemaWrapper<>(
+				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
+
+		// -------- Write the append sequence --------
+
+		StreamExecutionEnvironment writeEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+		writeEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+		writeEnv.getConfig().disableSysoutLogging();
+
+		DataStream<Tuple2<Integer, Integer>> stream = writeEnv.addSource(new RichParallelSourceFunction<Tuple2<Integer, Integer>>() {
+
+			private boolean running = true;
+
+			@Override
+			public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
+				int cnt = originalNumElements;
+				int partition = getRuntimeContext().getIndexOfThisSubtask();
+
+				while (running && cnt < numElementsToAppend + originalNumElements) {
+					ctx.collect(new Tuple2<>(partition, cnt));
+					cnt++;
+				}
+			}
+
+			@Override
+			public void cancel() {
+				running = false;
+			}
+		}).setParallelism(parallelism);
+
+		// the producer must not produce duplicates
+		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
+		producerProperties.setProperty("retries", "0");
+		producerProperties.putAll(secureProps);
+
+		kafkaServer.produceIntoKafka(stream, topicName, serSchema, producerProperties, new Tuple2FlinkPartitioner(parallelism))
+			.setParallelism(parallelism);
+
+		try {
+			writeEnv.execute("Write sequence");
+		}
+		catch (Exception e) {
+			throw new Exception("Failed to append sequence to Kafka; append job failed.", e);
+		}
+
+		LOG.info("Finished writing append sequence");
+
+		// we need to validate the sequence, because kafka's producers are not exactly once
+		LOG.info("Validating sequence");
+		JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
+
+		if (!validateSequence(topicName, parallelism, deserSchema, originalNumElements + numElementsToAppend)) {
+			throw new Exception("Could not append a valid sequence to Kafka.");
+		}
+	}
+
+	private boolean validateSequence(
+			final String topic,
+			final int parallelism,
+			KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema,
+			final int totalNumElements) throws Exception {
+
+		final StreamExecutionEnvironment readEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+		readEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+		readEnv.getConfig().disableSysoutLogging();
+		readEnv.setParallelism(parallelism);
+
+		Properties readProps = (Properties) standardProps.clone();
+		readProps.setProperty("group.id", "flink-tests-validator");
+		readProps.putAll(secureProps);
+		FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer = kafkaServer.getConsumer(topic, deserSchema, readProps);
+		consumer.setStartFromEarliest();
+
+		readEnv
+			.addSource(consumer)
+			.map(new RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
+
+				private final int totalCount = parallelism * totalNumElements;
+				private int count = 0;
+
+				@Override
+				public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
+					if (++count == totalCount) {
+						throw new SuccessException();
+					} else {
+						return value;
+					}
+				}
+			}).setParallelism(1)
+			.addSink(new DiscardingSink<>()).setParallelism(1);
+
+		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
+
+		Thread runner = new Thread() {
+			@Override
+			public void run() {
+				try {
+					tryExecute(readEnv, "sequence validation");
+				} catch (Throwable t) {
+					errorRef.set(t);
+				}
+			}
+		};
+		runner.start();
+
+		final long deadline = System.nanoTime() + 10_000_000_000L;
+		long delay;
+		while (runner.isAlive() && (delay = deadline - System.nanoTime()) > 0) {
+			runner.join(delay / 1_000_000L);
+		}
+
+		boolean success;
+
+		if (runner.isAlive()) {
+			// did not finish in time, maybe the producer dropped one or more records and
+			// the validation did not reach the exit point
+			success = false;
+			JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+		}
+		else {
+			Throwable error = errorRef.get();
+			if (error != null) {
+				success = false;
+				LOG.info("Sequence validation job failed with exception", error);
+			}
+			else {
+				success = true;
+			}
+		}
+
+		JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
+
+		return success;
 	}
 
 	// ------------------------------------------------------------------------
@@ -1868,28 +2142,28 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		ConsumerConnector consumerConnector = Consumer.createJavaConsumerConnector(config);
 		// we request only one stream per consumer instance. Kafka will make sure that each consumer group
 		// will see each message only once.
-		Map<String,Integer> topicCountMap = Collections.singletonMap(topicName, 1);
+		Map<String, Integer> topicCountMap = Collections.singletonMap(topicName, 1);
 		Map<String, List<KafkaStream<byte[], byte[]>>> streams = consumerConnector.createMessageStreams(topicCountMap);
 		if (streams.size() != 1) {
-			throw new RuntimeException("Expected only one message stream but got "+streams.size());
+			throw new RuntimeException("Expected only one message stream but got " + streams.size());
 		}
 		List<KafkaStream<byte[], byte[]>> kafkaStreams = streams.get(topicName);
 		if (kafkaStreams == null) {
-			throw new RuntimeException("Requested stream not available. Available streams: "+streams.toString());
+			throw new RuntimeException("Requested stream not available. Available streams: " + streams.toString());
 		}
 		if (kafkaStreams.size() != 1) {
-			throw new RuntimeException("Requested 1 stream from Kafka, bot got "+kafkaStreams.size()+" streams");
+			throw new RuntimeException("Requested 1 stream from Kafka, bot got " + kafkaStreams.size() + " streams");
 		}
 		LOG.info("Opening Consumer instance for topic '{}' on group '{}'", topicName, config.groupId());
 		ConsumerIterator<byte[], byte[]> iteratorToRead = kafkaStreams.get(0).iterator();
 
 		List<MessageAndMetadata<byte[], byte[]>> result = new ArrayList<>();
 		int read = 0;
-		while(iteratorToRead.hasNext()) {
+		while (iteratorToRead.hasNext()) {
 			read++;
 			result.add(iteratorToRead.next());
 			if (read == stopAfter) {
-				LOG.info("Read "+read+" elements");
+				LOG.info("Read " + read + " elements");
 				return result;
 			}
 		}
@@ -1909,12 +2183,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 	}
 
-	private static void printTopic(String topicName, int elements,DeserializationSchema<?> deserializer) 
-			throws IOException
-	{
+	private static void printTopic(String topicName, int elements, DeserializationSchema<?> deserializer)
+			throws IOException {
 		// write the sequence to log for debugging purposes
 		Properties newProps = new Properties(standardProps);
-		newProps.setProperty("group.id", "topic-printer"+ UUID.randomUUID().toString());
+		newProps.setProperty("group.id", "topic-printer" + UUID.randomUUID().toString());
 		newProps.setProperty("auto.offset.reset", "smallest");
 		newProps.setProperty("zookeeper.connect", standardProps.getProperty("zookeeper.connect"));
 		newProps.putAll(secureProps);
@@ -1923,22 +2196,20 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		printTopic(topicName, printerConfig, deserializer, elements);
 	}
 
-
-	public static class BrokerKillingMapper<T> extends RichMapFunction<T,T>
-			implements Checkpointed<Integer>, CheckpointListener {
+	private static class BrokerKillingMapper<T> extends RichMapFunction<T, T>
+			implements ListCheckpointed<Integer>, CheckpointListener {
 
 		private static final long serialVersionUID = 6334389850158707313L;
 
 		public static volatile boolean killedLeaderBefore;
 		public static volatile boolean hasBeenCheckpointedBeforeFailure;
-		
+
 		private final int shutdownBrokerId;
 		private final int failCount;
 		private int numElementsTotal;
 
 		private boolean failer;
 		private boolean hasBeenCheckpointed;
-
 
 		public BrokerKillingMapper(int shutdownBrokerId, int failCount) {
 			this.shutdownBrokerId = shutdownBrokerId;
@@ -1953,10 +2224,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		@Override
 		public T map(T value) throws Exception {
 			numElementsTotal++;
-			
+
 			if (!killedLeaderBefore) {
 				Thread.sleep(10);
-				
+
 				if (failer && numElementsTotal >= failCount) {
 					// shut down a Kafka broker
 					KafkaServer toShutDown = null;
@@ -1967,14 +2238,14 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 							break;
 						}
 					}
-	
+
 					if (toShutDown == null) {
 						StringBuilder listOfBrokers = new StringBuilder();
 						for (KafkaServer server : kafkaServer.getBrokers()) {
 							listOfBrokers.append(kafkaServer.getBrokerId(server));
 							listOfBrokers.append(" ; ");
 						}
-						
+
 						throw new Exception("Cannot find broker to shut down: " + shutdownBrokerId
 								+ " ; available brokers: " + listOfBrokers.toString());
 					}
@@ -1994,13 +2265,65 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
-			return numElementsTotal;
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.numElementsTotal);
 		}
 
 		@Override
-		public void restoreState(Integer state) {
-			this.numElementsTotal = state;
+		public void restoreState(List<Integer> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.numElementsTotal = state.get(0);
+		}
+	}
+
+	private static class Tuple2WithTopicSchema implements KeyedDeserializationSchema<Tuple3<Integer, Integer, String>>,
+		KeyedSerializationSchema<Tuple3<Integer, Integer, String>> {
+
+		private final TypeSerializer<Tuple2<Integer, Integer>> ts;
+
+		public Tuple2WithTopicSchema(ExecutionConfig ec) {
+			ts = TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>").createSerializer(ec);
+		}
+
+		@Override
+		public Tuple3<Integer, Integer, String> deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
+			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(message));
+			Tuple2<Integer, Integer> t2 = ts.deserialize(in);
+			return new Tuple3<>(t2.f0, t2.f1, topic);
+		}
+
+		@Override
+		public boolean isEndOfStream(Tuple3<Integer, Integer, String> nextElement) {
+			return false;
+		}
+
+		@Override
+		public TypeInformation<Tuple3<Integer, Integer, String>> getProducedType() {
+			return TypeInfoParser.parse("Tuple3<Integer, Integer, String>");
+		}
+
+		@Override
+		public byte[] serializeKey(Tuple3<Integer, Integer, String> element) {
+			return null;
+		}
+
+		@Override
+		public byte[] serializeValue(Tuple3<Integer, Integer, String> element) {
+			ByteArrayOutputStream by = new ByteArrayOutputStream();
+			DataOutputView out = new DataOutputViewStreamWrapper(by);
+			try {
+				ts.serialize(new Tuple2<>(element.f0, element.f1), out);
+			} catch (IOException e) {
+				throw new RuntimeException("Error" , e);
+			}
+			return by.toByteArray();
+		}
+
+		@Override
+		public String getTargetTopic(Tuple3<Integer, Integer, String> element) {
+			return element.f2;
 		}
 	}
 }

@@ -97,6 +97,10 @@ public class BinaryUnionOpDescriptor extends OperatorDescriptorDual {
 					in2.getPartitioning() == PartitioningProperty.FORCED_REBALANCED) {
 			newProps.setForcedRebalanced();
 		}
+		else if (in1.getPartitioning() == PartitioningProperty.FULL_REPLICATION &&
+			in2.getPartitioning() == PartitioningProperty.FULL_REPLICATION) {
+			newProps.setFullyReplicated();
+		}
 
 		return newProps;
 	}

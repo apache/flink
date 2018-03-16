@@ -18,9 +18,7 @@
 
 package org.apache.flink.api.java.utils;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.fail;
+import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
@@ -30,10 +28,14 @@ import org.junit.rules.ExpectedException;
 
 import java.util.Arrays;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.not;
+import static org.junit.Assert.fail;
+
 /**
- * Tests for RequiredParameter class and its interactions with ParameterTool
+ * Tests for RequiredParameter class and its interactions with ParameterTool.
  */
-public class RequiredParametersTest {
+public class RequiredParametersTest extends TestLogger {
 
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
@@ -122,7 +124,7 @@ public class RequiredParametersTest {
 
 		try {
 			required.add(new Option("berlin").alt("b"));
-			required.applyTo(parameter);
+			parameter = required.applyTo(parameter);
 			Assert.assertEquals(parameter.data.get("berlin"), "value");
 			Assert.assertEquals(parameter.data.get("b"), "value");
 		} catch (RequiredParametersException e) {
@@ -137,7 +139,7 @@ public class RequiredParametersTest {
 
 		try {
 			required.add(new Option("berlin").alt("b").defaultValue("something"));
-			required.applyTo(parameter);
+			parameter = required.applyTo(parameter);
 			Assert.assertEquals(parameter.data.get("berlin"), "value");
 			Assert.assertEquals(parameter.data.get("b"), "value");
 		} catch (RequiredParametersException e) {
@@ -164,7 +166,7 @@ public class RequiredParametersTest {
 		RequiredParameters required = new RequiredParameters();
 		try {
 			required.add(new Option("berlin"));
-			required.applyTo(parameter);
+			parameter = required.applyTo(parameter);
 			Assert.assertEquals(parameter.data.get("berlin"), "value");
 		} catch (RequiredParametersException e) {
 			fail("Exception thrown " + e.getMessage());
@@ -177,7 +179,7 @@ public class RequiredParametersTest {
 		RequiredParameters required = new RequiredParameters();
 		try {
 			required.add(new Option("berlin").defaultValue("value"));
-			required.applyTo(parameter);
+			parameter = required.applyTo(parameter);
 			Assert.assertEquals(parameter.data.get("berlin"), "value");
 		} catch (RequiredParametersException e) {
 			fail("Exception thrown " + e.getMessage());
@@ -190,7 +192,7 @@ public class RequiredParametersTest {
 		RequiredParameters required = new RequiredParameters();
 		try {
 			required.add(new Option("berlin").alt("b").defaultValue("value"));
-			required.applyTo(parameter);
+			parameter = required.applyTo(parameter);
 			Assert.assertEquals(parameter.data.get("berlin"), "value");
 			Assert.assertEquals(parameter.data.get("b"), "value");
 		} catch (RequiredParametersException e) {
@@ -205,7 +207,7 @@ public class RequiredParametersTest {
 		try {
 			rq.add("input");
 			rq.add(new Option("parallelism").alt("p").defaultValue("1").type(OptionType.INTEGER));
-			rq.applyTo(parameter);
+			parameter = rq.applyTo(parameter);
 			Assert.assertEquals(parameter.data.get("parallelism"), "1");
 			Assert.assertEquals(parameter.data.get("p"), "1");
 			Assert.assertEquals(parameter.data.get("input"), "abc");
@@ -223,7 +225,7 @@ public class RequiredParametersTest {
 			required.add(new Option("count").defaultValue("15"));
 			required.add(new Option("someFlag").alt("sf").defaultValue("true"));
 
-			required.applyTo(parameter);
+			parameter = required.applyTo(parameter);
 
 			Assert.assertEquals(parameter.data.get("berlin"), "value");
 			Assert.assertEquals(parameter.data.get("count"), "15");

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators.windowing.functions;
 
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
@@ -41,8 +42,13 @@ public final class InternalSingleValueAllWindowFunction<IN, OUT, W extends Windo
 	}
 
 	@Override
-	public void apply(Byte key, W window, IN input, Collector<OUT> out) throws Exception {
+	public void process(Byte key, W window, InternalWindowContext context, IN input, Collector<OUT> out) throws Exception {
 		wrappedFunction.apply(window, Collections.singletonList(input), out);
+	}
+
+	@Override
+	public void clear(W window, InternalWindowContext context) throws Exception {
+
 	}
 
 	@Override

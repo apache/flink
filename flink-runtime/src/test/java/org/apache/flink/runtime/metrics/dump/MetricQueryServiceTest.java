@@ -15,30 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.dump;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.actor.UntypedActor;
-import akka.testkit.TestActorRef;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
-import org.apache.flink.runtime.metrics.util.TestingHistogram;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.actor.UntypedActor;
+import akka.testkit.TestActorRef;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the {@link MetricQueryService}.
+ */
 public class MetricQueryServiceTest extends TestLogger {
 	@Test
 	public void testCreateDump() throws Exception {
@@ -55,7 +60,7 @@ public class MetricQueryServiceTest extends TestLogger {
 				return "Hello";
 			}
 		};
-		final Histogram h = new TestingHistogram();
+		final Histogram h = new TestHistogram();
 		final Meter m = new Meter() {
 
 			@Override
@@ -77,15 +82,24 @@ public class MetricQueryServiceTest extends TestLogger {
 			}
 		};
 
-		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 		final TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
 
 		MetricQueryService.notifyOfAddedMetric(serviceActor, c, "counter", tm);
 		MetricQueryService.notifyOfAddedMetric(serviceActor, g, "gauge", tm);
 		MetricQueryService.notifyOfAddedMetric(serviceActor, h, "histogram", tm);
 		MetricQueryService.notifyOfAddedMetric(serviceActor, m, "meter", tm);
+		serviceActor.tell(MetricQueryService.getCreateDump(), testActorRef);
+		synchronized (testActor.lock) {
+			if (testActor.message == null) {
+				testActor.lock.wait();
+			}
+		}
 
-		// these metrics will be removed *after* the first query
+		MetricDumpSerialization.MetricSerializationResult dump = (MetricDumpSerialization.MetricSerializationResult) testActor.message;
+		testActor.message = null;
+		assertTrue(dump.serializedMetrics.length > 0);
+
 		MetricQueryService.notifyOfRemovedMetric(serviceActor, c);
 		MetricQueryService.notifyOfRemovedMetric(serviceActor, g);
 		MetricQueryService.notifyOfRemovedMetric(serviceActor, h);
@@ -98,23 +112,9 @@ public class MetricQueryServiceTest extends TestLogger {
 			}
 		}
 
-		byte[] dump = (byte[]) testActor.message;
+		MetricDumpSerialization.MetricSerializationResult emptyDump = (MetricDumpSerialization.MetricSerializationResult) testActor.message;
 		testActor.message = null;
-		assertTrue(dump.length > 0);
-
-		serviceActor.tell(MetricQueryService.getCreateDump(), testActorRef);
-		synchronized (testActor.lock) {
-			if (testActor.message == null) {
-				testActor.lock.wait();
-			}
-		}
-
-		byte[] emptyDump = (byte[]) testActor.message;
-		testActor.message = null;
-		assertEquals(16, emptyDump.length);
-		for (int x = 0; x < 16; x++) {
-			assertEquals(0, emptyDump[x]);
-		}
+		assertEquals(0, emptyDump.serializedMetrics.length);
 
 		s.shutdown();
 	}

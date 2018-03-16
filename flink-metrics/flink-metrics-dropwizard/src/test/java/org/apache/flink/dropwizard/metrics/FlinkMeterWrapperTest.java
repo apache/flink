@@ -20,12 +20,16 @@ package org.apache.flink.dropwizard.metrics;
 
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.util.TestMeter;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+/**
+ * Tests for the FlinkMeterWrapper.
+ */
 public class FlinkMeterWrapperTest {
 
 	private static final double DELTA = 0.0001;

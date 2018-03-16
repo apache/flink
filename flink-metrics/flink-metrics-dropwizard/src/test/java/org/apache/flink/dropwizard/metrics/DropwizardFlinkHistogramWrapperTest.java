@@ -18,6 +18,16 @@
 
 package org.apache.flink.dropwizard.metrics;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
+import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.util.TestLogger;
+
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
@@ -26,15 +36,6 @@ import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.SlidingWindowReservoir;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
-import org.apache.flink.metrics.MetricConfig;
-import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
-import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
-import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -51,6 +52,9 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the DropwizardFlinkHistogramWrapper.
+ */
 public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 
 	/**
@@ -71,7 +75,7 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 		}
 
 		assertEquals(size, histogramWrapper.getStatistics().size());
-		assertEquals((size - 1)/2.0, histogramWrapper.getStatistics().getQuantile(0.5), 0.001);
+		assertEquals((size - 1) / 2.0, histogramWrapper.getStatistics().getQuantile(0.5), 0.001);
 
 		for (int i = size; i < 2 * size; i++) {
 			histogramWrapper.update(i);
@@ -82,7 +86,7 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 		}
 
 		assertEquals(size, histogramWrapper.getStatistics().size());
-		assertEquals(size + (size - 1)/2.0, histogramWrapper.getStatistics().getQuantile(0.5), 0.001);
+		assertEquals(size + (size - 1) / 2.0, histogramWrapper.getStatistics().getQuantile(0.5), 0.001);
 	}
 
 	/**
@@ -96,16 +100,15 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 		int size = 10;
 		String histogramMetricName = "histogram";
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "my_reporter");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "my_reporter." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestingReporter.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "my_reporter." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, reportingInterval + " MILLISECONDS");
 
-		MetricRegistry registry = null;
+		MetricRegistryImpl registry = null;
 
 		MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
 
 		try {
-			registry = new MetricRegistry(metricRegistryConfiguration);
+			registry = new MetricRegistryImpl(metricRegistryConfiguration);
 			DropwizardHistogramWrapper histogramWrapper = new DropwizardHistogramWrapper(
 				new com.codahale.metrics.Histogram(new SlidingWindowReservoir(size)));
 
@@ -147,11 +150,14 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 			assertEquals(0, testingReporter.getMetrics().size());
 		} finally {
 			if (registry != null) {
-				registry.shutdown();
+				registry.shutdown().get();
 			}
 		}
 	}
 
+	/**
+	 * Test reporter.
+	 */
 	public static class TestingReporter extends ScheduledDropwizardReporter {
 		TestingScheduledReporter scheduledReporter = null;
 

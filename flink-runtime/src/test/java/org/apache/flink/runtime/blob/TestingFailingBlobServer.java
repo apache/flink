@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
@@ -24,12 +25,24 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
+/**
+ * Implements a {@link BlobServer} that, after some initial normal operation, closes incoming
+ * connections for a given number of times and continues normally again.
+ */
 public class TestingFailingBlobServer extends BlobServer {
 
-	private int numFailures;
+	private final int numAccept;
+	private final int numFailures;
 
-	public TestingFailingBlobServer(Configuration config, int numFailures) throws IOException {
-		super(config);
+	public TestingFailingBlobServer(Configuration config, BlobStore blobStore, int numFailures)
+			throws IOException {
+		this(config, blobStore, 1, numFailures);
+	}
+
+	public TestingFailingBlobServer(Configuration config, BlobStore blobStore, int numAccept, int numFailures)
+			throws IOException {
+		super(config, blobStore);
+		this.numAccept = numAccept;
 		this.numFailures = numFailures;
 	}
 
@@ -38,7 +51,9 @@ public class TestingFailingBlobServer extends BlobServer {
 
 		// we do properly the first operation (PUT)
 		try {
-			new BlobServerConnection(getServerSocket().accept(), this).start();
+			for (int num = 0; num < numAccept && !isShutdown(); num++) {
+				new BlobServerConnection(getServerSocket().accept(), this).start();
+			}
 		}
 		catch (Throwable t) {
 			t.printStackTrace();
@@ -57,13 +72,13 @@ public class TestingFailingBlobServer extends BlobServer {
 				os.close();
 				socket.close();
 			}
-			catch (IOException e) {
+			catch (IOException ignored) {
 			}
 			finally {
 				if (socket != null) {
 					try {
 						socket.close();
-					} catch(Throwable t) {}
+					} catch (Throwable ignored) {}
 				}
 			}
 		}

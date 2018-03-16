@@ -20,8 +20,11 @@ package org.apache.flink.runtime.client;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.slf4j.Logger;
@@ -47,6 +50,9 @@ public final class JobListeningContext {
 	/** Timeout used Asks */
 	private final FiniteDuration timeout;
 
+	/** Service factory for high availability services */
+	private final HighAvailabilityServices highAvailabilityServices;
+
 	/** ActorSystem for leader retrieval */
 	private ActorSystem actorSystem;
 	/** Flink configuration for initializing the BlobService */
@@ -59,16 +65,18 @@ public final class JobListeningContext {
 	 * Constructor to use when the class loader is available.
 	 */
 	public JobListeningContext(
-		JobID jobID,
-		Future<Object> jobResultFuture,
-		ActorRef jobClientActor,
-		FiniteDuration timeout,
-		ClassLoader classLoader) {
+			JobID jobID,
+			Future<Object> jobResultFuture,
+			ActorRef jobClientActor,
+			FiniteDuration timeout,
+			ClassLoader classLoader,
+			HighAvailabilityServices highAvailabilityServices) {
 		this.jobID = checkNotNull(jobID);
 		this.jobResultFuture = checkNotNull(jobResultFuture);
 		this.jobClientActor = checkNotNull(jobClientActor);
 		this.timeout = checkNotNull(timeout);
 		this.classLoader = checkNotNull(classLoader);
+		this.highAvailabilityServices = checkNotNull(highAvailabilityServices, "highAvailabilityServices");
 	}
 
 	/**
@@ -80,13 +88,15 @@ public final class JobListeningContext {
 		ActorRef jobClientActor,
 		FiniteDuration timeout,
 		ActorSystem actorSystem,
-		Configuration configuration) {
+		Configuration configuration,
+		HighAvailabilityServices highAvailabilityServices) {
 		this.jobID = checkNotNull(jobID);
 		this.jobResultFuture = checkNotNull(jobResultFuture);
 		this.jobClientActor = checkNotNull(jobClientActor);
 		this.timeout = checkNotNull(timeout);
 		this.actorSystem = checkNotNull(actorSystem);
 		this.configuration = checkNotNull(configuration);
+		this.highAvailabilityServices = checkNotNull(highAvailabilityServices, "highAvailabilityServices");
 	}
 
 	/**
@@ -104,7 +114,7 @@ public final class JobListeningContext {
 	}
 
 	/**
-	 * @return The Job Client actor which communicats with the JobManager.
+	 * @return The Job Client actor which communicates with the JobManager.
 	 */
 	public ActorRef getJobClientActor() {
 		return jobClientActor;
@@ -126,7 +136,12 @@ public final class JobListeningContext {
 	public ClassLoader getClassLoader() throws JobRetrievalException {
 		if (classLoader == null) {
 			// lazily initializes the class loader when it is needed
-			classLoader = JobClient.retrieveClassLoader(jobID, getJobManager(), configuration);
+			classLoader = JobClient.retrieveClassLoader(
+				jobID,
+				new AkkaJobManagerGateway(getJobManager()),
+				configuration,
+				highAvailabilityServices,
+				Time.milliseconds(timeout.toMillis()));
 			LOG.info("Reconstructed class loader for Job {}", jobID);
 		}
 		return classLoader;
@@ -135,7 +150,7 @@ public final class JobListeningContext {
 	private ActorGateway getJobManager() throws JobRetrievalException {
 		try {
 			return LeaderRetrievalUtils.retrieveLeaderGateway(
-				LeaderRetrievalUtils.createLeaderRetrievalService(configuration),
+				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
 				actorSystem,
 				AkkaUtils.getLookupTimeout(configuration));
 		} catch (Exception e) {

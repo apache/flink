@@ -110,3 +110,5 @@ minMaxscaler.fit(dataSet)
 // Scale the provided data set to have min=-1.0 and max=1.0
 val scaledDS = minMaxscaler.transform(dataSet)
 {% endhighlight %}
+
+{% top %}

@@ -18,333 +18,104 @@
 
 package org.apache.flink.graph.drivers;
 
-import org.apache.commons.lang3.StringEscapeUtils;
-import org.apache.commons.lang3.text.StrBuilder;
-import org.apache.commons.lang3.text.WordUtils;
-import org.apache.commons.math3.random.JDKRandomGenerator;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.CsvOutputFormat;
-import org.apache.flink.api.java.utils.DataSetUtils;
-import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAnalytic;
-import org.apache.flink.graph.GraphCsvReader;
-import org.apache.flink.graph.asm.translate.TranslateGraphIds;
-import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
-import org.apache.flink.graph.generator.RMatGraph;
-import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
-import org.apache.flink.graph.generator.random.RandomGenerableFactory;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.LongValue;
-import org.apache.flink.types.NullValue;
-import org.apache.flink.types.StringValue;
+import org.apache.flink.graph.asm.result.PrintableResult;
+import org.apache.flink.graph.drivers.parameter.ChoiceParameter;
+import org.apache.flink.types.CopyableValue;
 
-import java.text.NumberFormat;
+import org.apache.commons.lang3.text.StrBuilder;
+import org.apache.commons.lang3.text.WordUtils;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
+import java.io.PrintStream;
 
 /**
- * Driver for the library implementations of Global and Local Clustering Coefficient.
+ * Driver for directed and undirected clustering coefficient algorithm and analytics.
  *
- * This example reads a simple directed or undirected graph from a CSV file or
- * generates an RMat graph with the given scale and edge factor then calculates
- * the local clustering coefficient for each vertex and the global clustering
- * coefficient for the graph.
- *
+ * @see org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient
  * @see org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient
  * @see org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient
+ * @see org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoefficient
  * @see org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient
  * @see org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient
  */
-public class ClusteringCoefficient {
+public class ClusteringCoefficient<K extends Comparable<K> & CopyableValue<K>, VV, EV>
+extends DriverBase<K, VV, EV> {
 
-	private static final int DEFAULT_SCALE = 10;
+	private static final String DIRECTED = "directed";
 
-	private static final int DEFAULT_EDGE_FACTOR = 16;
+	private static final String UNDIRECTED = "undirected";
 
-	private static final boolean DEFAULT_CLIP_AND_FLIP = true;
+	private ChoiceParameter order = new ChoiceParameter(this, "order")
+		.addChoices(DIRECTED, UNDIRECTED);
 
-	private static String getUsage(String message) {
-		return new StrBuilder()
-			.appendNewLine()
-			.appendln(WordUtils.wrap("The local clustering coefficient measures the connectedness of each" +
-				" vertex's neighborhood and the global clustering coefficient measures the connectedness of the graph." +
-				" Scores range from 0.0 (no edges between neighbors or vertices) to 1.0 (neighborhood or graph" +
-				" is a clique).", 80))
-			.appendNewLine()
-			.appendln(WordUtils.wrap("This algorithm returns tuples containing the vertex ID, the degree of" +
-				" the vertex, and the number of edges between vertex neighbors.", 80))
-			.appendNewLine()
-			.appendln("usage: ClusteringCoefficient --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]>")
-			.appendNewLine()
-			.appendln("options:")
-			.appendln("  --input csv --type <integer | string> [--simplify <true | false>] --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]")
-			.appendln("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]")
-			.appendNewLine()
-			.appendln("  --output print")
-			.appendln("  --output hash")
-			.appendln("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]")
-			.appendNewLine()
-			.appendln("Usage error: " + message)
-			.toString();
+	private GraphAnalytic<K, VV, EV, ? extends PrintableResult> globalClusteringCoefficient;
+
+	private GraphAnalytic<K, VV, EV, ? extends PrintableResult> averageClusteringCoefficient;
+
+	@Override
+	public String getShortDescription() {
+		return "measure the connectedness of vertex neighborhoods";
 	}
 
-	public static void main(String[] args) throws Exception {
-		// Set up the execution environment
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().enableObjectReuse();
+	@Override
+	public String getLongDescription() {
+		return WordUtils.wrap(new StrBuilder()
+			.appendln("The local clustering coefficient measures the connectedness of each " +
+				"vertex's neighborhood. The global clustering coefficient measures the " +
+				"connected of the graph. The average clustering coefficient is the mean local " +
+				"clustering coefficient. Each score ranges from 0.0 (no edges between vertex " +
+				"neighbors) to 1.0 (neighborhood or graph is a clique).")
+			.appendNewLine()
+			.append("The algorithm result contains the vertex ID, degree, and number of edges " +
+				"connecting neighbors.")
+			.toString(), 80);
+	}
 
-		ParameterTool parameters = ParameterTool.fromArgs(args);
-		env.getConfig().setGlobalJobParameters(parameters);
+	@Override
+	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
+		int parallelism = this.parallelism.getValue().intValue();
 
-		if (! parameters.has("directed")) {
-			throw new ProgramParametrizationException(getUsage("must declare execution mode as '--directed true' or '--directed false'"));
-		}
-		boolean directedAlgorithm = parameters.getBoolean("directed");
+		switch (order.getValue()) {
+			case DIRECTED:
+				globalClusteringCoefficient = graph
+					.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<K, VV, EV>()
+						.setParallelism(parallelism));
 
-		int little_parallelism = parameters.getInt("little_parallelism", PARALLELISM_DEFAULT);
+				averageClusteringCoefficient = graph
+					.run(new org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient<K, VV, EV>()
+						.setParallelism(parallelism));
 
-		// global and local clustering coefficient results
-		GraphAnalytic gcc;
-		GraphAnalytic acc;
-		DataSet lcc;
+				@SuppressWarnings("unchecked")
+				DataSet<PrintableResult> directedResult = (DataSet<PrintableResult>) (DataSet<?>) graph
+					.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<K, VV, EV>()
+						.setParallelism(parallelism));
+				return directedResult;
 
-		switch (parameters.get("input", "")) {
-			case "csv": {
-				String lineDelimiter = StringEscapeUtils.unescapeJava(
-					parameters.get("input_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
+			case UNDIRECTED:
+				globalClusteringCoefficient = graph
+					.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<K, VV, EV>()
+						.setParallelism(parallelism));
 
-				String fieldDelimiter = StringEscapeUtils.unescapeJava(
-					parameters.get("input_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
+				averageClusteringCoefficient = graph
+					.run(new org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoefficient<K, VV, EV>()
+						.setParallelism(parallelism));
 
-				GraphCsvReader reader = Graph
-					.fromCsvReader(parameters.get("input_filename"), env)
-						.ignoreCommentsEdges("#")
-						.lineDelimiterEdges(lineDelimiter)
-						.fieldDelimiterEdges(fieldDelimiter);
-
-				switch (parameters.get("type", "")) {
-					case "integer": {
-						Graph<LongValue, NullValue, NullValue> graph = reader
-							.keyType(LongValue.class);
-
-						if (directedAlgorithm) {
-							if (parameters.getBoolean("simplify", false)) {
-								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>()
-										.setParallelism(little_parallelism));
-							}
-
-							gcc = graph
-								.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<LongValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-							acc = graph
-								.run(new org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient<LongValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-							lcc = graph
-								.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<LongValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-						} else {
-							if (parameters.getBoolean("simplify", false)) {
-								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false)
-										.setParallelism(little_parallelism));
-							}
-
-							gcc = graph
-								.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<LongValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-							acc = graph
-								.run(new org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoefficient<LongValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-							lcc = graph
-								.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<LongValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-						}
-					} break;
-
-					case "string": {
-						Graph<StringValue, NullValue, NullValue> graph = reader
-							.keyType(StringValue.class);
-
-						if (directedAlgorithm) {
-							if (parameters.getBoolean("simplify", false)) {
-								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<StringValue, NullValue, NullValue>()
-										.setParallelism(little_parallelism));
-							}
-
-							gcc = graph
-								.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<StringValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-							acc = graph
-								.run(new org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient<StringValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-							lcc = graph
-								.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<StringValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-						} else {
-							if (parameters.getBoolean("simplify", false)) {
-								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<StringValue, NullValue, NullValue>(false)
-										.setParallelism(little_parallelism));
-							}
-
-							gcc = graph
-								.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<StringValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-							acc = graph
-								.run(new org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoefficient<StringValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-							lcc = graph
-								.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<StringValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-						}
-					} break;
-
-					default:
-						throw new ProgramParametrizationException(getUsage("invalid CSV type"));
-				}
-			} break;
-
-			case "rmat": {
-				int scale = parameters.getInt("scale", DEFAULT_SCALE);
-				int edgeFactor = parameters.getInt("edge_factor", DEFAULT_EDGE_FACTOR);
-
-				RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
-
-				long vertexCount = 1L << scale;
-				long edgeCount = vertexCount * edgeFactor;
-
-				Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
-					.setParallelism(little_parallelism)
-					.generate();
-
-				if (directedAlgorithm) {
-					if (scale > 32) {
-						Graph<LongValue, NullValue, NullValue> newGraph = graph
-							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>()
-								.setParallelism(little_parallelism));
-
-						gcc = newGraph
-							.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<LongValue, NullValue, NullValue>()
-								.setLittleParallelism(little_parallelism));
-						acc = newGraph
-							.run(new org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient<LongValue, NullValue, NullValue>()
-								.setLittleParallelism(little_parallelism));
-						lcc = newGraph
-							.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<LongValue, NullValue, NullValue>()
-								.setIncludeZeroDegreeVertices(false)
-								.setLittleParallelism(little_parallelism));
-					} else {
-						Graph<IntValue, NullValue, NullValue> newGraph = graph
-							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToUnsignedIntValue())
-								.setParallelism(little_parallelism))
-							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<IntValue, NullValue, NullValue>()
-								.setParallelism(little_parallelism));
-
-						gcc = newGraph
-							.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<IntValue, NullValue, NullValue>()
-								.setLittleParallelism(little_parallelism));
-						acc = newGraph
-							.run(new org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient<IntValue, NullValue, NullValue>()
-								.setLittleParallelism(little_parallelism));
-						lcc = newGraph
-							.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<IntValue, NullValue, NullValue>()
-								.setIncludeZeroDegreeVertices(false)
-								.setLittleParallelism(little_parallelism));
-					}
-				} else {
-					boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
-
-					if (scale > 32) {
-						Graph<LongValue, NullValue, NullValue> newGraph = graph
-							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(clipAndFlip)
-								.setParallelism(little_parallelism));
-
-						gcc = newGraph
-							.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<LongValue, NullValue, NullValue>()
-								.setLittleParallelism(little_parallelism));
-						acc = newGraph
-							.run(new org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoefficient<LongValue, NullValue, NullValue>()
-								.setLittleParallelism(little_parallelism));
-						lcc = newGraph
-							.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<LongValue, NullValue, NullValue>()
-								.setIncludeZeroDegreeVertices(false)
-								.setLittleParallelism(little_parallelism));
-					} else {
-						Graph<IntValue, NullValue, NullValue> newGraph = graph
-							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToUnsignedIntValue())
-								.setParallelism(little_parallelism))
-							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<IntValue, NullValue, NullValue>(clipAndFlip)
-								.setParallelism(little_parallelism));
-
-						gcc = newGraph
-							.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<IntValue, NullValue, NullValue>()
-								.setLittleParallelism(little_parallelism));
-						acc = newGraph
-							.run(new org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoefficient<IntValue, NullValue, NullValue>()
-								.setLittleParallelism(little_parallelism));
-						lcc = newGraph
-							.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<IntValue, NullValue, NullValue>()
-								.setIncludeZeroDegreeVertices(false)
-								.setLittleParallelism(little_parallelism));
-					}
-				}
-			} break;
+				@SuppressWarnings("unchecked")
+				DataSet<PrintableResult> undirectedResult = (DataSet<PrintableResult>) (DataSet<?>) graph
+					.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<K, VV, EV>()
+						.setParallelism(parallelism));
+				return undirectedResult;
 
 			default:
-				throw new ProgramParametrizationException(getUsage("invalid input type"));
+				throw new RuntimeException("Unknown order: " + order);
 		}
+	}
 
-		switch (parameters.get("output", "")) {
-			case "print":
-				if (directedAlgorithm) {
-					for (Object e: lcc.collect()) {
-						org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result result =
-							(org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result)e;
-						System.out.println(result.toVerboseString());
-					}
-				} else {
-					for (Object e: lcc.collect()) {
-						org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result result =
-							(org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result)e;
-						System.out.println(result.toVerboseString());
-					}
-				}
-				break;
-
-			case "hash":
-				System.out.println(DataSetUtils.checksumHashCode(lcc));
-				break;
-
-			case "csv":
-				String filename = parameters.get("output_filename");
-
-				String lineDelimiter = StringEscapeUtils.unescapeJava(
-					parameters.get("output_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
-
-				String fieldDelimiter = StringEscapeUtils.unescapeJava(
-					parameters.get("output_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
-
-				lcc.writeAsCsv(filename, lineDelimiter, fieldDelimiter);
-
-				env.execute("Clustering Coefficient");
-				break;
-
-			default:
-				throw new ProgramParametrizationException(getUsage("invalid output type"));
-		}
-
-		System.out.println(gcc.getResult());
-		System.out.println(acc.getResult());
-
-		JobExecutionResult result = env.getLastJobExecutionResult();
-
-		NumberFormat nf = NumberFormat.getInstance();
-		System.out.println("Execution runtime: " + nf.format(result.getNetRuntime()) + " ms");
+	@Override
+	public void printAnalytics(PrintStream out) {
+		out.println(globalClusteringCoefficient.getResult().toPrintableString());
+		out.println(averageClusteringCoefficient.getResult().toPrintableString());
 	}
 }

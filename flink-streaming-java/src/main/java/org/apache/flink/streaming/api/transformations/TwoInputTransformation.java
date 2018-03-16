@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,22 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.transformations;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import java.util.Collection;
 import java.util.List;
 
 /**
  * This Transformation represents the application of a
- * {@link org.apache.flink.streaming.api.operators.TwoInputStreamOperator} to two input
- * {@code StreamTransformations}. The result is again only one stream.
+ * {@link TwoInputStreamOperator} to two input {@code StreamTransformations}.
+ * The result is again only one stream.
  *
  * @param <IN1> The type of the elements in the first input {@code StreamTransformation}
  * @param <IN2> The type of the elements in the second input {@code StreamTransformation}

@@ -19,12 +19,13 @@
 package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -35,6 +36,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Tests for {@link StatefulSequenceSource}.
+ */
 public class StatefulSequenceSourceTest {
 
 	@Test
@@ -108,7 +112,7 @@ public class StatefulSequenceSourceTest {
 			latchToTrigger2.await();
 		}
 
-		OperatorStateHandles snapshot = AbstractStreamOperatorTestHarness.repackageState(
+		OperatorSubtaskState snapshot = AbstractStreamOperatorTestHarness.repackageState(
 			testHarness1.snapshot(0L, 0L),
 			testHarness2.snapshot(0L, 0L)
 		);
@@ -190,7 +194,7 @@ public class StatefulSequenceSourceTest {
 		private final List<Long> localOutput;
 
 		public BlockingSourceContext(String name, OneShotLatch latchToTrigger, OneShotLatch latchToWait,
-									 ConcurrentHashMap<String, List<Long>> output, int elemToFire) {
+									ConcurrentHashMap<String, List<Long>> output, int elemToFire) {
 			this.name = name;
 			this.lock = new Object();
 			this.latchToTrigger = latchToTrigger;
@@ -225,9 +229,14 @@ public class StatefulSequenceSourceTest {
 			}
 		}
 
-
 		@Override
 		public void emitWatermark(Watermark mark) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void markAsTemporarilyIdle() {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override

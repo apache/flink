@@ -19,20 +19,29 @@
 package org.apache.flink.api.scala
 
 import java.io._
-import java.util.concurrent.TimeUnit
 
-import org.apache.flink.configuration.GlobalConfiguration
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
+import akka.actor.ActorRef
+import akka.pattern.Patterns
+import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
+import org.apache.flink.configuration.{ConfigConstants, Configuration, CoreOptions, GlobalConfiguration}
+import org.apache.flink.runtime.clusterframework.BootstrapTools
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.util.TestLogger
-import org.junit.{AfterClass, Assert, BeforeClass, Test}
+import org.junit.rules.TemporaryFolder
+import org.junit._
 
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.tools.nsc.Settings
 
 class ScalaShellITCase extends TestLogger {
 
   import ScalaShellITCase._
+
+  val _temporaryFolder = new TemporaryFolder
+
+  @Rule
+  def temporaryFolder = _temporaryFolder
 
   /** Prevent re-creation of environment */
   @Test
@@ -162,79 +171,52 @@ class ScalaShellITCase extends TestLogger {
     Assert.assertTrue(output.contains("WC(world,10)"))
   }
 
-  /** Submit external library */
+  /**
+   * Submit external library.
+   * Disabled due to FLINK-7111.
+   */
+  @Ignore
   @Test
   def testSubmissionOfExternalLibraryBatch: Unit = {
     val input =
       """
-         import org.apache.flink.ml.math._
-         val denseVectors = benv.fromElements[Vector](DenseVector(1.0, 2.0, 3.0))
-         denseVectors.print()
+         import org.apache.flink.api.scala.jar.TestingData
+         val source = benv.fromCollection(TestingData.elements)
+         source.print()
       """.stripMargin
 
-    // find jar file that contains the ml code
-    var externalJar = ""
-    val folder = findLibraryFolder(
-      "../flink-libraries/flink-ml/target/",
-      "../../flink-libraries/flink-ml/target/")
-
-    val listOfFiles = folder.listFiles()
-
-    for (i <- listOfFiles.indices) {
-      val filename: String = listOfFiles(i).getName
-      if (!filename.contains("test") && !filename.contains("original") && filename.contains(
-        ".jar")) {
-        externalJar = listOfFiles(i).getAbsolutePath
-      }
-    }
-
-    assert(externalJar != "")
-
-    val output: String = processInShell(input, Option(externalJar))
+    val output: String = processInShell(input, Option("customjar-test-jar.jar"))
 
     Assert.assertFalse(output.contains("failed"))
     Assert.assertFalse(output.contains("error"))
     Assert.assertFalse(output.contains("Exception"))
 
-    Assert.assertTrue(output.contains("\nDenseVector(1.0, 2.0, 3.0)"))
+
+    Assert.assertTrue(output.contains("\nHELLO 42"))
   }
 
-  /** Submit external library */
+  /**
+   * Submit external library.
+   * Disabled due to FLINK-7111.
+   */
+  @Ignore
   @Test
   def testSubmissionOfExternalLibraryStream: Unit = {
     val input =
       """
-        import org.apache.flink.ml.math._
-        val denseVectors = senv.fromElements[Vector](DenseVector(1.0, 2.0, 3.0))
-        denseVectors.print()
+        import org.apache.flink.api.scala.jar.TestingData
+        val source = senv.fromCollection(TestingData.elements)
+        source.print()
         senv.execute
       """.stripMargin
 
-    // find jar file that contains the ml code
-    var externalJar = ""
-    val folder = findLibraryFolder(
-      "../flink-libraries/flink-ml/target/",
-      "../../flink-libraries/flink-ml/target/")
-
-    val listOfFiles = folder.listFiles()
-
-    for (i <- listOfFiles.indices) {
-      val filename: String = listOfFiles(i).getName
-      if (!filename.contains("test") && !filename.contains("original") && filename.contains(
-        ".jar")) {
-        externalJar = listOfFiles(i).getAbsolutePath
-      }
-    }
-
-    assert(externalJar != "")
-
-    val output: String = processInShell(input, Option(externalJar))
+    val output: String = processInShell(input, Option("customjar-test-jar.jar"))
 
     Assert.assertFalse(output.contains("failed"))
     Assert.assertFalse(output.contains("error"))
     Assert.assertFalse(output.contains("Exception"))
 
-    Assert.assertTrue(output.contains("\nDenseVector(1.0, 2.0, 3.0)"))
+    Assert.assertTrue(output.contains("\nHELLO 42"))
   }
 
 
@@ -294,21 +276,18 @@ class ScalaShellITCase extends TestLogger {
     val oldOut: PrintStream = System.out
     System.setOut(new PrintStream(baos))
 
-    val confFile: String = classOf[ScalaShellLocalStartupITCase]
-      .getResource("/flink-conf.yaml")
-      .getFile
-    val confDir = new File(confFile).getAbsoluteFile.getParent
+    val dir = temporaryFolder.newFolder()
+    BootstrapTools.writeConfiguration(configuration, new File(dir, "flink-conf.yaml"))
 
-    val (c, args) = cluster match{
+    val args = cluster match {
       case Some(cl) =>
-        val arg = Array("remote",
-          cl.hostname,
-          Integer.toString(cl.getLeaderRPCPort),
+        Array(
+          "remote",
+          cl.getHostname,
+          Integer.toString(cl.getPort),
           "--configDir",
-          confDir)
-        (cl, arg)
-      case None =>
-        throw new AssertionError("Cluster creation failed.")
+          dir.getAbsolutePath)
+      case None => throw new IllegalStateException("Cluster has not been started.")
     }
 
     //start scala shell with initialized
@@ -335,26 +314,25 @@ class ScalaShellITCase extends TestLogger {
 }
 
 object ScalaShellITCase {
-  var cluster: Option[LocalFlinkMiniCluster] = None
+  var cluster: Option[StandaloneMiniCluster] = None
+
   val parallelism = 4
+  val configuration = new Configuration()
 
   @BeforeClass
   def beforeAll(): Unit = {
-    val cl = TestBaseUtils.startCluster(
-      1,
-      parallelism,
-      false,
-      false,
-      false)
+    configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism)
+    configuration.setString(CoreOptions.MODE, CoreOptions.OLD_MODE)
 
-    cluster = Some(cl)
+    cluster = Option(new StandaloneMiniCluster(configuration))
   }
 
   @AfterClass
   def afterAll(): Unit = {
-    // The Scala interpreter somehow changes the class loader. Therfore, we have to reset it
+    // The Scala interpreter somehow changes the class loader. Therefore, we have to reset it
     Thread.currentThread().setContextClassLoader(classOf[ScalaShellITCase].getClassLoader)
-    cluster.foreach(c => TestBaseUtils.stopCluster(c, new FiniteDuration(1000, TimeUnit.SECONDS)))
+
+    cluster.foreach(_.close)
   }
 
   /**
@@ -371,56 +349,45 @@ object ScalaShellITCase {
     val oldOut = System.out
     System.setOut(new PrintStream(baos))
 
-    // new local cluster
-    val host = "localhost"
-    val port = cluster match {
-      case Some(c) => c.getLeaderRPCPort
-      case _ => throw new RuntimeException("Test cluster not initialized.")
+    cluster match {
+      case Some(cl) =>
+        val repl = externalJars match {
+          case Some(ej) => new FlinkILoop(
+            cl.getHostname,
+            cl.getPort,
+            configuration,
+            Option(Array(ej)),
+            in, new PrintWriter(out))
+
+          case None => new FlinkILoop(
+            cl.getHostname,
+            cl.getPort,
+            configuration,
+            in, new PrintWriter(out))
+        }
+
+        repl.settings = new Settings()
+
+        // enable this line to use scala in intellij
+        repl.settings.usejavacp.value = true
+
+        externalJars match {
+          case Some(ej) => repl.settings.classpath.value = ej
+          case None =>
+        }
+
+        repl.process(repl.settings)
+
+        repl.closeInterpreter()
+
+        System.setOut(oldOut)
+
+        baos.flush()
+
+        val stdout = baos.toString
+
+        out.toString + stdout
+      case _ => throw new IllegalStateException("The cluster has not been started.")
     }
-
-    val repl = externalJars match {
-      case Some(ej) => new FlinkILoop(
-        host, port,
-        GlobalConfiguration.loadConfiguration(),
-        Option(Array(ej)),
-        in, new PrintWriter(out))
-
-      case None => new FlinkILoop(
-        host, port,
-        GlobalConfiguration.loadConfiguration(),
-        in, new PrintWriter(out))
-    }
-
-    repl.settings = new Settings()
-
-    // enable this line to use scala in intellij
-    repl.settings.usejavacp.value = true
-
-    externalJars match {
-      case Some(ej) => repl.settings.classpath.value = ej
-      case None =>
-    }
-
-    repl.process(repl.settings)
-
-    repl.closeInterpreter()
-
-    System.setOut(oldOut)
-
-    baos.flush()
-
-    val stdout = baos.toString
-
-    out.toString + stdout
-  }
-
-  def findLibraryFolder(paths: String*): File = {
-    for (path <- paths) {
-      val folder = new File(path)
-      if (folder.exists()) {
-        return folder
-      }
-    }
-    throw new RuntimeException("Library folder not found in any of the supplied paths!")
   }
 }

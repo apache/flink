@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.dump;
 
 import org.apache.flink.util.Preconditions;
@@ -45,6 +46,15 @@ public abstract class MetricDump {
 	 * @return category
 	 */
 	public abstract byte getCategory();
+
+	@Override
+	public String toString() {
+		return "MetricDump{" +
+			"scopeInfo=" + scopeInfo +
+			", name='" + name + '\'' +
+			", category='" + getCategory() + '\'' +
+			'}';
+	}
 
 	/**
 	 * Container for the value of a {@link org.apache.flink.metrics.Counter}.
@@ -121,7 +131,7 @@ public abstract class MetricDump {
 	}
 
 	/**
-	 * Container for the rate of a {@link org.apache.flink.metrics.Meter}. 
+	 * Container for the rate of a {@link org.apache.flink.metrics.Meter}.
 	 */
 	public static class MeterDump extends MetricDump {
 		public final double rate;
@@ -130,6 +140,7 @@ public abstract class MetricDump {
 			super(scopeInfo, name);
 			this.rate = rate;
 		}
+
 		@Override
 		public byte getCategory() {
 			return METRIC_CATEGORY_METER;

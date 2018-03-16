@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -30,33 +31,37 @@ import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+
 import org.junit.Test;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -72,8 +77,7 @@ public class SingleInputGateTest {
 	@Test(timeout = 120 * 1000)
 	public void testBasicGetNextLogic() throws Exception {
 		// Setup
-		final SingleInputGate inputGate = new SingleInputGate(
-			"Test Task Name", new JobID(), new IntermediateDataSetID(), 0, 2, mock(TaskActions.class), new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+		final SingleInputGate inputGate = createInputGate();
 
 		final TestInputChannel[] inputChannels = new TestInputChannel[]{
 			new TestInputChannel(inputGate, 0),
@@ -96,15 +100,40 @@ public class SingleInputGateTest {
 		inputGate.notifyChannelNonEmpty(inputChannels[0].getInputChannel());
 		inputGate.notifyChannelNonEmpty(inputChannels[1].getInputChannel());
 
-		verifyBufferOrEvent(inputGate, true, 0);
-		verifyBufferOrEvent(inputGate, true, 1);
-		verifyBufferOrEvent(inputGate, true, 0);
-		verifyBufferOrEvent(inputGate, false, 1);
-		verifyBufferOrEvent(inputGate, false, 0);
+		verifyBufferOrEvent(inputGate, true, 0, true);
+		verifyBufferOrEvent(inputGate, true, 1, true);
+		verifyBufferOrEvent(inputGate, true, 0, true);
+		verifyBufferOrEvent(inputGate, false, 1, true);
+		verifyBufferOrEvent(inputGate, false, 0, false);
 
 		// Return null when the input gate has received all end-of-partition events
 		assertTrue(inputGate.isFinished());
-		assertNull(inputGate.getNextBufferOrEvent());
+	}
+
+	@Test(timeout = 120 * 1000)
+	public void testIsMoreAvailableReadingFromSingleInputChannel() throws Exception {
+		// Setup
+		final SingleInputGate inputGate = createInputGate();
+
+		final TestInputChannel[] inputChannels = new TestInputChannel[]{
+			new TestInputChannel(inputGate, 0),
+			new TestInputChannel(inputGate, 1)
+		};
+
+		inputGate.setInputChannel(
+			new IntermediateResultPartitionID(), inputChannels[0].getInputChannel());
+
+		inputGate.setInputChannel(
+			new IntermediateResultPartitionID(), inputChannels[1].getInputChannel());
+
+		// Test
+		inputChannels[0].readBuffer();
+		inputChannels[0].readBuffer(false);
+
+		inputGate.notifyChannelNonEmpty(inputChannels[0].getInputChannel());
+
+		verifyBufferOrEvent(inputGate, true, 0, true);
+		verifyBufferOrEvent(inputGate, true, 0, false);
 	}
 
 	@Test
@@ -115,19 +144,17 @@ public class SingleInputGateTest {
 
 		final ResultSubpartitionView iterator = mock(ResultSubpartitionView.class);
 		when(iterator.getNextBuffer()).thenReturn(
-			new Buffer(MemorySegmentFactory.allocateUnpooledSegment(1024), mock(BufferRecycler.class)));
+			new BufferAndBacklog(new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(1024), FreeingBufferRecycler.INSTANCE), false,0, false));
 
 		final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		when(partitionManager.createSubpartitionView(
 			any(ResultPartitionID.class),
 			anyInt(),
-			any(BufferProvider.class),
 			any(BufferAvailabilityListener.class))).thenReturn(iterator);
 
 		// Setup reader with one local and one unknown input channel
-		final IntermediateDataSetID resultId = new IntermediateDataSetID();
 
-		final SingleInputGate inputGate = new SingleInputGate("Test Task Name", new JobID(), resultId, 0, 2, mock(TaskActions.class), new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+		final SingleInputGate inputGate = createInputGate();
 		final BufferPool bufferPool = mock(BufferPool.class);
 		when(bufferPool.getNumberOfRequiredMemorySegments()).thenReturn(2);
 
@@ -136,12 +163,12 @@ public class SingleInputGateTest {
 		// Local
 		ResultPartitionID localPartitionId = new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID());
 
-		InputChannel local = new LocalInputChannel(inputGate, 0, localPartitionId, partitionManager, taskEventDispatcher, new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+		InputChannel local = new LocalInputChannel(inputGate, 0, localPartitionId, partitionManager, taskEventDispatcher, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
 		// Unknown
 		ResultPartitionID unknownPartitionId = new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID());
 
-		InputChannel unknown = new UnknownInputChannel(inputGate, 1, unknownPartitionId, partitionManager, taskEventDispatcher, mock(ConnectionManager.class), 0, 0, new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+		InputChannel unknown = new UnknownInputChannel(inputGate, 1, unknownPartitionId, partitionManager, taskEventDispatcher, mock(ConnectionManager.class), 0, 0, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
 		// Set channels
 		inputGate.setInputChannel(localPartitionId.getPartitionId(), local);
@@ -151,7 +178,7 @@ public class SingleInputGateTest {
 		inputGate.requestPartitions();
 
 		// Only the local channel can request
-		verify(partitionManager, times(1)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferProvider.class), any(BufferAvailabilityListener.class));
+		verify(partitionManager, times(1)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class));
 
 		// Send event backwards and initialize unknown channel afterwards
 		final TaskEvent event = new TestTaskEvent();
@@ -163,7 +190,7 @@ public class SingleInputGateTest {
 		// After the update, the pending event should be send to local channel
 		inputGate.updateInputChannel(new InputChannelDeploymentDescriptor(new ResultPartitionID(unknownPartitionId.getPartitionId(), unknownPartitionId.getProducerId()), ResultPartitionLocation.createLocal()));
 
-		verify(partitionManager, times(2)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferProvider.class), any(BufferAvailabilityListener.class));
+		verify(partitionManager, times(2)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class));
 		verify(taskEventDispatcher, times(2)).publish(any(ResultPartitionID.class), any(TaskEvent.class));
 	}
 
@@ -175,13 +202,7 @@ public class SingleInputGateTest {
 	 */
 	@Test
 	public void testUpdateChannelBeforeRequest() throws Exception {
-		SingleInputGate inputGate = new SingleInputGate(
-			"t1",
-			new JobID(),
-			new IntermediateDataSetID(),
-			0,
-			1,
-			mock(TaskActions.class), new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+		SingleInputGate inputGate = createInputGate(1);
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 
@@ -192,7 +213,7 @@ public class SingleInputGateTest {
 			partitionManager,
 			new TaskEventDispatcher(),
 			new LocalConnectionManager(),
-			0, 0, new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+			0, 0, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
 		inputGate.setInputChannel(unknown.partitionId.getPartitionId(), unknown);
 
@@ -202,7 +223,7 @@ public class SingleInputGateTest {
 			ResultPartitionLocation.createLocal()));
 
 		verify(partitionManager, never()).createSubpartitionView(
-			any(ResultPartitionID.class), anyInt(), any(BufferProvider.class), any(BufferAvailabilityListener.class));
+			any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class));
 	}
 
 	/**
@@ -214,14 +235,7 @@ public class SingleInputGateTest {
 		final AtomicReference<Exception> asyncException = new AtomicReference<>();
 
 		// Setup the input gate with a single channel that does nothing
-		final SingleInputGate inputGate = new SingleInputGate(
-			"InputGate",
-			new JobID(),
-			new IntermediateDataSetID(),
-			0,
-			1,
-			mock(TaskActions.class),
-			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+		final SingleInputGate inputGate = createInputGate(1);
 
 		InputChannel unknown = new UnknownInputChannel(
 			inputGate,
@@ -231,7 +245,7 @@ public class SingleInputGateTest {
 			new TaskEventDispatcher(),
 			new LocalConnectionManager(),
 			0, 0,
-			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
 		inputGate.setInputChannel(unknown.partitionId.getPartitionId(), unknown);
 
@@ -303,7 +317,9 @@ public class SingleInputGateTest {
 				partitionIds[2],
 				ResultPartitionLocation.createUnknown())};
 
-		InputGateDeploymentDescriptor gateDesc = new InputGateDeploymentDescriptor(new IntermediateDataSetID(), 0, channelDescs);
+		InputGateDeploymentDescriptor gateDesc =
+			new InputGateDeploymentDescriptor(new IntermediateDataSetID(),
+				ResultPartitionType.PIPELINED, 0, channelDescs);
 
 		int initialBackoff = 137;
 		int maxBackoff = 1001;
@@ -322,7 +338,9 @@ public class SingleInputGateTest {
 			gateDesc,
 			netEnv,
 			mock(TaskActions.class),
-			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+
+		assertEquals(gateDesc.getConsumedPartitionType(), gate.getConsumedPartitionType());
 
 		Map<IntermediateResultPartitionID, InputChannel> channelMap = gate.getInputChannels();
 
@@ -356,15 +374,107 @@ public class SingleInputGateTest {
 		}
 	}
 
+	/**
+	 * Tests that input gate requests and assigns network buffers for remote input channel.
+	 */
+	@Test
+	public void testRequestBuffersWithRemoteInputChannel() throws Exception {
+		final SingleInputGate inputGate = new SingleInputGate(
+			"t1",
+			new JobID(),
+			new IntermediateDataSetID(),
+			ResultPartitionType.PIPELINED_BOUNDED,
+			0,
+			1,
+			mock(TaskActions.class),
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+
+		RemoteInputChannel remote = mock(RemoteInputChannel.class);
+		inputGate.setInputChannel(new IntermediateResultPartitionID(), remote);
+
+		final int buffersPerChannel = 2;
+		NetworkBufferPool network = mock(NetworkBufferPool.class);
+		// Trigger requests of segments from global pool and assign buffers to remote input channel
+		inputGate.assignExclusiveSegments(network, buffersPerChannel);
+
+		verify(network, times(1)).requestMemorySegments(buffersPerChannel);
+		verify(remote, times(1)).assignExclusiveSegments(anyListOf(MemorySegment.class));
+	}
+
+	/**
+	 * Tests that input gate requests and assigns network buffers when unknown input channel
+	 * updates to remote input channel.
+	 */
+	@Test
+	public void testRequestBuffersWithUnknownInputChannel() throws Exception {
+		final SingleInputGate inputGate = createInputGate(1);
+
+		UnknownInputChannel unknown = mock(UnknownInputChannel.class);
+		final ResultPartitionID resultPartitionId = new ResultPartitionID();
+		inputGate.setInputChannel(resultPartitionId.getPartitionId(), unknown);
+
+		RemoteInputChannel remote = mock(RemoteInputChannel.class);
+		final ConnectionID connectionId = new ConnectionID(new InetSocketAddress("localhost", 5000), 0);
+		when(unknown.toRemoteInputChannel(connectionId)).thenReturn(remote);
+
+		final int buffersPerChannel = 2;
+		NetworkBufferPool network = mock(NetworkBufferPool.class);
+		inputGate.assignExclusiveSegments(network, buffersPerChannel);
+
+		// Trigger updates to remote input channel from unknown input channel
+		inputGate.updateInputChannel(new InputChannelDeploymentDescriptor(
+			resultPartitionId,
+			ResultPartitionLocation.createRemote(connectionId)));
+
+		verify(network, times(1)).requestMemorySegments(buffersPerChannel);
+		verify(remote, times(1)).assignExclusiveSegments(anyListOf(MemorySegment.class));
+	}
+
 	// ---------------------------------------------------------------------------------------------
 
-	static void verifyBufferOrEvent(
-		InputGate inputGate,
-		boolean isBuffer,
-		int channelIndex) throws IOException, InterruptedException {
+	private static SingleInputGate createInputGate() {
+		return createInputGate(2);
+	}
 
-		final BufferOrEvent boe = inputGate.getNextBufferOrEvent();
-		assertEquals(isBuffer, boe.isBuffer());
-		assertEquals(channelIndex, boe.getChannelIndex());
+	private static SingleInputGate createInputGate(int numberOfInputChannels) {
+		SingleInputGate inputGate = new SingleInputGate(
+			"Test Task Name",
+			new JobID(),
+			new IntermediateDataSetID(),
+			ResultPartitionType.PIPELINED,
+			0,
+			numberOfInputChannels,
+			mock(TaskActions.class),
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+
+		assertEquals(ResultPartitionType.PIPELINED, inputGate.getConsumedPartitionType());
+
+		return inputGate;
+	}
+
+	static void verifyBufferOrEvent(
+			InputGate inputGate,
+			boolean expectedIsBuffer,
+			int expectedChannelIndex,
+			boolean expectedMoreAvailable) throws IOException, InterruptedException {
+
+		final Optional<BufferOrEvent> bufferOrEvent = inputGate.getNextBufferOrEvent();
+		assertTrue(bufferOrEvent.isPresent());
+		assertEquals(expectedIsBuffer, bufferOrEvent.get().isBuffer());
+		assertEquals(expectedChannelIndex, bufferOrEvent.get().getChannelIndex());
+		assertEquals(expectedMoreAvailable, bufferOrEvent.get().moreAvailable());
+		if (!expectedMoreAvailable) {
+			try {
+				assertFalse(inputGate.pollNextBufferOrEvent().isPresent());
+			}
+			catch (UnsupportedOperationException ex) {
+				/**
+				 * {@link UnionInputGate#pollNextBufferOrEvent()} is unsupported at the moment.
+				 */
+				if (!(inputGate instanceof UnionInputGate)) {
+					throw ex;
+				}
+			}
+		}
 	}
 }

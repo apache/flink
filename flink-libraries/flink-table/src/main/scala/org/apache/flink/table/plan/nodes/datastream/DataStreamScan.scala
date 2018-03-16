@@ -21,10 +21,15 @@ package org.apache.flink.table.plan.nodes.datastream
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.plan.schema.DataStreamTable
+import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rex.RexNode
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
+import org.apache.flink.table.expressions.Cast
+import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.plan.schema.DataStreamTable
+import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 /**
   * Flink RelNode which matches along with DataStreamSource.
@@ -35,30 +40,46 @@ class DataStreamScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    rowRelDataType: RelDataType)
-  extends StreamScan(cluster, traitSet, table) {
+    schema: RowSchema)
+  extends TableScan(cluster, traitSet, table)
+  with StreamScan {
 
   val dataStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
 
-  override def deriveRowType() = rowRelDataType
+  override def deriveRowType(): RelDataType = schema.relDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamScan(
       cluster,
       traitSet,
       getTable,
-      getRowType
+      schema
     )
   }
 
   override def translateToPlan(
       tableEnv: StreamTableEnvironment,
-      expectedType: Option[TypeInformation[Any]]): DataStream[Any] = {
+      queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     val config = tableEnv.getConfig
     val inputDataStream: DataStream[Any] = dataStreamTable.dataStream
+    val fieldIdxs = dataStreamTable.fieldIndexes
 
-    convertToExpectedType(inputDataStream, dataStreamTable, expectedType, config)
+    // get expression to extract timestamp
+    val rowtimeExpr: Option[RexNode] =
+      if (fieldIdxs.contains(TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER)) {
+        // extract timestamp from StreamRecord
+        Some(
+          Cast(
+            org.apache.flink.table.expressions.StreamRecordTimestamp(),
+            TimeIndicatorTypeInfo.ROWTIME_INDICATOR)
+            .toRexNode(tableEnv.getRelBuilder))
+      } else {
+        None
+      }
+
+    // convert DataStream
+    convertToInternalRow(schema, inputDataStream, fieldIdxs, config, rowtimeExpr)
   }
 
 }

@@ -18,6 +18,24 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.RichInputFormat;
+import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.api.java.io.jdbc.split.ParameterValuesProvider;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.io.GenericInputSplit;
+import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Array;
@@ -31,25 +49,10 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Arrays;
 
-import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
-import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.io.RichInputFormat;
-import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.api.java.io.jdbc.split.ParameterValuesProvider;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.types.Row;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.GenericInputSplit;
-import org.apache.flink.core.io.InputSplit;
-import org.apache.flink.core.io.InputSplitAssigner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * InputFormat to read data from a database and generate Rows.
  * The InputFormat has to be configured using the supplied InputFormatBuilder.
- * A valid RowTypeInfo must be properly configured in the builder, e.g.: </br>
+ * A valid RowTypeInfo must be properly configured in the builder, e.g.:
  *
  * <pre><code>
  * TypeInformation<?>[] fieldTypes = new TypeInformation<?>[] {
@@ -70,10 +73,10 @@ import org.slf4j.LoggerFactory;
  *				.finish();
  * </code></pre>
  *
- * In order to query the JDBC source in parallel, you need to provide a
+ * <p>In order to query the JDBC source in parallel, you need to provide a
  * parameterized query template (i.e. a valid {@link PreparedStatement}) and
  * a {@link ParameterValuesProvider} which provides binding values for the
- * query parameters. E.g.:</br>
+ * query parameters. E.g.:
  *
  * <pre><code>
  *
@@ -95,7 +98,7 @@ import org.slf4j.LoggerFactory;
  * @see PreparedStatement
  * @see DriverManager
  */
-public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements ResultTypeQueryable {
+public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements ResultTypeQueryable<Row> {
 
 	private static final long serialVersionUID = 1L;
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCInputFormat.class);
@@ -112,6 +115,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 	private transient Connection dbConn;
 	private transient PreparedStatement statement;
 	private transient ResultSet resultSet;
+	private int fetchSize;
 
 	private boolean hasNext;
 	private Object[][] parameterValues;
@@ -140,6 +144,9 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 				dbConn = DriverManager.getConnection(dbURL, username, password);
 			}
 			statement = dbConn.prepareStatement(queryTemplate, resultSetType, resultSetConcurrency);
+			if (fetchSize == Integer.MIN_VALUE || fetchSize > 0) {
+				statement.setFetchSize(fetchSize);
+			}
 		} catch (SQLException se) {
 			throw new IllegalArgumentException("open() failed." + se.getMessage(), se);
 		} catch (ClassNotFoundException cnfe) {
@@ -151,7 +158,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 	public void closeInputFormat() {
 		//called once per inputFormat (on close)
 		try {
-			if(statement != null) {
+			if (statement != null) {
 				statement.close();
 			}
 		} catch (SQLException se) {
@@ -161,7 +168,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 		}
 
 		try {
-			if(dbConn != null) {
+			if (dbConn != null) {
 				dbConn.close();
 			}
 		} catch (SQLException se) {
@@ -221,7 +228,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 						statement.setArray(i + 1, (Array) param);
 					} else {
 						//extends with other types if needed
-						throw new IllegalArgumentException("open() failed. Parameter " + i + " of type " + param.getClass() + " is not handled (yet)." );
+						throw new IllegalArgumentException("open() failed. Parameter " + i + " of type " + param.getClass() + " is not handled (yet).");
 					}
 				}
 				if (LOG.isDebugEnabled()) {
@@ -242,7 +249,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 	 */
 	@Override
 	public void close() throws IOException {
-		if(resultSet == null) {
+		if (resultSet == null) {
 			return;
 		}
 		try {
@@ -264,7 +271,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 	}
 
 	/**
-	 * Stores the next resultSet row in a tuple
+	 * Stores the next resultSet row in a tuple.
 	 *
 	 * @param row row to be reused.
 	 * @return row containing next {@link Row}
@@ -311,6 +318,11 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 		return new DefaultInputSplitAssigner(inputSplits);
 	}
 
+	@VisibleForTesting
+	PreparedStatement getStatement() {
+		return statement;
+	}
+
 	/**
 	 * A builder used to set parameters to the output format's configuration in a fluent way.
 	 * @return builder
@@ -319,6 +331,9 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 		return new JDBCInputFormatBuilder();
 	}
 
+	/**
+	 * Builder for a {@link JDBCInputFormat}.
+	 */
 	public static class JDBCInputFormatBuilder {
 		private final JDBCInputFormat format;
 
@@ -371,6 +386,13 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 
 		public JDBCInputFormatBuilder setRowTypeInfo(RowTypeInfo rowTypeInfo) {
 			format.rowTypeInfo = rowTypeInfo;
+			return this;
+		}
+
+		public JDBCInputFormatBuilder setFetchSize(int fetchSize) {
+			Preconditions.checkArgument(fetchSize == Integer.MIN_VALUE || fetchSize > 0,
+				"Illegal value %s for fetchSize, has to be positive or Integer.MIN_VALUE.", fetchSize);
+			format.fetchSize = fetchSize;
 			return this;
 		}
 

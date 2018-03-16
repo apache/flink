@@ -22,11 +22,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.async.queue.AsyncCollectionResult;
-import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
 import org.apache.flink.streaming.api.operators.async.queue.AsyncResult;
 import org.apache.flink.streaming.api.operators.async.queue.AsyncWatermarkResult;
+import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,18 +44,18 @@ public class Emitter<OUT> implements Runnable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Emitter.class);
 
-	/** Lock to hold before outputting */
+	/** Lock to hold before outputting. */
 	private final Object checkpointLock;
 
-	/** Output for the watermark elements */
+	/** Output for the watermark elements. */
 	private final Output<StreamRecord<OUT>> output;
 
-	/** Queue to consume the async results from */
+	/** Queue to consume the async results from. */
 	private final StreamElementQueue streamElementQueue;
 
 	private final OperatorActions operatorActions;
 
-	/** Output for stream records */
+	/** Output for stream records. */
 	private final TimestampedCollector<OUT> timestampedCollector;
 
 	private volatile boolean running;
@@ -67,7 +68,7 @@ public class Emitter<OUT> implements Runnable {
 
 		this.checkpointLock = Preconditions.checkNotNull(checkpointLock, "checkpointLock");
 		this.output = Preconditions.checkNotNull(output, "output");
-		this.streamElementQueue = Preconditions.checkNotNull(streamElementQueue, "asyncCollectorBuffer");
+		this.streamElementQueue = Preconditions.checkNotNull(streamElementQueue, "streamElementQueue");
 		this.operatorActions = Preconditions.checkNotNull(operatorActions, "operatorActions");
 
 		this.timestampedCollector = new TimestampedCollector<>(this.output);
@@ -88,8 +89,7 @@ public class Emitter<OUT> implements Runnable {
 				operatorActions.failOperator(e);
 			} else {
 				// Thread got interrupted which means that it should shut down
-				LOG.debug("Emitter thread got interrupted. This indicates that the emitter should " +
-					"shut down.");
+				LOG.debug("Emitter thread got interrupted, shutting down.");
 			}
 		} catch (Throwable t) {
 			operatorActions.failOperator(new Exception("AsyncWaitOperator's emitter caught an " +
@@ -100,6 +100,11 @@ public class Emitter<OUT> implements Runnable {
 	private void output(AsyncResult asyncResult) throws InterruptedException {
 		if (asyncResult.isWatermark()) {
 			synchronized (checkpointLock) {
+				AsyncWatermarkResult asyncWatermarkResult = asyncResult.asWatermark();
+
+				LOG.debug("Output async watermark.");
+				output.emitWatermark(asyncWatermarkResult.getWatermark());
+
 				// remove the peeked element from the async collector buffer so that it is no longer
 				// checkpointed
 				streamElementQueue.poll();
@@ -107,11 +112,6 @@ public class Emitter<OUT> implements Runnable {
 				// notify the main thread that there is again space left in the async collector
 				// buffer
 				checkpointLock.notifyAll();
-
-				AsyncWatermarkResult asyncWatermarkResult = asyncResult.asWatermark();
-
-				LOG.debug("Output async watermark.");
-				output.emitWatermark(asyncWatermarkResult.getWatermark());
 			}
 		} else {
 			AsyncCollectionResult<OUT> streamRecordResult = asyncResult.asResultCollection();
@@ -123,14 +123,6 @@ public class Emitter<OUT> implements Runnable {
 			}
 
 			synchronized (checkpointLock) {
-				// remove the peeked element from the async collector buffer so that it is no longer
-				// checkpointed
-				streamElementQueue.poll();
-
-				// notify the main thread that there is again space left in the async collector
-				// buffer
-				checkpointLock.notifyAll();
-
 				LOG.debug("Output async stream element collection result.");
 
 				try {
@@ -146,6 +138,14 @@ public class Emitter<OUT> implements Runnable {
 						new Exception("An async function call terminated with an exception. " +
 							"Failing the AsyncWaitOperator.", e));
 				}
+
+				// remove the peeked element from the async collector buffer so that it is no longer
+				// checkpointed
+				streamElementQueue.poll();
+
+				// notify the main thread that there is again space left in the async collector
+				// buffer
+				checkpointLock.notifyAll();
 			}
 		}
 	}

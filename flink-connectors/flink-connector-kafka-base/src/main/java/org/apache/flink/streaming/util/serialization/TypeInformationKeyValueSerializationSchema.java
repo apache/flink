@@ -18,44 +18,45 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.runtime.util.DataInputDeserializer;
-import org.apache.flink.runtime.util.DataOutputSerializer;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
 
 import java.io.IOException;
 
 /**
  * A serialization and deserialization schema for Key Value Pairs that uses Flink's serialization stack to
  * transform typed from and to byte arrays.
- * 
+ *
  * @param <K> The key type to be serialized.
  * @param <V> The value type to be serialized.
  */
-public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDeserializationSchema<Tuple2<K, V>>, KeyedSerializationSchema<Tuple2<K,V>> {
+@Internal
+public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDeserializationSchema<Tuple2<K, V>>, KeyedSerializationSchema<Tuple2<K, V>> {
 
 	private static final long serialVersionUID = -5359448468131559102L;
 
-	/** The serializer for the key */
+	/** The serializer for the key. */
 	private final TypeSerializer<K> keySerializer;
 
-	/** The serializer for the value */
+	/** The serializer for the value. */
 	private final TypeSerializer<V> valueSerializer;
 
-	/** reusable input deserialization buffer */
+	/** reusable input deserialization buffer. */
 	private final DataInputDeserializer inputDeserializer;
-	
-	/** reusable output serialization buffer for the key */
+
+	/** reusable output serialization buffer for the key. */
 	private transient DataOutputSerializer keyOutputSerializer;
 
-	/** reusable output serialization buffer for the value */
+	/** reusable output serialization buffer for the value. */
 	private transient DataOutputSerializer valueOutputSerializer;
-	
-	
+
 	/** The type information, to be returned by {@link #getProducedType()}. It is
 	 * transient, because it is not serializable. Note that this means that the type information
 	 * is not available at runtime, but only prior to the first serialization / deserialization */
@@ -80,10 +81,10 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 	/**
 	 * Creates a new de-/serialization schema for the given types. This constructor accepts the types
 	 * as classes and internally constructs the type information from the classes.
-	 * 
+	 *
 	 * <p>If the types are parametrized and cannot be fully defined via classes, use the constructor
 	 * that accepts {@link TypeInformation} instead.
-	 * 
+	 *
 	 * @param keyClass The class of the key de-/serialized by this schema.
 	 * @param valueClass The class of the value de-/serialized by this schema.
 	 * @param config The execution config, which is used to parametrize the type serializers.
@@ -94,12 +95,11 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 
 	// ------------------------------------------------------------------------
 
-
 	@Override
 	public Tuple2<K, V> deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
 		K key = null;
 		V value = null;
-		
+
 		if (messageKey != null) {
 			inputDeserializer.setBuffer(messageKey, 0, messageKey.length);
 			key = keySerializer.deserialize(inputDeserializer);
@@ -117,10 +117,9 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 	 * @return Returns false.
 	 */
 	@Override
-	public boolean isEndOfStream(Tuple2<K,V> nextElement) {
+	public boolean isEndOfStream(Tuple2<K, V> nextElement) {
 		return false;
 	}
-
 
 	@Override
 	public byte[] serializeKey(Tuple2<K, V> element) {
@@ -182,9 +181,8 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 		return null; // we are never overriding the topic
 	}
 
-
 	@Override
-	public TypeInformation<Tuple2<K,V>> getProducedType() {
+	public TypeInformation<Tuple2<K, V>> getProducedType() {
 		if (typeInfo != null) {
 			return typeInfo;
 		}

@@ -19,9 +19,11 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
@@ -29,10 +31,10 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
-import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
+
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
@@ -55,6 +57,9 @@ import java.util.Set;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+/**
+ * Test checkpointing while sourcing a continuous file processor.
+ */
 public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleranceTestBase {
 
 	private static final int NO_OF_FILES = 5;
@@ -67,7 +72,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 	private static String localFsURI;
 	private FileCreator fc;
 
-	private static  Map<Integer, Set<String>> actualCollectedContent = new HashMap<>();
+	private static Map<Integer, Set<String>> actualCollectedContent = new HashMap<>();
 
 	@BeforeClass
 	public static void createHDFS() {
@@ -77,10 +82,10 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 
 			org.apache.hadoop.conf.Configuration hdConf = new org.apache.hadoop.conf.Configuration();
 
-			localFsURI = "file:///" + baseDir +"/";
+			localFsURI = "file:///" + baseDir + "/";
 			localFs = new org.apache.hadoop.fs.Path(localFsURI).getFileSystem(hdConf);
 
-		} catch(Throwable e) {
+		} catch (Throwable e) {
 			e.printStackTrace();
 			Assert.fail("Test failed " + e.getMessage());
 		}
@@ -278,7 +283,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 
 		public void run() {
 			try {
-				for(int i = 0; i < NO_OF_FILES; i++) {
+				for (int i = 0; i < NO_OF_FILES; i++) {
 					Tuple2<org.apache.hadoop.fs.Path, String> tmpFile;
 					long modTime;
 					do {
@@ -337,10 +342,10 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 
 		FSDataOutputStream stream = localFs.create(tmp);
 		StringBuilder str = new StringBuilder();
-		for(int i = 0; i < LINES_PER_FILE; i++) {
-			String line = fileIdx +": "+ sampleLine + " " + i +"\n";
+		for (int i = 0; i < LINES_PER_FILE; i++) {
+			String line = fileIdx + ": " + sampleLine + " " + i + "\n";
 			str.append(line);
-			stream.write(line.getBytes());
+			stream.write(line.getBytes(ConfigConstants.DEFAULT_CHARSET));
 		}
 		stream.close();
 		return new Tuple2<>(tmp, str.toString());

@@ -19,16 +19,27 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main(ng-if="job")
   #fold-button.btn.btn-default.navbar-btn.pull-left(ng-click='showSidebar()')
     i.fa.fa-navicon
 
-  .navbar-title
-    indicator-primary(status="{{job.state}}")
-    | {{ job.name }}
+  .navbar-title-job
+    .container-fluid.no-padding
+      .row.no-margin
+        .col-xs-1.no-padding
+          indicator-primary(status="{{job.state}}")
+        .col-xs-11.no-padding
+          .row
+            .col-xs-12.job-name
+              | {{ job.name }}
+          .row
+            .col-xs-12.job-id
+              | {{ job.jid }}
 
-  .navbar-info.first.last.hidden-xs.hidden-sm
-    | {{ job.jid }}
 
-  .navbar-info.first.last
-    .label-group
-      bs-label(status="{{status}}" ng-repeat="(status, value) in job['status-counts']") {{value}}
+  .navbar-info.last.first.pull-right(ng-if!="job.isStoppable && job.state=='RUNNING'")
+    span.navbar-info-button.btn.btn-default(ng-click="stopJob($event)")
+      | Stop
+
+  .navbar-info.last.first.pull-right(ng-if="job.state=='RUNNING' || job.state=='CREATED' || job.state=='RESTARTING'")
+    span.navbar-info-button.btn.btn-default(ng-click="cancelJob($event)")
+      | Cancel
 
   .navbar-info.first.last.hidden-xs.hidden-sm
     | {{ job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
@@ -39,13 +50,9 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main(ng-if="job")
   .navbar-info.last.first(ng-if="job.duration > -1" title="{{job.duration | humanizeDuration:false}}")
     | {{job.duration | humanizeDuration:true}}
 
-  .navbar-info.last.first(ng-if="job.state=='RUNNING' || job.state=='CREATED' || job.state=='RESTARTING'")
-    span.navbar-info-button.btn.btn-default(ng-click="cancelJob($event)")
-      | Cancel
-
-  .navbar-info.last.first(ng-if!="job.isStoppable && job.state=='RUNNING'")
-    span.navbar-info-button.btn.btn-default(ng-click="stopJob($event)")
-      | Stop
+  .navbar-info.first.last.hidden-xs.hidden-sm
+    .label-group
+      bs-label(status="{{status}}" ng-repeat="(status, value) in job['status-counts']") {{value}}
 
 nav.navbar.navbar-default.navbar-fixed-top.navbar-main-additional(ng-if="job")
   ul.nav.nav-tabs

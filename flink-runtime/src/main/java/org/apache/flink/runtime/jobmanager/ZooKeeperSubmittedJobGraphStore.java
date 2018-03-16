@@ -27,10 +27,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
+import org.apache.flink.util.FlinkException;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -143,11 +145,13 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 			if (isRunning) {
 				jobGraphListener = null;
 
-				pathCache.close();
-
-				client.close();
-
-				isRunning = false;
+				try {
+					pathCache.close();
+				} catch (Exception e) {
+					throw new Exception("Could not properly stop the ZooKeeperSubmittedJobGraphStore.", e);
+				} finally {
+					isRunning = false;
+				}
 			}
 		}
 	}
@@ -155,36 +159,52 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	@Override
 	public SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception {
 		checkNotNull(jobId, "Job ID");
-		String path = getPathForJob(jobId);
+		final String path = getPathForJob(jobId);
 
 		LOG.debug("Recovering job graph {} from {}{}.", jobId, zooKeeperFullBasePath, path);
 
 		synchronized (cacheLock) {
 			verifyIsRunning();
 
-			RetrievableStateHandle<SubmittedJobGraph> jobGraphRetrievableStateHandle;
+			boolean success = false;
 
 			try {
-				jobGraphRetrievableStateHandle = jobGraphsInZooKeeper.get(path);
-			} catch (KeeperException.NoNodeException ignored) {
-				return null;
-			} catch (Exception e) {
-				throw new Exception("Could not retrieve the submitted job graph state handle " +
-					"for " + path + "from the submitted job graph store.", e);
+				RetrievableStateHandle<SubmittedJobGraph> jobGraphRetrievableStateHandle;
+
+				try {
+					jobGraphRetrievableStateHandle = jobGraphsInZooKeeper.getAndLock(path);
+				} catch (KeeperException.NoNodeException ignored) {
+					success = true;
+					return null;
+				} catch (Exception e) {
+					throw new Exception("Could not retrieve the submitted job graph state handle " +
+						"for " + path + "from the submitted job graph store.", e);
+				}
+				SubmittedJobGraph jobGraph;
+
+				try {
+					jobGraph = jobGraphRetrievableStateHandle.retrieveState();
+				} catch (ClassNotFoundException cnfe) {
+					throw new FlinkException("Could not retrieve submitted JobGraph from state handle under " + path +
+						". This indicates that you are trying to recover from state written by an " +
+						"older Flink version which is not compatible. Try cleaning the state handle store.", cnfe);
+				} catch (IOException ioe) {
+					throw new FlinkException("Could not retrieve submitted JobGraph from state handle under " + path +
+						". This indicates that the retrieved state handle is broken. Try cleaning the state handle " +
+						"store.", ioe);
+				}
+
+				addedJobGraphs.add(jobGraph.getJobId());
+
+				LOG.info("Recovered {}.", jobGraph);
+
+				success = true;
+				return jobGraph;
+			} finally {
+				if (!success) {
+					jobGraphsInZooKeeper.release(path);
+				}
 			}
-			SubmittedJobGraph jobGraph;
-
-			try {
-				jobGraph = jobGraphRetrievableStateHandle.retrieveState();
-			} catch (Exception e) {
-				throw new Exception("Failed to retrieve the submitted job graph from state handle.", e);
-			}
-
-			addedJobGraphs.add(jobGraph.getJobId());
-
-			LOG.info("Recovered {}.", jobGraph);
-
-			return jobGraph;
 		}
 	}
 
@@ -205,7 +225,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 
 				if (currentVersion == -1) {
 					try {
-						jobGraphsInZooKeeper.add(path, jobGraph);
+						jobGraphsInZooKeeper.addAndLock(path, jobGraph);
 
 						addedJobGraphs.add(jobGraph.getJobId());
 
@@ -243,7 +263,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 
 		synchronized (cacheLock) {
 			if (addedJobGraphs.contains(jobId)) {
-				jobGraphsInZooKeeper.removeAndDiscardState(path);
+				jobGraphsInZooKeeper.releaseAndTryRemove(path);
 
 				addedJobGraphs.remove(jobId);
 			}
@@ -352,7 +372,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 				break;
 
 				case CONNECTION_SUSPENDED: {
-					LOG.warn("ZooKeeper connection SUSPENDED. Changes to the submitted job " +
+					LOG.warn("ZooKeeper connection SUSPENDING. Changes to the submitted job " +
 						"graphs are not monitored (temporarily).");
 				}
 				break;

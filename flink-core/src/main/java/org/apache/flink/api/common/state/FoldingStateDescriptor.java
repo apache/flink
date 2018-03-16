@@ -30,10 +30,13 @@ import static java.util.Objects.requireNonNull;
  * {@link StateDescriptor} for {@link FoldingState}. This can be used to create partitioned
  * folding state.
  *
- * @param <T> Type of the values folded int othe state
+ * @param <T> Type of the values folded in the other state
  * @param <ACC> Type of the value in the state
+ *
+ * @deprecated will be removed in a future version in favor of {@link AggregatingStateDescriptor}
  */
 @PublicEvolving
+@Deprecated
 public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState<T, ACC>, ACC> {
 	private static final long serialVersionUID = 1L;
 
@@ -97,8 +100,8 @@ public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public FoldingState<T, ACC> bind(StateBackend stateBackend) throws Exception {
-		return stateBackend.createFoldingState(this);
+	public FoldingState<T, ACC> bind(StateBinder stateBinder) throws Exception {
+		return stateBinder.createFoldingState(this);
 	}
 
 	/**

@@ -16,18 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.io;
-
-import java.io.BufferedOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -35,6 +27,15 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+
 /**
  * This is an OutputFormat to serialize {@link org.apache.flink.api.java.tuple.Tuple}s to text. The output is
  * structured by record delimiters and field delimiters as common in CSV files.
@@ -121,8 +122,8 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 	/**
 	 * Configures the format to either allow null values (writing an empty field),
 	 * or to throw an exception when encountering a null field.
-	 * <p>
-	 * by default, null values are disallowed.
+	 *
+	 * <p>by default, null values are disallowed.
 	 *
 	 * @param allowNulls Flag to indicate whether the output format should accept null values.
 	 */
@@ -144,8 +145,8 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 	 * Configures whether the output format should quote string values. String values are fields
 	 * of type {@link java.lang.String} and {@link org.apache.flink.types.StringValue}, as well as
 	 * all subclasses of the latter.
-	 * <p>
-	 * By default, strings are not quoted.
+	 *
+	 * <p>By default, strings are not quoted.
 	 *
 	 * @param quoteStrings Flag indicating whether string fields should be quoted.
 	 */
@@ -215,7 +216,6 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 	}
 
     /**
-	 *
 	 * The purpose of this method is solely to check whether the data type to be processed
 	 * is in fact a tuple type.
 	 */

@@ -92,7 +92,7 @@ public class KMeansData {
 		}
 		return env.fromCollection(centroidList);
 	}
-	
+
 	public static DataSet<Point> getDefaultPointDataSet(ExecutionEnvironment env) {
 		List<Point> pointList = new LinkedList<Point>();
 		for (Object[] point : POINTS) {
@@ -100,5 +100,5 @@ public class KMeansData {
 		}
 		return env.fromCollection(pointList);
 	}
-	
+
 }

@@ -27,7 +27,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Location of a result partition from the perspective of the consuming task.
  *
- * <p> The location indicates both the instance, on which the partition is produced and the state of
+ * <p>The location indicates both the instance, on which the partition is produced and the state of
  * the producing task. There are three possibilities:
  *
  * <ol>

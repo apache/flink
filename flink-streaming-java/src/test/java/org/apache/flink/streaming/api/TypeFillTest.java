@@ -17,10 +17,6 @@
 
 package org.apache.flink.streaming.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
-
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -35,6 +31,12 @@ import org.apache.flink.util.Collector;
 
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
+/**
+ * Tests for {@link TypeFill}.
+ */
 @SuppressWarnings("serial")
 public class TypeFillTest {
 
@@ -46,7 +48,6 @@ public class TypeFillTest {
 			env.addSource(new TestSource<Integer>()).print();
 			fail();
 		} catch (Exception ignored) {}
-		
 
 		DataStream<Long> source = env.generateSequence(1, 10);
 
@@ -54,17 +55,17 @@ public class TypeFillTest {
 			source.map(new TestMap<Long, Long>()).print();
 			fail();
 		} catch (Exception ignored) {}
-		
+
 		try {
 			source.flatMap(new TestFlatMap<Long, Long>()).print();
 			fail();
 		} catch (Exception ignored) {}
-		
+
 		try {
 			source.connect(source).map(new TestCoMap<Long, Long, Integer>()).print();
 			fail();
 		} catch (Exception ignored) {}
-		
+
 		try {
 			source.connect(source).flatMap(new TestCoFlatMap<Long, Long, Integer>()).print();
 			fail();
@@ -76,7 +77,7 @@ public class TypeFillTest {
 		source.connect(source).map(new TestCoMap<Long, Long, Integer>()).returns(BasicTypeInfo.INT_TYPE_INFO).print();
 		source.connect(source).flatMap(new TestCoFlatMap<Long, Long, Integer>())
 				.returns(BasicTypeInfo.INT_TYPE_INFO).print();
-		
+
 		assertEquals(BasicTypeInfo.LONG_TYPE_INFO,
 				source.map(new TestMap<Long, Long>()).returns(Long.class).getType());
 

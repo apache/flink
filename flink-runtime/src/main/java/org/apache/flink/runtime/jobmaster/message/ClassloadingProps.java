@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.message;
 
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 
 import java.io.Serializable;
 import java.net.URL;
@@ -33,7 +33,7 @@ public class ClassloadingProps implements Serializable {
 
 	private final int blobManagerPort;
 
-	private final Collection<BlobKey> requiredJarFiles;
+	private final Collection<PermanentBlobKey> requiredJarFiles;
 
 	private final Collection<URL> requiredClasspaths;
 
@@ -46,7 +46,7 @@ public class ClassloadingProps implements Serializable {
 	 */
 	public ClassloadingProps(
 		final int blobManagerPort,
-		final Collection<BlobKey> requiredJarFiles,
+		final Collection<PermanentBlobKey> requiredJarFiles,
 		final Collection<URL> requiredClasspaths)
 	{
 		this.blobManagerPort = blobManagerPort;
@@ -58,7 +58,7 @@ public class ClassloadingProps implements Serializable {
 		return blobManagerPort;
 	}
 
-	public Collection<BlobKey> getRequiredJarFiles() {
+	public Collection<PermanentBlobKey> getRequiredJarFiles() {
 		return requiredJarFiles;
 	}
 

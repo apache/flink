@@ -17,29 +17,36 @@
 
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
-import com.amazonaws.services.kinesis.AmazonKinesisClient;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
+import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
+
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.model.GetRecordsRequest;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
+import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
 import com.amazonaws.services.kinesis.model.GetShardIteratorResult;
-import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
 import com.amazonaws.services.kinesis.model.LimitExceededException;
+import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
-import com.amazonaws.services.kinesis.model.StreamStatus;
 import com.amazonaws.services.kinesis.model.Shard;
-import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
-import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
+import com.amazonaws.services.kinesis.model.ShardIteratorType;
+import com.amazonaws.services.kinesis.model.StreamStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Properties;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Random;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -49,68 +56,69 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * calls to AWS Kinesis for several functions, such as getting a list of shards and
  * fetching a batch of data records starting from a specified record sequence number.
  *
- * NOTE:
+ * <p>NOTE:
  * In the AWS KCL library, there is a similar implementation - {@link com.amazonaws.services.kinesis.clientlibrary.proxies.KinesisProxy}.
  * This implementation differs mainly in that we can make operations to arbitrary Kinesis streams, which is a needed
- * functionality for the Flink Kinesis Connecter since the consumer may simultaneously read from multiple Kinesis streams.
+ * functionality for the Flink Kinesis Connector since the consumer may simultaneously read from multiple Kinesis streams.
  */
+@Internal
 public class KinesisProxy implements KinesisProxyInterface {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KinesisProxy.class);
 
-	/** The actual Kinesis client from the AWS SDK that we will be using to make calls */
-	private final AmazonKinesisClient kinesisClient;
+	/** The actual Kinesis client from the AWS SDK that we will be using to make calls. */
+	private final AmazonKinesis kinesisClient;
 
-	/** Random seed used to calculate backoff jitter for Kinesis operations */
-	private final static Random seed = new Random();
+	/** Random seed used to calculate backoff jitter for Kinesis operations. */
+	private static final Random seed = new Random();
 
 	// ------------------------------------------------------------------------
 	//  describeStream() related performance settings
 	// ------------------------------------------------------------------------
 
-	/** Base backoff millis for the describe stream operation */
+	/** Base backoff millis for the describe stream operation. */
 	private final long describeStreamBaseBackoffMillis;
 
-	/** Maximum backoff millis for the describe stream operation */
+	/** Maximum backoff millis for the describe stream operation. */
 	private final long describeStreamMaxBackoffMillis;
 
-	/** Exponential backoff power constant for the describe stream operation */
+	/** Exponential backoff power constant for the describe stream operation. */
 	private final double describeStreamExpConstant;
 
 	// ------------------------------------------------------------------------
 	//  getRecords() related performance settings
 	// ------------------------------------------------------------------------
 
-	/** Base backoff millis for the get records operation */
+	/** Base backoff millis for the get records operation. */
 	private final long getRecordsBaseBackoffMillis;
 
-	/** Maximum backoff millis for the get records operation */
+	/** Maximum backoff millis for the get records operation. */
 	private final long getRecordsMaxBackoffMillis;
 
-	/** Exponential backoff power constant for the get records operation */
+	/** Exponential backoff power constant for the get records operation. */
 	private final double getRecordsExpConstant;
 
-	/** Maximum attempts for the get records operation */
+	/** Maximum attempts for the get records operation. */
 	private final int getRecordsMaxAttempts;
 
 	// ------------------------------------------------------------------------
 	//  getShardIterator() related performance settings
 	// ------------------------------------------------------------------------
 
-	/** Base backoff millis for the get shard iterator operation */
+	/** Base backoff millis for the get shard iterator operation. */
 	private final long getShardIteratorBaseBackoffMillis;
 
-	/** Maximum backoff millis for the get shard iterator operation */
+	/** Maximum backoff millis for the get shard iterator operation. */
 	private final long getShardIteratorMaxBackoffMillis;
 
-	/** Exponential backoff power constant for the get shard iterator operation */
+	/** Exponential backoff power constant for the get shard iterator operation. */
 	private final double getShardIteratorExpConstant;
 
-	/** Maximum attempts for the get shard iterator operation */
+	/** Maximum attempts for the get shard iterator operation. */
 	private final int getShardIteratorMaxAttempts;
 
 	/**
-	 * Create a new KinesisProxy based on the supplied configuration properties
+	 * Create a new KinesisProxy based on the supplied configuration properties.
 	 *
 	 * @param configProps configuration properties containing AWS credential and AWS region info
 	 */
@@ -193,12 +201,16 @@ public class KinesisProxy implements KinesisProxyInterface {
 		while (attempt <= getRecordsMaxAttempts && getRecordsResult == null) {
 			try {
 				getRecordsResult = kinesisClient.getRecords(getRecordsRequest);
-			} catch (ProvisionedThroughputExceededException ex) {
-				long backoffMillis = fullJitterBackoff(
-					getRecordsBaseBackoffMillis, getRecordsMaxBackoffMillis, getRecordsExpConstant, attempt++);
-				LOG.warn("Got ProvisionedThroughputExceededException. Backing off for "
-					+ backoffMillis + " millis.");
-				Thread.sleep(backoffMillis);
+			} catch (AmazonServiceException ex) {
+				if (isRecoverableException(ex)) {
+					long backoffMillis = fullJitterBackoff(
+						getRecordsBaseBackoffMillis, getRecordsMaxBackoffMillis, getRecordsExpConstant, attempt++);
+					LOG.warn("Got recoverable AmazonServiceException. Backing off for "
+						+ backoffMillis + " millis (" + ex.getErrorMessage() + ")");
+					Thread.sleep(backoffMillis);
+				} else {
+					throw ex;
+				}
 			}
 		}
 
@@ -217,7 +229,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 	public GetShardListResult getShardList(Map<String, String> streamNamesWithLastSeenShardIds) throws InterruptedException {
 		GetShardListResult result = new GetShardListResult();
 
-		for (Map.Entry<String,String> streamNameWithLastSeenShardId : streamNamesWithLastSeenShardIds.entrySet()) {
+		for (Map.Entry<String, String> streamNameWithLastSeenShardId : streamNamesWithLastSeenShardIds.entrySet()) {
 			String stream = streamNameWithLastSeenShardId.getKey();
 			String lastSeenShardId = streamNameWithLastSeenShardId.getValue();
 			result.addRetrievedShardsToStream(stream, getShardsOfStream(stream, lastSeenShardId));
@@ -229,20 +241,51 @@ public class KinesisProxy implements KinesisProxyInterface {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nullable String startingSeqNum) throws InterruptedException {
+	public String getShardIterator(StreamShardHandle shard, String shardIteratorType, @Nullable Object startingMarker) throws InterruptedException {
+		GetShardIteratorRequest getShardIteratorRequest = new GetShardIteratorRequest()
+			.withStreamName(shard.getStreamName())
+			.withShardId(shard.getShard().getShardId())
+			.withShardIteratorType(shardIteratorType);
+
+		switch (ShardIteratorType.fromValue(shardIteratorType)) {
+			case TRIM_HORIZON:
+			case LATEST:
+				break;
+			case AT_TIMESTAMP:
+				if (startingMarker instanceof Date) {
+					getShardIteratorRequest.setTimestamp((Date) startingMarker);
+				} else {
+					throw new IllegalArgumentException("Invalid object given for GetShardIteratorRequest() when ShardIteratorType is AT_TIMESTAMP. Must be a Date object.");
+				}
+				break;
+			case AT_SEQUENCE_NUMBER:
+			case AFTER_SEQUENCE_NUMBER:
+				if (startingMarker instanceof String) {
+					getShardIteratorRequest.setStartingSequenceNumber((String) startingMarker);
+				} else {
+					throw new IllegalArgumentException("Invalid object given for GetShardIteratorRequest() when ShardIteratorType is AT_SEQUENCE_NUMBER or AFTER_SEQUENCE_NUMBER. Must be a String.");
+				}
+		}
+		return getShardIterator(getShardIteratorRequest);
+	}
+
+	private String getShardIterator(GetShardIteratorRequest getShardIteratorRequest) throws InterruptedException {
 		GetShardIteratorResult getShardIteratorResult = null;
 
 		int attempt = 0;
 		while (attempt <= getShardIteratorMaxAttempts && getShardIteratorResult == null) {
 			try {
-				getShardIteratorResult =
-					kinesisClient.getShardIterator(shard.getStreamName(), shard.getShard().getShardId(), shardIteratorType, startingSeqNum);
-			} catch (ProvisionedThroughputExceededException ex) {
-				long backoffMillis = fullJitterBackoff(
-					getShardIteratorBaseBackoffMillis, getShardIteratorMaxBackoffMillis, getShardIteratorExpConstant, attempt++);
-				LOG.warn("Got ProvisionedThroughputExceededException. Backing off for "
-					+ backoffMillis + " millis.");
-				Thread.sleep(backoffMillis);
+					getShardIteratorResult = kinesisClient.getShardIterator(getShardIteratorRequest);
+			} catch (AmazonServiceException ex) {
+				if (isRecoverableException(ex)) {
+					long backoffMillis = fullJitterBackoff(
+						getShardIteratorBaseBackoffMillis, getShardIteratorMaxBackoffMillis, getShardIteratorExpConstant, attempt++);
+					LOG.warn("Got recoverable AmazonServiceException. Backing off for "
+						+ backoffMillis + " millis (" + ex.getErrorMessage() + ")");
+					Thread.sleep(backoffMillis);
+				} else {
+					throw ex;
+				}
 			}
 		}
 
@@ -253,8 +296,31 @@ public class KinesisProxy implements KinesisProxyInterface {
 		return getShardIteratorResult.getShardIterator();
 	}
 
-	private List<KinesisStreamShard> getShardsOfStream(String streamName, @Nullable String lastSeenShardId) throws InterruptedException {
-		List<KinesisStreamShard> shardsOfStream = new ArrayList<>();
+	/**
+	 * Determines whether the exception is recoverable using exponential-backoff.
+	 *
+	 * @param ex Exception to inspect
+	 * @return <code>true</code> if the exception can be recovered from, else
+	 *         <code>false</code>
+	 */
+	protected static boolean isRecoverableException(AmazonServiceException ex) {
+		if (ex.getErrorType() == null) {
+			return false;
+		}
+
+		switch (ex.getErrorType()) {
+			case Client:
+				return ex instanceof ProvisionedThroughputExceededException;
+			case Service:
+			case Unknown:
+				return true;
+			default:
+				return false;
+		}
+	}
+
+	private List<StreamShardHandle> getShardsOfStream(String streamName, @Nullable String lastSeenShardId) throws InterruptedException {
+		List<StreamShardHandle> shardsOfStream = new ArrayList<>();
 
 		DescribeStreamResult describeStreamResult;
 		do {
@@ -262,7 +328,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 
 			List<Shard> shards = describeStreamResult.getStreamDescription().getShards();
 			for (Shard shard : shards) {
-				shardsOfStream.add(new KinesisStreamShard(streamName, shard));
+				shardsOfStream.add(new StreamShardHandle(streamName, shard));
 			}
 
 			if (shards.size() != 0) {
@@ -276,7 +342,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 	/**
 	 * Get metainfo for a Kinesis stream, which contains information about which shards this Kinesis stream possess.
 	 *
-	 * This method is using a "full jitter" approach described in AWS's article,
+	 * <p>This method is using a "full jitter" approach described in AWS's article,
 	 * <a href="https://www.awsarchitectureblog.com/2015/03/backoff.html">"Exponential Backoff and Jitter"</a>.
 	 * This is necessary because concurrent calls will be made by all parallel subtask's fetcher. This
 	 * jitter backoff approach will help distribute calls across the fetchers over time.
@@ -322,7 +388,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 			List<Shard> shards = describeStreamResult.getStreamDescription().getShards();
 			Iterator<Shard> shardItr = shards.iterator();
 			while (shardItr.hasNext()) {
-				if (KinesisStreamShard.compareShardIds(shardItr.next().getShardId(), startShardId) <= 0) {
+				if (StreamShardHandle.compareShardIds(shardItr.next().getShardId(), startShardId) <= 0) {
 					shardItr.remove();
 				}
 			}
@@ -333,6 +399,6 @@ public class KinesisProxy implements KinesisProxyInterface {
 
 	private static long fullJitterBackoff(long base, long max, double power, int attempt) {
 		long exponentialBackoff = (long) Math.min(max, base * Math.pow(power, attempt));
-		return (long)(seed.nextDouble()*exponentialBackoff); // random jitter between 0 and the exponential backoff
+		return (long) (seed.nextDouble() * exponentialBackoff); // random jitter between 0 and the exponential backoff
 	}
 }

@@ -19,6 +19,7 @@
 
 package org.apache.flink.types.parser;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 import org.junit.Test;
@@ -45,7 +46,7 @@ public class VarLengthStringParserTest {
 		this.parser = new StringValueParser();
 		
 		// check valid strings with out whitespaces and trailing delimiter
-		byte[] recBytes = "abcdefgh|i|jklmno|".getBytes();
+		byte[] recBytes = "abcdefgh|i|jklmno|".getBytes(ConfigConstants.DEFAULT_CHARSET);
 		StringValue s = new StringValue();
 		
 		int startPos = 0;
@@ -63,14 +64,14 @@ public class VarLengthStringParserTest {
 		
 		
 		// check single field not terminated
-		recBytes = "abcde".getBytes();
+		recBytes = "abcde".getBytes(ConfigConstants.DEFAULT_CHARSET);
 		startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
 		assertTrue(startPos == 5);
 		assertTrue(s.getValue().equals("abcde"));
 		
 		// check last field not terminated
-		recBytes = "abcde|fg".getBytes();
+		recBytes = "abcde|fg".getBytes(ConfigConstants.DEFAULT_CHARSET);
 		startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
 		assertTrue(startPos == 6);
@@ -88,7 +89,7 @@ public class VarLengthStringParserTest {
 		this.parser.enableQuotedStringParsing((byte)'"');
 
 		// check valid strings with out whitespaces and trailing delimiter
-		byte[] recBytes = "\"abcdefgh\"|\"i\"|\"jklmno\"|".getBytes();
+		byte[] recBytes = "\"abcdefgh\"|\"i\"|\"jklmno\"|".getBytes(ConfigConstants.DEFAULT_CHARSET);
 		StringValue s = new StringValue();
 		
 		int startPos = 0;
@@ -106,14 +107,14 @@ public class VarLengthStringParserTest {
 		
 		
 		// check single field not terminated
-		recBytes = "\"abcde\"".getBytes();
+		recBytes = "\"abcde\"".getBytes(ConfigConstants.DEFAULT_CHARSET);
 		startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
 		assertTrue(startPos == 7);
 		assertTrue(s.getValue().equals("abcde"));
 		
 		// check last field not terminated
-		recBytes = "\"abcde\"|\"fg\"".getBytes();
+		recBytes = "\"abcde\"|\"fg\"".getBytes(ConfigConstants.DEFAULT_CHARSET);
 		startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
 		assertTrue(startPos == 8);
@@ -124,7 +125,7 @@ public class VarLengthStringParserTest {
 		assertTrue(s.getValue().equals("fg"));
 		
 		// check delimiter in quotes 
-		recBytes = "\"abcde|fg\"|\"hij|kl|mn|op\"|".getBytes();
+		recBytes = "\"abcde|fg\"|\"hij|kl|mn|op\"|".getBytes(ConfigConstants.DEFAULT_CHARSET);
 		startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
 		assertTrue(startPos == 11);
@@ -135,7 +136,7 @@ public class VarLengthStringParserTest {
 		assertTrue(s.getValue().equals("hij|kl|mn|op"));
 		
 		// check delimiter in quotes last field not terminated
-		recBytes = "\"abcde|fg\"|\"hij|kl|mn|op\"".getBytes();
+		recBytes = "\"abcde|fg\"|\"hij|kl|mn|op\"".getBytes(ConfigConstants.DEFAULT_CHARSET);
 		startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
 		assertTrue(startPos == 11);
@@ -153,7 +154,7 @@ public class VarLengthStringParserTest {
 		this.parser.enableQuotedStringParsing((byte)'@');
 
 		// check valid strings with out whitespaces and trailing delimiter
-		byte[] recBytes = "@abcde|gh@|@i@|jklmnopq|@rs@|tuv".getBytes();
+		byte[] recBytes = "@abcde|gh@|@i@|jklmnopq|@rs@|tuv".getBytes(ConfigConstants.DEFAULT_CHARSET);
 		StringValue s = new StringValue();
 
 		int startPos = 0;
@@ -187,7 +188,7 @@ public class VarLengthStringParserTest {
 		this.parser.enableQuotedStringParsing((byte)'"');
 
 		// check valid strings with out whitespaces and trailing delimiter
-		byte[] recBytes = "\"abcdefgh\"-|\"jklmno  ".getBytes();
+		byte[] recBytes = "\"abcdefgh\"-|\"jklmno  ".getBytes(ConfigConstants.DEFAULT_CHARSET);
 		StringValue s = new StringValue();
 
 		int startPos = 0;
@@ -207,7 +208,7 @@ public class VarLengthStringParserTest {
 		this.parser.enableQuotedStringParsing((byte) '@');
 
 		// check valid strings with out whitespaces and trailing delimiter
-		byte[] recBytes = "@abcde|gh@|@i@|jklmnopq|@rs@|tuv".getBytes();
+		byte[] recBytes = "@abcde|gh@|@i@|jklmnopq|@rs@|tuv".getBytes(ConfigConstants.DEFAULT_CHARSET);
 		StringValue s = new StringValue();
 
 		int startPos = 0;

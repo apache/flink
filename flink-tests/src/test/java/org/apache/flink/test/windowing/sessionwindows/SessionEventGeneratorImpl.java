@@ -33,7 +33,7 @@ import java.util.List;
 public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 
 	/**
-	 * Event timing w.r.t the global watermark
+	 * Event timing w.r.t the global watermark.
 	 */
 	public enum Timing {
 		TIMELY, IN_LATENESS, AFTER_LATENESS
@@ -126,7 +126,7 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	}
 
 	/**
-	 * pre-computes and stores the timestamps for timely events in this session in a list (ordered)
+	 * Pre-computes and stores the timestamps for timely events in this session in a list (ordered).
 	 *
 	 * @param minTimestamp              the minimum event time in the session
 	 * @param onTimeEventCountInSession the number of timestamps to generate
@@ -269,7 +269,7 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	}
 
 	/**
-	 * internal generator delegate for producing session events that are timely
+	 * Internal generator delegate for producing session events that are timely.
 	 */
 	private class TimelyGenerator extends AbstractEventGenerator {
 
@@ -300,7 +300,7 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	}
 
 	/**
-	 * internal generator delegate for producing late session events with timestamps within the allowed lateness
+	 * Internal generator delegate for producing late session events with timestamps within the allowed lateness.
 	 */
 	private class InLatenessGenerator extends AbstractEventGenerator {
 
@@ -331,7 +331,7 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	}
 
 	/**
-	 * internal generator delegate for producing late session events with timestamps after the lateness
+	 * Internal generator delegate for producing late session events with timestamps after the lateness.
 	 */
 	private class AfterLatenessGenerator extends AbstractEventGenerator {
 

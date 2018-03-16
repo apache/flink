@@ -17,19 +17,22 @@
 
 package org.apache.flink.streaming.util;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
+/**
+ * Simple test context for stream operators.
+ */
 public class MockContext<IN, OUT> {
-	
+
 	private List<OUT> outputs;
 
 	private MockOutput<OUT> output;
@@ -54,7 +57,7 @@ public class MockContext<IN, OUT> {
 	public static <IN, OUT> List<OUT> createAndExecute(OneInputStreamOperator<IN, OUT> operator, List<IN> inputs) throws Exception {
 		return createAndExecuteForKeyedStream(operator, inputs, null, null);
 	}
-	
+
 	public static <IN, OUT, KEY> List<OUT> createAndExecuteForKeyedStream(
 				OneInputStreamOperator<IN, OUT> operator, List<IN> inputs,
 				KeySelector<IN, KEY> keySelector, TypeInformation<KEY> keyType) throws Exception {
@@ -64,7 +67,7 @@ public class MockContext<IN, OUT> {
 
 		testHarness.setup();
 		testHarness.open();
-		
+
 		operator.open();
 
 		for (IN in: inputs) {

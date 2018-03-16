@@ -27,21 +27,10 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 public class StandaloneCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
 
 	@Override
-	public void start() {
-		// Nothing to do
-	}
-
-	@Override
-	public void stop() {
-		// Nothing to do
-	}
-
-	@Override
-	public CompletedCheckpointStore createCheckpointStore(JobID jobId, ClassLoader userClassLoader)
+	public CompletedCheckpointStore createCheckpointStore(JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
 			throws Exception {
 
-		return new StandaloneCompletedCheckpointStore(
-				CheckpointRecoveryFactory.NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN);
+		return new StandaloneCompletedCheckpointStore(maxNumberOfCheckpointsToRetain);
 	}
 
 	@Override

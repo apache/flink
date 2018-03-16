@@ -18,28 +18,39 @@
 
 package org.apache.flink.table.plan.nodes.datastream
 
-import org.apache.calcite.rel.RelNode
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.plan.nodes.FlinkRel
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
+import org.apache.flink.table.plan.nodes.FlinkRelNode
+import org.apache.flink.table.runtime.types.CRow
 
-trait DataStreamRel extends RelNode with FlinkRel {
+trait DataStreamRel extends FlinkRelNode {
 
   /**
     * Translates the FlinkRelNode into a Flink operator.
     *
     * @param tableEnv The [[StreamTableEnvironment]] of the translated Table.
-    * @param expectedType specifies the type the Flink operator should return. The type must
-    *                     have the same arity as the result. For instance, if the
-    *                     expected type is a RowTypeInfo this method will return a DataSet of
-    *                     type Row. If the expected type is Tuple2, the operator will return
-    *                     a Tuple2 if possible. Row otherwise.
-    * @return DataStream of type expectedType or RowTypeInfo
+    * @param queryConfig The configuration for the query to generate.
+    * @return DataStream of type [[CRow]]
     */
   def translateToPlan(
     tableEnv: StreamTableEnvironment,
-    expectedType: Option[TypeInformation[Any]] = None) : DataStream[Any]
+    queryConfig: StreamQueryConfig): DataStream[CRow]
+
+  /**
+    * Whether the [[DataStreamRel]] requires that update and delete changes are sent with retraction
+    * messages.
+    */
+  def needsUpdatesAsRetraction: Boolean = false
+
+  /**
+    * Whether the [[DataStreamRel]] produces update and delete changes.
+    */
+  def producesUpdates: Boolean = false
+
+  /**
+    * Whether the [[DataStreamRel]] consumes retraction messages instead of forwarding them.
+    * The node might or might not produce new retraction messages.
+    */
+  def consumesRetractions: Boolean = false
 
 }
-

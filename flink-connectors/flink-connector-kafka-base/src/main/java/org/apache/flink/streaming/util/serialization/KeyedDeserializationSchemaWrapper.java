@@ -14,17 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import java.io.IOException;
 
 /**
  * A simple wrapper for using the DeserializationSchema with the KeyedDeserializationSchema
- * interface
+ * interface.
  * @param <T> The type created by the deserialization schema.
  */
+@Internal
 public class KeyedDeserializationSchemaWrapper<T> implements KeyedDeserializationSchema<T> {
 
 	private static final long serialVersionUID = 2651665280744549932L;
@@ -34,6 +38,7 @@ public class KeyedDeserializationSchemaWrapper<T> implements KeyedDeserializatio
 	public KeyedDeserializationSchemaWrapper(DeserializationSchema<T> deserializationSchema) {
 		this.deserializationSchema = deserializationSchema;
 	}
+
 	@Override
 	public T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
 		return deserializationSchema.deserialize(message);

@@ -32,12 +32,16 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+/**
+ * Tests for {@link Graph#groupReduceOnNeighbors} and {@link Graph#reduceOnNeighbors}.
+ */
 @RunWith(Parameterized.class)
 public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
@@ -410,8 +414,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateNeighbors(Vertex<Long, Long> vertex,
-		                             Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-		                             Collector<Tuple2<Long, Long>> out) throws Exception {
+				Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long sum = 0;
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
@@ -427,8 +431,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateNeighbors(Vertex<Long, Long> vertex,
-		                             Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-		                             Collector<Tuple2<Long, Long>> out) throws Exception {
+				Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long sum = 0;
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
@@ -444,8 +448,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateNeighbors(Vertex<Long, Long> vertex,
-		                             Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-		                             Collector<Tuple2<Long, Long>> out) throws Exception {
+				Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long sum = 0;
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
@@ -461,8 +465,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateNeighbors(Vertex<Long, Long> vertex,
-		                             Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-		                             Collector<Tuple2<Long, Long>> out) throws Exception {
+				Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long sum = 0;
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
@@ -480,8 +484,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateNeighbors(Vertex<Long, Long> vertex,
-		                             Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-		                             Collector<Tuple2<Long, Long>> out) throws Exception {
+				Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long sum = 0;
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
@@ -499,8 +503,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateNeighbors(Vertex<Long, Long> vertex,
-		                             Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-		                             Collector<Tuple2<Long, Long>> out) throws Exception {
+				Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long sum = 0;
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
@@ -526,7 +530,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateNeighbors(Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-		                             Collector<Tuple2<Long, Long>> out) throws Exception {
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long sum = 0;
 			Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
@@ -544,7 +548,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateNeighbors(Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-		                             Collector<Tuple2<Long, Long>> out) throws Exception {
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long sum = 0;
 			Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
@@ -565,7 +569,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateNeighbors(Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-		                             Collector<Tuple2<Long, Long>> out) throws Exception {
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long sum = 0;
 			Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
@@ -586,7 +590,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateNeighbors(Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-		                             Collector<Tuple2<Long, Long>> out) throws Exception {
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long sum = 0;
 			Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
@@ -607,8 +611,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateNeighbors(Vertex<Long, Long> vertex,
-		                             Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-		                             Collector<Tuple2<Long, Long>> out) throws Exception {
+				Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long sum = 0;
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
@@ -625,8 +629,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateNeighbors(Vertex<Long, Long> vertex,
-		                             Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-		                             Collector<Tuple2<Long, Long>> out) throws Exception {
+				Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long sum = 0;
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
@@ -643,8 +647,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateNeighbors(Vertex<Long, Long> vertex,
-		                             Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-		                             Collector<Tuple2<Long, Long>> out) throws Exception {
+				Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long sum = 0;
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {

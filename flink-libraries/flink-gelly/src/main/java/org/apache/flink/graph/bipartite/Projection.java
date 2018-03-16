@@ -22,7 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.graph.Vertex;
 
 /**
- * The edge value of a full bipartite projection contains:
+ * The edge value of a full bipartite projection. This contains:
  * <ul>
  *     <li>the ID and vertex value of the connecting vertex</li>
  *     <li>the vertex value for the source and target vertex</li>

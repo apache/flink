@@ -57,7 +57,7 @@ package object scala {
   private[flink] def explicitFirst[T](
       funcOrInputFormat: AnyRef,
       typeInfo: TypeInformation[T]): TypeInformation[T] = funcOrInputFormat match {
-    case rtq: ResultTypeQueryable[T] => rtq.getProducedType
+    case rtq: ResultTypeQueryable[_] => rtq.asInstanceOf[ResultTypeQueryable[T]].getProducedType
     case _ => typeInfo
   }
 
@@ -106,11 +106,23 @@ package object scala {
           fieldSerializers(i) = types(i).createSerializer(executionConfig)
         }
 
-        new CaseClassSerializer[(T1, T2)](classOf[(T1, T2)], fieldSerializers) {
-          override def createInstance(fields: Array[AnyRef]) = {
-            (fields(0).asInstanceOf[T1], fields(1).asInstanceOf[T2])
-          }
-        }
+        new Tuple2CaseClassSerializer[T1, T2](classOf[(T1, T2)], fieldSerializers)
       }
     }
+
+  class Tuple2CaseClassSerializer[T1, T2](
+      val clazz: Class[(T1, T2)],
+      fieldSerializers: Array[TypeSerializer[_]])
+    extends CaseClassSerializer[(T1, T2)](clazz, fieldSerializers) {
+
+    override def createInstance(fields: Array[AnyRef]) = {
+      (fields(0).asInstanceOf[T1], fields(1).asInstanceOf[T2])
+    }
+
+    override def createSerializerInstance(
+        tupleClass: Class[(T1, T2)],
+        fieldSerializers: Array[TypeSerializer[_]]) = {
+      new Tuple2CaseClassSerializer[T1, T2](tupleClass, fieldSerializers)
+    }
+  }
 }

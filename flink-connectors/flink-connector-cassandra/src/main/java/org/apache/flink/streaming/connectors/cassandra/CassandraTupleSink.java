@@ -17,39 +17,20 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSet;
-import com.google.common.util.concurrent.ListenableFuture;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.configuration.Configuration;
 
 /**
- * Flink Sink to save data into a Cassandra cluster.
+ * Sink to write Flink {@link Tuple}s into a Cassandra cluster.
  *
  * @param <IN> Type of the elements emitted by this sink, it must extend {@link Tuple}
  */
-public class CassandraTupleSink<IN extends Tuple> extends CassandraSinkBase<IN, ResultSet> {
-	private final String insertQuery;
-	private transient PreparedStatement ps;
-
+public class CassandraTupleSink<IN extends Tuple> extends AbstractCassandraTupleSink<IN> {
 	public CassandraTupleSink(String insertQuery, ClusterBuilder builder) {
-		super(builder);
-		this.insertQuery = insertQuery;
+		super(insertQuery, builder);
 	}
 
 	@Override
-	public void open(Configuration configuration) {
-		super.open(configuration);
-		this.ps = session.prepare(insertQuery);
-	}
-
-	@Override
-	public ListenableFuture<ResultSet> send(IN value) {
-		Object[] fields = extract(value);
-		return session.executeAsync(ps.bind(fields));
-	}
-
-	private Object[] extract(IN record) {
+	protected Object[] extract(IN record) {
 		Object[] al = new Object[record.getArity()];
 		for (int i = 0; i < record.getArity(); i++) {
 			al[i] = record.getField(i);

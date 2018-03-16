@@ -22,26 +22,28 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PreviewPlanEnvironment;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.examples.java.clustering.KMeans;
 import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.PageRank;
 import org.apache.flink.examples.java.relational.TPCHQuery3;
 import org.apache.flink.examples.java.relational.WebLogAnalysis;
 import org.apache.flink.examples.java.wordcount.WordCount;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonParseException;
-import org.codehaus.jackson.JsonParser;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+
 import org.junit.Assert;
 import org.junit.Test;
 
-/*
+/**
  * The tests in this class simply invokes the JSON dump code for the optimized plan.
  */
 public class DumpCompiledPlanTest extends CompilerTestBase {
-	
+
 	@Test
 	public void dumpWordCount() {
 		// prepare the test environment
@@ -51,7 +53,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 			WordCount.main(new String[] {
 					"--input", IN_FILE,
 					"--output", OUT_FILE});
-		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
+		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -59,7 +61,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		}
 		dump(env.getPlan());
 	}
-	
+
 	@Test
 	public void dumpTPCH3() {
 		// prepare the test environment
@@ -71,7 +73,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 					"--customer", IN_FILE,
 					"--orders", OUT_FILE,
 					"--output", "123"});
-		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
+		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -79,7 +81,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		}
 		dump(env.getPlan());
 	}
-	
+
 	@Test
 	public void dumpIterativeKMeans() {
 		// prepare the test environment
@@ -91,7 +93,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 				"--centroids ", IN_FILE,
 				"--output ", OUT_FILE,
 				"--iterations", "123"});
-		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
+		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -99,7 +101,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		}
 		dump(env.getPlan());
 	}
-	
+
 	@Test
 	public void dumpWebLogAnalysis() {
 		// prepare the test environment
@@ -111,7 +113,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 					"--ranks", IN_FILE,
 					"--visits", OUT_FILE,
 					"--output", "123"});
-		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
+		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -131,7 +133,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 					"--edges", IN_FILE,
 					"--output", OUT_FILE,
 					"--iterations", "123"});
-		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
+		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -139,7 +141,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		}
 		dump(env.getPlan());
 	}
-	
+
 	@Test
 	public void dumpPageRank() {
 		// prepare the test environment
@@ -152,7 +154,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 					"--output", OUT_FILE,
 					"--numPages", "10",
 					"--iterations", "123"});
-		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
+		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -160,7 +162,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		}
 		dump(env.getPlan());
 	}
-	
+
 	private void dump(Plan p) {
 		p.setExecutionConfig(new ExecutionConfig());
 		try {
@@ -168,7 +170,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
 			String json = dumper.getOptimizerPlanAsJSON(op);
 			JsonParser parser = new JsonFactory().createJsonParser(json);
-			while (parser.nextToken() != null);
+			while (parser.nextToken() != null) {}
 		} catch (JsonParseException e) {
 			e.printStackTrace();
 			Assert.fail("JSON Generator produced malformatted output: " + e.getMessage());

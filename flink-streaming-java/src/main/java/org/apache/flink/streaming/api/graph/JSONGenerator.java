@@ -17,6 +17,13 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -24,12 +31,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.sling.commons.json.JSONArray;
-import org.apache.sling.commons.json.JSONException;
-import org.apache.sling.commons.json.JSONObject;
-
+/**
+ * Helper class for generating a JSON representation from a {@link StreamGraph}.
+ */
 @Internal
 public class JSONGenerator {
 
@@ -44,14 +48,15 @@ public class JSONGenerator {
 	public static final String PARALLELISM = "parallelism";
 
 	private StreamGraph streamGraph;
+	private final ObjectMapper mapper = new ObjectMapper();
 
 	public JSONGenerator(StreamGraph streamGraph) {
 		this.streamGraph = streamGraph;
 	}
 
-	public String getJSON() throws JSONException {
-		JSONObject json = new JSONObject();
-		JSONArray nodes = new JSONArray();
+	public String getJSON() {
+		ObjectNode json = mapper.createObjectNode();
+		ArrayNode nodes = mapper.createArrayNode();
 		json.put("nodes", nodes);
 		List<Integer> operatorIDs = new ArrayList<Integer>(streamGraph.getVertexIDs());
 		Collections.sort(operatorIDs, new Comparator<Integer>() {
@@ -71,8 +76,8 @@ public class JSONGenerator {
 		return json.toString();
 	}
 
-	private void visit(JSONArray jsonArray, List<Integer> toVisit,
-			Map<Integer, Integer> edgeRemapings) throws JSONException {
+	private void visit(ArrayNode jsonArray, List<Integer> toVisit,
+			Map<Integer, Integer> edgeRemapings) {
 
 		Integer vertexID = toVisit.get(0);
 		StreamNode vertex = streamGraph.getStreamNode(vertexID);
@@ -80,11 +85,11 @@ public class JSONGenerator {
 		if (streamGraph.getSourceIDs().contains(vertexID)
 				|| Collections.disjoint(vertex.getInEdges(), toVisit)) {
 
-			JSONObject node = new JSONObject();
+			ObjectNode node = mapper.createObjectNode();
 			decorateNode(vertexID, node);
 
 			if (!streamGraph.getSourceIDs().contains(vertexID)) {
-				JSONArray inputs = new JSONArray();
+				ArrayNode inputs = mapper.createArrayNode();
 				node.put(PREDECESSORS, inputs);
 
 				for (StreamEdge inEdge : vertex.getInEdges()) {
@@ -95,7 +100,7 @@ public class JSONGenerator {
 					decorateEdge(inputs, inEdge, mappedID);
 				}
 			}
-			jsonArray.put(node);
+			jsonArray.add(node);
 			toVisit.remove(vertexID);
 		} else {
 			Integer iterationHead = -1;
@@ -107,18 +112,18 @@ public class JSONGenerator {
 				}
 			}
 
-			JSONObject obj = new JSONObject();
-			JSONArray iterationSteps = new JSONArray();
+			ObjectNode obj = mapper.createObjectNode();
+			ArrayNode iterationSteps = mapper.createArrayNode();
 			obj.put(STEPS, iterationSteps);
 			obj.put(ID, iterationHead);
 			obj.put(PACT, "IterativeDataStream");
 			obj.put(PARALLELISM, streamGraph.getStreamNode(iterationHead).getParallelism());
 			obj.put(CONTENTS, "Stream Iteration");
-			JSONArray iterationInputs = new JSONArray();
+			ArrayNode iterationInputs = mapper.createArrayNode();
 			obj.put(PREDECESSORS, iterationInputs);
 			toVisit.remove(iterationHead);
 			visitIteration(iterationSteps, toVisit, iterationHead, edgeRemapings, iterationInputs);
-			jsonArray.put(obj);
+			jsonArray.add(obj);
 		}
 
 		if (!toVisit.isEmpty()) {
@@ -126,8 +131,8 @@ public class JSONGenerator {
 		}
 	}
 
-	private void visitIteration(JSONArray jsonArray, List<Integer> toVisit, int headId,
-			Map<Integer, Integer> edgeRemapings, JSONArray iterationInEdges) throws JSONException {
+	private void visitIteration(ArrayNode jsonArray, List<Integer> toVisit, int headId,
+			Map<Integer, Integer> edgeRemapings, ArrayNode iterationInEdges) {
 
 		Integer vertexID = toVisit.get(0);
 		StreamNode vertex = streamGraph.getStreamNode(vertexID);
@@ -135,10 +140,10 @@ public class JSONGenerator {
 
 		// Ignoring head and tail to avoid redundancy
 		if (!streamGraph.vertexIDtoLoopTimeout.containsKey(vertexID)) {
-			JSONObject obj = new JSONObject();
-			jsonArray.put(obj);
+			ObjectNode obj = mapper.createObjectNode();
+			jsonArray.add(obj);
 			decorateNode(vertexID, obj);
-			JSONArray inEdges = new JSONArray();
+			ArrayNode inEdges = mapper.createArrayNode();
 			obj.put(PREDECESSORS, inEdges);
 
 			for (StreamEdge inEdge : vertex.getInEdges()) {
@@ -157,16 +162,15 @@ public class JSONGenerator {
 
 	}
 
-	private void decorateEdge(JSONArray inputArray, StreamEdge inEdge, int mappedInputID)
-			throws JSONException {
-		JSONObject input = new JSONObject();
-		inputArray.put(input);
+	private void decorateEdge(ArrayNode inputArray, StreamEdge inEdge, int mappedInputID) {
+		ObjectNode input = mapper.createObjectNode();
+		inputArray.add(input);
 		input.put(ID, mappedInputID);
-		input.put(SHIP_STRATEGY, inEdge.getPartitioner());
-		input.put(SIDE, (inputArray.length() == 0) ? "first" : "second");
+		input.put(SHIP_STRATEGY, inEdge.getPartitioner().toString());
+		input.put(SIDE, (inputArray.size() == 0) ? "first" : "second");
 	}
 
-	private void decorateNode(Integer vertexID, JSONObject node) throws JSONException {
+	private void decorateNode(Integer vertexID, ObjectNode node) {
 
 		StreamNode vertex = streamGraph.getStreamNode(vertexID);
 

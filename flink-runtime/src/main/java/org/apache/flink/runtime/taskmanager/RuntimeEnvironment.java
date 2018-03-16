@@ -25,11 +25,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.SubtaskState;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.TaskStateManager;
 
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -63,12 +65,15 @@ public class RuntimeEnvironment implements Environment {
 	private final MemoryManager memManager;
 	private final IOManager ioManager;
 	private final BroadcastVariableManager bcVarManager;
+	private final TaskStateManager taskStateManager;
 	private final InputSplitProvider splitProvider;
 	
 	private final Map<String, Future<Path>> distCacheEntries;
 
 	private final ResultPartitionWriter[] writers;
 	private final InputGate[] inputGates;
+
+	private final TaskEventDispatcher taskEventDispatcher;
 	
 	private final CheckpointResponder checkpointResponder;
 
@@ -95,12 +100,14 @@ public class RuntimeEnvironment implements Environment {
 			MemoryManager memManager,
 			IOManager ioManager,
 			BroadcastVariableManager bcVarManager,
+			TaskStateManager taskStateManager,
 			AccumulatorRegistry accumulatorRegistry,
 			TaskKvStateRegistry kvStateRegistry,
 			InputSplitProvider splitProvider,
 			Map<String, Future<Path>> distCacheEntries,
 			ResultPartitionWriter[] writers,
 			InputGate[] inputGates,
+			TaskEventDispatcher taskEventDispatcher,
 			CheckpointResponder checkpointResponder,
 			TaskManagerRuntimeInfo taskManagerInfo,
 			TaskMetricGroup metrics,
@@ -117,12 +124,14 @@ public class RuntimeEnvironment implements Environment {
 		this.memManager = checkNotNull(memManager);
 		this.ioManager = checkNotNull(ioManager);
 		this.bcVarManager = checkNotNull(bcVarManager);
+		this.taskStateManager = checkNotNull(taskStateManager);
 		this.accumulatorRegistry = checkNotNull(accumulatorRegistry);
 		this.kvStateRegistry = checkNotNull(kvStateRegistry);
 		this.splitProvider = checkNotNull(splitProvider);
 		this.distCacheEntries = checkNotNull(distCacheEntries);
 		this.writers = checkNotNull(writers);
 		this.inputGates = checkNotNull(inputGates);
+		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
 		this.checkpointResponder = checkNotNull(checkpointResponder);
 		this.taskManagerInfo = checkNotNull(taskManagerInfo);
 		this.containingTask = containingTask;
@@ -197,6 +206,11 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
+	public TaskStateManager getTaskStateManager() {
+		return taskStateManager;
+	}
+
+	@Override
 	public AccumulatorRegistry getAccumulatorRegistry() {
 		return accumulatorRegistry;
 	}
@@ -237,19 +251,23 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public void acknowledgeCheckpoint(CheckpointMetaData checkpointMetaData) {
+	public TaskEventDispatcher getTaskEventDispatcher() {
+		return taskEventDispatcher;
+	}
 
-		acknowledgeCheckpoint(checkpointMetaData, null);
+	@Override
+	public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics) {
+		acknowledgeCheckpoint(checkpointId, checkpointMetrics, null);
 	}
 
 	@Override
 	public void acknowledgeCheckpoint(
-			CheckpointMetaData checkpointMetaData,
-			SubtaskState checkpointStateHandles) {
-
+			long checkpointId,
+			CheckpointMetrics checkpointMetrics,
+			TaskStateSnapshot checkpointStateHandles) {
 
 		checkpointResponder.acknowledgeCheckpoint(
-				jobId, executionId, checkpointMetaData,
+				jobId, executionId, checkpointId, checkpointMetrics,
 				checkpointStateHandles);
 	}
 

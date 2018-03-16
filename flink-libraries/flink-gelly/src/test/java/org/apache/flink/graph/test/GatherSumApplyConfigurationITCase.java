@@ -34,6 +34,7 @@ import org.apache.flink.graph.gsa.Neighbor;
 import org.apache.flink.graph.gsa.SumFunction;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.LongValue;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,6 +43,9 @@ import org.junit.runners.Parameterized;
 import java.util.HashSet;
 import java.util.List;
 
+/**
+ * Tests for {@link GSAConfiguration}.
+ */
 @RunWith(Parameterized.class)
 public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase {
 
@@ -235,7 +239,7 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 
 			// test bcast variable
 			@SuppressWarnings("unchecked")
-			List<Integer> bcastSet = (List<Integer>)(List<?>)getBroadcastSet("gatherBcastSet");
+			List<Integer> bcastSet = (List<Integer>) (List<?>) getBroadcastSet("gatherBcastSet");
 			Assert.assertEquals(1, bcastSet.get(0).intValue());
 			Assert.assertEquals(2, bcastSet.get(1).intValue());
 			Assert.assertEquals(3, bcastSet.get(2).intValue());
@@ -266,7 +270,7 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 
 			// test bcast variable
 			@SuppressWarnings("unchecked")
-			List<Integer> bcastSet = (List<Integer>)(List<?>)getBroadcastSet("sumBcastSet");
+			List<Integer> bcastSet = (List<Integer>) (List<?>) getBroadcastSet("sumBcastSet");
 			Assert.assertEquals(4, bcastSet.get(0).intValue());
 			Assert.assertEquals(5, bcastSet.get(1).intValue());
 			Assert.assertEquals(6, bcastSet.get(2).intValue());
@@ -295,7 +299,7 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 
 			// test bcast variable
 			@SuppressWarnings("unchecked")
-			List<Integer> bcastSet = (List<Integer>)(List<?>)getBroadcastSet("applyBcastSet");
+			List<Integer> bcastSet = (List<Integer>) (List<?>) getBroadcastSet("applyBcastSet");
 			Assert.assertEquals(7, bcastSet.get(0).intValue());
 			Assert.assertEquals(8, bcastSet.get(1).intValue());
 			Assert.assertEquals(9, bcastSet.get(2).intValue());
@@ -346,7 +350,7 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 	}
 
 	@SuppressWarnings("serial")
-	public static final class AssignOneMapper implements MapFunction<Vertex<Long, Long>, Long> {
+	private static final class AssignOneMapper implements MapFunction<Vertex<Long, Long>, Long> {
 
 		public Long map(Vertex<Long, Long> value) {
 			return 1L;
@@ -354,7 +358,7 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 	}
 
 	@SuppressWarnings("serial")
-	public static final class InitialiseHashSetMapper implements MapFunction<Vertex<Long, Long>, HashSet<Long>> {
+	private static final class InitialiseHashSetMapper implements MapFunction<Vertex<Long, Long>, HashSet<Long>> {
 
 		@Override
 		public HashSet<Long> map(Vertex<Long, Long> value) throws Exception {

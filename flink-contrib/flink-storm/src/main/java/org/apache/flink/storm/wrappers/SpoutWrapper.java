@@ -17,11 +17,6 @@
 
 package org.apache.flink.storm.wrappers;
 
-import org.apache.storm.generated.StormTopology;
-import org.apache.storm.spout.SpoutOutputCollector;
-import org.apache.storm.task.TopologyContext;
-import org.apache.storm.topology.IRichSpout;
-
 import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
 import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.java.tuple.Tuple0;
@@ -31,6 +26,11 @@ import org.apache.flink.storm.util.FiniteSpout;
 import org.apache.flink.storm.util.StormConfig;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+
+import org.apache.storm.generated.StormTopology;
+import org.apache.storm.spout.SpoutOutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.IRichSpout;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -73,7 +73,7 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 	 * Instantiates a new {@link SpoutWrapper} that calls the {@link IRichSpout#nextTuple() nextTuple()} method of
 	 * the given {@link IRichSpout spout} in an infinite loop. The output type will be one of {@link Tuple0} to
 	 * {@link Tuple25} depending on the spout's declared number of attributes.
-	 * 
+	 *
 	 * @param spout
 	 *            The {@link IRichSpout spout} to be used.
 	 * @throws IllegalArgumentException
@@ -87,7 +87,7 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 	 * Instantiates a new {@link SpoutWrapper} that calls the {@link IRichSpout#nextTuple() nextTuple()} method of
 	 * the given {@link IRichSpout spout} a finite number of times. The output type will be one of {@link Tuple0} to
 	 * {@link Tuple25} depending on the spout's declared number of attributes.
-	 * 
+	 *
 	 * @param spout
 	 *            The {@link IRichSpout spout} to be used.
 	 * @param numberOfInvocations
@@ -108,15 +108,15 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 	 * {@code rawOutput} is {@code true} and the spout's number of declared output tuples is 1. If {@code rawOutput} is
 	 * {@code false} the output type will be one of {@link Tuple0} to {@link Tuple25} depending on the spout's declared
 	 * number of attributes.
-	 * 
+	 *
 	 * @param spout
 	 *            The {@link IRichSpout spout} to be used.
 	 * @param rawOutputs
 	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
 	 *            of a raw type. (Can be {@code null}.)
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             If {@code rawOutput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOutput} is {@code false} and the number of declared output attributes is not with range
 	 *             [0;25].
 	 */
 	public SpoutWrapper(final IRichSpout spout, final String[] rawOutputs)
@@ -130,7 +130,7 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 	 * {@code rawOutput} is {@code true} and the spout's number of declared output tuples is 1. If {@code rawOutput} is
 	 * {@code false} the output type will be one of {@link Tuple0} to {@link Tuple25} depending on the spout's declared
 	 * number of attributes.
-	 * 
+	 *
 	 * @param spout
 	 *            The {@link IRichSpout spout} to be used.
 	 * @param rawOutputs
@@ -141,8 +141,8 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 	 *            terminates if no tuple was emitted for the first time. If value is {@code null}, finite invocation is
 	 *            disabled.
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             If {@code rawOutput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOutput} is {@code false} and the number of declared output attributes is not with range
 	 *             [0;25].
 	 */
 	public SpoutWrapper(final IRichSpout spout, final String[] rawOutputs,
@@ -156,15 +156,15 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 	 * {@code rawOutput} is {@code true} and the spout's number of declared output tuples is 1. If {@code rawOutput} is
 	 * {@code false} the output type will be one of {@link Tuple0} to {@link Tuple25} depending on the spout's declared
 	 * number of attributes.
-	 * 
+	 *
 	 * @param spout
 	 *            The {@link IRichSpout spout} to be used.
 	 * @param rawOutputs
 	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
 	 *            of a raw type. (Can be {@code null}.)
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             If {@code rawOutput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOutput} is {@code false} and the number of declared output attributes is not with range
 	 *             [0;25].
 	 */
 	public SpoutWrapper(final IRichSpout spout, final Collection<String> rawOutputs)
@@ -178,7 +178,7 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 	 * {@code rawOutput} is {@code true} and the spout's number of declared output tuples is 1. If {@code rawOutput} is
 	 * {@code false} the output type will be one of {@link Tuple0} to {@link Tuple25} depending on the spout's declared
 	 * number of attributes.
-	 * 
+	 *
 	 * @param spout
 	 *            The {@link IRichSpout spout} to be used.
 	 * @param rawOutputs
@@ -189,8 +189,8 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 	 *            terminates if no tuple was emitted for the first time. If value is {@code null}, finite invocation is
 	 *            disabled.
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             If {@code rawOutput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOutput} is {@code false} and the number of declared output attributes is not with range
 	 *             [0;25].
 	 */
 	public SpoutWrapper(final IRichSpout spout, final Collection<String> rawOutputs,
@@ -204,7 +204,7 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 	 * {@code rawOutput} is {@code true} and the spout's number of declared output tuples is 1. If {@code rawOutput} is
 	 * {@code false} the output type will be one of {@link Tuple0} to {@link Tuple25} depending on the spout's declared
 	 * number of attributes.
-	 * 
+	 *
 	 * @param spout
 	 *            The {@link IRichSpout spout} to be used.
 	 * @param name
@@ -217,8 +217,8 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 	 *            terminates if no tuple was emitted for the first time. If value is {@code null}, finite invocation is
 	 *            disabled.
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             If {@code rawOutput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOutput} is {@code false} and the number of declared output attributes is not with range
 	 *             [0;25].
 	 */
 	public SpoutWrapper(final IRichSpout spout, final String name, final Collection<String> rawOutputs,
@@ -231,7 +231,7 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 
 	/**
 	 * Sets the original Storm topology.
-	 * 
+	 *
 	 * @param stormTopology
 	 *            The original Storm topology.
 	 */
@@ -292,8 +292,8 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 
 	/**
 	 * {@inheritDoc}
-	 * <p>
-	 * Sets the {@link #isRunning} flag to {@code false}.
+	 *
+	 * <p>Sets the {@link #isRunning} flag to {@code false}.
 	 */
 	@Override
 	public void cancel() {
@@ -302,8 +302,8 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 
 	/**
 	 * {@inheritDoc}
-	 * <p>
-	 * Sets the {@link #isRunning} flag to {@code false}.
+	 *
+	 * <p>Sets the {@link #isRunning} flag to {@code false}.
 	 */
 	@Override
 	public void stop() {

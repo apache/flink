@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.examples;
 
-import org.apache.flink.graph.examples.data.SingleSourceShortestPathsData;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -26,6 +25,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.examples.data.SingleSourceShortestPathsData;
 import org.apache.flink.graph.spargel.GatherFunction;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.ScatterFunction;
@@ -33,17 +33,17 @@ import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
  * This example shows how to use Gelly's scatter-gather iterations.
- * 
- * It is an implementation of the Single-Source-Shortest-Paths algorithm.
- * For a gather-sum-apply implementation of the same algorithm, please refer to {@link GSASingleSourceShortestPaths}. 
  *
- * The input file is a plain text file and must be formatted as follows:
+ * <p>It is an implementation of the Single-Source-Shortest-Paths algorithm.
+ * For a gather-sum-apply implementation of the same algorithm, please refer to {@link GSASingleSourceShortestPaths}.
+ *
+ * <p>The input file is a plain text file and must be formatted as follows:
  * Edges are represented by tuples of srcVertexId, trgVertexId, distance which are
  * separated by tabs. Edges themselves are separated by newlines.
  * For example: <code>1\t2\t0.1\n1\t3\t1.4\n</code> defines two edges,
  * edge 1-2 with distance 0.1, and edge 1-3 with distance 1.4.
  *
- * If no parameters are provided, the program is run with default data from
+ * <p>If no parameters are provided, the program is run with default data from
  * {@link SingleSourceShortestPathsData}
  */
 public class SingleSourceShortestPaths implements ProgramDescription {
@@ -149,7 +149,7 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 
 	private static boolean fileOutput = false;
 
-	private static Long srcVertexId = 1l;
+	private static Long srcVertexId = 1L;
 
 	private static String edgesInputPath = null;
 
@@ -159,8 +159,8 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 
 	private static boolean parseParameters(String[] args) {
 
-		if(args.length > 0) {
-			if(args.length != 4) {
+		if (args.length > 0) {
+			if (args.length != 4) {
 				System.err.println("Usage: SingleSourceShortestPaths <source vertex id>" +
 						" <input edges path> <output path> <num iterations>");
 				return false;
@@ -188,7 +188,7 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 					.lineDelimiter("\n")
 					.fieldDelimiter("\t")
 					.types(Long.class, Long.class, Double.class)
-					.map(new Tuple3ToEdgeMap<Long, Double>());
+					.map(new Tuple3ToEdgeMap<>());
 		} else {
 			return SingleSourceShortestPathsData.getDefaultEdgeDataSet(env);
 		}

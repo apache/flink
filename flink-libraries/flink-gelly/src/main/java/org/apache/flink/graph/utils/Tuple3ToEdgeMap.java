@@ -24,7 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 
 /**
- * Create an Edge DataSet from a Tuple3 DataSet
+ * Create an Edge DataSet from a Tuple3 DataSet.
  *
  * @param <K> edge ID type
  * @param <EV> edge value type

@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.client.cli;
 
 import org.apache.commons.cli.CommandLine;
 
 /**
- * Command line options for the STOP command
+ * Command line options for the STOP command.
  */
 public class StopOptions extends CommandLineOptions {
 

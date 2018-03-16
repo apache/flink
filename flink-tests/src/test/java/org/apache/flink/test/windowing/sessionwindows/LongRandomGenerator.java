@@ -21,6 +21,9 @@ package org.apache.flink.test.windowing.sessionwindows;
 import java.util.Collection;
 import java.util.Random;
 
+/**
+ * Provide additional PRNG methods for selecting in a range and for collection choice.
+ */
 public class LongRandomGenerator extends Random {
 
 	static final long serialVersionUID = 32523525277L;
@@ -60,7 +63,7 @@ public class LongRandomGenerator extends Random {
 	/**
 	 * @return a randomly chosen element from collection
 	 */
-	public <T> T choseRandomElement(Collection<T> collection) {
+	public <T> T chooseRandomElement(Collection<T> collection) {
 		int choice = choseRandomIndex(collection);
 		for (T key : collection) {
 			if (choice == 0) {

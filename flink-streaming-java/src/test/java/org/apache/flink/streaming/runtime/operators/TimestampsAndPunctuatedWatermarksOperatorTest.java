@@ -30,20 +30,23 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link TimestampsAndPunctuatedWatermarksOperator}.
+ */
 public class TimestampsAndPunctuatedWatermarksOperatorTest {
 
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testTimestampsAndPeriodicWatermarksOperator() throws Exception {
-		
-		final TimestampsAndPunctuatedWatermarksOperator<Tuple2<Long, Boolean>> operator = 
+
+		final TimestampsAndPunctuatedWatermarksOperator<Tuple2<Long, Boolean>> operator =
 				new TimestampsAndPunctuatedWatermarksOperator<>(new PunctuatedExtractor());
-		
+
 		OneInputStreamOperatorTestHarness<Tuple2<Long, Boolean>, Tuple2<Long, Boolean>> testHarness =
 				new OneInputStreamOperatorTestHarness<>(operator);
 
 		testHarness.open();
-		
+
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>(3L, true), 0L));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>(5L, false), 0L));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>(4L, false), 0L));
@@ -58,10 +61,10 @@ public class TimestampsAndPunctuatedWatermarksOperatorTest {
 		testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
 
 		ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
-		
+
 		assertEquals(3L, ((StreamRecord<Tuple2<Long, Boolean>>) output.poll()).getTimestamp());
 		assertEquals(3L, ((Watermark) output.poll()).getTimestamp());
-		
+
 		assertEquals(5L, ((StreamRecord<Tuple2<Long, Boolean>>) output.poll()).getTimestamp());
 		assertEquals(4L, ((StreamRecord<Tuple2<Long, Boolean>>) output.poll()).getTimestamp());
 		assertEquals(4L, ((StreamRecord<Tuple2<Long, Boolean>>) output.poll()).getTimestamp());
@@ -102,12 +105,12 @@ public class TimestampsAndPunctuatedWatermarksOperatorTest {
 			assertEquals(value, ((StreamRecord<?>) output.poll()).getTimestamp());
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	private static class PunctuatedExtractor implements AssignerWithPunctuatedWatermarks<Tuple2<Long, Boolean>> {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public long extractTimestamp(Tuple2<Long, Boolean> element, long previousTimestamp) {
 			return element.f0;

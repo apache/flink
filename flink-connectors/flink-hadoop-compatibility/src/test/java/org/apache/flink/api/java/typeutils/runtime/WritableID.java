@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 
 import java.io.DataInput;
@@ -25,6 +26,9 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.UUID;
 
+/**
+ * Test object that is both {@link Comparable} and {@link Writable}.
+ */
 public class WritableID implements WritableComparable<WritableID> {
 	private UUID uuid;
 

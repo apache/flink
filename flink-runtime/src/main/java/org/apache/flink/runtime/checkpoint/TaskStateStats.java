@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import javax.annotation.Nullable;
+import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -29,7 +30,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Statistics for a single task/operator that gathers all statistics of its
  * subtasks and provides summary statistics about all subtasks.
  */
-public class TaskStateStats {
+public class TaskStateStats implements Serializable {
+
+	private static final long serialVersionUID = 531803101206574444L;
 
 	/** ID of the task the stats belong to. */
 	private final JobVertexID jobVertexId;
@@ -195,7 +198,9 @@ public class TaskStateStats {
 	/**
 	 * Summary of the subtask stats of a single task/operator.
 	 */
-	public static class TaskStateStatsSummary {
+	public static class TaskStateStatsSummary implements Serializable {
+
+		private static final long serialVersionUID = 1009476026522091909L;
 
 		private MinMaxAvgStats stateSize = new MinMaxAvgStats();
 		private MinMaxAvgStats ackTimestamp = new MinMaxAvgStats();

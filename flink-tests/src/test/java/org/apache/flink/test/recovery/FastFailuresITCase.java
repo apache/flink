@@ -18,48 +18,42 @@
 
 package org.apache.flink.test.recovery;
 
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.test.util.AbstractTestBase;
 
-import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.fail;
 
+/**
+ * Test program with very fast failure rate.
+ */
 @SuppressWarnings("serial")
-public class FastFailuresITCase extends TestLogger {
+public class FastFailuresITCase extends AbstractTestBase {
 
 	static final AtomicInteger FAILURES_SO_FAR = new AtomicInteger();
 	static final int NUM_FAILURES = 200;
-	
+
 	@Test
 	public void testThis() {
-		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
-		
-		LocalFlinkMiniCluster cluster = new LocalFlinkMiniCluster(config, false);
-		cluster.start();
-		
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		final int parallelism = 4;
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.getConfig().disableSysoutLogging();
-		env.setParallelism(4);
+		env.setParallelism(parallelism);
 		env.enableCheckpointing(1000);
-		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(200, 0));
-		
+		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(210, 0));
+
 		DataStream<Tuple2<Integer, Integer>> input = env.addSource(new RichSourceFunction<Tuple2<Integer, Integer>>() {
 
 			@Override

@@ -18,10 +18,12 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
-import org.apache.commons.io.IOUtils;
+import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.commons.io.IOUtils;
 import org.junit.Test;
 
 import java.io.BufferedReader;
@@ -55,7 +57,7 @@ public class SocketClientSinkTest extends TestLogger {
 	private SerializationSchema<String> simpleSchema = new SerializationSchema<String>() {
 		@Override
 		public byte[] serialize(String element) {
-			return element.getBytes();
+			return element.getBytes(ConfigConstants.DEFAULT_CHARSET);
 		}
 	};
 
@@ -72,7 +74,7 @@ public class SocketClientSinkTest extends TestLogger {
 				try {
 					SocketClientSink<String> simpleSink = new SocketClientSink<>(host, port, simpleSchema, 0);
 					simpleSink.open(new Configuration());
-					simpleSink.invoke(TEST_MESSAGE + '\n');
+					simpleSink.invoke(TEST_MESSAGE + '\n', SinkContextUtil.forTimestamp(0));
 					simpleSink.close();
 				}
 				catch (Throwable t) {
@@ -115,7 +117,7 @@ public class SocketClientSinkTest extends TestLogger {
 			public void run() {
 				try {
 					// need two messages here: send a fin to cancel the client state:FIN_WAIT_2 while the server is CLOSE_WAIT
-					simpleSink.invoke(TEST_MESSAGE + '\n');
+					simpleSink.invoke(TEST_MESSAGE + '\n', SinkContextUtil.forTimestamp(0));
 				}
 				catch (Throwable t) {
 					error.set(t);
@@ -180,7 +182,7 @@ public class SocketClientSinkTest extends TestLogger {
 				// socket should be closed, so this should trigger a re-try
 				// need two messages here: send a fin to cancel the client state:FIN_WAIT_2 while the server is CLOSE_WAIT
 				while (true) { // we have to do this more often as the server side closed is not guaranteed to be noticed immediately
-					simpleSink.invoke(TEST_MESSAGE + '\n');
+					simpleSink.invoke(TEST_MESSAGE + '\n', SinkContextUtil.forTimestamp(0));
 				}
 			}
 			catch (IOException e) {
@@ -236,7 +238,7 @@ public class SocketClientSinkTest extends TestLogger {
 
 			// Initial payload => this will be received by the server an then the socket will be
 			// closed.
-			sink.invoke("0\n");
+			sink.invoke("0\n", SinkContextUtil.forTimestamp(0));
 
 			// Get future an make sure there was no problem. This will rethrow any Exceptions from
 			// the server.

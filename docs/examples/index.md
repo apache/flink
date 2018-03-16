@@ -25,13 +25,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-[Sample Project in Java]({{ site.baseurl }}/quickstart/java_api_quickstart) and [Sample Project in Scala]({{ site.baseurl }}/quickstart/scala_api_quickstart) are guides to setting up Maven and SBT projects and include simple implementations of a word count application.
+[Sample Project in Java]({{ site.baseurl }}/quickstart/java_api_quickstart.html) and [Sample Project in Scala]({{ site.baseurl }}/quickstart/scala_api_quickstart.html) are guides to setting up Maven and SBT projects and include simple implementations of a word count application.
 
-[Monitoring Wikipedia Edits]({{ site.baseurl }}/quickstart/run_example_quickstart) is a more complete example of a streaming analytics application.
+[Monitoring Wikipedia Edits]({{ site.baseurl }}/quickstart/run_example_quickstart.html) is a more complete example of a streaming analytics application.
 
 [Building real-time dashboard applications with Apache Flink, Elasticsearch, and Kibana](https://www.elastic.co/blog/building-real-time-dashboard-applications-with-apache-flink-elasticsearch-and-kibana) is a blog post at elastic.co showing how to build a real-time dashboard solution for streaming data analytics using Apache Flink, Elasticsearch, and Kibana.
 
-The [Flink training website](http://dataartisans.github.io/flink-training) from data Artisans has a number of examples. See the hands-on sections, and the exercises.
+The [Flink training website](http://training.data-artisans.com/) from data Artisans has a number of examples. See the hands-on sections, and the exercises.
 
 ## Bundled Examples
 

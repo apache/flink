@@ -18,13 +18,6 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
@@ -35,36 +28,43 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.SerializedCheckpointData;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Abstract base class for data sources that receive elements from a message queue and
  * acknowledge them back by IDs.
- * <p>
- * The mechanism for this source assumes that messages are identified by a unique ID.
+ *
+ * <p>The mechanism for this source assumes that messages are identified by a unique ID.
  * When messages are taken from the message queue, the message must not be dropped immediately,
  * but must be retained until acknowledged. Messages that are not acknowledged within a certain
  * time interval will be served again (to a different connection, established by the recovered source).
- * <p>
- * Note that this source can give no guarantees about message order in the case of failures,
+ *
+ * <p>Note that this source can give no guarantees about message order in the case of failures,
  * because messages that were retrieved but not yet acknowledged will be returned later again, after
  * a set of messages that was not retrieved before the failure.
- * <p>
- * Internally, this source gathers the IDs of elements it emits. Per checkpoint, the IDs are stored and
+ *
+ * <p>Internally, this source gathers the IDs of elements it emits. Per checkpoint, the IDs are stored and
  * acknowledged when the checkpoint is complete. That way, no message is acknowledged unless it is certain
  * that it has been successfully processed throughout the topology and the updates to any state caused by
  * that message are persistent.
- * <p>
- * All messages that are emitted and successfully processed by the streaming program will eventually be
+ *
+ * <p>All messages that are emitted and successfully processed by the streaming program will eventually be
  * acknowledged. In corner cases, the source may receive certain IDs multiple times, if a
  * failure occurs while acknowledging. To cope with this situation, an additional Set stores all
  * processed IDs. IDs are only removed after they have been acknowledged.
- * <p>
- * A typical way to use this base in a source function is by implementing a run() method as follows:
+ *
+ * <p>A typical way to use this base in a source function is by implementing a run() method as follows:
  * <pre>{@code
  * public void run(SourceContext<Type> ctx) throws Exception {
  *     while (running) {
@@ -91,14 +91,17 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 
 	private static final Logger LOG = LoggerFactory.getLogger(MessageAcknowledgingSourceBase.class);
 
-	/** Serializer used to serialize the IDs for checkpoints */
+	/** Serializer used to serialize the IDs for checkpoints. */
 	private final TypeSerializer<UId> idSerializer;
 
-	/** The list gathering the IDs of messages emitted during the current checkpoint */
-	private transient List<UId> idsForCurrentCheckpoint;
+	/** The list gathering the IDs of messages emitted during the current checkpoint. */
+	private transient Set<UId> idsForCurrentCheckpoint;
 
-	/** The list with IDs from checkpoints that were triggered, but not yet completed or notified of completion */
-	protected transient ArrayDeque<Tuple2<Long, List<UId>>> pendingCheckpoints;
+	/**
+	 * The list with IDs from checkpoints that were triggered, but not yet completed or notified of
+	 * completion.
+	 */
+	protected transient ArrayDeque<Tuple2<Long, Set<UId>>> pendingCheckpoints;
 
 	/**
 	 * Set which contain all processed ids. Ids are acknowledged after checkpoints. When restoring
@@ -138,7 +141,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 			.getOperatorStateStore()
 			.getSerializableListState("message-acknowledging-source-state");
 
-		this.idsForCurrentCheckpoint = new ArrayList<>(64);
+		this.idsForCurrentCheckpoint = new HashSet<>(64);
 		this.pendingCheckpoints = new ArrayDeque<>();
 		this.idsProcessedButNotAcknowledged = new HashSet<>();
 
@@ -157,7 +160,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 			pendingCheckpoints = SerializedCheckpointData.toDeque(retrievedStates.get(0), idSerializer);
 			// build a set which contains all processed ids. It may be used to check if we have
 			// already processed an incoming message.
-			for (Tuple2<Long, List<UId>> checkpoint : pendingCheckpoints) {
+			for (Tuple2<Long, Set<UId>> checkpoint : pendingCheckpoints) {
 				idsProcessedButNotAcknowledged.addAll(checkpoint.f1);
 			}
 		} else {
@@ -178,9 +181,10 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 
 	/**
 	 * This method must be implemented to acknowledge the given set of IDs back to the message queue.
-	 * @param UIds The list od IDs to acknowledge.
+	 *
+	 * @param uIds The list od IDs to acknowledge.
 	 */
-	protected abstract void acknowledgeIDs(long checkpointId, List<UId> UIds);
+	protected abstract void acknowledgeIDs(long checkpointId, Set<UId> uIds);
 
 	/**
 	 * Adds an ID to be stored with the current checkpoint.
@@ -208,7 +212,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 		}
 
 		pendingCheckpoints.addLast(new Tuple2<>(context.getCheckpointId(), idsForCurrentCheckpoint));
-		idsForCurrentCheckpoint = new ArrayList<>(64);
+		idsForCurrentCheckpoint = new HashSet<>(64);
 
 		this.checkpointedState.clear();
 		this.checkpointedState.add(SerializedCheckpointData.fromDeque(pendingCheckpoints, idSerializer));
@@ -218,8 +222,8 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		LOG.debug("Committing Messages externally for checkpoint {}", checkpointId);
 
-		for (Iterator<Tuple2<Long, List<UId>>> iter = pendingCheckpoints.iterator(); iter.hasNext();) {
-			Tuple2<Long, List<UId>> checkpoint = iter.next();
+		for (Iterator<Tuple2<Long, Set<UId>>> iter = pendingCheckpoints.iterator(); iter.hasNext();) {
+			Tuple2<Long, Set<UId>> checkpoint = iter.next();
 			long id = checkpoint.f0;
 
 			if (id <= checkpointId) {

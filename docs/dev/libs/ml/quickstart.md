@@ -55,7 +55,7 @@ through [principal components analysis](https://en.wikipedia.org/wiki/Principal_
 ## Linking with FlinkML
 
 In order to use FlinkML in your project, first you have to
-[set up a Flink program]({{ site.baseurl }}/dev/linking_with_flink).
+[set up a Flink program]({{ site.baseurl }}/dev/linking_with_flink.html).
 Next, you have to add the FlinkML dependency to the `pom.xml` of your project:
 
 {% highlight xml %}
@@ -241,3 +241,5 @@ coordinate ascent.* Advances in Neural Information Processing Systems. 2014.
 
 <a name="hsu"></a>[3] Hsu, Chih-Wei, Chih-Chung Chang, and Chih-Jen Lin.
  *A practical guide to support vector classification.* 2003.
+
+{% top %}

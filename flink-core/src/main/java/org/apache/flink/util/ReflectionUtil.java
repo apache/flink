@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
@@ -27,8 +26,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 
+/**
+ * Utility for reflection operations on classes and generic type parametrization.
+ */
 @Internal
+@SuppressWarnings("unused")
 public final class ReflectionUtil {
+
 	public static <T> T newInstance(Class<T> clazz) {
 		try {
 			return clazz.newInstance();
@@ -41,16 +45,17 @@ public final class ReflectionUtil {
 	public static <T> Class<T> getTemplateType(Class<?> clazz, int num) {
 		return (Class<T>) getSuperTemplateTypes(clazz)[num];
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	public static <T> Class<T> getTemplateType(Class<?> clazz, Class<?> classWithParameter, int num) {
 		return (Class<T>) getSuperTemplateTypes(clazz)[num];
 	}
-	
+
 	public static <T> Class<T> getTemplateType1(Class<?> clazz) {
 		return getTemplateType(clazz, 0);
 	}
 
+	@SuppressWarnings("unchecked")
 	public static <T> Class<T> getTemplateType1(Type type) {
 		if (type instanceof ParameterizedType) {
 			return (Class<T>) getTemplateTypes((ParameterizedType) type)[0];
@@ -102,13 +107,13 @@ public final class ReflectionUtil {
 			clazz = clazz.getSuperclass();
 		}
 	}
-	
+
 	public static Class<?>[] getSuperTemplateTypes(Class<?> clazz, Class<?> searchedSuperClass) {
 		if (clazz == null || searchedSuperClass == null) {
 			throw new NullPointerException();
 		}
-		
-		Class<?> superClass = null;
+
+		Class<?> superClass;
 		do {
 			superClass = clazz.getSuperclass();
 			if (superClass == searchedSuperClass) {
@@ -116,11 +121,11 @@ public final class ReflectionUtil {
 			}
 		}
 		while ((clazz = superClass) != null);
-		
+
 		if (clazz == null) {
 			throw new IllegalArgumentException("The searched for superclass is not a superclass of the given class.");
 		}
-		
+
 		final Type type = clazz.getGenericSuperclass();
 		if (type instanceof ParameterizedType) {
 			return getTemplateTypes((ParameterizedType) type);
@@ -185,7 +190,7 @@ public final class ReflectionUtil {
 				templateTypeInfos[i] = getFullTemplateType(parameterizedType.getActualTypeArguments()[i]);
 			}
 
-			return new FullTypeInfo((Class<?>)parameterizedType.getRawType(), templateTypeInfos);
+			return new FullTypeInfo((Class<?>) parameterizedType.getRawType(), templateTypeInfos);
 		} else {
 			return new FullTypeInfo((Class<?>) type, null);
 		}
@@ -197,9 +202,9 @@ public final class ReflectionUtil {
 	 * describing the type.
 	 */
 	public static class FullTypeInfo {
+
 		private final Class<?> clazz;
 		private final FullTypeInfo[] templateTypeInfos;
-
 
 		public FullTypeInfo(Class<?> clazz, FullTypeInfo[] templateTypeInfos) {
 			this.clazz = Preconditions.checkNotNull(clazz);

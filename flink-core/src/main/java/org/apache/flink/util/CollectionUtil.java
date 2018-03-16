@@ -18,9 +18,15 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.Collection;
 import java.util.Map;
 
+/**
+ * Simple utility to work with Java collections.
+ */
+@Internal
 public final class CollectionUtil {
 
 	private CollectionUtil() {

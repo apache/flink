@@ -27,20 +27,31 @@ public class MesosConfigKeys {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * The Mesos task ID, used by the TM for informational purposes
+	 * The Mesos task ID, used by the TM for informational purposes.
 	 */
 	public static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
 
 	/**
-	 * Reserved for future enhancement
+	 * Reserved for future enhancement.
 	 */
 	public static final String ENV_FLINK_TMP_DIR = "_FLINK_TMP_DIR";
 
 	/**
-	 * JVM arguments, used by the JM and TM
+	 * JVM arguments, used by the JM and TM.
 	 */
 	public static final String ENV_JVM_ARGS = "JVM_ARGS";
 
-	/** Private constructor to prevent instantiation */
-	private MesosConfigKeys() {}
+	/**
+	 * Standard environment variables used in DCOS environment.
+	 */
+	public static final String ENV_TASK_NAME = "TASK_NAME";
+
+	/**
+	 * Standard environment variables used in DCOS environment.
+	 */
+	public static final String ENV_FRAMEWORK_NAME = "FRAMEWORK_NAME";
+
+	/** Private constructor to prevent instantiation. */
+	private MesosConfigKeys() {
+	}
 }

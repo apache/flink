@@ -19,9 +19,10 @@
 package org.apache.flink.streaming.api.checkpoint;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.StreamMap;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -29,6 +30,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Tests for {@link ListCheckpointed}.
+ */
 public class ListCheckpointedTest {
 
 	@Test
@@ -37,7 +41,7 @@ public class ListCheckpointedTest {
 		AbstractStreamOperatorTestHarness<Integer> testHarness =
 				new AbstractStreamOperatorTestHarness<>(new StreamMap<>(userFunction), 1, 1, 0);
 		testHarness.open();
-		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
+		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.initializeState(snapshot);
 		Assert.assertTrue(userFunction.isRestored());
 	}
@@ -48,7 +52,7 @@ public class ListCheckpointedTest {
 		AbstractStreamOperatorTestHarness<Integer> testHarness =
 				new AbstractStreamOperatorTestHarness<>(new StreamMap<>(userFunction), 1, 1, 0);
 		testHarness.open();
-		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
+		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.initializeState(snapshot);
 		Assert.assertTrue(userFunction.isRestored());
 	}
@@ -59,7 +63,7 @@ public class ListCheckpointedTest {
 		AbstractStreamOperatorTestHarness<Integer> testHarness =
 				new AbstractStreamOperatorTestHarness<>(new StreamMap<>(userFunction), 1, 1, 0);
 		testHarness.open();
-		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
+		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.initializeState(snapshot);
 		Assert.assertTrue(userFunction.isRestored());
 	}

@@ -15,13 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.cassandra;
 
-import com.datastax.driver.core.Cluster;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -29,6 +33,11 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
+import org.apache.flink.types.Row;
+
+import com.datastax.driver.core.Cluster;
+
+import scala.Product;
 
 /**
  * This class wraps different Cassandra sink implementations to provide a common interface for all of them.
@@ -75,21 +84,50 @@ public class CassandraSink<IN> {
 
 	/**
 	 * Sets an ID for this operator.
-	 * <p/>
+	 *
 	 * <p>The specified ID is used to assign the same operator ID across job
 	 * submissions (for example when starting a job from a savepoint).
-	 * <p/>
+	 *
 	 * <p><strong>Important</strong>: this ID needs to be unique per
 	 * transformation and job. Otherwise, job submission will fail.
 	 *
 	 * @param uid The unique user-specified ID of this transformation.
 	 * @return The operator with the specified ID.
 	 */
+	@PublicEvolving
 	public CassandraSink<IN> uid(String uid) {
 		if (useDataStreamSink) {
 			getSinkTransformation().setUid(uid);
 		} else {
 			getStreamTransformation().setUid(uid);
+		}
+		return this;
+	}
+
+	/**
+	 * Sets an user provided hash for this operator. This will be used AS IS the create the JobVertexID.
+	 *
+	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when identifying an
+	 * operator through the default hash mechanics fails (e.g. because of changes between Flink versions).
+	 *
+	 * <p><strong>Important</strong>: this should be used as a workaround or for trouble shooting. The provided hash
+	 * needs to be unique per transformation and job. Otherwise, job submission will fail. Furthermore, you cannot
+	 * assign user-specified hash to intermediate nodes in an operator chain and trying so will let your job fail.
+	 *
+	 * <p>A use case for this is in migration between Flink versions or changing the jobs in a way that changes the
+	 * automatically generated hashes. In this case, providing the previous hashes directly through this method (e.g.
+	 * obtained from old logs) can help to reestablish a lost mapping from states to their target operator.
+	 *
+	 * @param uidHash The user provided hash for this operator. This will become the JobVertexID, which is shown in the
+	 *                 logs and web ui.
+	 * @return The operator with the user provided hash.
+	 */
+	@PublicEvolving
+	public CassandraSink<IN> setUidHash(String uidHash) {
+		if (useDataStreamSink) {
+			getSinkTransformation().setUidHash(uidHash);
+		} else {
+			getStreamTransformation().setUidHash(uidHash);
 		}
 		return this;
 	}
@@ -133,10 +171,10 @@ public class CassandraSink<IN> {
 	 * Sets the slot sharing group of this operation. Parallel instances of
 	 * operations that are in the same slot sharing group will be co-located in the same
 	 * TaskManager slot, if possible.
-	 * <p/>
+	 *
 	 * <p>Operations inherit the slot sharing group of input operations if all input operations
 	 * are in the same slot sharing group and no slot sharing group was explicitly specified.
-	 * <p/>
+	 *
 	 * <p>Initially an operation is in the default slot sharing group. An operation can be put into
 	 * the default group explicitly by setting the slot sharing group to {@code "default"}.
 	 *
@@ -158,20 +196,47 @@ public class CassandraSink<IN> {
 	 * @param <IN>  input type
 	 * @return CassandraSinkBuilder, to further configure the sink
 	 */
-	public static <IN, T extends Tuple> CassandraSinkBuilder<IN> addSink(DataStream<IN> input) {
-		if (input.getType() instanceof TupleTypeInfo) {
-			DataStream<T> tupleInput = (DataStream<T>) input;
-			return (CassandraSinkBuilder<IN>) new CassandraTupleSinkBuilder<>(tupleInput, tupleInput.getType(), tupleInput.getType().createSerializer(tupleInput.getExecutionEnvironment().getConfig()));
-		} else {
-			return new CassandraPojoSinkBuilder<>(input, input.getType(), input.getType().createSerializer(input.getExecutionEnvironment().getConfig()));
-		}
+	public static <IN> CassandraSinkBuilder<IN> addSink(org.apache.flink.streaming.api.scala.DataStream<IN> input) {
+		return addSink(input.javaStream());
 	}
 
+	/**
+	 * Writes a DataStream into a Cassandra database.
+	 *
+	 * @param input input DataStream
+	 * @param <IN>  input type
+	 * @return CassandraSinkBuilder, to further configure the sink
+	 */
+	public static <IN> CassandraSinkBuilder<IN> addSink(DataStream<IN> input) {
+		TypeInformation<IN> typeInfo = input.getType();
+		if (typeInfo instanceof TupleTypeInfo) {
+			DataStream<Tuple> tupleInput = (DataStream<Tuple>) input;
+			return (CassandraSinkBuilder<IN>) new CassandraTupleSinkBuilder<>(tupleInput, tupleInput.getType(), tupleInput.getType().createSerializer(tupleInput.getExecutionEnvironment().getConfig()));
+		}
+		if (typeInfo instanceof RowTypeInfo) {
+			DataStream<Row> rowInput = (DataStream<Row>) input;
+			return (CassandraSinkBuilder<IN>) new CassandraRowSinkBuilder(rowInput, rowInput.getType(), rowInput.getType().createSerializer(rowInput.getExecutionEnvironment().getConfig()));
+		}
+		if (typeInfo instanceof PojoTypeInfo) {
+			return new CassandraPojoSinkBuilder<>(input, input.getType(), input.getType().createSerializer(input.getExecutionEnvironment().getConfig()));
+		}
+		if (typeInfo instanceof CaseClassTypeInfo) {
+			DataStream<Product> productInput = (DataStream<Product>) input;
+			return (CassandraSinkBuilder<IN>) new CassandraScalaProductSinkBuilder<>(productInput, productInput.getType(), productInput.getType().createSerializer(input.getExecutionEnvironment().getConfig()));
+		}
+		throw new IllegalArgumentException("No support for the type of the given DataStream: " + input.getType());
+	}
+
+	/**
+	 * Builder for a {@link CassandraSink}.
+	 * @param <IN>
+	 */
 	public abstract static class CassandraSinkBuilder<IN> {
 		protected final DataStream<IN> input;
 		protected final TypeSerializer<IN> serializer;
 		protected final TypeInformation<IN> typeInfo;
 		protected ClusterBuilder builder;
+		protected MapperOptions mapperOptions;
 		protected String query;
 		protected CheckpointCommitter committer;
 		protected boolean isWriteAheadLogEnabled;
@@ -252,7 +317,7 @@ public class CassandraSink<IN> {
 		 * Enables the write-ahead log, which allows exactly-once processing for non-deterministic algorithms that use
 		 * idempotent updates.
 		 *
-		 * @param committer CheckpointCommitter, that stores informationa bout completed checkpoints in an external
+		 * @param committer CheckpointCommitter, that stores information about completed checkpoints in an external
 		 *                  resource. By default this information is stored within a separate table within Cassandra.
 		 * @return this builder
 		 */
@@ -263,12 +328,36 @@ public class CassandraSink<IN> {
 		}
 
 		/**
+		 * Sets the mapper options for this sink. The mapper options are used to configure the DataStax
+		 * {@link com.datastax.driver.mapping.Mapper} when writing POJOs.
+		 *
+		 * <p>This call has no effect if the input {@link DataStream} for this sink does not contain POJOs.
+		 *
+		 * @param options MapperOptions, that return an array of options that are used to configure the DataStax mapper.
+		 *
+		 * @return this builder
+		 */
+		public CassandraSinkBuilder<IN> setMapperOptions(MapperOptions options) {
+			this.mapperOptions = options;
+			return this;
+		}
+
+		/**
 		 * Finalizes the configuration of this sink.
 		 *
 		 * @return finalized sink
 		 * @throws Exception
 		 */
-		public abstract CassandraSink<IN> build() throws Exception;
+		public CassandraSink<IN> build() throws Exception {
+			sanityCheck();
+			return isWriteAheadLogEnabled
+				? createWriteAheadSink()
+				: createSink();
+		}
+
+		protected abstract CassandraSink<IN> createSink() throws Exception;
+
+		protected abstract CassandraSink<IN> createWriteAheadSink() throws Exception;
 
 		protected void sanityCheck() {
 			if (builder == null) {
@@ -277,6 +366,10 @@ public class CassandraSink<IN> {
 		}
 	}
 
+	/**
+	 * Builder for a {@link CassandraTupleSink}.
+	 * @param <IN>
+	 */
 	public static class CassandraTupleSinkBuilder<IN extends Tuple> extends CassandraSinkBuilder<IN> {
 		public CassandraTupleSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
 			super(input, typeInfo, serializer);
@@ -291,18 +384,52 @@ public class CassandraSink<IN> {
 		}
 
 		@Override
-		public CassandraSink<IN> build() throws Exception {
-			sanityCheck();
-			if (isWriteAheadLogEnabled) {
-				return committer == null
-					? new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraTupleWriteAheadSink<>(query, serializer, builder, new CassandraCommitter(builder))))
-					: new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraTupleWriteAheadSink<>(query, serializer, builder, committer)));
-			} else {
-				return new CassandraSink<>(input.addSink(new CassandraTupleSink<IN>(query, builder)).name("Cassandra Sink"));
-			}
+		public CassandraSink<IN> createSink() throws Exception {
+			return new CassandraSink<>(input.addSink(new CassandraTupleSink<IN>(query, builder)).name("Cassandra Sink"));
+		}
+
+		@Override
+		protected CassandraSink<IN> createWriteAheadSink() throws Exception {
+			return committer == null
+				? new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraTupleWriteAheadSink<>(query, serializer, builder, new CassandraCommitter(builder))))
+				: new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraTupleWriteAheadSink<>(query, serializer, builder, committer)));
 		}
 	}
 
+	/**
+	 * Builder for a {@link CassandraRowSink}.
+	 */
+	public static class CassandraRowSinkBuilder extends CassandraSinkBuilder<Row> {
+		public CassandraRowSinkBuilder(DataStream<Row> input, TypeInformation<Row> typeInfo, TypeSerializer<Row> serializer) {
+			super(input, typeInfo, serializer);
+		}
+
+		@Override
+		protected void sanityCheck() {
+			super.sanityCheck();
+			if (query == null || query.length() == 0) {
+				throw new IllegalArgumentException("Query must not be null or empty.");
+			}
+		}
+
+		@Override
+		protected CassandraSink<Row> createSink() throws Exception {
+			return new CassandraSink<>(input.addSink(new CassandraRowSink(typeInfo.getArity(), query, builder)).name("Cassandra Sink"));
+
+		}
+
+		@Override
+		protected CassandraSink<Row> createWriteAheadSink() throws Exception {
+			return committer == null
+				? new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraRowWriteAheadSink(query, serializer, builder, new CassandraCommitter(builder))))
+				: new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraRowWriteAheadSink(query, serializer, builder, committer)));
+		}
+	}
+
+	/**
+	 * Builder for a {@link CassandraPojoSink}.
+	 * @param <IN>
+	 */
 	public static class CassandraPojoSinkBuilder<IN> extends CassandraSinkBuilder<IN> {
 		public CassandraPojoSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
 			super(input, typeInfo, serializer);
@@ -317,13 +444,42 @@ public class CassandraSink<IN> {
 		}
 
 		@Override
-		public CassandraSink<IN> build() throws Exception {
-			sanityCheck();
-			if (isWriteAheadLogEnabled) {
-				throw new IllegalArgumentException("Exactly-once guarantees can only be provided for tuple types.");
-			} else {
-				return new CassandraSink<>(input.addSink(new CassandraPojoSink<>(typeInfo.getTypeClass(), builder)).name("Cassandra Sink"));
+		public CassandraSink<IN> createSink() throws Exception {
+			return new CassandraSink<>(input.addSink(new CassandraPojoSink<>(typeInfo.getTypeClass(), builder, mapperOptions)).name("Cassandra Sink"));
+		}
+
+		@Override
+		protected CassandraSink<IN> createWriteAheadSink() throws Exception {
+			throw new IllegalArgumentException("Exactly-once guarantees can only be provided for tuple types.");
+		}
+	}
+
+	/**
+	 * Builder for a {@link CassandraScalaProductSink}.
+	 * @param <IN>
+	 */
+	public static class CassandraScalaProductSinkBuilder<IN extends Product> extends CassandraSinkBuilder<IN> {
+
+		public CassandraScalaProductSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
+			super(input, typeInfo, serializer);
+		}
+
+		@Override
+		protected void sanityCheck() {
+			super.sanityCheck();
+			if (query == null || query.length() == 0) {
+				throw new IllegalArgumentException("Query must not be null or empty.");
 			}
+		}
+
+		@Override
+		public CassandraSink<IN> createSink() throws Exception {
+			return new CassandraSink<>(input.addSink(new CassandraScalaProductSink<IN>(query, builder)).name("Cassandra Sink"));
+		}
+
+		@Override
+		protected CassandraSink<IN> createWriteAheadSink() throws Exception {
+			throw new IllegalArgumentException("Exactly-once guarantees can only be provided for flink tuple types.");
 		}
 	}
 }

@@ -23,11 +23,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-libraries</artifactId>
-		<version>1.3-SNAPSHOT</version>
+		<version>1.6-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-table_2.10</artifactId>
+	<artifactId>flink-table_${scala.binary.version}</artifactId>
 	<name>flink-table</name>
 
 	<packaging>jar</packaging>
@@ -38,20 +38,37 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala_2.10</artifactId>
+			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-jackson</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>commons-configuration</groupId>
+			<artifactId>commons-configuration</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>commons-codec</groupId>
+			<artifactId>commons-codec</artifactId>
 		</dependency>
 
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>janino</artifactId>
-			<version>3.0.6</version>
+			<version>3.0.7</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.calcite</groupId>
 			<artifactId>calcite-core</artifactId>
-			<version>1.9.0</version>
+			<version>1.15.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.calcite.avatica</groupId>
@@ -85,26 +102,43 @@ under the License.
 					<groupId>commons-dbcp</groupId>
 					<artifactId>commons-dbcp</artifactId>
 				</exclusion>
-				<exclusion>
-					<groupId>org.pentaho</groupId>
-					<artifactId>pentaho-aggdesigner-algorithm</artifactId>
-				</exclusion>
 			</exclusions>
 		</dependency>
 
+		<dependency>
+			<groupId>org.reflections</groupId>
+			<artifactId>reflections</artifactId>
+			<version>0.9.10</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.code.findbugs</groupId>
+					<artifactId>annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>joda-time</groupId>
+			<artifactId>joda-time</artifactId>
+		</dependency>
 
 		<!-- test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_2.10</artifactId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests_2.10</artifactId>
+			<artifactId>flink-tests_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -115,6 +149,44 @@ under the License.
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-statebackend-rocksdb_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-avro</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-avro</artifactId>
+			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -158,42 +230,101 @@ under the License.
 						<configuration>
 							<filters>
 								<filter>
+									<artifact>*:*</artifact>
 									<excludes>
-									    	<exclude>org-apache-calcite-jdbc.properties</exclude>
+										<!-- excluded all these files for a clean flink-table jar -->
+										<exclude>org-apache-calcite-jdbc.properties</exclude>
+										<exclude>common.proto</exclude>
+										<exclude>requests.proto</exclude>
+										<exclude>responses.proto</exclude>
 										<exclude>mozilla/**</exclude>
 										<exclude>codegen/**</exclude>
 										<exclude>google/**</exclude>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+										<exclude>META-INF/services/java.sql.Driver</exclude>
+										<exclude>properties.dtd</exclude>
+										<exclude>PropertyList-1.0.dtd</exclude>
+										<exclude>digesterRules.xml</exclude>
+										<!-- not relocated for now, because it is needed by Calcite -->
+										<!--<exclude>org.codehaus.commons.compiler.properties</exclude>-->
 									</excludes>
-								 </filter>
+								</filter>
 							</filters>
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.apache.calcite:*</include>
 									<include>org.apache.calcite.avatica:*</include>
+
+									<!-- Calcite's dependencies -->
+									<include>com.google.guava:guava</include>
 									<include>net.hydromatic:*</include>
+									<include>com.esri.geometry:*</include>
+
+									<!-- flink-table dependencies -->
+									<include>commons-configuration:*</include>
+									<include>commons-lang:*</include>
+									<include>commons-codec:*</include>
+									<include>org.apache.commons:commons-lang3</include>
+									<include>org.codehaus.janino:*</include>
+									<include>org.reflections:*</include>
+									<include>joda-time:*</include>
 								</includes>
 							</artifactSet>
 							<relocations>
-								<!-- We currently don't relocate slf4j as we have "logger not found" 
-									warnings otherwise during runtime -->
+								<!-- Calcite is not relocated for now, because we expose it at some locations such as CalciteConfig -->
 								<!--<relocation>
-									<pattern>org.slf4j</pattern>
-									<shadedPattern>org.apache.flink.shaded.calcite.org.slf4j</shadedPattern>
+									<pattern>org.apache.calcite</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.calcite</shadedPattern>
 								</relocation>-->
-								<relocation>
-									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.shaded.calcite.com.fasterxml.jackson</shadedPattern>
-								</relocation>
+
+								<!-- Calcite's dependencies -->
 								<relocation>
 									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.shaded.calcite.com.google</shadedPattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>org.eigenbase</pattern>
-									<shadedPattern>org.apache.flink.shaded.calcite.org.eigenbase</shadedPattern>
+									<pattern>org.pentaho</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.pentaho</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>com.esri</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.com.esri</shadedPattern>
+								</relocation>
+
+								<!-- flink-table dependencies -->
+								<relocation>
+									<pattern>org.apache.commons</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.apache.commons</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.reflections</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.reflections</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.joda.time</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.joda.time</shadedPattern>
+								</relocation>
+								<!-- not relocated for now, because we need to change the contents of the properties field otherwise -->
+								<!--<relocation>
+									<pattern>org.codehaus</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.codehaus</shadedPattern>
+								</relocation>-->
 							</relocations>
 						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
 					</execution>
 				</executions>
 			</plugin>
@@ -206,8 +337,6 @@ under the License.
 					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
 				</configuration>
 			</plugin>
-
 		</plugins>
 	</build>
-
 </project>

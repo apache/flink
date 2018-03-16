@@ -23,10 +23,11 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-
 import org.apache.flink.streaming.api.graph.StreamGraph;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,9 +47,9 @@ import org.slf4j.LoggerFactory;
 public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(LocalStreamEnvironment.class);
-	
-	/** The configuration to use for the local cluster */
-	private final Configuration conf;
+
+	/** The configuration to use for the local cluster. */
+	protected final Configuration conf;
 
 	/**
 	 * Creates a new local stream environment that uses the default configuration.
@@ -68,14 +69,14 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 					"The LocalStreamEnvironment cannot be used when submitting a program through a client, " +
 							"or running in a TestEnvironment context.");
 		}
-		
+
 		this.conf = config == null ? new Configuration() : config;
 	}
 
 	/**
 	 * Executes the JobGraph of the on a mini cluster of CLusterUtil with a user
 	 * specified name.
-	 * 
+	 *
 	 * @param jobName
 	 *            name of the job
 	 * @return The result of the job execution, containing elapsed time and accumulators.
@@ -91,12 +92,12 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 		Configuration configuration = new Configuration();
 		configuration.addAll(jobGraph.getJobConfiguration());
 
-		configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L);
+		configuration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, -1L);
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
-		
+
 		// add (and override) the settings with what the user defined
 		configuration.addAll(this.conf);
-		
+
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running job on local embedded Flink mini cluster");
 		}

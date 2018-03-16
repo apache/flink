@@ -18,9 +18,6 @@
 
 package org.apache.flink.test.iterative;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -29,31 +26,37 @@ import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Test empty (identity) delta iteration.
+ */
 @SuppressWarnings("serial")
 public class EmptyWorksetIterationITCase extends JavaProgramTestBase {
-	
+
 	private List<Tuple2<Long, Long>> result = new ArrayList<Tuple2<Long, Long>>();
-	
+
 	@Override
 	protected void testProgram() throws Exception {
-		
+
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		DataSet<Tuple2<Long, Long>> input = env.generateSequence(1, 20).map(new Dupl());
-				
+
 		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iter = input.iterateDelta(input, 20, 0);
 		iter.closeWith(iter.getWorkset(), iter.getWorkset())
 			.output(new LocalCollectionOutputFormat<Tuple2<Long, Long>>(result));
-		
+
 		env.execute();
 	}
 
-	public static final class Dupl implements MapFunction<Long, Tuple2<Long, Long>> {
+	private static final class Dupl implements MapFunction<Long, Tuple2<Long, Long>> {
 
 		@Override
 		public Tuple2<Long, Long> map(Long value) {
 			return new Tuple2<Long, Long>(value, value);
 		}
-		
+
 	}
 }

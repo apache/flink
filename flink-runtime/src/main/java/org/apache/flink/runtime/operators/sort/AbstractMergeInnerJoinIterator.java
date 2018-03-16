@@ -65,8 +65,10 @@ public abstract class AbstractMergeInnerJoinIterator<T1, T2, O> extends Abstract
 			throws Exception {
 		if (!this.iterator1.nextKey() || !this.iterator2.nextKey()) {
 			// consume all remaining keys (hack to prevent remaining inputs during iterations, lets get rid of this soon)
-			while (this.iterator1.nextKey()) ;
-			while (this.iterator2.nextKey()) ;
+			while (this.iterator1.nextKey()) {
+			}
+			while (this.iterator2.nextKey()) {
+			}
 
 			return false;
 		}

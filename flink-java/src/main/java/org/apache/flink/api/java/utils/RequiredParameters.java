@@ -21,8 +21,8 @@ package org.apache.flink.api.java.utils;
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -78,29 +78,33 @@ public class RequiredParameters {
 	 * - has a value been passed
 	 *   - if not, does the parameter have an associated default value
 	 * - does the type of the parameter match the one defined in RequiredParameters
-	 * - does the value provided in the parameterTool adhere to the choices defined in the option
+	 * - does the value provided in the parameterTool adhere to the choices defined in the option.
 	 *
-	 * If any check fails, a RequiredParametersException is thrown
+	 * <p>If any check fails, a RequiredParametersException is thrown
 	 *
 	 * @param parameterTool - parameters supplied by the user.
+	 * @return the updated ParameterTool containing all the required parameters
 	 * @throws RequiredParametersException if any of the specified checks fail
 	 */
-	public void applyTo(ParameterTool parameterTool) throws RequiredParametersException {
+	public ParameterTool applyTo(ParameterTool parameterTool) throws RequiredParametersException {
 		List<String> missingArguments = new LinkedList<>();
+
+		HashMap<String, String> newParameters = new HashMap<>(parameterTool.toMap());
+
 		for (Option o : data.values()) {
-			if (parameterTool.data.containsKey(o.getName())) {
-				if (Objects.equals(parameterTool.data.get(o.getName()), ParameterTool.NO_VALUE_KEY)) {
+			if (newParameters.containsKey(o.getName())) {
+				if (Objects.equals(newParameters.get(o.getName()), ParameterTool.NO_VALUE_KEY)) {
 					// the parameter has been passed, but no value, check if there is a default value
-					checkAndApplyDefaultValue(o, parameterTool.data);
+					checkAndApplyDefaultValue(o, newParameters);
 				} else {
 					// a value has been passed in the parameterTool, now check if it adheres to all constraints
-					checkAmbiguousValues(o, parameterTool.data);
-					checkIsCastableToDefinedType(o, parameterTool.data);
-					checkChoices(o, parameterTool.data);
+					checkAmbiguousValues(o, newParameters);
+					checkIsCastableToDefinedType(o, newParameters);
+					checkChoices(o, newParameters);
 				}
 			} else {
 				// check if there is a default name or a value passed for a possibly defined alternative name.
-				if (hasNoDefaultValueAndNoValuePassedOnAlternativeName(o, parameterTool.data)) {
+				if (hasNoDefaultValueAndNoValuePassedOnAlternativeName(o, newParameters)) {
 					missingArguments.add(o.getName());
 				}
 			}
@@ -108,6 +112,8 @@ public class RequiredParameters {
 		if (!missingArguments.isEmpty()) {
 			throw new RequiredParametersException(this.missingArgumentsText(missingArguments), missingArguments);
 		}
+
+		return ParameterTool.fromMap(newParameters);
 	}
 
 	// check if the given parameter has a default value and add it to the passed map if that is the case
@@ -167,7 +173,7 @@ public class RequiredParameters {
 	/**
 	 * Build a help text for the defined parameters.
 	 *
-	 * The format of the help text will be:
+	 * <p>The format of the help text will be:
 	 * Required Parameters:
 	 * \t -:shortName:, --:name: \t :helpText: \t default: :defaultValue: \t choices: :choices: \n
 	 *
@@ -190,11 +196,11 @@ public class RequiredParameters {
 	/**
 	 * Build a help text for the defined parameters and list the missing arguments at the end of the text.
 	 *
-	 * The format of the help text will be:
+	 * <p>The format of the help text will be:
 	 * Required Parameters:
 	 * \t -:shortName:, --:name: \t :helpText: \t default: :defaultValue: \t choices: :choices: \n
 	 *
-	 * Missing parameters:
+	 * <p>Missing parameters:
 	 * \t param1 param2 ... paramN
 	 *
 	 * @param missingArguments - a list of missing parameters
@@ -205,7 +211,7 @@ public class RequiredParameters {
 	}
 
 	/**
-	 * for the given option create a line for the help text which looks like:
+	 * for the given option create a line for the help text. The line looks like:
 	 * \t -:shortName:, --:name: \t :helpText: \t default: :defaultValue: \t choices: :choices:
 	 */
 	private String helpText(Option option) {

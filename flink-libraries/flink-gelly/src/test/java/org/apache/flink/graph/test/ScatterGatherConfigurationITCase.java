@@ -35,6 +35,7 @@ import org.apache.flink.graph.spargel.ScatterGatherIteration;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.LongValue;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,6 +44,9 @@ import org.junit.runners.Parameterized;
 import java.util.HashSet;
 import java.util.List;
 
+/**
+ * Tests for {@link ScatterGatherConfiguration}.
+ */
 @RunWith(Parameterized.class)
 public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 
@@ -133,8 +137,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> res = graph.runScatterGatherIteration(
 			new MessageFunctionDefault(), new UpdateFunctionDefault(), 5);
 
-
-		DataSet<Tuple2<Long, Long>> data = res.getVertices().map(new VertexToTuple2Map<Long, Long>());
+		DataSet<Tuple2<Long, Long>> data = res.getVertices().map(new VertexToTuple2Map<>());
 		List<Tuple2<Long, Long>> result = data.collect();
 
 		expectedResult = "1,6\n" +
@@ -333,7 +336,6 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		compareResultAsTuples(result, expectedResult);
 	}
 
-
 	@Test
 	public void testNumVerticesNotSet() throws Exception {
 
@@ -508,7 +510,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 
 			// test bcast variable
 			@SuppressWarnings("unchecked")
-			List<Integer> bcastSet = (List<Integer>)(List<?>)getBroadcastSet("messagingBcastSet");
+			List<Integer> bcastSet = (List<Integer>) (List<?>) getBroadcastSet("messagingBcastSet");
 			Assert.assertEquals(4, bcastSet.get(0).intValue());
 			Assert.assertEquals(5, bcastSet.get(1).intValue());
 			Assert.assertEquals(6, bcastSet.get(2).intValue());
@@ -556,7 +558,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 
 			// test bcast variable
 			@SuppressWarnings("unchecked")
-			List<Integer> bcastSet = (List<Integer>)(List<?>)getBroadcastSet("updateBcastSet");
+			List<Integer> bcastSet = (List<Integer>) (List<?>) getBroadcastSet("updateBcastSet");
 			Assert.assertEquals(1, bcastSet.get(0).intValue());
 			Assert.assertEquals(2, bcastSet.get(1).intValue());
 			Assert.assertEquals(3, bcastSet.get(2).intValue());

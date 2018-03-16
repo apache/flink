@@ -18,14 +18,15 @@
 
 package org.apache.flink.graph.scala.examples
 
+import java.lang.Long
+
+import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.scala._
-import org.apache.flink.graph.library.GSAConnectedComponents
-import org.apache.flink.graph.scala._
 import org.apache.flink.graph.Edge
 import org.apache.flink.graph.examples.data.ConnectedComponentsDefaultData
+import org.apache.flink.graph.library.GSAConnectedComponents
+import org.apache.flink.graph.scala._
 import org.apache.flink.types.NullValue
-import org.apache.flink.api.common.functions.MapFunction
-import java.lang.Long
 
 /**
  * This example shows how to use Gelly's library methods.

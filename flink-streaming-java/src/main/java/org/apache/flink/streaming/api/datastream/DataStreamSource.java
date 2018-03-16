@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 
 /**
  * The DataStreamSource represents the starting point of a DataStream.
- * 
+ *
  * @param <T> Type of the elements in the DataStream created from the this source.
  */
 @Public
@@ -51,10 +51,11 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 
 	@Override
 	public DataStreamSource<T> setParallelism(int parallelism) {
-		if (parallelism > 1 && !isParallel) {
+		if (parallelism != 1 && !isParallel) {
 			throw new IllegalArgumentException("Source: " + transformation.getId() + " is not a parallel source");
 		} else {
-			return (DataStreamSource<T>) super.setParallelism(parallelism);
+			super.setParallelism(parallelism);
+			return this;
 		}
 	}
 }

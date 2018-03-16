@@ -17,13 +17,13 @@
  */
 package org.apache.flink.table.plan.schema
 
-import java.lang.reflect.{Method, Type}
+import java.lang.reflect.Type
 import java.util
+import java.util.Collections
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.calcite.schema.TableFunction
-import org.apache.calcite.schema.impl.ReflectiveFunctionBase
-import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.calcite.schema.{FunctionParameter, TableFunction}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -36,10 +36,8 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 class FlinkTableFunctionImpl[T](
     val typeInfo: TypeInformation[T],
     val fieldIndexes: Array[Int],
-    val fieldNames: Array[String],
-    val evalMethod: Method)
-  extends ReflectiveFunctionBase(evalMethod)
-  with TableFunction {
+    val fieldNames: Array[String])
+  extends TableFunction {
 
   if (fieldIndexes.length != fieldNames.length) {
     throw new TableException(
@@ -54,22 +52,27 @@ class FlinkTableFunctionImpl[T](
 
   val fieldTypes: Array[TypeInformation[_]] =
     typeInfo match {
-      case cType: CompositeType[T] =>
-        if (fieldNames.length != cType.getArity) {
+
+      case ct: CompositeType[T] =>
+        if (fieldNames.length != ct.getArity) {
           throw new TableException(
-            s"Arity of type (" + cType.getFieldNames.deep + ") " +
+            s"Arity of type (" + ct.getFieldNames.deep + ") " +
               "not equal to number of field names " + fieldNames.deep + ".")
         }
-        fieldIndexes.map(cType.getTypeAt(_).asInstanceOf[TypeInformation[_]])
-      case aType: AtomicType[T] =>
+        fieldIndexes.map(ct.getTypeAt(_).asInstanceOf[TypeInformation[_]])
+
+      case t: TypeInformation[T] =>
         if (fieldIndexes.length != 1 || fieldIndexes(0) != 0) {
           throw new TableException(
             "Non-composite input type may have only a single field and its index must be 0.")
         }
-        Array(aType)
+        Array(t)
     }
 
   override def getElementType(arguments: util.List[AnyRef]): Type = classOf[Array[Object]]
+
+  // we do never use the FunctionParameters, so return an empty list
+  override def getParameters: util.List[FunctionParameter] = Collections.emptyList()
 
   override def getRowType(typeFactory: RelDataTypeFactory,
                           arguments: util.List[AnyRef]): RelDataType = {
@@ -78,7 +81,7 @@ class FlinkTableFunctionImpl[T](
     fieldNames
       .zip(fieldTypes)
       .foreach { f =>
-        builder.add(f._1, flinkTypeFactory.createTypeFromTypeInfo(f._2)).nullable(true)
+        builder.add(f._1, flinkTypeFactory.createTypeFromTypeInfo(f._2, isNullable = true))
       }
     builder.build
   }

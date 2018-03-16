@@ -15,14 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.util;
 
-import java.io.IOException;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 
+import java.io.IOException;
+
+/**
+ * Generates a series of integer 2-tuples.
+ */
 public class UniformIntTupleGeneratorInputFormat extends GenericInputFormat<Tuple2<Integer, Integer>> {
 	private final int keyTotal;
 	private final int valueTotal;
@@ -38,7 +43,6 @@ public class UniformIntTupleGeneratorInputFormat extends GenericInputFormat<Tupl
 	public void open(GenericInputSplit split) throws IOException {
 		super.open(split);
 		this.generator = new UniformIntTupleGenerator(keyTotal, valueTotal, false);
-
 	}
 
 	@Override

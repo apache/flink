@@ -18,19 +18,11 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
-import org.apache.flink.api.scala.createTypeInformation
-import org.apache.flink.types.Row
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.CompositeAccessTest.{MyCaseClass, MyCaseClass2, MyPojo}
-import org.apache.flink.table.expressions.utils.ExpressionTestBase
+import org.apache.flink.table.expressions.utils.CompositeTypeTestBase
 import org.junit.Test
 
-
-class CompositeAccessTest extends ExpressionTestBase {
+class CompositeAccessTest extends CompositeTypeTestBase {
 
   @Test
   def testGetField(): Unit = {
@@ -41,10 +33,13 @@ class CompositeAccessTest extends ExpressionTestBase {
       "f0.get('intField')",
       "testTable.f0.intField",
       "42")
+    testSqlApi("f0.intField", "42")
 
     testSqlApi("testTable.f0.stringField", "Bob")
+    testSqlApi("f0.stringField", "Bob")
 
     testSqlApi("testTable.f0.booleanField", "true")
+    testSqlApi("f0.booleanField", "true")
 
     // single field by int key
     testTableApi(
@@ -58,22 +53,29 @@ class CompositeAccessTest extends ExpressionTestBase {
       "f1.get('objectField').get('intField')",
       "testTable.f1.objectField.intField",
       "25")
+    testSqlApi("f1.objectField.intField", "25")
 
     testSqlApi("testTable.f1.objectField.stringField", "Timo")
+    testSqlApi("f1.objectField.stringField", "Timo")
 
     testSqlApi("testTable.f1.objectField.booleanField", "false")
+    testSqlApi("f1.objectField.booleanField", "false")
 
     testAllApis(
       'f2.get(0),
       "f2.get(0)",
       "testTable.f2._1",
       "a")
+    testSqlApi("f2._1", "a")
 
     testSqlApi("testTable.f3.f1", "b")
+    testSqlApi("f3.f1", "b")
 
     testSqlApi("testTable.f4.myString", "Hello")
+    testSqlApi("f4.myString", "Hello")
 
     testSqlApi("testTable.f5", "13")
+    testSqlApi("f5", "13")
 
     testAllApis(
       'f7.get("_1"),
@@ -83,18 +85,21 @@ class CompositeAccessTest extends ExpressionTestBase {
 
     // composite field return type
     testSqlApi("testTable.f6", "MyCaseClass2(null)")
+    testSqlApi("f6", "MyCaseClass2(null)")
 
     testAllApis(
       'f1.get("objectField"),
       "f1.get('objectField')",
       "testTable.f1.objectField",
       "MyCaseClass(25,Timo,false)")
+    testSqlApi("f1.objectField", "MyCaseClass(25,Timo,false)")
 
     testAllApis(
       'f0,
       "f0",
       "testTable.f0",
       "MyCaseClass(42,Bob,true)")
+    testSqlApi("f0", "MyCaseClass(42,Bob,true)")
 
     // flattening (test base only returns first column)
     testAllApis(
@@ -102,92 +107,62 @@ class CompositeAccessTest extends ExpressionTestBase {
       "f1.get('objectField').flatten()",
       "testTable.f1.objectField.*",
       "25")
+    testSqlApi("f1.objectField.*", "25")
 
     testAllApis(
       'f0.flatten(),
       "flatten(f0)",
       "testTable.f0.*",
       "42")
+    testSqlApi("f0.*", "42")
 
     testTableApi(12.flatten(), "12.flatten()", "12")
 
     testTableApi('f5.flatten(), "f5.flatten()", "13")
-  }
 
-  @Test(expected = classOf[ValidationException])
-  def testWrongSqlField(): Unit = {
-    testSqlApi("testTable.f5.test", "13")
-  }
+    // array of composites
+    testAllApis(
+      'f8.at(1).get("_1"),
+      "f8.at(1).get('_1')",
+      "f8[1]._1",
+      "true"
+    )
 
-  @Test(expected = classOf[ValidationException])
-  def testWrongIntKeyField(): Unit = {
-    testTableApi('f0.get(555), "'fail'", "fail")
-  }
+    testAllApis(
+      'f8.at(1).get("_2"),
+      "f8.at(1).get('_2')",
+      "f8[1]._2",
+      "23"
+    )
 
-  @Test(expected = classOf[ValidationException])
-  def testWrongIntKeyField2(): Unit = {
-    testTableApi("fail", "f0.get(555)", "fail")
-  }
+    testAllApis(
+      'f9.at(2).get("_1"),
+      "f9.at(2).get('_1')",
+      "f9[2]._1",
+      "null"
+    )
 
-  @Test(expected = classOf[ValidationException])
-  def testWrongStringKeyField(): Unit = {
-    testTableApi('f0.get("fghj"), "'fail'", "fail")
-  }
+    testAllApis(
+      'f10.at(1).get("stringField"),
+      "f10.at(1).get('stringField')",
+      "f10[1].stringField",
+      "Bob"
+    )
 
-  @Test(expected = classOf[ValidationException])
-  def testWrongStringKeyField2(): Unit = {
-    testTableApi("fail", "f0.get('fghj')", "fail")
-  }
+    testAllApis(
+      'f11.at(1).get("myString"),
+      "f11.at(1).get('myString')",
+      "f11[1].myString",
+      "Hello"
+    )
 
-  // ----------------------------------------------------------------------------------------------
-
-  def testData = {
-    val testData = new Row(8)
-    testData.setField(0, MyCaseClass(42, "Bob", booleanField = true))
-    testData.setField(1, MyCaseClass2(MyCaseClass(25, "Timo", booleanField = false)))
-    testData.setField(2, ("a", "b"))
-    testData.setField(3, new org.apache.flink.api.java.tuple.Tuple2[String, String]("a", "b"))
-    testData.setField(4, new MyPojo())
-    testData.setField(5, 13)
-    testData.setField(6, MyCaseClass2(null))
-    testData.setField(7, Tuple1(true))
-    testData
-  }
-
-  def typeInfo = {
-    new RowTypeInfo(
-      createTypeInformation[MyCaseClass],
-      createTypeInformation[MyCaseClass2],
-      createTypeInformation[(String, String)],
-      new TupleTypeInfo(Types.STRING, Types.STRING),
-      TypeExtractor.createTypeInfo(classOf[MyPojo]),
-      Types.INT,
-      createTypeInformation[MyCaseClass2],
-      createTypeInformation[Tuple1[Boolean]]
-      ).asInstanceOf[TypeInformation[Any]]
-  }
-
-}
-
-object CompositeAccessTest {
-  case class MyCaseClass(intField: Int, stringField: String, booleanField: Boolean)
-
-  case class MyCaseClass2(objectField: MyCaseClass)
-
-  class MyPojo {
-    private var myInt: Int = 0
-    private var myString: String = "Hello"
-
-    def getMyInt = myInt
-
-    def setMyInt(value: Int) = {
-      myInt = value
-    }
-
-    def getMyString = myString
-
-    def setMyString(value: String) = {
-      myString = myString
-    }
+    testAllApis(
+      'f12.at(1).get("arrayField").at(1).get("stringField"),
+      "f12.at(1).get('arrayField').at(1).get('stringField')",
+      "f12[1].arrayField[1].stringField",
+      "Alice"
+    )
   }
 }
+
+

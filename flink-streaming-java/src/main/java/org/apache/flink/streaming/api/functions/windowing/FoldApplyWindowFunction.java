@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.functions.windowing;
 
 import org.apache.flink.annotation.Internal;
@@ -35,7 +36,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 
+/**
+ * Internal {@link WindowFunction} that is used for implementing a fold on a window configuration
+ * that only allows {@link WindowFunction} and cannot directly execute a {@link FoldFunction}.
+ *
+ * @deprecated will be removed in a future version
+ */
 @Internal
+@Deprecated
 public class FoldApplyWindowFunction<K, W extends Window, T, ACC, R>
 	extends WrappingFunction<WindowFunction<ACC, R, K, W>>
 	implements WindowFunction<T, R, K, W>, OutputTypeConfigurable<R> {

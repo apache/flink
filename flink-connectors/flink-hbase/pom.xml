@@ -25,16 +25,16 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.3-SNAPSHOT</version>
+		<version>1.6-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-hbase_2.10</artifactId>
+	<artifactId>flink-hbase_${scala.binary.version}</artifactId>
 	<name>flink-hbase</name>
 	<packaging>jar</packaging>
 
 	<properties>
-		<hbase.version>1.2.3</hbase.version>
+		<hbase.version>1.3.1</hbase.version>
 	</properties>
 
 	<build>
@@ -44,6 +44,7 @@ under the License.
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.19.1</version>
 				<configuration>
+					<argLine>-XX:MaxPermSize=128m -Dmvn.forkNumber=${surefire.forkNumber}</argLine>
 					<!-- Enforce single fork execution due to heavy mini cluster use in the tests -->
 					<forkCount>1</forkCount>
 				</configuration>
@@ -75,11 +76,43 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- flink-java dependencies -->
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+		</dependency>
+
+		<!-- flink-scala dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-scala_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- streaming-scala dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- table dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<!-- Projects depending on this project,
+			won't depend on flink-table. -->
+			<optional>true</optional>
 		</dependency>
 
 		<dependency>
@@ -91,17 +124,9 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_2.10</artifactId>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
-
-			<!--Exclude Guava in order to run the HBaseMiniCluster during testing-->
-			<exclusions>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<!-- HBase server needed for TableOutputFormat -->
@@ -173,7 +198,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_2.10</artifactId>
+			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<exclusions>
@@ -186,13 +211,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-hadoop-compatibility_2.10</artifactId>
+			<artifactId>flink-hadoop-compatibility_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-include-yarn_2.10</artifactId>
+					<artifactId>flink-shaded-include-yarn_${scala.binary.version}</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -235,6 +260,12 @@ under the License.
 			<version>${hbase.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 

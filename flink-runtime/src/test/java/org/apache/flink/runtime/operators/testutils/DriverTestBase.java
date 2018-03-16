@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.Driver;
 import org.apache.flink.runtime.operators.ResettableDriver;
 import org.apache.flink.runtime.operators.TaskContext;
@@ -54,7 +55,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 @RunWith(Parameterized.class)
-public class DriverTestBase<S extends Function> extends TestLogger implements TaskContext<S, Record> {
+public abstract class DriverTestBase<S extends Function> extends TestLogger implements TaskContext<S, Record> {
 	
 	protected static final long DEFAULT_PER_SORT_MEM = 16 * 1024 * 1024;
 	
@@ -368,7 +369,7 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Ta
 	
 	@Override
 	public OperatorMetricGroup getMetricGroup() {
-		return new UnregisteredTaskMetricsGroup.DummyOperatorMetricGroup();
+		return UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
 	}
 
 	// --------------------------------------------------------------------------------------------

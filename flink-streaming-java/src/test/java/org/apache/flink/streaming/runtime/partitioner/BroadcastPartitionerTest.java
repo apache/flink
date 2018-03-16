@@ -17,20 +17,24 @@
 
 package org.apache.flink.streaming.runtime.partitioner;
 
-import static org.junit.Assert.assertArrayEquals;
-
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.junit.Assert.assertArrayEquals;
+
+/**
+ * Tests for {@link BroadcastPartitioner}.
+ */
 public class BroadcastPartitionerTest {
 
 	private BroadcastPartitioner<Tuple> broadcastPartitioner1;
 	private BroadcastPartitioner<Tuple> broadcastPartitioner2;
 	private BroadcastPartitioner<Tuple> broadcastPartitioner3;
-	
+
 	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>(null);
 	private SerializationDelegate<StreamRecord<Tuple>> sd = new SerializationDelegate<StreamRecord<Tuple>>(null);
 

@@ -201,7 +201,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param sink The data sink to add.
 	 */
 	public void addDataSink(GenericDataSinkBase<?> sink) {
-		checkNotNull(jobName, "The data sink must not be null.");
+		checkNotNull(sink, "The data sink must not be null.");
 		
 		if (!this.sinks.contains(sink)) {
 			this.sinks.add(sink);

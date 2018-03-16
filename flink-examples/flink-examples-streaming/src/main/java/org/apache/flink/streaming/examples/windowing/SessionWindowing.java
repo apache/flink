@@ -30,6 +30,10 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * An example of session windowing that keys events by ID and groups and counts them in
+ * session with gaps of 3 milliseconds.
+ */
 public class SessionWindowing {
 
 	@SuppressWarnings("serial")
@@ -58,7 +62,7 @@ public class SessionWindowing {
 		input.add(new Tuple3<>("c", 11L, 1));
 
 		DataStream<Tuple3<String, Long, Integer>> source = env
-				.addSource(new SourceFunction<Tuple3<String,Long,Integer>>() {
+				.addSource(new SourceFunction<Tuple3<String, Long, Integer>>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
@@ -66,9 +70,6 @@ public class SessionWindowing {
 						for (Tuple3<String, Long, Integer> value : input) {
 							ctx.collectWithTimestamp(value, value.f1);
 							ctx.emitWatermark(new Watermark(value.f1 - 1));
-							if (!fileOutput) {
-								System.out.println("Collected: " + value);
-							}
 						}
 						ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
 					}

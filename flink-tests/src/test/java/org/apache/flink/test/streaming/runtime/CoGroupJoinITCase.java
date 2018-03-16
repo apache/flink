@@ -19,20 +19,27 @@ package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.datastream.CoGroupedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -42,8 +49,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Integration tests for windowed join / coGroup operators.
+ */
 @SuppressWarnings("serial")
-public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
+public class CoGroupJoinITCase extends AbstractTestBase {
 
 	private static List<String> testResults;
 
@@ -102,12 +112,11 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			}
 		}).assignTimestampsAndWatermarks(new Tuple2TimestampExtractor());
 
-
 		source1.coGroup(source2)
 				.where(new Tuple2KeyExtractor())
 				.equalTo(new Tuple2KeyExtractor())
 				.window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
-				.apply(new CoGroupFunction<Tuple2<String,Integer>, Tuple2<String,Integer>, String>() {
+				.apply(new CoGroupFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
 					@Override
 					public void coGroup(Iterable<Tuple2<String, Integer>> first,
 							Iterable<Tuple2<String, Integer>> second,
@@ -174,7 +183,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
 			@Override
 			public void cancel() {}
-			
+
 		}).assignTimestampsAndWatermarks(new Tuple3TimestampExtractor());
 
 		DataStream<Tuple3<String, String, Integer>> source2 = env.addSource(new SourceFunction<Tuple3<String, String, Integer>>() {
@@ -195,9 +204,8 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
 			@Override
 			public void cancel() {}
-			
-		}).assignTimestampsAndWatermarks(new Tuple3TimestampExtractor());
 
+		}).assignTimestampsAndWatermarks(new Tuple3TimestampExtractor());
 
 		source1.join(source2)
 				.where(new Tuple3KeyExtractor())
@@ -324,8 +332,49 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		Assert.assertEquals(expectedResult, testResults);
 	}
 
+	/**
+	 * Verifies that pipelines including {@link CoGroupedStreams} can be checkpointed properly,
+	 * which includes snapshotting configurations of any involved serializers.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-6808">FLINK-6808</a>
+	 */
+	@Test
+	public void testCoGroupOperatorWithCheckpoint() throws Exception {
+
+		// generate an operator for the co-group operation
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(1);
+
+		DataStream<Tuple2<String, Integer>> source1 = env.fromElements(Tuple2.of("a", 0), Tuple2.of("b", 3));
+		DataStream<Tuple2<String, Integer>> source2 = env.fromElements(Tuple2.of("a", 1), Tuple2.of("b", 6));
+
+		DataStream<String> coGroupWindow = source1.coGroup(source2)
+			.where(new Tuple2KeyExtractor())
+			.equalTo(new Tuple2KeyExtractor())
+			.window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+			.apply(new CoGroupFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
+				@Override
+				public void coGroup(Iterable<Tuple2<String, Integer>> first,
+									Iterable<Tuple2<String, Integer>> second,
+									Collector<String> out) throws Exception {
+					out.collect(first + ":" + second);
+				}
+			});
+
+		OneInputTransformation<Tuple2<String, Integer>, String> transform = (OneInputTransformation<Tuple2<String, Integer>, String>) coGroupWindow.getTransformation();
+		OneInputStreamOperator<Tuple2<String, Integer>, String> operator = transform.getOperator();
+
+		// wrap the operator in the test harness, and perform a snapshot
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, String> testHarness =
+			new KeyedOneInputStreamOperatorTestHarness<>(operator, new Tuple2KeyExtractor(), BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness.open();
+		testHarness.snapshot(0L, 0L);
+	}
+
 	private static class Tuple2TimestampExtractor implements AssignerWithPunctuatedWatermarks<Tuple2<String, Integer>> {
-		
+
 		@Override
 		public long extractTimestamp(Tuple2<String, Integer> element, long previousTimestamp) {
 			return element.f1;
@@ -350,7 +399,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	private static class Tuple2KeyExtractor implements KeySelector<Tuple2<String,Integer>, String> {
+	private static class Tuple2KeyExtractor implements KeySelector<Tuple2<String, Integer>, String> {
 
 		@Override
 		public String getKey(Tuple2<String, Integer> value) throws Exception {

@@ -21,22 +21,19 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple;
 
 /**
- * Extracts one or more fields of the type Double from a tuple and puts them
- * into a new double[]
+ * Extracts one or more fields of the type Double from a tuple and puts them into a new double[].
  */
 @Internal
 public class FieldsFromTuple implements Extractor<Tuple, double[]> {
 
-	/**
-	 * auto generated version id
-	 */
 	private static final long serialVersionUID = -2554079091050273761L;
+
 	int[] indexes;
 
 	/**
-	 * Extracts one or more fields of the the type Double from a tuple and puts
+	 * Extracts one or more fields of the type Double from a tuple and puts
 	 * them into a new double[] (in the specified order).
-	 * 
+	 *
 	 * @param indexes
 	 *            The indexes of the fields to be extracted.
 	 */

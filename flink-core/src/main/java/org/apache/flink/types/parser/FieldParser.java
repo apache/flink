@@ -156,6 +156,27 @@ public abstract class FieldParser<T> {
 		return true;
 		
 	}
+
+	/**
+	 * Checks if the given bytes ends with the delimiter at the given end position.
+	 *
+	 * @param bytes  The byte array that holds the value.
+	 * @param endPos The index of the byte array where the check for the delimiter ends.
+	 * @param delim  The delimiter to check for.
+	 *
+	 * @return true if a delimiter ends at the given end position, false otherwise.
+	 */
+	public static final boolean endsWithDelimiter(byte[] bytes, int endPos, byte[] delim) {
+		if (endPos < delim.length - 1) {
+			return false;
+		}
+		for (int pos = 0; pos < delim.length; ++pos) {
+			if (delim[pos] != bytes[endPos - delim.length + 1 + pos]) {
+				return false;
+			}
+		}
+		return true;
+	}
 	
 	/**
 	 * Sets the error state of the parser. Called by subclasses of the parser to set the type of error
@@ -189,15 +210,15 @@ public abstract class FieldParser<T> {
 
 		while (endPos < limit) {
 			if (endPos < delimLimit && delimiterNext(bytes, endPos, delimiter)) {
-				if (endPos == startPos) {
-					setErrorState(ParseErrorState.EMPTY_COLUMN);
-					return -1;
-				}
 				break;
 			}
 			endPos++;
 		}
 
+		if (endPos == startPos) {
+			setErrorState(ParseErrorState.EMPTY_COLUMN);
+			return -1;
+		}
 		return endPos;
 	}
 

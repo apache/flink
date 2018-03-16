@@ -22,7 +22,7 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
- * Partitioner that sends all elements to the downstream operator with subtask ID=0;
+ * Partitioner that sends all elements to the downstream operator with subtask ID=0.
  *
  * @param <T> Type of the elements in the Stream being partitioned
  */
@@ -30,7 +30,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 public class GlobalPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private int[] returnArray = new int[] { 0 };
+	private final int[] returnArray = new int[] { 0 };
 
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,

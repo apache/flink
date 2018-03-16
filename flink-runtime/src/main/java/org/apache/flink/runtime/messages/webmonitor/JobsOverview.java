@@ -18,21 +18,45 @@
 
 package org.apache.flink.runtime.messages.webmonitor;
 
+import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.Collection;
+
 /**
  * An overview of how many jobs are in which status.
  */
 public class JobsOverview implements InfoMessage {
 
 	private static final long serialVersionUID = -3699051943490133183L;
-	
+
+	public static final String FIELD_NAME_JOBS_RUNNING = "jobs-running";
+	public static final String FIELD_NAME_JOBS_FINISHED = "jobs-finished";
+	public static final String FIELD_NAME_JOBS_CANCELLED = "jobs-cancelled";
+	public static final String FIELD_NAME_JOBS_FAILED = "jobs-failed";
+
+	@JsonProperty(FIELD_NAME_JOBS_RUNNING)
 	private final int numJobsRunningOrPending;
+
+	@JsonProperty(FIELD_NAME_JOBS_FINISHED)
 	private final int numJobsFinished;
+
+	@JsonProperty(FIELD_NAME_JOBS_CANCELLED)
 	private final int numJobsCancelled;
+
+	@JsonProperty(FIELD_NAME_JOBS_FAILED)
 	private final int numJobsFailed;
 
-	public JobsOverview(int numJobsRunningOrPending, int numJobsFinished,
-						int numJobsCancelled, int numJobsFailed) {
-		
+	@JsonCreator
+	public JobsOverview(
+			@JsonProperty(FIELD_NAME_JOBS_RUNNING) int numJobsRunningOrPending,
+			@JsonProperty(FIELD_NAME_JOBS_FINISHED) int numJobsFinished,
+			@JsonProperty(FIELD_NAME_JOBS_CANCELLED) int numJobsCancelled,
+			@JsonProperty(FIELD_NAME_JOBS_FAILED) int numJobsFailed) {
+
 		this.numJobsRunningOrPending = numJobsRunningOrPending;
 		this.numJobsFinished = numJobsFinished;
 		this.numJobsCancelled = numJobsCancelled;
@@ -61,9 +85,9 @@ public class JobsOverview implements InfoMessage {
 	public int getNumJobsFailed() {
 		return numJobsFailed;
 	}
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (this == obj) {
@@ -98,5 +122,43 @@ public class JobsOverview implements InfoMessage {
 				", numJobsCancelled=" + numJobsCancelled +
 				", numJobsFailed=" + numJobsFailed +
 				'}';
+	}
+
+	/**
+	 * Combines the given jobs overview with this.
+	 *
+	 * @param jobsOverview to combine with this
+	 * @return Combined jobs overview
+	 */
+	public JobsOverview combine(JobsOverview jobsOverview) {
+		return new JobsOverview(this, jobsOverview);
+	}
+
+	public static JobsOverview create(Collection<JobStatus> allJobsStatus) {
+		Preconditions.checkNotNull(allJobsStatus);
+
+		int numberRunningOrPendingJobs = 0;
+		int numberFinishedJobs = 0;
+		int numberCancelledJobs = 0;
+		int numberFailedJobs = 0;
+
+		for (JobStatus status : allJobsStatus) {
+			switch (status) {
+				case FINISHED:
+					numberFinishedJobs++;
+					break;
+				case FAILED:
+					numberFailedJobs++;
+					break;
+				case CANCELED:
+					numberCancelledJobs++;
+					break;
+				default:
+					numberRunningOrPendingJobs++;
+					break;
+			}
+		}
+
+		return new JobsOverview(numberRunningOrPendingJobs, numberFinishedJobs, numberCancelledJobs, numberFailedJobs);
 	}
 }

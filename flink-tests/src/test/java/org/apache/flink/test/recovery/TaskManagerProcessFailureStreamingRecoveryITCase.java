@@ -18,33 +18,34 @@
 
 package org.apache.flink.test.recovery;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.UUID;
-
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.rules.TemporaryFolder;
 
-import static org.junit.Assert.assertTrue;
+import java.io.File;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Test for streaming program behaviour in case of TaskManager failure
  * based on {@link AbstractTaskManagerProcessFailureRecoveryTest}.
  *
- * The logic in this test is as follows:
+ * <p>The logic in this test is as follows:
  *  - The source slowly emits records (every 10 msecs) until the test driver
  *    gives the "go" for regular execution
  *  - The "go" is given after the first taskmanager has been killed, so it can only
@@ -55,24 +56,27 @@ import static org.junit.Assert.assertTrue;
  */
 @SuppressWarnings("serial")
 public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTaskManagerProcessFailureRecoveryTest {
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	private static final int DATA_COUNT = 10000;
 
 	@Override
 	public void testTaskManagerFailure(int jobManagerPort, final File coordinateDir) throws Exception {
 
-		final File tempCheckpointDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH),
-				UUID.randomUUID().toString());
+		final File tempCheckpointDir = tempFolder.newFolder();
 
-		assertTrue("Cannot create directory for checkpoints", tempCheckpointDir.mkdirs());
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createRemoteEnvironment("localhost", jobManagerPort);
+		final Configuration configuration = new Configuration();
+		configuration.setString(CoreOptions.MODE, CoreOptions.OLD_MODE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
+			"localhost",
+			jobManagerPort,
+			configuration);
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));
 		env.enableCheckpointing(200);
-		
+
 		env.setStateBackend(new FsStateBackend(tempCheckpointDir.getAbsoluteFile().toURI()));
 
 		DataStream<Long> result = env.addSource(new SleepyDurableGenerateSequence(coordinateDir, DATA_COUNT))
@@ -105,8 +109,8 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 		}
 	}
 
-	public static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long> 
-			implements Checkpointed<Long> {
+	private static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long>
+			implements ListCheckpointed<Long> {
 
 		private static final long SLEEP_TIME = 50;
 
@@ -160,17 +164,20 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 		}
 
 		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
-			return collected;
+		public List<Long> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.collected);
 		}
 
 		@Override
-		public void restoreState(Long state) {
-			collected = state;
+		public void restoreState(List<Long> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.collected = state.get(0);
 		}
 	}
 
-	public static class Mapper extends RichMapFunction<Long, Long> {
+	private static class Mapper extends RichMapFunction<Long, Long> {
 		private boolean markerCreated = false;
 		private File coordinateDir;
 
@@ -189,7 +196,7 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 		}
 	}
 
-	private static class CheckpointedSink extends RichSinkFunction<Long> implements Checkpointed<Long> {
+	private static class CheckpointedSink extends RichSinkFunction<Long> implements ListCheckpointed<Long> {
 
 		private long stepSize;
 		private long congruence;
@@ -223,13 +230,16 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 		}
 
 		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return collected;
+		public List<Long> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.collected);
 		}
 
 		@Override
-		public void restoreState(Long state) {
-			collected = state;
+		public void restoreState(List<Long> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.collected = state.get(0);
 		}
 	}
 }

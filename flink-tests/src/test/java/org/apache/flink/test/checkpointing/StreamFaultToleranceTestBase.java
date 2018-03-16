@@ -19,24 +19,20 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.Serializable;
 
-import static org.junit.Assert.fail;
-
 /**
- * Test base for fault tolerant streaming programs
+ * Test base for fault tolerant streaming programs.
  */
 public abstract class StreamFaultToleranceTestBase extends TestLogger {
 
@@ -44,48 +40,23 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 	protected static final int NUM_TASK_SLOTS = 4;
 	protected static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
 
-	private static LocalFlinkMiniCluster cluster;
-
-	@BeforeClass
-	public static void startCluster() {
-		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TASK_MANAGERS);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_TASK_SLOTS);
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
-			
-			cluster = new LocalFlinkMiniCluster(config, false);
-
-			cluster.start();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to start test cluster: " + e.getMessage());
-		}
-	}
-
-	@AfterClass
-	public static void stopCluster() {
-		try {
-			cluster.stop();
-			cluster = null;
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to stop test cluster: " + e.getMessage());
-		}
-	}
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			new Configuration(),
+			NUM_TASK_MANAGERS,
+			NUM_TASK_SLOTS));
 
 	/**
 	 * Implementations are expected to assemble the test topology in this function
 	 * using the provided {@link StreamExecutionEnvironment}.
 	 */
-	abstract public void testProgram(StreamExecutionEnvironment env);
+	public abstract void testProgram(StreamExecutionEnvironment env);
 
 	/**
 	 * Implementations are expected to provide test here to verify the correct behavior.
 	 */
-	abstract public void postSubmit() throws Exception ;
+	public abstract void postSubmit() throws Exception;
 
 	/**
 	 * Runs the following program the test program defined in {@link #testProgram(StreamExecutionEnvironment)}
@@ -94,8 +65,7 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 	@Test
 	public void runCheckpointedProgram() throws Exception {
 		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
 			env.enableCheckpointing(500);
 			env.getConfig().disableSysoutLogging();
@@ -117,6 +87,9 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 	//  Frequently used utilities
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * POJO storing prefix, value, and count.
+	 */
 	@SuppressWarnings("serial")
 	public static class PrefixCount implements Serializable {
 

@@ -18,25 +18,31 @@
 
 package org.apache.flink.client.program;
 
-import static org.junit.Assert.*;
-
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.configuration.Configuration;
+
 import org.junit.Test;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
+
+/**
+ * Tests for the generation of execution plans.
+ */
 public class ExecutionPlanCreationTest {
 
 	@Test
@@ -44,27 +50,27 @@ public class ExecutionPlanCreationTest {
 		try {
 			PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/dev/random", "/tmp");
 			assertNotNull(prg.getPreviewPlan());
-			
+
 			InetAddress mockAddress = InetAddress.getLocalHost();
 			InetSocketAddress mockJmAddress = new InetSocketAddress(mockAddress, 12345);
 
 			Configuration config = new Configuration();
 
-			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, mockJmAddress.getHostName());
-			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, mockJmAddress.getPort());
+			config.setString(JobManagerOptions.ADDRESS, mockJmAddress.getHostName());
+			config.setInteger(JobManagerOptions.PORT, mockJmAddress.getPort());
 
 			Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
 			OptimizedPlan op = (OptimizedPlan) ClusterClient.getOptimizedPlan(optimizer, prg, -1);
 			assertNotNull(op);
-			
+
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
 			assertNotNull(dumper.getOptimizerPlanAsJSON(op));
-			
+
 			// test HTML escaping
 			PlanJSONDumpGenerator dumper2 = new PlanJSONDumpGenerator();
 			dumper2.setEncodeForHTML(true);
 			String htmlEscaped = dumper2.getOptimizerPlanAsJSON(op);
-			
+
 			assertEquals(-1, htmlEscaped.indexOf('\\'));
 		}
 		catch (Exception e) {
@@ -72,30 +78,34 @@ public class ExecutionPlanCreationTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
+	/**
+	 * A test job.
+	 */
 	public static class TestOptimizerPlan implements ProgramDescription {
-		
+
 		@SuppressWarnings("serial")
 		public static void main(String[] args) throws Exception {
 			if (args.length < 2) {
 				System.err.println("Usage: TestOptimizerPlan <input-file-path> <output-file-path>");
 				return;
 			}
-			
+
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
+
 			DataSet<Tuple2<Long, Long>> input = env.readCsvFile(args[0])
 					.fieldDelimiter("\t").types(Long.class, Long.class);
-			
+
 			DataSet<Tuple2<Long, Long>> result = input.map(
-					new MapFunction<Tuple2<Long,Long>, Tuple2<Long,Long>>() {
+					new MapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>() {
 						public Tuple2<Long, Long> map(Tuple2<Long, Long> value){
-							return new Tuple2<Long, Long>(value.f0, value.f1+1);
+							return new Tuple2<Long, Long>(value.f0, value.f1 + 1);
 						}
 			});
 			result.writeAsCsv(args[1], "\n", "\t");
 			env.execute();
 		}
+
 		@Override
 		public String getDescription() {
 			return "TestOptimizerPlan <input-file-path> <output-file-path>";

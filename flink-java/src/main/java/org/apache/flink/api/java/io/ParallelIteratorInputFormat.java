@@ -18,14 +18,13 @@
 
 package org.apache.flink.api.java.io;
 
-import java.io.IOException;
-import java.util.Iterator;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.util.SplittableIterator;
 
+import java.io.IOException;
+import java.util.Iterator;
 
 /**
  * An input format that generates data in parallel through a {@link SplittableIterator}.
@@ -34,25 +33,22 @@ import org.apache.flink.util.SplittableIterator;
 public class ParallelIteratorInputFormat<T> extends GenericInputFormat<T> {
 
 	private static final long serialVersionUID = 1L;
-	
-	
+
 	private final SplittableIterator<T> source;
-	
+
 	private transient Iterator<T> splitIterator;
-	
-	
-	
+
 	public ParallelIteratorInputFormat(SplittableIterator<T> iterator) {
 		this.source = iterator;
 	}
-	
+
 	@Override
 	public void open(GenericInputSplit split) throws IOException {
 		super.open(split);
-		
+
 		this.splitIterator = this.source.getSplit(split.getSplitNumber(), split.getTotalNumberOfSplits());
 	}
-	
+
 	@Override
 	public boolean reachedEnd() {
 		return !this.splitIterator.hasNext();

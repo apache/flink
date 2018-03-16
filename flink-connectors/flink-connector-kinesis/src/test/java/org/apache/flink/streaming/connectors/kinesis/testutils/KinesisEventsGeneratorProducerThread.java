@@ -17,14 +17,15 @@
 
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
-import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+
+import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,12 +98,12 @@ public class KinesisEventsGeneratorProducerThread {
 		@Override
 		public void run(SourceContext<String> ctx) throws Exception {
 			long seq = 0;
-			while(running) {
+			while (running) {
 				Thread.sleep(10);
 				String evt = (seq++) + "-" + RandomStringUtils.randomAlphabetic(12);
 				ctx.collect(evt);
 				LOG.info("Emitting event {}", evt);
-				if(seq >= limit) {
+				if (seq >= limit) {
 					break;
 				}
 			}

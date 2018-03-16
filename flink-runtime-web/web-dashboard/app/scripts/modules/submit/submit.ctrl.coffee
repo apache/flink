@@ -79,17 +79,28 @@ angular.module('flinkApp')
       $scope.state['plan-button'] = "Getting Plan"
       $scope.error = null
       $scope.plan = null
+
+      queryParameters = {}
+
+      if $scope.state['entry-class']
+        queryParameters['entry-class'] = $scope.state['entry-class']
+
+      if $scope.state.parallelism
+        queryParameters['parallelism'] = $scope.state['parallelism']
+
+      if $scope.state['program-args']
+        queryParameters['program-args'] = $scope.state['program-args']
+
       JobSubmitService.getPlan(
-        $scope.state.selected, {
-          'entry-class': $scope.state['entry-class'],
-          parallelism: $scope.state.parallelism,
-          'program-args': $scope.state['program-args']
-        }
+        $scope.state.selected, queryParameters
       ).then (data) ->
         if action == $scope.state['action-time']
           $scope.state['plan-button'] = "Show Plan"
           $scope.error = data.error
           $scope.plan = data.plan
+      .catch (err) ->
+        $scope.state['plan-button'] = "Show Plan"
+        $scope.error = err
 
   $scope.runJob = () ->
     if $scope.state['submit-button'] == "Submit"
@@ -98,20 +109,35 @@ angular.module('flinkApp')
       $scope.state['submit-button'] = "Submitting"
       $scope.state['plan-button'] = "Show Plan"
       $scope.error = null
+
+      queryParameters = {}
+
+      if $scope.state['entry-class']
+        queryParameters['entry-class'] = $scope.state['entry-class']
+
+      if $scope.state.parallelism
+        queryParameters['parallelism'] = $scope.state['parallelism']
+
+      if $scope.state['program-args']
+        queryParameters['program-args'] = $scope.state['program-args']
+
+      if $scope.state['savepointPath']
+        queryParameters['savepointPath'] = $scope.state['savepointPath']
+
+      if $scope.state['allowNonRestoredState']
+        queryParameters['allowNonRestoredState'] = $scope.state['allowNonRestoredState']
+
       JobSubmitService.runJob(
-        $scope.state.selected, {
-          'entry-class': $scope.state['entry-class'],
-          parallelism: $scope.state.parallelism,
-          'program-args': $scope.state['program-args'],
-          savepointPath: $scope.state['savepointPath'],
-          allowNonRestoredState: $scope.state['allowNonRestoredState']
-        }
+        $scope.state.selected, queryParameters
       ).then (data) ->
         if action == $scope.state['action-time']
           $scope.state['submit-button'] = "Submit"
           $scope.error = data.error
           if data.jobid?
             $state.go("single-job.plan.subtasks", {jobid: data.jobid})
+      .catch (err) ->
+        $scope.state['submit-button'] = "Submit"
+        $scope.error = err
 
   # job plan display related stuff
   $scope.nodeid = null

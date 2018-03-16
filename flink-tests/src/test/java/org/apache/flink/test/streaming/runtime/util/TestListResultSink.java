@@ -21,9 +21,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.TreeSet;
 
+/**
+ * Thread-safe sink for collecting elements into an on-heap list.
+ *
+ * @param <T> element type
+ */
 public class TestListResultSink<T> extends RichSinkFunction<T> {
 
 	private static final long serialVersionUID = 1L;
@@ -66,8 +71,8 @@ public class TestListResultSink<T> extends RichSinkFunction<T> {
 
 	public List<T> getSortedResult() {
 		synchronized (resultList()) {
-			TreeSet<T> treeSet = new TreeSet<T>(resultList());
-			ArrayList<T> sortedList = new ArrayList<T>(treeSet);
+			ArrayList<T> sortedList = new ArrayList<T>(resultList());
+			Collections.sort((List) sortedList);
 			return sortedList;
 		}
 	}

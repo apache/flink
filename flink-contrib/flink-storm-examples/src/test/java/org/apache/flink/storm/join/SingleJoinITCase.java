@@ -18,12 +18,16 @@
 
 package org.apache.flink.storm.join;
 
-import com.google.common.base.Joiner;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
+
+/**
+ * Test for the SingleJoin example.
+ */
 public class SingleJoinITCase extends StreamingProgramTestBase {
 
-	protected static String expectedOutput[] = {
+	protected static String[] expectedOutput = {
 			"(male,20)",
 			"(female,21)",
 			"(male,22)",

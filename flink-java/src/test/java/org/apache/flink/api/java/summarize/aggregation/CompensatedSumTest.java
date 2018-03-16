@@ -21,12 +21,15 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * Tests for {@link CompensatedSum}.
+ */
 public class CompensatedSumTest {
 
 	/**
 	 * When adding a series of numbers the order of the numbers should not impact the results.
 	 *
-	 * This test shows that a naive summation comes up with a different result than Kahan
+	 * <p>This test shows that a naive summation comes up with a different result than Kahan
 	 * Summation when you start with either a smaller or larger number in some cases and
 	 * helps prove our Kahan Summation is working.
 	 */
@@ -40,7 +43,7 @@ public class CompensatedSumTest {
 		double naiveResult1 = smallSum.value();
 		double naiveResult2 = largeSum.value();
 
-		for(int i = 0; i < 10; i++) {
+		for (int i = 0; i < 10; i++) {
 			compensatedResult1 = compensatedResult1.add(smallSum);
 			compensatedResult2 = compensatedResult2.add(smallSum);
 			naiveResult1 += smallSum.value();
@@ -68,7 +71,7 @@ public class CompensatedSumTest {
 	@Test
 	public void testDelta() throws Exception {
 		CompensatedSum compensatedResult1 = new CompensatedSum(0.001, 0.0);
-		for(int i = 0; i < 10; i++) {
+		for (int i = 0; i < 10; i++) {
 			compensatedResult1 = compensatedResult1.add(0.001);
 		}
 		Assert.assertEquals(0.011, compensatedResult1.value(), 0.0);

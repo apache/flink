@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-
 // --------------------------------------------------------------
 //  THIS IS A GENERATED SOURCE FILE. DO NOT EDIT!
 //  GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 // --------------------------------------------------------------
-
 
 package org.apache.flink.api.java.tuple;
 
@@ -115,7 +113,9 @@ public class Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> extends Tuple {
 	}
 
 	@Override
-	public int getArity() { return 10; }
+	public int getArity() {
+		return 10;
+	}
 
 	@Override
 	@SuppressWarnings("unchecked")
@@ -227,26 +227,50 @@ public class Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> extends Tuple {
 	}
 
 	/**
-	 * Deep equality for tuples by calling equals() on the tuple members
+	 * Deep equality for tuples by calling equals() on the tuple members.
 	 * @param o the object checked for equality
 	 * @return true if this is equal to o.
 	 */
 	@Override
 	public boolean equals(Object o) {
-		if(this == o) { return true; }
-		if (!(o instanceof Tuple10)) { return false; }
+		if (this == o) {
+			return true;
+		}
+		if (!(o instanceof Tuple10)) {
+			return false;
+		}
 		@SuppressWarnings("rawtypes")
 		Tuple10 tuple = (Tuple10) o;
-		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) { return false; }
-		if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) { return false; }
-		if (f2 != null ? !f2.equals(tuple.f2) : tuple.f2 != null) { return false; }
-		if (f3 != null ? !f3.equals(tuple.f3) : tuple.f3 != null) { return false; }
-		if (f4 != null ? !f4.equals(tuple.f4) : tuple.f4 != null) { return false; }
-		if (f5 != null ? !f5.equals(tuple.f5) : tuple.f5 != null) { return false; }
-		if (f6 != null ? !f6.equals(tuple.f6) : tuple.f6 != null) { return false; }
-		if (f7 != null ? !f7.equals(tuple.f7) : tuple.f7 != null) { return false; }
-		if (f8 != null ? !f8.equals(tuple.f8) : tuple.f8 != null) { return false; }
-		if (f9 != null ? !f9.equals(tuple.f9) : tuple.f9 != null) { return false; }
+		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) {
+			return false;
+		}
+		if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) {
+			return false;
+		}
+		if (f2 != null ? !f2.equals(tuple.f2) : tuple.f2 != null) {
+			return false;
+		}
+		if (f3 != null ? !f3.equals(tuple.f3) : tuple.f3 != null) {
+			return false;
+		}
+		if (f4 != null ? !f4.equals(tuple.f4) : tuple.f4 != null) {
+			return false;
+		}
+		if (f5 != null ? !f5.equals(tuple.f5) : tuple.f5 != null) {
+			return false;
+		}
+		if (f6 != null ? !f6.equals(tuple.f6) : tuple.f6 != null) {
+			return false;
+		}
+		if (f7 != null ? !f7.equals(tuple.f7) : tuple.f7 != null) {
+			return false;
+		}
+		if (f8 != null ? !f8.equals(tuple.f8) : tuple.f8 != null) {
+			return false;
+		}
+		if (f9 != null ? !f9.equals(tuple.f9) : tuple.f9 != null) {
+			return false;
+		}
 		return true;
 	}
 
@@ -271,8 +295,8 @@ public class Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> extends Tuple {
 	*/
 	@Override
 	@SuppressWarnings("unchecked")
-	public Tuple10<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9> copy(){ 
-		return new Tuple10<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9>(this.f0,
+	public Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> copy() {
+		return new Tuple10<>(this.f0,
 			this.f1,
 			this.f2,
 			this.f3,
@@ -292,7 +316,16 @@ public class Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> extends Tuple {
 	 * instead of
 	 * {@code new Tuple3<Integer, Double, String>(n, x, s)}
 	 */
-	public static <T0,T1,T2,T3,T4,T5,T6,T7,T8,T9> Tuple10<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9> of(T0 value0, T1 value1, T2 value2, T3 value3, T4 value4, T5 value5, T6 value6, T7 value7, T8 value8, T9 value9) {
-		return new Tuple10<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9>(value0, value1, value2, value3, value4, value5, value6, value7, value8, value9);
+	public static <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> of(T0 value0, T1 value1, T2 value2, T3 value3, T4 value4, T5 value5, T6 value6, T7 value7, T8 value8, T9 value9) {
+		return new Tuple10<>(value0,
+			value1,
+			value2,
+			value3,
+			value4,
+			value5,
+			value6,
+			value7,
+			value8,
+			value9);
 	}
 }

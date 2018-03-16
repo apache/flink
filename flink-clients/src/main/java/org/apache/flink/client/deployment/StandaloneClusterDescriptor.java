@@ -15,17 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.client.deployment;
 
 import org.apache.flink.client.program.StandaloneClusterClient;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.FlinkException;
 
 /**
- * A deployment descriptor for an existing cluster
+ * A deployment descriptor for an existing cluster.
  */
-public class StandaloneClusterDescriptor implements ClusterDescriptor<StandaloneClusterClient> {
+public class StandaloneClusterDescriptor implements ClusterDescriptor<StandaloneClusterId> {
 
 	private final Configuration config;
 
@@ -35,22 +37,40 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 
 	@Override
 	public String getClusterDescription() {
-		String host = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "");
-		int port = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
+		String host = config.getString(JobManagerOptions.ADDRESS, "");
+		int port = config.getInteger(JobManagerOptions.PORT, -1);
 		return "Standalone cluster at " + host + ":" + port;
 	}
 
 	@Override
-	public StandaloneClusterClient retrieve(String applicationID) {
+	public StandaloneClusterClient retrieve(StandaloneClusterId standaloneClusterId) throws ClusterRetrieveException {
 		try {
 			return new StandaloneClusterClient(config);
 		} catch (Exception e) {
-			throw new RuntimeException("Couldn't retrieve standalone cluster", e);
+			throw new ClusterRetrieveException("Couldn't retrieve standalone cluster", e);
 		}
 	}
 
 	@Override
-	public StandaloneClusterClient deploy() throws UnsupportedOperationException {
+	public StandaloneClusterClient deploySessionCluster(ClusterSpecification clusterSpecification) {
 		throw new UnsupportedOperationException("Can't deploy a standalone cluster.");
+	}
+
+	@Override
+	public StandaloneClusterClient deployJobCluster(
+		ClusterSpecification clusterSpecification,
+		JobGraph jobGraph,
+		boolean detached) {
+		throw new UnsupportedOperationException("Can't deploy a standalone per-job cluster.");
+	}
+
+	@Override
+	public void terminateCluster(StandaloneClusterId clusterId) throws FlinkException {
+		throw new UnsupportedOperationException("Cannot terminate standalone clusters.");
+	}
+
+	@Override
+	public void close() throws Exception {
+		// nothing to do
 	}
 }

@@ -17,7 +17,14 @@
  */
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -33,6 +40,10 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 
 	public ArrayListSerializer(TypeSerializer<T> elementSerializer) {
 		this.elementSerializer = elementSerializer;
+	}
+
+	public TypeSerializer<T> getElementSerializer() {
+		return elementSerializer;
 	}
 
 	@Override
@@ -53,11 +64,17 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 
 	@Override
 	public ArrayList<T> copy(ArrayList<T> from) {
-		ArrayList<T> newList = new ArrayList<>(from.size());
-		for (int i = 0; i < from.size(); i++) {
-			newList.add(elementSerializer.copy(from.get(i)));
+		if (elementSerializer.isImmutableType()) {
+			// fast track using memcopy for immutable types
+			return new ArrayList<>(from);
+		} else {
+			// element-wise deep copy for mutable types
+			ArrayList<T> newList = new ArrayList<>(from.size());
+			for (int i = 0; i < from.size(); i++) {
+				newList.add(elementSerializer.copy(from.get(i)));
+			}
+			return newList;
 		}
-		return newList;
 	}
 
 	@Override
@@ -109,8 +126,8 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	@Override
 	public boolean equals(Object obj) {
 		return obj == this ||
-			(obj != null && obj.getClass() == getClass() &&
-				elementSerializer.equals(((ArrayListSerializer<?>) obj).elementSerializer));
+				(obj != null && obj.getClass() == getClass() &&
+						elementSerializer.equals(((ArrayListSerializer<?>) obj).elementSerializer));
 	}
 
 	@Override
@@ -121,5 +138,37 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	@Override
 	public int hashCode() {
 		return elementSerializer.hashCode();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & compatibility
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		return new CollectionSerializerConfigSnapshot<>(elementSerializer);
+	}
+
+	@Override
+	public CompatibilityResult<ArrayList<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
+			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousElemSerializerAndConfig =
+				((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
+
+			CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
+					previousElemSerializerAndConfig.f0,
+					UnloadableDummyTypeSerializer.class,
+					previousElemSerializerAndConfig.f1,
+					elementSerializer);
+
+			if (!compatResult.isRequiresMigration()) {
+				return CompatibilityResult.compatible();
+			} else if (compatResult.getConvertDeserializer() != null) {
+				return CompatibilityResult.requiresMigration(
+					new ArrayListSerializer<>(new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer())));
+			}
+		}
+
+		return CompatibilityResult.requiresMigration();
 	}
 }

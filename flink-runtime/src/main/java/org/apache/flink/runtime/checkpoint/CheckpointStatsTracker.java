@@ -24,10 +24,10 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 
 import javax.annotation.Nullable;
-import java.io.Serializable;
+
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
@@ -52,9 +52,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>The statistics are accessed via {@link #createSnapshot()} and exposed via
  * both the web frontend and the {@link Metric} system.
  */
-public class CheckpointStatsTracker implements Serializable {
-
-	private static final long serialVersionUID = 1694085244807339288L;
+public class CheckpointStatsTracker {
 
 	/**
 	 * Lock used to update stats and creating snapshots. Updates always happen
@@ -67,14 +65,11 @@ public class CheckpointStatsTracker implements Serializable {
 	 */
 	private final ReentrantLock statsReadWriteLock = new ReentrantLock();
 
-	/** The job vertices taking part in the checkpoints. */
-	private final List<ExecutionJobVertex> jobVertices;
-
 	/** Total number of subtasks to checkpoint. */
 	private final int totalSubtaskCount;
 
 	/** Snapshotting settings created from the CheckpointConfig. */
-	private final JobSnapshottingSettings jobSnapshottingSettings;
+	private final CheckpointCoordinatorConfiguration jobCheckpointingConfiguration;
 
 	/** Checkpoint counts. */
 	private final CheckpointStatsCounts counts = new CheckpointStatsCounts();
@@ -84,6 +79,9 @@ public class CheckpointStatsTracker implements Serializable {
 
 	/** History of checkpoints. */
 	private final CheckpointStatsHistory history;
+
+	/** The job vertices taking part in the checkpoints. */
+	private final transient List<ExecutionJobVertex> jobVertices;
 
 	/** The latest restored checkpoint. */
 	@Nullable
@@ -99,24 +97,28 @@ public class CheckpointStatsTracker implements Serializable {
 	 */
 	private volatile boolean dirty;
 
+	/** The latest completed checkpoint. Used by the latest completed checkpoint metrics. */
+	@Nullable
+	private volatile transient CompletedCheckpointStats latestCompletedCheckpoint;
+
 	/**
 	 * Creates a new checkpoint stats tracker.
 	 *
 	 * @param numRememberedCheckpoints Maximum number of checkpoints to remember, including in progress ones.
 	 * @param jobVertices Job vertices involved in the checkpoints.
-	 * @param jobSnapshottingSettings Snapshotting settings created from the CheckpointConfig.
+	 * @param jobCheckpointingConfiguration Checkpointing configuration.
 	 * @param metricGroup Metric group for exposed metrics
 	 */
 	public CheckpointStatsTracker(
 		int numRememberedCheckpoints,
 		List<ExecutionJobVertex> jobVertices,
-		JobSnapshottingSettings jobSnapshottingSettings,
+		CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
 		MetricGroup metricGroup) {
 
 		checkArgument(numRememberedCheckpoints >= 0, "Negative number of remembered checkpoints");
 		this.history = new CheckpointStatsHistory(numRememberedCheckpoints);
 		this.jobVertices = checkNotNull(jobVertices, "JobVertices");
-		this.jobSnapshottingSettings = checkNotNull(jobSnapshottingSettings);
+		this.jobCheckpointingConfiguration = checkNotNull(jobCheckpointingConfiguration);
 
 		// Compute the total subtask count. We do this here in order to only
 		// do it once.
@@ -138,13 +140,13 @@ public class CheckpointStatsTracker implements Serializable {
 	}
 
 	/**
-	 * Returns the job's snapshotting settings which are derived from the
+	 * Returns the job's checkpointing configuration which is derived from the
 	 * CheckpointConfig.
 	 *
-	 * @return The job's snapshotting settings.
+	 * @return The job's checkpointing configuration.
 	 */
-	public JobSnapshottingSettings getSnapshottingSettings() {
-		return jobSnapshottingSettings;
+	public CheckpointCoordinatorConfiguration getJobCheckpointingConfiguration() {
+		return jobCheckpointingConfiguration;
 	}
 
 	/**
@@ -217,6 +219,11 @@ public class CheckpointStatsTracker implements Serializable {
 		return pending;
 	}
 
+	/**
+	 * Callback when a checkpoint is restored.
+	 *
+	 * @param restored The restored checkpoint stats.
+	 */
 	void reportRestoredCheckpoint(RestoredCheckpointStats restored) {
 		checkNotNull(restored, "Restored checkpoint");
 
@@ -239,6 +246,8 @@ public class CheckpointStatsTracker implements Serializable {
 	private void reportCompletedCheckpoint(CompletedCheckpointStats completed) {
 		statsReadWriteLock.lock();
 		try {
+			latestCompletedCheckpoint = completed;
+
 			counts.incrementCompletedCheckpoints();
 			history.replacePendingCheckpointById(completed);
 
@@ -398,7 +407,7 @@ public class CheckpointStatsTracker implements Serializable {
 	private class LatestCompletedCheckpointSizeGauge implements Gauge<Long> {
 		@Override
 		public Long getValue() {
-			CompletedCheckpointStats completed = latestSnapshot.getHistory().getLatestCompletedCheckpoint();
+			CompletedCheckpointStats completed = latestCompletedCheckpoint;
 			if (completed != null) {
 				return completed.getStateSize();
 			} else {
@@ -410,7 +419,7 @@ public class CheckpointStatsTracker implements Serializable {
 	private class LatestCompletedCheckpointDurationGauge implements Gauge<Long> {
 		@Override
 		public Long getValue() {
-			CompletedCheckpointStats completed = latestSnapshot.getHistory().getLatestCompletedCheckpoint();
+			CompletedCheckpointStats completed = latestCompletedCheckpoint;
 			if (completed != null) {
 				return completed.getEndToEndDuration();
 			} else {
@@ -419,11 +428,10 @@ public class CheckpointStatsTracker implements Serializable {
 		}
 	}
 
-
 	private class LatestCompletedCheckpointAlignmentBufferedGauge implements Gauge<Long> {
 		@Override
 		public Long getValue() {
-			CompletedCheckpointStats completed = latestSnapshot.getHistory().getLatestCompletedCheckpoint();
+			CompletedCheckpointStats completed = latestCompletedCheckpoint;
 			if (completed != null) {
 				return completed.getAlignmentBuffered();
 			} else {
@@ -435,8 +443,8 @@ public class CheckpointStatsTracker implements Serializable {
 	private class LatestCompletedCheckpointExternalPathGauge implements Gauge<String> {
 		@Override
 		public String getValue() {
-			CompletedCheckpointStats completed = latestSnapshot.getHistory().getLatestCompletedCheckpoint();
-			if (completed != null) {
+			CompletedCheckpointStats completed = latestCompletedCheckpoint;
+			if (completed != null && completed.getExternalPath() != null) {
 				return completed.getExternalPath();
 			} else {
 				return "n/a";

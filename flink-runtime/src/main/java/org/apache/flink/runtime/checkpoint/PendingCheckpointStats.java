@@ -42,8 +42,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class PendingCheckpointStats extends AbstractCheckpointStats {
 
+	private static final long serialVersionUID = -973959257699390327L;
+
 	/** Tracker callback when the pending checkpoint is finalized or aborted. */
-	private final CheckpointStatsTracker.PendingCheckpointStatsCallback trackerCallback;
+	private transient final CheckpointStatsTracker.PendingCheckpointStatsCallback trackerCallback;
 
 	/** The current number of acknowledged subtasks. */
 	private volatile int currentNumAcknowledgedSubtasks;
@@ -54,7 +56,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 	/** Current buffered bytes during alignment over all collected subtasks. */
 	private volatile long currentAlignmentBuffered;
 
-	/** Stats of the latest acknowleged subtask. */
+	/** Stats of the latest acknowledged subtask. */
 	private volatile SubtaskStateStats latestAcknowledgedSubtask;
 
 	/**
@@ -138,10 +140,10 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 	/**
 	 * Reports a successfully completed pending checkpoint.
 	 *
-	 * @param externalPath Optional external storage path if checkpoint was externalized.
+	 * @param externalPointer Optional external storage path if checkpoint was externalized.
 	 * @return Callback for the {@link CompletedCheckpoint} instance to notify about disposal.
 	 */
-	CompletedCheckpointStats.DiscardCallback reportCompletedCheckpoint(@Nullable String externalPath) {
+	CompletedCheckpointStats.DiscardCallback reportCompletedCheckpoint(String externalPointer) {
 		CompletedCheckpointStats completed = new CompletedCheckpointStats(
 			checkpointId,
 			triggerTimestamp,
@@ -152,7 +154,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 			currentStateSize,
 			currentAlignmentBuffered,
 			latestAcknowledgedSubtask,
-			externalPath);
+				externalPointer);
 
 		trackerCallback.reportCompletedCheckpoint(completed);
 

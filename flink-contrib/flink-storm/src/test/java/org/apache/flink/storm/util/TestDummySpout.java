@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.util;
 
 import org.apache.storm.spout.SpoutOutputCollector;
@@ -26,10 +27,13 @@ import org.apache.storm.utils.Utils;
 
 import java.util.Map;
 
+/**
+ * A test implementation of a {@link IRichSpout}.
+ */
 public class TestDummySpout implements IRichSpout {
 	private static final long serialVersionUID = -5190945609124603118L;
 
-	public final static String spoutStreamId = "spout-stream";
+	public static final String SPOUT_STREAM_ID = "spout-stream";
 
 	private boolean emit = true;
 	@SuppressWarnings("rawtypes")
@@ -71,7 +75,7 @@ public class TestDummySpout implements IRichSpout {
 	@Override
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
 		declarer.declareStream(Utils.DEFAULT_STREAM_ID, new Fields("data"));
-		declarer.declareStream(spoutStreamId, new Fields("id", "data"));
+		declarer.declareStream(SPOUT_STREAM_ID, new Fields("id", "data"));
 	}
 
 	@Override

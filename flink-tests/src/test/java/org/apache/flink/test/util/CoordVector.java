@@ -18,20 +18,20 @@
 
 package org.apache.flink.test.util;
 
-import java.io.IOException;
-
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Value;
 
+import java.io.IOException;
+
 /**
  * Implements a feature vector as a multi-dimensional point. Coordinates of that point
  * (= the features) are stored as double values. The distance between two feature vectors is
- * the Euclidian distance between the points.
+ * the Euclidean distance between the points.
  */
 public final class CoordVector implements Value, Comparable<CoordVector> {
 	private static final long serialVersionUID = 1L;
-	
+
 	// coordinate array
 	private double[] coordinates;
 
@@ -44,7 +44,7 @@ public final class CoordVector implements Value, Comparable<CoordVector> {
 
 	/**
 	 * Initializes a coordinate vector.
-	 * 
+	 *
 	 * @param coordinates The coordinate vector of a multi-dimensional point.
 	 */
 	public CoordVector(Double[] coordinates) {
@@ -56,7 +56,7 @@ public final class CoordVector implements Value, Comparable<CoordVector> {
 
 	/**
 	 * Initializes a coordinate vector.
-	 * 
+	 *
 	 * @param coordinates The coordinate vector of a multi-dimensional point.
 	 */
 	public CoordVector(double[] coordinates) {
@@ -65,16 +65,16 @@ public final class CoordVector implements Value, Comparable<CoordVector> {
 
 	/**
 	 * Returns the coordinate vector of a multi-dimensional point.
-	 * 
+	 *
 	 * @return The coordinate vector of a multi-dimensional point.
 	 */
 	public double[] getCoordinates() {
 		return this.coordinates;
 	}
-	
+
 	/**
 	 * Sets the coordinate vector of a multi-dimensional point.
-	 * 
+	 *
 	 * @param coordinates The dimension values of the point.
 	 */
 	public void setCoordinates(double[] coordinates) {
@@ -82,14 +82,14 @@ public final class CoordVector implements Value, Comparable<CoordVector> {
 	}
 
 	/**
-	 * Computes the Euclidian distance between this coordinate vector and a
+	 * Computes the Euclidean distance between this coordinate vector and a
 	 * second coordinate vector.
-	 * 
+	 *
 	 * @param cv The coordinate vector to which the distance is computed.
-	 * @return The Euclidian distance to coordinate vector cv. If cv has a
+	 * @return The Euclidean distance to coordinate vector cv. If cv has a
 	 *         different length than this coordinate vector, -1 is returned.
 	 */
-	public double computeEuclidianDistance(CoordVector cv) {
+	public double computeEuclideanDistance(CoordVector cv) {
 		// check coordinate vector lengths
 		if (cv.coordinates.length != this.coordinates.length) {
 			return -1.0;
@@ -98,11 +98,10 @@ public final class CoordVector implements Value, Comparable<CoordVector> {
 		double quadSum = 0.0;
 		for (int i = 0; i < this.coordinates.length; i++) {
 			double diff = this.coordinates[i] - cv.coordinates[i];
-			quadSum += diff*diff;
+			quadSum += diff * diff;
 		}
 		return Math.sqrt(quadSum);
 	}
-
 
 	@Override
 	public void read(DataInputView in) throws IOException {
@@ -112,7 +111,6 @@ public final class CoordVector implements Value, Comparable<CoordVector> {
 			this.coordinates[i] = in.readDouble();
 		}
 	}
-
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
@@ -124,7 +122,7 @@ public final class CoordVector implements Value, Comparable<CoordVector> {
 
 	/**
 	 * Compares this coordinate vector to another key.
-	 * 
+	 *
 	 * @return -1 if the other key is not of type CoordVector. If the other
 	 *         key is also a CoordVector but its length differs from this
 	 *         coordinates vector, -1 is return if this coordinate vector is

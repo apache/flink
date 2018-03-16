@@ -20,13 +20,12 @@ package org.apache.flink.streaming.connectors.kafka.testutils;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -34,28 +33,28 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducerBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironment;
-import org.apache.flink.streaming.connectors.kafka.partitioner.FixedPartitioner;
-import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
-import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 
 import java.util.Collection;
 import java.util.Properties;
 import java.util.Random;
 
-import static org.mockito.Mockito.mock;
-
+/**
+ * Test data generators.
+ */
 @SuppressWarnings("serial")
 public class DataGenerators {
 
-	public static void generateRandomizedIntegerSequence(StreamExecutionEnvironment env,
-														 KafkaTestEnvironment testServer, String topic,
-														 final int numPartitions,
-														 final int numElements,
-														 final boolean randomizeOrder) throws Exception {
+	public static void generateRandomizedIntegerSequence(
+			StreamExecutionEnvironment env,
+			KafkaTestEnvironment testServer, String topic,
+			final int numPartitions,
+			final int numElements,
+			final boolean randomizeOrder) throws Exception {
 		env.setParallelism(numPartitions);
 		env.getConfig().disableSysoutLogging();
 		env.setRestartStrategy(RestartStrategies.noRestart());
@@ -70,8 +69,8 @@ public class DataGenerators {
 						// create a sequence
 						int[] elements = new int[numElements];
 						for (int i = 0, val = getRuntimeContext().getIndexOfThisSubtask();
-							 i < numElements;
-							 i++, val += getRuntimeContext().getNumberOfParallelSubtasks()) {
+							i < numElements;
+							i++, val += getRuntimeContext().getNumberOfParallelSubtasks()) {
 
 							elements[i] = val;
 						}
@@ -104,7 +103,7 @@ public class DataGenerators {
 		Properties props = new Properties();
 		props.putAll(FlinkKafkaProducerBase.getPropertiesFromBrokerList(testServer.getBrokerConnectionString()));
 		Properties secureProps = testServer.getSecureProperties();
-		if(secureProps != null) {
+		if (secureProps != null) {
 			props.putAll(testServer.getSecureProperties());
 		}
 
@@ -112,10 +111,10 @@ public class DataGenerators {
 		testServer.produceIntoKafka(stream, topic,
 				new KeyedSerializationSchemaWrapper<>(new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, env.getConfig())),
 				props,
-				new KafkaPartitioner<Integer>() {
+				new FlinkKafkaPartitioner<Integer>() {
 					@Override
-					public int partition(Integer next, byte[] serializedKey, byte[] serializedValue, int numPartitions) {
-						return next % numPartitions;
+					public int partition(Integer next, byte[] serializedKey, byte[] serializedValue, String topic, int[] partitions) {
+						return next % partitions.length;
 					}
 				});
 
@@ -124,6 +123,10 @@ public class DataGenerators {
 
 	// ------------------------------------------------------------------------
 
+	/**
+	 * A generator that continuously writes strings into the configured topic. The generation is stopped if an exception
+	 * occurs or {@link #shutdown()} is called.
+	 */
 	public static class InfiniteStringsGenerator extends Thread {
 
 		private final KafkaTestEnvironment server;
@@ -133,7 +136,6 @@ public class DataGenerators {
 		private volatile Throwable error;
 
 		private volatile boolean running = true;
-
 
 		public InfiniteStringsGenerator(KafkaTestEnvironment server, String topic) {
 			this.server = server;
@@ -154,7 +156,7 @@ public class DataGenerators {
 						topic,
 						new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()),
 						producerProperties,
-						new FixedPartitioner<String>());
+						new FlinkFixedPartitioner<String>());
 
 				OneInputStreamOperatorTestHarness<String, Object> testHarness =
 						new OneInputStreamOperatorTestHarness<>(sink);
@@ -169,7 +171,7 @@ public class DataGenerators {
 
 					int len = rnd.nextInt(100) + 1;
 					for (int i = 0; i < len; i++) {
-						bld.append((char) (rnd.nextInt(20) + 'a') );
+						bld.append((char) (rnd.nextInt(20) + 'a'));
 					}
 
 					String next = bld.toString();
@@ -216,7 +218,7 @@ public class DataGenerators {
 			}
 		}
 
-		public static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
+		private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
 
 			@Override
 			public JobExecutionResult execute(String jobName) throws Exception {

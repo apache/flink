@@ -21,10 +21,14 @@ package org.apache.flink.graph.asm.translate.translators;
 import org.apache.flink.graph.asm.translate.TranslateFunction;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link LongValueToStringValue}.
+ */
 public class LongValueToStringValueTest {
 
 	private TranslateFunction<LongValue, StringValue> translator = new LongValueToStringValue();

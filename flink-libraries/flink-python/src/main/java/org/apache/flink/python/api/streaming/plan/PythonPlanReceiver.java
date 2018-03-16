@@ -10,13 +10,17 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.streaming.plan;
+
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.python.api.types.CustomTypeWrapper;
 
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Serializable;
-import org.apache.flink.api.java.tuple.Tuple;
+
 import static org.apache.flink.python.api.streaming.data.PythonReceiver.createTuple;
 import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_BOOLEAN;
 import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_BYTE;
@@ -27,12 +31,11 @@ import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE
 import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_LONG;
 import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_NULL;
 import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_STRING;
-import org.apache.flink.python.api.types.CustomTypeWrapper;
 
 /**
  * Instances of this class can be used to receive data from the plan process.
  */
-public class PythonPlanReceiver implements Serializable {
+public class PythonPlanReceiver {
 	private final DataInputStream input;
 
 	public PythonPlanReceiver(InputStream input) {
@@ -48,7 +51,7 @@ public class PythonPlanReceiver implements Serializable {
 	}
 
 	private Deserializer getDeserializer() throws IOException {
-		byte type = (byte) input.readByte();
+		byte type = input.readByte();
 		if (type >= 0 && type < 26) {
 				Deserializer[] d = new Deserializer[type];
 				for (int x = 0; x < d.length; x++) {
@@ -80,7 +83,8 @@ public class PythonPlanReceiver implements Serializable {
 		}
 	}
 
-	private abstract class Deserializer<T> {
+	private abstract static class Deserializer<T> {
+
 		public T deserialize() throws IOException {
 			return deserialize(false);
 		}
@@ -88,8 +92,8 @@ public class PythonPlanReceiver implements Serializable {
 		public abstract T deserialize(boolean normalized) throws IOException;
 	}
 
-	private class TupleDeserializer extends Deserializer<Tuple> {
-		Deserializer[] deserializer;
+	private static class TupleDeserializer extends Deserializer<Tuple> {
+		private final  Deserializer[] deserializer;
 
 		public TupleDeserializer(Deserializer[] deserializer) {
 			this.deserializer = deserializer;
@@ -177,7 +181,7 @@ public class PythonPlanReceiver implements Serializable {
 			int size = input.readInt();
 			byte[] buffer = new byte[size];
 			input.readFully(buffer);
-			return new String(buffer);
+			return new String(buffer, ConfigConstants.DEFAULT_CHARSET);
 		}
 	}
 

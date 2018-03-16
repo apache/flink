@@ -21,22 +21,22 @@ package org.apache.flink.table.runtime.io
 import org.apache.flink.api.common.io.{GenericInputFormat, NonParallelInput}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.core.io.GenericInputSplit
-import org.slf4j.LoggerFactory
+import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.table.util.Logging
+import org.apache.flink.types.Row
 
-class ValuesInputFormat[OUT](
+class ValuesInputFormat(
     name: String,
     code: String,
-    @transient returnType: TypeInformation[OUT])
-  extends GenericInputFormat[OUT]
+    @transient var returnType: TypeInformation[Row])
+  extends GenericInputFormat[Row]
   with NonParallelInput
-  with ResultTypeQueryable[OUT]
-  with Compiler[GenericInputFormat[OUT]] {
+  with ResultTypeQueryable[Row]
+  with Compiler[GenericInputFormat[Row]]
+  with Logging {
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
-
-  private var format: GenericInputFormat[OUT] = _
+  private var format: GenericInputFormat[Row] = _
 
   override def open(split: GenericInputSplit): Unit = {
     LOG.debug(s"Compiling GenericInputFormat: $name \n\n Code:\n$code")
@@ -47,7 +47,7 @@ class ValuesInputFormat[OUT](
 
   override def reachedEnd(): Boolean = format.reachedEnd()
 
-  override def nextRecord(reuse: OUT): OUT = format.nextRecord(reuse)
+  override def nextRecord(reuse: Row): Row = format.nextRecord(reuse)
 
-  override def getProducedType: TypeInformation[OUT] = returnType
+  override def getProducedType: TypeInformation[Row] = returnType
 }

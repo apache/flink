@@ -18,16 +18,16 @@
 
 package org.apache.flink.runtime.util;
 
-import org.objectweb.asm.AnnotationVisitor;
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.FieldVisitor;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Type;
-import org.objectweb.asm.TypePath;
-import org.objectweb.asm.Label;
-import org.objectweb.asm.signature.SignatureReader;
-import org.objectweb.asm.signature.SignatureVisitor;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.AnnotationVisitor;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.ClassVisitor;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.Opcodes;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.FieldVisitor;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.MethodVisitor;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.Type;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.TypePath;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.Label;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.signature.SignatureReader;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.signature.SignatureVisitor;
 
 import java.util.HashSet;
 import java.util.Set;

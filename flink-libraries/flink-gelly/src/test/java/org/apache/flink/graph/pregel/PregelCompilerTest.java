@@ -38,12 +38,15 @@ import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
+/**
+ * Validate compiled {@link VertexCentricIteration} programs.
+ */
 public class PregelCompilerTest extends CompilerTestBase {
 
 	private static final long serialVersionUID = 1L;
@@ -51,223 +54,198 @@ public class PregelCompilerTest extends CompilerTestBase {
 	@SuppressWarnings("serial")
 	@Test
 	public void testPregelCompiler() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(DEFAULT_PARALLELISM);
-			// compose test program
-			{
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+		// compose test program
+		{
 
-				DataSet<Vertex<Long, Long>> initialVertices = env.fromElements(
-						new Tuple2<>(1L, 1L), new Tuple2<>(2L, 2L))
-						.map(new Tuple2ToVertexMap<Long, Long>());
+			DataSet<Vertex<Long, Long>> initialVertices = env.fromElements(
+				new Tuple2<>(1L, 1L), new Tuple2<>(2L, 2L))
+				.map(new Tuple2ToVertexMap<>());
 
-				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<>(1L, 2L))
-					.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
+			DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<>(1L, 2L))
+				.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
 
-						public Edge<Long, NullValue> map(Tuple2<Long, Long> edge) {
-							return new Edge<>(edge.f0, edge.f1, NullValue.getInstance());
-						}
+					public Edge<Long, NullValue> map(Tuple2<Long, Long> edge) {
+						return new Edge<>(edge.f0, edge.f1, NullValue.getInstance());
+					}
 				});
 
-				Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
-				
-				DataSet<Vertex<Long, Long>> result = graph.runVertexCentricIteration(
-						new CCCompute(), null, 100).getVertices();
-				
-				result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());
-			}
-			
-			Plan p = env.createProgramPlan("Pregel Connected Components");
-			OptimizedPlan op = compileNoStats(p);
-			
-			// check the sink
-			SinkPlanNode sink = op.getDataSinks().iterator().next();
-			assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-			assertEquals(DEFAULT_PARALLELISM, sink.getParallelism());
-			
-			// check the iteration
-			WorksetIterationPlanNode iteration = (WorksetIterationPlanNode) sink.getInput().getSource();
-			assertEquals(DEFAULT_PARALLELISM, iteration.getParallelism());
-			
-			// check the solution set delta
-			PlanNode ssDelta = iteration.getSolutionSetDeltaPlanNode();
-			assertTrue(ssDelta instanceof SingleInputPlanNode);
-			
-			SingleInputPlanNode ssFlatMap = (SingleInputPlanNode) ((SingleInputPlanNode) (ssDelta)).getInput().getSource();
-			assertEquals(DEFAULT_PARALLELISM, ssFlatMap.getParallelism());
-			assertEquals(ShipStrategyType.FORWARD, ssFlatMap.getInput().getShipStrategy());
-			
-			// check the computation coGroup
-			DualInputPlanNode computationCoGroup = (DualInputPlanNode) (ssFlatMap.getInput().getSource());
-			assertEquals(DEFAULT_PARALLELISM, computationCoGroup.getParallelism());
-			assertEquals(ShipStrategyType.FORWARD, computationCoGroup.getInput1().getShipStrategy());
-			assertEquals(ShipStrategyType.PARTITION_HASH, computationCoGroup.getInput2().getShipStrategy());
-			assertTrue(computationCoGroup.getInput2().getTempMode().isCached());
-			
-			assertEquals(new FieldList(0), computationCoGroup.getInput2().getShipStrategyKeys());
-			
-			// check that the initial partitioning is pushed out of the loop
-			assertEquals(ShipStrategyType.PARTITION_HASH, iteration.getInput1().getShipStrategy());
-			assertEquals(new FieldList(0), iteration.getInput1().getShipStrategyKeys());
+			Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
 
+			DataSet<Vertex<Long, Long>> result = graph.runVertexCentricIteration(
+				new CCCompute(), null, 100).getVertices();
+
+			result.output(new DiscardingOutputFormat<>());
 		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+
+		Plan p = env.createProgramPlan("Pregel Connected Components");
+		OptimizedPlan op = compileNoStats(p);
+
+		// check the sink
+		SinkPlanNode sink = op.getDataSinks().iterator().next();
+		assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
+		assertEquals(DEFAULT_PARALLELISM, sink.getParallelism());
+
+		// check the iteration
+		WorksetIterationPlanNode iteration = (WorksetIterationPlanNode) sink.getInput().getSource();
+		assertEquals(DEFAULT_PARALLELISM, iteration.getParallelism());
+
+		// check the solution set delta
+		PlanNode ssDelta = iteration.getSolutionSetDeltaPlanNode();
+		assertTrue(ssDelta instanceof SingleInputPlanNode);
+
+		SingleInputPlanNode ssFlatMap = (SingleInputPlanNode) ((SingleInputPlanNode) (ssDelta)).getInput().getSource();
+		assertEquals(DEFAULT_PARALLELISM, ssFlatMap.getParallelism());
+		assertEquals(ShipStrategyType.FORWARD, ssFlatMap.getInput().getShipStrategy());
+
+		// check the computation coGroup
+		DualInputPlanNode computationCoGroup = (DualInputPlanNode) (ssFlatMap.getInput().getSource());
+		assertEquals(DEFAULT_PARALLELISM, computationCoGroup.getParallelism());
+		assertEquals(ShipStrategyType.FORWARD, computationCoGroup.getInput1().getShipStrategy());
+		assertEquals(ShipStrategyType.PARTITION_HASH, computationCoGroup.getInput2().getShipStrategy());
+		assertTrue(computationCoGroup.getInput2().getTempMode().isCached());
+
+		assertEquals(new FieldList(0), computationCoGroup.getInput2().getShipStrategyKeys());
+
+		// check that the initial partitioning is pushed out of the loop
+		assertEquals(ShipStrategyType.PARTITION_HASH, iteration.getInput1().getShipStrategy());
+		assertEquals(new FieldList(0), iteration.getInput1().getShipStrategyKeys());
 	}
-	
+
 	@SuppressWarnings("serial")
 	@Test
 	public void testPregelCompilerWithBroadcastVariable() {
-		try {
-			final String BC_VAR_NAME = "borat variable";
-			
-			
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(DEFAULT_PARALLELISM);
-			// compose test program
-			{
-				DataSet<Long> bcVar = env.fromElements(1L);
+		final String broadcastSetName = "broadcast";
 
-				DataSet<Vertex<Long, Long>> initialVertices = env.fromElements(
-						new Tuple2<>(1L, 1L), new Tuple2<>(2L, 2L))
-						.map(new Tuple2ToVertexMap<Long, Long>());
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+		// compose test program
+		{
+			DataSet<Long> bcVar = env.fromElements(1L);
 
-				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<>(1L, 2L))
-						.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
+			DataSet<Vertex<Long, Long>> initialVertices = env.fromElements(
+				new Tuple2<>(1L, 1L), new Tuple2<>(2L, 2L))
+				.map(new Tuple2ToVertexMap<>());
 
-							public Edge<Long, NullValue> map(Tuple2<Long, Long> edge) {
-								return new Edge<>(edge.f0, edge.f1, NullValue.getInstance());
-							}
-					});
+			DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<>(1L, 2L))
+				.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
 
-				Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
+					public Edge<Long, NullValue> map(Tuple2<Long, Long> edge) {
+						return new Edge<>(edge.f0, edge.f1, NullValue.getInstance());
+					}
+				});
 
-				VertexCentricConfiguration parameters = new VertexCentricConfiguration();
-				parameters.addBroadcastSet(BC_VAR_NAME, bcVar);
+			Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
 
-				DataSet<Vertex<Long, Long>> result = graph.runVertexCentricIteration(
-						new CCCompute(), null, 100, parameters)
-						.getVertices();
-					
-				result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());
+			VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+			parameters.addBroadcastSet(broadcastSetName, bcVar);
 
-			}
-			
-			Plan p = env.createProgramPlan("Pregel Connected Components");
-			OptimizedPlan op = compileNoStats(p);
-			
-			// check the sink
-			SinkPlanNode sink = op.getDataSinks().iterator().next();
-			assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-			assertEquals(DEFAULT_PARALLELISM, sink.getParallelism());
-			
-			// check the iteration
-			WorksetIterationPlanNode iteration = (WorksetIterationPlanNode) sink.getInput().getSource();
-			assertEquals(DEFAULT_PARALLELISM, iteration.getParallelism());
-			
-			// check the solution set delta
-			PlanNode ssDelta = iteration.getSolutionSetDeltaPlanNode();
-			assertTrue(ssDelta instanceof SingleInputPlanNode);
-			
-			SingleInputPlanNode ssFlatMap = (SingleInputPlanNode) ((SingleInputPlanNode) (ssDelta)).getInput().getSource();
-			assertEquals(DEFAULT_PARALLELISM, ssFlatMap.getParallelism());
-			assertEquals(ShipStrategyType.FORWARD, ssFlatMap.getInput().getShipStrategy());
-			
-			// check the computation coGroup
-			DualInputPlanNode computationCoGroup = (DualInputPlanNode) (ssFlatMap.getInput().getSource());
-			assertEquals(DEFAULT_PARALLELISM, computationCoGroup.getParallelism());
-			assertEquals(ShipStrategyType.FORWARD, computationCoGroup.getInput1().getShipStrategy());
-			assertEquals(ShipStrategyType.PARTITION_HASH, computationCoGroup.getInput2().getShipStrategy());
-			assertTrue(computationCoGroup.getInput2().getTempMode().isCached());
-			
-			assertEquals(new FieldList(0), computationCoGroup.getInput2().getShipStrategyKeys());
-			
-			// check that the initial partitioning is pushed out of the loop
-			assertEquals(ShipStrategyType.PARTITION_HASH, iteration.getInput1().getShipStrategy());
-			assertEquals(new FieldList(0), iteration.getInput1().getShipStrategyKeys());
+			DataSet<Vertex<Long, Long>> result = graph.runVertexCentricIteration(
+				new CCCompute(), null, 100, parameters)
+				.getVertices();
+
+			result.output(new DiscardingOutputFormat<>());
 		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+
+		Plan p = env.createProgramPlan("Pregel Connected Components");
+		OptimizedPlan op = compileNoStats(p);
+
+		// check the sink
+		SinkPlanNode sink = op.getDataSinks().iterator().next();
+		assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
+		assertEquals(DEFAULT_PARALLELISM, sink.getParallelism());
+
+		// check the iteration
+		WorksetIterationPlanNode iteration = (WorksetIterationPlanNode) sink.getInput().getSource();
+		assertEquals(DEFAULT_PARALLELISM, iteration.getParallelism());
+
+		// check the solution set delta
+		PlanNode ssDelta = iteration.getSolutionSetDeltaPlanNode();
+		assertTrue(ssDelta instanceof SingleInputPlanNode);
+
+		SingleInputPlanNode ssFlatMap = (SingleInputPlanNode) ((SingleInputPlanNode) (ssDelta)).getInput().getSource();
+		assertEquals(DEFAULT_PARALLELISM, ssFlatMap.getParallelism());
+		assertEquals(ShipStrategyType.FORWARD, ssFlatMap.getInput().getShipStrategy());
+
+		// check the computation coGroup
+		DualInputPlanNode computationCoGroup = (DualInputPlanNode) (ssFlatMap.getInput().getSource());
+		assertEquals(DEFAULT_PARALLELISM, computationCoGroup.getParallelism());
+		assertEquals(ShipStrategyType.FORWARD, computationCoGroup.getInput1().getShipStrategy());
+		assertEquals(ShipStrategyType.PARTITION_HASH, computationCoGroup.getInput2().getShipStrategy());
+		assertTrue(computationCoGroup.getInput2().getTempMode().isCached());
+
+		assertEquals(new FieldList(0), computationCoGroup.getInput2().getShipStrategyKeys());
+
+		// check that the initial partitioning is pushed out of the loop
+		assertEquals(ShipStrategyType.PARTITION_HASH, iteration.getInput1().getShipStrategy());
+		assertEquals(new FieldList(0), iteration.getInput1().getShipStrategyKeys());
 	}
 
 	@SuppressWarnings("serial")
 	@Test
 	public void testPregelWithCombiner() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(DEFAULT_PARALLELISM);
-			// compose test program
-			{
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+		// compose test program
+		{
 
-				DataSet<Vertex<Long, Long>> initialVertices = env.fromElements(
-						new Tuple2<>(1L, 1L), new Tuple2<>(2L, 2L))
-						.map(new Tuple2ToVertexMap<Long, Long>());
+			DataSet<Vertex<Long, Long>> initialVertices = env.fromElements(
+				new Tuple2<>(1L, 1L), new Tuple2<>(2L, 2L))
+				.map(new Tuple2ToVertexMap<>());
 
-				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<>(1L, 2L))
-					.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
+			DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<>(1L, 2L))
+				.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
 
-						public Edge<Long, NullValue> map(Tuple2<Long, Long> edge) {
-							return new Edge<>(edge.f0, edge.f1, NullValue.getInstance());
-						}
+					public Edge<Long, NullValue> map(Tuple2<Long, Long> edge) {
+						return new Edge<>(edge.f0, edge.f1, NullValue.getInstance());
+					}
 				});
 
-				Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
-				
-				DataSet<Vertex<Long, Long>> result = graph.runVertexCentricIteration(
-						new CCCompute(), new CCCombiner(), 100).getVertices();
-				
-				result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());
-			}
-			
-			Plan p = env.createProgramPlan("Pregel Connected Components");
-			OptimizedPlan op = compileNoStats(p);
-			
-			// check the sink
-			SinkPlanNode sink = op.getDataSinks().iterator().next();
-			assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-			assertEquals(DEFAULT_PARALLELISM, sink.getParallelism());
-			
-			// check the iteration
-			WorksetIterationPlanNode iteration = (WorksetIterationPlanNode) sink.getInput().getSource();
-			assertEquals(DEFAULT_PARALLELISM, iteration.getParallelism());
+			Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
 
-			// check the combiner
-			SingleInputPlanNode combiner = (SingleInputPlanNode) iteration.getInput2().getSource();
-			assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
-			
-			// check the solution set delta
-			PlanNode ssDelta = iteration.getSolutionSetDeltaPlanNode();
-			assertTrue(ssDelta instanceof SingleInputPlanNode);
-			
-			SingleInputPlanNode ssFlatMap = (SingleInputPlanNode) ((SingleInputPlanNode) (ssDelta)).getInput().getSource();
-			assertEquals(DEFAULT_PARALLELISM, ssFlatMap.getParallelism());
-			assertEquals(ShipStrategyType.FORWARD, ssFlatMap.getInput().getShipStrategy());
-			
-			// check the computation coGroup
-			DualInputPlanNode computationCoGroup = (DualInputPlanNode) (ssFlatMap.getInput().getSource());
-			assertEquals(DEFAULT_PARALLELISM, computationCoGroup.getParallelism());
-			assertEquals(ShipStrategyType.FORWARD, computationCoGroup.getInput1().getShipStrategy());
-			assertEquals(ShipStrategyType.PARTITION_HASH, computationCoGroup.getInput2().getShipStrategy());
-			assertTrue(computationCoGroup.getInput2().getTempMode().isCached());
-			
-			assertEquals(new FieldList(0), computationCoGroup.getInput2().getShipStrategyKeys());
-			
-			// check that the initial partitioning is pushed out of the loop
-			assertEquals(ShipStrategyType.PARTITION_HASH, iteration.getInput1().getShipStrategy());
-			assertEquals(new FieldList(0), iteration.getInput1().getShipStrategyKeys());
+			DataSet<Vertex<Long, Long>> result = graph.runVertexCentricIteration(
+				new CCCompute(), new CCCombiner(), 100).getVertices();
 
+			result.output(new DiscardingOutputFormat<>());
 		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+
+		Plan p = env.createProgramPlan("Pregel Connected Components");
+		OptimizedPlan op = compileNoStats(p);
+
+		// check the sink
+		SinkPlanNode sink = op.getDataSinks().iterator().next();
+		assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
+		assertEquals(DEFAULT_PARALLELISM, sink.getParallelism());
+
+		// check the iteration
+		WorksetIterationPlanNode iteration = (WorksetIterationPlanNode) sink.getInput().getSource();
+		assertEquals(DEFAULT_PARALLELISM, iteration.getParallelism());
+
+		// check the combiner
+		SingleInputPlanNode combiner = (SingleInputPlanNode) iteration.getInput2().getSource();
+		assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
+
+		// check the solution set delta
+		PlanNode ssDelta = iteration.getSolutionSetDeltaPlanNode();
+		assertTrue(ssDelta instanceof SingleInputPlanNode);
+
+		SingleInputPlanNode ssFlatMap = (SingleInputPlanNode) ((SingleInputPlanNode) (ssDelta)).getInput().getSource();
+		assertEquals(DEFAULT_PARALLELISM, ssFlatMap.getParallelism());
+		assertEquals(ShipStrategyType.FORWARD, ssFlatMap.getInput().getShipStrategy());
+
+		// check the computation coGroup
+		DualInputPlanNode computationCoGroup = (DualInputPlanNode) (ssFlatMap.getInput().getSource());
+		assertEquals(DEFAULT_PARALLELISM, computationCoGroup.getParallelism());
+		assertEquals(ShipStrategyType.FORWARD, computationCoGroup.getInput1().getShipStrategy());
+		assertEquals(ShipStrategyType.PARTITION_HASH, computationCoGroup.getInput2().getShipStrategy());
+		assertTrue(computationCoGroup.getInput2().getTempMode().isCached());
+
+		assertEquals(new FieldList(0), computationCoGroup.getInput2().getShipStrategyKeys());
+
+		// check that the initial partitioning is pushed out of the loop
+		assertEquals(ShipStrategyType.PARTITION_HASH, iteration.getInput1().getShipStrategy());
+		assertEquals(new FieldList(0), iteration.getInput1().getShipStrategyKeys());
 	}
 
 	@SuppressWarnings("serial")
@@ -283,7 +261,7 @@ public class PregelCompilerTest extends CompilerTestBase {
 
 			if ((getSuperstepNumber() == 1) || (currentComponent < vertex.getValue())) {
 				setNewVertexValue(currentComponent);
-				for (Edge<Long, NullValue> edge: getEdges()) {
+				for (Edge<Long, NullValue> edge : getEdges()) {
 					sendMessageTo(edge.getTarget(), currentComponent);
 				}
 			}
@@ -291,16 +269,15 @@ public class PregelCompilerTest extends CompilerTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class CCCombiner extends MessageCombiner<Long, Long> {
+	private static final class CCCombiner extends MessageCombiner<Long, Long> {
 
 		public void combineMessages(MessageIterator<Long> messages) {
 
 			long minMessage = Long.MAX_VALUE;
-			for (Long msg: messages) {
+			for (Long msg : messages) {
 				minMessage = Math.min(minMessage, msg);
 			}
 			sendCombinedMessage(minMessage);
 		}
 	}
-
 }

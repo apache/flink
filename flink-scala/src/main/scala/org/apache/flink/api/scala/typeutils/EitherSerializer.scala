@@ -18,13 +18,15 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.core.memory.{DataOutputView, DataInputView}
+import org.apache.flink.api.common.typeutils._
+import org.apache.flink.api.java.typeutils.runtime.EitherSerializerConfigSnapshot
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 /**
  * Serializer for [[Either]].
  */
 @Internal
+@SerialVersionUID(9219995873023657525L)
 class EitherSerializer[A, B, T <: Either[A, B]](
     val leftSerializer: TypeSerializer[A],
     val rightSerializer: TypeSerializer[B])
@@ -103,5 +105,57 @@ class EitherSerializer[A, B, T <: Either[A, B]](
 
   override def hashCode(): Int = {
     31 * leftSerializer.hashCode() + rightSerializer.hashCode()
+  }
+
+  // --------------------------------------------------------------------------------------------
+  // Serializer configuration snapshotting & compatibility
+  // --------------------------------------------------------------------------------------------
+
+  override def snapshotConfiguration(): EitherSerializerConfigSnapshot[A, B] = {
+    new EitherSerializerConfigSnapshot[A, B](leftSerializer, rightSerializer)
+  }
+
+  override def ensureCompatibility(
+      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[T] = {
+
+    configSnapshot match {
+      case eitherSerializerConfig: EitherSerializerConfigSnapshot[A, B] =>
+        val previousLeftRightSerWithConfigs =
+          eitherSerializerConfig.getNestedSerializersAndConfigs
+
+        val leftCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+          previousLeftRightSerWithConfigs.get(0).f0,
+          classOf[UnloadableDummyTypeSerializer[_]],
+          previousLeftRightSerWithConfigs.get(0).f1,
+          leftSerializer)
+
+        val rightCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+          previousLeftRightSerWithConfigs.get(1).f0,
+          classOf[UnloadableDummyTypeSerializer[_]],
+          previousLeftRightSerWithConfigs.get(1).f1,
+          rightSerializer)
+
+        if (leftCompatResult.isRequiresMigration
+            || rightCompatResult.isRequiresMigration) {
+
+          if (leftCompatResult.getConvertDeserializer != null
+              && rightCompatResult.getConvertDeserializer != null) {
+
+            CompatibilityResult.requiresMigration(
+              new EitherSerializer[A, B, T](
+                new TypeDeserializerAdapter(leftCompatResult.getConvertDeserializer),
+                new TypeDeserializerAdapter(rightCompatResult.getConvertDeserializer)
+              )
+            )
+
+          } else {
+            CompatibilityResult.requiresMigration()
+          }
+        } else {
+          CompatibilityResult.compatible()
+        }
+
+      case _ => CompatibilityResult.requiresMigration()
+    }
   }
 }

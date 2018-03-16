@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.hadoopcompatibility.scala
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.hadoop.mapreduce
-import org.apache.flink.api.scala.hadoop.mapred
+import org.apache.flink.api.scala.hadoop.{mapred, mapreduce}
 import org.apache.hadoop.fs.{Path => HadoopPath}
 import org.apache.hadoop.mapred.{JobConf, FileInputFormat => MapredFileInputFormat, InputFormat => MapredInputFormat}
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => MapreduceFileInputFormat}
@@ -81,7 +81,7 @@ object HadoopInputs {
       key,
       value,
       inputPath
-    )
+   )
   }
 
   /**

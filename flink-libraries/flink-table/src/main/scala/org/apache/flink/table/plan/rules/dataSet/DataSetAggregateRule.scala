@@ -18,79 +18,53 @@
 
 package org.apache.flink.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalAggregate
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.nodes.dataset.{DataSetAggregate, DataSetConvention, DataSetUnion}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.{DataSetAggregate, DataSetUnion}
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalAggregate
+
 import scala.collection.JavaConversions._
 
 class DataSetAggregateRule
   extends ConverterRule(
-    classOf[LogicalAggregate],
-    Convention.NONE,
-    DataSetConvention.INSTANCE,
+    classOf[FlinkLogicalAggregate],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
     "DataSetAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val agg: LogicalAggregate = call.rel(0).asInstanceOf[LogicalAggregate]
+    val agg: FlinkLogicalAggregate = call.rel(0).asInstanceOf[FlinkLogicalAggregate]
 
-    // for non-grouped agg sets we attach null row to source data
-    // we need to apply DataSetAggregateWithNullValuesRule
-    if (agg.getGroupSet.isEmpty) {
+    // distinct is translated into dedicated operator
+    if (agg.getAggCallList.isEmpty &&
+      agg.getGroupCount == agg.getRowType.getFieldCount &&
+      agg.getRowType.equals(agg.getInput.getRowType) &&
+      agg.getGroupSets.size() == 1) {
       return false
     }
 
     // check if we have distinct aggregates
     val distinctAggs = agg.getAggCallList.exists(_.isDistinct)
-    if (distinctAggs) {
-      throw TableException("DISTINCT aggregates are currently not supported.")
-    }
 
     !distinctAggs
   }
 
   override def convert(rel: RelNode): RelNode = {
-    val agg: LogicalAggregate = rel.asInstanceOf[LogicalAggregate]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-    val convInput: RelNode = RelOptRule.convert(agg.getInput, DataSetConvention.INSTANCE)
+    val agg: FlinkLogicalAggregate = rel.asInstanceOf[FlinkLogicalAggregate]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
+    val convInput: RelNode = RelOptRule.convert(agg.getInput, FlinkConventions.DATASET)
 
-    if (agg.indicator) {
-        agg.groupSets.map(set =>
-          new DataSetAggregate(
-            rel.getCluster,
-            traitSet,
-            convInput,
-            agg.getNamedAggCalls,
-            rel.getRowType,
-            agg.getInput.getRowType,
-            set.toArray,
-            inGroupingSet = true
-          ).asInstanceOf[RelNode]
-        ).reduce(
-          (rel1, rel2) => {
-            new DataSetUnion(
-              rel.getCluster,
-              traitSet,
-              rel1,
-              rel2,
-              rel.getRowType
-            )
-          }
-        )
-    } else {
-      new DataSetAggregate(
-        rel.getCluster,
-        traitSet,
-        convInput,
-        agg.getNamedAggCalls,
-        rel.getRowType,
-        agg.getInput.getRowType,
-        agg.getGroupSet.toArray,
-        inGroupingSet = false
-      )
-    }
+    new DataSetAggregate(
+      rel.getCluster,
+      traitSet,
+      convInput,
+      agg.getNamedAggCalls,
+      rel.getRowType,
+      agg.getInput.getRowType,
+      agg.getGroupSet.toArray
+    )
   }
 }
 

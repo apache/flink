@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager
 
+import org.apache.flink.runtime.execution.Environment
 import org.apache.flink.runtime.io.network.api.reader.RecordReader
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
@@ -26,7 +27,8 @@ import org.apache.flink.types.IntValue
 
 object Tasks {
 
-  class Sender extends AbstractInvokable{
+  class Sender(environment: Environment)
+    extends AbstractInvokable(environment) {
 
     override def invoke(): Unit = {
       val writer = new RecordWriter[IntValue](getEnvironment.getWriter(0))
@@ -34,14 +36,15 @@ object Tasks {
       try{
         writer.emit(new IntValue(42))
         writer.emit(new IntValue(1337))
-        writer.flush()
+        writer.flushAll()
       }finally{
         writer.clearBuffers()
       }
     }
   }
 
-  class Forwarder extends AbstractInvokable {
+  class Forwarder(environment: Environment)
+    extends AbstractInvokable(environment) {
 
     override def invoke(): Unit = {
       val reader = new RecordReader[IntValue](
@@ -62,14 +65,15 @@ object Tasks {
           writer.emit(record)
         }
 
-        writer.flush()
+        writer.flushAll()
       } finally {
         writer.clearBuffers()
       }
     }
   }
 
-  class Receiver extends AbstractInvokable {
+  class Receiver(environment: Environment)
+    extends AbstractInvokable(environment) {
 
     override def invoke(): Unit = {
       val reader = new RecordReader[IntValue](
@@ -87,7 +91,8 @@ object Tasks {
     }
   }
 
-  class FailingOnceReceiver extends Receiver {
+  class FailingOnceReceiver(environment: Environment)
+    extends Receiver(environment) {
     import FailingOnceReceiver.failed
 
     override def invoke(): Unit = {
@@ -104,7 +109,8 @@ object Tasks {
     var failed = false
   }
 
-  class BlockingOnceReceiver extends Receiver {
+  class BlockingOnceReceiver(environment: Environment)
+    extends Receiver(environment) {
     import BlockingOnceReceiver.blocking
 
     override def invoke(): Unit = {
@@ -124,7 +130,8 @@ object Tasks {
     var blocking = true
   }
 
-  class AgnosticReceiver extends AbstractInvokable {
+  class AgnosticReceiver(environment: Environment)
+    extends AbstractInvokable(environment) {
 
     override def invoke(): Unit = {
       val reader= new RecordReader[IntValue](
@@ -136,7 +143,8 @@ object Tasks {
     }
   }
 
-  class AgnosticBinaryReceiver extends AbstractInvokable {
+  class AgnosticBinaryReceiver(environment: Environment)
+    extends AbstractInvokable(environment) {
 
     override def invoke(): Unit = {
       val reader1 = new RecordReader[IntValue](
@@ -154,7 +162,8 @@ object Tasks {
     }
   }
 
-  class AgnosticTertiaryReceiver extends AbstractInvokable {
+  class AgnosticTertiaryReceiver(environment: Environment)
+    extends AbstractInvokable(environment) {
 
     override def invoke(): Unit = {
       val env = getEnvironment
@@ -180,14 +189,16 @@ object Tasks {
     }
   }
 
-  class ExceptionSender extends AbstractInvokable{
+  class ExceptionSender(environment: Environment)
+    extends AbstractInvokable(environment) {
 
     override def invoke(): Unit = {
       throw new Exception("Test exception")
     }
   }
 
-  class SometimesExceptionSender extends AbstractInvokable {
+  class SometimesExceptionSender(environment: Environment)
+    extends AbstractInvokable(environment) {
 
     override def invoke(): Unit = {
       // this only works if the TaskManager runs in the same JVM as the test case
@@ -204,21 +215,24 @@ object Tasks {
     var failingSenders = Set[Int](0)
   }
 
-  class ExceptionReceiver extends AbstractInvokable {
+  class ExceptionReceiver(environment: Environment)
+    extends AbstractInvokable(environment) {
 
     override def invoke(): Unit = {
       throw new Exception("Test exception")
     }
   }
 
-  class InstantiationErrorSender extends AbstractInvokable{
+  class InstantiationErrorSender(environment: Environment)
+    extends AbstractInvokable(environment) {
     throw new RuntimeException("Test exception in constructor")
 
     override def invoke(): Unit = {
     }
   }
 
-  class SometimesInstantiationErrorSender extends AbstractInvokable{
+  class SometimesInstantiationErrorSender(environment: Environment)
+    extends AbstractInvokable(environment) {
 
     // this only works if the TaskManager runs in the same JVM as the test case
     if(SometimesInstantiationErrorSender.failingSenders.contains(this.getIndexInSubtaskGroup)){
@@ -235,7 +249,8 @@ object Tasks {
     var failingSenders = Set[Int](0)
   }
 
-  class BlockingReceiver extends AbstractInvokable {
+  class BlockingReceiver(environment: Environment)
+    extends AbstractInvokable(environment) {
     override def invoke(): Unit = {
       val o = new Object
       o.synchronized(

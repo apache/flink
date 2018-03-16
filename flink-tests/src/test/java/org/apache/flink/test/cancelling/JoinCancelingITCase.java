@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.cancelling;
 
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -31,13 +30,16 @@ import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.test.util.InfiniteIntegerTupleInputFormat;
 import org.apache.flink.test.util.UniformIntTupleGeneratorInputFormat;
 
+/**
+ * Test job cancellation from within a JoinFunction.
+ */
 public class JoinCancelingITCase extends CancelingTestBase {
 	private static final int parallelism = 4;
 
 	public JoinCancelingITCase() {
 		setTaskManagerNumSlots(parallelism);
 	}
-	
+
 	// --------------- Test Sort Matches that are canceled while still reading / sorting -----------------
 	private void executeTask(JoinFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> joiner, boolean slow) throws Exception {
 		executeTask(joiner, slow, parallelism);
@@ -68,7 +70,7 @@ public class JoinCancelingITCase extends CancelingTestBase {
 	public void testCancelSortMatchWhileReadingFastInputs() throws Exception {
 		executeTask(new SimpleMatcher<Integer>(), false);
 	}
-	
+
 //	@Test
 	public void testCancelSortMatchPriorToFirstRecordReading() throws Exception {
 		executeTask(new StuckInOpenMatcher<Integer>(), false);
@@ -92,45 +94,45 @@ public class JoinCancelingITCase extends CancelingTestBase {
 
 		runAndCancelJob(env.createProgramPlan(), msecsTillCanceling, maxTimeTillCanceled);
 	}
-	
+
 //	@Test
 	public void testCancelSortMatchWhileDoingHeavySorting() throws Exception {
 		executeTaskWithGenerator(new SimpleMatcher<Integer>(), 50000, 100, 30 * 1000, 30 * 1000);
 	}
 
 	// --------------- Test Sort Matches that are canceled while in the Matching Phase -----------------
-	
+
 //	@Test
 	public void testCancelSortMatchWhileJoining() throws Exception {
 		executeTaskWithGenerator(new DelayingMatcher<Integer>(), 500, 3, 10 * 1000, 20 * 1000);
 	}
-	
+
 //	@Test
 	public void testCancelSortMatchWithLongCancellingResponse() throws Exception {
 		executeTaskWithGenerator(new LongCancelTimeMatcher<Integer>(), 500, 3, 10 * 1000, 10 * 1000);
 	}
 
 	// -------------------------------------- Test System corner cases ---------------------------------
-	
+
 //	@Test
 	public void testCancelSortMatchWithHighparallelism() throws Exception {
 		executeTask(new SimpleMatcher<Integer>(), false, 64);
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
-	public static final class SimpleMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
+
+	private static final class SimpleMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public Tuple2<IN, IN> join(Tuple2<IN, IN> first, Tuple2<IN, IN> second) throws Exception {
 			return new Tuple2<>(first.f0, second.f0);
 		}
 	}
-	
-	public static final class DelayingMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
+
+	private static final class DelayingMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
 		private static final long serialVersionUID = 1L;
-		
+
 		private static final int WAIT_TIME_PER_RECORD = 10 * 1000; // 10 sec.
 
 		@Override
@@ -139,12 +141,12 @@ public class JoinCancelingITCase extends CancelingTestBase {
 			return new Tuple2<>(first.f0, second.f0);
 		}
 	}
-	
-	public static final class LongCancelTimeMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
+
+	private static final class LongCancelTimeMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
 		private static final long serialVersionUID = 1L;
-		
+
 		private static final int WAIT_TIME_PER_RECORD = 5 * 1000; // 5 sec.
-		
+
 		@Override
 		public Tuple2<IN, IN> join(Tuple2<IN, IN> first, Tuple2<IN, IN> second) throws Exception {
 			final long start = System.currentTimeMillis();
@@ -157,10 +159,10 @@ public class JoinCancelingITCase extends CancelingTestBase {
 			return new Tuple2<>(first.f0, second.f0);
 		}
 	}
-	
-	public static final class StuckInOpenMatcher<IN> extends RichJoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
+
+	private static final class StuckInOpenMatcher<IN> extends RichJoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			synchronized (this) {

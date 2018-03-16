@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Internal;
@@ -31,8 +32,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedRestoring;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,15 +57,15 @@ import java.util.TreeMap;
  *     <li>Assigning them to downstream tasks for further processing.</li>
  * </ol>
  *
- * The splits to be read are forwarded to the downstream {@link ContinuousFileReaderOperator}
+ * <p>The splits to be read are forwarded to the downstream {@link ContinuousFileReaderOperator}
  * which can have parallelism greater than one.
  *
- * <b>IMPORTANT NOTE: </b> Splits are forwarded downstream for reading in ascending modification time order,
+ * <p><b>IMPORTANT NOTE: </b> Splits are forwarded downstream for reading in ascending modification time order,
  * based on the modification time of the files they belong to.
  */
 @Internal
 public class ContinuousFileMonitoringFunction<OUT>
-	extends RichSourceFunction<TimestampedFileInputSplit> implements CheckpointedFunction, CheckpointedRestoring<Long> {
+	extends RichSourceFunction<TimestampedFileInputSplit> implements CheckpointedFunction {
 
 	private static final long serialVersionUID = 1L;
 
@@ -72,6 +73,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 
 	/**
 	 * The minimum interval allowed between consecutive path scans.
+	 *
 	 * <p><b>NOTE:</b> Only applicable to the {@code PROCESS_CONTINUOUSLY} mode.
 	 */
 	public static final long MIN_MONITORING_INTERVAL = 1L;
@@ -83,7 +85,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 	private final int readerParallelism;
 
 	/** The {@link FileInputFormat} to be read. */
-	private FileInputFormat<OUT> format;
+	private final FileInputFormat<OUT> format;
 
 	/** The interval between consecutive path scans. */
 	private final long interval;
@@ -112,8 +114,12 @@ public class ContinuousFileMonitoringFunction<OUT>
 				"allowed one (" + MIN_MONITORING_INTERVAL + " ms)."
 		);
 
+		Preconditions.checkArgument(
+			format.getFilePaths().length == 1,
+			"FileInputFormats with multiple paths are not supported yet.");
+
 		this.format = Preconditions.checkNotNull(format, "Unspecified File Input Format.");
-		this.path = Preconditions.checkNotNull(format.getFilePath().toString(), "Unspecified Path.");
+		this.path = Preconditions.checkNotNull(format.getFilePaths()[0].toString(), "Unspecified Path.");
 
 		this.interval = interval;
 		this.watchType = watchType;
@@ -132,7 +138,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 		Preconditions.checkState(this.checkpointedState == null,
 			"The " + getClass().getSimpleName() + " has already been initialized.");
 
-		this.checkpointedState = context.getOperatorStateStore().getOperatorState(
+		this.checkpointedState = context.getOperatorStateStore().getListState(
 			new ListStateDescriptor<>(
 				"file-monitoring-state",
 				LongSerializer.INSTANCE
@@ -158,7 +164,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 				// The two should be mutually exclusive for the operator, thus we throw the exception.
 
 				throw new IllegalArgumentException(
-					"The " + getClass().getSimpleName() +" has already restored from a previous Flink version.");
+					"The " + getClass().getSimpleName() + " has already restored from a previous Flink version.");
 
 			} else if (retrievedStates.size() == 1) {
 				this.globalModificationTime = retrievedStates.get(0);
@@ -232,7 +238,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 											SourceContext<TimestampedFileInputSplit> context) throws IOException {
 		assert (Thread.holdsLock(checkpointLock));
 
-		Map<Path, FileStatus> eligibleFiles = listEligibleFiles(fs);
+		Map<Path, FileStatus> eligibleFiles = listEligibleFiles(fs, new Path(path));
 		Map<Long, List<TimestampedFileInputSplit>> splitsSortedByModTime = getInputSplitsSortedByModTime(eligibleFiles);
 
 		for (Map.Entry<Long, List<TimestampedFileInputSplit>> splits: splitsSortedByModTime.entrySet()) {
@@ -282,11 +288,11 @@ public class ContinuousFileMonitoringFunction<OUT>
 	 * Returns the paths of the files not yet processed.
 	 * @param fileSystem The filesystem where the monitored directory resides.
 	 */
-	private Map<Path, FileStatus> listEligibleFiles(FileSystem fileSystem) throws IOException {
+	private Map<Path, FileStatus> listEligibleFiles(FileSystem fileSystem, Path path) throws IOException {
 
 		final FileStatus[] statuses;
 		try {
-			statuses = fileSystem.listStatus(new Path(path));
+			statuses = fileSystem.listStatus(path);
 		} catch (IOException e) {
 			// we may run into an IOException if files are moved while listing their status
 			// delay the check for eligible files in this case
@@ -300,10 +306,14 @@ public class ContinuousFileMonitoringFunction<OUT>
 			Map<Path, FileStatus> files = new HashMap<>();
 			// handle the new files
 			for (FileStatus status : statuses) {
-				Path filePath = status.getPath();
-				long modificationTime = status.getModificationTime();
-				if (!shouldIgnore(filePath, modificationTime)) {
-					files.put(filePath, status);
+				if (!status.isDir()) {
+					Path filePath = status.getPath();
+					long modificationTime = status.getModificationTime();
+					if (!shouldIgnore(filePath, modificationTime)) {
+						files.put(filePath, status);
+					}
+				} else if (format.getNestedFileEnumeration() && format.acceptFile(status)){
+					files.putAll(listEligibleFiles(fileSystem, status.getPath()));
 				}
 			}
 			return files;
@@ -330,9 +340,12 @@ public class ContinuousFileMonitoringFunction<OUT>
 	@Override
 	public void close() throws Exception {
 		super.close();
-		synchronized (checkpointLock) {
-			globalModificationTime = Long.MAX_VALUE;
-			isRunning = false;
+
+		if (checkpointLock != null) {
+			synchronized (checkpointLock) {
+				globalModificationTime = Long.MAX_VALUE;
+				isRunning = false;
+			}
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -367,13 +380,5 @@ public class ContinuousFileMonitoringFunction<OUT>
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("{} checkpointed {}.", getClass().getSimpleName(), globalModificationTime);
 		}
-	}
-
-	@Override
-	public void restoreState(Long state) throws Exception {
-		this.globalModificationTime = state;
-
-		LOG.info("{} (taskIdx={}) restored global modification time from an older Flink version: {}",
-			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), globalModificationTime);
 	}
 }

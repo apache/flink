@@ -18,9 +18,13 @@
 
 package org.apache.flink.test.checkpointing;
 
+/**
+ * Integration tests for memory backend.
+ */
 public class MemBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
 
-	public MemBackendEventTimeWindowCheckpointingITCase() {
-		super(StateBackendEnum.MEM);
+	@Override
+	protected StateBackendEnum getStateBackend() {
+		return StateBackendEnum.MEM;
 	}
 }

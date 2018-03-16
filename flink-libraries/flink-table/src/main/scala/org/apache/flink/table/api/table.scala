@@ -20,13 +20,14 @@ package org.apache.flink.table.api
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.logical.Minus
-import org.apache.flink.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, Ordering, TableFunctionCall, UnresolvedAlias}
+import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionParser, Ordering, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
-import org.apache.flink.table.plan.logical._
+import org.apache.flink.table.plan.logical.{Minus, _}
 import org.apache.flink.table.sinks.TableSink
 
+import _root_.scala.annotation.varargs
 import _root_.scala.collection.JavaConverters._
 
 /**
@@ -63,13 +64,34 @@ class Table(
     private[flink] val tableEnv: TableEnvironment,
     private[flink] val logicalPlan: LogicalNode) {
 
-  private val tableSchema: TableSchema = new TableSchema(
+  // Check if the plan has an unbounded TableFunctionCall as child node.
+  //   A TableFunctionCall is tolerated as root node because the Table holds the initial call.
+  if (containsUnboudedUDTFCall(logicalPlan) &&
+    !logicalPlan.isInstanceOf[LogicalTableFunctionCall]) {
+    throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
+  }
+
+  /**
+    * Creates a [[Table]] for a TableFunction call from a String expression.
+    *
+    * @param tableEnv The TableEnvironment in which the call is created.
+    * @param udtfCall A String expression of the TableFunction call.
+    */
+  def this(tableEnv: TableEnvironment, udtfCall: String) {
+    this(tableEnv, UserDefinedFunctionUtils.createLogicalFunctionCall(tableEnv, udtfCall))
+  }
+
+  private lazy val tableSchema: TableSchema = new TableSchema(
     logicalPlan.output.map(_.name).toArray,
     logicalPlan.output.map(_.resultType).toArray)
 
-  def relBuilder = tableEnv.getRelBuilder
+  def relBuilder: FlinkRelBuilder = tableEnv.getRelBuilder
 
-  def getRelNode: RelNode = logicalPlan.toRelNode(relBuilder)
+  def getRelNode: RelNode = if (containsUnboudedUDTFCall(logicalPlan)) {
+    throw new ValidationException("Cannot translate a query with an unbounded table function call.")
+  } else {
+    logicalPlan.toRelNode(relBuilder)
+  }
 
   /**
     * Returns the schema of this table.
@@ -128,7 +150,9 @@ class Table(
     */
   def select(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
-    select(fieldExprs: _*)
+    //get the correct expression for AggFunctionCall
+    val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, tableEnv))
+    select(withResolvedAggFunctionCall: _*)
   }
 
   /**
@@ -142,7 +166,34 @@ class Table(
     * }}}
     */
   def as(fields: Expression*): Table = {
-    new Table(tableEnv, AliasNode(fields, logicalPlan).validate(tableEnv))
+
+    logicalPlan match {
+      case functionCall: LogicalTableFunctionCall if functionCall.child == null =>
+        // If the logical plan is a TableFunctionCall, we replace its field names to avoid special
+        //   cases during the validation.
+        if (fields.length != functionCall.output.length) {
+          throw new ValidationException(
+            "List of column aliases must have same degree as TableFunction's output")
+        }
+        if (!fields.forall(_.isInstanceOf[UnresolvedFieldReference])) {
+          throw new ValidationException(
+            "Alias field must be an instance of UnresolvedFieldReference"
+          )
+        }
+        new Table(
+          tableEnv,
+          LogicalTableFunctionCall(
+            functionCall.functionName,
+            functionCall.tableFunction,
+            functionCall.parameters,
+            functionCall.resultType,
+            fields.map(_.asInstanceOf[UnresolvedFieldReference].name).toArray,
+            functionCall.child)
+        )
+      case _ =>
+        // prepend an AliasNode
+        new Table(tableEnv, AliasNode(fields, logicalPlan).validate(tableEnv))
+    }
   }
 
   /**
@@ -309,6 +360,41 @@ class Table(
   }
 
   /**
+    * Joins this [[Table]] with an user-defined [[org.apache.calcite.schema.TableFunction]].
+    * This join is similar to a SQL left outer join with ON TRUE predicate, but it works with a
+    * table function. Each row of the outer table is joined with all rows produced by the table
+    * function. If the table function does not produce any row, the outer row is padded with nulls.
+    *
+    * Scala Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.leftOuterJoin(split('c) as ('s)).select('a,'b,'c,'s)
+    * }}}
+    *
+    * Java Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction<String> {
+    *     public void eval(String str) {
+    *       str.split("#").forEach(this::collect);
+    *     }
+    *   }
+    *
+    *   TableFunction<String> split = new MySplitUDTF();
+    *   tableEnv.registerFunction("split", split);
+    *   table.leftOuterJoin(new Table(tableEnv, "split(c)").as("s"))).select("a, b, c, s");
+    * }}}
+    */
+  def leftOuterJoin(right: Table): Table = {
+    join(right, None, JoinType.LEFT_OUTER)
+  }
+
+  /**
     * Joins two [[Table]]s. Similar to an SQL left outer join. The fields of the two joined
     * operations must not overlap, use [[as]] to rename fields if necessary.
     *
@@ -416,14 +502,46 @@ class Table(
   }
 
   private def join(right: Table, joinPredicate: Option[Expression], joinType: JoinType): Table = {
-    // check that right table belongs to the same TableEnvironment
-    if (right.tableEnv != this.tableEnv) {
-      throw new ValidationException("Only tables from the same TableEnvironment can be joined.")
+
+    // check if we join with a table or a table function
+    if (!containsUnboudedUDTFCall(right.logicalPlan)) {
+      // regular table-table join
+
+      // check that the TableEnvironment of right table is not null
+      // and right table belongs to the same TableEnvironment
+      if (right.tableEnv != this.tableEnv) {
+        throw new ValidationException("Only tables from the same TableEnvironment can be joined.")
+      }
+
+      new Table(
+        tableEnv,
+        Join(this.logicalPlan, right.logicalPlan, joinType, joinPredicate, correlated = false)
+          .validate(tableEnv))
+
+    } else {
+      // join with a table function
+
+      // check join type
+      if (joinType != JoinType.INNER && joinType != JoinType.LEFT_OUTER) {
+        throw new ValidationException(
+          "TableFunctions are currently supported for join and leftOuterJoin.")
+      }
+
+      val udtf = right.logicalPlan.asInstanceOf[LogicalTableFunctionCall]
+      val udtfCall = LogicalTableFunctionCall(
+        udtf.functionName,
+        udtf.tableFunction,
+        udtf.parameters,
+        udtf.resultType,
+        udtf.fieldNames,
+        this.logicalPlan
+      ).validate(tableEnv)
+
+      new Table(
+        tableEnv,
+        Join(this.logicalPlan, udtfCall, joinType, joinPredicate, correlated = true)
+          .validate(tableEnv))
     }
-    new Table(
-      tableEnv,
-      Join(this.logicalPlan, right.logicalPlan, joinType, joinPredicate, correlated = false)
-        .validate(tableEnv))
   }
 
   /**
@@ -602,12 +720,16 @@ class Table(
     * Example:
     *
     * {{{
-    *   // returns unlimited number of records beginning with the 4th record
+    *   // skips the first 3 rows and returns all following rows.
     *   tab.orderBy('name.desc).limit(3)
     * }}}
     *
     * @param offset number of records to skip
+    *
+    * @deprecated Please use [[Table.offset()]] and [[Table.fetch()]] instead.
     */
+  @Deprecated
+  @deprecated(message = "Deprecated in favor of Table.offset() and Table.fetch()", since = "1.4.0")
   def limit(offset: Int): Table = {
     new Table(tableEnv, Limit(offset = offset, child = logicalPlan).validate(tableEnv))
   }
@@ -620,145 +742,72 @@ class Table(
     * Example:
     *
     * {{{
-    *   // returns 5 records beginning with the 4th record
+    *   // skips the first 3 rows and returns the next 5 rows.
     *   tab.orderBy('name.desc).limit(3, 5)
     * }}}
     *
     * @param offset number of records to skip
     * @param fetch number of records to be returned
+    *
+    * @deprecated Please use [[Table.offset()]] and [[Table.fetch()]] instead.
     */
+  @Deprecated
+  @deprecated(message = "deprecated in favor of Table.offset() and Table.fetch()", since = "1.4.0")
   def limit(offset: Int, fetch: Int): Table = {
     new Table(tableEnv, Limit(offset, fetch, logicalPlan).validate(tableEnv))
   }
 
   /**
-    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
-    * to an SQL cross join, but it works with a table function. It returns rows from the outer
-    * table (table on the left of the operator) that produces matching values from the table
-    * function (which is defined in the expression on the right side of the operator).
+    * Limits a sorted result from an offset position.
+    * Similar to a SQL OFFSET clause. Offset is technically part of the Order By operator and
+    * thus must be preceded by it.
     *
-    * Example:
+    * [[Table.offset(o)]] can be combined with a subsequent [[Table.fetch(n)]] call to return n rows
+    * after skipping the first o rows.
     *
     * {{{
-    *   class MySplitUDTF extends TableFunction[String] {
-    *     def eval(str: String): Unit = {
-    *       str.split("#").foreach(collect)
-    *     }
-    *   }
-    *
-    *   val split = new MySplitUDTF()
-    *   table.join(split('c) as ('s)).select('a,'b,'c,'s)
+    *   // skips the first 3 rows and returns all following rows.
+    *   tab.orderBy('name.desc).offset(3)
+    *   // skips the first 10 rows and returns the next 5 rows.
+    *   tab.orderBy('name.desc).offset(10).fetch(5)
     * }}}
+    *
+    * @param offset number of records to skip
     */
-  def join(udtf: Expression): Table = {
-    joinUdtfInternal(udtf, JoinType.INNER)
+  def offset(offset: Int): Table = {
+    new Table(tableEnv, Limit(offset, -1, logicalPlan).validate(tableEnv))
   }
 
   /**
-    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
-    * to an SQL cross join, but it works with a table function. It returns rows from the outer
-    * table (table on the left of the operator) that produces matching values from the table
-    * function (which is defined in the expression on the right side of the operator).
+    * Limits a sorted result to the first n rows.
+    * Similar to a SQL FETCH clause. Fetch is technically part of the Order By operator and
+    * thus must be preceded by it.
     *
-    * Example:
-    *
-    * {{{
-    *   class MySplitUDTF extends TableFunction<String> {
-    *     public void eval(String str) {
-    *       str.split("#").forEach(this::collect);
-    *     }
-    *   }
-    *
-    *   TableFunction<String> split = new MySplitUDTF();
-    *   tableEnv.registerFunction("split", split);
-    *
-    *   table.join("split(c) as (s)").select("a, b, c, s");
-    * }}}
-    */
-  def join(udtf: String): Table = {
-    joinUdtfInternal(udtf, JoinType.INNER)
-  }
-
-  /**
-    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
-    * to an SQL left outer join with ON TRUE, but it works with a table function. It returns all
-    * the rows from the outer table (table on the left of the operator), and rows that do not match
-    * the condition from the table function (which is defined in the expression on the right
-    * side of the operator). Rows with no matching condition are filled with null values.
-    *
-    * Example:
+    * [[Table.fetch(n)]] can be combined with a preceding [[Table.offset(o)]] call to return n rows
+    * after skipping the first o rows.
     *
     * {{{
-    *   class MySplitUDTF extends TableFunction[String] {
-    *     def eval(str: String): Unit = {
-    *       str.split("#").foreach(collect)
-    *     }
-    *   }
-    *
-    *   val split = new MySplitUDTF()
-    *   table.leftOuterJoin(split('c) as ('s)).select('a,'b,'c,'s)
+    *   // returns the first 3 records.
+    *   tab.orderBy('name.desc).fetch(3)
+    *   // skips the first 10 rows and returns the next 5 rows.
+    *   tab.orderBy('name.desc).offset(10).fetch(5)
     * }}}
+    *
+    * @param fetch the number of records to return. Fetch must be >= 0.
     */
-  def leftOuterJoin(udtf: Expression): Table = {
-    joinUdtfInternal(udtf, JoinType.LEFT_OUTER)
-  }
-
-  /**
-    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
-    * to an SQL left outer join with ON TRUE, but it works with a table function. It returns all
-    * the rows from the outer table (table on the left of the operator), and rows that do not match
-    * the condition from the table function (which is defined in the expression on the right
-    * side of the operator). Rows with no matching condition are filled with null values.
-    *
-    * Example:
-    *
-    * {{{
-    *   class MySplitUDTF extends TableFunction<String> {
-    *     public void eval(String str) {
-    *       str.split("#").forEach(this::collect);
-    *     }
-    *   }
-    *
-    *   TableFunction<String> split = new MySplitUDTF();
-    *   tableEnv.registerFunction("split", split);
-    *
-    *   table.leftOuterJoin("split(c) as (s)").select("a, b, c, s");
-    * }}}
-    */
-  def leftOuterJoin(udtf: String): Table = {
-    joinUdtfInternal(udtf, JoinType.LEFT_OUTER)
-  }
-
-  private def joinUdtfInternal(udtfString: String, joinType: JoinType): Table = {
-    val udtf = ExpressionParser.parseExpression(udtfString)
-    joinUdtfInternal(udtf, joinType)
-  }
-
-  private def joinUdtfInternal(udtf: Expression, joinType: JoinType): Table = {
-    var alias: Option[Seq[String]] = None
-
-    // unwrap an Expression until we get a TableFunctionCall
-    def unwrap(expr: Expression): TableFunctionCall = expr match {
-      case Alias(child, name, extraNames) =>
-        alias = Some(Seq(name) ++ extraNames)
-        unwrap(child)
-      case Call(name, args) =>
-        val function = tableEnv.getFunctionCatalog.lookupFunction(name, args)
-        unwrap(function)
-      case c: TableFunctionCall => c
-      case _ =>
-        throw new TableException(
-          "Cross/Outer Apply operators only accept expressions that define table functions.")
+  def fetch(fetch: Int): Table = {
+    if (fetch < 0) {
+      throw ValidationException("FETCH count must be equal or larger than 0.")
     }
-
-    val call = unwrap(udtf)
-      .as(alias)
-      .toLogicalTableFunctionCall(this.logicalPlan)
-      .validate(tableEnv)
-
-    new Table(
-      tableEnv,
-      Join(this.logicalPlan, call, joinType, None, correlated = true).validate(tableEnv))
+    this.logicalPlan match {
+      case Limit(o, -1, c) =>
+        // replace LIMIT without FETCH by LIMIT with FETCH
+        new Table(tableEnv, Limit(o, fetch, c).validate(tableEnv))
+      case Limit(_, _, _) =>
+        throw ValidationException("FETCH is already defined.")
+      case _ =>
+        new Table(tableEnv, Limit(0, fetch, logicalPlan).validate(tableEnv))
+    }
   }
 
   /**
@@ -766,24 +815,82 @@ class Table(
     *
     * A batch [[Table]] can only be written to a
     * [[org.apache.flink.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
-    * [[org.apache.flink.table.sinks.StreamTableSink]].
+    * [[org.apache.flink.table.sinks.AppendStreamTableSink]], a
+    * [[org.apache.flink.table.sinks.RetractStreamTableSink]], or an
+    * [[org.apache.flink.table.sinks.UpsertStreamTableSink]].
     *
     * @param sink The [[TableSink]] to which the [[Table]] is written.
     * @tparam T The data type that the [[TableSink]] expects.
     */
   def writeToSink[T](sink: TableSink[T]): Unit = {
+    val queryConfig = Option(this.tableEnv) match {
+      case None => null
+      case _ => this.tableEnv.queryConfig
+    }
+    writeToSink(sink, queryConfig)
+  }
 
+  /**
+    * Writes the [[Table]] to a [[TableSink]]. A [[TableSink]] defines an external storage location.
+    *
+    * A batch [[Table]] can only be written to a
+    * [[org.apache.flink.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
+    * [[org.apache.flink.table.sinks.AppendStreamTableSink]], a
+    * [[org.apache.flink.table.sinks.RetractStreamTableSink]], or an
+    * [[org.apache.flink.table.sinks.UpsertStreamTableSink]].
+    *
+    * @param sink The [[TableSink]] to which the [[Table]] is written.
+    * @param conf The configuration for the query that writes to the sink.
+    * @tparam T The data type that the [[TableSink]] expects.
+    */
+  def writeToSink[T](sink: TableSink[T], conf: QueryConfig): Unit = {
     // get schema information of table
     val rowType = getRelNode.getRowType
     val fieldNames: Array[String] = rowType.getFieldNames.asScala.toArray
     val fieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
-      .map(field => FlinkTypeFactory.toTypeInfo(field.getType)).toArray
+      .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
+      .map {
+        // replace time indicator types by SQL_TIMESTAMP
+        case t: TypeInformation[_] if FlinkTypeFactory.isTimeIndicatorType(t) => Types.SQL_TIMESTAMP
+        case t: TypeInformation[_] => t
+      }.toArray
 
     // configure the table sink
     val configuredSink = sink.configure(fieldNames, fieldTypes)
 
     // emit the table to the configured table sink
-    tableEnv.writeToSink(this, configuredSink)
+    tableEnv.writeToSink(this, configuredSink, conf)
+  }
+
+  /**
+    * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
+    *
+    * A batch [[Table]] can only be written to a
+    * [[org.apache.flink.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
+    * [[org.apache.flink.table.sinks.AppendStreamTableSink]], a
+    * [[org.apache.flink.table.sinks.RetractStreamTableSink]], or an
+    * [[org.apache.flink.table.sinks.UpsertStreamTableSink]].
+    *
+    * @param tableName Name of the registered [[TableSink]] to which the [[Table]] is written.
+    */
+  def insertInto(tableName: String): Unit = {
+    tableEnv.insertInto(this, tableName, this.tableEnv.queryConfig)
+  }
+
+  /**
+    * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
+    *
+    * A batch [[Table]] can only be written to a
+    * [[org.apache.flink.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
+    * [[org.apache.flink.table.sinks.AppendStreamTableSink]], a
+    * [[org.apache.flink.table.sinks.RetractStreamTableSink]], or an
+    * [[org.apache.flink.table.sinks.UpsertStreamTableSink]].
+    *
+    * @param tableName Name of the [[TableSink]] to which the [[Table]] is written.
+    * @param conf The [[QueryConfig]] to use.
+    */
+  def insertInto(tableName: String, conf: QueryConfig): Unit = {
+    tableEnv.insertInto(this, tableName, conf)
   }
 
   /**
@@ -795,14 +902,82 @@ class Table(
     * For batch tables of finite size, windowing essentially provides shortcuts for time-based
     * groupBy.
     *
-    * __Note__: window on non-grouped streaming table is a non-parallel operation, i.e., all data
-    * will be processed by a single operator.
+    * __Note__: Computing windowed aggregates on a streaming table is only a parallel operation
+    * if additional grouping attributes are added to the `groupBy(...)` clause.
+    * If the `groupBy(...)` only references a window alias, the streamed table will be processed
+    * by a single task, i.e., with parallelism 1.
     *
-    * @param groupWindow group-window that specifies how elements are grouped.
+    * @param window window that specifies how elements are grouped.
     * @return A windowed table.
     */
-  def window(groupWindow: GroupWindow): GroupWindowedTable = {
-    new GroupWindowedTable(this, Seq(), groupWindow)
+  def window(window: Window): WindowedTable = {
+    new WindowedTable(this, window)
+  }
+
+  /**
+    * Defines over-windows on the records of a table.
+    *
+    * An over-window defines for each record an interval of records over which aggregation
+    * functions can be computed.
+    *
+    * Example:
+    *
+    * {{{
+    *   table
+    *     .window(Over partitionBy 'c orderBy 'rowTime preceding 10.seconds as 'ow)
+    *     .select('c, 'b.count over 'ow, 'e.sum over 'ow)
+    * }}}
+    *
+    * __Note__: Computing over window aggregates on a streaming table is only a parallel operation
+    * if the window is partitioned. Otherwise, the whole stream will be processed by a single
+    * task, i.e., with parallelism 1.
+    *
+    * __Note__: Over-windows for batch tables are currently not supported.
+    *
+    * @param overWindows windows that specify the record interval over which aggregations are
+    *                    computed.
+    * @return An OverWindowedTable to specify the aggregations.
+    */
+  @varargs
+  def window(overWindows: OverWindow*): OverWindowedTable = {
+
+    if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
+      throw TableException("Over-windows for batch tables are currently not supported.")
+    }
+
+    if (overWindows.size != 1) {
+      throw TableException("Over-Windows are currently only supported single window.")
+    }
+
+    new OverWindowedTable(this, overWindows.toArray)
+  }
+
+  var tableName: String = _
+
+  /**
+    * Registers an unique table name under the table environment
+    * and return the registered table name.
+    */
+  override def toString: String = {
+    if (tableName == null) {
+      tableName = "UnnamedTable$" + tableEnv.attrNameCntr.getAndIncrement()
+      tableEnv.registerTable(tableName, this)
+    }
+    tableName
+  }
+
+  /**
+    * Checks if the plan represented by a [[LogicalNode]] contains an unbounded UDTF call.
+    * @param n the node to check
+    * @return true if the plan contains an unbounded UDTF call, false otherwise.
+    */
+  private def containsUnboudedUDTFCall(n: LogicalNode): Boolean = {
+    n match {
+      case functionCall: LogicalTableFunctionCall if functionCall.child == null => true
+      case u: UnaryNode => containsUnboudedUDTFCall(u.child)
+      case b: BinaryNode => containsUnboudedUDTFCall(b.left) || containsUnboudedUDTFCall(b.right)
+      case _: LeafNode => false
+    }
   }
 }
 
@@ -824,14 +999,15 @@ class GroupedTable(
     * }}}
     */
   def select(fields: Expression*): Table = {
-    val (aggNames, propNames) = extractAggregationsAndProperties(fields, table.tableEnv)
+    val expandedFields = expandProjectList(fields, table.logicalPlan, table.tableEnv)
+    val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, table.tableEnv)
     if (propNames.nonEmpty) {
       throw ValidationException("Window properties can only be used on windowed tables.")
     }
 
     val projectsOnAgg = replaceAggregationsAndProperties(
-      fields, table.tableEnv, aggNames, propNames)
-    val projectFields = extractFieldReferences(fields ++ groupKey)
+      expandedFields, table.tableEnv, aggNames, propNames)
+    val projectFields = extractFieldReferences(expandedFields ++ groupKey)
 
     new Table(table.tableEnv,
       Project(projectsOnAgg,
@@ -853,80 +1029,154 @@ class GroupedTable(
     */
   def select(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
-    select(fieldExprs: _*)
-  }
-
-  /**
-    * Groups the records of a table by assigning them to windows defined by a time or row interval.
-    *
-    * For streaming tables of infinite size, grouping into windows is required to define finite
-    * groups on which group-based aggregates can be computed.
-    *
-    * For batch tables of finite size, windowing essentially provides shortcuts for time-based
-    * groupBy.
-    *
-    * @param groupWindow group-window that specifies how elements are grouped.
-    * @return A windowed table.
-    */
-  def window(groupWindow: GroupWindow): GroupWindowedTable = {
-    new GroupWindowedTable(table, groupKey, groupWindow)
+    //get the correct expression for AggFunctionCall
+    val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, table.tableEnv))
+    select(withResolvedAggFunctionCall: _*)
   }
 }
 
-class GroupWindowedTable(
+class WindowedTable(
     private[flink] val table: Table,
-    private[flink] val groupKey: Seq[Expression],
-    private[flink] val window: GroupWindow) {
+    private[flink] val window: Window) {
 
   /**
-    * Performs a selection operation on a windowed table. Similar to an SQL SELECT statement.
+    * Groups the elements by a mandatory window and one or more optional grouping attributes.
+    * The window is specified by referring to its alias.
+    *
+    * If no additional grouping attribute is specified and if the input is a streaming table,
+    * the aggregation will be performed by a single task, i.e., with parallelism 1.
+    *
+    * Aggregations are performed per group and defined by a subsequent `select(...)` clause similar
+    * to SQL SELECT-GROUP-BY query.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.window([window] as 'w)).groupBy('w, 'key).select('key, 'value.avg)
+    * }}}
+    */
+  def groupBy(fields: Expression*): WindowGroupedTable = {
+    val fieldsWithoutWindow = fields.filterNot(window.alias.equals(_))
+    if (fields.size != fieldsWithoutWindow.size + 1) {
+      throw new ValidationException("GroupBy must contain exactly one window alias.")
+    }
+
+    new WindowGroupedTable(table, fieldsWithoutWindow, window)
+  }
+
+  /**
+    * Groups the elements by a mandatory window and one or more optional grouping attributes.
+    * The window is specified by referring to its alias.
+    *
+    * If no additional grouping attribute is specified and if the input is a streaming table,
+    * the aggregation will be performed by a single task, i.e., with parallelism 1.
+    *
+    * Aggregations are performed per group and defined by a subsequent `select(...)` clause similar
+    * to SQL SELECT-GROUP-BY query.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.window([window].as("w")).groupBy("w, key").select("key, value.avg")
+    * }}}
+    */
+  def groupBy(fields: String): WindowGroupedTable = {
+    val fieldsExpr = ExpressionParser.parseExpressionList(fields)
+    groupBy(fieldsExpr: _*)
+  }
+
+}
+
+class OverWindowedTable(
+    private[flink] val table: Table,
+    private[flink] val overWindows: Array[OverWindow]) {
+
+  def select(fields: Expression*): Table = {
+    val expandedFields = expandProjectList(
+      fields,
+      table.logicalPlan,
+      table.tableEnv)
+
+    if(fields.exists(_.isInstanceOf[WindowProperty])){
+      throw ValidationException(
+        "Window start and end properties are not available for Over windows.")
+    }
+
+    val expandedOverFields = resolveOverWindows(expandedFields, overWindows, table.tableEnv)
+
+    new Table(
+      table.tableEnv,
+      Project(
+        expandedOverFields.map(UnresolvedAlias),
+        table.logicalPlan,
+        // required for proper projection push down
+        explicitAlias = true)
+        .validate(table.tableEnv)
+    )
+  }
+
+  def select(fields: String): Table = {
+    val fieldExprs = ExpressionParser.parseExpressionList(fields)
+    //get the correct expression for AggFunctionCall
+    val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, table.tableEnv))
+    select(withResolvedAggFunctionCall: _*)
+  }
+}
+
+class WindowGroupedTable(
+    private[flink] val table: Table,
+    private[flink] val groupKeys: Seq[Expression],
+    private[flink] val window: Window) {
+
+  /**
+    * Performs a selection operation on a window grouped table. Similar to an SQL SELECT statement.
     * The field expressions can contain complex expressions and aggregations.
     *
     * Example:
     *
     * {{{
-    *   groupWindowTable.select('key, 'window.start, 'value.avg + " The average" as 'average)
+    *   windowGroupedTable.select('key, 'window.start, 'value.avg as 'valavg)
     * }}}
     */
   def select(fields: Expression*): Table = {
-    val (aggNames, propNames) = extractAggregationsAndProperties(fields, table.tableEnv)
-    val projectsOnAgg = replaceAggregationsAndProperties(
-      fields, table.tableEnv, aggNames, propNames)
+    val expandedFields = expandProjectList(fields, table.logicalPlan, table.tableEnv)
+    val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, table.tableEnv)
 
-    val projectFields = (table.tableEnv, window) match {
-      // event time can be arbitrary field in batch environment
-      case (_: BatchTableEnvironment, w: EventTimeWindow) =>
-        extractFieldReferences(fields ++ groupKey ++ Seq(w.timeField))
-      case (_, _) =>
-        extractFieldReferences(fields ++ groupKey)
-    }
+    val projectsOnAgg = replaceAggregationsAndProperties(
+      expandedFields, table.tableEnv, aggNames, propNames)
+
+    val projectFields = extractFieldReferences(expandedFields ++ groupKeys :+ window.timeField)
 
     new Table(table.tableEnv,
       Project(
         projectsOnAgg,
         WindowAggregate(
-          groupKey,
+          groupKeys,
           window.toLogicalWindow,
           propNames.map(a => Alias(a._1, a._2)).toSeq,
           aggNames.map(a => Alias(a._1, a._2)).toSeq,
           Project(projectFields, table.logicalPlan).validate(table.tableEnv)
-        ).validate(table.tableEnv)
+        ).validate(table.tableEnv),
+        // required for proper resolution of the time attribute in multi-windows
+        explicitAlias = true
       ).validate(table.tableEnv))
   }
 
   /**
-    * Performs a selection operation on a group-windows table. Similar to an SQL SELECT statement.
+    * Performs a selection operation on a window grouped  table. Similar to an SQL SELECT statement.
     * The field expressions can contain complex expressions and aggregations.
     *
     * Example:
     *
     * {{{
-    *   groupWindowTable.select("key, window.start, value.avg + ' The average' as average")
+    *   windowGroupedTable.select("key, window.start, value.avg as valavg")
     * }}}
     */
   def select(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
-    select(fieldExprs: _*)
+    //get the correct expression for AggFunctionCall
+    val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, table.tableEnv))
+    select(withResolvedAggFunctionCall: _*)
   }
 
 }

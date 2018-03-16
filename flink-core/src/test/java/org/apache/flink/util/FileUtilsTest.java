@@ -18,7 +18,11 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
+
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -27,12 +31,15 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
-import java.nio.file.Files;
-import java.util.Random;
 
-import static org.junit.Assert.*;
-import static org.junit.Assume.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
+/**
+ * Tests for the {@link FileUtils}.
+ */
 public class FileUtilsTest {
 
 	@Rule
@@ -41,6 +48,28 @@ public class FileUtilsTest {
 	// ------------------------------------------------------------------------
 	//  Tests
 	// ------------------------------------------------------------------------
+
+	@Test
+	public void testDeletePathIfEmpty() throws IOException {
+		final FileSystem localFs = FileSystem.getLocalFileSystem();
+
+		final File dir = tmp.newFolder();
+		assertTrue(dir.exists());
+
+		final Path dirPath = new Path(dir.toURI());
+
+		// deleting an empty directory should work
+		assertTrue(FileUtils.deletePathIfEmpty(localFs, dirPath));
+
+		// deleting a non existing directory should work
+		assertTrue(FileUtils.deletePathIfEmpty(localFs, dirPath));
+
+		// create a non-empty dir
+		final File nonEmptyDir = tmp.newFolder();
+		final Path nonEmptyDirPath = new Path(nonEmptyDir.toURI());
+		new FileOutputStream(new File(nonEmptyDir, "filename")).close();
+		assertFalse(FileUtils.deletePathIfEmpty(localFs, nonEmptyDirPath));
+	}
 
 	@Test
 	public void testDeleteQuietly() throws Exception {
@@ -100,6 +129,22 @@ public class FileUtilsTest {
 		}
 	}
 
+	@Test
+	public void testDeleteDirectoryWhichIsAFile() throws Exception {
+
+		// deleting a directory that is actually a file should fails
+
+		File file = tmp.newFile();
+		try {
+			FileUtils.deleteDirectory(file);
+			fail("this should fail with an exception");
+		}
+		catch (IOException ignored) {
+			// this is what we expect
+		}
+	}
+
+	@Ignore
 	@Test
 	public void testDeleteDirectoryConcurrently() throws Exception {
 		final File parent = tmp.newFolder();

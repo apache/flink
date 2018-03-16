@@ -1,0 +1,98 @@
+This project includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+-------------------------------------------------------------
+
+This project bundles the following dependencies under
+the Apache Software License 2.0
+
+  - commons-collections : commons-collections version 3.2.2
+  - commons-cli : commons-cli version 1.3.1
+  - commons-codec : commons-codec version 1.10
+  - commons-io : commons-io version 2.4
+  - commons-net : commons-net version 3.1
+  - commons-logging : commons-logging version 1.1.3
+  - commons-lang : commons-lang version 2.6
+  - commons-configuration : commons-configuration version 1.7
+  - commons-digester : commons-digester version 1.8.1
+  - commons-beanutils : commons-beanutils version 1.8.3
+  - org.apache.commons : commons-compress version 1.4.1
+  - org.apache.commons : commons-math3 version 3.5
+  - org.apache.httpcomponents : httpclient version 4.5.3
+  - org.apache.httpcomponents : httpcore version 4.4.6
+  - org.apache.htrace : htrace-core4 version 4.0.1-incubating
+  - org.apache.hadoop : hadoop-client version 2.8.1
+  - org.apache.hadoop : hadoop-common version 2.8.1
+  - org.apache.hadoop : hadoop-auth version 2.8.1
+  - org.apache.hadoop : hadoop-hdfs version 2.8.1
+  - org.apache.hadoop : hadoop-hdfs-client version 2.8.1
+  - org.apache.hadoop : hadoop-annotations version 2.8.1
+  - org.apache.hadoop : hadoop-aws version 2.8.1
+  - com.google.guava : guava version 11.0.2
+  - com.google.protobuf : protobuf-java version 2.5.0
+  - com.google.code.gson : gson version 2.2.4
+  - org.mortbay.jetty : jetty-sslengine version 6.1.26
+  - com.nimbusds : nimbus-jose-jwt version 3.9
+  - net.minidev : json-smart version 1.1.1
+  - joda-time : joda-time version 2.5
+  - com.squareup.okhttp : okhttp version 2.4.0
+  - com.squareup.okio : okio version 1.4.0
+  - com.amazonaws : aws-java-sdk-s3 version 1.10.6
+  - com.amazonaws : aws-java-sdk-kms version 1.10.6
+  - com.amazonaws : aws-java-sdk-core version 1.10.6
+  - org.codehaus.jackson : jackson-core-asl version 1.9.13
+  - org.codehaus.jackson : jackson-mapper-asl version 1.9.13
+  - com.fasterxml.jackson.core : jackson-core version 2.7.4
+  - com.fasterxml.jackson.core : jackson-databind version 2.7.4
+  - com.fasterxml.jackson.core : jackson-annotations version 2.7.4
+  
+-------------------------------------------------------------
+
+This project bundles the following dependencies under
+the BSD License
+
+  - xmlenc : xmlenc version 0.52 - Copyright 2003-2005, Ernst de Haan <wfe.dehaan@gmail.com>
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+-------------------------------------------
+Notice for  org.tukaani : xz
+-------------------------------------------
+
+This Java implementation of XZ has been put into the public domain, thus you can do whatever
+you want with it. All the files in the package have been written by Lasse Collin, but some files
+are heavily based on public domain code written by Igor Pavlov.
+
+
+-------------------------------------------
+Notice for  net.jcip : jcip-annotations
+-------------------------------------------
+
+This project bundles net.jcip : jcip-annotations version 1.0, which
+has been released to the public domain.

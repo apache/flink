@@ -34,7 +34,7 @@ import java.util.Iterator;
 
 /**
  * The base class for functions that produce messages between vertices as a part of a {@link ScatterGatherIteration}.
- * 
+ *
  * @param <K> The type of the vertex key (the vertex identifier).
  * @param <VV> The type of the vertex value (the state of the vertex).
  * @param <Message> The type of the message sent between vertices along the edges.
@@ -90,23 +90,23 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 	/**
 	 * This method is invoked once per superstep for each vertex that was changed in that superstep.
 	 * It needs to produce the messages that will be received by vertices in the next superstep.
-	 * 
+	 *
 	 * @param vertex The vertex that was changed.
-	 * 
+	 *
 	 * @throws Exception The computation may throw exceptions, which causes the superstep to fail.
 	 */
 	public abstract void sendMessages(Vertex<K, VV> vertex) throws Exception;
 
 	/**
 	 * This method is executed once per superstep before the scatter function is invoked for each vertex.
-	 * 
+	 *
 	 * @throws Exception Exceptions in the pre-superstep phase cause the superstep to fail.
 	 */
 	public void preSuperstep() throws Exception {}
 
 	/**
 	 * This method is executed once per superstep after the scatter function has been invoked for each vertex.
-	 * 
+	 *
 	 * @throws Exception Exceptions in the post-superstep phase cause the superstep to fail.
 	 */
 	public void postSuperstep() throws Exception {}
@@ -115,11 +115,13 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 	/**
 	 * Gets an {@link java.lang.Iterable} with all edges. This method is mutually exclusive with
 	 * {@link #sendMessageToAllNeighbors(Object)} and may be called only once.
-	 * <p>
-	 * If the {@link EdgeDirection} is OUT (default), then this iterator contains outgoing edges.
-	 * If the {@link EdgeDirection} is IN, then this iterator contains incoming edges.
-	 * If the {@link EdgeDirection} is ALL, then this iterator contains both outgoing and incoming edges.
-	 * 
+	 *
+	 * <p>If the {@link EdgeDirection} is OUT (default), then this iterator contains outgoing edges.
+	 *
+	 * <p>If the {@link EdgeDirection} is IN, then this iterator contains incoming edges.
+	 *
+	 * <p>If the {@link EdgeDirection} is ALL, then this iterator contains both outgoing and incoming edges.
+	 *
 	 * @return An iterator with all edges.
 	 */
 	@SuppressWarnings("unchecked")
@@ -135,11 +137,13 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 	/**
 	 * Sends the given message to all vertices that are targets of an edge of the changed vertex.
 	 * This method is mutually exclusive to the method {@link #getEdges()} and may be called only once.
-	 * <p>
-	 * If the {@link EdgeDirection} is OUT (default), the message will be sent to out-neighbors.
-	 * If the {@link EdgeDirection} is IN, the message will be sent to in-neighbors.
-	 * If the {@link EdgeDirection} is ALL, the message will be sent to all neighbors.
-	 * 
+	 *
+	 * <p>If the {@link EdgeDirection} is OUT (default), the message will be sent to out-neighbors.
+	 *
+	 * <p>If the {@link EdgeDirection} is IN, the message will be sent to in-neighbors.
+	 *
+	 * <p>If the {@link EdgeDirection} is ALL, the message will be sent to all neighbors.
+	 *
 	 * @param m The message to send.
 	 */
 	public void sendMessageToAllNeighbors(Message m) {
@@ -155,16 +159,16 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 			Tuple next = (Tuple) edges.next();
 
 			/*
-			 * When EdgeDirection is OUT, the edges iterator only has the out-edges 
-			 * of the vertex, i.e. the ones where this vertex is src. 
+			 * When EdgeDirection is OUT, the edges iterator only has the out-edges
+			 * of the vertex, i.e. the ones where this vertex is src.
 			 * next.getField(1) gives the neighbor of the vertex running this ScatterFunction.
 			 */
 			if (getDirection().equals(EdgeDirection.OUT)) {
 				outValue.f0 = next.getField(1);
 			}
 			/*
-			 * When EdgeDirection is IN, the edges iterator only has the in-edges 
-			 * of the vertex, i.e. the ones where this vertex is trg. 
+			 * When EdgeDirection is IN, the edges iterator only has the in-edges
+			 * of the vertex, i.e. the ones where this vertex is trg.
 			 * next.getField(10) gives the neighbor of the vertex running this ScatterFunction.
 			 */
 			else if (getDirection().equals(EdgeDirection.IN)) {
@@ -188,7 +192,7 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 	/**
 	 * Sends the given message to the vertex identified by the given key. If the target vertex does not exist,
 	 * the next superstep will cause an exception due to a non-deliverable message.
-	 * 
+	 *
 	 * @param target The key (id) of the target vertex to message.
 	 * @param m The message.
 	 */
@@ -202,7 +206,7 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 
 	/**
 	 * Gets the number of the superstep, starting at <tt>1</tt>.
-	 * 
+	 *
 	 * @return The number of the current superstep.
 	 */
 	public int getSuperstepNumber() {
@@ -212,7 +216,7 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 	/**
 	 * Gets the iteration aggregator registered under the given name. The iteration aggregator combines
 	 * all aggregates globally once per superstep and makes them available in the next superstep.
-	 * 
+	 *
 	 * @param name The name of the aggregator.
 	 * @return The aggregator registered under this name, or null, if no aggregator was registered.
 	 */
@@ -222,7 +226,7 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 
 	/**
 	 * Get the aggregated value that an aggregator computed in the previous iteration.
-	 * 
+	 *
 	 * @param name The name of the aggregator.
 	 * @return The aggregated value of the previous iteration.
 	 */
@@ -234,7 +238,7 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 	 * Gets the broadcast data set registered under the given name. Broadcast data sets
 	 * are available on all parallel instances of a function. They can be registered via
 	 * {@link org.apache.flink.graph.spargel.ScatterGatherConfiguration#addBroadcastSetForScatterFunction(String, org.apache.flink.api.java.DataSet)}.
-	 * 
+	 *
 	 * @param name The name under which the broadcast set is registered.
 	 * @return The broadcast data set.
 	 */
@@ -277,9 +281,8 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 		this.edgesUsed = false;
 	}
 
-	private static final class EdgesIterator<K, EV> 
-		implements Iterator<Edge<K, EV>>, Iterable<Edge<K, EV>>
-	{
+	private static final class EdgesIterator<K, EV>
+		implements Iterator<Edge<K, EV>>, Iterable<Edge<K, EV>> {
 		private Iterator<Edge<K, EV>> input;
 
 		private Edge<K, EV> edge = new Edge<>();
@@ -306,6 +309,7 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 		public void remove() {
 			throw new UnsupportedOperationException();
 		}
+
 		@Override
 		public Iterator<Edge<K, EV>> iterator() {
 			return this;

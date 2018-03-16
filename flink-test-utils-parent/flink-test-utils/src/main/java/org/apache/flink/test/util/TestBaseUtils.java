@@ -18,35 +18,31 @@
 
 package org.apache.flink.test.util;
 
-import akka.actor.ActorRef;
-import akka.dispatch.Futures;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
-
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.hadoop.fs.FileSystem;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import akka.actor.ActorRef;
+import akka.dispatch.Futures;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import scala.concurrent.Await;
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.ExecutionContext$;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -56,6 +52,7 @@ import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -70,14 +67,26 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import scala.concurrent.Await;
+import scala.concurrent.ExecutionContext;
+import scala.concurrent.ExecutionContext$;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Utility class containing various methods for testing purposes.
+ */
 public class TestBaseUtils extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TestBaseUtils.class);
@@ -90,7 +99,9 @@ public class TestBaseUtils extends TestLogger {
 
 	protected static final String DEFAULT_AKKA_STARTUP_TIMEOUT = "60 s";
 
-	public static FiniteDuration DEFAULT_TIMEOUT = new FiniteDuration(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
+	public static final FiniteDuration DEFAULT_TIMEOUT = new FiniteDuration(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
+
+	public static final Time DEFAULT_HTTP_TIMEOUT = Time.seconds(10L);
 
 	// ------------------------------------------------------------------------
 
@@ -105,7 +116,6 @@ public class TestBaseUtils extends TestLogger {
 		Assert.assertTrue("Insufficient java heap space " + heap + "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB
 				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
 	}
-
 
 	public static LocalFlinkMiniCluster startCluster(
 		int numTaskManagers,
@@ -133,22 +143,41 @@ public class TestBaseUtils extends TestLogger {
 		Configuration config,
 		boolean singleActorSystem) throws Exception {
 
-		logDir = File.createTempFile("TestBaseUtils-logdir", null);
-		Assert.assertTrue("Unable to delete temp file", logDir.delete());
-		Assert.assertTrue("Unable to create temp directory", logDir.mkdir());
-		Path logFile = Files.createFile(new File(logDir, "jobmanager.log").toPath());
-		Files.createFile(new File(logDir, "jobmanager.out").toPath());
+		if (!config.contains(WebOptions.LOG_PATH) || !config.containsKey(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY)) {
+			logDir = File.createTempFile("TestBaseUtils-logdir", null);
+			Assert.assertTrue("Unable to delete temp file", logDir.delete());
+			Assert.assertTrue("Unable to create temp directory", logDir.mkdir());
+			Path logFile = Files.createFile(new File(logDir, "jobmanager.log").toPath());
+			Files.createFile(new File(logDir, "jobmanager.out").toPath());
 
-		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, TASK_MANAGER_MEMORY_SIZE);
-		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
+			if (!config.contains(WebOptions.LOG_PATH)) {
+				config.setString(WebOptions.LOG_PATH, logFile.toString());
+			}
 
-		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT + "s");
-		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, DEFAULT_AKKA_STARTUP_TIMEOUT);
+			if (!config.containsKey(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY)) {
+				config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, logFile.toString());
+			}
+		}
 
-		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 8081);
-		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
+		if (!config.contains(WebOptions.PORT)) {
+			config.setInteger(WebOptions.PORT, 8081);
+		}
 
-		config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, logFile.toString());
+		if (!config.contains(AkkaOptions.ASK_TIMEOUT)) {
+			config.setString(AkkaOptions.ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT + "s");
+		}
+
+		if (!config.contains(AkkaOptions.STARTUP_TIMEOUT)) {
+			config.setString(AkkaOptions.STARTUP_TIMEOUT, DEFAULT_AKKA_STARTUP_TIMEOUT);
+		}
+
+		if (!config.contains(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE)) {
+			config.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+		}
+
+		if (!config.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
+			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, TASK_MANAGER_MEMORY_SIZE);
+		}
 
 		LocalFlinkMiniCluster cluster =  new LocalFlinkMiniCluster(config, singleActorSystem);
 
@@ -156,7 +185,6 @@ public class TestBaseUtils extends TestLogger {
 
 		return cluster;
 	}
-
 
 	public static void stopCluster(LocalFlinkMiniCluster executor, FiniteDuration timeout) throws Exception {
 		if (logDir != null) {
@@ -203,7 +231,17 @@ public class TestBaseUtils extends TestLogger {
 			}
 
 			executor.stop();
-			FileSystem.closeAll();
+			try {
+				Class<?> hadoopFileSystemClass = Class.forName(
+					"org.apache.hadoop.fs.FileSystem",
+					true,
+					TestBaseUtils.class.getClassLoader());
+
+				Method closeAllMethod = hadoopFileSystemClass.getMethod("closeAll");
+				closeAllMethod.invoke(null);
+			} catch (Throwable e) {
+				// ignore
+			}
 			System.gc();
 
 			Assert.assertEquals("Not all broadcast variables were released.", 0, numUnreleasedBCVars);
@@ -284,6 +322,8 @@ public class TestBaseUtils extends TestLogger {
 			String[] excludePrefixes,
 			boolean inOrderOfFiles) throws IOException {
 
+		checkArgument(resultPath != null, "resultPath cannot be be null");
+
 		final BufferedReader[] readers = getResultReader(resultPath, excludePrefixes, inOrderOfFiles);
 		try {
 			for (BufferedReader reader : readers) {
@@ -322,8 +362,8 @@ public class TestBaseUtils extends TestLogger {
 			String msg = String.format(
 					"Different elements in arrays: expected %d elements and received %d\n" +
 					"files: %s\n expected: %s\n received: %s",
-					expected.length, result.length, 
-					Arrays.toString(getAllInvolvedFiles(resultPath, excludePrefixes)), 
+					expected.length, result.length,
+					Arrays.toString(getAllInvolvedFiles(resultPath, excludePrefixes)),
 					Arrays.toString(expected), Arrays.toString(result));
 			fail(msg);
 		}
@@ -439,7 +479,7 @@ public class TestBaseUtils extends TestLogger {
 				throw new IllegalArgumentException("This path does not denote a local file.");
 			}
 		} catch (URISyntaxException | NullPointerException e) {
-			throw new IllegalArgumentException("This path does not describe a valid local file URI.");
+			throw new IllegalArgumentException("This path does not describe a valid local file URI.", e);
 		}
 	}
 
@@ -581,7 +621,7 @@ public class TestBaseUtils extends TestLogger {
 		// we create test path that depends on class to prevent name clashes when two tests
 		// create temp files with the same name
 		String path = System.getProperty("java.io.tmpdir");
-		if (!(path.endsWith("/") || path.endsWith("\\")) ) {
+		if (!(path.endsWith("/") || path.endsWith("\\"))) {
 			path += System.getProperty("file.separator");
 		}
 		path += (forClass.getName() + "-" + folder);
@@ -597,23 +637,46 @@ public class TestBaseUtils extends TestLogger {
 	//---------------------------------------------------------------------------------------------
 
 	public static String getFromHTTP(String url) throws Exception {
-		URL u = new URL(url);
-		LOG.info("Accessing URL "+url+" as URL: "+u);
-		HttpURLConnection connection = (HttpURLConnection) u.openConnection();
-		connection.setConnectTimeout(100000);
-		connection.connect();
-		InputStream is;
-		if(connection.getResponseCode() >= 400) {
-			// error!
-			LOG.warn("HTTP Response code when connecting to {} was {}", url, connection.getResponseCode());
-			is = connection.getErrorStream();
-		} else {
-			is = connection.getInputStream();
-		}
-
-		return IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8");
+		return getFromHTTP(url, DEFAULT_HTTP_TIMEOUT);
 	}
 
+	public static String getFromHTTP(String url, Time timeout) throws Exception {
+		final URL u = new URL(url);
+		LOG.info("Accessing URL " + url + " as URL: " + u);
+
+		final long deadline = timeout.toMilliseconds() + System.currentTimeMillis();
+
+		while (System.currentTimeMillis() <= deadline) {
+			HttpURLConnection connection = (HttpURLConnection) u.openConnection();
+			connection.setConnectTimeout(100000);
+			connection.connect();
+
+			if (Objects.equals(HttpResponseStatus.SERVICE_UNAVAILABLE, HttpResponseStatus.valueOf(connection.getResponseCode()))) {
+				// service not available --> Sleep and retry
+				LOG.debug("Web service currently not available. Retrying the request in a bit.");
+				Thread.sleep(100L);
+			} else {
+				InputStream is;
+
+				if (connection.getResponseCode() >= 400) {
+					// error!
+					LOG.warn("HTTP Response code when connecting to {} was {}", url, connection.getResponseCode());
+					is = connection.getErrorStream();
+				} else {
+					is = connection.getInputStream();
+				}
+
+				return IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
+			}
+		}
+
+		throw new TimeoutException("Could not get HTTP response in time since the service is still unavailable.");
+	}
+
+	/**
+	 * Comparator for comparable Tuples.
+	 * @param <T> tuple type
+	 */
 	public static class TupleComparator<T extends Tuple> implements Comparator<T> {
 
 		@Override

@@ -17,11 +17,12 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.transformations.SelectTransformation;
 import org.apache.flink.streaming.api.transformations.SplitTransformation;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 /**
  * The SplitStream represents an operator that has been split using an
@@ -41,7 +42,7 @@ public class SplitStream<OUT> extends DataStream<OUT> {
 
 	/**
 	 * Sets the output names for which the next operator will receive values.
-	 * 
+	 *
 	 * @param outputNames
 	 *            The output names for which the operator will receive the
 	 *            input.

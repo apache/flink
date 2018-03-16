@@ -18,16 +18,20 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.SharedSlot;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.runtime.instance.Instance;
-
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.runtime.instance.SharedSlot;
 
-import static org.apache.flink.util.Preconditions.checkState;
+import javax.annotation.Nullable;
+
+import java.util.Objects;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A CoLocationConstraint manages the location of a set of tasks
@@ -43,12 +47,14 @@ public class CoLocationConstraint {
 
 	private volatile SharedSlot sharedSlot;
 
-	private volatile ResourceID lockedLocation;
+	private volatile TaskManagerLocation lockedLocation;
 
+	private volatile SlotRequestId slotRequestId;
 
 	CoLocationConstraint(CoLocationGroup group) {
 		Preconditions.checkNotNull(group);
 		this.group = group;
+		this.slotRequestId = null;
 	}
 
 	// ------------------------------------------------------------------------
@@ -107,7 +113,7 @@ public class CoLocationConstraint {
 	 */
 	public TaskManagerLocation getLocation() {
 		if (lockedLocation != null) {
-			return sharedSlot.getTaskManagerLocation();
+			return lockedLocation;
 		} else {
 			throw new IllegalStateException("Location not yet locked");
 		}
@@ -136,12 +142,12 @@ public class CoLocationConstraint {
 			this.sharedSlot = newSlot;
 		}
 		else if (newSlot != this.sharedSlot){
-			if (lockedLocation != null && lockedLocation != newSlot.getTaskManagerID()) {
+			if (lockedLocation != null && !Objects.equals(lockedLocation, newSlot.getTaskManagerLocation())) {
 				throw new IllegalArgumentException(
 						"Cannot assign different location to a constraint whose location is locked.");
 			}
 			if (this.sharedSlot.isAlive()) {
-				this.sharedSlot.releaseSlot();
+				this.sharedSlot.releaseSlot(new FlinkException("Setting new shared slot for co-location constraint."));
 			}
 
 			this.sharedSlot = newSlot;
@@ -159,7 +165,43 @@ public class CoLocationConstraint {
 		checkState(lockedLocation == null, "Location is already locked");
 		checkState(sharedSlot != null, "Cannot lock location without a slot.");
 
-		lockedLocation = sharedSlot.getTaskManagerID();
+		lockedLocation = sharedSlot.getTaskManagerLocation();
+	}
+
+	/**
+	 * Locks the location of this slot. The location can be locked only once
+	 * and only after a shared slot has been assigned.
+	 *
+	 * <p>Note: This method exists for compatibility reasons with the Flip-6 SlotPool
+	 *
+	 * @param taskManagerLocation to lock this co-location constraint to
+	 */
+	public void lockLocation(TaskManagerLocation taskManagerLocation) {
+		checkNotNull(taskManagerLocation);
+		checkState(lockedLocation == null, "Location is already locked.");
+
+		lockedLocation = taskManagerLocation;
+	}
+
+	/**
+	 * Sets the slot request id of the currently assigned slot to the co-location constraint.
+	 * All other tasks belonging to this co-location constraint will be deployed to the same slot.
+	 *
+	 * @param slotRequestId identifying the assigned slot for this co-location constraint
+	 */
+	public void setSlotRequestId(@Nullable SlotRequestId slotRequestId) {
+		this.slotRequestId = slotRequestId;
+	}
+
+	/**
+	 * Returns the currently assigned slot request id identifying the slot to which tasks
+	 * belonging to this co-location constraint will be deployed to.
+	 *
+	 * @return Slot request id of the assigned slot or null if none
+	 */
+	@Nullable
+	public SlotRequestId getSlotRequestId() {
+		return slotRequestId;
 	}
 
 	// ------------------------------------------------------------------------

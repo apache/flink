@@ -39,8 +39,7 @@ public interface CompletedCheckpointStore {
 	 * Adds a {@link CompletedCheckpoint} instance to the list of completed checkpoints.
 	 *
 	 * <p>Only a bounded number of checkpoints is kept. When exceeding the maximum number of
-	 * retained checkpoints, the oldest one will be discarded via {@link
-	 * CompletedCheckpoint#discard()}.
+	 * retained checkpoints, the oldest one will be discarded.
 	 */
 	void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception;
 
@@ -72,4 +71,18 @@ public interface CompletedCheckpointStore {
 	 */
 	int getNumberOfRetainedCheckpoints();
 
+	/**
+	 * Returns the max number of retained checkpoints.
+	 */
+	int getMaxNumberOfRetainedCheckpoints();
+
+	/**
+	 * This method returns whether the completed checkpoint store requires checkpoints to be
+	 * externalized. Externalized checkpoints have their meta data persisted, which the checkpoint
+	 * store can exploit (for example by simply pointing the persisted metadata).
+	 * 
+	 * @return True, if the store requires that checkpoints are externalized before being added, false
+	 *         if the store stores the metadata itself.
+	 */
+	boolean requiresExternalizedCheckpoints();
 }

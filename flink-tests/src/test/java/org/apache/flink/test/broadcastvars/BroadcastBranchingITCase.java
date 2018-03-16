@@ -18,9 +18,6 @@
 
 package org.apache.flink.test.broadcastvars;
 
-import java.util.Collection;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -35,6 +32,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 
+import java.util.Collection;
+import java.util.List;
+
+/**
+ * Test broadcast input after branching.
+ */
 public class BroadcastBranchingITCase extends JavaProgramTestBase {
 	private static final String RESULT = "(2,112)\n";
 
@@ -63,16 +66,16 @@ public class BroadcastBranchingITCase extends JavaProgramTestBase {
 				.fromElements(new Tuple2<>("1", 2), new Tuple2<>("2", 3), new Tuple2<>("3", 7));
 
 		// Jn1 matches x and y values on id and emits (id, x, y) triples
-		JoinOperator<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Integer, Integer>> jn1
-				= sc2.join(sc3).where(0).equalTo(0).with(new Jn1());
+		JoinOperator<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Integer, Integer>> jn1 =
+				sc2.join(sc3).where(0).equalTo(0).with(new Jn1());
 
 		// Jn2 matches polynomial and arguments by id, computes p = min(P(x),P(y)) and emits (id, p) tuples
-		JoinOperator<Tuple3<String, Integer, Integer>, Tuple4<String, Integer, Integer, Integer>, Tuple2<String, Integer>> jn2
-				= jn1.join(sc1).where(0).equalTo(0).with(new Jn2());
+		JoinOperator<Tuple3<String, Integer, Integer>, Tuple4<String, Integer, Integer, Integer>, Tuple2<String, Integer>> jn2 =
+				jn1.join(sc1).where(0).equalTo(0).with(new Jn2());
 
 		// Mp1 selects (id, x, y) triples where x = y and broadcasts z (=x=y) to Mp2
-		FlatMapOperator<Tuple3<String, Integer, Integer>, Tuple2<String, Integer>> mp1
-				= jn1.flatMap(new Mp1());
+		FlatMapOperator<Tuple3<String, Integer, Integer>, Tuple2<String, Integer>> mp1 =
+				jn1.flatMap(new Mp1());
 
 		// Mp2 filters out all p values which can be divided by z
 		List<Tuple2<String, Integer>> result = jn2.flatMap(new Mp2()).withBroadcastSet(mp1, "z").collect();
@@ -80,7 +83,7 @@ public class BroadcastBranchingITCase extends JavaProgramTestBase {
 		JavaProgramTestBase.compareResultAsText(result, RESULT);
 	}
 
-	public static class Jn1 implements JoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Integer, Integer>> {
+	private static class Jn1 implements JoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Integer, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -89,7 +92,7 @@ public class BroadcastBranchingITCase extends JavaProgramTestBase {
 		}
 	}
 
-	public static class Jn2 implements JoinFunction<Tuple3<String, Integer, Integer>, Tuple4<String, Integer, Integer, Integer>, Tuple2<String, Integer>> {
+	private static class Jn2 implements JoinFunction<Tuple3<String, Integer, Integer>, Tuple4<String, Integer, Integer, Integer>, Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		private static int p(int x, int a, int b, int c) {
@@ -104,14 +107,14 @@ public class BroadcastBranchingITCase extends JavaProgramTestBase {
 			int b = second.f2;
 			int c = second.f3;
 
-			int p_x = p(x, a, b, c);
-			int p_y = p(y, a, b, c);
-			int min = Math.min(p_x, p_y);
+			int pX = p(x, a, b, c);
+			int pY = p(y, a, b, c);
+			int min = Math.min(pX, pY);
 			return new Tuple2<>(first.f0, min);
 		}
 	}
 
-	public static class Mp1 implements FlatMapFunction<Tuple3<String, Integer, Integer>, Tuple2<String, Integer>> {
+	private static class Mp1 implements FlatMapFunction<Tuple3<String, Integer, Integer>, Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -122,7 +125,7 @@ public class BroadcastBranchingITCase extends JavaProgramTestBase {
 		}
 	}
 
-	public static class Mp2 extends RichFlatMapFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> {
+	private static class Mp2 extends RichFlatMapFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		private Collection<Tuple2<String, Integer>> zs;

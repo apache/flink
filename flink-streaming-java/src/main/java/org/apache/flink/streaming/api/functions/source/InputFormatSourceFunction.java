@@ -32,6 +32,9 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+/**
+ * A {@link SourceFunction} that reads data using an {@link InputFormat}.
+ */
 @Internal
 public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 	private static final long serialVersionUID = 1L;
@@ -83,7 +86,7 @@ public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<O
 
 				// for each element we also check if cancel
 				// was called by checking the isRunning flag
-				
+
 				while (isRunning && !format.reachedEnd()) {
 					nextElement = format.nextRecord(nextElement);
 					if (nextElement != null) {

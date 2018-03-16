@@ -15,15 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.fs.Path;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
+import org.apache.flink.core.fs.Path;
 
+/**
+ * Input format that reads csv into tuples.
+ */
 @Internal
 public class TupleCsvInputFormat<OUT> extends CsvInputFormat<OUT> {
 
@@ -59,7 +62,7 @@ public class TupleCsvInputFormat<OUT> extends CsvInputFormat<OUT> {
 		super(filePath);
 		configure(lineDelimiter, fieldDelimiter, tupleTypeInfo, includedFieldsMask);
 	}
-	
+
 	private void configure(String lineDelimiter, String fieldDelimiter,
 			TupleTypeInfoBase<OUT> tupleTypeInfo, boolean[] includedFieldsMask) {
 

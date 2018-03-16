@@ -10,14 +10,18 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.functions.util;
 
-import org.apache.flink.util.Collector;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.util.Collector;
 
-/*
-Utility function to group and sort data.
-*/
+/**
+ * Utility function to group and sort data.
+ * @param <IN> input type
+ */
+@ForwardedFields("*->*")
 public class IdentityGroupReduce<IN> implements GroupReduceFunction<IN, IN> {
 	@Override
 	public final void reduce(Iterable<IN> values, Collector<IN> out) throws Exception {

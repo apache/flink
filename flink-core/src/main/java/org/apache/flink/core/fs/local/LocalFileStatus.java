@@ -16,15 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.core.fs.local;
-
-import java.io.File;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+
+import java.io.File;
 
 /**
  * The class <code>LocalFileStatus</code> provides an implementation of the {@link FileStatus} interface
@@ -45,7 +44,7 @@ public class LocalFileStatus implements FileStatus {
 
 	/**
 	 * Creates a <code>LocalFileStatus</code> object from a given {@link File} object.
-	 * 
+	 *
 	 * @param f
 	 *        the {@link File} object this <code>LocalFileStatus</code> refers to
 	 * @param fs

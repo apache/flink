@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.transformations;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -34,19 +36,16 @@ import java.util.List;
  * The upstream {@code StreamTransformation} will be connected to the first input of the Co-Transform
  * while the feedback edges will be connected to the second input.
  *
- * <p>
- * Both the partitioning of the input and the feedback edges is preserved. They can also have
+ * <p>Both the partitioning of the input and the feedback edges is preserved. They can also have
  * differing partitioning strategies. This requires, however, that the parallelism of the feedback
  * {@code StreamTransformations} must match the parallelism of the input
  * {@code StreamTransformation}.
  *
- * <p>
- * The upstream {@code StreamTransformation} is not wired to this {@code CoFeedbackTransformation}.
+ * <p>The upstream {@code StreamTransformation} is not wired to this {@code CoFeedbackTransformation}.
  * It is instead directly wired to the {@code TwoInputTransformation} after this
  * {@code CoFeedbackTransformation}.
  *
- * <p>
- * This is different from Iterations in batch processing.
+ * <p>This is different from Iterations in batch processing.
  * @see org.apache.flink.streaming.api.transformations.FeedbackTransformation
  *
  * @param <F> The type of the feedback elements.
@@ -62,7 +61,7 @@ public class CoFeedbackTransformation<F> extends StreamTransformation<F> {
 	/**
 	 * Creates a new {@code CoFeedbackTransformation} from the given input.
 	 *
-	 * @param parallelism The parallelism of the upstream {@code StreamTransformatino} and the
+	 * @param parallelism The parallelism of the upstream {@code StreamTransformation} and the
 	 *                    feedback edges.
 	 * @param feedbackType The type of the feedback edges
 	 * @param waitTime The wait time of the feedback operator. After the time expires

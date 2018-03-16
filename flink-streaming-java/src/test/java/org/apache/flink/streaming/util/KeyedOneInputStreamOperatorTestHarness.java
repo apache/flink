@@ -15,40 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
-import org.apache.flink.util.Migration;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.RunnableFuture;
-
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.doAnswer;
 
 /**
  * Extension of {@link OneInputStreamOperatorTestHarness} that allows the operator to get
@@ -56,14 +33,6 @@ import static org.mockito.Mockito.doAnswer;
  */
 public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		extends OneInputStreamOperatorTestHarness<IN, OUT> {
-
-	// in case the operator creates one we store it here so that we
-	// can snapshot its state
-	private AbstractKeyedStateBackend<?> keyedStateBackend = null;
-
-	// when we restore we keep the state here so that we can call restore
-	// when the operator requests the keyed state backend
-	private List<KeyGroupsStateHandle> restoredKeyedState = null;
 
 	public KeyedOneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
@@ -77,10 +46,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		ClosureCleaner.clean(keySelector, false);
 		config.setStatePartitioner(0, keySelector);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-
-		setupMockTaskCreateKeyedBackend();
 	}
-
 
 	public KeyedOneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
@@ -89,139 +55,36 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		this(operator, keySelector, keyType, 1, 1, 0);
 	}
 
-	private void setupMockTaskCreateKeyedBackend() {
+	public KeyedOneInputStreamOperatorTestHarness(
+			final OneInputStreamOperator<IN, OUT> operator,
+			final  KeySelector<IN, K> keySelector,
+			final TypeInformation<K> keyType,
+			final MockEnvironment environment) throws Exception {
 
-		try {
-			doAnswer(new Answer<KeyedStateBackend>() {
-				@Override
-				public KeyedStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
+		super(operator, environment);
 
-					final TypeSerializer keySerializer = (TypeSerializer) invocationOnMock.getArguments()[0];
-					final int numberOfKeyGroups = (Integer) invocationOnMock.getArguments()[1];
-					final KeyGroupRange keyGroupRange = (KeyGroupRange) invocationOnMock.getArguments()[2];
-
-					if (keyedStateBackend != null) {
-						keyedStateBackend.dispose();
-					}
-
-					keyedStateBackend = stateBackend.createKeyedStateBackend(
-							mockTask.getEnvironment(),
-							new JobID(),
-							"test_op",
-							keySerializer,
-							numberOfKeyGroups,
-							keyGroupRange,
-							mockTask.getEnvironment().getTaskKvStateRegistry());
-
-					if (restoredKeyedState != null) {
-						keyedStateBackend.restore(restoredKeyedState);
-					}
-
-					return keyedStateBackend;
-				}
-			}).when(mockTask).createKeyedStateBackend(any(TypeSerializer.class), anyInt(), any(KeyGroupRange.class));
-		} catch (Exception e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
+		ClosureCleaner.clean(keySelector, false);
+		config.setStatePartitioner(0, keySelector);
+		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
 	}
 
-	/**
-	 *
-	 */
-	@Override
-	public StreamStateHandle snapshotLegacy(long checkpointId, long timestamp) throws Exception {
-		// simply use an in-memory handle
-		MemoryStateBackend backend = new MemoryStateBackend();
-
-		CheckpointStreamFactory streamFactory = backend.createStreamFactory(new JobID(), "test_op");
-		CheckpointStreamFactory.CheckpointStateOutputStream outStream =
-				streamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
-
-		if (operator instanceof StreamCheckpointedOperator) {
-			((StreamCheckpointedOperator) operator).snapshotState(outStream, checkpointId, timestamp);
-		}
-
-		if (keyedStateBackend != null) {
-			RunnableFuture<KeyGroupsStateHandle> keyedSnapshotRunnable = keyedStateBackend.snapshot(checkpointId,
-					timestamp,
-					streamFactory);
-			if(!keyedSnapshotRunnable.isDone()) {
-				Thread runner = new Thread(keyedSnapshotRunnable);
-				runner.start();
-			}
-			outStream.write(1);
-			ObjectOutputStream oos = new ObjectOutputStream(outStream);
-			oos.writeObject(keyedSnapshotRunnable.get());
-			oos.flush();
+	public int numKeyedStateEntries() {
+		AbstractStreamOperator<?> abstractStreamOperator = (AbstractStreamOperator<?>) operator;
+		KeyedStateBackend<Object> keyedStateBackend = abstractStreamOperator.getKeyedStateBackend();
+		if (keyedStateBackend instanceof HeapKeyedStateBackend) {
+			return ((HeapKeyedStateBackend) keyedStateBackend).numStateEntries();
 		} else {
-			outStream.write(0);
-		}
-		return outStream.closeAndGetHandle();
-	}
-
-	/**
-	 *
-	 */
-	@Override
-	public void restore(StreamStateHandle snapshot) throws Exception {
-		try (FSDataInputStream inStream = snapshot.openInputStream()) {
-
-			if (operator instanceof StreamCheckpointedOperator) {
-				((StreamCheckpointedOperator) operator).restoreState(inStream);
-			}
-
-			byte keyedStatePresent = (byte) inStream.read();
-			if (keyedStatePresent == 1) {
-				ObjectInputStream ois = new ObjectInputStream(inStream);
-				this.restoredKeyedState = Collections.singletonList((KeyGroupsStateHandle) ois.readObject());
-			}
+			throw new UnsupportedOperationException();
 		}
 	}
 
-
-	private static boolean hasMigrationHandles(Collection<KeyGroupsStateHandle> allKeyGroupsHandles) {
-		for (KeyGroupsStateHandle handle : allKeyGroupsHandles) {
-			if (handle instanceof Migration) {
-				return true;
-			}
+	public <N> int numKeyedStateEntries(N namespace) {
+		AbstractStreamOperator<?> abstractStreamOperator = (AbstractStreamOperator<?>) operator;
+		KeyedStateBackend<Object> keyedStateBackend = abstractStreamOperator.getKeyedStateBackend();
+		if (keyedStateBackend instanceof HeapKeyedStateBackend) {
+			return ((HeapKeyedStateBackend) keyedStateBackend).numStateEntries(namespace);
+		} else {
+			throw new UnsupportedOperationException();
 		}
-		return false;
-	}
-
-	@Override
-	public void initializeState(OperatorStateHandles operatorStateHandles) throws Exception {
-		if (operatorStateHandles != null) {
-			int numKeyGroups = getEnvironment().getTaskInfo().getNumberOfKeyGroups();
-			int numSubtasks = getEnvironment().getTaskInfo().getNumberOfParallelSubtasks();
-			int subtaskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
-
-			// create a new OperatorStateHandles that only contains the state for our key-groups
-
-			List<KeyGroupRange> keyGroupPartitions = StateAssignmentOperation.createKeyGroupPartitions(
-					numKeyGroups,
-					numSubtasks);
-
-			KeyGroupRange localKeyGroupRange =
-					keyGroupPartitions.get(subtaskIndex);
-
-			restoredKeyedState = null;
-			Collection<KeyGroupsStateHandle> managedKeyedState = operatorStateHandles.getManagedKeyedState();
-			if (managedKeyedState != null) {
-
-				// if we have migration handles, don't reshuffle state and preserve
-				// the migration tag
-				if (hasMigrationHandles(managedKeyedState)) {
-					List<KeyGroupsStateHandle> result = new ArrayList<>(managedKeyedState.size());
-					result.addAll(managedKeyedState);
-					restoredKeyedState = result;
-				} else {
-					restoredKeyedState = StateAssignmentOperation.getKeyGroupsStateHandles(
-							managedKeyedState,
-							localKeyGroupRange);
-				}
-			}
-		}
-
-		super.initializeState(operatorStateHandles);
 	}
 }

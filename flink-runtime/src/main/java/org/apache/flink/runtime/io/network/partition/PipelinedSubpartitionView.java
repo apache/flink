@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 
-import java.io.IOException;
+import javax.annotation.Nullable;
+
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -44,14 +45,15 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 		this.isReleased = new AtomicBoolean();
 	}
 
+	@Nullable
 	@Override
-	public Buffer getNextBuffer() {
+	public BufferAndBacklog getNextBuffer() {
 		return parent.pollBuffer();
 	}
 
 	@Override
-	public void notifyBuffersAvailable(long numBuffers) throws IOException {
-		availabilityListener.notifyBuffersAvailable(numBuffers);
+	public void notifyDataAvailable() {
+		availabilityListener.notifyDataAvailable();
 	}
 
 	@Override
@@ -71,6 +73,16 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 	@Override
 	public boolean isReleased() {
 		return isReleased.get() || parent.isReleased();
+	}
+
+	@Override
+	public boolean nextBufferIsEvent() {
+		return parent.nextBufferIsEvent();
+	}
+
+	@Override
+	public boolean isAvailable() {
+		return parent.isAvailable();
 	}
 
 	@Override

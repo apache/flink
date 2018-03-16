@@ -14,15 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.runtime.partitioner;
 
-import java.io.Serializable;
+package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import java.io.Serializable;
+
+/**
+ * A special {@link ChannelSelector} for use in streaming programs.
+ */
 @Internal
 public abstract class StreamPartitioner<T> implements
 		ChannelSelector<SerializationDelegate<StreamRecord<T>>>, Serializable {

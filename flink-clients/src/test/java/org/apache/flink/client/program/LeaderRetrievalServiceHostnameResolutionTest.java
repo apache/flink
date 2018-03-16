@@ -18,22 +18,25 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.runtime.util.StandaloneUtils;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * Tests that verify that the LeaderRetrievalSevice correctly handles non-resolvable host names
- * and does not fail with another exception
+ * Tests that verify that the LeaderRetrievalService correctly handles non-resolvable host names
+ * and does not fail with another exception.
  */
 public class LeaderRetrievalServiceHostnameResolutionTest extends TestLogger {
 
@@ -48,45 +51,38 @@ public class LeaderRetrievalServiceHostnameResolutionTest extends TestLogger {
 	 * Tests that the StandaloneLeaderRetrievalService resolves host names if specified.
 	 */
 	@Test
-	public void testUnresolvableHostname1() {
+	public void testUnresolvableHostname1() throws UnknownHostException, ConfigurationException {
+		Configuration config = new Configuration();
 
-		try {
-			Configuration config = new Configuration();
+		config.setString(JobManagerOptions.ADDRESS, nonExistingHostname);
+		config.setInteger(JobManagerOptions.PORT, 17234);
 
-			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, nonExistingHostname);
-			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 17234);
-
-			LeaderRetrievalUtils.createLeaderRetrievalService(config);
-		}
-		catch (Exception e) {
-			System.err.println("Shouldn't throw an exception!");
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		StandaloneUtils.createLeaderRetrievalService(
+			config,
+			false,
+			JobMaster.JOB_MANAGER_NAME);
 	}
 
 	/*
 	 * Tests that the StandaloneLeaderRetrievalService does not resolve host names by default.
 	 */
 	@Test
-	public void testUnresolvableHostname2() {
+	public void testUnresolvableHostname2() throws Exception {
 
 		try {
 			Configuration config = new Configuration();
 
-			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, nonExistingHostname);
-			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 17234);
+			config.setString(JobManagerOptions.ADDRESS, nonExistingHostname);
+			config.setInteger(JobManagerOptions.PORT, 17234);
 
-			LeaderRetrievalUtils.createLeaderRetrievalService(config, true);
-			fail("This should fail with an IllegalConfigurationException");
+			StandaloneUtils.createLeaderRetrievalService(
+				config,
+				true,
+				JobMaster.JOB_MANAGER_NAME);
+			fail("This should fail with an UnknownHostException");
 		}
 		catch (UnknownHostException e) {
 			// that is what we want!
-		}
-		catch (Exception e) {
-			System.err.println("Wrong exception!");
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 	}
 

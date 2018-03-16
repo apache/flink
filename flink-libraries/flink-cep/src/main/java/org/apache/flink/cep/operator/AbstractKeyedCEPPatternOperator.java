@@ -18,33 +18,44 @@
 
 package org.apache.flink.cep.operator;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.cep.EventComparator;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.InternalTimer;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.io.Serializable;
-import java.util.HashSet;
-import java.util.Objects;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
-import java.util.Set;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Abstract CEP pattern operator for a keyed input stream. For each key, the operator creates
  * a {@link NFA} and a priority queue to buffer out of order elements. Both data structures are
- * stored using the key value state. Additionally, the set of all seen keys is kept as part of the
+ * stored using the managed keyed state. Additionally, the set of all seen keys is kept as part of the
  * operator state. This is necessary to trigger the execution for all keys upon receiving a new
  * watermark.
  *
@@ -52,307 +63,322 @@ import java.util.Set;
  * @param <KEY> Type of the key on which the input stream is keyed
  * @param <OUT> Type of the output elements
  */
-abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends AbstractCEPBasePatternOperator<IN, OUT> {
-	private static final long serialVersionUID = -7234999752950159178L;
+public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Function>
+	extends AbstractUdfStreamOperator<OUT, F>
+	implements OneInputStreamOperator<IN, OUT>, Triggerable<KEY, VoidNamespace> {
 
-	private static final String NFA_OPERATOR_STATE_NAME = "nfaOperatorState";
-	private static final String PRIORIRY_QUEUE_STATE_NAME = "priorityQueueStateName";
+	private static final long serialVersionUID = -4166778210774160757L;
 
-	// necessary to extract the key from the input elements
-	private final KeySelector<IN, KEY> keySelector;
+	private final boolean isProcessingTime;
 
-	// necessary to serialize the set of seen keys
-	private final TypeSerializer<KEY> keySerializer;
+	private final TypeSerializer<IN> inputSerializer;
 
-	private final PriorityQueueFactory<StreamRecord<IN>> priorityQueueFactory = new PriorityQueueStreamRecordFactory<>();
-	private final NFACompiler.NFAFactory<IN> nfaFactory;
+	///////////////			State			//////////////
 
-	// stores the keys we've already seen to trigger execution upon receiving a watermark
-	// this can be problematic, since it is never cleared
-	// TODO: fix once the state refactoring is completed
-	private transient Set<KEY> keys;
+	private static final String NFA_OPERATOR_STATE_NAME = "nfaOperatorStateName";
+	private static final String EVENT_QUEUE_STATE_NAME = "eventQueuesStateName";
 
 	private transient ValueState<NFA<IN>> nfaOperatorState;
-	private transient ValueState<PriorityQueue<StreamRecord<IN>>> priorityQueueOperatorState;
+	private transient MapState<Long, List<IN>> elementQueueState;
+
+	private final NFACompiler.NFAFactory<IN> nfaFactory;
+
+	private transient InternalTimerService<VoidNamespace> timerService;
+
+	/**
+	 * The last seen watermark. This will be used to
+	 * decide if an incoming element is late or not.
+	 */
+	private long lastWatermark;
+
+	private final EventComparator<IN> comparator;
+
+	protected final AfterMatchSkipStrategy afterMatchSkipStrategy;
 
 	public AbstractKeyedCEPPatternOperator(
-			TypeSerializer<IN> inputSerializer,
-			boolean isProcessingTime,
-			KeySelector<IN, KEY> keySelector,
-			TypeSerializer<KEY> keySerializer,
-			NFACompiler.NFAFactory<IN> nfaFactory) {
-		super(inputSerializer, isProcessingTime);
+			final TypeSerializer<IN> inputSerializer,
+			final boolean isProcessingTime,
+			final NFACompiler.NFAFactory<IN> nfaFactory,
+			final EventComparator<IN> comparator,
+			final AfterMatchSkipStrategy afterMatchSkipStrategy,
+			final F function) {
+		super(function);
 
-		this.keySelector = keySelector;
-		this.keySerializer = keySerializer;
+		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
+		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
+		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
+		this.comparator = comparator;
 
-		this.nfaFactory = nfaFactory;
+		if (afterMatchSkipStrategy == null) {
+			this.afterMatchSkipStrategy = AfterMatchSkipStrategy.noSkip();
+		} else {
+			this.afterMatchSkipStrategy = afterMatchSkipStrategy;
+		}
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
+	public void initializeState(StateInitializationContext context) throws Exception {
+		super.initializeState(context);
+
+		if (nfaOperatorState == null) {
+			nfaOperatorState = getRuntimeContext().getState(
+				new ValueStateDescriptor<>(
+						NFA_OPERATOR_STATE_NAME,
+						new NFA.NFASerializer<>(inputSerializer)));
+		}
+
+		if (elementQueueState == null) {
+			elementQueueState = getRuntimeContext().getMapState(
+					new MapStateDescriptor<>(
+							EVENT_QUEUE_STATE_NAME,
+							LongSerializer.INSTANCE,
+							new ListSerializer<>(inputSerializer)
+					)
+			);
+		}
+	}
+
+	@Override
 	public void open() throws Exception {
 		super.open();
 
-		if (keys == null) {
-			keys = new HashSet<>();
-		}
-
-		if (nfaOperatorState == null) {
-			nfaOperatorState = getPartitionedState(
-					new ValueStateDescriptor<NFA<IN>>(
-						NFA_OPERATOR_STATE_NAME,
-						new NFA.Serializer<IN>()));
-		}
-
-		@SuppressWarnings("unchecked,rawtypes")
-		TypeSerializer<StreamRecord<IN>> streamRecordSerializer =
-				(TypeSerializer) new StreamElementSerializer<>(getInputSerializer());
-
-		if (priorityQueueOperatorState == null) {
-			priorityQueueOperatorState = getPartitionedState(
-					new ValueStateDescriptor<>(
-						PRIORIRY_QUEUE_STATE_NAME,
-						new PriorityQueueSerializer<>(
-								streamRecordSerializer,
-								new PriorityQueueStreamRecordFactory<IN>())));
-		}
-	}
-
-	@Override
-	protected NFA<IN> getNFA() throws IOException {
-		NFA<IN> nfa = nfaOperatorState.value();
-
-		if (nfa == null) {
-			nfa = nfaFactory.createNFA();
-
-			nfaOperatorState.update(nfa);
-		}
-
-		return nfa;
-	}
-
-	@Override
-	protected void updateNFA(NFA<IN> nfa) throws IOException {
-		nfaOperatorState.update(nfa);
-	}
-
-	@Override
-	protected PriorityQueue<StreamRecord<IN>> getPriorityQueue() throws IOException {
-		PriorityQueue<StreamRecord<IN>> priorityQueue = priorityQueueOperatorState.value();
-
-		if (priorityQueue == null) {
-			priorityQueue = priorityQueueFactory.createPriorityQueue();
-
-			priorityQueueOperatorState.update(priorityQueue);
-		}
-
-		return priorityQueue;
-	}
-
-	@Override
-	protected void updatePriorityQueue(PriorityQueue<StreamRecord<IN>> queue) throws IOException {
-		priorityQueueOperatorState.update(queue);
+		timerService = getInternalTimerService(
+				"watermark-callbacks",
+				VoidNamespaceSerializer.INSTANCE,
+				this);
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		keys.add(keySelector.getKey(element.getValue()));
-
-		super.processElement(element);
-	}
-
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		// we do our own watermark handling, no super call. we will never be able to use
-		// the timer service like this, however.
-
-		// iterate over all keys to trigger the execution of the buffered elements
-		for (KEY key: keys) {
-			setCurrentKey(key);
-
-			PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
-			NFA<IN> nfa = getNFA();
-
-			if (priorityQueue.isEmpty()) {
-					advanceTime(nfa, mark.getTimestamp());
+		if (isProcessingTime) {
+			if (comparator == null) {
+				// there can be no out of order elements in processing time
+				NFA<IN> nfa = getNFA();
+				processEvent(nfa, element.getValue(), getProcessingTimeService().getCurrentProcessingTime());
+				updateNFA(nfa);
 			} else {
-				while (!priorityQueue.isEmpty() && priorityQueue.peek().getTimestamp() <= mark.getTimestamp()) {
-					StreamRecord<IN> streamRecord = priorityQueue.poll();
+				long currentTime = timerService.currentProcessingTime();
+				bufferEvent(element.getValue(), currentTime);
 
-					processEvent(nfa, streamRecord.getValue(), streamRecord.getTimestamp());
-				}
+				// register a timer for the next millisecond to sort and emit buffered data
+				timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + 1);
 			}
 
-			updateNFA(nfa);
-			updatePriorityQueue(priorityQueue);
-		}
+		} else {
 
-		output.emitWatermark(mark);
-	}
+			long timestamp = element.getTimestamp();
+			IN value = element.getValue();
 
-	@Override
-	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
-		DataOutputView ov = new DataOutputViewStreamWrapper(out);
-		ov.writeInt(keys.size());
+			// In event-time processing we assume correctness of the watermark.
+			// Events with timestamp smaller than or equal with the last seen watermark are considered late.
+			// Late events are put in a dedicated side output, if the user has specified one.
 
-		for (KEY key: keys) {
-			keySerializer.serialize(key, ov);
-		}
-	}
+			if (timestamp > lastWatermark) {
 
-	@Override
-	public void restoreState(FSDataInputStream state) throws Exception {
-		DataInputView inputView = new DataInputViewStreamWrapper(state);
+				// we have an event with a valid timestamp, so
+				// we buffer it until we receive the proper watermark.
 
-		if (keys == null) {
-			keys = new HashSet<>();
-		}
+				saveRegisterWatermarkTimer();
 
-		int numberEntries = inputView.readInt();
-
-		for (int i = 0; i <numberEntries; i++) {
-			keys.add(keySerializer.deserialize(inputView));
+				bufferEvent(value, timestamp);
+			}
 		}
 	}
 
 	/**
-	 * Custom type serializer implementation to serialize priority queues.
-	 *
-	 * @param <T> Type of the priority queue's elements
+	 * Registers a timer for {@code current watermark + 1}, this means that we get triggered
+	 * whenever the watermark advances, which is what we want for working off the queue of
+	 * buffered elements.
 	 */
-	private static class PriorityQueueSerializer<T> extends TypeSerializer<PriorityQueue<T>> {
+	private void saveRegisterWatermarkTimer() {
+		long currentWatermark = timerService.currentWatermark();
+		// protect against overflow
+		if (currentWatermark + 1 > currentWatermark) {
+			timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, currentWatermark + 1);
+		}
+	}
 
-		private static final long serialVersionUID = -231980397616187715L;
-
-		private final TypeSerializer<T> elementSerializer;
-		private final PriorityQueueFactory<T> factory;
-
-		public PriorityQueueSerializer(final TypeSerializer<T> elementSerializer, final PriorityQueueFactory<T> factory) {
-			this.elementSerializer = elementSerializer;
-			this.factory = factory;
+	private void bufferEvent(IN event, long currentTime) throws Exception {
+		List<IN> elementsForTimestamp =  elementQueueState.get(currentTime);
+		if (elementsForTimestamp == null) {
+			elementsForTimestamp = new ArrayList<>();
 		}
 
-		@Override
-		public boolean isImmutableType() {
-			return false;
+		if (getExecutionConfig().isObjectReuseEnabled()) {
+			// copy the StreamRecord so that it cannot be changed
+			elementsForTimestamp.add(inputSerializer.copy(event));
+		} else {
+			elementsForTimestamp.add(event);
+		}
+		elementQueueState.put(currentTime, elementsForTimestamp);
+	}
+
+	@Override
+	public void onEventTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
+
+		// 1) get the queue of pending elements for the key and the corresponding NFA,
+		// 2) process the pending elements in event time order and custom comparator if exists
+		//		by feeding them in the NFA
+		// 3) advance the time to the current watermark, so that expired patterns are discarded.
+		// 4) update the stored state for the key, by only storing the new NFA and MapState iff they
+		//		have state to be used later.
+		// 5) update the last seen watermark.
+
+		// STEP 1
+		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
+		NFA<IN> nfa = getNFA();
+
+		// STEP 2
+		while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= timerService.currentWatermark()) {
+			long timestamp = sortedTimestamps.poll();
+			sort(elementQueueState.get(timestamp)).forEachOrdered(
+				event -> processEvent(nfa, event, timestamp)
+			);
+			elementQueueState.remove(timestamp);
 		}
 
-		@Override
-		public TypeSerializer<PriorityQueue<T>> duplicate() {
-			return new PriorityQueueSerializer<>(elementSerializer.duplicate(), factory);
+		// STEP 3
+		advanceTime(nfa, timerService.currentWatermark());
+
+		// STEP 4
+		if (sortedTimestamps.isEmpty()) {
+			elementQueueState.clear();
+		}
+		updateNFA(nfa);
+
+		if (!sortedTimestamps.isEmpty() || !nfa.isEmpty()) {
+			saveRegisterWatermarkTimer();
 		}
 
-		@Override
-		public PriorityQueue<T> createInstance() {
-			return factory.createPriorityQueue();
+		// STEP 5
+		updateLastSeenWatermark(timerService.currentWatermark());
+	}
+
+	@Override
+	public void onProcessingTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
+		// 1) get the queue of pending elements for the key and the corresponding NFA,
+		// 2) process the pending elements in process time order and custom comparator if exists
+		//		by feeding them in the NFA
+		// 3) update the stored state for the key, by only storing the new NFA and MapState iff they
+		//		have state to be used later.
+
+		// STEP 1
+		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
+		NFA<IN> nfa = getNFA();
+
+		// STEP 2
+		while (!sortedTimestamps.isEmpty()) {
+			long timestamp = sortedTimestamps.poll();
+			sort(elementQueueState.get(timestamp)).forEachOrdered(
+				event -> processEvent(nfa, event, timestamp)
+			);
+			elementQueueState.remove(timestamp);
 		}
 
-		@Override
-		public PriorityQueue<T> copy(PriorityQueue<T> from) {
-			PriorityQueue<T> result = factory.createPriorityQueue();
-
-			for (T element: from) {
-				result.offer(elementSerializer.copy(element));
-			}
-
-			return result;
+		// STEP 3
+		if (sortedTimestamps.isEmpty()) {
+			elementQueueState.clear();
 		}
+		updateNFA(nfa);
+	}
 
-		@Override
-		public PriorityQueue<T> copy(PriorityQueue<T> from, PriorityQueue<T> reuse) {
-			reuse.clear();
-
-			for (T element: from) {
-				reuse.offer(elementSerializer.copy(element));
-			}
-
-			return reuse;
+	private Stream<IN> sort(Iterable<IN> iter) {
+		Stream<IN> stream = StreamSupport.stream(iter.spliterator(), false);
+		if (comparator == null) {
+			return stream;
+		} else {
+			return stream.sorted(comparator);
 		}
+	}
 
-		@Override
-		public int getLength() {
-			return 0;
-		}
+	private void updateLastSeenWatermark(long timestamp) {
+		this.lastWatermark = timestamp;
+	}
 
-		@Override
-		public void serialize(PriorityQueue<T> record, DataOutputView target) throws IOException {
-			target.writeInt(record.size());
+	private NFA<IN> getNFA() throws IOException {
+		NFA<IN> nfa = nfaOperatorState.value();
+		return nfa != null ? nfa : nfaFactory.createNFA();
+	}
 
-			for (T element: record) {
-				elementSerializer.serialize(element, target);
-			}
-		}
-
-		@Override
-		public PriorityQueue<T> deserialize(DataInputView source) throws IOException {
-			PriorityQueue<T> result = factory.createPriorityQueue();
-
-			return deserialize(result, source);
-		}
-
-		@Override
-		public PriorityQueue<T> deserialize(PriorityQueue<T> reuse, DataInputView source) throws IOException {
-			reuse.clear();
-
-			int numberEntries = source.readInt();
-
-			for (int i = 0; i < numberEntries; i++) {
-				reuse.offer(elementSerializer.deserialize(source));
-			}
-
-			return reuse;
-		}
-
-		@Override
-		public void copy(DataInputView source, DataOutputView target) throws IOException {
-
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (obj instanceof PriorityQueueSerializer) {
-				@SuppressWarnings("unchecked")
-				PriorityQueueSerializer<T> other = (PriorityQueueSerializer<T>) obj;
-
-				return factory.equals(other.factory) && elementSerializer.equals(other.elementSerializer);
+	private void updateNFA(NFA<IN> nfa) throws IOException {
+		if (nfa.isNFAChanged()) {
+			if (nfa.isEmpty()) {
+				nfaOperatorState.clear();
 			} else {
-				return false;
+				nfa.resetNFAChanged();
+				nfaOperatorState.update(nfa);
 			}
 		}
+	}
 
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof PriorityQueueSerializer;
+	private PriorityQueue<Long> getSortedTimestamps() throws Exception {
+		PriorityQueue<Long> sortedTimestamps = new PriorityQueue<>();
+		for (Long timestamp: elementQueueState.keys()) {
+			sortedTimestamps.offer(timestamp);
 		}
+		return sortedTimestamps;
+	}
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(factory, elementSerializer);
+	/**
+	 * Process the given event by giving it to the NFA and outputting the produced set of matched
+	 * event sequences.
+	 *
+	 * @param nfa NFA to be used for the event detection
+	 * @param event The current event to be processed
+	 * @param timestamp The timestamp of the event
+	 */
+	private void processEvent(NFA<IN> nfa, IN event, long timestamp)  {
+		Tuple2<Collection<Map<String, List<IN>>>, Collection<Tuple2<Map<String, List<IN>>, Long>>> patterns =
+			nfa.process(event, timestamp, afterMatchSkipStrategy);
+
+		try {
+			processMatchedSequences(patterns.f0, timestamp);
+			processTimedOutSequences(patterns.f1, timestamp);
+		} catch (Exception e) {
+			//rethrow as Runtime, to be able to use processEvent in Stream.
+			throw new RuntimeException(e);
 		}
 	}
 
-	private interface PriorityQueueFactory<T> extends Serializable {
-		PriorityQueue<T> createPriorityQueue();
+	/**
+	 * Advances the time for the given NFA to the given timestamp. This can lead to pruning and
+	 * timeouts.
+	 *
+	 * @param nfa to advance the time for
+	 * @param timestamp to advance the time to
+	 */
+	private void advanceTime(NFA<IN> nfa, long timestamp) throws Exception {
+		processEvent(nfa, null, timestamp);
 	}
 
-	private static class PriorityQueueStreamRecordFactory<T> implements PriorityQueueFactory<StreamRecord<T>> {
+	protected abstract void processMatchedSequences(Iterable<Map<String, List<IN>>> matchingSequences, long timestamp) throws Exception;
 
-		private static final long serialVersionUID = 1254766984454616593L;
+	protected void processTimedOutSequences(
+			Iterable<Tuple2<Map<String, List<IN>>, Long>> timedOutSequences,
+			long timestamp) throws Exception {
+	}
 
-		@Override
-		public PriorityQueue<StreamRecord<T>> createPriorityQueue() {
-			return new PriorityQueue<StreamRecord<T>>(INITIAL_PRIORITY_QUEUE_CAPACITY, new StreamRecordComparator<T>());
+	//////////////////////			Testing Methods			//////////////////////
+
+	@VisibleForTesting
+	public boolean hasNonEmptyNFA(KEY key) throws IOException {
+		setCurrentKey(key);
+		return nfaOperatorState.value() != null;
+	}
+
+	@VisibleForTesting
+	public boolean hasNonEmptyPQ(KEY key) throws Exception {
+		setCurrentKey(key);
+		return elementQueueState.keys().iterator().hasNext();
+	}
+
+	@VisibleForTesting
+	public int getPQSize(KEY key) throws Exception {
+		setCurrentKey(key);
+		int counter = 0;
+		for (List<IN> elements: elementQueueState.values()) {
+			counter += elements.size();
 		}
-
-		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof PriorityQueueStreamRecordFactory;
-		}
-
-		@Override
-		public int hashCode() {
-			return getClass().hashCode();
-		}
+		return counter;
 	}
 }

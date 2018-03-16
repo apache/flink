@@ -15,7 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.fs.bucketing;
+
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.connectors.fs.AvroKeyValueSinkWriter;
+import org.apache.flink.streaming.connectors.fs.Clock;
+import org.apache.flink.streaming.connectors.fs.SequenceFileWriter;
+import org.apache.flink.streaming.connectors.fs.StringWriter;
+import org.apache.flink.streaming.connectors.fs.Writer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileConstants;
@@ -24,21 +43,6 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.commons.io.FileUtils;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeHint;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.connectors.fs.AvroKeyValueSinkWriter;
-import org.apache.flink.streaming.connectors.fs.Clock;
-import org.apache.flink.streaming.connectors.fs.SequenceFileWriter;
-import org.apache.flink.streaming.connectors.fs.StringWriter;
-import org.apache.flink.streaming.connectors.fs.Writer;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
-import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
-import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.util.NetUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -50,10 +54,11 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.Assert;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedReader;
@@ -63,7 +68,10 @@ import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 
-public class BucketingSinkTest {
+/**
+ * Tests for the {@link BucketingSink}.
+ */
+public class BucketingSinkTest extends TestLogger {
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -115,8 +123,8 @@ public class BucketingSinkTest {
 			.setWriter(new StringWriter<String>())
 			.setPartPrefix(PART_PREFIX)
 			.setPendingPrefix("")
-			.setInactiveBucketCheckInterval(5*60*1000L)
-			.setInactiveBucketThreshold(5*60*1000L)
+			.setInactiveBucketCheckInterval(5 * 60 * 1000L)
+			.setInactiveBucketThreshold(5 * 60 * 1000L)
 			.setPendingSuffix(PENDING_SUFFIX)
 			.setInProgressSuffix(IN_PROGRESS_SUFFIX);
 
@@ -130,6 +138,8 @@ public class BucketingSinkTest {
 
 	@BeforeClass
 	public static void createHDFS() throws IOException {
+		Assume.assumeTrue("HDFS cluster cannot be started on Windows without extensions.", !OperatingSystem.isWindows());
+
 		Configuration conf = new Configuration();
 
 		File dataDir = tempFolder.newFolder();
@@ -147,7 +157,22 @@ public class BucketingSinkTest {
 
 	@AfterClass
 	public static void destroyHDFS() {
-		hdfsCluster.shutdown();
+		if (hdfsCluster != null) {
+			hdfsCluster.shutdown();
+		}
+	}
+
+	@Test
+	public void testClosingWithoutInput() throws Exception {
+		final File outDir = tempFolder.newFolder();
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createRescalingTestSink(outDir, 1, 0, 100);
+		testHarness.setup();
+		testHarness.open();
+
+		// verify that we can close without ever having an input. An earlier version of the code
+		// was throwing an NPE because we never initialized some internal state
+		testHarness.close();
 	}
 
 	@Test
@@ -162,7 +187,7 @@ public class BucketingSinkTest {
 
 		testHarness.processElement(new StreamRecord<>("test1", 1L));
 		testHarness.processElement(new StreamRecord<>("test2", 1L));
-		checkFs(outDir, 2, 0 ,0, 0);
+		checkFs(outDir, 2, 0 , 0, 0);
 
 		testHarness.setProcessingTime(101L);	// put some in pending
 		checkFs(outDir, 0, 2, 0, 0);
@@ -197,7 +222,7 @@ public class BucketingSinkTest {
 
 		testHarness.processElement(new StreamRecord<>("test1", 1L));
 		testHarness.processElement(new StreamRecord<>("test2", 1L));
-		checkFs(outDir, 2, 0 ,0, 0);
+		checkFs(outDir, 2, 0 , 0, 0);
 
 		// this is to check the inactivity threshold
 		testHarness.setProcessingTime(101L);
@@ -212,7 +237,7 @@ public class BucketingSinkTest {
 		testHarness.notifyOfCompletedCheckpoint(0);
 		checkFs(outDir, 1, 0, 2, 0);
 
-		OperatorStateHandles snapshot = testHarness.snapshot(1, 0);
+		OperatorSubtaskState snapshot = testHarness.snapshot(1, 0);
 
 		testHarness.close();
 		checkFs(outDir, 0, 1, 2, 0);
@@ -262,7 +287,7 @@ public class BucketingSinkTest {
 		checkFs(outDir, 2, 0, 0, 0);
 
 		// intentionally we snapshot them in the reverse order so that the states are shuffled
-		OperatorStateHandles mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
+		OperatorSubtaskState mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
 			testHarness2.snapshot(0, 0),
 			testHarness1.snapshot(0, 0)
 		);
@@ -323,7 +348,7 @@ public class BucketingSinkTest {
 		checkFs(outDir, 4, 0, 0, 0);
 
 		// intentionally we snapshot them in the reverse order so that the states are shuffled
-		OperatorStateHandles mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
+		OperatorSubtaskState mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
 			testHarness3.snapshot(0, 0),
 			testHarness1.snapshot(0, 0),
 			testHarness2.snapshot(0, 0)
@@ -368,7 +393,7 @@ public class BucketingSinkTest {
 		checkFs(outDir, 5, 0, 0, 0);
 
 		// intentionally we snapshot them in the reverse order so that the states are shuffled
-		OperatorStateHandles mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
+		OperatorSubtaskState mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
 			testHarness2.snapshot(0, 0),
 			testHarness1.snapshot(0, 0)
 		);
@@ -745,13 +770,13 @@ public class BucketingSinkTest {
 			testHarness.processElement(new StreamRecord<>(Integer.toString(i % step1NumIds)));
 		}
 
-		testHarness.setProcessingTime(2*60*1000L);
+		testHarness.setProcessingTime(2 * 60 * 1000L);
 
 		for (int i = 0; i < numElementsPerStep; i++) {
 			testHarness.processElement(new StreamRecord<>(Integer.toString(i % step2NumIds)));
 		}
 
-		testHarness.setProcessingTime(6*60*1000L);
+		testHarness.setProcessingTime(6 * 60 * 1000L);
 
 		for (int i = 0; i < numElementsPerStep; i++) {
 			testHarness.processElement(new StreamRecord<>(Integer.toString(i % step2NumIds)));
@@ -778,7 +803,7 @@ public class BucketingSinkTest {
 	}
 
 	/**
-	 * This tests user defined hdfs configuration
+	 * This tests user defined hdfs configuration.
 	 * @throws Exception
 	 */
 	@Test
@@ -797,10 +822,10 @@ public class BucketingSinkTest {
 		Configuration conf = new Configuration();
 		conf.set("io.file.buffer.size", "40960");
 
-		BucketingSink<Tuple2<Integer,String>> sink = new BucketingSink<Tuple2<Integer, String>>(outPath)
+		BucketingSink<Tuple2<Integer, String>> sink = new BucketingSink<Tuple2<Integer, String>>(outPath)
 			.setFSConfig(conf)
 			.setWriter(new StreamWriterWithConfigCheck<Integer, String>(properties, "io.file.buffer.size", "40960"))
-			.setBucketer(new BasePathBucketer<Tuple2<Integer,String>>())
+			.setBucketer(new BasePathBucketer<Tuple2<Integer, String>>())
 			.setPartPrefix(PART_PREFIX)
 			.setPendingPrefix("")
 			.setPendingSuffix("");

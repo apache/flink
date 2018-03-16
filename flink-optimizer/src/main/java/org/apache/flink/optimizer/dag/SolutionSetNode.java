@@ -46,7 +46,7 @@ public class SolutionSetNode extends AbstractPartialSolutionNode {
 	// --------------------------------------------------------------------------------------------
 	
 	public void setCandidateProperties(GlobalProperties gProps, LocalProperties lProps, Channel initialInput) {
-		this.cachedPlans = Collections.<PlanNode>singletonList(new SolutionSetPlanNode(this, "SolutionSet("+this.getOperator().getName()+")", gProps, lProps, initialInput));
+		this.cachedPlans = Collections.<PlanNode>singletonList(new SolutionSetPlanNode(this, "SolutionSet ("+this.getOperator().getName()+")", gProps, lProps, initialInput));
 	}
 	
 	public SolutionSetPlanNode getCurrentSolutionSetPlanNode() {

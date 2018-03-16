@@ -40,7 +40,7 @@ import scala.util.Random
 
 /** Alternating least squares algorithm to calculate a matrix factorization.
   *
-  * Given a matrix `R`, ALS calculates two matricess `U` and `V` such that `R ~~ U^TV`. The
+  * Given a matrix `R`, ALS calculates two matrices `U` and `V` such that `R ~~ U^TV`. The
   * unknown row dimension is given by the number of latent factors. Since matrix factorization
   * is often used in the context of recommendation, we'll call the first matrix the user and the
   * second matrix the item matrix. The `i`th column of the user matrix is `u_i` and the `i`th
@@ -194,7 +194,7 @@ class ALS extends Predictor[ALS] {
     * @return
     */
   def empiricalRisk(
-      labeledData: DataSet[(Int, Int, Double)],
+      labeledData: DataSet[(Long, Long, Double)],
       riskParameters: ParameterMap = ParameterMap.Empty)
     : DataSet[Double] = {
     val resultingParameters = parameters ++ riskParameters
@@ -293,20 +293,20 @@ object ALS {
     * @param item Item iD of the rated item
     * @param rating Rating value
     */
-  case class Rating(user: Int, item: Int, rating: Double)
+  case class Rating(user: Long, item: Long, rating: Double)
 
   /** Latent factor model vector
     *
     * @param id
     * @param factors
     */
-  case class Factors(id: Int, factors: Array[Double]) {
+  case class Factors(id: Long, factors: Array[Double]) {
     override def toString = s"($id, ${factors.mkString(",")})"
   }
 
   case class Factorization(userFactors: DataSet[Factors], itemFactors: DataSet[Factors])
 
-  case class OutBlockInformation(elementIDs: Array[Int], outLinks: OutLinks) {
+  case class OutBlockInformation(elementIDs: Array[Long], outLinks: OutLinks) {
     override def toString: String = {
       s"OutBlockInformation:((${elementIDs.mkString(",")}), ($outLinks))"
     }
@@ -349,7 +349,7 @@ object ALS {
     def apply(idx: Int) = links(idx)
   }
 
-  case class InBlockInformation(elementIDs: Array[Int], ratingsForBlock: Array[BlockRating]) {
+  case class InBlockInformation(elementIDs: Array[Long], ratingsForBlock: Array[BlockRating]) {
 
     override def toString: String = {
       s"InBlockInformation:((${elementIDs.mkString(",")}), (${ratingsForBlock.mkString("\n")}))"
@@ -376,8 +376,8 @@ object ALS {
   }
 
   class BlockIDGenerator(blocks: Int) extends Serializable {
-    def apply(id: Int): Int = {
-      id % blocks
+    def apply(id: Long): Int = {
+      (id % blocks).toInt
     }
   }
 
@@ -390,12 +390,15 @@ object ALS {
   // ===================================== Operations ==============================================
 
   /** Predict operation which calculates the matrix entry for the given indices  */
-  implicit val predictRating = new PredictDataSetOperation[ALS, (Int, Int), (Int ,Int, Double)] {
+  implicit val predictRating = new PredictDataSetOperation[
+      ALS,
+      (Long, Long),
+      (Long, Long, Double)] {
     override def predictDataSet(
         instance: ALS,
         predictParameters: ParameterMap,
-        input: DataSet[(Int, Int)])
-      : DataSet[(Int, Int, Double)] = {
+        input: DataSet[(Long, Long)])
+      : DataSet[(Long, Long, Double)] = {
 
       instance.factorsOption match {
         case Some((userFactors, itemFactors)) => {
@@ -425,16 +428,34 @@ object ALS {
     }
   }
 
+  implicit val predictRatingInt = new PredictDataSetOperation[ALS, (Int, Int), (Int, Int, Double)] {
+    override def predictDataSet(
+      instance: ALS,
+      predictParameters: ParameterMap,
+      input: DataSet[(Int, Int)])
+    : DataSet[(Int, Int, Double)] = {
+      val longInput = input.map { x => (x._1.toLong, x._2.toLong)}
+
+      val longResult = implicitly[PredictDataSetOperation[ALS, (Long, Long), (Long, Long, Double)]]
+        .predictDataSet(
+          instance,
+          predictParameters,
+          longInput)
+
+      longResult.map{ x => (x._1.toInt, x._2.toInt, x._3)}
+    }
+  }
+
   /** Calculates the matrix factorization for the given ratings. A rating is defined as
     * a tuple of user ID, item ID and the corresponding rating.
     *
     * @return Factorization containing the user and item matrix
     */
-  implicit val fitALS =  new FitOperation[ALS, (Int, Int, Double)] {
+  implicit val fitALS =  new FitOperation[ALS, (Long, Long, Double)] {
     override def fit(
         instance: ALS,
         fitParameters: ParameterMap,
-        input: DataSet[(Int, Int, Double)])
+        input: DataSet[(Long, Long, Double)])
       : Unit = {
       val resultParameters = instance.parameters ++ fitParameters
 
@@ -457,13 +478,13 @@ object ALS {
 
       val ratingsByUserBlock = ratings.map{
         rating =>
-          val blockID = rating.user % userBlocks
+          val blockID = (rating.user % userBlocks).toInt
           (blockID, rating)
       } partitionCustom(blockIDPartitioner, 0)
 
       val ratingsByItemBlock = ratings map {
         rating =>
-          val blockID = rating.item % itemBlocks
+          val blockID = (rating.item % itemBlocks).toInt
           (blockID, new Rating(rating.item, rating.user, rating.rating))
       } partitionCustom(blockIDPartitioner, 0)
 
@@ -515,6 +536,19 @@ object ALS {
       instance.factorsOption = Some((
         unblock(users, userOut, blockIDPartitioner),
         unblock(pItems, itemOut, blockIDPartitioner)))
+    }
+  }
+
+  implicit val fitALSInt =  new FitOperation[ALS, (Int, Int, Double)] {
+    override def fit(
+      instance: ALS,
+      fitParameters: ParameterMap,
+      input: DataSet[(Int, Int, Double)])
+    : Unit = {
+
+      val longInput = input.map { x => (x._1.toLong, x._2.toLong, x._3)}
+
+      implicitly[FitOperation[ALS, (Long, Long, Double)]].fit(instance, fitParameters, longInput)
     }
   }
 
@@ -706,13 +740,13 @@ object ALS {
     * @param ratings
     * @return
     */
-  def createUsersPerBlock(ratings: DataSet[(Int, Rating)]): DataSet[(Int, Array[Int])] = {
+  def createUsersPerBlock(ratings: DataSet[(Int, Rating)]): DataSet[(Int, Array[Long])] = {
     ratings.map{ x => (x._1, x._2.user)}.withForwardedFields("0").groupBy(0).
       sortGroup(1, Order.ASCENDING).reduceGroup {
       users => {
-        val result = ArrayBuffer[Int]()
+        val result = ArrayBuffer[Long]()
         var id = -1
-        var oldUser = -1
+        var oldUser = -1L
 
         while(users.hasNext) {
           val user = users.next()
@@ -746,7 +780,7 @@ object ALS {
     * @return
     */
   def createOutBlockInformation(ratings: DataSet[(Int, Rating)],
-    usersPerBlock: DataSet[(Int, Array[Int])],
+    usersPerBlock: DataSet[(Int, Array[Long])],
     itemBlocks: Int, blockIDGenerator: BlockIDGenerator):
   DataSet[(Int, OutBlockInformation)] = {
     ratings.coGroup(usersPerBlock).where(0).equalTo(0).apply {
@@ -795,7 +829,7 @@ object ALS {
     * @return
     */
   def createInBlockInformation(ratings: DataSet[(Int, Rating)],
-    usersPerBlock: DataSet[(Int, Array[Int])],
+    usersPerBlock: DataSet[(Int, Array[Long])],
     blockIDGenerator: BlockIDGenerator):
   DataSet[(Int, InBlockInformation)] = {
     // Group for every user block the users which have rated the same item and collect their ratings
@@ -803,8 +837,8 @@ object ALS {
       .withForwardedFields("0").groupBy(0, 1).reduceGroup {
       x =>
         var userBlockID = -1
-        var itemID = -1
-        val userIDs = ArrayBuffer[Int]()
+        var itemID = -1L
+        val userIDs = ArrayBuffer[Long]()
         val ratings = ArrayBuffer[Double]()
 
         while (x.hasNext) {
@@ -824,12 +858,12 @@ object ALS {
     // accordingly.
     val collectedPartialInfos = partialInInfos.groupBy(0, 1).sortGroup(2, Order.ASCENDING).
       reduceGroup {
-      new GroupReduceFunction[(Int, Int, Int, (Array[Int], Array[Double])), (Int,
-        Int, Array[(Array[Int], Array[Double])])](){
-        val buffer = new ArrayBuffer[(Array[Int], Array[Double])]
+      new GroupReduceFunction[(Int, Int, Long, (Array[Long], Array[Double])), (Int,
+        Int, Array[(Array[Long], Array[Double])])](){
+        val buffer = new ArrayBuffer[(Array[Long], Array[Double])]
 
-        override def reduce(iterable: lang.Iterable[(Int, Int, Int, (Array[Int],
-          Array[Double]))], collector: Collector[(Int, Int, Array[(Array[Int],
+        override def reduce(iterable: lang.Iterable[(Int, Int, Long, (Array[Long],
+          Array[Double]))], collector: Collector[(Int, Int, Array[(Array[Long],
           Array[Double])])]): Unit = {
 
           val infos = iterable.iterator()
@@ -858,7 +892,7 @@ object ALS {
             counter += 1
           }
 
-          val array = new Array[(Array[Int], Array[Double])](counter)
+          val array = new Array[(Array[Long], Array[Double])](counter)
 
           buffer.copyToArray(array)
 
@@ -871,13 +905,13 @@ object ALS {
     // respect to their itemBlockID, because the block update messages are sorted the same way
     collectedPartialInfos.coGroup(usersPerBlock).where(0).equalTo(0).
       sortFirstGroup(1, Order.ASCENDING).apply{
-      new CoGroupFunction[(Int, Int, Array[(Array[Int], Array[Double])]),
-        (Int, Array[Int]), (Int, InBlockInformation)] {
+      new CoGroupFunction[(Int, Int, Array[(Array[Long], Array[Double])]),
+        (Int, Array[Long]), (Int, InBlockInformation)] {
         val buffer = ArrayBuffer[BlockRating]()
 
         override def coGroup(partialInfosIterable:
-        lang.Iterable[(Int, Int,  Array[(Array[Int], Array[Double])])],
-          userIterable: lang.Iterable[(Int, Array[Int])],
+        lang.Iterable[(Int, Int,  Array[(Array[Long], Array[Double])])],
+          userIterable: lang.Iterable[(Int, Array[Long])],
           collector: Collector[(Int, InBlockInformation)]): Unit = {
 
           val users = userIterable.iterator()
@@ -895,12 +929,21 @@ object ALS {
             // entry contains the ratings and userIDs of a complete item block
             val entry = partialInfo._3
 
+            val blockRelativeIndicesRatings = new Array[(Array[Int], Array[Double])](entry.size)
+
             // transform userIDs to positional indices
-            for (row <- 0 until entry.length; col <- 0 until entry(row)._1.length) {
-              entry(row)._1(col) = userIDToPos(entry(row)._1(col))
+            for (row <- 0 until entry.length) {
+              val rowEntries = entry(row)._1
+              val rowIndices = new Array[Int](rowEntries.length)
+
+              for (col <- 0 until rowEntries.length) {
+                rowIndices(col) = userIDToPos(rowEntries(col))
+              }
+
+              blockRelativeIndicesRatings(row) = (rowIndices, entry(row)._2)
             }
 
-            buffer(counter).ratings = entry
+            buffer(counter).ratings = blockRelativeIndicesRatings
 
             counter += 1
           }
@@ -909,13 +952,21 @@ object ALS {
             val partialInfo = partialInfos.next()
             // entry contains the ratings and userIDs of a complete item block
             val entry = partialInfo._3
+            val blockRelativeIndicesRatings = new Array[(Array[Int], Array[Double])](entry.size)
 
             // transform userIDs to positional indices
-            for (row <- 0 until entry.length; col <- 0 until entry(row)._1.length) {
-              entry(row)._1(col) = userIDToPos(entry(row)._1(col))
+            for (row <- 0 until entry.length) {
+              val rowEntries = entry(row)._1
+              val rowIndices = new Array[Int](rowEntries.length)
+
+              for (col <- 0 until rowEntries.length) {
+                rowIndices(col) = userIDToPos(rowEntries(col))
+              }
+
+              blockRelativeIndicesRatings(row) = (rowIndices, entry(row)._2)
             }
 
-            buffer += new BlockRating(entry)
+            buffer += new BlockRating(blockRelativeIndicesRatings)
 
             counter += 1
           }

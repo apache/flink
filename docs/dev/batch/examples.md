@@ -25,7 +25,7 @@ under the License.
 
 The following example programs showcase different applications of Flink
 from simple word counting to graph algorithms. The code samples illustrate the
-use of [Flink's DataSet API](/dev/batch/index.html).
+use of [Flink's DataSet API]({{ site.baseurl }}/dev/batch/index.html).
 
 The full source code of the following and more examples can be found in the __flink-examples-batch__
 or __flink-examples-streaming__ module of the Flink source repository.
@@ -38,7 +38,7 @@ or __flink-examples-streaming__ module of the Flink source repository.
 
 In order to run a Flink example, we assume you have a running Flink instance available. The "Quickstart" and "Setup" tabs in the navigation describe various ways of starting Flink.
 
-The easiest way is running the `./bin/start-local.sh` script, which will start a JobManager locally.
+The easiest way is running the `./bin/start-cluster.sh`, which by default starts a local cluster with one JobManager and one TaskManager.
 
 Each binary release of Flink contains an `examples` directory with jar files for each of the examples on this page.
 
@@ -517,3 +517,5 @@ CC       = gcc
 ~~~bash
 ./dbgen -T o -s 1
 ~~~
+
+{% top %}

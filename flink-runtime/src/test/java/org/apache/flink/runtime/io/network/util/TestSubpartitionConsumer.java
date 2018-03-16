@@ -21,15 +21,15 @@ package org.apache.flink.runtime.io.network.util;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -40,6 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @see TestConsumerCallback
  */
+@Deprecated
 public class TestSubpartitionConsumer implements Callable<Boolean>, BufferAvailabilityListener {
 
 	private static final int MAX_SLEEP_TIME_MS = 20;
@@ -61,7 +62,7 @@ public class TestSubpartitionConsumer implements Callable<Boolean>, BufferAvaila
 	/** Random source for sleeps. */
 	private final Random random;
 
-	private final AtomicLong numBuffersAvailable = new AtomicLong();
+	private final AtomicBoolean dataAvailableNotification = new AtomicBoolean(false);
 
 	public TestSubpartitionConsumer(
 		boolean isSlowConsumer,
@@ -84,32 +85,31 @@ public class TestSubpartitionConsumer implements Callable<Boolean>, BufferAvaila
 					throw new InterruptedException();
 				}
 
-				if (numBuffersAvailable.get() == 0) {
-					synchronized (numBuffersAvailable) {
-						while (numBuffersAvailable.get() == 0) {
-							numBuffersAvailable.wait();
-						}
+				synchronized (dataAvailableNotification) {
+					while (!dataAvailableNotification.getAndSet(false)) {
+						dataAvailableNotification.wait();
 					}
 				}
 
-				final Buffer buffer = subpartitionView.getNextBuffer();
+				final BufferAndBacklog bufferAndBacklog = subpartitionView.getNextBuffer();
 
 				if (isSlowConsumer) {
 					Thread.sleep(random.nextInt(MAX_SLEEP_TIME_MS + 1));
 				}
 
-				if (buffer != null) {
-					numBuffersAvailable.decrementAndGet();
-
-					if (buffer.isBuffer()) {
-						callback.onBuffer(buffer);
+				if (bufferAndBacklog != null) {
+					if (bufferAndBacklog.isMoreAvailable()) {
+						dataAvailableNotification.set(true);
+					}
+					if (bufferAndBacklog.buffer().isBuffer()) {
+						callback.onBuffer(bufferAndBacklog.buffer());
 					} else {
-						final AbstractEvent event = EventSerializer.fromBuffer(buffer,
+						final AbstractEvent event = EventSerializer.fromBuffer(bufferAndBacklog.buffer(),
 							getClass().getClassLoader());
 
 						callback.onEvent(event);
 
-						buffer.recycle();
+						bufferAndBacklog.buffer().recycleBuffer();
 
 						if (event.getClass() == EndOfPartitionEvent.class) {
 							subpartitionView.notifySubpartitionConsumed();
@@ -127,12 +127,10 @@ public class TestSubpartitionConsumer implements Callable<Boolean>, BufferAvaila
 	}
 
 	@Override
-	public void notifyBuffersAvailable(long numBuffers) {
-		if (numBuffers > 0 && numBuffersAvailable.getAndAdd(numBuffers) == 0) {
-			synchronized (numBuffersAvailable) {
-				numBuffersAvailable.notifyAll();
-			}
-			;
+	public void notifyDataAvailable() {
+		synchronized (dataAvailableNotification) {
+			dataAvailableNotification.set(true);
+			dataAvailableNotification.notifyAll();
 		}
 	}
 }

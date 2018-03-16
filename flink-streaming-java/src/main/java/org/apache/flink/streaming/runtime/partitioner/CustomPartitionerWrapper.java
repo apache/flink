@@ -35,7 +35,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 public class CustomPartitionerWrapper<K, T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private int[] returnArray = new int[1];
+	private final int[] returnArray = new int[1];
 	Partitioner<K> partitioner;
 	KeySelector<T, K> keySelector;
 

@@ -18,35 +18,42 @@
 
 package org.apache.flink.table.runtime
 
+import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.functions.{FlatMapFunction, RichFlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.table.util.Logging
+import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-import org.slf4j.LoggerFactory
 
-class FlatMapRunner[IN, OUT](
+class FlatMapRunner(
     name: String,
     code: String,
-    @transient returnType: TypeInformation[OUT])
-  extends RichFlatMapFunction[IN, OUT]
-  with ResultTypeQueryable[OUT]
-  with Compiler[FlatMapFunction[IN, OUT]] {
+    @transient var returnType: TypeInformation[Row])
+  extends RichFlatMapFunction[Row, Row]
+  with ResultTypeQueryable[Row]
+  with Compiler[FlatMapFunction[Row, Row]]
+  with Logging {
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
-
-  private var function: FlatMapFunction[IN, OUT] = _
+  private var function: FlatMapFunction[Row, Row] = _
 
   override def open(parameters: Configuration): Unit = {
     LOG.debug(s"Compiling FlatMapFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating FlatMapFunction.")
     function = clazz.newInstance()
+    FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
+    FunctionUtils.openFunction(function, parameters)
   }
 
-  override def flatMap(in: IN, out: Collector[OUT]): Unit =
+  override def flatMap(in: Row, out: Collector[Row]): Unit =
     function.flatMap(in, out)
 
-  override def getProducedType: TypeInformation[OUT] = returnType
+  override def getProducedType: TypeInformation[Row] = returnType
+
+  override def close(): Unit = {
+    FunctionUtils.closeFunction(function)
+  }
 }

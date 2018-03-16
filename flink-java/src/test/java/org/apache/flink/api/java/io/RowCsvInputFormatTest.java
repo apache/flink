@@ -22,13 +22,14 @@ import org.apache.flink.api.common.io.ParseException;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.StringParser;
+
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -44,18 +45,21 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link RowCsvInputFormat}.
+ */
 public class RowCsvInputFormatTest {
 
-	private static Path PATH = new Path("an/ignored/file/");
+	private static final Path PATH = new Path("an/ignored/file/");
 
 	// static variables for testing the removal of \r\n to \n
-	private static String FIRST_PART = "That is the first part";
-	private static String SECOND_PART = "That is the second part";
+	private static final String FIRST_PART = "That is the first part";
+	private static final String SECOND_PART = "That is the second part";
 
 	@Test
 	public void ignoreInvalidLines() throws Exception {
@@ -230,7 +234,7 @@ public class RowCsvInputFormatTest {
 
 	@Test
 	public void readStringFields() throws Exception {
-		String fileContent = "abc|def|ghijk\nabc||hhg\n|||";
+		String fileContent = "abc|def|ghijk\nabc||hhg\n|||\n||";
 
 		FileInputSplit split = createTempFile(fileContent);
 
@@ -264,13 +268,19 @@ public class RowCsvInputFormatTest {
 		assertEquals("", result.getField(2));
 
 		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("", result.getField(0));
+		assertEquals("", result.getField(1));
+		assertEquals("", result.getField(2));
+
+		result = format.nextRecord(result);
 		assertNull(result);
 		assertTrue(format.reachedEnd());
 	}
 
 	@Test
 	public void readMixedQuotedStringFields() throws Exception {
-		String fileContent = "@a|b|c@|def|@ghijk@\nabc||@|hhg@\n|||";
+		String fileContent = "@a|b|c@|def|@ghijk@\nabc||@|hhg@\n|||\n";
 
 		FileInputSplit split = createTempFile(fileContent);
 
@@ -351,6 +361,65 @@ public class RowCsvInputFormatTest {
 	}
 
 	@Test
+	public void testTailingEmptyFields() throws Exception {
+		String fileContent = "abc|-def|-ghijk\n" +
+				"abc|-def|-\n" +
+				"abc|-|-\n" +
+				"|-|-|-\n" +
+				"|-|-\n" +
+				"abc|-def\n";
+
+		FileInputSplit split = createTempFile(fileContent);
+
+		TypeInformation[] fieldTypes = new TypeInformation[]{
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO};
+
+		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes, "\n", "|");
+		format.setFieldDelimiter("|-");
+		format.configure(new Configuration());
+		format.open(split);
+
+		Row result = new Row(3);
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("abc", result.getField(0));
+		assertEquals("def", result.getField(1));
+		assertEquals("ghijk", result.getField(2));
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("abc", result.getField(0));
+		assertEquals("def", result.getField(1));
+		assertEquals("", result.getField(2));
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("abc", result.getField(0));
+		assertEquals("", result.getField(1));
+		assertEquals("", result.getField(2));
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("", result.getField(0));
+		assertEquals("", result.getField(1));
+		assertEquals("", result.getField(2));
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("", result.getField(0));
+		assertEquals("", result.getField(1));
+		assertEquals("", result.getField(2));
+
+		try {
+			format.nextRecord(result);
+			fail("Parse Exception was not thrown! (Row too short)");
+		} catch (ParseException e) {}
+	}
+
+	@Test
 	public void testIntegerFields() throws Exception {
 		String fileContent = "111|222|333|444|555\n666|777|888|999|000|\n";
 
@@ -396,12 +465,12 @@ public class RowCsvInputFormatTest {
 	public void testEmptyFields() throws Exception {
 		String fileContent =
 			",,,,,,,,\n" +
+				",,,,,,,\n" +
+				",,,,,,,,\n" +
+				",,,,,,,\n" +
 				",,,,,,,,\n" +
 				",,,,,,,,\n" +
-				",,,,,,,,\n" +
-				",,,,,,,,\n" +
-				",,,,,,,,\n" +
-				",,,,,,,,\n" +
+				",,,,,,,\n" +
 				",,,,,,,,\n";
 
 		FileInputSplit split = createTempFile(fileContent);
@@ -522,7 +591,7 @@ public class RowCsvInputFormatTest {
 		RowCsvInputFormat format = new RowCsvInputFormat(
 			PATH,
 			fieldTypes,
-			new int[]{0,3,7});
+			new int[]{0, 3, 7});
 		format.setFieldDelimiter("|x|");
 		format.configure(new Configuration());
 		format.open(split);
@@ -636,7 +705,7 @@ public class RowCsvInputFormatTest {
 
 		for (Map.Entry<String, StringParser.ParseErrorState> failure : failures.entrySet()) {
 			int result = stringParser.parseField(
-				failure.getKey().getBytes(),
+				failure.getKey().getBytes(ConfigConstants.DEFAULT_CHARSET),
 				0,
 				failure.getKey().length(),
 				new byte[]{(byte) '|'},
@@ -646,9 +715,8 @@ public class RowCsvInputFormatTest {
 		}
 	}
 
-	// Test disabled because we do not support double-quote escaped quotes right now.
 	@Test
-	@Ignore
+	@Ignore("Test disabled because we do not support double-quote escaped quotes right now.")
 	public void testParserCorrectness() throws Exception {
 		// RFC 4180 Compliance Test content
 		// Taken from http://en.wikipedia.org/wiki/Comma-separated_values#Example

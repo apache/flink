@@ -18,54 +18,51 @@
 
 package org.apache.flink.streaming.examples.java8.wordcount;
 
-import java.util.Arrays;
-
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
 
+import java.util.Arrays;
+
 /**
  * Implements the streaming "WordCount" program that computes a simple word occurrences
- * over text files. 
- * 
- * <p>
- * The input is a plain text file with lines separated by newline characters.
- * 
- * <p>
- * Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
+ * over text files.
+ *
+ * <p>The input is a plain text file with lines separated by newline characters.
+ *
+ * <p>Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData}.
- * 
- * <p>
- * This example shows how to:
+ *
+ * <p>This example shows how to:
  * <ul>
  * <li>write a compact Flink Streaming program with Java 8 Lambda Expressions.
  * </ul>
- * 
+ *
  */
 public class WordCount {
-	
+
 	// *************************************************************************
 	//     PROGRAM
 	// *************************************************************************
-	
+
 	public static void main(String[] args) throws Exception {
-		
-		if(!parseParameters(args)) {
+
+		if (!parseParameters(args)) {
 			return;
 		}
-		
+
 		// set up the execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		
+
 		// get input data
 		DataStream<String> text = getTextDataStream(env);
-		
-		DataStream<Tuple2<String, Integer>> counts = 
+
+		DataStream<Tuple2<String, Integer>> counts =
 				// normalize and split each line
 				text.map(line -> line.toLowerCase().split("\\W+"))
-				// convert splitted line in pairs (2-tuples) containing: (word,1)
+				// convert split line in pairs (2-tuples) containing: (word,1)
 				.flatMap((String[] tokens, Collector<Tuple2<String, Integer>> out) -> {
 					// emit the pairs with non-zero-length words
 					Arrays.stream(tokens)
@@ -77,30 +74,30 @@ public class WordCount {
 				.sum(1);
 
 		// emit result
-		if(fileOutput) {
+		if (fileOutput) {
 			counts.writeAsCsv(outputPath);
 		} else {
 			counts.print();
 		}
-		
+
 		// execute program
 		env.execute("Streaming WordCount Example");
 	}
-	
+
 	// *************************************************************************
 	//     UTIL METHODS
 	// *************************************************************************
-	
+
 	private static boolean fileOutput = false;
 	private static String textPath;
 	private static String outputPath;
-	
+
 	private static boolean parseParameters(String[] args) {
-		
-		if(args.length > 0) {
+
+		if (args.length > 0) {
 			// parse input arguments
 			fileOutput = true;
-			if(args.length == 2) {
+			if (args.length == 2) {
 				textPath = args[0];
 				outputPath = args[1];
 			} else {
@@ -114,7 +111,7 @@ public class WordCount {
 		}
 		return true;
 	}
-	
+
 	private static DataStream<String> getTextDataStream(StreamExecutionEnvironment env) {
 		if (fileOutput) {
 			// read the text file from given input path

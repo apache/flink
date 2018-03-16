@@ -22,15 +22,50 @@ import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float =
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 
-import org.apache.calcite.avatica.util.TimeUnit
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rex.{RexBuilder, RexNode}
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.streaming.api.windowing.time.{Time => FlinkTime}
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 
 object ExpressionUtils {
+
+  private[flink] def isTimeIntervalLiteral(expr: Expression): Boolean = expr match {
+    case Literal(_, TimeIntervalTypeInfo.INTERVAL_MILLIS) => true
+    case _ => false
+  }
+
+  private[flink] def isRowCountLiteral(expr: Expression): Boolean = expr match {
+    case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS) => true
+    case _ => false
+  }
+
+  private[flink] def isTimeAttribute(expr: Expression): Boolean = expr match {
+    case r: ResolvedFieldReference if FlinkTypeFactory.isTimeIndicatorType(r.resultType) => true
+    case _ => false
+  }
+
+  private[flink] def isRowtimeAttribute(expr: Expression): Boolean = expr match {
+    case r: ResolvedFieldReference if FlinkTypeFactory.isRowtimeIndicatorType(r.resultType) => true
+    case _ => false
+  }
+
+  private[flink] def isProctimeAttribute(expr: Expression): Boolean = expr match {
+    case r: ResolvedFieldReference if FlinkTypeFactory.isProctimeIndicatorType(r.resultType) =>
+      true
+    case _ => false
+  }
+
+  private[flink] def toTime(expr: Expression): FlinkTime = expr match {
+    case Literal(value: Long, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
+      FlinkTime.milliseconds(value)
+    case _ => throw new IllegalArgumentException()
+  }
+
+  private[flink] def toLong(expr: Expression): Long = expr match {
+    case Literal(value: Long, RowIntervalTypeInfo.INTERVAL_ROWS) => value
+    case _ => throw new IllegalArgumentException()
+  }
 
   private[flink] def toMonthInterval(expr: Expression, multiplier: Int): Expression = expr match {
     case Literal(value: Int, BasicTypeInfo.INT_TYPE_INFO) =>
@@ -98,57 +133,4 @@ object ExpressionUtils {
         }
     }
   }
-
-  // ----------------------------------------------------------------------------------------------
-  // RexNode conversion functions (see org.apache.calcite.sql2rel.StandardConvertletTable)
-  // ----------------------------------------------------------------------------------------------
-
-  /**
-    * Copy of [[org.apache.calcite.sql2rel.StandardConvertletTable#getFactor()]].
-    */
-  private[flink] def getFactor(unit: TimeUnit): JBigDecimal = unit match {
-    case TimeUnit.DAY => java.math.BigDecimal.ONE
-    case TimeUnit.HOUR => TimeUnit.DAY.multiplier
-    case TimeUnit.MINUTE => TimeUnit.HOUR.multiplier
-    case TimeUnit.SECOND => TimeUnit.MINUTE.multiplier
-    case TimeUnit.YEAR => java.math.BigDecimal.ONE
-    case TimeUnit.MONTH => TimeUnit.YEAR.multiplier
-    case _ => throw new IllegalArgumentException("Invalid start unit.")
-  }
-
-  /**
-    * Copy of [[org.apache.calcite.sql2rel.StandardConvertletTable#mod()]].
-    */
-  private[flink] def mod(
-      rexBuilder: RexBuilder,
-      resType: RelDataType,
-      res: RexNode,
-      value: JBigDecimal)
-    : RexNode = {
-    if (value == JBigDecimal.ONE) return res
-    rexBuilder.makeCall(SqlStdOperatorTable.MOD, res, rexBuilder.makeExactLiteral(value, resType))
-  }
-
-  /**
-    * Copy of [[org.apache.calcite.sql2rel.StandardConvertletTable#divide()]].
-    */
-  private[flink] def divide(rexBuilder: RexBuilder, res: RexNode, value: JBigDecimal): RexNode = {
-    if (value == JBigDecimal.ONE) return res
-    if (value.compareTo(JBigDecimal.ONE) < 0 && value.signum == 1) {
-      try {
-        val reciprocal = JBigDecimal.ONE.divide(value, JBigDecimal.ROUND_UNNECESSARY)
-        return rexBuilder.makeCall(
-          SqlStdOperatorTable.MULTIPLY,
-          res,
-          rexBuilder.makeExactLiteral(reciprocal))
-      } catch {
-        case e: ArithmeticException => // ignore
-      }
-    }
-    rexBuilder.makeCall(
-      SqlStdOperatorTable.DIVIDE_INTEGER,
-      res,
-      rexBuilder.makeExactLiteral(value))
-  }
-
 }

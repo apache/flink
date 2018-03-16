@@ -18,6 +18,14 @@
 
 package org.apache.flink.storm.api;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+
 import org.apache.storm.LocalCluster;
 import org.apache.storm.generated.ClusterSummary;
 import org.apache.storm.generated.KillOptions;
@@ -25,13 +33,6 @@ import org.apache.storm.generated.RebalanceOptions;
 import org.apache.storm.generated.StormTopology;
 import org.apache.storm.generated.SubmitOptions;
 import org.apache.storm.generated.TopologyInfo;
-
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,16 +44,14 @@ import java.util.Objects;
  */
 public class FlinkLocalCluster {
 
-	/** The log used by this mini cluster */
+	/** The log used by this mini cluster. */
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkLocalCluster.class);
 
-	/** The Flink mini cluster on which to execute the programs */
+	/** The Flink mini cluster on which to execute the programs. */
 	private FlinkMiniCluster flink;
 
 	/** Configuration key to submit topology in blocking mode if flag is set to {@code true}. */
 	public static final String SUBMIT_BLOCKING = "SUBMIT_STORM_TOPOLOGY_BLOCKING";
-
-
 
 	public FlinkLocalCluster() {
 	}
@@ -60,8 +59,6 @@ public class FlinkLocalCluster {
 	public FlinkLocalCluster(FlinkMiniCluster flink) {
 		this.flink = Objects.requireNonNull(flink);
 	}
-
-
 
 	@SuppressWarnings("rawtypes")
 	public void submitTopology(final String topologyName, final Map conf, final FlinkTopology topology)
@@ -76,8 +73,8 @@ public class FlinkLocalCluster {
 		boolean submitBlocking = false;
 		if (conf != null) {
 			Object blockingFlag = conf.get(SUBMIT_BLOCKING);
-			if(blockingFlag != null && blockingFlag instanceof Boolean) {
-				submitBlocking = ((Boolean)blockingFlag).booleanValue();
+			if (blockingFlag instanceof Boolean) {
+				submitBlocking = ((Boolean) blockingFlag).booleanValue();
 			}
 		}
 
@@ -92,7 +89,7 @@ public class FlinkLocalCluster {
 			Configuration configuration = new Configuration();
 			configuration.addAll(jobGraph.getJobConfiguration());
 
-			configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L);
+			configuration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, -1L);
 			configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
 
 			this.flink = new LocalFlinkMiniCluster(configuration, true);
@@ -183,7 +180,7 @@ public class FlinkLocalCluster {
 	/**
 	 * A factory that creates local clusters.
 	 */
-	public static interface LocalClusterFactory {
+	public interface LocalClusterFactory {
 
 		/**
 		 * Creates a local Flink cluster.

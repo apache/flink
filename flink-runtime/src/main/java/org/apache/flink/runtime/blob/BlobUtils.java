@@ -18,29 +18,35 @@
 
 package org.apache.flink.runtime.blob;
 
-import com.google.common.io.BaseEncoding;
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.BlobServerOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.util.IOUtils;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.StringUtils;
+
 import org.slf4j.Logger;
+
+import javax.annotation.Nullable;
 
 import java.io.EOFException;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.net.URI;
-import java.nio.charset.Charset;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Random;
 import java.util.UUID;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
 
 /**
  * Utility class to work with blob data.
@@ -55,7 +61,7 @@ public class BlobUtils {
 	/**
 	 * The prefix of all BLOB files stored by the BLOB server.
 	 */
-	static final String BLOB_FILE_PREFIX = "blob_";
+	private static final String BLOB_FILE_PREFIX = "blob_";
 
 	/**
 	 * The prefix of all job-specific directories created by the BLOB server.
@@ -63,135 +69,223 @@ public class BlobUtils {
 	static final String JOB_DIR_PREFIX = "job_";
 
 	/**
-	 * The default character set to translate between characters and bytes.
+	 * The prefix of all job-unrelated directories created by the BLOB server.
 	 */
-	static final Charset DEFAULT_CHARSET = Charset.forName("utf-8");
+	static final String NO_JOB_DIR_PREFIX = "no_job";
+
+	private static final Random RANDOM = new Random();
 
 	/**
-	 * Creates a storage directory for a blob service.
+	 * Creates a BlobStore based on the parameters set in the configuration.
 	 *
-	 * @return the storage directory used by a BLOB service
+	 * @param config
+	 * 		configuration to use
+	 *
+	 * @return a (distributed) blob store for high availability
+	 *
+	 * @throws IOException
+	 * 		thrown if the (distributed) file storage cannot be created
 	 */
-	static File initStorageDirectory(String storageDirectory) {
+	public static BlobStoreService createBlobStoreFromConfig(Configuration config) throws IOException {
+		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
+
+		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
+			return new VoidBlobStore();
+		} else if (highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
+			return createFileSystemBlobStore(config);
+		} else {
+			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + "'.");
+		}
+	}
+
+	private static BlobStoreService createFileSystemBlobStore(Configuration configuration) throws IOException {
+		String storagePath = configuration.getValue(
+			HighAvailabilityOptions.HA_STORAGE_PATH);
+		if (isNullOrWhitespaceOnly(storagePath)) {
+			throw new IllegalConfigurationException("Configuration is missing the mandatory parameter: " +
+				HighAvailabilityOptions.HA_STORAGE_PATH);
+		}
+
+		final Path path;
+		try {
+			path = new Path(storagePath);
+		} catch (Exception e) {
+			throw new IOException("Invalid path for highly available storage (" +
+				HighAvailabilityOptions.HA_STORAGE_PATH.key() + ')', e);
+		}
+
+		final FileSystem fileSystem;
+		try {
+			fileSystem = path.getFileSystem();
+		} catch (Exception e) {
+			throw new IOException("Could not create FileSystem for highly available storage (" +
+				HighAvailabilityOptions.HA_STORAGE_PATH.key() + ')', e);
+		}
+
+		final String clusterId =
+			configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
+		storagePath += "/" + clusterId;
+
+		return new FileSystemBlobStore(fileSystem, storagePath);
+	}
+
+	/**
+	 * Creates a local storage directory for a blob service under the configuration parameter given
+	 * by {@link BlobServerOptions#STORAGE_DIRECTORY}. If this is <tt>null</tt> or empty, we will
+	 * fall back to Flink's temp directories (given by
+	 * {@link org.apache.flink.configuration.CoreOptions#TMP_DIRS}) and choose one among them at
+	 * random.
+	 *
+	 * @param config
+	 * 		Flink configuration
+	 *
+	 * @return a new local storage directory
+	 *
+	 * @throws IOException
+	 * 		thrown if the local file storage cannot be created or is not usable
+	 */
+	static File initLocalStorageDirectory(Configuration config) throws IOException {
+
+		String basePath = config.getString(BlobServerOptions.STORAGE_DIRECTORY);
+
 		File baseDir;
-		if (StringUtils.isNullOrWhitespaceOnly(storageDirectory)) {
-			baseDir = new File(System.getProperty("java.io.tmpdir"));
+		if (StringUtils.isNullOrWhitespaceOnly(basePath)) {
+			final String[] tmpDirPaths = ConfigurationUtils.parseTempDirectories(config);
+			baseDir = new File(tmpDirPaths[RANDOM.nextInt(tmpDirPaths.length)]);
 		}
 		else {
-			baseDir = new File(storageDirectory);
+			baseDir = new File(basePath);
 		}
 
 		File storageDir;
 
-		final int MAX_ATTEMPTS = 10;
-		for(int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+		// NOTE: although we will be using UUIDs, there may be collisions
+		int maxAttempts = 10;
+		for (int attempt = 0; attempt < maxAttempts; attempt++) {
 			storageDir = new File(baseDir, String.format(
 					"blobStore-%s", UUID.randomUUID().toString()));
 
 			// Create the storage dir if it doesn't exist. Only return it when the operation was
 			// successful.
-			if (!storageDir.exists() && storageDir.mkdirs()) {
+			if (storageDir.mkdirs()) {
 				return storageDir;
 			}
 		}
 
 		// max attempts exceeded to find a storage directory
-		throw new RuntimeException("Could not create storage directory for BLOB store in '" + baseDir + "'.");
+		throw new IOException("Could not create storage directory for BLOB store in '" + baseDir + "'.");
 	}
 
 	/**
-	 * Returns the BLOB service's directory for incoming files. The directory is created if it did
-	 * not exist so far.
+	 * Returns the BLOB service's directory for incoming (job-unrelated) files. The directory is
+	 * created if it does not exist yet.
 	 *
-	 * @return the BLOB server's directory for incoming files
+	 * @param storageDir
+	 * 		storage directory used be the BLOB service
+	 *
+	 * @return the BLOB service's directory for incoming files
+	 *
+	 * @throws IOException
+	 * 		if creating the directory fails
 	 */
-	static File getIncomingDirectory(File storageDir) {
+	static File getIncomingDirectory(File storageDir) throws IOException {
 		final File incomingDir = new File(storageDir, "incoming");
 
-		if (!incomingDir.mkdirs() && !incomingDir.exists()) {
-			throw new RuntimeException("Cannot create directory for incoming files " + incomingDir.getAbsolutePath());
-		}
+		mkdirTolerateExisting(incomingDir);
 
 		return incomingDir;
 	}
 
 	/**
-	 * Returns the BLOB service's directory for cached files. The directory is created if it did
-	 * not exist so far.
+	 * Makes sure a given directory exists by creating it if necessary.
 	 *
-	 * @return the BLOB server's directory for cached files
+	 * @param dir
+	 * 		directory to create
+	 *
+	 * @throws IOException
+	 * 		if creating the directory fails
 	 */
-	private static File getCacheDirectory(File storageDir) {
-		final File cacheDirectory = new File(storageDir, "cache");
-
-		if (!cacheDirectory.exists() && !cacheDirectory.mkdirs()) {
-			throw new RuntimeException("Could not create cache directory '" + cacheDirectory.getAbsolutePath() + "'.");
+	private static void mkdirTolerateExisting(final File dir) throws IOException {
+		// note: thread-safe create should try to mkdir first and then ignore the case that the
+		//       directory already existed
+		if (!dir.mkdirs() && !dir.exists()) {
+			throw new IOException(
+				"Cannot create directory '" + dir.getAbsolutePath() + "'.");
 		}
-
-		return cacheDirectory;
 	}
 
 	/**
 	 * Returns the (designated) physical storage location of the BLOB with the given key.
 	 *
+	 * @param storageDir
+	 * 		storage directory used be the BLOB service
 	 * @param key
-	 *        the key identifying the BLOB
+	 * 		the key identifying the BLOB
+	 * @param jobId
+	 * 		ID of the job for the incoming files (or <tt>null</tt> if job-unrelated)
+	 *
 	 * @return the (designated) physical storage location of the BLOB
+	 *
+	 * @throws IOException
+	 * 		if creating the directory fails
 	 */
-	static File getStorageLocation(File storageDir, BlobKey key) {
-		return new File(getCacheDirectory(storageDir), BLOB_FILE_PREFIX + key.toString());
+	static File getStorageLocation(
+			File storageDir, @Nullable JobID jobId, BlobKey key) throws IOException {
+		File file = new File(getStorageLocationPath(storageDir.getAbsolutePath(), jobId, key));
+
+		mkdirTolerateExisting(file.getParentFile());
+
+		return file;
 	}
 
 	/**
-	 * Returns the (designated) physical storage location of the BLOB with the given job ID and key.
+	 * Returns the BLOB server's storage directory for BLOBs belonging to the job with the given ID
+	 * <em>without</em> creating the directory.
 	 *
-	 * @param jobID
-	 *        the ID of the job the BLOB belongs to
-	 * @param key
-	 *        the key of the BLOB
-	 * @return the (designated) physical storage location of the BLOB with the given job ID and key
-	 */
-	static File getStorageLocation(File storageDir, JobID jobID, String key) {
-		return new File(getJobDirectory(storageDir, jobID), BLOB_FILE_PREFIX + encodeKey(key));
-	}
-
-	/**
-	 * Returns the BLOB server's storage directory for BLOBs belonging to the job with the given ID.
+	 * @param storageDir
+	 * 		storage directory used be the BLOB service
+	 * @param jobId
+	 * 		the ID of the job to return the storage directory for
 	 *
-	 * @param jobID
-	 *        the ID of the job to return the storage directory for
 	 * @return the storage directory for BLOBs belonging to the job with the given ID
 	 */
-	private static File getJobDirectory(File storageDir, JobID jobID) {
-		final File jobDirectory = new File(storageDir, JOB_DIR_PREFIX + jobID.toString());
-
-		if (!jobDirectory.exists() && !jobDirectory.mkdirs()) {
-			throw new RuntimeException("Could not create jobId directory '" + jobDirectory.getAbsolutePath() + "'.");
+	static String getStorageLocationPath(String storageDir, @Nullable JobID jobId) {
+		if (jobId == null) {
+			// format: $base/no_job
+			return String.format("%s/%s", storageDir, NO_JOB_DIR_PREFIX);
+		} else {
+			// format: $base/job_$jobId
+			return String.format("%s/%s%s", storageDir, JOB_DIR_PREFIX, jobId.toString());
 		}
-
-		return jobDirectory;
 	}
 
 	/**
-	 * Translates the user's key for a BLOB into the internal name used by the BLOB server
+	 * Returns the path for the given blob key.
 	 *
+	 * <p>The returned path can be used with the (local or HA) BLOB store file system back-end for
+	 * recovery purposes and follows the same scheme as {@link #getStorageLocation(File, JobID,
+	 * BlobKey)}.
+	 *
+	 * @param storageDir
+	 * 		storage directory used be the BLOB service
 	 * @param key
-	 *        the user's key for a BLOB
-	 * @return the internal name for the BLOB as used by the BLOB server
-	 */
-	static String encodeKey(String key) {
-		return BaseEncoding.base64().encode(key.getBytes(DEFAULT_CHARSET));
-	}
-
-	/**
-	 * Deletes the storage directory for the job with the given ID.
+	 * 		the key identifying the BLOB
+	 * @param jobId
+	 * 		ID of the job for the incoming files
 	 *
-	 * @param jobID
-	 *			jobID whose directory shall be deleted
+	 * @return the path to the given BLOB
 	 */
-	static void deleteJobDirectory(File storageDir, JobID jobID) throws IOException {
-		File directory = getJobDirectory(storageDir, jobID);
-		FileUtils.deleteDirectory(directory);
+	static String getStorageLocationPath(
+			String storageDir, @Nullable JobID jobId, BlobKey key) {
+		if (jobId == null) {
+			// format: $base/no_job/blob_$key
+			return String.format("%s/%s/%s%s",
+				storageDir, NO_JOB_DIR_PREFIX, BLOB_FILE_PREFIX, key.toString());
+		} else {
+			// format: $base/job_$jobId/blob_$key
+			return String.format("%s/%s%s/%s%s",
+				storageDir, JOB_DIR_PREFIX, jobId.toString(), BLOB_FILE_PREFIX, key.toString());
+		}
 	}
 
 	/**
@@ -204,40 +298,6 @@ public class BlobUtils {
 			return MessageDigest.getInstance(HASHING_ALGORITHM);
 		} catch (NoSuchAlgorithmException e) {
 			throw new RuntimeException("Cannot instantiate the message digest algorithm " + HASHING_ALGORITHM, e);
-		}
-	}
-
-	/**
-	 * Adds a shutdown hook to the JVM and returns the Thread, which has been registered.
-	 */
-	static Thread addShutdownHook(final BlobService service, final Logger logger) {
-		checkNotNull(service);
-		checkNotNull(logger);
-
-		final Thread shutdownHook = new Thread(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					service.shutdown();
-				}
-				catch (Throwable t) {
-					logger.error("Error during shutdown of blob service via JVM shutdown hook: " + t.getMessage(), t);
-				}
-			}
-		});
-
-		try {
-			// Add JVM shutdown hook to call shutdown of service
-			Runtime.getRuntime().addShutdownHook(shutdownHook);
-			return shutdownHook;
-		}
-		catch (IllegalStateException e) {
-			// JVM is already shutting down. no need to do our work
-			return null;
-		}
-		catch (Throwable t) {
-			logger.error("Cannot register shutdown hook that cleanly terminates the BLOB service.");
-			return null;
 		}
 	}
 
@@ -319,76 +379,13 @@ public class BlobUtils {
 		}
 	}
 
-	static void closeSilently(Socket socket, Logger LOG) {
+	static void closeSilently(Socket socket, Logger log) {
 		if (socket != null) {
 			try {
 				socket.close();
 			} catch (Throwable t) {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Error while closing resource after BLOB transfer.", t);
-				}
+				log.debug("Exception while closing BLOB server connection socket.", t);
 			}
-		}
-	}
-
-	/**
-	 * Returns the path for the given blob key.
-	 *
-	 * <p>The returned path can be used with the state backend for recovery purposes.
-	 *
-	 * <p>This follows the same scheme as {@link #getStorageLocation(File, BlobKey)}
-	 * and is used for HA.
-	 */
-	static String getRecoveryPath(String basePath, BlobKey blobKey) {
-		// format: $base/cache/blob_$key
-		return String.format("%s/cache/%s", basePath, BLOB_FILE_PREFIX + blobKey.toString());
-	}
-
-	/**
-	 * Returns the path for the given job ID and key.
-	 *
-	 * <p>The returned path can be used with the state backend for recovery purposes.
-	 *
-	 * <p>This follows the same scheme as {@link #getStorageLocation(File, JobID, String)}.
-	 */
-	static String getRecoveryPath(String basePath, JobID jobId, String key) {
-		// format: $base/job_$id/blob_$key
-		return String.format("%s/%s/%s", basePath, JOB_DIR_PREFIX + jobId.toString(),
-				BLOB_FILE_PREFIX + encodeKey(key));
-	}
-
-	/**
-	 * Returns the path for the given job ID.
-	 *
-	 * <p>The returned path can be used with the state backend for recovery purposes.
-	 */
-	static String getRecoveryPath(String basePath, JobID jobId) {
-		return String.format("%s/%s", basePath, JOB_DIR_PREFIX + jobId.toString());
-	}
-
-	/**
-	 * Copies the file from the recovery path to the local file.
-	 */
-	static void copyFromRecoveryPath(String recoveryPath, File localBlobFile) throws Exception {
-		if (recoveryPath == null) {
-			throw new IllegalStateException("Failed to determine recovery path.");
-		}
-
-		if (!localBlobFile.createNewFile()) {
-			throw new IllegalStateException("Failed to create new local file to copy to");
-		}
-
-		URI uri = new URI(recoveryPath);
-		Path path = new Path(recoveryPath);
-
-		if (FileSystem.get(uri).exists(path)) {
-			try (InputStream is = FileSystem.get(uri).open(path)) {
-				FileOutputStream fos = new FileOutputStream(localBlobFile);
-				IOUtils.copyBytes(is, fos); // closes the streams
-			}
-		}
-		else {
-			throw new IOException("Cannot find required BLOB at '" + recoveryPath + "' for recovery.");
 		}
 	}
 
@@ -397,5 +394,67 @@ public class BlobUtils {
 	 */
 	private BlobUtils() {
 		throw new RuntimeException();
+	}
+
+	/**
+	 * Moves the temporary <tt>incomingFile</tt> to its permanent location where it is available for
+	 * use (not thread-safe!).
+	 *
+	 * @param incomingFile
+	 * 		temporary file created during transfer
+	 * @param jobId
+	 * 		ID of the job this blob belongs to or <tt>null</tt> if job-unrelated
+	 * @param blobKey
+	 * 		BLOB key identifying the file
+	 * @param storageFile
+	 *      (local) file where the blob is/should be stored
+	 * @param log
+	 *      logger for debug information
+	 * @param blobStore
+	 *      HA store (or <tt>null</tt> if unavailable)
+	 *
+	 * @throws IOException
+	 * 		thrown if an I/O error occurs while moving the file or uploading it to the HA store
+	 */
+	static void moveTempFileToStore(
+			File incomingFile, @Nullable JobID jobId, BlobKey blobKey, File storageFile,
+			Logger log, @Nullable BlobStore blobStore) throws IOException {
+
+		try {
+			// first check whether the file already exists
+			if (!storageFile.exists()) {
+				try {
+					// only move the file if it does not yet exist
+					Files.move(incomingFile.toPath(), storageFile.toPath());
+
+					incomingFile = null;
+
+				} catch (FileAlreadyExistsException ignored) {
+					log.warn("Detected concurrent file modifications. This should only happen if multiple" +
+						"BlobServer use the same storage directory.");
+					// we cannot be sure at this point whether the file has already been uploaded to the blob
+					// store or not. Even if the blobStore might shortly be in an inconsistent state, we have
+					// to persist the blob. Otherwise we might not be able to recover the job.
+				}
+
+				if (blobStore != null) {
+					// only the one moving the incoming file to its final destination is allowed to upload the
+					// file to the blob store
+					blobStore.put(storageFile, jobId, blobKey);
+				}
+			} else {
+				log.warn("File upload for an existing file with key {} for job {}. This may indicate a duplicate upload or a hash collision. Ignoring newest upload.", blobKey, jobId);
+			}
+			storageFile = null;
+		} finally {
+			// we failed to either create the local storage file or to upload it --> try to delete the local file
+			// while still having the write lock
+			if (storageFile != null && !storageFile.delete() && storageFile.exists()) {
+				log.warn("Could not delete the storage file {}.", storageFile);
+			}
+			if (incomingFile != null && !incomingFile.delete() && incomingFile.exists()) {
+				log.warn("Could not delete the staging file {} for blob key {} and job {}.", incomingFile, blobKey, jobId);
+			}
+		}
 	}
 }

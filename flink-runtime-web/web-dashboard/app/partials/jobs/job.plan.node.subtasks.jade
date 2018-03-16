@@ -32,7 +32,6 @@ table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="subta
       th Attempt
       th Host
       th Status
-
   tbody
     tr(ng-repeat="subtask in subtasks | orderBy:'host'")
       td
@@ -41,17 +40,19 @@ table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="subta
         span(ng-if="subtask['end-time'] > -1") {{ subtask['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
       td
         span(ng-if="subtask.duration > -1" title="{{subtask.duration | humanizeDuration:false}}") {{subtask.duration | humanizeDuration:true}}
-
+        
       td
-        span(ng-if="subtask.metrics['read-bytes'] > -1" title="{{subtask.metrics['read-bytes']}} bytes")
-          | {{ subtask.metrics['read-bytes'] | humanizeBytes}}
+        span(ng-if="subtask.metrics['read-bytes-complete']") {{ subtask.metrics['read-bytes'] | humanizeBytes }}
+        i(ng-if="!subtask.metrics['read-bytes-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
       td
-        span(ng-if="subtask.metrics['read-records'] > -1") {{ subtask.metrics['read-records'] | number }}
+        span(ng-if="subtask.metrics['read-records-complete']") {{ subtask.metrics['read-records'] | number }}
+        i(ng-if="!subtask.metrics['read-records-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
       td
-        span(ng-if="subtask.metrics['write-bytes'] > -1" title="{{subtask.metrics['write-bytes']}} bytes")
-          | {{ subtask.metrics['write-bytes'] | humanizeBytes}}
+        span(ng-if="subtask.metrics['write-bytes-complete']") {{ subtask.metrics['write-bytes'] | humanizeBytes }}
+        i(ng-if="!subtask.metrics['write-bytes-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
       td
-        span(ng-if="subtask.metrics['write-records'] > -1") {{ subtask.metrics['write-records'] | number }}
+        span(ng-if="subtask.metrics['write-records-complete']") {{ subtask.metrics['write-records'] | number }}
+        i(ng-if="!subtask.metrics['write-records-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
 
       td {{ subtask.attempt + 1 }}
       td {{ subtask.host }}

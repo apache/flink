@@ -18,6 +18,7 @@
 
 package org.apache.flink.graph.library.clustering.directed;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -35,89 +36,37 @@ import org.apache.flink.graph.EdgeOrder;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.degree.annotate.directed.EdgeDegreesPair;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
+import org.apache.flink.graph.asm.result.PrintableResult;
+import org.apache.flink.graph.asm.result.TertiaryResultBase;
+import org.apache.flink.graph.library.clustering.TriangleListingBase;
 import org.apache.flink.graph.library.clustering.directed.TriangleListing.Result;
-import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
-import org.apache.flink.graph.utils.proxy.OptionalBoolean;
+import org.apache.flink.graph.utils.MurmurHash;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-
 /**
  * Generates a listing of distinct triangles from the input graph.
- * <br/>
- * A triangle is a 3-clique with vertices A, B, and C connected by edges
+ *
+ * <p>A triangle is a 3-clique with vertices A, B, and C connected by edges
  * (A, B), (A, C), and (B, C).
- * <br/>
- * The input graph must not contain duplicate edges or self-loops.
+ *
+ * <p>The input graph must not contain duplicate edges or self-loops.
+ *
+ * <p>This algorithm is similar to the undirected version but also tracks and
+ * computes a bitmask representing the six potential graph edges connecting
+ * the triangle vertices.
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
 public class TriangleListing<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
-
-	// Optional configuration
-	private OptionalBoolean sortTriangleVertices = new OptionalBoolean(false, false);
-
-	private int littleParallelism = PARALLELISM_DEFAULT;
-
-	/**
-	 * Normalize the triangle listing such that for each result (K0, K1, K2)
-	 * the vertex IDs are sorted K0 < K1 < K2.
-	 *
-	 * @param sortTriangleVertices whether to output each triangle's vertices in sorted order
-	 * @return this
-	 */
-	public TriangleListing<K, VV, EV> setSortTriangleVertices(boolean sortTriangleVertices) {
-		this.sortTriangleVertices.set(sortTriangleVertices);
-
-		return this;
-	}
-
-	/**
-	 * Override the parallelism of operators processing small amounts of data.
-	 *
-	 * @param littleParallelism operator parallelism
-	 * @return this
-	 */
-	public TriangleListing<K, VV, EV> setLittleParallelism(int littleParallelism) {
-		Preconditions.checkArgument(littleParallelism > 0 || littleParallelism == PARALLELISM_DEFAULT,
-			"The parallelism must be greater than zero.");
-
-		this.littleParallelism = littleParallelism;
-
-		return this;
-	}
-
-	@Override
-	protected String getAlgorithmName() {
-		return TriangleListing.class.getName();
-	}
-
-	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
-		Preconditions.checkNotNull(other);
-
-		if (! TriangleListing.class.isAssignableFrom(other.getClass())) {
-			return false;
-		}
-
-		TriangleListing rhs = (TriangleListing) other;
-
-		sortTriangleVertices.mergeWith(rhs.sortTriangleVertices);
-		littleParallelism = (littleParallelism == PARALLELISM_DEFAULT) ? rhs.littleParallelism :
-			((rhs.littleParallelism == PARALLELISM_DEFAULT) ? littleParallelism : Math.min(littleParallelism, rhs.littleParallelism));
-
-		return true;
-	}
+extends TriangleListingBase<K, VV, EV, Result<K>> {
 
 	/*
 	 * Implementation notes:
@@ -135,34 +84,34 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		// u, v, bitmask where u < v
 		DataSet<Tuple3<K, K, ByteValue>> filteredByID = input
 			.getEdges()
-			.map(new OrderByID<K, EV>())
-				.setParallelism(littleParallelism)
+			.map(new OrderByID<>())
+				.setParallelism(parallelism)
 				.name("Order by ID")
 			.groupBy(0, 1)
-			.reduceGroup(new ReduceBitmask<K>())
-				.setParallelism(littleParallelism)
+			.reduceGroup(new ReduceBitmask<>())
+				.setParallelism(parallelism)
 				.name("Flatten by ID");
 
 		// u, v, (deg(u), deg(v))
 		DataSet<Edge<K, Tuple3<EV, Degrees, Degrees>>> pairDegrees = input
 			.run(new EdgeDegreesPair<K, VV, EV>()
-				.setParallelism(littleParallelism));
+				.setParallelism(parallelism));
 
 		// u, v, bitmask where deg(u) < deg(v) or (deg(u) == deg(v) and u < v)
 		DataSet<Tuple3<K, K, ByteValue>> filteredByDegree = pairDegrees
-			.map(new OrderByDegree<K, EV>())
-				.setParallelism(littleParallelism)
+			.map(new OrderByDegree<>())
+				.setParallelism(parallelism)
 				.name("Order by degree")
 			.groupBy(0, 1)
-			.reduceGroup(new ReduceBitmask<K>())
-				.setParallelism(littleParallelism)
+			.reduceGroup(new ReduceBitmask<>())
+				.setParallelism(parallelism)
 				.name("Flatten by degree");
 
 		// u, v, w, bitmask where (u, v) and (u, w) are edges in graph
 		DataSet<Tuple4<K, K, K, ByteValue>> triplets = filteredByDegree
 			.groupBy(0)
 			.sortGroup(1, Order.ASCENDING)
-			.reduceGroup(new GenerateTriplets<K>())
+			.reduceGroup(new GenerateTriplets<>())
 				.name("Generate triplets");
 
 		// u, v, w, bitmask where (u, v), (u, w), and (v, w) are edges in graph
@@ -170,12 +119,16 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.join(filteredByID, JoinOperatorBase.JoinHint.REPARTITION_HASH_SECOND)
 			.where(1, 2)
 			.equalTo(0, 1)
-			.with(new ProjectTriangles<K>())
+			.with(new ProjectTriangles<>())
 				.name("Triangle listing");
 
-		if (sortTriangleVertices.get()) {
+		if (permuteResults) {
 			triangles = triangles
-				.map(new SortTriangleVertices<K>())
+				.flatMap(new PermuteResult<>())
+					.name("Permute triangle vertices");
+		} else if (sortTriangleVertices.get()) {
+			triangles = triangles
+				.map(new SortTriangleVertices<>())
 					.name("Sort triangle vertices");
 		}
 
@@ -252,9 +205,9 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	private static final class OrderByDegree<T extends Comparable<T>, ET>
 	implements MapFunction<Edge<T, Tuple3<ET, Degrees, Degrees>>, Tuple3<T, T, ByteValue>> {
-		private ByteValue forward = new ByteValue((byte)(EdgeOrder.FORWARD.getBitmask() << 2));
+		private ByteValue forward = new ByteValue((byte) (EdgeOrder.FORWARD.getBitmask() << 2));
 
-		private ByteValue reverse = new ByteValue((byte)(EdgeOrder.REVERSE.getBitmask() << 2));
+		private ByteValue reverse = new ByteValue((byte) (EdgeOrder.REVERSE.getBitmask() << 2));
 
 		private Tuple3<T, T, ByteValue> output = new Tuple3<>();
 
@@ -313,17 +266,17 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 					Tuple2<T, ByteValue> previous = visited.get(i);
 
 					output.f1 = previous.f0;
-					output.f3.setValue((byte)(previous.f1.getValue() | bitmask));
+					output.f3.setValue((byte) (previous.f1.getValue() | bitmask));
 
 					// u, v, w, bitmask
 					out.collect(output);
 				}
 
-				if (! iter.hasNext()) {
+				if (!iter.hasNext()) {
 					break;
 				}
 
-				byte shiftedBitmask = (byte)(bitmask << 2);
+				byte shiftedBitmask = (byte) (bitmask << 2);
 
 				if (visitedCount == visited.size()) {
 					visited.add(new Tuple2<>(edge.f1.copy(), new ByteValue(shiftedBitmask)));
@@ -343,20 +296,112 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@ForwardedFieldsFirst("0; 1; 2")
-	@ForwardedFieldsSecond("0; 1")
+	@ForwardedFieldsFirst("0->vertexId0; 1->vertexId1; 2->vertexId2")
+	@ForwardedFieldsSecond("0->vertexId0; 1->vertexId1")
 	private static final class ProjectTriangles<T>
 	implements JoinFunction<Tuple4<T, T, T, ByteValue>, Tuple3<T, T, ByteValue>, Result<T>> {
-		private Result<T> output = new Result<>(null, null, null, new ByteValue());
+		private Result<T> output = new Result<>();
 
 		@Override
 		public Result<T> join(Tuple4<T, T, T, ByteValue> triplet, Tuple3<T, T, ByteValue> edge)
 				throws Exception {
-			output.f0 = triplet.f0;
-			output.f1 = triplet.f1;
-			output.f2 = triplet.f2;
-			output.f3.setValue((byte)(triplet.f3.getValue() | edge.f2.getValue()));
+			output.setVertexId0(triplet.f0);
+			output.setVertexId1(triplet.f1);
+			output.setVertexId2(triplet.f2);
+			output.setBitmask((byte) (triplet.f3.getValue() | edge.f2.getValue()));
 			return output;
+		}
+	}
+
+	/**
+	 * Output each input and an additional result for each of the five
+	 * permutations of the three vertex IDs.
+	 *
+	 * @param <T> ID type
+	 */
+	private static class PermuteResult<T>
+	implements FlatMapFunction<Result<T>, Result<T>> {
+		@Override
+		public void flatMap(Result<T> value, Collector<Result<T>> out)
+				throws Exception {
+			T tmp;
+
+			int f0f1, f0f2, f1f2;
+
+			byte bitmask = value.getBitmask().getValue();
+
+			// 0, 1, 2
+			out.collect(value);
+
+			tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId1());
+			value.setVertexId1(tmp);
+
+			f0f1 = ((bitmask & 0b100000) >>> 1) | ((bitmask & 0b010000) << 1);
+			f0f2 = (bitmask & 0b001100) >>> 2;
+			f1f2 = (bitmask & 0b000011) << 2;
+
+			bitmask = (byte) (f0f1 | f0f2 | f1f2);
+			value.setBitmask(bitmask);
+
+			// 1, 0, 2
+			out.collect(value);
+
+			tmp = value.getVertexId1();
+			value.setVertexId1(value.getVertexId2());
+			value.setVertexId2(tmp);
+
+			f0f1 = (bitmask & 0b110000) >>> 2;
+			f0f2 = (bitmask & 0b001100) << 2;
+			f1f2 = ((bitmask & 0b000010) >>> 1) | ((bitmask & 0b000001) << 1);
+
+			bitmask = (byte) (f0f1 | f0f2 | f1f2);
+			value.setBitmask(bitmask);
+
+			// 1, 2, 0
+			out.collect(value);
+
+			tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId2());
+			value.setVertexId2(tmp);
+
+			f0f1 = ((bitmask & 0b100000) >>> 5) | ((bitmask & 0b010000) >>> 3);
+			f0f2 = ((bitmask & 0b001000) >>> 1) | ((bitmask & 0b000100) << 1);
+			f1f2 = ((bitmask & 0b000010) << 3) | ((bitmask & 0b000001) << 5);
+
+			bitmask = (byte) (f0f1 | f0f2 | f1f2);
+			value.setBitmask(bitmask);
+
+			// 0, 2, 1
+			out.collect(value);
+
+			tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId1());
+			value.setVertexId1(tmp);
+
+			f0f1 = ((bitmask & 0b100000) >>> 1) | ((bitmask & 0b010000) << 1);
+			f0f2 = (bitmask & 0b001100) >>> 2;
+			f1f2 = (bitmask & 0b000011) << 2;
+
+			bitmask = (byte) (f0f1 | f0f2 | f1f2);
+			value.setBitmask(bitmask);
+
+			// 2, 0, 1
+			out.collect(value);
+
+			tmp = value.getVertexId1();
+			value.setVertexId1(value.getVertexId2());
+			value.setVertexId2(tmp);
+
+			f0f1 = (bitmask & 0b110000) >>> 2;
+			f0f2 = (bitmask & 0b001100) << 2;
+			f1f2 = ((bitmask & 0b000010) >>> 1) | ((bitmask & 0b000001) << 1);
+
+			bitmask = (byte) (f0f1 | f0f2 | f1f2);
+			value.setBitmask(bitmask);
+
+			// 2, 1, 0
+			out.collect(value);
 		}
 	}
 
@@ -372,29 +417,29 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		public Result<T> map(Result<T> value)
 				throws Exception {
 			// by the triangle listing algorithm we know f1 < f2
-			if (value.f0.compareTo(value.f1) > 0) {
-				byte bitmask = value.f3.getValue();
+			if (value.getVertexId0().compareTo(value.getVertexId1()) > 0) {
+				byte bitmask = value.getBitmask().getValue();
 
-				T temp_val = value.f0;
-				value.f0 = value.f1;
+				T tempVal = value.getVertexId0();
+				value.setVertexId0(value.getVertexId1());
 
-				if (temp_val.compareTo(value.f2) < 0) {
-					value.f1 = temp_val;
+				if (tempVal.compareTo(value.getVertexId2()) < 0) {
+					value.setVertexId1(tempVal);
 
 					int f0f1 = ((bitmask & 0b100000) >>> 1) | ((bitmask & 0b010000) << 1);
 					int f0f2 = (bitmask & 0b001100) >>> 2;
 					int f1f2 = (bitmask & 0b000011) << 2;
 
-					value.f3.setValue((byte)(f0f1 | f0f2 | f1f2));
+					value.setBitmask((byte) (f0f1 | f0f2 | f1f2));
 				} else {
-					value.f1 = value.f2;
-					value.f2 = temp_val;
+					value.setVertexId1(value.getVertexId2());
+					value.setVertexId2(tempVal);
 
 					int f0f1 = (bitmask & 0b000011) << 4;
 					int f0f2 = ((bitmask & 0b100000) >>> 3) | ((bitmask & 0b010000) >>> 1);
 					int f1f2 = ((bitmask & 0b001000) >>> 3) | ((bitmask & 0b000100) >>> 1);
 
-					value.f3.setValue((byte)(f0f1 | f0f2 | f1f2));
+					value.setBitmask((byte) (f0f1 | f0f2 | f1f2));
 				}
 			}
 
@@ -403,60 +448,97 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	}
 
 	/**
-	 * Wraps the vertex type to encapsulate results from the Triangle Listing algorithm.
+	 * A result for the directed Triangle Listing algorithm.
 	 *
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Tuple4<T, T, T, ByteValue> {
-		/**
-		 * No-args constructor.
-		 */
-		public Result() {}
+	extends TertiaryResultBase<T>
+	implements PrintableResult {
+		private ByteValue bitmask = new ByteValue();
 
 		/**
-		 * Populates parent tuple with constructor parameters.
+		 * Get the bitmask indicating the presence of the six potential
+		 * connecting edges.
 		 *
-		 * @param value0 1st triangle vertex ID
-		 * @param value1 2nd triangle vertex ID
-		 * @param value2 3rd triangle vertex ID
-		 * @param value3 bitmask indicating presence of six possible edges between triangle vertices
+		 * @return the edge bitmask
+		 *
+		 * @see EdgeOrder
 		 */
-		public Result(T value0, T value1, T value2, ByteValue value3) {
-			super(value0, value1, value2, value3);
+		public ByteValue getBitmask() {
+			return bitmask;
 		}
 
 		/**
-		 * Format values into a human-readable string.
+		 * Set the bitmask indicating the presence of the six potential
+		 * connecting edges.
 		 *
-		 * @return verbose string
+		 * @param bitmask the edge bitmask
+		 *
+		 * @see EdgeOrder
 		 */
-		public String toVerboseString() {
-			byte bitmask = f3.getValue();
+		public void setBitmask(ByteValue bitmask) {
+			this.bitmask = bitmask;
+		}
 
-			return "1st vertex ID: " + f0
-				+ ", 2nd vertex ID: " + f1
-				+ ", 3rd vertex ID: " + f2
-				+ ", edge directions: " + f0 + maskToString(bitmask, 4) + f1
-				+ ", " + f0 + maskToString(bitmask, 2) + f2
-				+ ", " + f1 + maskToString(bitmask, 0) + f2;
+		public void setBitmask(byte bitmask) {
+			this.bitmask.setValue(bitmask);
+		}
+
+		@Override
+		public String toString() {
+			return "(" + getVertexId0()
+				+ "," + getVertexId1()
+				+ "," + getVertexId2()
+				+ "," + bitmask
+				+ ")";
+		}
+
+		@Override
+		public String toPrintableString() {
+			byte bitmask = getBitmask().getValue();
+
+			return "1st vertex ID: " + getVertexId0()
+				+ ", 2nd vertex ID: " + getVertexId1()
+				+ ", 3rd vertex ID: " + getVertexId2()
+				+ ", edge directions: " + getVertexId0() + maskToString(bitmask, 4) + getVertexId1()
+				+ ", " + getVertexId0() + maskToString(bitmask, 2) + getVertexId2()
+				+ ", " + getVertexId1() + maskToString(bitmask, 0) + getVertexId2();
 		}
 
 		private String maskToString(byte mask, int shift) {
-			switch((mask >>> shift) & 0b000011) {
-				case 0b01:
-					// EdgeOrder.FORWARD
-					return "->";
-				case 0b10:
-					// EdgeOrder.REVERSE
-					return "<-";
-				case 0b11:
-					// EdgeOrder.MUTUAL
-					return "<->";
-				default:
-					throw new IllegalArgumentException("Bitmask is missing an edge (mask = "
-						+ mask + ", shift = " + shift);
+			int edgeMask = (mask >>> shift) & 0b000011;
+
+			if (edgeMask == EdgeOrder.FORWARD.getBitmask()) {
+				return "->";
+			} else if (edgeMask == EdgeOrder.REVERSE.getBitmask()) {
+				return "<-";
+			} else if (edgeMask == EdgeOrder.MUTUAL.getBitmask()) {
+				return "<->";
+			} else {
+				throw new IllegalArgumentException("Bitmask is missing an edge (mask = "
+					+ mask + ", shift = " + shift + ")");
 			}
+		}
+
+		// ----------------------------------------------------------------------------------------
+
+		public static final int HASH_SEED = 0x0846ea21;
+
+		private transient MurmurHash hasher;
+
+		@Override
+		public int hashCode() {
+			if (hasher == null) {
+				hasher = new MurmurHash(HASH_SEED);
+			}
+
+			return hasher.reset()
+				.hash(getVertexId0().hashCode())
+				.hash(getVertexId1().hashCode())
+				.hash(getVertexId2().hashCode())
+				.hash(bitmask.getValue())
+				.hash();
 		}
 	}
 }

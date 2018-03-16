@@ -45,15 +45,16 @@ import java.util.concurrent.Future;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link InnerJoinOperatorBase}.
+ */
 @SuppressWarnings({ "unchecked", "serial" })
 public class InnerJoinOperatorBaseTest implements Serializable {
 
-	
 	@Test
 	public void testTupleBaseJoiner(){
 		final FlatJoinFunction<Tuple3<String, Double, Integer>, Tuple2<Integer, String>, Tuple2<Double, String>> joiner =
-					new FlatJoinFunction<Tuple3<String, Double, Integer>, Tuple2<Integer, String>, Tuple2<Double, String>>()
-		{
+					new FlatJoinFunction<Tuple3<String, Double, Integer>, Tuple2<Integer, String>, Tuple2<Double, String>>() {
 			@Override
 			public void join(Tuple3<String, Double, Integer> first, Tuple2<Integer, String> second, Collector<Tuple2<Double, String>> out) {
 
@@ -71,8 +72,8 @@ public class InnerJoinOperatorBaseTest implements Serializable {
 		final TupleTypeInfo<Tuple2<Double, String>> outTypeInfo = TupleTypeInfo.getBasicTupleTypeInfo(Double.class,
 				String.class);
 
-		final int[] leftKeys = new int[]{0,2};
-		final int[] rightKeys = new int[]{1,0};
+		final int[] leftKeys = new int[]{0, 2};
+		final int[] rightKeys = new int[]{1, 0};
 
 		final String taskName = "Collection based tuple joiner";
 
@@ -109,7 +110,7 @@ public class InnerJoinOperatorBaseTest implements Serializable {
 		try {
 			final TaskInfo taskInfo = new TaskInfo("op", 1, 0, 1, 0);
 			ExecutionConfig executionConfig = new ExecutionConfig();
-			
+
 			executionConfig.disableObjectReuse();
 			List<Tuple2<Double, String>> resultSafe = base.executeOnCollections(inputData1, inputData2,
 					new RuntimeUDFContext(taskInfo, null, executionConfig,
@@ -117,7 +118,7 @@ public class InnerJoinOperatorBaseTest implements Serializable {
 							new HashMap<String, Accumulator<?, ?>>(),
 							new UnregisteredMetricsGroup()),
 					executionConfig);
-			
+
 			executionConfig.enableObjectReuse();
 			List<Tuple2<Double, String>> resultRegular = base.executeOnCollections(inputData1, inputData2,
 					new RuntimeUDFContext(taskInfo, null, executionConfig,

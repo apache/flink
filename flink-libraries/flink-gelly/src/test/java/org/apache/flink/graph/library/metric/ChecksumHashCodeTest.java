@@ -18,16 +18,19 @@
 
 package org.apache.flink.graph.library.metric;
 
-import org.apache.flink.api.java.Utils;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.test.TestGraphUtils;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-public class ChecksumHashCodeTest
-extends AsmTestBase {
+/**
+ * Tests for {@link ChecksumHashCode}.
+ */
+public class ChecksumHashCodeTest extends AsmTestBase {
 
 	@Test
 	public void testSmallGraph() throws Exception {
@@ -36,11 +39,31 @@ extends AsmTestBase {
 			TestGraphUtils.getLongLongEdgeData(env),
 			env);
 
-		Utils.ChecksumHashCode checksum = graph
-			.run(new ChecksumHashCode<Long, Long, Long>())
+		Checksum checksum = graph
+			.run(new ChecksumHashCode<>())
 			.execute();
 
-		assertEquals(checksum.getCount(), 12L);
-		assertEquals(checksum.getChecksum(), 19665L);
+		assertEquals(12, checksum.getCount());
+		assertEquals(0x4cd1, checksum.getChecksum());
+	}
+
+	@Test
+	public void testEmptyGraphWithVertices() throws Exception {
+		Checksum checksum = emptyGraphWithVertices
+			.run(new ChecksumHashCode<>())
+			.execute();
+
+		assertEquals(3, checksum.getCount());
+		assertEquals(0x109b, checksum.getChecksum());
+	}
+
+	@Test
+	public void testEmptyGraphWithoutVertices() throws Exception {
+		Checksum checksum = emptyGraphWithoutVertices
+			.run(new ChecksumHashCode<>())
+			.execute();
+
+		assertEquals(0, checksum.getCount());
+		assertEquals(0, checksum.getChecksum());
 	}
 }

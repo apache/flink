@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.api;
 
 import org.apache.storm.task.OutputCollector;
@@ -24,6 +25,9 @@ import org.apache.storm.tuple.Tuple;
 
 import java.util.Map;
 
+/**
+ * A no-op test implementation of a {@link IRichBolt}.
+ */
 public class TestBolt implements IRichBolt {
 	private static final long serialVersionUID = -667148827441397683L;
 

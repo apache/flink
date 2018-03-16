@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.runtime.event.TaskEvent;
 
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * An input gate consumes one or more partitions of a single produced intermediate result.
@@ -72,7 +73,19 @@ public interface InputGate {
 
 	void requestPartitions() throws IOException, InterruptedException;
 
-	BufferOrEvent getNextBufferOrEvent() throws IOException, InterruptedException;
+	/**
+	 * Blocking call waiting for next {@link BufferOrEvent}.
+	 *
+	 * @return {@code Optional.empty()} if {@link #isFinished()} returns true.
+	 */
+	Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException;
+
+	/**
+	 * Poll the {@link BufferOrEvent}.
+	 *
+	 * @return {@code Optional.empty()} if there is no data to return or if {@link #isFinished()} returns true.
+	 */
+	Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException;
 
 	void sendTaskEvent(TaskEvent event) throws IOException;
 

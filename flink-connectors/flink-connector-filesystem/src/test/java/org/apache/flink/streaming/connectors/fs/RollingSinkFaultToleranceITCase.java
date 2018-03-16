@@ -15,16 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.fs;
 
-import com.google.common.collect.Sets;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.test.checkpointing.StreamFaultToleranceTestBase;
 import org.apache.flink.util.NetUtils;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -42,7 +43,9 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -53,8 +56,8 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for {@link org.apache.flink.streaming.connectors.fs.RollingSink}.
  *
- * <p>
- * This test only verifies the exactly once behaviour of the sink. Another test tests the
+ *
+ * <p>This test only verifies the exactly once behaviour of the sink. Another test tests the
  * rolling behaviour.
  *
  * @deprecated should be removed with the {@link RollingSink}.
@@ -62,7 +65,7 @@ import static org.junit.Assert.assertTrue;
 @Deprecated
 public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBase {
 
-	final long NUM_STRINGS = 16_000;
+	private static final long NUM_STRINGS = 16_000;
 
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
@@ -103,10 +106,8 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 	public void testProgram(StreamExecutionEnvironment env) {
 		assertTrue("Broken test setup", NUM_STRINGS % 40 == 0);
 
-		int PARALLELISM = 12;
-
 		env.enableCheckpointing(20);
-		env.setParallelism(PARALLELISM);
+		env.setParallelism(12);
 		env.disableOperatorChaining();
 
 		DataStream<String> stream = env.addSource(new StringGeneratingSourceFunction(NUM_STRINGS)).startNewChain();
@@ -137,7 +138,7 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 		// Keep a set of the message IDs that we read. The size must equal the read count and
 		// the NUM_STRINGS. If numRead is bigger than the size of the set we have seen some
 		// elements twice.
-		Set<Integer> readNumbers = Sets.newHashSet();
+		Set<Integer> readNumbers = new HashSet<>();
 
 		HashSet<String> uniqMessagesRead = new HashSet<>();
 		HashSet<String> messagesInCommittedFiles = new HashSet<>();
@@ -209,7 +210,6 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 		private long failurePos;
 		private long count;
 
-
 		OnceFailingIdentityMapper(long numElements) {
 			this.numElements = numElements;
 		}
@@ -236,7 +236,7 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 	}
 
 	private static class StringGeneratingSourceFunction extends RichParallelSourceFunction<String>
-			implements CheckpointedAsynchronously<Integer> {
+			implements ListCheckpointed<Integer> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -245,7 +245,6 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 		private int index;
 
 		private volatile boolean isRunning = true;
-
 
 		StringGeneratingSourceFunction(long numElements) {
 			this.numElements = numElements;
@@ -288,13 +287,16 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
-			return index;
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.index);
 		}
 
 		@Override
-		public void restoreState(Integer state) {
-			index = state;
+		public void restoreState(List<Integer> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.index = state.get(0);
 		}
 	}
 }

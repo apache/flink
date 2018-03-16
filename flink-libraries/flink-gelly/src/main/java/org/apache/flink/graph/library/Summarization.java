@@ -37,49 +37,52 @@ import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
 /**
- * The summarization algorithm computes a condensed version of the input graph<br>
- * by grouping vertices and edges based on their values. By doing this, the<br>
- * algorithm helps to uncover insights about patterns and distributions in the<br>
+ * The summarization algorithm computes a condensed version of the input graph
+ * by grouping vertices and edges based on their values. By doing this, the
+ * algorithm helps to uncover insights about patterns and distributions in the
  * graph.
- * <p>
- * In the resulting graph, each vertex represents a group of vertices that share the<br>
- * same vertex value. An edge, that connects a vertex with itself, represents all edges<br>
- * with the same edge value that connect vertices inside that group. An edge between<br>
- * vertices in the output graph represents all edges with the same edge value between<br>
- * members of those groups in the input graph.
- * <p>
- * Consider the following example:
- * <p>
- * Input graph:
- * <p>
- * Vertices (id, value):<br>
- * (0, "A")<br>
- * (1, "A")<br>
- * (2, "B")<br>
- * (3, "B")<br>
- * <p>
- * Edges (source, target, value):
- * (0,1, null)<br>
- * (1,0, null)<br>
- * (1,2, null)<br>
- * (2,1, null)<br>
- * (2,3, null)<br>
- * (3,2, null)<br>
- * <p>
- * Output graph:
- * <p>
- * Vertices (id, (value, count)):<br>
- * (0, ("A", 2)) // 0 and 1 <br>
- * (2, ("B", 2)) // 2 and 3 <br>
- * <p>
- * Edges (source, target, (value, count)):<br>
- * (0, 0, (null, 2)) // (0,1) and (1,0) <br>
- * (2, 2, (null, 2)) // (2,3) and (3,2) <br>
- * (0, 2, (null, 1)) // (1,2) <br>
- * (2, 0, (null, 1)) // (2,1) <br>
  *
- * Note that this implementation is non-deterministic in the way that it assigns<br>
- * identifiers to summarized vertices. However, it is guaranteed that the identifier<br>
+ * <p>In the resulting graph, each vertex represents a group of vertices that share the
+ * same vertex value. An edge, that connects a vertex with itself, represents all edges
+ * with the same edge value that connect vertices inside that group. An edge between
+ * vertices in the output graph represents all edges with the same edge value between
+ * members of those groups in the input graph.
+ *
+ * <p>Consider the following example:
+ *
+ * <p>Input graph:
+ *
+ * <pre>
+ * Vertices (id, value):
+ * (0, "A")
+ * (1, "A")
+ * (2, "B")
+ * (3, "B")
+ *
+ * Edges (source, target, value):
+ * (0,1, null)
+ * (1,0, null)
+ * (1,2, null)
+ * (2,1, null)
+ * (2,3, null)
+ * (3,2, null)
+ * </pre>
+ *
+ * <p>Output graph:
+ *
+ * <pre>Vertices (id, (value, count)):
+ * (0, ("A", 2)) // 0 and 1
+ * (2, ("B", 2)) // 2 and 3
+ *
+ * Edges (source, target, (value, count)):
+ * (0, 0, (null, 2)) // (0,1) and (1,0)
+ * (2, 2, (null, 2)) // (2,3) and (3,2)
+ * (0, 2, (null, 1)) // (1,2)
+ * (2, 0, (null, 1)) // (2,1)
+ * </pre>
+ *
+ * <p>Note that this implementation is non-deterministic in the way that it assigns
+ * identifiers to summarized vertices. However, it is guaranteed that the identifier
  * is one of the represented vertex identifiers.
  *
  * @param <K> 	vertex identifier type
@@ -99,11 +102,11 @@ public class Summarization<K, VV, EV>
 		// group vertices by value and create vertex group items
 		DataSet<VertexGroupItem<K, VV>> vertexGroupItems = input.getVertices()
 				.groupBy(1)
-				.reduceGroup(new VertexGroupReducer<K, VV>());
+				.reduceGroup(new VertexGroupReducer<>());
 		// create super vertices
 		DataSet<Vertex<K, VertexValue<VV>>> summarizedVertices = vertexGroupItems
-				.filter(new VertexGroupItemToSummarizedVertexFilter<K, VV>())
-				.map(new VertexGroupItemToSummarizedVertexMapper<K, VV>());
+				.filter(new VertexGroupItemToSummarizedVertexFilter<>())
+				.map(new VertexGroupItemToSummarizedVertexMapper<>());
 
 		// -------------------------
 		// build super edges
@@ -111,22 +114,22 @@ public class Summarization<K, VV, EV>
 
 		// create mapping between vertices and their representative
 		DataSet<VertexWithRepresentative<K>> vertexToRepresentativeMap = vertexGroupItems
-			.filter(new VertexGroupItemToRepresentativeFilter<K, VV>())
-			.map(new VertexGroupItemToVertexWithRepresentativeMapper<K, VV>());
+			.filter(new VertexGroupItemToRepresentativeFilter<>())
+			.map(new VertexGroupItemToVertexWithRepresentativeMapper<>());
 		// join edges with vertex representatives and update source and target identifiers
 		DataSet<Edge<K, EV>> edgesForGrouping = input.getEdges()
 				.join(vertexToRepresentativeMap)
 				.where(0) 	// source vertex id
 				.equalTo(0) // vertex id
-				.with(new SourceVertexJoinFunction<K, EV>())
+				.with(new SourceVertexJoinFunction<>())
 				.join(vertexToRepresentativeMap)
 				.where(1) 	// target vertex id
 				.equalTo(0) // vertex id
-				.with(new TargetVertexJoinFunction<K, EV>());
+				.with(new TargetVertexJoinFunction<>());
 		// create super edges
 		DataSet<Edge<K, EdgeValue<EV>>> summarizedEdges = edgesForGrouping
 				.groupBy(0, 1, 2) // group by source id (0), target id (1) and edge value (2)
-				.reduceGroup(new EdgeGroupReducer<K, EV>());
+				.reduceGroup(new EdgeGroupReducer<>());
 
 		return Graph.fromDataSet(summarizedVertices, summarizedEdges, input.getContext());
 	}
@@ -138,8 +141,10 @@ public class Summarization<K, VV, EV>
 	/**
 	 * Value that is stored at a summarized vertex.
 	 *
+	 * <pre>
 	 * f0: vertex group value
 	 * f1: vertex group count
+	 * </pre>
 	 *
 	 * @param <VV> vertex value type
 	 */
@@ -166,8 +171,10 @@ public class Summarization<K, VV, EV>
 	/**
 	 * Value that is stored at a summarized edge.
 	 *
+	 * <pre>
 	 * f0: edge group value
 	 * f1: edge group count
+	 * </pre>
 	 *
 	 * @param <EV> edge value type
 	 */
@@ -194,10 +201,12 @@ public class Summarization<K, VV, EV>
 	/**
 	 * Represents a single vertex in a vertex group.
 	 *
+	 * <pre>
 	 * f0: vertex identifier
 	 * f1: vertex group representative identifier
 	 * f2: vertex group value
 	 * f3: vertex group count
+	 * </pre>
 	 *
 	 * @param <K> 	vertex identifier type
 	 * @param <VGV> vertex group value type
@@ -288,7 +297,7 @@ public class Summarization<K, VV, EV>
 	 * Creates one {@link VertexGroupItem} for each group element containing the vertex identifier and the identifier
 	 * of the group representative which is the first vertex in the reduce input iterable.
 	 *
-	 * Creates one {@link VertexGroupItem} representing the whole group that contains the vertex identifier of the
+	 * <p>Creates one {@link VertexGroupItem} representing the whole group that contains the vertex identifier of the
 	 * group representative, the vertex group value and the total number of group elements.
 	 *
 	 * @param <K> 	vertex identifier type

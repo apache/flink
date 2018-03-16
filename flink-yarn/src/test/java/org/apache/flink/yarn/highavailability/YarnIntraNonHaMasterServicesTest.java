@@ -22,17 +22,20 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -41,22 +44,26 @@ import java.util.Random;
 import java.util.UUID;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class YarnIntraNonHaMasterServicesTest {
+/**
+ * Tests for YarnIntraNonHaMasterServices.
+ */
+public class YarnIntraNonHaMasterServicesTest extends TestLogger {
 
 	private static final Random RND = new Random();
 
 	@ClassRule
 	public static final TemporaryFolder TEMP_DIR = new TemporaryFolder();
 
-	private static MiniDFSCluster HDFS_CLUSTER;
+	private static MiniDFSCluster hdfsCluster;
 
-	private static Path HDFS_ROOT_PATH;
+	private static Path hdfsRootPath;
 
 	private org.apache.hadoop.conf.Configuration hadoopConfig;
 
@@ -66,29 +73,31 @@ public class YarnIntraNonHaMasterServicesTest {
 
 	@BeforeClass
 	public static void createHDFS() throws Exception {
+		Assume.assumeTrue(!OperatingSystem.isWindows());
+
 		final File tempDir = TEMP_DIR.newFolder();
 
 		org.apache.hadoop.conf.Configuration hdConf = new org.apache.hadoop.conf.Configuration();
 		hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tempDir.getAbsolutePath());
 
 		MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
-		HDFS_CLUSTER = builder.build();
-		HDFS_ROOT_PATH = new Path(HDFS_CLUSTER.getURI());
+		hdfsCluster = builder.build();
+		hdfsRootPath = new Path(hdfsCluster.getURI());
 	}
 
 	@AfterClass
 	public static void destroyHDFS() {
-		if (HDFS_CLUSTER != null) {
-			HDFS_CLUSTER.shutdown();
+		if (hdfsCluster != null) {
+			hdfsCluster.shutdown();
 		}
-		HDFS_CLUSTER = null;
-		HDFS_ROOT_PATH = null;
+		hdfsCluster = null;
+		hdfsRootPath = null;
 	}
 
 	@Before
 	public void initConfig() {
 		hadoopConfig = new org.apache.hadoop.conf.Configuration();
-		hadoopConfig.set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, HDFS_ROOT_PATH.toString());
+		hadoopConfig.set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, hdfsRootPath.toString());
 	}
 
 	// ------------------------------------------------------------------------
@@ -112,12 +121,20 @@ public class YarnIntraNonHaMasterServicesTest {
 
 		try (YarnHighAvailabilityServices services = new YarnIntraNonHaMasterServices(flinkConfig, hadoopConfig)) {
 			final LeaderElectionService elector = services.getResourceManagerLeaderElectionService();
+			final LeaderRetrievalService retrieval = services.getResourceManagerLeaderRetriever();
 			final LeaderContender contender = mockContender(elector);
+			final LeaderRetrievalListener listener = mock(LeaderRetrievalListener.class);
 
 			elector.start(contender);
+			retrieval.start(listener);
+
+			// wait until the contender has become the leader
+			verify(listener, timeout(1000L).times(1)).notifyLeaderAddress(anyString(), any(UUID.class));
+
+			// now we can close the election service
 			services.close();
 
-			verify(contender, timeout(100).times(1)).handleError(any(Exception.class));
+			verify(contender, timeout(1000L).times(1)).handleError(any(Exception.class));
 		}
 	}
 

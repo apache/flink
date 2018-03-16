@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.functions
 
-import java.util
-
+import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.expressions.{Expression, TableFunctionCall}
+import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.util.Collector
 
 /**
   * Base class for a user-defined table function (UDTF). A user-defined table functions works on
@@ -80,26 +81,7 @@ import org.apache.flink.table.expressions.{Expression, TableFunctionCall}
   */
 abstract class TableFunction[T] extends UserDefinedFunction {
 
-  /**
-    * Creates a call to a [[TableFunction]] in Scala Table API.
-    *
-    * @param params actual parameters of function
-    * @return [[Expression]] in form of a [[TableFunctionCall]]
-    */
-  final def apply(params: Expression*)(implicit typeInfo: TypeInformation[T]): Expression = {
-    val resultType = if (getResultType == null) {
-      typeInfo
-    } else {
-      getResultType
-    }
-    TableFunctionCall(getClass.getSimpleName, this, params, resultType)
-  }
-
-  override def toString: String = getClass.getCanonicalName
-
   // ----------------------------------------------------------------------------------------------
-
-  private val rows: util.ArrayList[T] = new util.ArrayList[T]()
 
   /**
     * Emit an output row.
@@ -107,26 +89,29 @@ abstract class TableFunction[T] extends UserDefinedFunction {
     * @param row the output row
     */
   protected def collect(row: T): Unit = {
-    // cache rows for now, maybe immediately process them further
-    rows.add(row)
+    collector.collect(row)
   }
 
-  /**
-    * Internal use. Get an iterator of the buffered rows.
-    */
-  def getRowsIterator = rows.iterator()
+  // ----------------------------------------------------------------------------------------------
 
   /**
-    * Internal use. Clear buffered rows.
+    * The code generated collector used to emit row.
     */
-  def clear() = rows.clear()
+  private var collector: Collector[T] = _
+
+  /**
+    * Internal use. Sets the current collector.
+    */
+  private[flink] final def setCollector(collector: Collector[T]): Unit = {
+    this.collector = collector
+  }
 
   // ----------------------------------------------------------------------------------------------
 
   /**
     * Returns the result type of the evaluation method with a given signature.
     *
-    * This method needs to be overriden in case Flink's type extraction facilities are not
+    * This method needs to be overridden in case Flink's type extraction facilities are not
     * sufficient to extract the [[TypeInformation]] based on the return type of the evaluation
     * method. Flink's type extraction facilities can handle basic types or
     * simple POJOs but might be wrong for more complex, custom, or composite types.
@@ -134,5 +119,30 @@ abstract class TableFunction[T] extends UserDefinedFunction {
     * @return [[TypeInformation]] of result type or null if Flink should determine the type
     */
   def getResultType: TypeInformation[T] = null
+
+  /**
+    * Returns [[TypeInformation]] about the operands of the evaluation method with a given
+    * signature.
+    *
+    * In order to perform operand type inference in SQL (especially when NULL is used) it might be
+    * necessary to determine the parameter [[TypeInformation]] of an evaluation method.
+    * By default Flink's type extraction facilities are used for this but might be wrong for
+    * more complex, custom, or composite types.
+    *
+    * @param signature signature of the method the operand types need to be determined
+    * @return [[TypeInformation]] of operand types
+    */
+  def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] = {
+    signature.map { c =>
+      try {
+        TypeExtractor.getForClass(c)
+      } catch {
+        case ite: InvalidTypesException =>
+          throw new ValidationException(
+            s"Parameter types of table function '${this.getClass.getCanonicalName}' cannot be " +
+            s"automatically determined. Please provide type information manually.")
+      }
+    }
+  }
 
 }

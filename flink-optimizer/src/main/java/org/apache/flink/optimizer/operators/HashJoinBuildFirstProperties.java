@@ -79,7 +79,7 @@ public class HashJoinBuildFirstProperties extends AbstractJoinDescriptor {
 		else {
 			strategy = DriverStrategy.HYBRIDHASH_BUILD_FIRST;
 		}
-		return new DualInputPlanNode(node, "Join("+node.getOperator().getName()+")", in1, in2, strategy, this.keys1, this.keys2);
+		return new DualInputPlanNode(node, "Join ("+node.getOperator().getName()+")", in1, in2, strategy, this.keys1, this.keys2);
 	}
 	
 	@Override

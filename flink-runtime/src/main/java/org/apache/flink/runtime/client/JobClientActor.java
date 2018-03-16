@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.client;
 
 import akka.actor.ActorRef;
+import akka.actor.Cancellable;
 import akka.actor.PoisonPill;
 import akka.actor.Status;
 import akka.actor.Terminated;
@@ -33,9 +34,11 @@ import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobClientMessages.JobManagerActorRef;
 import org.apache.flink.runtime.messages.JobClientMessages.JobManagerLeaderAddress;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.Preconditions;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.util.Objects;
 import java.util.UUID;
 
 
@@ -66,6 +69,10 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 	/** The client which the actor is responsible for */
 	protected ActorRef client;
 
+	private Cancellable connectionTimeout;
+
+	private UUID connectionTimeoutId;
+
 	public JobClientActor(
 			LeaderRetrievalService leaderRetrievalService,
 			FiniteDuration timeout,
@@ -73,6 +80,11 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 		this.leaderRetrievalService = Preconditions.checkNotNull(leaderRetrievalService);
 		this.timeout = Preconditions.checkNotNull(timeout);
 		this.sysoutUpdates = sysoutUpdates;
+		this.jobManager = ActorRef.noSender();
+		this.leaderSessionID = null;
+
+		connectionTimeout = null;
+		connectionTimeoutId = null;
 	}
 
 	@Override
@@ -146,13 +158,17 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 							getSelf().tell(decorateMessage(new JobManagerActorRef(result)), ActorRef.noSender());
 						}
 					}, getContext().dispatcher());
+			} else if (isClientConnected() && connectionTimeoutId == null) {
+				// msg.address == null means that the leader has lost its leadership
+				registerConnectionTimeout();
 			}
 		} else if (message instanceof JobManagerActorRef) {
 			// Resolved JobManager ActorRef
 			JobManagerActorRef msg = (JobManagerActorRef) message;
 			connectToJobManager(msg.jobManager());
 
-			logAndPrintMessage("Connected to JobManager at " + msg.jobManager());
+			logAndPrintMessage("Connected to JobManager at " + msg.jobManager() +
+				" with leader session id " + leaderSessionID + '.');
 
 			connectedToJobManager();
 		}
@@ -184,36 +200,35 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 					jobManager.path());
 				disconnectFromJobManager();
 
-				// we only issue a connection timeout if we have submitted a job before
-				// otherwise, we might have some more time to find another job manager
-				// Important: The ConnectionTimeout message is filtered out in case that we are
-				// notified about a new leader by setting the new leader session ID, because
-				// ConnectionTimeout extends RequiresLeaderSessionID
 				if (isClientConnected()) {
-					getContext().system().scheduler().scheduleOnce(
-						timeout,
-						getSelf(),
-						decorateMessage(JobClientMessages.getConnectionTimeout()),
-						getContext().dispatcher(),
-						ActorRef.noSender());
+					if (connectionTimeoutId == null) {
+						// only register a connection timeout if we haven't done this before
+						registerConnectionTimeout();
+					}
 				}
 			} else {
 				LOG.warn("Received 'Terminated' for unknown actor " + target);
 			}
 		}
-		else if (JobClientMessages.getConnectionTimeout().equals(message)) {
-			// check if we haven't found a job manager yet
-			if (!isJobManagerConnected()) {
-				final JobClientActorConnectionTimeoutException errorMessage =
-					new JobClientActorConnectionTimeoutException("Lost connection to the JobManager.");
-				final Object replyMessage = decorateMessage(new Status.Failure(errorMessage));
-				if (isClientConnected()) {
-					client.tell(
-						replyMessage,
-						getSelf());
+		else if (message instanceof JobClientMessages.ConnectionTimeout) {
+			JobClientMessages.ConnectionTimeout timeoutMessage = (JobClientMessages.ConnectionTimeout) message;
+
+			if (Objects.equals(connectionTimeoutId, timeoutMessage.id())) {
+				// check if we haven't found a job manager yet
+				if (!isJobManagerConnected()) {
+					final JobClientActorConnectionTimeoutException errorMessage =
+						new JobClientActorConnectionTimeoutException("Lost connection to the JobManager.");
+					final Object replyMessage = decorateMessage(new Status.Failure(errorMessage));
+					if (isClientConnected()) {
+						client.tell(
+							replyMessage,
+							getSelf());
+					}
+					// Connection timeout reached, let's terminate
+					terminate();
 				}
-				// Connection timeout reached, let's terminate
-				terminate();
+			} else {
+				LOG.debug("Received outdated connection timeout.");
 			}
 		}
 
@@ -225,13 +240,10 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 				message);
 			// We want to submit/attach to a job, but we haven't found a job manager yet.
 			// Let's give him another chance to find a job manager within the given timeout.
-			getContext().system().scheduler().scheduleOnce(
-				timeout,
-				getSelf(),
-				decorateMessage(JobClientMessages.getConnectionTimeout()),
-				getContext().dispatcher(),
-				ActorRef.noSender()
-			);
+			if (connectionTimeoutId == null) {
+				// only register the connection timeout once
+				registerConnectionTimeout();
+			}
 			handleCustomMessage(message);
 		}
 		else {
@@ -277,7 +289,8 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 				System.out.println(message.toString());
 			}
 		} else {
-			LOG.info(message.toString(), message.error());
+			Throwable error = SerializedThrowable.get(message.error(), getClass().getClassLoader());
+			LOG.info(message.toString(), error);
 			if (sysoutUpdates) {
 				System.out.println(message.toString());
 				message.error().printStackTrace(System.out);
@@ -304,6 +317,8 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 			getContext().unwatch(jobManager);
 			jobManager = ActorRef.noSender();
 		}
+
+		leaderSessionID = null;
 	}
 
 	private void connectToJobManager(ActorRef jobManager) {
@@ -312,10 +327,10 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 			getContext().unwatch(jobManager);
 		}
 
-		LOG.info("Connected to new JobManager {}.", jobManager.path());
-
 		this.jobManager = jobManager;
 		getContext().watch(jobManager);
+
+		unregisterConnectionTimeout();
 	}
 
 	protected void terminate() {
@@ -331,6 +346,30 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 
 	protected boolean isClientConnected() {
 		return client != ActorRef.noSender();
+	}
+
+	private void registerConnectionTimeout() {
+		if (connectionTimeout != null) {
+			connectionTimeout.cancel();
+		}
+
+		connectionTimeoutId = UUID.randomUUID();
+
+		connectionTimeout = getContext().system().scheduler().scheduleOnce(
+			timeout,
+			getSelf(),
+			decorateMessage(new JobClientMessages.ConnectionTimeout(connectionTimeoutId)),
+			getContext().dispatcher(),
+			ActorRef.noSender()
+		);
+	}
+
+	private void unregisterConnectionTimeout() {
+		if (connectionTimeout != null) {
+			connectionTimeout.cancel();
+			connectionTimeout = null;
+			connectionTimeoutId = null;
+		}
 	}
 
 }

@@ -56,11 +56,12 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	 */
 	UUID DEFAULT_LEADER_ID = new UUID(0, 0);
 
-	// ------------------------------------------------------------------------
-	//  Endpoint Naming
-	// ------------------------------------------------------------------------
-
-	String getResourceManagerEndpointName();
+	/**
+	 * This JobID should be used to identify the old JobManager when using the
+	 * {@link HighAvailabilityServices}. With Flip-6 every JobManager will have a distinct
+	 * JobID assigned.
+	 */
+	JobID DEFAULT_JOB_ID = new JobID(0L, 0L);
 
 	// ------------------------------------------------------------------------
 	//  Services
@@ -72,12 +73,32 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	LeaderRetrievalService getResourceManagerLeaderRetriever();
 
 	/**
+	 * Gets the leader retriever for the dispatcher. This leader retrieval service
+	 * is not always accessible.
+	 */
+	LeaderRetrievalService getDispatcherLeaderRetriever();
+
+	/**
 	 * Gets the leader retriever for the job JobMaster which is responsible for the given job
 	 *
 	 * @param jobID The identifier of the job.
 	 * @return Leader retrieval service to retrieve the job manager for the given job
+	 * @deprecated This method should only be used by non Flip-6 code where the JobManager acts as the master.
 	 */
+	@Deprecated
 	LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID);
+
+	/**
+	 * Gets the leader retriever for the job JobMaster which is responsible for the given job
+	 *
+	 * @param jobID The identifier of the job.
+	 * @param defaultJobManagerAddress JobManager address which will be returned by
+	 *                              a static leader retrieval service.
+	 * @return Leader retrieval service to retrieve the job manager for the given job
+	 */
+	LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID, String defaultJobManagerAddress);
+
+	LeaderRetrievalService getWebMonitorLeaderRetriever();
 
 	/**
 	 * Gets the leader election service for the cluster's resource manager.
@@ -87,12 +108,21 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	LeaderElectionService getResourceManagerLeaderElectionService();
 
 	/**
+	 * Gets the leader election service for the cluster's dispatcher.
+	 *
+	 * @return Leader election service for the dispatcher leader election
+	 */
+	LeaderElectionService getDispatcherLeaderElectionService();
+
+	/**
 	 * Gets the leader election service for the given job.
 	 *
 	 * @param jobID The identifier of the job running the election.
 	 * @return Leader election service for the job manager leader election
 	 */
 	LeaderElectionService getJobManagerLeaderElectionService(JobID jobID);
+
+	LeaderElectionService getWebMonitorLeaderElectionService();
 
 	/**
 	 * Gets the checkpoint recovery factory for the job manager

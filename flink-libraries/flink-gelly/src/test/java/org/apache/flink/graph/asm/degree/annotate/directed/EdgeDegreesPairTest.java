@@ -19,26 +19,28 @@
 package org.apache.flink.graph.asm.degree.annotate.directed;
 
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.Utils.ChecksumHashCode;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-public class EdgeDegreesPairTest
-extends AsmTestBase {
+/**
+ * Tests for {@link EdgeDegreesPair}.
+ */
+public class EdgeDegreesPairTest extends AsmTestBase {
 
 	@Test
-	public void testWithSimpleGraph()
-			throws Exception {
+	public void testWithSimpleGraph() throws Exception {
 		String expectedResult =
 			"(0,1,((null),(2,2,0),(3,0,3)))\n" +
 			"(0,2,((null),(2,2,0),(3,2,1)))\n" +
@@ -48,17 +50,36 @@ extends AsmTestBase {
 			"(3,4,((null),(4,2,2),(1,0,1)))\n" +
 			"(5,3,((null),(1,1,0),(4,2,2)))";
 
-		DataSet<Edge<IntValue, Tuple3<NullValue, Degrees, Degrees>>> degrees = directedSimpleGraph
-			.run(new EdgeDegreesPair<IntValue, NullValue, NullValue>());
+		DataSet<Edge<IntValue, Tuple3<NullValue, Degrees, Degrees>>> degreesPair = directedSimpleGraph
+			.run(new EdgeDegreesPair<>());
 
-		TestBaseUtils.compareResultAsText(degrees.collect(), expectedResult);
+		TestBaseUtils.compareResultAsText(degreesPair.collect(), expectedResult);
 	}
 
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
-		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(directedRMatGraph
-			.run(new EdgeDegreesPair<LongValue, NullValue, NullValue>()));
+	public void testWithEmptyGraphWithVertices() throws Exception {
+		DataSet<Edge<LongValue, Tuple3<NullValue, Degrees, Degrees>>> degreesPair = emptyGraphWithVertices
+			.run(new EdgeDegreesPair<>());
+
+		assertEquals(0, degreesPair.collect().size());
+	}
+
+	@Test
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		DataSet<Edge<LongValue, Tuple3<NullValue, Degrees, Degrees>>> degreesPair = emptyGraphWithoutVertices
+			.run(new EdgeDegreesPair<>());
+
+		assertEquals(0, degreesPair.collect().size());
+	}
+
+	@Test
+	public void testWithRMatGraph() throws Exception {
+		DataSet<Edge<LongValue, Tuple3<NullValue, Degrees, Degrees>>> degreesPair = directedRMatGraph(10, 16)
+			.run(new EdgeDegreesPair<>());
+
+		Checksum checksum = new ChecksumHashCode<Edge<LongValue, Tuple3<NullValue, Degrees, Degrees>>>()
+			.run(degreesPair)
+			.execute();
 
 		assertEquals(12009, checksum.getCount());
 		assertEquals(0x0000176fe94702a3L, checksum.getChecksum());

@@ -18,15 +18,20 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.TestingManualHighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunningOrFinished;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -57,12 +62,16 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 	private int numSlotsPerTM = 2;
 	private int parallelism = numTMs * numSlotsPerTM;
 
+	private JobID jobId;
 	private Configuration configuration;
-	private LeaderElectionRetrievalTestingCluster cluster = null;
+	private TestingManualHighAvailabilityServices highAvailabilityServices;
+	private TestingCluster cluster = null;
 	private JobGraph job = createBlockingJob(parallelism);
 
 	@Before
 	public void before() throws Exception {
+		jobId = HighAvailabilityServices.DEFAULT_JOB_ID;
+
 		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(true);
 
 		configuration = new Configuration();
@@ -71,7 +80,13 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTM);
 
-		cluster = new LeaderElectionRetrievalTestingCluster(configuration, true, false);
+		highAvailabilityServices = new TestingManualHighAvailabilityServices();
+
+		cluster = new TestingCluster(
+			configuration,
+			highAvailabilityServices,
+			true,
+			false);
 		cluster.start(false); // TaskManagers don't have to register at the JobManager
 
 		cluster.waitForActorsToBeAlive(); // we only wait until all actors are alive
@@ -95,9 +110,9 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		UUID leaderSessionID2 = UUID.randomUUID();
 
 		// first make JM(0) the leader
-		cluster.grantLeadership(0, leaderSessionID1);
+		highAvailabilityServices.grantLeadership(jobId, 0, leaderSessionID1);
 		// notify all listeners
-		cluster.notifyRetrievalListeners(0, leaderSessionID1);
+		highAvailabilityServices.notifyRetrievers(jobId, 0, leaderSessionID1);
 
 		cluster.waitForTaskManagersToBeRegistered(timeout);
 
@@ -113,9 +128,9 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		Future<Object> jobRemoval = jm.ask(new NotifyWhenJobRemoved(job.getJobID()), timeout);
 
 		// make the JM(1) the new leader
-		cluster.grantLeadership(1, leaderSessionID2);
+		highAvailabilityServices.grantLeadership(jobId, 1, leaderSessionID2);
 		// notify all listeners about the event
-		cluster.notifyRetrievalListeners(1, leaderSessionID2);
+		highAvailabilityServices.notifyRetrievers(jobId, 1, leaderSessionID2);
 
 		Await.ready(jobRemoval, timeout);
 
@@ -132,7 +147,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 
 		// try to resubmit now the non-blocking job, it should complete successfully
 		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(false);
-		cluster.submitJobAndWait(job, false, timeout, new TestingLeaderRetrievalService(jm2.path(), jm2.leaderSessionID()));
+		cluster.submitJobAndWait(job, false, timeout);
 	}
 
 	/**
@@ -145,8 +160,8 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		UUID leaderSessionID = UUID.randomUUID();
 		UUID newLeaderSessionID = UUID.randomUUID();
 
-		cluster.grantLeadership(0, leaderSessionID);
-		cluster.notifyRetrievalListeners(0, leaderSessionID);
+		highAvailabilityServices.grantLeadership(jobId, 0, leaderSessionID);
+		highAvailabilityServices.notifyRetrievers(jobId, 0, leaderSessionID);
 
 		cluster.waitForTaskManagersToBeRegistered(timeout);
 
@@ -162,7 +177,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		Future<Object> jobRemoval = jm.ask(new NotifyWhenJobRemoved(job.getJobID()), timeout);
 
 		// only notify the JMs about the new leader JM(1)
-		cluster.grantLeadership(1, newLeaderSessionID);
+		highAvailabilityServices.grantLeadership(jobId, 1, newLeaderSessionID);
 
 		// job should be removed anyway
 		Await.ready(jobRemoval, timeout);
@@ -178,8 +193,8 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		UUID leaderSessionID = UUID.randomUUID();
 		UUID newLeaderSessionID = UUID.randomUUID();
 
-		cluster.grantLeadership(0, leaderSessionID);
-		cluster.notifyRetrievalListeners(0, leaderSessionID);
+		highAvailabilityServices.grantLeadership(jobId, 0, leaderSessionID);
+		highAvailabilityServices.notifyRetrievers(jobId, 0, leaderSessionID);
 
 		cluster.waitForTaskManagersToBeRegistered(timeout);
 
@@ -195,7 +210,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		Future<Object> jobRemoval = jm.ask(new NotifyWhenJobRemoved(job.getJobID()), timeout);
 
 		// notify listeners (TMs) about the leader change
-		cluster.notifyRetrievalListeners(1, newLeaderSessionID);
+		highAvailabilityServices.notifyRetrievers(jobId, 1, newLeaderSessionID);
 
 		Await.ready(jobRemoval, timeout);
 	}
@@ -212,8 +227,8 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 
 		FiniteDuration shortTimeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
-		cluster.grantLeadership(0, leaderSessionID);
-		cluster.notifyRetrievalListeners(0, leaderSessionID);
+		highAvailabilityServices.grantLeadership(jobId, 0, leaderSessionID);
+		highAvailabilityServices.notifyRetrievers(jobId, 0, leaderSessionID);
 
 		cluster.waitForTaskManagersToBeRegistered(timeout);
 
@@ -231,7 +246,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		LOG.info("Make JM(0) again the leader. This should first revoke the leadership.");
 
 		// make JM(0) again the leader --> this implies first a leadership revocation
-		cluster.grantLeadership(0, newLeaderSessionID);
+		highAvailabilityServices.grantLeadership(jobId, 0, newLeaderSessionID);
 
 		Await.ready(jobRemoval, timeout);
 
@@ -249,7 +264,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		LOG.info("Notify TMs about the new (old) leader.");
 
 		// notify the TMs about the new (old) leader
-		cluster.notifyRetrievalListeners(0, newLeaderSessionID);
+		highAvailabilityServices.notifyRetrievers(jobId,0, newLeaderSessionID);
 
 		cluster.waitForTaskManagersToBeRegistered(timeout);
 
@@ -257,7 +272,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 
 		// try to resubmit now the non-blocking job, it should complete successfully
 		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(false);
-		cluster.submitJobAndWait(job, false, timeout, new TestingLeaderRetrievalService(leaderGateway.path(), leaderGateway.leaderSessionID()));
+		cluster.submitJobAndWait(job, false, timeout);
 	}
 
 	public JobGraph createBlockingJob(int parallelism) {
@@ -272,7 +287,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		sender.setParallelism(parallelism);
 		receiver.setParallelism(parallelism);
 
-		receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE);
+		receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
 		SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 		sender.setSlotSharingGroup(slotSharingGroup);

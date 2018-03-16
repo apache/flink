@@ -1,0 +1,71 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 65%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>metrics.latency.history-size</h5></td>
+            <td style="word-wrap: break-word;">128</td>
+            <td>Defines the number of measured latencies to maintain at each operator.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&#60;name&#62;.&#60;parameter&#62;</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Configures the parameter &#60;parameter&#62; for the reporter named &#60;name&#62;.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&#60;name&#62;.class</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>The reporter class to use for the reporter named &#60;name&#62;.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&#60;name&#62;.interval</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>The reporter interval to use for the reporter named &#60;name&#62;.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporters</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><h5>metrics.scope.delimiter</h5></td>
+            <td style="word-wrap: break-word;">"."</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><h5>metrics.scope.jm</h5></td>
+            <td style="word-wrap: break-word;">"&#60;host&#62;.jobmanager"</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to a JobManager.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.scope.jm.job</h5></td>
+            <td style="word-wrap: break-word;">"&#60;host&#62;.jobmanager.&#60;job_name&#62;"</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to a job on a JobManager.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.scope.operator</h5></td>
+            <td style="word-wrap: break-word;">"&#60;host&#62;.taskmanager.&#60;tm_id&#62;.&#60;job_name&#62;.&#60;operator_name&#62;.&#60;subtask_index&#62;"</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to an operator.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.scope.task</h5></td>
+            <td style="word-wrap: break-word;">"&#60;host&#62;.taskmanager.&#60;tm_id&#62;.&#60;job_name&#62;.&#60;task_name&#62;.&#60;subtask_index&#62;"</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to a task.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.scope.tm</h5></td>
+            <td style="word-wrap: break-word;">"&#60;host&#62;.taskmanager.&#60;tm_id&#62;"</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to a TaskManager.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.scope.tm.job</h5></td>
+            <td style="word-wrap: break-word;">"&#60;host&#62;.taskmanager.&#60;tm_id&#62;.&#60;job_name&#62;"</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager.</td>
+        </tr>
+    </tbody>
+</table>

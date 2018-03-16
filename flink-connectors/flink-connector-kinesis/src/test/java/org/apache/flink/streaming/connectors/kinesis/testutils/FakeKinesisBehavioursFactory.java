@@ -17,18 +17,20 @@
 
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
+import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
+
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.Shard;
-import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
-import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
-import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +56,7 @@ public class FakeKinesisBehavioursFactory {
 			}
 
 			@Override
-			public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) {
+			public String getShardIterator(StreamShardHandle shard, String shardIteratorType, Object startingMarker) {
 				return null;
 			}
 
@@ -66,7 +68,7 @@ public class FakeKinesisBehavioursFactory {
 
 	}
 
-	public static KinesisProxyInterface nonReshardedStreamsBehaviour(Map<String,Integer> streamsToShardCount) {
+	public static KinesisProxyInterface nonReshardedStreamsBehaviour(Map<String, Integer> streamsToShardCount) {
 		return new NonReshardedStreamsKinesis(streamsToShardCount);
 
 	}
@@ -75,34 +77,45 @@ public class FakeKinesisBehavioursFactory {
 	//  Behaviours related to fetching records, used mainly in ShardConsumerTest
 	// ------------------------------------------------------------------------
 
-	public static KinesisProxyInterface totalNumOfRecordsAfterNumOfGetRecordsCalls(final int numOfRecords, final int numOfGetRecordsCalls) {
-		return new SingleShardEmittingFixNumOfRecordsKinesis(numOfRecords, numOfGetRecordsCalls);
-	}
-	
-	public static KinesisProxyInterface totalNumOfRecordsAfterNumOfGetRecordsCallsWithUnexpectedExpiredIterator(
-		final int numOfRecords, final int numOfGetRecordsCall, final int orderOfCallToExpire) {
-		return new SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis(
-			numOfRecords, numOfGetRecordsCall, orderOfCallToExpire);
+	public static KinesisProxyInterface totalNumOfRecordsAfterNumOfGetRecordsCalls(
+			final int numOfRecords,
+			final int numOfGetRecordsCalls,
+			final long millisBehindLatest) {
+		return new SingleShardEmittingFixNumOfRecordsKinesis(numOfRecords, numOfGetRecordsCalls, millisBehindLatest);
 	}
 
-	public static class SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis extends SingleShardEmittingFixNumOfRecordsKinesis {
+	public static KinesisProxyInterface totalNumOfRecordsAfterNumOfGetRecordsCallsWithUnexpectedExpiredIterator(
+			final int numOfRecords,
+			final int numOfGetRecordsCall,
+			final int orderOfCallToExpire,
+			final long millisBehindLatest) {
+		return new SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis(
+			numOfRecords, numOfGetRecordsCall, orderOfCallToExpire, millisBehindLatest);
+	}
+
+	private static class SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis extends SingleShardEmittingFixNumOfRecordsKinesis {
+
+		private final long millisBehindLatest;
+		private final int orderOfCallToExpire;
 
 		private boolean expiredOnceAlready = false;
 		private boolean expiredIteratorRefreshed = false;
-		private final int orderOfCallToExpire;
 
-		public SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis(final int numOfRecords,
-																			final int numOfGetRecordsCalls,
-																			final int orderOfCallToExpire) {
-			super(numOfRecords, numOfGetRecordsCalls);
+		public SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis(
+				final int numOfRecords,
+				final int numOfGetRecordsCalls,
+				final int orderOfCallToExpire,
+				final long millisBehindLatest) {
+			super(numOfRecords, numOfGetRecordsCalls, millisBehindLatest);
 			checkArgument(orderOfCallToExpire <= numOfGetRecordsCalls,
 				"can not test unexpected expired iterator if orderOfCallToExpire is larger than numOfGetRecordsCalls");
+			this.millisBehindLatest = millisBehindLatest;
 			this.orderOfCallToExpire = orderOfCallToExpire;
 		}
 
 		@Override
 		public GetRecordsResult getRecords(String shardIterator, int maxRecordsToGet) {
-			if ((Integer.valueOf(shardIterator) == orderOfCallToExpire-1) && !expiredOnceAlready) {
+			if ((Integer.valueOf(shardIterator) == orderOfCallToExpire - 1) && !expiredOnceAlready) {
 				// we fake only once the expired iterator exception at the specified get records attempt order
 				expiredOnceAlready = true;
 				throw new ExpiredIteratorException("Artificial expired shard iterator");
@@ -114,6 +127,7 @@ public class FakeKinesisBehavioursFactory {
 				// assuming that the maxRecordsToGet is always large enough
 				return new GetRecordsResult()
 					.withRecords(shardItrToRecordBatch.get(shardIterator))
+					.withMillisBehindLatest(millisBehindLatest)
 					.withNextShardIterator(
 						(Integer.valueOf(shardIterator) == totalNumOfGetRecordsCalls - 1)
 							? null : String.valueOf(Integer.valueOf(shardIterator) + 1)); // last next shard iterator is null
@@ -121,7 +135,7 @@ public class FakeKinesisBehavioursFactory {
 		}
 
 		@Override
-		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) {
+		public String getShardIterator(StreamShardHandle shard, String shardIteratorType, Object startingMarker) {
 			if (!expiredOnceAlready) {
 				// for the first call, just return the iterator of the first batch of records
 				return "0";
@@ -129,7 +143,7 @@ public class FakeKinesisBehavioursFactory {
 				// fake the iterator refresh when this is called again after getRecords throws expired iterator
 				// exception on the orderOfCallToExpire attempt
 				expiredIteratorRefreshed = true;
-				return String.valueOf(orderOfCallToExpire-1);
+				return String.valueOf(orderOfCallToExpire - 1);
 			}
 		}
 	}
@@ -140,19 +154,25 @@ public class FakeKinesisBehavioursFactory {
 
 		protected final int totalNumOfRecords;
 
-		protected final Map<String,List<Record>> shardItrToRecordBatch;
+		private final long millisBehindLatest;
 
-		public SingleShardEmittingFixNumOfRecordsKinesis(final int numOfRecords, final int numOfGetRecordsCalls) {
+		protected final Map<String, List<Record>> shardItrToRecordBatch;
+
+		public SingleShardEmittingFixNumOfRecordsKinesis(
+				final int numOfRecords,
+				final int numOfGetRecordsCalls,
+				final long millistBehindLatest) {
 			this.totalNumOfRecords = numOfRecords;
 			this.totalNumOfGetRecordsCalls = numOfGetRecordsCalls;
+			this.millisBehindLatest = millistBehindLatest;
 
 			// initialize the record batches that we will be fetched
 			this.shardItrToRecordBatch = new HashMap<>();
 
 			int numOfAlreadyPartitionedRecords = 0;
-			int numOfRecordsPerBatch = numOfRecords/numOfGetRecordsCalls + 1;
-			for (int batch=0; batch<totalNumOfGetRecordsCalls; batch++) {
-				if (batch != totalNumOfGetRecordsCalls-1) {
+			int numOfRecordsPerBatch = numOfRecords / numOfGetRecordsCalls + 1;
+			for (int batch = 0; batch < totalNumOfGetRecordsCalls; batch++) {
+				if (batch != totalNumOfGetRecordsCalls - 1) {
 					shardItrToRecordBatch.put(
 						String.valueOf(batch),
 						createRecordBatchWithRange(
@@ -174,13 +194,14 @@ public class FakeKinesisBehavioursFactory {
 			// assuming that the maxRecordsToGet is always large enough
 			return new GetRecordsResult()
 				.withRecords(shardItrToRecordBatch.get(shardIterator))
+				.withMillisBehindLatest(millisBehindLatest)
 				.withNextShardIterator(
-					(Integer.valueOf(shardIterator) == totalNumOfGetRecordsCalls-1)
-						? null : String.valueOf(Integer.valueOf(shardIterator)+1)); // last next shard iterator is null
+					(Integer.valueOf(shardIterator) == totalNumOfGetRecordsCalls - 1)
+						? null : String.valueOf(Integer.valueOf(shardIterator) + 1)); // last next shard iterator is null
 		}
 
 		@Override
-		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) {
+		public String getShardIterator(StreamShardHandle shard, String shardIteratorType, Object startingMarker) {
 			// this will be called only one time per ShardConsumer;
 			// so, simply return the iterator of the first batch of records
 			return "0";
@@ -196,7 +217,7 @@ public class FakeKinesisBehavioursFactory {
 			for (int i = min; i < max; i++) {
 				batch.add(
 					new Record()
-						.withData(ByteBuffer.wrap(String.valueOf(i).getBytes()))
+						.withData(ByteBuffer.wrap(String.valueOf(i).getBytes(ConfigConstants.DEFAULT_CHARSET)))
 						.withPartitionKey(UUID.randomUUID().toString())
 						.withApproximateArrivalTimestamp(new Date(System.currentTimeMillis()))
 						.withSequenceNumber(String.valueOf(i)));
@@ -208,20 +229,20 @@ public class FakeKinesisBehavioursFactory {
 
 	private static class NonReshardedStreamsKinesis implements KinesisProxyInterface {
 
-		private Map<String, List<KinesisStreamShard>> streamsWithListOfShards = new HashMap<>();
+		private Map<String, List<StreamShardHandle>> streamsWithListOfShards = new HashMap<>();
 
-		public NonReshardedStreamsKinesis(Map<String,Integer> streamsToShardCount) {
-			for (Map.Entry<String,Integer> streamToShardCount : streamsToShardCount.entrySet()) {
+		public NonReshardedStreamsKinesis(Map<String, Integer> streamsToShardCount) {
+			for (Map.Entry<String, Integer> streamToShardCount : streamsToShardCount.entrySet()) {
 				String streamName = streamToShardCount.getKey();
 				int shardCount = streamToShardCount.getValue();
 
 				if (shardCount == 0) {
 					// don't do anything
 				} else {
-					List<KinesisStreamShard> shardsOfStream = new ArrayList<>(shardCount);
-					for (int i=0; i < shardCount; i++) {
+					List<StreamShardHandle> shardsOfStream = new ArrayList<>(shardCount);
+					for (int i = 0; i < shardCount; i++) {
 						shardsOfStream.add(
-							new KinesisStreamShard(
+							new StreamShardHandle(
 								streamName,
 								new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(i))));
 					}
@@ -233,13 +254,13 @@ public class FakeKinesisBehavioursFactory {
 		@Override
 		public GetShardListResult getShardList(Map<String, String> streamNamesWithLastSeenShardIds) {
 			GetShardListResult result = new GetShardListResult();
-			for (Map.Entry<String, List<KinesisStreamShard>> streamsWithShards : streamsWithListOfShards.entrySet()) {
+			for (Map.Entry<String, List<StreamShardHandle>> streamsWithShards : streamsWithListOfShards.entrySet()) {
 				String streamName = streamsWithShards.getKey();
-				for (KinesisStreamShard shard : streamsWithShards.getValue()) {
+				for (StreamShardHandle shard : streamsWithShards.getValue()) {
 					if (streamNamesWithLastSeenShardIds.get(streamName) == null) {
 						result.addRetrievedShardToStream(streamName, shard);
 					} else {
-						if (KinesisStreamShard.compareShardIds(
+						if (StreamShardHandle.compareShardIds(
 							shard.getShard().getShardId(), streamNamesWithLastSeenShardIds.get(streamName)) > 0) {
 							result.addRetrievedShardToStream(streamName, shard);
 						}
@@ -250,7 +271,7 @@ public class FakeKinesisBehavioursFactory {
 		}
 
 		@Override
-		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) {
+		public String getShardIterator(StreamShardHandle shard, String shardIteratorType, Object startingMarker) {
 			return null;
 		}
 

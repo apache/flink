@@ -21,18 +21,13 @@ package org.apache.flink.runtime.heartbeat;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
 /**
- * A heartbeat manager has to be able to do the following things:
- *
- * <ul>
- *     <li>Monitor {@link HeartbeatTarget} and report heartbeat timeouts for this target</li>
- *     <li>Stop monitoring a {@link HeartbeatTarget}</li>
- * </ul>
- *
+ * A heartbeat manager has to be able to start/stop monitoring a {@link HeartbeatTarget}, and report heartbeat timeouts
+ * for this target.
  *
  * @param <I> Type of the incoming payload
  * @param <O> Type of the outgoing payload
  */
-public interface HeartbeatManager<I, O> {
+public interface HeartbeatManager<I, O> extends HeartbeatTarget<I> {
 
 	/**
 	 * Start monitoring a {@link HeartbeatTarget}. Heartbeat timeouts for this target are reported
@@ -52,16 +47,15 @@ public interface HeartbeatManager<I, O> {
 	void unmonitorTarget(ResourceID resourceID);
 
 	/**
-	 * Starts the heartbeat manager with the given {@link HeartbeatListener}. The heartbeat listener
-	 * is notified about heartbeat timeouts and heartbeat payloads are reported and retrieved to
-	 * and from it.
-	 *
-	 * @param heartbeatListener Heartbeat listener associated with the heartbeat manager
-	 */
-	void start(HeartbeatListener<I, O> heartbeatListener);
-
-	/**
 	 * Stops the heartbeat manager.
 	 */
 	void stop();
+
+	/**
+	 * Returns the last received heartbeat from the given target.
+	 *
+	 * @param resourceId for which to return the last heartbeat
+	 * @return Last heartbeat received from the given target or -1 if the target is not being monitored.
+	 */
+	long getLastHeartbeatFrom(ResourceID resourceId);
 }

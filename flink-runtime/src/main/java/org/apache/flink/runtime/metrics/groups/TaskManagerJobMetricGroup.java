@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
@@ -25,6 +26,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class TaskManagerJobMetricGroup extends JobMetricGroup<TaskManagerMetricGroup> {
 
-	/** Map from execution attempt ID (task identifier) to task metrics */
+	/** Map from execution attempt ID (task identifier) to task metrics. */
 	private final Map<AbstractID, TaskMetricGroup> tasks = new HashMap<>();
 
 	// ------------------------------------------------------------------------
@@ -72,16 +74,21 @@ public class TaskManagerJobMetricGroup extends JobMetricGroup<TaskManagerMetricG
 
 		synchronized (this) {
 			if (!isClosed()) {
-				TaskMetricGroup task = new TaskMetricGroup(
-					registry,
-					this,
-					jobVertexId,
-					executionAttemptID,
-					taskName,
-					subtaskIndex,
-					attemptNumber);
-				tasks.put(executionAttemptID, task);
-				return task;
+				TaskMetricGroup prior = tasks.get(executionAttemptID);
+				if (prior != null) {
+					return prior;
+				} else {
+					TaskMetricGroup task = new TaskMetricGroup(
+						registry,
+						this,
+						jobVertexId,
+						executionAttemptID,
+						taskName,
+						subtaskIndex,
+						attemptNumber);
+					tasks.put(executionAttemptID, task);
+					return task;
+				}
 			} else {
 				return null;
 			}

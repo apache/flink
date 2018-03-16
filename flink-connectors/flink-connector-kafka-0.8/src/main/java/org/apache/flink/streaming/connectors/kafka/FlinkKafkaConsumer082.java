@@ -14,14 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 
 import java.util.Properties;
 
 /**
  * THIS CLASS IS DEPRECATED. Use FlinkKafkaConsumer08 instead.
+ *
+ * @deprecated Use {@link FlinkKafkaConsumer08}
  */
 @Deprecated
 public class FlinkKafkaConsumer082<T> extends FlinkKafkaConsumer08<T> {
@@ -30,6 +33,8 @@ public class FlinkKafkaConsumer082<T> extends FlinkKafkaConsumer08<T> {
 
 	/**
 	 * THIS CONSTRUCTOR IS DEPRECATED. Use FlinkKafkaConsumer08 instead.
+	 *
+	 * @deprecated Use {@link FlinkKafkaConsumer08#FlinkKafkaConsumer08(String, DeserializationSchema, Properties)}
 	 */
 	@Deprecated
 	public FlinkKafkaConsumer082(String topic, DeserializationSchema<T> valueDeserializer, Properties props) {

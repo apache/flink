@@ -18,44 +18,21 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.types.Either;
-import org.apache.flink.types.Either.Right;
-import org.apache.flink.util.TestLogger;
-import org.junit.Test;
 
-public class EitherTypeInfoTest extends TestLogger {
+/**
+ * Test for {@link EitherTypeInfo}.
+ */
+public class EitherTypeInfoTest extends TypeInformationTestBase<EitherTypeInfo<?, ?>> {
 
-	Either<Integer, String> intEither = Either.Left(1);
-	Either<Integer, String> stringEither = Either.Right("boo");
-	Either<Integer, Tuple2<Double, Long>> tuple2Either = new Right<>(new Tuple2<Double, Long>(42.0, 2L));
-
-	@Test
-	public void testEitherTypeEquality() {
-		EitherTypeInfo<Integer, String> eitherInfo1 = new EitherTypeInfo<Integer, String>(
-				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
-
-		EitherTypeInfo<Integer, String> eitherInfo2 = new EitherTypeInfo<Integer, String>(
-				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
-
-		assertEquals(eitherInfo1, eitherInfo2);
-		assertEquals(eitherInfo1.hashCode(), eitherInfo2.hashCode());
-	}
-
-	@Test
-	public void testEitherTypeInEquality() {
-		EitherTypeInfo<Integer, String> eitherInfo1 = new EitherTypeInfo<Integer, String>(
-				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
-
-		EitherTypeInfo<Integer, Tuple2<Double, Long>> eitherInfo2 = new EitherTypeInfo<Integer, Tuple2<Double, Long>>(
-				BasicTypeInfo.INT_TYPE_INFO, new TupleTypeInfo<Tuple2<Double, Long>>(
-				TypeExtractor.getForClass(Double.class), TypeExtractor.getForClass(String.class)));
-
-		assertNotEquals(eitherInfo1, eitherInfo2);
-		assertNotEquals(eitherInfo1.hashCode(), eitherInfo2.hashCode());
+	@Override
+	protected EitherTypeInfo<?, ?>[] getTestData() {
+		return new EitherTypeInfo<?, ?>[] {
+			new EitherTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
+			new EitherTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO,
+				new TupleTypeInfo<Tuple2<Double, Long>>(TypeExtractor.getForClass(Double.class), TypeExtractor.getForClass(String.class)))
+		};
 	}
 }

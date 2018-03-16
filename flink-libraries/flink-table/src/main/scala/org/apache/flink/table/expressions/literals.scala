@@ -17,20 +17,24 @@
  */
 package org.apache.flink.table.expressions
 
-import java.sql.{Date, Time, Timestamp}
-import java.util.{Calendar, TimeZone}
-
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.SqlIntervalQualifier
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.tools.RelBuilder
+import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
+import java.sql.{Date, Time, Timestamp}
+import java.util.{Calendar, TimeZone}
+
+import org.apache.commons.lang3.StringEscapeUtils
 
 object Literal {
+  private[flink] val UTC = TimeZone.getTimeZone("UTC")
+
   private[flink] def apply(l: Any): Literal = l match {
     case i: Int => Literal(i, BasicTypeInfo.INT_TYPE_INFO)
     case s: Short => Literal(s, BasicTypeInfo.SHORT_TYPE_INFO)
@@ -50,7 +54,7 @@ object Literal {
 }
 
 case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpression {
-  override def toString = resultType match {
+  override def toString: String = resultType match {
     case _: BasicTypeInfo[_] => value.toString
     case _@SqlTimeTypeInfo.DATE => value.toString + ".toDate"
     case _@SqlTimeTypeInfo.TIME => value.toString + ".toTime"
@@ -68,13 +72,21 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
         val decType = relBuilder.getTypeFactory.createSqlType(SqlTypeName.DECIMAL)
         relBuilder.getRexBuilder.makeExactLiteral(bigDecValue, decType)
 
+      // create BIGINT literals for long type
+      case BasicTypeInfo.LONG_TYPE_INFO =>
+        val bigint = java.math.BigDecimal.valueOf(value.asInstanceOf[Long])
+        relBuilder.getRexBuilder.makeBigintLiteral(bigint)
+
       // date/time
       case SqlTimeTypeInfo.DATE =>
-        relBuilder.getRexBuilder.makeDateLiteral(dateToCalendar)
+        val datestr = DateString.fromCalendarFields(valueAsCalendar)
+        relBuilder.getRexBuilder.makeDateLiteral(datestr)
       case SqlTimeTypeInfo.TIME =>
-        relBuilder.getRexBuilder.makeTimeLiteral(dateToCalendar, 0)
+        val timestr = TimeString.fromCalendarFields(valueAsCalendar)
+        relBuilder.getRexBuilder.makeTimeLiteral(timestr, 0)
       case SqlTimeTypeInfo.TIMESTAMP =>
-        relBuilder.getRexBuilder.makeTimestampLiteral(dateToCalendar, 3)
+        val timestampstr = TimestampString.fromCalendarFields(valueAsCalendar)
+        relBuilder.getRexBuilder.makeTimestampLiteral(timestampstr, 3)
 
       case TimeIntervalTypeInfo.INTERVAL_MONTHS =>
         val interval = java.math.BigDecimal.valueOf(value.asInstanceOf[Int])
@@ -92,16 +104,26 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
           SqlParserPos.ZERO)
         relBuilder.getRexBuilder.makeIntervalLiteral(interval, intervalQualifier)
 
+      case BasicTypeInfo.STRING_TYPE_INFO =>
+        relBuilder.getRexBuilder.makeLiteral(
+          StringEscapeUtils.escapeJava(value.asInstanceOf[String])
+        )
+
       case _ => relBuilder.literal(value)
     }
   }
 
-  private def dateToCalendar: Calendar = {
+  /**
+    * Convert a Date value to a Calendar. Calcite's fromCalendarField functions use the
+    * Calendar.get methods, so the raw values of the individual fields are preserved when
+    * converted to the String formats.
+    *
+    * @return get the Calendar value
+    */
+  private def valueAsCalendar: Calendar = {
     val date = value.asInstanceOf[java.util.Date]
-    val cal = Calendar.getInstance()
-    val t = date.getTime
-    // according to Calcite's SqlFunctions.internalToXXX methods
-    cal.setTimeInMillis(t + TimeZone.getDefault.getOffset(t))
+    val cal = Calendar.getInstance
+    cal.setTime(date)
     cal
   }
 }
@@ -114,7 +136,7 @@ case class Null(resultType: TypeInformation[_]) extends LeafExpression {
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     rexBuilder
       .makeCast(
-        typeFactory.createTypeFromTypeInfo(resultType),
+        typeFactory.createTypeFromTypeInfo(resultType, isNullable = true),
         rexBuilder.constantNull())
   }
 }

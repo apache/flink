@@ -24,15 +24,19 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskTestHarness;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link StreamIterationHead}.
+ */
 public class StreamIterationHeadTest {
 
 	@Test
 	public void testIterationHeadWatermarkEmission() throws Exception {
-		StreamIterationHead<Integer> head = new StreamIterationHead<>();
-		StreamTaskTestHarness<Integer> harness = new StreamTaskTestHarness<>(head,
+		StreamTaskTestHarness<Integer> harness = new StreamTaskTestHarness<>(
+				StreamIterationHead::new,
 				BasicTypeInfo.INT_TYPE_INFO);
+		harness.setupOutputForSingletonOperatorChain();
 		harness.getStreamConfig().setIterationId("1");
 		harness.getStreamConfig().setIterationWaitTime(1);
 

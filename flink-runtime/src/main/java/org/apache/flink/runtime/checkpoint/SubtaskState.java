@@ -19,29 +19,27 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
-import org.apache.flink.runtime.state.StreamStateHandle;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Container for the chained state of one parallel subtask of an operator/task. This is part of the
  * {@link TaskState}.
  */
-public class SubtaskState implements StateObject {
+public class SubtaskState implements CompositeStateHandle {
+
+	private static final Logger LOG = LoggerFactory.getLogger(SubtaskState.class);
 
 	private static final long serialVersionUID = -2394696997971923995L;
-
-	/**
-	 * Legacy (non-repartitionable) operator state.
-	 */
-	@Deprecated
-	private final ChainedStateHandle<StreamStateHandle> legacyOperatorState;
 
 	/**
 	 * Snapshot from the {@link org.apache.flink.runtime.state.OperatorStateBackend}.
@@ -56,12 +54,12 @@ public class SubtaskState implements StateObject {
 	/**
 	 * Snapshot from {@link org.apache.flink.runtime.state.KeyedStateBackend}.
 	 */
-	private final KeyGroupsStateHandle managedKeyedState;
+	private final KeyedStateHandle managedKeyedState;
 
 	/**
 	 * Snapshot written using {@link org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream}.
 	 */
-	private final KeyGroupsStateHandle rawKeyedState;
+	private final KeyedStateHandle rawKeyedState;
 
 	/**
 	 * The state size. This is also part of the deserialized state handle.
@@ -71,21 +69,18 @@ public class SubtaskState implements StateObject {
 	private final long stateSize;
 
 	public SubtaskState(
-			ChainedStateHandle<StreamStateHandle> legacyOperatorState,
 			ChainedStateHandle<OperatorStateHandle> managedOperatorState,
 			ChainedStateHandle<OperatorStateHandle> rawOperatorState,
-			KeyGroupsStateHandle managedKeyedState,
-			KeyGroupsStateHandle rawKeyedState) {
+			KeyedStateHandle managedKeyedState,
+			KeyedStateHandle rawKeyedState) {
 
-		this.legacyOperatorState = checkNotNull(legacyOperatorState, "State");
 		this.managedOperatorState = managedOperatorState;
 		this.rawOperatorState = rawOperatorState;
 		this.managedKeyedState = managedKeyedState;
 		this.rawKeyedState = rawKeyedState;
 
 		try {
-			long calculateStateSize = getSizeNullSafe(legacyOperatorState);
-			calculateStateSize += getSizeNullSafe(managedOperatorState);
+			long calculateStateSize = getSizeNullSafe(managedOperatorState);
 			calculateStateSize += getSizeNullSafe(rawOperatorState);
 			calculateStateSize += getSizeNullSafe(managedKeyedState);
 			calculateStateSize += getSizeNullSafe(rawKeyedState);
@@ -101,11 +96,6 @@ public class SubtaskState implements StateObject {
 
 	// --------------------------------------------------------------------------------------------
 
-	@Deprecated
-	public ChainedStateHandle<StreamStateHandle> getLegacyOperatorState() {
-		return legacyOperatorState;
-	}
-
 	public ChainedStateHandle<OperatorStateHandle> getManagedOperatorState() {
 		return managedOperatorState;
 	}
@@ -114,28 +104,42 @@ public class SubtaskState implements StateObject {
 		return rawOperatorState;
 	}
 
-	public KeyGroupsStateHandle getManagedKeyedState() {
+	public KeyedStateHandle getManagedKeyedState() {
 		return managedKeyedState;
 	}
 
-	public KeyGroupsStateHandle getRawKeyedState() {
+	public KeyedStateHandle getRawKeyedState() {
 		return rawKeyedState;
+	}
+
+	@Override
+	public void discardState() {
+		try {
+			StateUtil.bestEffortDiscardAllStateObjects(
+				Arrays.asList(
+					managedOperatorState,
+					rawOperatorState,
+					managedKeyedState,
+					rawKeyedState));
+		} catch (Exception e) {
+			LOG.warn("Error while discarding operator states.", e);
+		}
+	}
+
+	@Override
+	public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
+		if (managedKeyedState != null) {
+			managedKeyedState.registerSharedStates(sharedStateRegistry);
+		}
+
+		if (rawKeyedState != null) {
+			rawKeyedState.registerSharedStates(sharedStateRegistry);
+		}
 	}
 
 	@Override
 	public long getStateSize() {
 		return stateSize;
-	}
-
-	@Override
-	public void discardState() throws Exception {
-		StateUtil.bestEffortDiscardAllStateObjects(
-				Arrays.asList(
-						legacyOperatorState,
-						managedOperatorState,
-						rawOperatorState,
-						managedKeyedState,
-						rawKeyedState));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -155,11 +159,6 @@ public class SubtaskState implements StateObject {
 			return false;
 		}
 
-		if (legacyOperatorState != null ?
-				!legacyOperatorState.equals(that.legacyOperatorState)
-				: that.legacyOperatorState != null) {
-			return false;
-		}
 		if (managedOperatorState != null ?
 				!managedOperatorState.equals(that.managedOperatorState)
 				: that.managedOperatorState != null) {
@@ -183,8 +182,7 @@ public class SubtaskState implements StateObject {
 
 	@Override
 	public int hashCode() {
-		int result = legacyOperatorState != null ? legacyOperatorState.hashCode() : 0;
-		result = 31 * result + (managedOperatorState != null ? managedOperatorState.hashCode() : 0);
+		int result = (managedOperatorState != null ? managedOperatorState.hashCode() : 0);
 		result = 31 * result + (rawOperatorState != null ? rawOperatorState.hashCode() : 0);
 		result = 31 * result + (managedKeyedState != null ? managedKeyedState.hashCode() : 0);
 		result = 31 * result + (rawKeyedState != null ? rawKeyedState.hashCode() : 0);
@@ -195,11 +193,10 @@ public class SubtaskState implements StateObject {
 	@Override
 	public String toString() {
 		return "SubtaskState{" +
-				"chainedStateHandle=" + legacyOperatorState +
-				", operatorStateFromBackend=" + managedOperatorState +
+				"operatorStateFromBackend=" + managedOperatorState +
 				", operatorStateFromStream=" + rawOperatorState +
 				", keyedStateFromBackend=" + managedKeyedState +
-				", keyedStateHandleFromStream=" + rawKeyedState +
+				", keyedStateFromStream=" + rawKeyedState +
 				", stateSize=" + stateSize +
 				'}';
 	}

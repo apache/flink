@@ -49,7 +49,7 @@ Example Program
 
 The following program is a complete, working example of WordCount. You can copy &amp; paste the code
 to run it locally. You only have to include the correct Flink's library into your project
-(see Section [Linking with Flink]({{ site.baseurl }}/dev/linking_with_flink)) and specify the imports. Then you are ready
+(see Section [Linking with Flink]({{ site.baseurl }}/dev/linking_with_flink.html)) and specify the imports. Then you are ready
 to go!
 
 <div class="codetabs" markdown="1">
@@ -205,12 +205,17 @@ data.filter(new FilterFunction<Integer>() {
       <td><strong>Reduce</strong></td>
       <td>
         <p>Combines a group of elements into a single element by repeatedly combining two elements
-        into one. Reduce may be applied on a full data set, or on a grouped data set.</p>
+        into one. Reduce may be applied on a full data set or on a grouped data set.</p>
 {% highlight java %}
 data.reduce(new ReduceFunction<Integer> {
   public Integer reduce(Integer a, Integer b) { return a + b; }
 });
 {% endhighlight %}
+        <p>If the reduce was applied to a grouped data set then you can specify the way that the
+        runtime executes the combine phase of the reduce by supplying a <code>CombineHint</code> to
+        <code>setCombineHint</code>. The hash-based strategy should be faster in most cases,
+        especially if the number of different keys is small compared to the number of input
+        elements (eg. 1/10).</p>
       </td>
     </tr>
 
@@ -218,7 +223,7 @@ data.reduce(new ReduceFunction<Integer> {
       <td><strong>ReduceGroup</strong></td>
       <td>
         <p>Combines a group of elements into one or more elements. ReduceGroup may be applied on a
-        full data set, or on a grouped data set.</p>
+        full data set or on a grouped data set.</p>
 {% highlight java %}
 data.reduceGroup(new GroupReduceFunction<Integer, Integer> {
   public void reduce(Iterable<Integer> values, Collector<Integer> out) {
@@ -230,10 +235,6 @@ data.reduceGroup(new GroupReduceFunction<Integer, Integer> {
   }
 });
 {% endhighlight %}
-        <p>If the reduce was applied to a grouped data set, you can specify the way that the
-        runtime executes the combine phase of the reduce via supplying a CombineHint as a second
-        parameter. The hash-based strategy should be faster in most cases, especially if the
-        number of different keys is small compared to the number of input elements (eg. 1/10).</p>
       </td>
     </tr>
 
@@ -260,9 +261,14 @@ DataSet<Tuple3<Integer, String, Double>> output = input.sum(0).andMin(2);
       <td>
         <p>Returns the distinct elements of a data set. It removes the duplicate entries
         from the input DataSet, with respect to all fields of the elements, or a subset of fields.</p>
-    {% highlight java %}
-        data.distinct();
-    {% endhighlight %}
+{% highlight java %}
+data.distinct();
+{% endhighlight %}
+        <p>Distinct is implemented using a reduce function. You can specify the way that the
+        runtime executes the combine phase of the reduce by supplying a <code>CombineHint</code> to
+        <code>setCombineHint</code>. The hash-based strategy should be faster in most cases,
+        especially if the number of different keys is small compared to the number of input
+        elements (eg. 1/10).</p>
       </td>
     </tr>
 
@@ -272,7 +278,7 @@ DataSet<Tuple3<Integer, String, Double>> output = input.sum(0).andMin(2);
         Joins two data sets by creating all pairs of elements that are equal on their keys.
         Optionally uses a JoinFunction to turn the pair of elements into a single element, or a
         FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)
-        elements. See the <a href="/dev/api_concepts#specifying-keys">keys section</a> to learn how to define join keys.
+        elements. See the <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys section</a> to learn how to define join keys.
 {% highlight java %}
 result = input1.join(input2)
                .where(0)       // key of the first input (tuple field 0)
@@ -287,7 +293,7 @@ result = input1.join(input2)
         pick the best strategy according to those estimates.
 {% highlight java %}
 // This executes a join by broadcasting the first data set
-// using a hash table for the broadcasted data
+// using a hash table for the broadcast data
 result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
                .where(0).equalTo(1);
 {% endhighlight %}
@@ -298,7 +304,7 @@ result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
     <tr>
       <td><strong>OuterJoin</strong></td>
       <td>
-        Performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pairs of elements (or one element and a <code>null</code> value for the other input) are given to a JoinFunction to turn the pair of elements into a single element, or to a FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)         elements. See the <a href="/dev/api_concepts#specifying-keys">keys section</a> to learn how to define join keys.
+        Performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pairs of elements (or one element and a <code>null</code> value for the other input) are given to a JoinFunction to turn the pair of elements into a single element, or to a FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)         elements. See the <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys section</a> to learn how to define join keys.
 {% highlight java %}
 input1.leftOuterJoin(input2) // rightOuterJoin or fullOuterJoin for right or full outer joins
       .where(0)              // key of the first input (tuple field 0)
@@ -320,7 +326,7 @@ input1.leftOuterJoin(input2) // rightOuterJoin or fullOuterJoin for right or ful
       <td>
         <p>The two-dimensional variant of the reduce operation. Groups each input on one or more
         fields and then joins the groups. The transformation function is called per pair of groups.
-        See the <a href="/dev/api_concepts#specifying-keys">keys section</a> to learn how to define coGroup keys.</p>
+        See the <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys section</a> to learn how to define coGroup keys.</p>
 {% highlight java %}
 data1.coGroup(data2)
      .where(0)
@@ -565,7 +571,7 @@ data.reduceGroup { elements => elements.sum }
         data set.</p>
 {% highlight scala %}
 val input: DataSet[(Int, String, Double)] = // [...]
-val output: DataSet[(Int, String, Doublr)] = input.aggregate(SUM, 0).aggregate(MIN, 2);
+val output: DataSet[(Int, String, Double)] = input.aggregate(SUM, 0).aggregate(MIN, 2)
 {% endhighlight %}
   <p>You can also use short-hand syntax for minimum, maximum, and sum aggregations.</p>
 {% highlight scala %}
@@ -592,7 +598,7 @@ val output: DataSet[(Int, String, Double)] = input.sum(0).min(2)
         Joins two data sets by creating all pairs of elements that are equal on their keys.
         Optionally uses a JoinFunction to turn the pair of elements into a single element, or a
         FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)
-        elements. See the <a href="/dev/api_concepts#specifying-keys">keys section</a> to learn how to define join keys.
+        elements. See the <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys section</a> to learn how to define join keys.
 {% highlight scala %}
 // In this case tuple fields are used as keys. "0" is the join field on the first tuple
 // "1" is the join field on the second tuple.
@@ -607,7 +613,7 @@ val result = input1.join(input2).where(0).equalTo(1)
         pick the best strategy according to those estimates.
 {% highlight scala %}
 // This executes a join by broadcasting the first data set
-// using a hash table for the broadcasted data
+// using a hash table for the broadcast data
 val result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
                    .where(0).equalTo(1)
 {% endhighlight %}
@@ -618,7 +624,7 @@ val result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
     <tr>
       <td><strong>OuterJoin</strong></td>
       <td>
-        Performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pairs of elements (or one element and a `null` value for the other input) are given to a JoinFunction to turn the pair of elements into a single element, or to a FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)         elements. See the <a href="/dev/api_concepts#specifying-keys">keys section</a> to learn how to define join keys.
+        Performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pairs of elements (or one element and a `null` value for the other input) are given to a JoinFunction to turn the pair of elements into a single element, or to a FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)         elements. See the <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys section</a> to learn how to define join keys.
 {% highlight scala %}
 val joined = left.leftOuterJoin(right).where(0).equalTo(1) {
    (left, right) =>
@@ -634,7 +640,7 @@ val joined = left.leftOuterJoin(right).where(0).equalTo(1) {
       <td>
         <p>The two-dimensional variant of the reduce operation. Groups each input on one or more
         fields and then joins the groups. The transformation function is called per pair of groups.
-        See the <a href="/dev/api_concepts#specifying-keys">keys section</a> to learn how to define coGroup keys.</p>
+        See the <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys section</a> to learn how to define coGroup keys.</p>
 {% highlight scala %}
 data1.coGroup(data2).where(0).equalTo(1)
 {% endhighlight %}
@@ -652,7 +658,7 @@ val data1: DataSet[Int] = // [...]
 val data2: DataSet[String] = // [...]
 val result: DataSet[(Int, String)] = data1.cross(data2)
 {% endhighlight %}
-        <p>Note: Cross is potentially a <b>very</b> compute-intensive operation which can challenge even large compute clusters! It is adviced to hint the system with the DataSet sizes by using <i>crossWithTiny()</i> and <i>crossWithHuge()</i>.</p>
+        <p>Note: Cross is potentially a <b>very</b> compute-intensive operation which can challenge even large compute clusters! It is advised to hint the system with the DataSet sizes by using <i>crossWithTiny()</i> and <i>crossWithHuge()</i>.</p>
       </td>
     </tr>
     <tr>
@@ -775,12 +781,12 @@ data.map {
   case (id, name, temperature) => // [...]
 }
 {% endhighlight %}
-is not supported by the API out-of-the-box. To use this feature, you should use a <a href="../scala_api_extensions.html">Scala API extension</a>.
+is not supported by the API out-of-the-box. To use this feature, you should use a <a href="{{ site.baseurl }}/dev/scala_api_extensions.html">Scala API extension</a>.
 
 </div>
 </div>
 
-The [parallelism]({{ site.baseurl }}/dev/parallel) of a transformation can be defined by `setParallelism(int)` while
+The [parallelism]({{ site.baseurl }}/dev/parallel.html) of a transformation can be defined by `setParallelism(int)` while
 `name(String)` assigns a custom name to a transformation which is helpful for debugging. The same is
 possible for [Data Sources](#data-sources) and [Data Sinks](#data-sinks).
 
@@ -890,14 +896,12 @@ DataSet<Long> numbers = env.generateSequence(1, 10000000);
 // Read data from a relational database using the JDBC input format
 DataSet<Tuple2<String, Integer> dbData =
     env.createInput(
-      // create and configure input format
       JDBCInputFormat.buildJDBCInputFormat()
                      .setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
                      .setDBUrl("jdbc:derby:memory:persons")
                      .setQuery("select name, age from persons")
-                     .finish(),
-      // specify type information for DataSet
-      new TupleTypeInfo(Tuple2.class, STRING_TYPE_INFO, INT_TYPE_INFO)
+                     .setRowTypeInfo(new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO))
+                     .finish()
     );
 
 // Note: Flink's program compiler needs to infer the data types of the data items which are returned
@@ -990,7 +994,7 @@ Collection-based:
 - `fromParallelCollection(SplittableIterator)` - Creates a data set from an iterator, in
   parallel. The class specifies the data type of the elements returned by the iterator.
 
-- `generateSequence(from, to)` - Generates the squence of numbers in the given interval, in
+- `generateSequence(from, to)` - Generates the sequence of numbers in the given interval, in
   parallel.
 
 Generic:
@@ -1033,7 +1037,7 @@ val csvInput = env.readCsvFile[Person](
 val values = env.fromElements("Foo", "bar", "foobar", "fubar")
 
 // generate a number sequence
-val numbers = env.generateSequence(1, 10000000);
+val numbers = env.generateSequence(1, 10000000)
 
 // read a file from the specified path of type TextInputFormat
 val tuples = env.readHadoopFile(new TextInputFormat, classOf[LongWritable],
@@ -1142,7 +1146,7 @@ using an
 Flink comes with a variety of built-in output formats that are encapsulated behind operations on the
 DataSet:
 
-- `writeAsText()` / `TextOuputFormat` - Writes elements line-wise as Strings. The Strings are
+- `writeAsText()` / `TextOutputFormat` - Writes elements line-wise as Strings. The Strings are
   obtained by calling the *toString()* method of each element.
 - `writeAsFormattedText()` / `TextOutputFormat` - Write elements line-wise as Strings. The Strings
   are obtained by calling a user-defined *format()* method for each element.
@@ -1284,7 +1288,7 @@ val values: DataSet[(String, Int, Double)] = // [...]
 values.writeAsCsv("file:///path/to/the/result/file", "\n", "|")
 
 // this writes tuples in the text formatting "(a, b, c)", rather than as CSV lines
-values.writeAsText("file:///path/to/the/result/file");
+values.writeAsText("file:///path/to/the/result/file")
 
 // this writes values as strings using a user-defined formatting
 values map { tuple => tuple._1 + " - " + tuple._2 }
@@ -1305,19 +1309,19 @@ val pData: DataSet[(BookPojo, Double)] = // [...]
 val sData: DataSet[String] = // [...]
 
 // sort output on String field in ascending order
-tData.sortPartition(1, Order.ASCENDING).print;
+tData.sortPartition(1, Order.ASCENDING).print()
 
 // sort output on Double field in descending and Int field in ascending order
-tData.sortPartition(2, Order.DESCENDING).sortPartition(0, Order.ASCENDING).print;
+tData.sortPartition(2, Order.DESCENDING).sortPartition(0, Order.ASCENDING).print()
 
 // sort output on the "author" field of nested BookPojo in descending order
-pData.sortPartition("_1.author", Order.DESCENDING).writeAsText(...);
+pData.sortPartition("_1.author", Order.DESCENDING).writeAsText(...)
 
 // sort output on the full tuple in ascending order
-tData.sortPartition("_", Order.ASCENDING).writeAsCsv(...);
+tData.sortPartition("_", Order.ASCENDING).writeAsCsv(...)
 
 // sort atomic type (String) output in descending order
-sData.sortPartition("_", Order.DESCENDING).writeAsText(...);
+sData.sortPartition("_", Order.DESCENDING).writeAsText(...)
 
 {% endhighlight %}
 
@@ -1482,7 +1486,7 @@ val result = count map { c => c / 10000.0 * 4 }
 
 result.print()
 
-env.execute("Iterative Pi Example");
+env.execute("Iterative Pi Example")
 {% endhighlight %}
 
 You can also check out the
@@ -1689,7 +1693,7 @@ val env = ExecutionEnvironment.createLocalEnvironment()
 val lines = env.readTextFile(pathToTextFile)
 // build your program
 
-env.execute();
+env.execute()
 {% endhighlight %}
 </div>
 </div>
@@ -1968,7 +1972,7 @@ Collection.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// 1. The DataSet to be broadcasted
+// 1. The DataSet to be broadcast
 DataSet<Integer> toBroadcast = env.fromElements(1, 2, 3);
 
 DataSet<String> data = env.fromElements("a", "b");
@@ -1976,7 +1980,7 @@ DataSet<String> data = env.fromElements("a", "b");
 data.map(new RichMapFunction<String, String>() {
     @Override
     public void open(Configuration parameters) throws Exception {
-      // 3. Access the broadcasted DataSet as a Collection
+      // 3. Access the broadcast DataSet as a Collection
       Collection<Integer> broadcastSet = getRuntimeContext().getBroadcastVariable("broadcastSetName");
     }
 
@@ -1989,13 +1993,13 @@ data.map(new RichMapFunction<String, String>() {
 {% endhighlight %}
 
 Make sure that the names (`broadcastSetName` in the previous example) match when registering and
-accessing broadcasted data sets. For a complete example program, have a look at
+accessing broadcast data sets. For a complete example program, have a look at
 {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/clustering/KMeans.java "K-Means Algorithm" %}.
 </div>
 <div data-lang="scala" markdown="1">
 
 {% highlight scala %}
-// 1. The DataSet to be broadcasted
+// 1. The DataSet to be broadcast
 val toBroadcast = env.fromElements(1, 2, 3)
 
 val data = env.fromElements("a", "b")
@@ -2004,7 +2008,7 @@ data.map(new RichMapFunction[String, String]() {
     var broadcastSet: Traversable[String] = null
 
     override def open(config: Configuration): Unit = {
-      // 3. Access the broadcasted DataSet as a Collection
+      // 3. Access the broadcast DataSet as a Collection
       broadcastSet = getRuntimeContext().getBroadcastVariable[String]("broadcastSetName").asScala
     }
 
@@ -2015,7 +2019,7 @@ data.map(new RichMapFunction[String, String]() {
 {% endhighlight %}
 
 Make sure that the names (`broadcastSetName` in the previous example) match when registering and
-accessing broadcasted data sets. For a complete example program, have a look at
+accessing broadcast data sets. For a complete example program, have a look at
 {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/clustering/KMeans.scala "KMeans Algorithm" %}.
 </div>
 </div>
@@ -2103,7 +2107,7 @@ val result: DataSet[Integer] = input.map(new MyMapper())
 env.execute()
 {% endhighlight %}
 
-Access the cached file in a user function (here a `MapFunction`). The function must extend a [RichFunction]({{ site.baseurl }}/dev/api_concepts#rich-functions) class because it needs access to the `RuntimeContext`.
+Access the cached file in a user function (here a `MapFunction`). The function must extend a [RichFunction]({{ site.baseurl }}/dev/api_concepts.html#rich-functions) class because it needs access to the `RuntimeContext`.
 
 {% highlight scala %}
 
@@ -2135,7 +2139,7 @@ Passing Parameters to Functions
 
 Parameters can be passed to functions using either the constructor or the `withParameters(Configuration)` method. The parameters are serialized as part of the function object and shipped to all parallel task instances.
 
-Check also the [best practices guide on how to pass command line arguments to functions]({{ site.baseurl }}/monitoring/best_practices.html#parsing-command-line-arguments-and-passing-them-around-in-your-flink-application).
+Check also the [best practices guide on how to pass command line arguments to functions]({{ site.baseurl }}/dev/best_practices.html#parsing-command-line-arguments-and-passing-them-around-in-your-flink-application).
 
 #### Via Constructor
 

@@ -32,7 +32,7 @@ import java.util.Map;
 public abstract class AbstractLineSpout implements IRichSpout {
 	private static final long serialVersionUID = 8876828403487806771L;
 
-	public final static String ATTRIBUTE_LINE = "line";
+	public static final String ATTRIBUTE_LINE = "line";
 
 	protected SpoutOutputCollector collector;
 

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.testdata;
 
 import org.junit.Assert;
@@ -25,6 +24,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.regex.Pattern;
 
+/**
+ * Test data for TransitiveClosure programs.
+ */
 public class TransitiveClosureData {
 
 	public static void checkOddEvenResult(BufferedReader result) throws IOException {

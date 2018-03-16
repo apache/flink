@@ -20,8 +20,8 @@ package org.apache.flink.runtime.taskexecutor.rpc;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.SubtaskState;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.util.Preconditions;
@@ -38,15 +38,16 @@ public class RpcCheckpointResponder implements CheckpointResponder {
 	public void acknowledgeCheckpoint(
 			JobID jobID,
 			ExecutionAttemptID executionAttemptID,
-			CheckpointMetaData checkpointMetaData,
-			SubtaskState subtaskState) {
+			long checkpointId,
+			CheckpointMetrics checkpointMetrics,
+			TaskStateSnapshot subtaskState) {
 
 		checkpointCoordinatorGateway.acknowledgeCheckpoint(
 			jobID,
 			executionAttemptID,
-			checkpointMetaData,
+			checkpointId,
+			checkpointMetrics,
 			subtaskState);
-
 	}
 
 	@Override

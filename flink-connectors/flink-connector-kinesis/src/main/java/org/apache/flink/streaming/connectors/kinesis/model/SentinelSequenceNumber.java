@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.model;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 
@@ -25,19 +26,24 @@ import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetche
  * The value is initially set by {@link FlinkKinesisConsumer} when {@link KinesisDataFetcher}s are created.
  * The KinesisDataFetchers will use this value to determine how to retrieve the starting shard iterator from AWS Kinesis.
  */
+@Internal
 public enum SentinelSequenceNumber {
 
 	/** Flag value for shard's sequence numbers to indicate that the
-	 * shard should start to be read from the latest incoming records */
-	SENTINEL_LATEST_SEQUENCE_NUM( new SequenceNumber("LATEST_SEQUENCE_NUM") ),
+	 * shard should start to be read from the latest incoming records. */
+	SENTINEL_LATEST_SEQUENCE_NUM(new SequenceNumber("LATEST_SEQUENCE_NUM")),
 
 	/** Flag value for shard's sequence numbers to indicate that the shard should
-	 * start to be read from the earliest records that haven't expired yet */
-	SENTINEL_EARLIEST_SEQUENCE_NUM( new SequenceNumber("EARLIEST_SEQUENCE_NUM") ),
+	 * start to be read from the earliest records that haven't expired yet. */
+	SENTINEL_EARLIEST_SEQUENCE_NUM(new SequenceNumber("EARLIEST_SEQUENCE_NUM")),
+
+	/** Flag value for shard's sequence numbers to indicate that the shard should
+	 * start to be read from the specified timestamp. */
+	SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM(new SequenceNumber("AT_TIMESTAMP_SEQUENCE_NUM")),
 
 	/** Flag value to indicate that we have already read the last record of this shard
-	 * (Note: Kinesis shards that have been closed due to a split or merge will have an ending data record) */
-	SENTINEL_SHARD_ENDING_SEQUENCE_NUM( new SequenceNumber("SHARD_ENDING_SEQUENCE_NUM") );
+	 * (Note: Kinesis shards that have been closed due to a split or merge will have an ending data record). */
+	SENTINEL_SHARD_ENDING_SEQUENCE_NUM(new SequenceNumber("SHARD_ENDING_SEQUENCE_NUM"));
 
 	private SequenceNumber sentinel;
 

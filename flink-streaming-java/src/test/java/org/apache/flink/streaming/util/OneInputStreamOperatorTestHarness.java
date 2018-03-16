@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -38,6 +39,8 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 
 	private final OneInputStreamOperator<IN, OUT> oneInputOperator;
 
+	private long currentWatermark;
+
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			TypeSerializer<IN> typeSerializerIn) throws Exception {
@@ -48,9 +51,20 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 
 	public OneInputStreamOperatorTestHarness(
 		OneInputStreamOperator<IN, OUT> operator,
+		int maxParallelism,
+		int parallelism,
+		int subtaskIndex,
+		TypeSerializer<IN> typeSerializerIn) throws Exception {
+		this(operator, maxParallelism, parallelism, subtaskIndex);
+
+		config.setTypeSerializerIn1(Preconditions.checkNotNull(typeSerializerIn));
+	}
+
+	public OneInputStreamOperatorTestHarness(
+		OneInputStreamOperator<IN, OUT> operator,
 		TypeSerializer<IN> typeSerializerIn,
-		Environment environment) throws Exception {
-		this(operator, 1, 1, 0, environment);
+		MockEnvironment environment) throws Exception {
+		this(operator, environment);
 
 		config.setTypeSerializerIn1(Preconditions.checkNotNull(typeSerializerIn));
 	}
@@ -62,20 +76,17 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			int maxParallelism,
-			int numTubtasks,
+			int parallelism,
 			int subtaskIndex) throws Exception {
-		super(operator, maxParallelism, numTubtasks, subtaskIndex);
+		super(operator, maxParallelism, parallelism, subtaskIndex);
 
 		this.oneInputOperator = operator;
 	}
 
 	public OneInputStreamOperatorTestHarness(
 		OneInputStreamOperator<IN, OUT> operator,
-		int maxParallelism,
-		int numTubtasks,
-		int subtaskIndex,
-		Environment environment) throws Exception {
-		super(operator, maxParallelism, numTubtasks, subtaskIndex, environment);
+		MockEnvironment environment) throws Exception {
+		super(operator, environment);
 
 		this.oneInputOperator = operator;
 	}
@@ -83,7 +94,6 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	public void processElement(IN value, long timestamp) throws Exception {
 		processElement(new StreamRecord<>(value, timestamp));
 	}
-
 
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		operator.setKeyContextElement1(element);
@@ -98,10 +108,15 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	}
 
 	public void processWatermark(long watermark) throws Exception {
-		oneInputOperator.processWatermark(new Watermark(watermark));
+		processWatermark(new Watermark(watermark));
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {
+		currentWatermark = mark.getTimestamp();
 		oneInputOperator.processWatermark(mark);
+	}
+
+	public long getCurrentWatermark() {
+		return currentWatermark;
 	}
 }

@@ -19,34 +19,63 @@
 package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.RichFlatJoinFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 @SuppressWarnings("serial")
 public class OuterJoinOperatorBaseTest implements Serializable {
 
-	private final FlatJoinFunction<String, String, String> joiner = new FlatJoinFunction<String, String, String>() {
-		@Override
-		public void join(String first, String second, Collector<String> out) throws Exception {
-			out.collect(String.valueOf(first) + ',' + String.valueOf(second));
-		}
-	};
+	private MockRichFlatJoinFunction joiner;
+
+	private OuterJoinOperatorBase<String, String, String, FlatJoinFunction<String, String, String>> baseOperator;
+
+	private ExecutionConfig executionConfig;
+
+	private RuntimeContext runtimeContext;
 
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	private final OuterJoinOperatorBase<String, String, String, FlatJoinFunction<String, String, String>> baseOperator =
+	@Before
+	public void setup() {
+		joiner = new MockRichFlatJoinFunction();
+
+		baseOperator =
 			new OuterJoinOperatorBase(joiner,
-					new BinaryOperatorInformation(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
-							BasicTypeInfo.STRING_TYPE_INFO), new int[0], new int[0], "TestJoiner", null);
+				new BinaryOperatorInformation(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
+					BasicTypeInfo.STRING_TYPE_INFO), new int[0], new int[0], "TestJoiner", null);
+
+		executionConfig = new ExecutionConfig();
+
+		String taskName = "Test rich outer join function";
+		TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
+		HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
+		HashMap<String, Future<Path>> cpTasks = new HashMap<>();
+
+		runtimeContext = new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks,
+			accumulatorMap, new UnregisteredMetricsGroup());
+	}
 
 	@Test
 	public void testFullOuterJoinWithoutMatchingPartners() throws Exception {
@@ -132,18 +161,41 @@ public class OuterJoinOperatorBaseTest implements Serializable {
 		baseOperator.setOuterJoinType(null);
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.disableObjectReuse();
-		baseOperator.executeOnCollections(leftInput, rightInput, null, executionConfig);
+		baseOperator.executeOnCollections(leftInput, rightInput, runtimeContext, executionConfig);
 	}
 
 	private void testOuterJoin(List<String> leftInput, List<String> rightInput, List<String> expected) throws Exception {
-		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.disableObjectReuse();
-		List<String> resultSafe = baseOperator.executeOnCollections(leftInput, rightInput, null, executionConfig);
+		List<String> resultSafe = baseOperator.executeOnCollections(leftInput, rightInput, runtimeContext, executionConfig);
 		executionConfig.enableObjectReuse();
-		List<String> resultRegular = baseOperator.executeOnCollections(leftInput, rightInput, null, executionConfig);
+		List<String> resultRegular = baseOperator.executeOnCollections(leftInput, rightInput, runtimeContext, executionConfig);
 
 		assertEquals(expected, resultSafe);
 		assertEquals(expected, resultRegular);
+
+		assertTrue(joiner.opened.get());
+		assertTrue(joiner.closed.get());
 	}
 
+	private static class MockRichFlatJoinFunction extends RichFlatJoinFunction<String, String, String> {
+		final AtomicBoolean opened = new AtomicBoolean(false);
+		final AtomicBoolean closed = new AtomicBoolean(false);
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			opened.compareAndSet(false, true);
+			assertEquals(0, getRuntimeContext().getIndexOfThisSubtask());
+			assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+		}
+
+		@Override
+		public void close() throws Exception{
+			closed.compareAndSet(false, true);
+		}
+
+		@Override
+		public void join(String first, String second, Collector<String> out) throws Exception {
+			out.collect(String.valueOf(first) + ',' + String.valueOf(second));
+		}
+	}
 }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import javax.annotation.Nullable;
+
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -35,8 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CompletedCheckpointStats extends AbstractCheckpointStats {
 
-	/** Callback for the {@link CompletedCheckpoint} instance to notify about discard. */
-	private final DiscardCallback discardCallback;
+	private static final long serialVersionUID = 138833868551861344L;
 
 	/** Total checkpoint state size over all subtasks. */
 	private final long stateSize;
@@ -47,9 +47,8 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
 	/** The latest acknowledged subtask stats. */
 	private final SubtaskStateStats latestAcknowledgedSubtask;
 
-	/** Optional external path if persisted externally. */
-	@Nullable
-	private final String externalPath;
+	/** The external pointer of the checkpoint. */
+	private final String externalPointer;
 
 	/** Flag indicating whether the checkpoint was discarded. */
 	private volatile boolean discarded;
@@ -66,19 +65,19 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
 	 * @param stateSize Total checkpoint state size over all subtasks.
 	 * @param alignmentBuffered Buffered bytes during alignment over all subtasks.
 	 * @param latestAcknowledgedSubtask The latest acknowledged subtask stats.
-	 * @param externalPath Optional external path if persisted externally.
+	 * @param externalPointer Optional external path if persisted externally.
 	 */
 	CompletedCheckpointStats(
-		long checkpointId,
-		long triggerTimestamp,
-		CheckpointProperties props,
-		int totalSubtaskCount,
-		Map<JobVertexID, TaskStateStats> taskStats,
-		int numAcknowledgedSubtasks,
-		long stateSize,
-		long alignmentBuffered,
-		SubtaskStateStats latestAcknowledgedSubtask,
-		@Nullable String externalPath) {
+			long checkpointId,
+			long triggerTimestamp,
+			CheckpointProperties props,
+			int totalSubtaskCount,
+			Map<JobVertexID, TaskStateStats> taskStats,
+			int numAcknowledgedSubtasks,
+			long stateSize,
+			long alignmentBuffered,
+			SubtaskStateStats latestAcknowledgedSubtask,
+			String externalPointer) {
 
 		super(checkpointId, triggerTimestamp, props, totalSubtaskCount, taskStats);
 		checkArgument(numAcknowledgedSubtasks == totalSubtaskCount, "Did not acknowledge all subtasks.");
@@ -86,8 +85,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
 		this.stateSize = stateSize;
 		this.alignmentBuffered = alignmentBuffered;
 		this.latestAcknowledgedSubtask = checkNotNull(latestAcknowledgedSubtask);
-		this.externalPath = externalPath;
-		this.discardCallback = new DiscardCallback();
+		this.externalPointer = externalPointer;
 	}
 
 	@Override
@@ -121,13 +119,10 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Returns the external path if this checkpoint was persisted externally.
-	 *
-	 * @return External path of this checkpoint or <code>null</code>.
+	 * Returns the external pointer of this checkpoint.
 	 */
-	@Nullable
 	public String getExternalPath() {
-		return externalPath;
+		return externalPointer;
 	}
 
 	/**
@@ -145,7 +140,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
 	 * @return Callback for the {@link CompletedCheckpoint}.
 	 */
 	DiscardCallback getDiscardCallback() {
-		return discardCallback;
+		return new DiscardCallback();
 	}
 
 	/**

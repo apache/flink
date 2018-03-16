@@ -41,11 +41,12 @@ import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -54,93 +55,92 @@ import org.junit.Test;
  */
 @SuppressWarnings("serial")
 public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
-	
+
 	private static final String VERTEX_SOURCE = "Vertices";
-	
+
 	private static final String ITERATION_NAME = "Connected Components Iteration";
-	
+
 	private static final String EDGES_SOURCE = "Edges";
 	private static final String JOIN_NEIGHBORS_MATCH = "Join Candidate Id With Neighbor";
 	private static final String MIN_ID_AND_UPDATE = "Min Id and Update";
-	
+
 	private static final String SINK = "Result";
-	
+
 	private static final boolean PRINT_PLAN = false;
-	
+
 	private final FieldList set0 = new FieldList(0);
-	
-	
+
 	@Test
 	public void testWorksetConnectedComponents() {
 		Plan plan = getConnectedComponentsCoGroupPlan();
 		plan.setExecutionConfig(new ExecutionConfig());
 		OptimizedPlan optPlan = compileNoStats(plan);
 		OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(optPlan);
-		
+
 		if (PRINT_PLAN) {
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
 			String json = dumper.getOptimizerPlanAsJSON(optPlan);
 			System.out.println(json);
 		}
-		
+
 		SourcePlanNode vertexSource = or.getNode(VERTEX_SOURCE);
 		SourcePlanNode edgesSource = or.getNode(EDGES_SOURCE);
 		SinkPlanNode sink = or.getNode(SINK);
 		WorksetIterationPlanNode iter = or.getNode(ITERATION_NAME);
-		
+
 		DualInputPlanNode neighborsJoin = or.getNode(JOIN_NEIGHBORS_MATCH);
 		DualInputPlanNode cogroup = or.getNode(MIN_ID_AND_UPDATE);
-		
+
 		// --------------------------------------------------------------------
 		// Plan validation:
 		//
 		// We expect the plan to go with a sort-merge join, because the CoGroup
 		// sorts and the join in the successive iteration can re-exploit the sorting.
 		// --------------------------------------------------------------------
-		
+
 		// test all drivers
 		Assert.assertEquals(DriverStrategy.NONE, sink.getDriverStrategy());
 		Assert.assertEquals(DriverStrategy.NONE, vertexSource.getDriverStrategy());
 		Assert.assertEquals(DriverStrategy.NONE, edgesSource.getDriverStrategy());
-		
+
 		Assert.assertEquals(DriverStrategy.INNER_MERGE, neighborsJoin.getDriverStrategy());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput1());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput2());
-		
+
 		Assert.assertEquals(DriverStrategy.CO_GROUP, cogroup.getDriverStrategy());
 		Assert.assertEquals(set0, cogroup.getKeysForInput1());
 		Assert.assertEquals(set0, cogroup.getKeysForInput2());
-		
+
 		// test all the shipping strategies
 		Assert.assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
 		Assert.assertEquals(ShipStrategyType.PARTITION_HASH, iter.getInitialSolutionSetInput().getShipStrategy());
 		Assert.assertEquals(set0, iter.getInitialSolutionSetInput().getShipStrategyKeys());
 		Assert.assertEquals(ShipStrategyType.PARTITION_HASH, iter.getInitialWorksetInput().getShipStrategy());
 		Assert.assertEquals(set0, iter.getInitialWorksetInput().getShipStrategyKeys());
-		
+
 		Assert.assertEquals(ShipStrategyType.FORWARD, neighborsJoin.getInput1().getShipStrategy()); // workset
 		Assert.assertEquals(ShipStrategyType.PARTITION_HASH, neighborsJoin.getInput2().getShipStrategy()); // edges
 		Assert.assertEquals(set0, neighborsJoin.getInput2().getShipStrategyKeys());
 		Assert.assertTrue(neighborsJoin.getInput2().getTempMode().isCached());
-		
+
 		Assert.assertEquals(ShipStrategyType.PARTITION_HASH, cogroup.getInput1().getShipStrategy()); // min id
 		Assert.assertEquals(ShipStrategyType.FORWARD, cogroup.getInput2().getShipStrategy()); // solution set
-		
+
 		// test all the local strategies
 		Assert.assertEquals(LocalStrategy.NONE, sink.getInput().getLocalStrategy());
 		Assert.assertEquals(LocalStrategy.NONE, iter.getInitialSolutionSetInput().getLocalStrategy());
-		
+
 		// the sort for the neighbor join in the first iteration is pushed out of the loop
 		Assert.assertEquals(LocalStrategy.SORT, iter.getInitialWorksetInput().getLocalStrategy());
 		Assert.assertEquals(LocalStrategy.NONE, neighborsJoin.getInput1().getLocalStrategy()); // workset
 		Assert.assertEquals(LocalStrategy.SORT, neighborsJoin.getInput2().getLocalStrategy()); // edges
-		
+
 		Assert.assertEquals(LocalStrategy.SORT, cogroup.getInput1().getLocalStrategy());
 		Assert.assertEquals(LocalStrategy.NONE, cogroup.getInput2().getLocalStrategy()); // solution set
-		
+
 		// check the caches
 		Assert.assertTrue(TempMode.CACHED == neighborsJoin.getInput2().getTempMode());
-		
+
 		JobGraphGenerator jgg = new JobGraphGenerator();
 		jgg.compileJobGraph(optPlan);
 	}
@@ -150,17 +150,17 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 		env.setAsContext();
 		try {
-			ConnectedComponentsWithCoGroup(new String[]{DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE, "100"});
+			connectedComponentsWithCoGroup(new String[]{DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE, "100"});
 		} catch (ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail("ConnectedComponentsWithCoGroup failed with an exception");
+			Assert.fail("connectedComponentsWithCoGroup failed with an exception");
 		}
 		return env.getPlan();
 	}
 
-	public static void ConnectedComponentsWithCoGroup(String[] args) throws Exception {
+	public static void connectedComponentsWithCoGroup(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(Integer.parseInt(args[0]));
 
@@ -170,8 +170,8 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithId = initialVertices.flatMap(new DummyMapFunction());
 
-		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration
-				= verticesWithId.iterateDelta(verticesWithId, Integer.parseInt(args[4]), 0).name(ITERATION_NAME);
+		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
+				verticesWithId.iterateDelta(verticesWithId, Integer.parseInt(args[4]), 0).name(ITERATION_NAME);
 
 		DataSet<Tuple2<Long, Long>> joinWithNeighbors = iteration.getWorkset().join(edges)
 				.where(0).equalTo(0)
@@ -186,14 +186,14 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 		env.execute();
 	}
 
-	public static class DummyMapFunction implements FlatMapFunction<Tuple1<Long>, Tuple2<Long, Long>> {
+	private static class DummyMapFunction implements FlatMapFunction<Tuple1<Long>, Tuple2<Long, Long>> {
 		@Override
 		public void flatMap(Tuple1<Long> value, Collector<Tuple2<Long, Long>> out) throws Exception {
 			// won't be executed
 		}
 	}
 
-	public static class DummyJoinFunction implements FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	private static class DummyJoinFunction implements FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		@Override
 		public void join(Tuple2<Long, Long> first, Tuple2<Long, Long> second, Collector<Tuple2<Long, Long>> out) throws Exception {
 			// won't be executed
@@ -202,7 +202,7 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 
 	@ForwardedFieldsFirst("f0->f0")
 	@ForwardedFieldsSecond("f0->f0")
-	public static class DummyCoGroupFunction implements CoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	private static class DummyCoGroupFunction implements CoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		@Override
 		public void coGroup(Iterable<Tuple2<Long, Long>> first, Iterable<Tuple2<Long, Long>> second, Collector<Tuple2<Long, Long>> out) throws Exception {
 			// won't be executed

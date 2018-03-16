@@ -18,12 +18,12 @@
 
 package org.apache.flink.examples.java.graph.util;
 
-import java.util.LinkedList;
-import java.util.List;
-
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
+
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Provides the default data sets used for the Connected Components example program.
@@ -31,7 +31,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  *
  */
 public class ConnectedComponentsData {
-	
+
 	public static final long[] VERTICES  = new long[] {
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
@@ -42,7 +42,7 @@ public class ConnectedComponentsData {
 		}
 		return env.fromCollection(verticesList);
 	}
-	
+
 	public static final Object[][] EDGES = new Object[][] {
 		new Object[]{1L, 2L},
 		new Object[]{2L, 3L},
@@ -59,14 +59,14 @@ public class ConnectedComponentsData {
 		new Object[]{1L, 15L},
 		new Object[]{16L, 1L}
 	};
-	
+
 	public static DataSet<Tuple2<Long, Long>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
-		
+
 		List<Tuple2<Long, Long>> edgeList = new LinkedList<Tuple2<Long, Long>>();
 		for (Object[] edge : EDGES) {
 			edgeList.add(new Tuple2<Long, Long>((Long) edge[0], (Long) edge[1]));
 		}
 		return env.fromCollection(edgeList);
 	}
-	
+
 }

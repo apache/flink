@@ -19,22 +19,23 @@
 package org.apache.flink.test.state;
 
 import org.apache.flink.runtime.state.StateObject;
-import org.junit.Test;
 
+import org.junit.Test;
 import org.reflections.Reflections;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Set;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
 
+/**
+ * This test validates that all subclasses of {@link StateObject} have a proper
+ * serial version UID.
+ */
 public class StateHandleSerializationTest {
 
-	/**
-	 * This test validates that all subclasses of {@link StateObject} have a proper
-	 * serial version UID.
-	 */
 	@Test
 	public void ensureStateHandlesHaveSerialVersionUID() {
 		try {
@@ -55,7 +56,7 @@ public class StateHandleSerializationTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	private static void validataSerialVersionUID(Class<?> clazz) {
 		// all non-interface types must have a serial version UID
 		if (!clazz.isInterface()) {
@@ -65,11 +66,10 @@ public class StateHandleSerializationTest {
 			try {
 				Field versionUidField = clazz.getDeclaredField("serialVersionUID");
 
-				// check conditions first via "if" to prevent always constructing expensive error messages 
+				// check conditions first via "if" to prevent always constructing expensive error messages
 				if (!(Modifier.isPrivate(versionUidField.getModifiers()) &&
 						Modifier.isStatic(versionUidField.getModifiers()) &&
-						Modifier.isFinal(versionUidField.getModifiers())))
-				{
+						Modifier.isFinal(versionUidField.getModifiers()))) {
 					fail(clazz.getName() + " - serialVersionUID is not 'private static final'");
 				}
 			}

@@ -46,6 +46,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
 
+/**
+ * Tests for {@link CoGroupOperatorBase} on collections.
+ */
 @SuppressWarnings("serial")
 public class CoGroupOperatorCollectionTest implements Serializable {
 
@@ -94,7 +97,7 @@ public class CoGroupOperatorCollectionTest implements Serializable {
 
 				Assert.assertTrue(udf1.isClosed);
 				Assert.assertTrue(udf2.isClosed);
-				
+
 				Set<Tuple2<String, Integer>> expected = new HashSet<Tuple2<String, Integer>>(
 						Arrays.asList(new Tuple2Builder<String, Integer>()
 										.add("foo", 8)

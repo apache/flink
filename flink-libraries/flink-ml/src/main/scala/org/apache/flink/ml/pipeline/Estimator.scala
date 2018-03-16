@@ -117,7 +117,7 @@ object Estimator{
   }
 
   /** Fallback [[TransformDataSetOperation]] for [[Transformer]] which do not support the input or
-    * output type with which they are called. This is usualy the case if pipeline operators are
+    * output type with which they are called. This is usually the case if pipeline operators are
     * chained which have incompatible input/output types. In order to detect these failures, the
     * fallback [[TransformDataSetOperation]] throws a [[RuntimeException]] with the corresponding
     * input/output types. Consequently, a wrong pipeline will be detected at pre-flight phase of

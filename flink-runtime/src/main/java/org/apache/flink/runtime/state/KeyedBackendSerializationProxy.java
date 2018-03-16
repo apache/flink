@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
-import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -29,18 +29,25 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * Serialization proxy for all meta data in keyed state backends. In the future we might also migrate the actual state
+ * Serialization proxy for all meta data in keyed state backends. In the future we might also requiresMigration the actual state
  * serialization logic here.
  */
-public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable {
+public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritable {
 
-	private static final int VERSION = 1;
+	public static final int VERSION = 4;
 
-	private TypeSerializerSerializationProxy<?> keySerializerProxy;
-	private List<StateMetaInfo<?, ?>> namedStateSerializationProxies;
+	//TODO allow for more (user defined) compression formats + backwards compatibility story.
+	/** This specifies if we use a compressed format write the key-groups */
+	private boolean usingKeyGroupCompression;
+
+	private TypeSerializer<K> keySerializer;
+	private TypeSerializerConfigSnapshot keySerializerConfigSnapshot;
+
+	private List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots;
 
 	private ClassLoader userCodeClassLoader;
 
@@ -48,18 +55,35 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 	}
 
-	public KeyedBackendSerializationProxy(TypeSerializer<?> keySerializer, List<StateMetaInfo<?, ?>> namedStateSerializationProxies) {
-		this.keySerializerProxy = new TypeSerializerSerializationProxy<>(Preconditions.checkNotNull(keySerializer));
-		this.namedStateSerializationProxies = Preconditions.checkNotNull(namedStateSerializationProxies);
-		Preconditions.checkArgument(namedStateSerializationProxies.size() <= Short.MAX_VALUE);
+	public KeyedBackendSerializationProxy(
+			TypeSerializer<K> keySerializer,
+			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots,
+			boolean compression) {
+
+		this.usingKeyGroupCompression = compression;
+
+		this.keySerializer = Preconditions.checkNotNull(keySerializer);
+		this.keySerializerConfigSnapshot = Preconditions.checkNotNull(keySerializer.snapshotConfiguration());
+
+		Preconditions.checkNotNull(stateMetaInfoSnapshots);
+		Preconditions.checkArgument(stateMetaInfoSnapshots.size() <= Short.MAX_VALUE);
+		this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
 	}
 
-	public List<StateMetaInfo<?, ?>> getNamedStateSerializationProxies() {
-		return namedStateSerializationProxies;
+	public List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> getStateMetaInfoSnapshots() {
+		return stateMetaInfoSnapshots;
 	}
 
-	public TypeSerializerSerializationProxy<?> getKeySerializerProxy() {
-		return keySerializerProxy;
+	public TypeSerializer<K> getKeySerializer() {
+		return keySerializer;
+	}
+
+	public TypeSerializerConfigSnapshot getKeySerializerConfigSnapshot() {
+		return keySerializerConfigSnapshot;
+	}
+
+	public boolean isUsingKeyGroupCompression() {
+		return usingKeyGroupCompression;
 	}
 
 	@Override
@@ -68,148 +92,64 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 	}
 
 	@Override
+	public int[] getCompatibleVersions() {
+		// we are compatible with version 3 (Flink 1.3.x) and version 1 & 2 (Flink 1.2.x)
+		return new int[] {VERSION, 3, 2, 1};
+	}
+
+	@Override
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
 
-		keySerializerProxy.write(out);
+		// write the compression format used to write each key-group
+		out.writeBoolean(usingKeyGroupCompression);
 
-		out.writeShort(namedStateSerializationProxies.size());
+		// write in a way to be fault tolerant of read failures when deserializing the key serializer
+		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
+				out,
+				Collections.singletonList(
+					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(keySerializer, keySerializerConfigSnapshot)));
 
-		for (StateMetaInfo<?, ?> kvState : namedStateSerializationProxies) {
-			kvState.write(out);
+		// write individual registered keyed state metainfos
+		out.writeShort(stateMetaInfoSnapshots.size());
+		for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> metaInfo : stateMetaInfoSnapshots) {
+			KeyedBackendStateMetaInfoSnapshotReaderWriters
+				.getWriterForVersion(VERSION, metaInfo)
+				.writeStateMetaInfo(out);
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
 
-		keySerializerProxy = new TypeSerializerSerializationProxy<>(userCodeClassLoader);
-		keySerializerProxy.read(in);
+		final int readVersion = getReadVersion();
+
+		if (readVersion >= 4) {
+			usingKeyGroupCompression = in.readBoolean();
+		} else {
+			usingKeyGroupCompression = false;
+		}
+
+		// only starting from version 3, we have the key serializer and its config snapshot written
+		if (readVersion >= 3) {
+			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> keySerializerAndConfig =
+					TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader).get(0);
+			this.keySerializer = (TypeSerializer<K>) keySerializerAndConfig.f0;
+			this.keySerializerConfigSnapshot = keySerializerAndConfig.f1;
+		} else {
+			this.keySerializer = TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader);
+			this.keySerializerConfigSnapshot = null;
+		}
 
 		int numKvStates = in.readShort();
-		namedStateSerializationProxies = new ArrayList<>(numKvStates);
-		for (int i = 0; i < numKvStates; ++i) {
-			StateMetaInfo<?, ?> stateSerializationProxy = new StateMetaInfo<>(userCodeClassLoader);
-			stateSerializationProxy.read(in);
-			namedStateSerializationProxies.add(stateSerializationProxy);
-		}
-	}
-
-//----------------------------------------------------------------------------------------------------------------------
-
-	/**
-	 * This is the serialization proxy for {@link RegisteredBackendStateMetaInfo} for a single registered state in a
-	 * keyed backend.
-	 */
-	public static class StateMetaInfo<N, S> implements IOReadableWritable {
-
-		private StateDescriptor.Type stateType;
-		private String stateName;
-		private TypeSerializerSerializationProxy<N> namespaceSerializerSerializationProxy;
-		private TypeSerializerSerializationProxy<S> stateSerializerSerializationProxy;
-
-		private ClassLoader userClassLoader;
-
-		StateMetaInfo(ClassLoader userClassLoader) {
-			this.userClassLoader = Preconditions.checkNotNull(userClassLoader);
-		}
-
-		public StateMetaInfo(
-				StateDescriptor.Type stateType,
-				String name,
-				TypeSerializer<N> namespaceSerializer,
-				TypeSerializer<S> stateSerializer) {
-
-			this.stateType = Preconditions.checkNotNull(stateType);
-			this.stateName = Preconditions.checkNotNull(name);
-			this.namespaceSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(Preconditions.checkNotNull(namespaceSerializer));
-			this.stateSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(Preconditions.checkNotNull(stateSerializer));
-		}
-
-		public StateDescriptor.Type getStateType() {
-			return stateType;
-		}
-
-		public void setStateType(StateDescriptor.Type stateType) {
-			this.stateType = stateType;
-		}
-
-		public String getStateName() {
-			return stateName;
-		}
-
-		public void setStateName(String stateName) {
-			this.stateName = stateName;
-		}
-
-		public TypeSerializerSerializationProxy<N> getNamespaceSerializerSerializationProxy() {
-			return namespaceSerializerSerializationProxy;
-		}
-
-		public void setNamespaceSerializerSerializationProxy(TypeSerializerSerializationProxy<N> namespaceSerializerSerializationProxy) {
-			this.namespaceSerializerSerializationProxy = namespaceSerializerSerializationProxy;
-		}
-
-		public TypeSerializerSerializationProxy<S> getStateSerializerSerializationProxy() {
-			return stateSerializerSerializationProxy;
-		}
-
-		public void setStateSerializerSerializationProxy(TypeSerializerSerializationProxy<S> stateSerializerSerializationProxy) {
-			this.stateSerializerSerializationProxy = stateSerializerSerializationProxy;
-		}
-
-		@Override
-		public void write(DataOutputView out) throws IOException {
-			out.writeInt(getStateType().ordinal());
-			out.writeUTF(getStateName());
-
-			getNamespaceSerializerSerializationProxy().write(out);
-			getStateSerializerSerializationProxy().write(out);
-		}
-
-		@Override
-		public void read(DataInputView in) throws IOException {
-			int enumOrdinal = in.readInt();
-			setStateType(StateDescriptor.Type.values()[enumOrdinal]);
-			setStateName(in.readUTF());
-
-			namespaceSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(userClassLoader);
-			namespaceSerializerSerializationProxy.read(in);
-
-			stateSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(userClassLoader);
-			stateSerializerSerializationProxy.read(in);
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-
-			StateMetaInfo<?, ?> that = (StateMetaInfo<?, ?>) o;
-
-			if (!getStateName().equals(that.getStateName())) {
-				return false;
-			}
-
-			if (!getNamespaceSerializerSerializationProxy().equals(that.getNamespaceSerializerSerializationProxy())) {
-				return false;
-			}
-
-			return getStateSerializerSerializationProxy().equals(that.getStateSerializerSerializationProxy());
-		}
-
-		@Override
-		public int hashCode() {
-			int result = getStateName().hashCode();
-			result = 31 * result + getNamespaceSerializerSerializationProxy().hashCode();
-			result = 31 * result + getStateSerializerSerializationProxy().hashCode();
-			return result;
+		stateMetaInfoSnapshots = new ArrayList<>(numKvStates);
+		for (int i = 0; i < numKvStates; i++) {
+			stateMetaInfoSnapshots.add(
+				KeyedBackendStateMetaInfoSnapshotReaderWriters
+					.getReaderForVersion(getReadVersion(), userCodeClassLoader)
+					.readStateMetaInfo(in));
 		}
 	}
 }

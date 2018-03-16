@@ -27,7 +27,7 @@ import java.util.ArrayList;
 
 /**
  * Writes tuples in csv format.
- * 
+ *
  * @param <IN>
  *            Input tuple type
  */

@@ -18,8 +18,6 @@
 
 package org.apache.flink.test.iterative;
 
-import java.io.Serializable;
-
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -27,11 +25,16 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.CoordVector;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.test.util.PointFormatter;
 import org.apache.flink.test.util.PointInFormat;
-import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 
+import java.io.Serializable;
+
+/**
+ * Test iteration with union.
+ */
 public class IterationWithUnionITCase extends JavaProgramTestBase {
 
 	private static final String DATAPOINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n";
@@ -39,13 +42,12 @@ public class IterationWithUnionITCase extends JavaProgramTestBase {
 	protected String dataPath;
 	protected String resultPath;
 
-
 	@Override
 	protected void preSubmit() throws Exception {
 		dataPath = createTempFile("datapoints.txt", DATAPOINTS);
 		resultPath = getTempDirPath("union_iter_result");
 	}
-	
+
 	@Override
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(DATAPOINTS + DATAPOINTS + DATAPOINTS + DATAPOINTS, resultPath);
@@ -54,18 +56,18 @@ public class IterationWithUnionITCase extends JavaProgramTestBase {
 	@Override
 	protected void testProgram() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		DataSet<Tuple2<Integer, CoordVector>> initialInput = env.readFile(new PointInFormat(), this.dataPath).setParallelism(1);
-		
+
 		IterativeDataSet<Tuple2<Integer, CoordVector>> iteration = initialInput.iterate(2);
-		
+
 		DataSet<Tuple2<Integer, CoordVector>> result = iteration.union(iteration).map(new IdentityMapper());
-		
+
 		iteration.closeWith(result).writeAsFormattedText(this.resultPath, new PointFormatter());
-		
+
 		env.execute();
 	}
-	
+
 	static final class IdentityMapper implements MapFunction<Tuple2<Integer, CoordVector>, Tuple2<Integer, CoordVector>>, Serializable {
 		private static final long serialVersionUID = 1L;
 

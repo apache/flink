@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +44,7 @@ import java.util.Map;
  *
  * <p>A new window can be added to the set of in-flight windows using
  * {@link #addWindow(Window, MergeFunction)}. This might merge other windows and the caller
- * must react accordingly in the {@link MergeFunction#merge(Object, Collection, Object, Collection)
+ * must react accordingly in the {@link MergeFunction#merge(Object, Collection, Object, Collection)}
  * and adjust the outside view of windows and state.
  *
  * <p>Windows can be removed from the set of windows using {@link #retireWindow(Window)}.
@@ -171,6 +173,7 @@ public class MergingWindowSet<W extends Window> {
 				});
 
 		W resultWindow = newWindow;
+		boolean mergedNewWindow = false;
 
 		// perform the merge
 		for (Map.Entry<W, Collection<W>> c: mergeResults.entrySet()) {
@@ -180,6 +183,7 @@ public class MergingWindowSet<W extends Window> {
 			// if our new window is in the merged windows make the merge result the
 			// result window
 			if (mergedWindows.remove(newWindow)) {
+				mergedNewWindow = true;
 				resultWindow = mergeResult;
 			}
 
@@ -203,7 +207,7 @@ public class MergingWindowSet<W extends Window> {
 
 			// don't merge the new window itself, it never had any state associated with it
 			// i.e. if we are only merging one pre-existing window into itself
-			// without extending the pre-exising window
+			// without extending the pre-existing window
 			if (!(mergedWindows.contains(mergeResult) && mergedWindows.size() == 1)) {
 				mergeFunction.merge(mergeResult,
 						mergedWindows,
@@ -213,7 +217,7 @@ public class MergingWindowSet<W extends Window> {
 		}
 
 		// the new window created a new, self-contained window without merging
-		if (resultWindow.equals(newWindow) && mergeResults.isEmpty()) {
+		if (mergeResults.isEmpty() || (resultWindow.equals(newWindow) && !mergedNewWindow)) {
 			this.mapping.put(resultWindow, resultWindow);
 		}
 

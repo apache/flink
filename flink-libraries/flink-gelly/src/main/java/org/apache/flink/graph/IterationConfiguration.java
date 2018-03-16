@@ -18,38 +18,39 @@
 
 package org.apache.flink.graph;
 
-import java.util.HashMap;
-import java.util.Map;
-
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.graph.spargel.GatherFunction;
 import org.apache.flink.util.Preconditions;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * This is used as a base class for vertex-centric iteration or gather-sum-apply iteration configuration.
  */
 public abstract class IterationConfiguration {
 
-	/** the iteration name **/
+	// the iteration name
 	private String name;
 
-	/** the iteration parallelism **/
+	// the iteration parallelism
 	private int parallelism = -1;
 
-	/** the iteration aggregators **/
+	// the iteration aggregators
 	private Map<String, Aggregator<?>> aggregators = new HashMap<>();
 
-	/** flag that defines whether the solution set is kept in managed memory **/
+	// flag that defines whether the solution set is kept in managed memory
 	private boolean unmanagedSolutionSet = false;
 
-	/** flag that defines whether the number of vertices option is set **/
+	// flag that defines whether the number of vertices option is set
 	private boolean optNumVertices = false;
-	
+
 	public IterationConfiguration() {}
 
 	/**
 	 * Sets the name for the iteration. The name is displayed in logs and messages.
-	 * 
+	 *
 	 * @param name The name for the iteration.
 	 */
 	public void setName(String name) {
@@ -58,13 +59,13 @@ public abstract class IterationConfiguration {
 
 	/**
 	 * Gets the name of the iteration.
-	 * @param defaultName 
-	 * 
+	 * @param defaultName
+	 *
 	 * @return The name of the iteration.
 	 */
 	public String getName(String defaultName) {
 		if (name != null) {
-			return name;			
+			return name;
 		}
 		else {
 			return defaultName;
@@ -73,17 +74,19 @@ public abstract class IterationConfiguration {
 
 	/**
 	 * Sets the parallelism for the iteration.
-	 * 
+	 *
 	 * @param parallelism The parallelism.
 	 */
 	public void setParallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0 || parallelism == -1, "The parallelism must be positive, or -1 (use default).");
+		Preconditions.checkArgument(
+				parallelism > 0 || parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
+				"The parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
 		this.parallelism = parallelism;
 	}
-	
+
 	/**
 	 * Gets the iteration's parallelism.
-	 * 
+	 *
 	 * @return The iterations parallelism, or -1, if not set.
 	 */
 	public int getParallelism() {
@@ -94,18 +97,18 @@ public abstract class IterationConfiguration {
 	 * Defines whether the solution set is kept in managed memory (Flink's internal way of keeping object
 	 * in serialized form) or as a simple object map.
 	 * By default, the solution set runs in managed memory.
-	 * 
+	 *
 	 * @param unmanaged True, to keep the solution set in unmanaged memory, false otherwise.
 	 */
 	public void setSolutionSetUnmanagedMemory(boolean unmanaged) {
 		this.unmanagedSolutionSet = unmanaged;
 	}
-	
+
 	/**
 	 * Gets whether the solution set is kept in managed memory (Flink's internal way of keeping object
 	 * in serialized form) or as a simple object map.
 	 * By default, the solution set runs in managed memory.
-	 * 
+	 *
 	 * @return True, if the solution set is in unmanaged memory, false otherwise.
 	 */
 	public boolean isSolutionSetUnmanagedMemory() {
@@ -136,8 +139,8 @@ public abstract class IterationConfiguration {
 	 * Registers a new aggregator. Aggregators registered here are available during the execution of the vertex updates
 	 * via {@link GatherFunction#getIterationAggregator(String)} and
 	 * {@link GatherFunction#getPreviousIterationAggregate(String)}.
-	 * 
-	 * @param name The name of the aggregator, used to retrieve it and its aggregates during execution. 
+	 *
+	 * @param name The name of the aggregator, used to retrieve it and its aggregates during execution.
 	 * @param aggregator The aggregator.
 	 */
 	public void registerAggregator(String name, Aggregator<?> aggregator) {

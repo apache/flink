@@ -18,26 +18,28 @@
 
 package org.apache.flink.graph.asm.degree.filter.undirected;
 
-import org.apache.flink.api.java.Utils;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.library.metric.ChecksumHashCode;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-public class MaximumDegreeTest
-extends AsmTestBase {
+/**
+ * Tests for {@link MaximumDegree}.
+ */
+public class MaximumDegreeTest extends AsmTestBase {
 
 	@Test
-	public void testWithSimpleGraph()
-			throws Exception {
+	public void testWithSimpleGraph() throws Exception {
 		Graph<IntValue, NullValue, NullValue> graph = undirectedSimpleGraph
-			.run(new MaximumDegree<IntValue, NullValue, NullValue>(3));
+			.run(new MaximumDegree<>(3));
 
 		String expectedVerticesResult =
 			"(0,(null))\n" +
@@ -60,11 +62,28 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
-		Utils.ChecksumHashCode checksum = undirectedRMatGraph
-			.run(new MaximumDegree<LongValue, NullValue, NullValue>(16))
-			.run(new ChecksumHashCode<LongValue, NullValue, NullValue>())
+	public void testWithEmptyGraphWithVertices() throws Exception {
+		Graph<LongValue, NullValue, NullValue> graph = emptyGraphWithVertices
+			.run(new MaximumDegree<>(1));
+
+		assertEquals(emptyGraphVertexCount, graph.getVertices().collect().size());
+		assertEquals(0, graph.getEdges().collect().size());
+	}
+
+	@Test
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		Graph<LongValue, NullValue, NullValue> graph = emptyGraphWithoutVertices
+			.run(new MaximumDegree<>(1));
+
+		assertEquals(0, graph.getVertices().collect().size());
+		assertEquals(0, graph.getEdges().collect().size());
+	}
+
+	@Test
+	public void testWithRMatGraph() throws Exception {
+		Checksum checksum = undirectedRMatGraph(10, 16)
+			.run(new MaximumDegree<>(16))
+			.run(new ChecksumHashCode<>())
 			.execute();
 
 		assertEquals(805, checksum.getCount());

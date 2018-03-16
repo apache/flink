@@ -18,48 +18,63 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
-import com.netflix.fenzo.ConstraintEvaluator;
-import com.netflix.fenzo.TaskAssignmentResult;
-import com.netflix.fenzo.TaskRequest;
-import com.netflix.fenzo.VMTaskFitnessCalculator;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.Utils;
 import org.apache.flink.mesos.scheduler.LaunchableTask;
 import org.apache.flink.mesos.util.MesosArtifactResolver;
-import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.mesos.util.MesosArtifactServer;
+import org.apache.flink.mesos.util.MesosConfiguration;
+import org.apache.flink.mesos.util.MesosResourceAllocation;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
-import org.apache.mesos.Protos;
+import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+
+import com.netflix.fenzo.ConstraintEvaluator;
+import com.netflix.fenzo.TaskRequest;
+import com.netflix.fenzo.VMTaskFitnessCalculator;
+import org.apache.mesos.Protos;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
 
+import scala.Option;
+
+import static org.apache.flink.mesos.Utils.rangeValues;
 import static org.apache.flink.mesos.Utils.variable;
-import static org.apache.flink.mesos.Utils.range;
-import static org.apache.flink.mesos.Utils.ranges;
-import static org.apache.flink.mesos.Utils.scalar;
 
 /**
  * Implements the launch of a Mesos worker.
  *
- * Translates the abstract {@link ContainerSpecification} into a concrete
- * Mesos-specific {@link org.apache.mesos.Protos.TaskInfo}.
+ * <p>Translates the abstract {@link ContainerSpecification} into a concrete
+ * Mesos-specific {@link Protos.TaskInfo}.
  */
 public class LaunchableMesosWorker implements LaunchableTask {
 
+	protected static final Logger LOG = LoggerFactory.getLogger(LaunchableMesosWorker.class);
 	/**
 	 * The set of configuration keys to be dynamically configured with a port allocated from Mesos.
 	 */
-	private static String[] TM_PORT_KEYS = {
+	private static final String[] TM_PORT_KEYS = {
 		"taskmanager.rpc.port",
-		"taskmanager.data.port" };
+		"taskmanager.data.port"};
 
 	private final MesosArtifactResolver resolver;
 	private final ContainerSpecification containerSpec;
 	private final MesosTaskManagerParameters params;
 	private final Protos.TaskID taskID;
 	private final Request taskRequest;
+	private final MesosConfiguration mesosConfiguration;
 
 	/**
 	 * Construct a launchable Mesos worker.
@@ -69,12 +84,17 @@ public class LaunchableMesosWorker implements LaunchableTask {
 	 * @param taskID the taskID for this worker.
 	 */
 	public LaunchableMesosWorker(
-		MesosArtifactResolver resolver, MesosTaskManagerParameters params,
-		ContainerSpecification containerSpec, Protos.TaskID taskID) {
-		this.resolver = resolver;
-		this.params = params;
-		this.containerSpec = containerSpec;
-		this.taskID = taskID;
+			MesosArtifactResolver resolver,
+			MesosTaskManagerParameters params,
+			ContainerSpecification containerSpec,
+			Protos.TaskID taskID,
+			MesosConfiguration mesosConfiguration) {
+		this.resolver = Preconditions.checkNotNull(resolver);
+		this.containerSpec = Preconditions.checkNotNull(containerSpec);
+		this.params = Preconditions.checkNotNull(params);
+		this.taskID = Preconditions.checkNotNull(taskID);
+		this.mesosConfiguration = Preconditions.checkNotNull(mesosConfiguration);
+
 		this.taskRequest = new Request();
 	}
 
@@ -105,6 +125,10 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			return params.cpus();
 		}
 
+		public double getGPUs() {
+			return params.gpus();
+		}
+
 		@Override
 		public double getMemory() {
 			return params.containeredParameters().taskManagerTotalMemoryMB();
@@ -126,13 +150,18 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		}
 
 		@Override
+		public Map<String, Double> getScalarRequests() {
+			return Collections.singletonMap("gpus", (double) params.gpus());
+		}
+
+		@Override
 		public Map<String, NamedResourceSetRequest> getCustomNamedResources() {
 			return Collections.emptyMap();
 		}
 
 		@Override
 		public List<? extends ConstraintEvaluator> getHardConstraints() {
-			return null;
+			return params.constraints();
 		}
 
 		@Override
@@ -154,19 +183,20 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		public String toString() {
 			return "Request{" +
 				"cpus=" + getCPUs() +
-				"memory=" + getMemory() +
-				'}';
+				", memory=" + getMemory() +
+				", gpus=" + getGPUs() +
+				"}";
 		}
 	}
 
 	/**
 	 * Construct the TaskInfo needed to launch the worker.
 	 * @param slaveId the assigned slave.
-	 * @param assignment the assignment details.
+	 * @param allocation the resource allocation (available resources).
 	 * @return a fully-baked TaskInfo.
 	 */
 	@Override
-	public Protos.TaskInfo launch(Protos.SlaveID slaveId, TaskAssignmentResult assignment) {
+	public Protos.TaskInfo launch(Protos.SlaveID slaveId, MesosResourceAllocation allocation) {
 
 		ContaineredTaskManagerParameters tmParams = params.containeredParameters();
 
@@ -179,27 +209,41 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		final Protos.TaskInfo.Builder taskInfo = Protos.TaskInfo.newBuilder()
 			.setSlaveId(slaveId)
 			.setTaskId(taskID)
-			.setName(taskID.getValue())
-			.addResources(scalar("cpus", assignment.getRequest().getCPUs()))
-			.addResources(scalar("mem", assignment.getRequest().getMemory()));
+			.setName(taskID.getValue());
+
+		// take needed resources from the overall allocation, under the assumption of adequate resources
+		Set<String> roles = mesosConfiguration.roles();
+		taskInfo.addAllResources(allocation.takeScalar("cpus", taskRequest.getCPUs(), roles));
+		taskInfo.addAllResources(allocation.takeScalar("gpus", taskRequest.getGPUs(), roles));
+		taskInfo.addAllResources(allocation.takeScalar("mem", taskRequest.getMemory(), roles));
 
 		final Protos.CommandInfo.Builder cmd = taskInfo.getCommandBuilder();
 		final Protos.Environment.Builder env = cmd.getEnvironmentBuilder();
 		final StringBuilder jvmArgs = new StringBuilder();
 
-		// use the assigned ports for the TM
-		if (assignment.getAssignedPorts().size() < TM_PORT_KEYS.length) {
-			throw new IllegalArgumentException("unsufficient # of ports assigned");
+		//configure task manager hostname property if hostname override property is supplied
+		Option<String> taskManagerHostnameOption = params.getTaskManagerHostname();
+
+		if (taskManagerHostnameOption.isDefined()) {
+			// replace the TASK_ID pattern by the actual task id value of the Mesos task
+			final String taskManagerHostname = MesosTaskManagerParameters.TASK_ID_PATTERN
+				.matcher(taskManagerHostnameOption.get())
+				.replaceAll(Matcher.quoteReplacement(taskID.getValue()));
+
+			dynamicProperties.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, taskManagerHostname);
 		}
-		for (int i = 0; i < TM_PORT_KEYS.length; i++) {
-			int port = assignment.getAssignedPorts().get(i);
-			String key = TM_PORT_KEYS[i];
-			taskInfo.addResources(ranges("ports", range(port, port)));
-			dynamicProperties.setInteger(key, port);
+
+		// take needed ports for the TM
+		List<Protos.Resource> portResources = allocation.takeRanges("ports", TM_PORT_KEYS.length, roles);
+		taskInfo.addAllResources(portResources);
+		Iterator<String> portsToAssign = Iterators.forArray(TM_PORT_KEYS);
+		rangeValues(portResources).forEach(port -> dynamicProperties.setLong(portsToAssign.next(), port));
+		if (portsToAssign.hasNext()) {
+			throw new IllegalArgumentException("insufficient # of ports assigned");
 		}
 
 		// ship additional files
-		for(ContainerSpecification.Artifact artifact : containerSpec.getArtifacts()) {
+		for (ContainerSpecification.Artifact artifact : containerSpec.getArtifacts()) {
 			cmd.addUris(Utils.uri(resolver, artifact));
 		}
 
@@ -217,7 +261,9 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		// finalize the memory parameters
 		jvmArgs.append(" -Xms").append(tmParams.taskManagerHeapSizeMB()).append("m");
 		jvmArgs.append(" -Xmx").append(tmParams.taskManagerHeapSizeMB()).append("m");
-		jvmArgs.append(" -XX:MaxDirectMemorySize=").append(tmParams.taskManagerDirectMemoryLimitMB()).append("m");
+		if (tmParams.taskManagerDirectMemoryLimitMB() >= 0) {
+			jvmArgs.append(" -XX:MaxDirectMemorySize=").append(tmParams.taskManagerDirectMemoryLimitMB()).append("m");
+		}
 
 		// pass dynamic system properties
 		jvmArgs.append(' ').append(
@@ -226,31 +272,44 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		// finalize JVM args
 		env.addVariables(variable(MesosConfigKeys.ENV_JVM_ARGS, jvmArgs.toString()));
 
+		// populate TASK_NAME and FRAMEWORK_NAME environment variables to the TM container
+		env.addVariables(variable(MesosConfigKeys.ENV_TASK_NAME, taskInfo.getTaskId().getValue()));
+		env.addVariables(variable(MesosConfigKeys.ENV_FRAMEWORK_NAME, mesosConfiguration.frameworkInfo().getName()));
+
 		// build the launch command w/ dynamic application properties
-		StringBuilder launchCommand = new StringBuilder("$FLINK_HOME/bin/mesos-taskmanager.sh ");
-		launchCommand.append(ContainerSpecification.formatSystemProperties(dynamicProperties));
+		StringBuilder launchCommand = new StringBuilder();
+		if (params.bootstrapCommand().isDefined()) {
+			launchCommand.append(params.bootstrapCommand().get()).append(" && ");
+		}
+		launchCommand
+			.append(params.command())
+			.append(" ")
+			.append(ContainerSpecification.formatSystemProperties(dynamicProperties));
 		cmd.setValue(launchCommand.toString());
 
 		// build the container info
-		Protos.ContainerInfo.Builder containerInfo = null;
-		switch(params.containerType()) {
+		Protos.ContainerInfo.Builder containerInfo = Protos.ContainerInfo.newBuilder();
+		// in event that no docker image or mesos image name is specified, we must still
+		// set type to MESOS
+		containerInfo.setType(Protos.ContainerInfo.Type.MESOS);
+		switch (params.containerType()) {
 			case MESOS:
-				if(params.containerImageName().isDefined()) {
-					containerInfo = Protos.ContainerInfo.newBuilder()
-						.setType(Protos.ContainerInfo.Type.MESOS)
+				if (params.containerImageName().isDefined()) {
+					containerInfo
 						.setMesos(Protos.ContainerInfo.MesosInfo.newBuilder()
-						.setImage(Protos.Image.newBuilder()
-							.setType(Protos.Image.Type.DOCKER)
-							.setDocker(Protos.Image.Docker.newBuilder()
-								.setName(params.containerImageName().get()))));
+							.setImage(Protos.Image.newBuilder()
+								.setType(Protos.Image.Type.DOCKER)
+								.setDocker(Protos.Image.Docker.newBuilder()
+									.setName(params.containerImageName().get()))));
 				}
 				break;
 
 			case DOCKER:
 				assert(params.containerImageName().isDefined());
-				containerInfo = Protos.ContainerInfo.newBuilder()
+				containerInfo
 					.setType(Protos.ContainerInfo.Type.DOCKER)
 					.setDocker(Protos.ContainerInfo.DockerInfo.newBuilder()
+						.addAllParameters(params.dockerParameters())
 						.setNetwork(Protos.ContainerInfo.DockerInfo.Network.HOST)
 						.setImage(params.containerImageName().get()));
 				break;
@@ -258,9 +317,10 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			default:
 				throw new IllegalStateException("unsupported container type");
 		}
-		if(containerInfo != null) {
-			taskInfo.setContainer(containerInfo);
-		}
+
+		// add any volumes to the containerInfo
+		containerInfo.addAllVolumes(params.containerVolumes());
+		taskInfo.setContainer(containerInfo);
 
 		return taskInfo.build();
 	}
@@ -271,5 +331,18 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			"taskID=" + taskID +
 			"taskRequest=" + taskRequest +
 			'}';
+	}
+
+	/**
+	 * Configures an artifact server to serve the artifacts associated with a container specification.
+	 * @param server the server to configure.
+	 * @param container the container with artifacts to serve.
+	 * @throws IOException if the artifacts cannot be accessed.
+	 */
+	static void configureArtifactServer(MesosArtifactServer server, ContainerSpecification container) throws IOException {
+		// serve the artifacts associated with the container environment
+		for (ContainerSpecification.Artifact artifact : container.getArtifacts()) {
+			server.addPath(artifact.source, artifact.dest);
+		}
 	}
 }

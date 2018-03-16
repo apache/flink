@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -28,9 +28,11 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGateListener;
+
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.Random;
 
 import static org.junit.Assert.fail;
@@ -43,26 +45,30 @@ import static org.junit.Assert.fail;
 public class BarrierBufferMassiveRandomTest {
 
 	private static final int PAGE_SIZE = 1024;
-	
+
 	@Test
 	public void testWithTwoChannelsAndRandomBarriers() {
 		IOManager ioMan = null;
+		NetworkBufferPool networkBufferPool1 = null;
+		NetworkBufferPool networkBufferPool2 = null;
 		try {
 			ioMan = new IOManagerAsync();
-			
-			BufferPool pool1 = new NetworkBufferPool(100, PAGE_SIZE, MemoryType.HEAP).createBufferPool(100, true);
-			BufferPool pool2 = new NetworkBufferPool(100, PAGE_SIZE, MemoryType.HEAP).createBufferPool(100, true);
+
+			networkBufferPool1 = new NetworkBufferPool(100, PAGE_SIZE);
+			networkBufferPool2 = new NetworkBufferPool(100, PAGE_SIZE);
+			BufferPool pool1 = networkBufferPool1.createBufferPool(100, 100);
+			BufferPool pool2 = networkBufferPool2.createBufferPool(100, 100);
 
 			RandomGeneratingInputGate myIG = new RandomGeneratingInputGate(
 					new BufferPool[] { pool1, pool2 },
 					new BarrierGenerator[] { new CountBarrier(100000), new RandomBarrier(100000) });
-	
-			BarrierBuffer barrierBuffer = new BarrierBuffer(myIG, ioMan);
-			
+
+			BarrierBuffer barrierBuffer = new BarrierBuffer(myIG, new BufferSpiller(ioMan, myIG.getPageSize()));
+
 			for (int i = 0; i < 2000000; i++) {
 				BufferOrEvent boe = barrierBuffer.getNextNonBlocked();
 				if (boe.isBuffer()) {
-					boe.getBuffer().recycle();
+					boe.getBuffer().recycleBuffer();
 				}
 			}
 		}
@@ -74,19 +80,27 @@ public class BarrierBufferMassiveRandomTest {
 			if (ioMan != null) {
 				ioMan.shutdown();
 			}
+			if (networkBufferPool1 != null) {
+				networkBufferPool1.destroyAllBufferPools();
+				networkBufferPool1.destroy();
+			}
+			if (networkBufferPool2 != null) {
+				networkBufferPool2.destroyAllBufferPools();
+				networkBufferPool2.destroy();
+			}
 		}
 	}
 
 	// ------------------------------------------------------------------------
 	//  Mocks and Generators
 	// ------------------------------------------------------------------------
-	
-	protected interface BarrierGenerator {
-		public boolean isNextBarrier();
+
+	private interface BarrierGenerator {
+		boolean isNextBarrier();
 	}
 
-	protected static class RandomBarrier implements BarrierGenerator {
-		
+	private static class RandomBarrier implements BarrierGenerator {
+
 		private static final Random rnd = new Random();
 
 		private final double threshold;
@@ -116,7 +130,7 @@ public class BarrierBufferMassiveRandomTest {
 		}
 	}
 
-	protected static class RandomGeneratingInputGate implements InputGate {
+	private static class RandomGeneratingInputGate implements InputGate {
 
 		private final int numChannels;
 		private final BufferPool[] bufferPools;
@@ -146,18 +160,27 @@ public class BarrierBufferMassiveRandomTest {
 		public void requestPartitions() {}
 
 		@Override
-		public BufferOrEvent getNextBufferOrEvent() throws IOException, InterruptedException {
+		public Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException {
 			currentChannel = (currentChannel + 1) % numChannels;
 
 			if (barrierGens[currentChannel].isNextBarrier()) {
-				return new BufferOrEvent(
-						new CheckpointBarrier(++currentBarriers[currentChannel], System.currentTimeMillis()),
-							currentChannel);
+				return Optional.of(
+					new BufferOrEvent(
+						new CheckpointBarrier(
+							++currentBarriers[currentChannel],
+							System.currentTimeMillis(),
+							CheckpointOptions.forCheckpointWithDefaultLocation()),
+						currentChannel));
 			} else {
 				Buffer buffer = bufferPools[currentChannel].requestBuffer();
 				buffer.getMemorySegment().putLong(0, c++);
-				return new BufferOrEvent(buffer, currentChannel);
+				return Optional.of(new BufferOrEvent(buffer, currentChannel));
 			}
+		}
+
+		@Override
+		public Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException {
+			return getNextBufferOrEvent();
 		}
 
 		@Override

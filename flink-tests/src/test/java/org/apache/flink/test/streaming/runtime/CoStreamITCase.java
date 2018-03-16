@@ -24,8 +24,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -36,8 +36,11 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Integration tests for co-streams.
+ */
 @SuppressWarnings("serial")
-public class CoStreamITCase extends StreamingMultipleProgramsTestBase {
+public class CoStreamITCase extends AbstractTestBase {
 
 	@Test
 	public void test() throws Exception {
@@ -56,7 +59,7 @@ public class CoStreamITCase extends StreamingMultipleProgramsTestBase {
 						return true;
 					}
 				})
-				
+
 				.keyBy(new KeySelector<Integer, Integer>() {
 					@Override
 					public Integer getKey(Integer value) throws Exception {
@@ -96,7 +99,7 @@ public class CoStreamITCase extends StreamingMultipleProgramsTestBase {
 					public void flatMap1(Integer value, Collector<String> out) throws Exception {
 						out.collect(value.toString());
 					}
-		
+
 					@Override
 					public void flatMap2(Tuple2<Integer, Integer> value, Collector<String> out) throws Exception {
 						out.collect(value.toString());
@@ -105,7 +108,6 @@ public class CoStreamITCase extends StreamingMultipleProgramsTestBase {
 
 		connected.addSink(resultSink);
 
-		
 		env.execute();
 
 		List<String> expected = Arrays.asList("(1,2)", "(3,4)", "(5,6)", "1", "3", "5");

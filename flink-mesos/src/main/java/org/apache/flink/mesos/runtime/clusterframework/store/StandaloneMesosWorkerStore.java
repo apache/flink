@@ -19,12 +19,13 @@
 package org.apache.flink.mesos.runtime.clusterframework.store;
 
 import org.apache.mesos.Protos;
-import scala.Option;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import scala.Option;
 
 /**
  * A standalone Mesos worker store.

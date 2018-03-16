@@ -18,12 +18,16 @@
 
 package org.apache.flink.table.codegen.calls
 
+import org.apache.commons.lang3.ClassUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.NEVER_NULL
 import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.typeutils.TypeCheckUtils
+
+import scala.collection.mutable
 
 /**
   * Generates a call to user-defined [[TableFunction]].
@@ -42,16 +46,38 @@ class TableFunctionCallGen(
       codeGenerator: CodeGenerator,
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
-    // determine function signature
-    val matchingSignature = getSignature(tableFunction, signature)
+    // determine function method
+    val matchingSignature = getEvalMethodSignature(tableFunction, signature)
       .getOrElse(throw new CodeGenException("No matching signature found."))
 
+    // get the expanded parameter types
+    var paramClasses = new mutable.ArrayBuffer[Class[_]]
+    for (i <- operands.indices) {
+      if (i < matchingSignature.length - 1) {
+        paramClasses += matchingSignature(i)
+      } else if (matchingSignature.last.isArray) {
+        // last argument is an array type
+        paramClasses += matchingSignature.last.getComponentType
+      } else {
+        // last argument is not an array type
+        paramClasses += matchingSignature.last
+      }
+    }
+
     // convert parameters for function (output boxing)
-    val parameters = matchingSignature
-        .zip(operands)
-        .map { case (paramClass, operandExpr) =>
+    val parameters = paramClasses.zip(operands).map { case (paramClass, operandExpr) =>
           if (paramClass.isPrimitive) {
             operandExpr
+          } else if (ClassUtils.isPrimitiveWrapper(paramClass)
+              && TypeCheckUtils.isTemporal(operandExpr.resultType)) {
+            // we use primitives to represent temporal types internally, so no casting needed here
+            val exprOrNull: String = if (codeGenerator.nullCheck) {
+              s"${operandExpr.nullTerm} ? null : " +
+                s"(${paramClass.getCanonicalName}) ${operandExpr.resultTerm}"
+            } else {
+              operandExpr.resultTerm
+            }
+            operandExpr.copy(resultTerm = exprOrNull)
           } else {
             val boxedTypeTerm = boxedTypeTermForTypeInfo(operandExpr.resultType)
             val boxedExpr = codeGenerator.generateOutputFieldBoxing(operandExpr)
@@ -69,7 +95,6 @@ class TableFunctionCallGen(
     val functionCallCode =
       s"""
         |${parameters.map(_.code).mkString("\n")}
-        |$functionReference.clear();
         |$functionReference.eval(${parameters.map(_.resultTerm).mkString(", ")});
         |""".stripMargin
 

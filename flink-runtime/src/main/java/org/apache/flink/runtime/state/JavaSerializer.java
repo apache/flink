@@ -19,19 +19,19 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.io.Serializable;
 
-@SuppressWarnings("serial")
 @Internal
-final class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
+final class JavaSerializer<T extends Serializable> extends TypeSerializerSingleton<T> {
 
 	private static final long serialVersionUID = 5067491650263321234L;
 
@@ -41,22 +41,16 @@ final class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public TypeSerializer<T> duplicate() {
-		return this;
-	}
-
-	@Override
 	public T createInstance() {
 		return null;
 	}
 
 	@Override
 	public T copy(T from) {
-
 		try {
-			return InstantiationUtil.clone(from);
+			return InstantiationUtil.clone(from, Thread.currentThread().getContextClassLoader());
 		} catch (IOException | ClassNotFoundException e) {
-			throw new RuntimeException("Could not copy instance of " + from + '.', e);
+			throw new FlinkRuntimeException("Could not copy element via serialization: " + from, e);
 		}
 	}
 
@@ -67,19 +61,22 @@ final class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
 
 	@Override
 	public int getLength() {
-		return 0;
+		return -1;
 	}
 
 	@Override
 	public void serialize(T record, DataOutputView target) throws IOException {
-		InstantiationUtil.serializeObject(new DataOutputViewStream(target), record);
+		try (final DataOutputViewStream outViewWrapper = new DataOutputViewStream(target)) {
+			InstantiationUtil.serializeObject(outViewWrapper, record);
+		}
 	}
 
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
-		try {
+		try (final DataInputViewStream inViewWrapper = new DataInputViewStream(source)) {
 			return InstantiationUtil.deserializeObject(
-					new DataInputViewStream(source), Thread.currentThread().getContextClassLoader());
+					inViewWrapper,
+					Thread.currentThread().getContextClassLoader());
 		} catch (ClassNotFoundException e) {
 			throw new IOException("Could not deserialize object.", e);
 		}
@@ -92,23 +89,12 @@ final class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		int size = source.readInt();
-		target.writeInt(size);
-		target.write(source, size);
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		return obj instanceof JavaSerializer;
+		T tmp = deserialize(source);
+		serialize(tmp, target);
 	}
 
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof JavaSerializer;
-	}
-
-	@Override
-	public int hashCode() {
-		return getClass().hashCode();
 	}
 }

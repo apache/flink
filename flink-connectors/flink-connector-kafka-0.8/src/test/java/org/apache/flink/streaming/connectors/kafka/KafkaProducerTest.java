@@ -18,11 +18,12 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.testutils.FakeStandardProducerConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.streaming.connectors.kafka.testutils.FakeStandardProducerConfig;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.kafka.clients.producer.Callback;
@@ -32,7 +33,6 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.PartitionInfo;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -41,23 +41,29 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.util.Collections;
 import java.util.concurrent.Future;
 
-
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
-import static org.junit.Assert.*;
-
+/**
+ * Tests for the {@link KafkaProducer}.
+ */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(FlinkKafkaProducerBase.class)
 public class KafkaProducerTest extends TestLogger {
-	
+
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testPropagateExceptions() {
 		try {
 			// mock kafka producer
 			KafkaProducer<?, ?> kafkaProducerMock = mock(KafkaProducer.class);
-			
+
 			// partition setup
 			when(kafkaProducerMock.partitionsFor(anyString())).thenReturn(
 				// returning a unmodifiable list to mimic KafkaProducer#partitionsFor() behaviour
@@ -73,14 +79,14 @@ public class KafkaProducerTest extends TestLogger {
 						return null;
 					}
 				});
-			
+
 			// make sure the FlinkKafkaProducer instantiates our mock producer
 			whenNew(KafkaProducer.class).withAnyArguments().thenReturn(kafkaProducerMock);
-			
+
 			// (1) producer that propagates errors
 
 			FlinkKafkaProducer08<String> producerPropagating = new FlinkKafkaProducer08<>(
-					"mock_topic", new SimpleStringSchema(), FakeStandardProducerConfig.get(), null);
+					"mock_topic", new SimpleStringSchema(), FakeStandardProducerConfig.get(), (FlinkKafkaPartitioner) null);
 
 			OneInputStreamOperatorTestHarness<String, Object> testHarness =
 					new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producerPropagating));
@@ -103,7 +109,7 @@ public class KafkaProducerTest extends TestLogger {
 			// (2) producer that only logs errors
 
 			FlinkKafkaProducer08<String> producerLogging = new FlinkKafkaProducer08<>(
-					"mock_topic", new SimpleStringSchema(), FakeStandardProducerConfig.get(), null);
+					"mock_topic", new SimpleStringSchema(), FakeStandardProducerConfig.get(), (FlinkKafkaPartitioner) null);
 			producerLogging.setLogFailuresOnly(true);
 
 			testHarness = new OneInputStreamOperatorTestHarness<>(new StreamSink(producerLogging));

@@ -31,23 +31,23 @@ import java.util.List;
  * degree of parallelism, to register aggregators and use broadcast sets in
  * the {@link GatherFunction} and {@link ScatterFunction}
  *
- * The VertexCentricConfiguration object is passed as an argument to
+ * <p>The VertexCentricConfiguration object is passed as an argument to
  * {@link org.apache.flink.graph.Graph#runScatterGatherIteration (
  * org.apache.flink.graph.spargel.GatherFunction, org.apache.flink.graph.spargel.ScatterFunction, int,
  * ScatterGatherConfiguration)}.
  */
 public class ScatterGatherConfiguration extends IterationConfiguration {
 
-	/** the broadcast variables for the scatter function **/
+	// the broadcast variables for the scatter function
 	private List<Tuple2<String, DataSet<?>>> bcVarsScatter = new ArrayList<>();
 
-	/** the broadcast variables for the gather function **/
+	// the broadcast variables for the gather function
 	private List<Tuple2<String, DataSet<?>>> bcVarsGather = new ArrayList<>();
 
-	/** flag that defines whether the degrees option is set **/
+	// flag that defines whether the degrees option is set
 	private boolean optDegrees = false;
 
-	/** the direction in which the messages should be sent **/
+	// the direction in which the messages should be sent
 	private EdgeDirection direction = EdgeDirection.OUT;
 
 	public ScatterGatherConfiguration() {}
@@ -56,20 +56,20 @@ public class ScatterGatherConfiguration extends IterationConfiguration {
 	 * Adds a data set as a broadcast set to the scatter function.
 	 *
 	 * @param name The name under which the broadcast data is available in the scatter function.
-	 * @param data The data set to be broadcasted.
+	 * @param data The data set to be broadcast.
 	 */
 	public void addBroadcastSetForScatterFunction(String name, DataSet<?> data) {
-		this.bcVarsScatter.add(new Tuple2<String, DataSet<?>>(name, data));
+		this.bcVarsScatter.add(new Tuple2<>(name, data));
 	}
 
 	/**
 	 * Adds a data set as a broadcast set to the gather function.
 	 *
 	 * @param name The name under which the broadcast data is available in the gather function.
-	 * @param data The data set to be broadcasted.
+	 * @param data The data set to be broadcast.
 	 */
 	public void addBroadcastSetForGatherFunction(String name, DataSet<?> data) {
-		this.bcVarsGather.add(new Tuple2<String, DataSet<?>>(name, data));
+		this.bcVarsGather.add(new Tuple2<>(name, data));
 	}
 
 	/**

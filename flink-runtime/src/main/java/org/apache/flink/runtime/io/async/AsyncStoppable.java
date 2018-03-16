@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.io.async;
 
-import java.io.IOException;
-
 /**
  * An asynchronous operation that can be stopped.
  */
@@ -42,6 +40,6 @@ public interface AsyncStoppable {
 	 *
 	 * @return Exception that can happen during stop
 	 */
-	IOException getStopException();
+	Exception getStopException();
 
 }

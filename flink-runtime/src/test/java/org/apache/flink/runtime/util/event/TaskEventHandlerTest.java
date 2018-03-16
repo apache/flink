@@ -19,14 +19,15 @@
 
 package org.apache.flink.runtime.util.event;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.event.task.IntegerTaskEvent;
 import org.apache.flink.runtime.event.task.StringTaskEvent;
 import org.apache.flink.runtime.io.network.api.TaskEventHandler;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /**
  * This class contains unit tests for the {@link TaskEventHandler}.
@@ -78,21 +79,12 @@ public class TaskEventHandlerTest {
 		evm.subscribe(listener, StringTaskEvent.class);
 
 		final StringTaskEvent stringTaskEvent1 = new StringTaskEvent("Test 1");
-		final StringTaskEvent stringTaskEvent2 = new StringTaskEvent("Test 2");
 
 		evm.publish(stringTaskEvent1);
 		evm.publish(new IntegerTaskEvent(5));
 
 		assertNotNull(listener.getLastReceivedEvent());
 		StringTaskEvent receivedStringEvent = (StringTaskEvent) listener.getLastReceivedEvent();
-		assertEquals(stringTaskEvent1, receivedStringEvent);
-
-		evm.unsubscribe(listener, StringTaskEvent.class);
-
-		evm.publish(stringTaskEvent2);
-
-		assertNotNull(listener.getLastReceivedEvent());
-		receivedStringEvent = (StringTaskEvent) listener.getLastReceivedEvent();
 		assertEquals(stringTaskEvent1, receivedStringEvent);
 	}
 }

@@ -29,6 +29,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link HybridMemorySegment} in on-heap mode.
+ */
 @RunWith(Parameterized.class)
 public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
 
@@ -45,38 +48,33 @@ public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
 	MemorySegment createSegment(int size, Object owner) {
 		return new HybridMemorySegment(new byte[size], owner);
 	}
-	
+
 	@Test
 	public void testHybridHeapSegmentSpecifics() {
-		try {
-			final byte[] buffer = new byte[411];
-			HybridMemorySegment seg = new HybridMemorySegment(buffer);
+		final byte[] buffer = new byte[411];
+		HybridMemorySegment seg = new HybridMemorySegment(buffer);
 
-			assertFalse(seg.isFreed());
-			assertFalse(seg.isOffHeap());
-			assertEquals(buffer.length, seg.size());
-			assertTrue(buffer == seg.getArray());
-			
-			try {
-				seg.getOffHeapBuffer();
-				fail("should throw an exception");
-			}
-			catch (IllegalStateException e) {
-				// expected
-			}
-			
-			ByteBuffer buf1 = seg.wrap(1, 2);
-			ByteBuffer buf2 = seg.wrap(3, 4);
-			
-			assertTrue(buf1 != buf2);
-			assertEquals(1, buf1.position());
-			assertEquals(3, buf1.limit());
-			assertEquals(3, buf2.position());
-			assertEquals(7, buf2.limit());
+		assertFalse(seg.isFreed());
+		assertFalse(seg.isOffHeap());
+		assertEquals(buffer.length, seg.size());
+		assertTrue(buffer == seg.getArray());
+
+		try {
+			//noinspection ResultOfMethodCallIgnored
+			seg.getOffHeapBuffer();
+			fail("should throw an exception");
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+		catch (IllegalStateException e) {
+			// expected
 		}
+
+		ByteBuffer buf1 = seg.wrap(1, 2);
+		ByteBuffer buf2 = seg.wrap(3, 4);
+
+		assertTrue(buf1 != buf2);
+		assertEquals(1, buf1.position());
+		assertEquals(3, buf1.limit());
+		assertEquals(3, buf2.position());
+		assertEquals(7, buf2.limit());
 	}
 }

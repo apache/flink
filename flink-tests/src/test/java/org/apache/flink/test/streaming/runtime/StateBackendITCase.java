@@ -29,23 +29,30 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.util.ExceptionUtils;
+
 import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
+/**
+ * Integration tests for {@link OperatorStateBackend}.
+ */
+public class StateBackendITCase extends AbstractTestBase {
 
 	/**
 	 * Verify that the user-specified state backend is used even if checkpointing is disabled.
-	 *
-	 * @throws Exception
 	 */
 	@Test
 	public void testStateBackendWithoutCheckpointing() throws Exception {
@@ -56,16 +63,15 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		see.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		see.setStateBackend(new FailingStateBackend());
 
-
 		see.fromElements(new Tuple2<>("Hello", 1))
 			.keyBy(0)
-			.map(new RichMapFunction<Tuple2<String,Integer>, String>() {
+			.map(new RichMapFunction<Tuple2<String, Integer>, String>() {
 				private static final long serialVersionUID = 1L;
 
 				@Override
 				public void open(Configuration parameters) throws Exception {
 					super.open(parameters);
-					getRuntimeContext().getState(new ValueStateDescriptor<Integer>("Test", Integer.class, 0));
+					getRuntimeContext().getState(new ValueStateDescriptor<>("Test", Integer.class));
 				}
 
 				@Override
@@ -80,21 +86,21 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 			fail();
 		}
 		catch (JobExecutionException e) {
-			Throwable t = e.getCause();
-			if (!(t != null && t.getCause() instanceof SuccessException)) {
-				throw e;
-			}
+			assertTrue(ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
 		}
 	}
 
-
-	public static class FailingStateBackend extends AbstractStateBackend {
+	private static class FailingStateBackend implements StateBackend {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public CheckpointStreamFactory createStreamFactory(JobID jobId,
-				String operatorIdentifier) throws IOException {
-			throw new SuccessException();
+		public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
+			return new MemoryBackendCheckpointStorage(jobId, null, null, 1_000_000);
 		}
 
 		@Override
@@ -105,7 +111,15 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 				TypeSerializer<K> keySerializer,
 				int numberOfKeyGroups,
 				KeyGroupRange keyGroupRange,
-				TaskKvStateRegistry kvStateRegistry) throws Exception {
+				TaskKvStateRegistry kvStateRegistry) throws IOException {
+			throw new SuccessException();
+		}
+
+		@Override
+		public OperatorStateBackend createOperatorStateBackend(
+			Environment env,
+			String operatorIdentifier) throws Exception {
+
 			throw new SuccessException();
 		}
 	}

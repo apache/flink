@@ -18,7 +18,12 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
+
+import kafka.common.TopicAndPartition;
+
 import java.util.HashMap;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -26,32 +31,32 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A thread that periodically writes the current Kafka partition offsets to Zookeeper.
  */
+@Internal
 public class PeriodicOffsetCommitter extends Thread {
 
-	/** The ZooKeeper handler */
+	/** The ZooKeeper handler. */
 	private final ZookeeperOffsetHandler offsetHandler;
-	
-	private final KafkaTopicPartitionState<?>[] partitionStates;
-	
-	/** The proxy to forward exceptions to the main thread */
+
+	private final List<KafkaTopicPartitionState<TopicAndPartition>> partitionStates;
+
+	/** The proxy to forward exceptions to the main thread. */
 	private final ExceptionProxy errorHandler;
-	
-	/** Interval in which to commit, in milliseconds */
+
+	/** Interval in which to commit, in milliseconds. */
 	private final long commitInterval;
-	
-	/** Flag to mark the periodic committer as running */
+
+	/** Flag to mark the periodic committer as running. */
 	private volatile boolean running = true;
 
 	PeriodicOffsetCommitter(ZookeeperOffsetHandler offsetHandler,
-			KafkaTopicPartitionState<?>[] partitionStates,
+			List<KafkaTopicPartitionState<TopicAndPartition>> partitionStates,
 			ExceptionProxy errorHandler,
-			long commitInterval)
-	{
+			long commitInterval) {
 		this.offsetHandler = checkNotNull(offsetHandler);
 		this.partitionStates = checkNotNull(partitionStates);
 		this.errorHandler = checkNotNull(errorHandler);
 		this.commitInterval = commitInterval;
-		
+
 		checkArgument(commitInterval > 0);
 	}
 
@@ -62,11 +67,11 @@ public class PeriodicOffsetCommitter extends Thread {
 				Thread.sleep(commitInterval);
 
 				// create copy a deep copy of the current offsets
-				HashMap<KafkaTopicPartition, Long> offsetsToCommit = new HashMap<>(partitionStates.length);
+				HashMap<KafkaTopicPartition, Long> offsetsToCommit = new HashMap<>(partitionStates.size());
 				for (KafkaTopicPartitionState<?> partitionState : partitionStates) {
 					offsetsToCommit.put(partitionState.getKafkaTopicPartition(), partitionState.getOffset());
 				}
-				
+
 				offsetHandler.prepareAndCommitOffsets(offsetsToCommit);
 			}
 		}

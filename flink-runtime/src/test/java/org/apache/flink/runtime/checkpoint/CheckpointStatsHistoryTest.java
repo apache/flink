@@ -175,22 +175,25 @@ public class CheckpointStatsHistoryTest {
 		PendingCheckpointStats pending = mock(PendingCheckpointStats.class);
 		when(pending.getStatus()).thenReturn(CheckpointStatsStatus.IN_PROGRESS);
 		when(pending.getCheckpointId()).thenReturn(checkpointId);
+		when(pending.getProperties()).thenReturn(CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 		return pending;
 	}
 
 	private CompletedCheckpointStats createCompletedCheckpointStats(long checkpointId) {
 		CompletedCheckpointStats completed = mock(CompletedCheckpointStats.class);
 		when(completed.getStatus()).thenReturn(CheckpointStatsStatus.COMPLETED);
+		when(completed.getProperties()).thenReturn(CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 		when(completed.getCheckpointId()).thenReturn(checkpointId);
+		when(completed.getProperties()).thenReturn(CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 		return completed;
 	}
 
 	private FailedCheckpointStats createFailedCheckpointStats(long checkpointId) {
 		FailedCheckpointStats failed = mock(FailedCheckpointStats.class);
 		when(failed.getStatus()).thenReturn(CheckpointStatsStatus.FAILED);
+		when(failed.getProperties()).thenReturn(CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 		when(failed.getCheckpointId()).thenReturn(checkpointId);
 		return failed;
 	}
-
 
 }

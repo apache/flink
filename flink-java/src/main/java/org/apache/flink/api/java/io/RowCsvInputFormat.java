@@ -29,6 +29,9 @@ import org.apache.flink.types.parser.FieldParser;
 
 import java.util.Arrays;
 
+/**
+ * Input format that reads csv into {@link Row}.
+ */
 @PublicEvolving
 public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultTypeQueryable<Row> {
 
@@ -151,11 +154,11 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultType
 		while (field < fieldIncluded.length) {
 
 			// check valid start position
-			if (startPos >= limit) {
+			if (startPos > limit || (startPos == limit && field != fieldIncluded.length - 1)) {
 				if (isLenient()) {
 					return false;
 				} else {
-					throw new ParseException("Row too short: " + new String(bytes, offset, numBytes));
+					throw new ParseException("Row too short: " + new String(bytes, offset, numBytes, getCharset()));
 				}
 			}
 
@@ -197,6 +200,17 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultType
 			if (startPos < 0) {
 				throw new ParseException(String.format("Unexpected parser position for column %1$s of row '%2$s'",
 					field, new String(bytes, offset, numBytes)));
+			}
+			else if (startPos == limit
+					&& field != fieldIncluded.length - 1
+					&& !FieldParser.endsWithDelimiter(bytes, startPos - 1, fieldDelimiter)) {
+				// We are at the end of the record, but not all fields have been read
+				// and the end is not a field delimiter indicating an empty last field.
+				if (isLenient()) {
+					return false;
+				} else {
+					throw new ParseException("Row too short: " + new String(bytes, offset, numBytes));
+				}
 			}
 
 			field++;

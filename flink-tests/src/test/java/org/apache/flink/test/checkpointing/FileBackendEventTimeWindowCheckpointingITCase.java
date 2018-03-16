@@ -18,9 +18,12 @@
 
 package org.apache.flink.test.checkpointing;
 
+/**
+ * Integration tests for file backend.
+ */
 public class FileBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
-
-	public FileBackendEventTimeWindowCheckpointingITCase() {
-		super(StateBackendEnum.FILE);
+	@Override
+	protected StateBackendEnum getStateBackend() {
+		return StateBackendEnum.FILE;
 	}
 }

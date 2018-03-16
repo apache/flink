@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.3-SNAPSHOT</version>
+		<version>1.6-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -39,7 +39,10 @@ under the License.
 		<module>flink-metrics-ganglia</module>
 		<module>flink-metrics-graphite</module>
 		<module>flink-metrics-jmx</module>
+		<module>flink-metrics-prometheus</module>
 		<module>flink-metrics-statsd</module>
+		<module>flink-metrics-datadog</module>
+		<module>flink-metrics-slf4j</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
@@ -56,6 +59,10 @@ under the License.
 			<groupId>com.google.code.findbugs</groupId>
 			<artifactId>jsr305</artifactId>
 			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 	</dependencies>
 

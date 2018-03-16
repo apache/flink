@@ -18,9 +18,13 @@
 
 package org.apache.flink.runtime.util.jartestprogram;
 
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
+/**
+ * Similar to {@link FilterLambda1}, but the filter lambda is directly passed to {@link DataSet#filter(FilterFunction)}.
+ */
 public class FilterLambda2 {
 
 	public static void main(String[] args) throws Exception {

@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
@@ -33,24 +34,26 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
-import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
+
 import org.junit.Test;
 
 import javax.annotation.Nullable;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
-
+/**
+ * IT cases for Kafka 0.10 .
+ */
 public class Kafka010ITCase extends KafkaConsumerTestBase {
 
 	// ------------------------------------------------------------------------
 	//  Suite of Tests
 	// ------------------------------------------------------------------------
-
 
 	@Test(timeout = 60000)
 	public void testFailOnNoBroker() throws Exception {
@@ -83,7 +86,6 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 	public void testFailOnDeploy() throws Exception {
 		runFailOnDeployTest();
 	}
-
 
 	// --- source to partition mappings and exactly once ---
 
@@ -131,6 +133,33 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		runEndOfStreamTest();
 	}
 
+	// --- startup mode ---
+
+	@Test(timeout = 60000)
+	public void testStartFromEarliestOffsets() throws Exception {
+		runStartFromEarliestOffsets();
+	}
+
+	@Test(timeout = 60000)
+	public void testStartFromLatestOffsets() throws Exception {
+		runStartFromLatestOffsets();
+	}
+
+	@Test(timeout = 60000)
+	public void testStartFromGroupOffsets() throws Exception {
+		runStartFromGroupOffsets();
+	}
+
+	@Test(timeout = 60000)
+	public void testStartFromSpecificOffsets() throws Exception {
+		runStartFromSpecificOffsets();
+	}
+
+	@Test(timeout = 60000)
+	public void testStartFromTimestamp() throws Exception {
+		runStartFromTimestamp();
+	}
+
 	// --- offset committing ---
 
 	@Test(timeout = 60000)
@@ -139,17 +168,12 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 	}
 
 	@Test(timeout = 60000)
-	public void testStartFromKafkaCommitOffsets() throws Exception {
-		runStartFromKafkaCommitOffsets();
-	}
-
-	@Test(timeout = 60000)
 	public void testAutoOffsetRetrievalAndCommitToKafka() throws Exception {
 		runAutoOffsetRetrievalAndCommitToKafka();
 	}
 
 	/**
-	 * Kafka 0.10 specific test, ensuring Timestamps are properly written to and read from Kafka
+	 * Kafka 0.10 specific test, ensuring Timestamps are properly written to and read from Kafka.
 	 */
 	@Test(timeout = 60000)
 	public void testTimestamps() throws Exception {
@@ -159,21 +183,22 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 
 		// ---------- Produce an event time stream into Kafka -------------------
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Long> streamWithTimestamps = env.addSource(new SourceFunction<Long>() {
+			private static final long serialVersionUID = -2255105836471289626L;
 			boolean running = true;
 
 			@Override
 			public void run(SourceContext<Long> ctx) throws Exception {
 				long i = 0;
-				while(running) {
-					ctx.collectWithTimestamp(i, i*2);
-					if(i++ == 1000L) {
+				while (running) {
+					ctx.collectWithTimestamp(i, i * 2);
+					if (i++ == 1000L) {
 						running = false;
 					}
 				}
@@ -186,10 +211,12 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		});
 
 		final TypeInformationSerializationSchema<Long> longSer = new TypeInformationSerializationSchema<>(TypeInfoParser.<Long>parse("Long"), env.getConfig());
-		FlinkKafkaProducer010.FlinkKafkaProducer010Configuration prod = FlinkKafkaProducer010.writeToKafkaWithTimestamps(streamWithTimestamps, topic, new KeyedSerializationSchemaWrapper<>(longSer), standardProps, new KafkaPartitioner<Long>() {
+		FlinkKafkaProducer010.FlinkKafkaProducer010Configuration prod = FlinkKafkaProducer010.writeToKafkaWithTimestamps(streamWithTimestamps, topic, new KeyedSerializationSchemaWrapper<>(longSer), standardProps, new FlinkKafkaPartitioner<Long>() {
+			private static final long serialVersionUID = -6730989584364230617L;
+
 			@Override
-			public int partition(Long next, byte[] serializedKey, byte[] serializedValue, int numPartitions) {
-				return (int)(next % 3);
+			public int partition(Long next, byte[] key, byte[] value, String targetTopic, int[] partitions) {
+				return (int) (next % 3);
 			}
 		});
 		prod.setParallelism(3);
@@ -198,7 +225,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 
 		// ---------- Consume stream from Kafka -------------------
 
-		env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
@@ -206,10 +233,12 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 
 		FlinkKafkaConsumer010<Long> kafkaSource = new FlinkKafkaConsumer010<>(topic, new LimitedLongDeserializer(), standardProps);
 		kafkaSource.assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Long>() {
+			private static final long serialVersionUID = -4834111073247835189L;
+
 			@Nullable
 			@Override
 			public Watermark checkAndGetNextWatermark(Long lastElement, long extractedTimestamp) {
-				if(lastElement % 10 == 0) {
+				if (lastElement % 10 == 0) {
 					return new Watermark(lastElement);
 				}
 				return null;
@@ -232,8 +261,12 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 
 	private static class TimestampValidatingOperator extends StreamSink<Long> {
 
+		private static final long serialVersionUID = 1353168781235526806L;
+
 		public TimestampValidatingOperator() {
 			super(new SinkFunction<Long>() {
+				private static final long serialVersionUID = -6676565693361786524L;
+
 				@Override
 				public void invoke(Long value) throws Exception {
 					throw new RuntimeException("Unexpected");
@@ -248,7 +281,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		@Override
 		public void processElement(StreamRecord<Long> element) throws Exception {
 			elCount++;
-			if(element.getValue() * 2 != element.getTimestamp()) {
+			if (element.getValue() * 2 != element.getTimestamp()) {
 				throw new RuntimeException("Invalid timestamp: " + element);
 			}
 		}
@@ -257,13 +290,13 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		public void processWatermark(Watermark mark) throws Exception {
 			wmCount++;
 
-			if(lastWM <= mark.getTimestamp()) {
+			if (lastWM <= mark.getTimestamp()) {
 				lastWM = mark.getTimestamp();
 			} else {
 				throw new RuntimeException("Received watermark higher than the last one");
 			}
 
-			if( mark.getTimestamp() % 10 != 0 && mark.getTimestamp() != Long.MAX_VALUE ) {
+			if (mark.getTimestamp() % 10 != 0 && mark.getTimestamp() != Long.MAX_VALUE) {
 				throw new RuntimeException("Invalid watermark: " + mark.getTimestamp());
 			}
 		}
@@ -271,11 +304,11 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		@Override
 		public void close() throws Exception {
 			super.close();
-			if(elCount != 1000L) {
+			if (elCount != 1000L) {
 				throw new RuntimeException("Wrong final element count " + elCount);
 			}
 
-			if(wmCount <= 2) {
+			if (wmCount <= 2) {
 				throw new RuntimeException("Almost no watermarks have been sent " + wmCount);
 			}
 		}
@@ -283,6 +316,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 
 	private static class LimitedLongDeserializer implements KeyedDeserializationSchema<Long> {
 
+		private static final long serialVersionUID = 6966177118923713521L;
 		private final TypeInformation<Long> ti;
 		private final TypeSerializer<Long> ser;
 		long cnt = 0;
@@ -291,6 +325,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 			this.ti = TypeInfoParser.parse("Long");
 			this.ser = ti.createSerializer(new ExecutionConfig());
 		}
+
 		@Override
 		public TypeInformation<Long> getProducedType() {
 			return ti;
@@ -309,5 +344,4 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 			return cnt > 1000L;
 		}
 	}
-
 }

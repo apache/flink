@@ -17,43 +17,63 @@
 
 package org.apache.flink.streaming.util;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
-import static org.mockito.Mockito.*;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+/**
+ * Utilities for {@link SourceFunction}.
+ */
 public class SourceFunctionUtil {
 
 	public static <T extends Serializable> List<T> runSourceFunction(SourceFunction<T> sourceFunction) throws Exception {
-		final List<T> outputs = new ArrayList<T>();
-		
 		if (sourceFunction instanceof RichFunction) {
+			return runRichSourceFunction(sourceFunction);
+		}
+		else {
+			return runNonRichSourceFunction(sourceFunction);
+		}
+	}
+
+	private static <T extends Serializable> List<T> runRichSourceFunction(SourceFunction<T> sourceFunction) throws Exception {
+		try (MockEnvironment environment = new MockEnvironment(
+			"MockTask",
+			3 * 1024 * 1024,
+			new MockInputSplitProvider(),
+			1024,
+			new TestTaskStateManager())) {
 
 			AbstractStreamOperator<?> operator = mock(AbstractStreamOperator.class);
 			when(operator.getExecutionConfig()).thenReturn(new ExecutionConfig());
-			
-			RuntimeContext runtimeContext =  new StreamingRuntimeContext(
-					operator,
-					new MockEnvironment("MockTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024),
-					new HashMap<String, Accumulator<?, ?>>());
-			
-			((RichFunction) sourceFunction).setRuntimeContext(runtimeContext);
 
+			RuntimeContext runtimeContext = new StreamingRuntimeContext(
+				operator,
+				environment,
+				new HashMap<>());
+			((RichFunction) sourceFunction).setRuntimeContext(runtimeContext);
 			((RichFunction) sourceFunction).open(new Configuration());
+
+			return runNonRichSourceFunction(sourceFunction);
 		}
+	}
+
+	private static <T extends Serializable> List<T> runNonRichSourceFunction(SourceFunction<T> sourceFunction) {
+		final List<T> outputs = new ArrayList<>();
 		try {
 			SourceFunction.SourceContext<T> ctx = new CollectingSourceContext<T>(new Object(), outputs);
 			sourceFunction.run(ctx);

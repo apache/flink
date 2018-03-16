@@ -18,27 +18,30 @@
 
 package org.apache.flink.client.program;
 
-import java.io.File;
-import java.io.PrintStream;
+import org.apache.flink.client.cli.CliFrontendTestUtils;
 
-import org.apache.flink.client.CliFrontendTestUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.File;
+import java.io.PrintStream;
 
+/**
+ * Tests for the {@link PackagedProgramTest}.
+ */
 public class PackagedProgramTest {
 
 	@Test
 	public void testGetPreviewPlan() {
 		try {
 			PackagedProgram prog = new PackagedProgram(new File(CliFrontendTestUtils.getTestJarPath()));
-			
+
 			final PrintStream out = System.out;
 			final PrintStream err = System.err;
 			try {
 				System.setOut(new PrintStream(new NullOutputStream()));
 				System.setErr(new PrintStream(new NullOutputStream()));
-				
+
 				Assert.assertNotNull(prog.getPreviewPlan());
 			}
 			finally {
@@ -52,7 +55,7 @@ public class PackagedProgramTest {
 			Assert.fail("Test is erroneous: " + e.getMessage());
 		}
 	}
-	
+
 	private static final class NullOutputStream extends java.io.OutputStream {
 		@Override
 		public void write(int b) {}

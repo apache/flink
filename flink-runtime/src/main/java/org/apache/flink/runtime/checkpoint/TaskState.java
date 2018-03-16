@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.StateObject;
-import org.apache.flink.runtime.state.StateUtil;
+import org.apache.flink.runtime.state.CompositeStateHandle;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
@@ -34,8 +34,12 @@ import java.util.Objects;
  * tasks of a {@link org.apache.flink.runtime.jobgraph.JobVertex}.
  *
  * This class basically groups all non-partitioned state and key-group state belonging to the same job vertex together.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
-public class TaskState implements StateObject {
+@Deprecated
+@SuppressWarnings("deprecation")
+public class TaskState implements CompositeStateHandle {
 
 	private static final long serialVersionUID = -4845578005863201810L;
 
@@ -43,7 +47,6 @@ public class TaskState implements StateObject {
 
 	/** handles to non-partitioned states, subtaskindex -> subtaskstate */
 	private final Map<Integer, SubtaskState> subtaskStates;
-
 
 	/** parallelism of the operator when it was checkpointed */
 	private final int parallelism;
@@ -113,20 +116,19 @@ public class TaskState implements StateObject {
 		return chainLength;
 	}
 
-	public boolean hasNonPartitionedState() {
-		for(SubtaskState sts : subtaskStates.values()) {
-			if (sts != null && !sts.getLegacyOperatorState().isEmpty()) {
-				return true;
-			}
+	@Override
+	public void discardState() throws Exception {
+		for (SubtaskState subtaskState : subtaskStates.values()) {
+			subtaskState.discardState();
 		}
-		return false;
 	}
 
 	@Override
-	public void discardState() throws Exception {
-		StateUtil.bestEffortDiscardAllStateObjects(subtaskStates.values());
+	public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
+		for (SubtaskState subtaskState : subtaskStates.values()) {
+			subtaskState.registerSharedStates(sharedStateRegistry);
+		}
 	}
-
 
 	@Override
 	public long getStateSize() {

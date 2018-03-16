@@ -18,15 +18,18 @@
 
 package org.apache.flink.api.java.tuple;
 
+import org.apache.flink.util.FileUtils;
+
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
-
-import com.google.common.io.Files;
 
 /**
  * Source code generator for tuple classes and classes which depend on the arity of tuples.
+ *
+ * <p>This class is responsible for generating tuple-size dependent code in the {@link org.apache.flink.api.java.io.CsvReader},
+ * {@link org.apache.flink.api.java.operators.ProjectOperator}, {@link org.apache.flink.api.java.operators.JoinOperator.JoinProjection}
+ * and {@link org.apache.flink.api.java.operators.CrossOperator.CrossProjection}.
  */
 class TupleGenerator {
 
@@ -67,12 +70,12 @@ class TupleGenerator {
 	private static final int LAST = 25;
 
 	public static void main(String[] args) throws Exception {
-		System.err.println("Current directory "+System.getProperty("user.dir"));
+		System.err.println("Current directory " + System.getProperty("user.dir"));
 		String rootDir = ROOT_DIRECTORY;
-		if(args.length > 0) {
+		if (args.length > 0) {
 			rootDir = args[0] + "/" + ROOT_DIRECTORY;
 		}
-		System.err.println("Using root directory: "+rootDir);
+		System.err.println("Using root directory: " + rootDir);
 		File root = new File(rootDir);
 
 		modifyCsvReader(root);
@@ -95,14 +98,14 @@ class TupleGenerator {
 	}
 
 	private static void insertCodeIntoFile(String code, File file) throws IOException {
-		String fileContent = Files.toString(file, StandardCharsets.UTF_8);
-		
+		String fileContent = FileUtils.readFileUtf8(file);
+
 		try (Scanner s = new Scanner(fileContent)) {
 			StringBuilder sb = new StringBuilder();
 			String line;
-	
+
 			boolean indicatorFound = false;
-	
+
 			// add file beginning
 			while (s.hasNextLine() && (line = s.nextLine()) != null) {
 				sb.append(line).append("\n");
@@ -111,19 +114,19 @@ class TupleGenerator {
 					break;
 				}
 			}
-	
-			if(!indicatorFound) {
+
+			if (!indicatorFound) {
 				System.out.println("No indicator found in '" + file + "'. Will skip code generation.");
 				s.close();
 				return;
 			}
-	
+
 			// add generator signature
 			sb.append("\t// GENERATED FROM ").append(TupleGenerator.class.getName()).append(".\n");
-	
+
 			// add tuple dependent code
 			sb.append(code).append("\n");
-	
+
 			// skip generated code
 			while (s.hasNextLine() && (line = s.nextLine()) != null) {
 				if (line.contains(END_INDICATOR)) {
@@ -131,13 +134,13 @@ class TupleGenerator {
 					break;
 				}
 			}
-	
+
 			// add file ending
 			while (s.hasNextLine() && (line = s.nextLine()) != null) {
 				sb.append(line).append("\n");
 			}
 			s.close();
-			Files.write(sb.toString(), file, StandardCharsets.UTF_8);
+			FileUtils.writeFileUtf8(file, sb.toString());
 		}
 	}
 
@@ -162,7 +165,7 @@ class TupleGenerator {
 		sb.append("\t\t\tProjectCross<I1, I2, OUT> projectionCross = null;\n\n");
 		sb.append("\t\t\tswitch (fieldIndexes.length) {\n");
 		for (int numFields = FIRST; numFields <= LAST; numFields++) {
-			sb.append("\t\t\tcase " + numFields +":" + " projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple"+numFields+"(); break;\n");
+			sb.append("\t\t\tcase " + numFields + ":" + " projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple" + numFields + "(); break;\n");
 		}
 		sb.append("\t\t\tdefault: throw new IllegalStateException(\"Excessive arity in tuple.\");\n");
 		sb.append("\t\t\t}\n\n");
@@ -189,23 +192,23 @@ class TupleGenerator {
 			// method signature
 			sb.append("\t\tpublic <");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append("> ProjectCross<I1, I2, Tuple"+numFields+"<");
+			sb.append("> ProjectCross<I1, I2, Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">> projectTuple"+numFields+"(");
+			sb.append(">> projectTuple" + numFields + "(");
 			sb.append(") {\n");
 
 			// extract field types
 			sb.append("\t\t\tTypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);\n");
 
 			// create new tuple type info
-			sb.append("\t\t\tTupleTypeInfo<Tuple"+numFields+"<");
+			sb.append("\t\t\tTupleTypeInfo<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">> tType = new TupleTypeInfo<Tuple"+numFields+"<");
+			sb.append(">> tType = new TupleTypeInfo<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
 			sb.append(">>(fTypes);\n\n");
 
 			// create and return new project operator
-			sb.append("\t\t\treturn new ProjectCross<I1, I2, Tuple"+numFields+"<");
+			sb.append("\t\t\treturn new ProjectCross<I1, I2, Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
 			sb.append(">>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);\n");
 
@@ -243,7 +246,7 @@ class TupleGenerator {
 		sb.append("\t\t\tProjectOperator<T, OUT> projOperator;\n\n");
 		sb.append("\t\t\tswitch (fieldIndexes.length) {\n");
 		for (int numFields = FIRST; numFields <= LAST; numFields++) {
-			sb.append("\t\t\tcase " + numFields +":" + " projOperator = (ProjectOperator<T, OUT>) projectTuple"+numFields+"(); break;\n");
+			sb.append("\t\t\tcase " + numFields + ":" + " projOperator = (ProjectOperator<T, OUT>) projectTuple" + numFields + "(); break;\n");
 		}
 		sb.append("\t\t\tdefault: throw new IllegalStateException(\"Excessive arity in tuple.\");\n");
 		sb.append("\t\t\t}\n\n");
@@ -270,23 +273,23 @@ class TupleGenerator {
 			// method signature
 			sb.append("\t\tpublic <");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append("> ProjectOperator<T, Tuple"+numFields+"<");
+			sb.append("> ProjectOperator<T, Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">> projectTuple"+numFields+"(");
+			sb.append(">> projectTuple" + numFields + "(");
 			sb.append(") {\n");
 
 			// extract field types
 			sb.append("\t\t\tTypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, ds.getType());\n");
 
 			// create new tuple type info
-			sb.append("\t\t\tTupleTypeInfo<Tuple"+numFields+"<");
+			sb.append("\t\t\tTupleTypeInfo<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">> tType = new TupleTypeInfo<Tuple"+numFields+"<");
+			sb.append(">> tType = new TupleTypeInfo<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
 			sb.append(">>(fTypes);\n\n");
 
 			// create and return new project operator
-			sb.append("\t\t\treturn new ProjectOperator<T, Tuple"+numFields+"<");
+			sb.append("\t\t\treturn new ProjectOperator<T, Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
 			sb.append(">>(this.ds, this.fieldIndexes, tType);\n");
 
@@ -324,7 +327,7 @@ class TupleGenerator {
 		sb.append("\t\t\tProjectJoin<I1, I2, OUT> projectJoin = null;\n\n");
 		sb.append("\t\t\tswitch (fieldIndexes.length) {\n");
 		for (int numFields = FIRST; numFields <= LAST; numFields++) {
-			sb.append("\t\t\tcase " + numFields +":" + " projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple"+numFields+"(); break;\n");
+			sb.append("\t\t\tcase " + numFields + ":" + " projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple" + numFields + "(); break;\n");
 		}
 		sb.append("\t\t\tdefault: throw new IllegalStateException(\"Excessive arity in tuple.\");\n");
 		sb.append("\t\t\t}\n\n");
@@ -352,23 +355,23 @@ class TupleGenerator {
 			// method signature
 			sb.append("\t\tpublic <");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append("> ProjectJoin<I1, I2, Tuple"+numFields+"<");
+			sb.append("> ProjectJoin<I1, I2, Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">> projectTuple"+numFields+"(");
+			sb.append(">> projectTuple" + numFields + "(");
 			sb.append(") {\n");
 
 			// extract field types
 			sb.append("\t\t\tTypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);\n");
 
 			// create new tuple type info
-			sb.append("\t\t\tTupleTypeInfo<Tuple"+numFields+"<");
+			sb.append("\t\t\tTupleTypeInfo<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">> tType = new TupleTypeInfo<Tuple"+numFields+"<");
+			sb.append(">> tType = new TupleTypeInfo<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
 			sb.append(">>(fTypes);\n\n");
 
 			// create and return new project operator
-			sb.append("\t\t\treturn new ProjectJoin<I1, I2, Tuple"+numFields+"<");
+			sb.append("\t\t\treturn new ProjectJoin<I1, I2, Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
 			sb.append(">>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType, this);\n");
 
@@ -468,9 +471,8 @@ class TupleGenerator {
 			sb.append(GEN_TYPE_PREFIX + i);
 		}
 	}
-	
-	
-	private static String HEADER =
+
+	private static final String HEADER =
 			"/*\n"
 			+ " * Licensed to the Apache Software Foundation (ASF) under one\n"
 			+ " * or more contributor license agreements.  See the NOTICE file\n"

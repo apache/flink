@@ -99,21 +99,21 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 				flinkBinPath = new File(System.getenv(ENV_FLINK_BIN_DIR));
 			}
 			else {
-				throw new IllegalStateException(String.format("the {} environment variable must be set", ENV_FLINK_BIN_DIR));
+				throw new IllegalStateException(String.format("the %s environment variable must be set", ENV_FLINK_BIN_DIR));
 			}
 
 			if(env.containsKey(ENV_FLINK_CONF_DIR)) {
 				flinkConfPath = new File(System.getenv(ENV_FLINK_CONF_DIR));
 			}
 			else {
-				throw new IllegalStateException(String.format("the {} environment variable must be set", ENV_FLINK_CONF_DIR));
+				throw new IllegalStateException(String.format("the %s environment variable must be set", ENV_FLINK_CONF_DIR));
 			}
 
 			if(env.containsKey(ENV_FLINK_LIB_DIR)) {
 				flinkLibPath = new File(System.getenv(ENV_FLINK_LIB_DIR));
 			}
 			else {
-				throw new IllegalStateException(String.format("the {} environment variable must be set", ENV_FLINK_LIB_DIR));
+				throw new IllegalStateException(String.format("the %s environment variable must be set", ENV_FLINK_LIB_DIR));
 			}
 
 			return this;

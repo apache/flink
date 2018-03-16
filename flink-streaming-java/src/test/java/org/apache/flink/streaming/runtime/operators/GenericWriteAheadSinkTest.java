@@ -33,6 +33,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Tests for {@link GenericWriteAheadSink}.
+ */
 public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Integer>, GenericWriteAheadSinkTest.ListSink> {
 
 	@Override
@@ -49,7 +52,6 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 	protected Tuple1<Integer> generateValue(int counter, int checkpointID) {
 		return new Tuple1<>(counter);
 	}
-
 
 	@Override
 	protected void verifyResultsIdealCircumstances(ListSink sink) {
@@ -174,7 +176,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 
 		@Override
-		protected boolean sendValues(Iterable<Tuple1<Integer>> values, long timestamp) throws Exception {
+		protected boolean sendValues(Iterable<Tuple1<Integer>> values, long checkpointId, long timestamp) throws Exception {
 			for (Tuple1<Integer> value : values) {
 				this.values.add(value.f0);
 			}
@@ -182,7 +184,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 	}
 
-	public static class SimpleCommitter extends CheckpointCommitter {
+	private static class SimpleCommitter extends CheckpointCommitter {
 		private static final long serialVersionUID = 1L;
 
 		private List<Tuple2<Long, Integer>> checkpoints;
@@ -224,7 +226,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 
 		@Override
-		protected boolean sendValues(Iterable<Tuple1<Integer>> values, long timestamp) throws Exception {
+		protected boolean sendValues(Iterable<Tuple1<Integer>> values, long checkpointId, long timestamp) throws Exception {
 			for (Tuple1<Integer> value : values) {
 				this.values.add(value.f0);
 			}
@@ -232,7 +234,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 	}
 
-	public static class FailingCommitter extends CheckpointCommitter {
+	private static class FailingCommitter extends CheckpointCommitter {
 		private static final long serialVersionUID = 1L;
 
 		private List<Tuple2<Long, Integer>> checkpoints;

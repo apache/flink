@@ -21,28 +21,36 @@ package org.apache.flink.streaming.connectors.kafka.testutils;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
+import java.util.List;
 
-public class FailingIdentityMapper<T> extends RichMapFunction<T,T> implements
-		Checkpointed<Integer>, CheckpointListener, Runnable {
-	
+/**
+ * A {@link RichMapFunction} that fails after the configured number of records have been processed.
+ *
+ * @param <T>
+ */
+public class FailingIdentityMapper<T> extends RichMapFunction<T, T> implements
+	ListCheckpointed<Integer>, CheckpointListener, Runnable {
+
 	private static final Logger LOG = LoggerFactory.getLogger(FailingIdentityMapper.class);
-	
+
 	private static final long serialVersionUID = 6334389850158707313L;
-	
+
 	public static volatile boolean failedBefore;
 	public static volatile boolean hasBeenCheckpointedBeforeFailure;
 
 	private final int failCount;
 	private int numElementsTotal;
 	private int numElementsThisTime;
-	
+
 	private boolean failer;
 	private boolean hasBeenCheckpointed;
-	
+
 	private Thread printer;
 	private volatile boolean printerRunning = true;
 
@@ -61,10 +69,10 @@ public class FailingIdentityMapper<T> extends RichMapFunction<T,T> implements
 	public T map(T value) throws Exception {
 		numElementsTotal++;
 		numElementsThisTime++;
-		
+
 		if (!failedBefore) {
 			Thread.sleep(10);
-			
+
 			if (failer && numElementsTotal >= failCount) {
 				hasBeenCheckpointedBeforeFailure = hasBeenCheckpointed;
 				failedBefore = true;
@@ -89,13 +97,16 @@ public class FailingIdentityMapper<T> extends RichMapFunction<T,T> implements
 	}
 
 	@Override
-	public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
-		return numElementsTotal;
+	public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+		return Collections.singletonList(numElementsTotal);
 	}
 
 	@Override
-	public void restoreState(Integer state) {
-		numElementsTotal = state;
+	public void restoreState(List<Integer> state) throws Exception {
+		if (state.isEmpty() || state.size() > 1) {
+			throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+		}
+		this.numElementsTotal = state.get(0);
 	}
 
 	@Override

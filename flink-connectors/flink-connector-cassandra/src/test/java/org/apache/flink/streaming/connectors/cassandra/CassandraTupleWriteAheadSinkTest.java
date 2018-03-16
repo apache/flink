@@ -15,18 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.cassandra;
+
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.java.tuple.Tuple0;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSetFuture;
 import com.datastax.driver.core.Session;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.java.tuple.Tuple0;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
-import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.junit.Test;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
@@ -43,9 +45,12 @@ import static org.powermock.api.mockito.PowerMockito.doAnswer;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
+/**
+ * Tests for the {@link CassandraTupleWriteAheadSink}.
+ */
 public class CassandraTupleWriteAheadSinkTest {
 
-	@Test(timeout=20000)
+	@Test(timeout = 20000)
 	public void testAckLoopExitOnException() throws Exception {
 		final AtomicReference<Runnable> runnableFuture = new AtomicReference<>();
 
@@ -113,14 +118,14 @@ public class CassandraTupleWriteAheadSinkTest {
 			cc
 		);
 
-		OneInputStreamOperatorTestHarness<Tuple0, Tuple0> harness = new OneInputStreamOperatorTestHarness(sink);
+		OneInputStreamOperatorTestHarness<Tuple0, Tuple0> harness = new OneInputStreamOperatorTestHarness<>(sink);
 		harness.getEnvironment().getTaskConfiguration().setBoolean("checkpointing", true);
 
 		harness.setup();
 		sink.open();
 
 		// we should leave the loop and return false since we've seen an exception
-		assertFalse(sink.sendValues(Collections.singleton(new Tuple0()), 0L));
+		assertFalse(sink.sendValues(Collections.singleton(new Tuple0()), 1L, 0L));
 
 		sink.close();
 	}

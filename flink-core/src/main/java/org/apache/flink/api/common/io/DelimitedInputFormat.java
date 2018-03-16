@@ -21,12 +21,11 @@ package org.apache.flink.api.common.io;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.OptimizerOptions;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.util.Preconditions;
@@ -89,7 +88,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	private static int MAX_SAMPLE_LEN;
 
 	/**
-	 * @Deprecated Please use {@code loadConfigParameters(Configuration config}
+	 * @deprecated Please use {@code loadConfigParameters(Configuration config}
 	 */
 	@Deprecated
 	protected static void loadGlobalConfigParams() {
@@ -97,37 +96,34 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	}
 
 	protected static void loadConfigParameters(Configuration parameters) {
-		int maxSamples = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
-				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
-		int minSamples = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
-			ConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES);
+		int maxSamples = parameters.getInteger(OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES);
+		int minSamples = parameters.getInteger(OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES);
 		
 		if (maxSamples < 0) {
 			LOG.error("Invalid default maximum number of line samples: " + maxSamples + ". Using default value of " +
-				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
-			maxSamples = ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES;
+				OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES.key());
+			maxSamples = OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES.defaultValue();
 		}
 		if (minSamples < 0) {
 			LOG.error("Invalid default minimum number of line samples: " + minSamples + ". Using default value of " +
-				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES);
-			minSamples = ConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES;
+				OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES.key());
+			minSamples = OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES.defaultValue();
 		}
 		
 		DEFAULT_MAX_NUM_SAMPLES = maxSamples;
 		
 		if (minSamples > maxSamples) {
-			LOG.error("Defaul minimum number of line samples cannot be greater the default maximum number " +
-					"of line samples: min=" + minSamples + ", max=" + maxSamples + ". Defaulting minumum to maximum.");
+			LOG.error("Default minimum number of line samples cannot be greater the default maximum number " +
+					"of line samples: min=" + minSamples + ", max=" + maxSamples + ". Defaulting minimum to maximum.");
 			DEFAULT_MIN_NUM_SAMPLES = maxSamples;
 		} else {
 			DEFAULT_MIN_NUM_SAMPLES = minSamples;
 		}
 		
-		int maxLen = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_SAMPLE_LENGTH_KEY,
-				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
+		int maxLen = parameters.getInteger(OptimizerOptions.DELIMITED_FORMAT_MAX_SAMPLE_LEN);
 		if (maxLen <= 0) {
-			maxLen = ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN;
-			LOG.error("Invalid value for the maximum sample record length. Using defailt value of " + maxLen + '.');
+			maxLen = OptimizerOptions.DELIMITED_FORMAT_MAX_SAMPLE_LEN.defaultValue();
+			LOG.error("Invalid value for the maximum sample record length. Using default value of " + maxLen + '.');
 		} else if (maxLen < DEFAULT_READ_BUFFER_SIZE) {
 			maxLen = DEFAULT_READ_BUFFER_SIZE;
 			LOG.warn("Increasing maximum sample record length to size of the read buffer (" + maxLen + ").");
@@ -266,10 +262,10 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	}
 	
 	public void setBufferSize(int bufferSize) {
-		if (bufferSize < 1) {
-			throw new IllegalArgumentException("Buffer size must be at least 1.");
+		if (bufferSize < 2) {
+			throw new IllegalArgumentException("Buffer size must be at least 2.");
 		}
-		
+
 		this.bufferSize = bufferSize;
 	}
 	
@@ -345,7 +341,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	@Override
 	public FileBaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
 		
-		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
+		final FileBaseStatistics cachedFileStats = cachedStats instanceof FileBaseStatistics ?
 				(FileBaseStatistics) cachedStats : null;
 		
 		// store properties
@@ -353,14 +349,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		final int oldBufferSize = this.bufferSize;
 		final int oldLineLengthLimit = this.lineLengthLimit;
 		try {
-			final Path filePath = this.filePath;
-		
-			// get the filesystem
-			final FileSystem fs = FileSystem.get(filePath.toUri());
-			final ArrayList<FileStatus> allFiles = new ArrayList<FileStatus>(1);
-			
+
+			final ArrayList<FileStatus> allFiles = new ArrayList<>(1);
+
 			// let the file input format deal with the up-to-date check and the basic size
-			final FileBaseStatistics stats = getFileStats(cachedFileStats, filePath, fs, allFiles);
+			final FileBaseStatistics stats = getFileStats(cachedFileStats, getFilePaths(), allFiles);
 			if (stats == null) {
 				return null;
 			}
@@ -371,10 +364,10 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 					stats.getTotalInputSize() == FileBaseStatistics.SIZE_UNKNOWN) {
 				return stats;
 			}
-			
+
 			// disabling sampling for unsplittable files since the logic below assumes splitability.
 			// TODO: Add sampling for unsplittable files. Right now, only compressed text files are affected by this limitation.
-			if(unsplittable) {
+			if (unsplittable) {
 				return stats;
 			}
 			
@@ -444,13 +437,13 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			
 		} catch (IOException ioex) {
 			if (LOG.isWarnEnabled()) {
-				LOG.warn("Could not determine statistics for file '" + this.filePath + "' due to an io error: "
-						+ ioex.getMessage());
+				LOG.warn("Could not determine statistics for files '" + Arrays.toString(getFilePaths()) + "' " +
+						 "due to an io error: " + ioex.getMessage());
 			}
 		}
 		catch (Throwable t) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error("Unexpected problen while getting the file statistics for file '" + this.filePath + "': "
+				LOG.error("Unexpected problem while getting the file statistics for files '" + Arrays.toString(getFilePaths()) + "': "
 						+ t.getMessage(), t);
 			}
 		} finally {
@@ -487,12 +480,16 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 				this.end = true;
 			}
 		} else {
-			fillBuffer();
+			fillBuffer(0);
 		}
 	}
 
 	private void initBuffers() {
 		this.bufferSize = this.bufferSize <= 0 ? DEFAULT_READ_BUFFER_SIZE : this.bufferSize;
+
+		if (this.bufferSize <= this.delimiter.length) {
+			throw new IllegalArgumentException("Buffer size must be greater than length of delimiter.");
+		}
 
 		if (this.readBuffer == null || this.readBuffer.length != this.bufferSize) {
 			this.readBuffer = new byte[this.bufferSize];
@@ -548,13 +545,30 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 
 		int countInWrapBuffer = 0;
 
-		/* position of matching positions in the delimiter byte array */
-		int i = 0;
+		// position of matching positions in the delimiter byte array
+		int delimPos = 0;
 
 		while (true) {
 			if (this.readPos >= this.limit) {
-				if (!fillBuffer()) {
-					if (countInWrapBuffer > 0) {
+				// readBuffer is completely consumed. Fill it again but keep partially read delimiter bytes.
+				if (!fillBuffer(delimPos)) {
+					int countInReadBuffer = delimPos;
+					if (countInWrapBuffer + countInReadBuffer > 0) {
+						// we have bytes left to emit
+						if (countInReadBuffer > 0) {
+							// we have bytes left in the readBuffer. Move them into the wrapBuffer
+							if (this.wrapBuffer.length - countInWrapBuffer < countInReadBuffer) {
+								// reallocate
+								byte[] tmp = new byte[countInWrapBuffer + countInReadBuffer];
+								System.arraycopy(this.wrapBuffer, 0, tmp, 0, countInWrapBuffer);
+								this.wrapBuffer = tmp;
+							}
+
+							// copy readBuffer bytes to wrapBuffer
+							System.arraycopy(this.readBuffer, 0, this.wrapBuffer, countInWrapBuffer, countInReadBuffer);
+							countInWrapBuffer += countInReadBuffer;
+						}
+
 						this.offset += countInWrapBuffer;
 						setResult(this.wrapBuffer, 0, countInWrapBuffer);
 						return true;
@@ -564,23 +578,30 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 				}
 			}
 
-			int startPos = this.readPos;
+			int startPos = this.readPos - delimPos;
 			int count;
 
-			while (this.readPos < this.limit && i < this.delimiter.length) {
-				if ((this.readBuffer[this.readPos++]) == this.delimiter[i]) {
-					i++;
+			// Search for next occurrence of delimiter in read buffer.
+			while (this.readPos < this.limit && delimPos < this.delimiter.length) {
+				if ((this.readBuffer[this.readPos]) == this.delimiter[delimPos]) {
+					// Found the expected delimiter character. Continue looking for the next character of delimiter.
+					delimPos++;
 				} else {
-					i = 0;
+					// Delimiter does not match.
+					// We have to reset the read position to the character after the first matching character
+					//   and search for the whole delimiter again.
+					readPos -= delimPos;
+					delimPos = 0;
 				}
+				readPos++;
 			}
 
 			// check why we dropped out
-			if (i == this.delimiter.length) {
-				// line end
-				int totalBytesRead = this.readPos - startPos;
-				this.offset += countInWrapBuffer + totalBytesRead;
-				count = totalBytesRead - this.delimiter.length;
+			if (delimPos == this.delimiter.length) {
+				// we found a delimiter
+				int readBufferBytesRead = this.readPos - startPos;
+				this.offset += countInWrapBuffer + readBufferBytesRead;
+				count = readBufferBytesRead - this.delimiter.length;
 
 				// copy to byte array
 				if (countInWrapBuffer > 0) {
@@ -600,6 +621,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 					return true;
 				}
 			} else {
+				// we reached the end of the readBuffer
 				count = this.limit - startPos;
 				
 				// check against the maximum record length
@@ -608,16 +630,23 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 							this.lineLengthLimit + ").");
 				}
 
-				// buffer exhausted
-				if (this.wrapBuffer.length - countInWrapBuffer < count) {
+				// Compute number of bytes to move to wrapBuffer
+				// Chars of partially read delimiter must remain in the readBuffer. We might need to go back.
+				int bytesToMove = count - delimPos;
+				// ensure wrapBuffer is large enough
+				if (this.wrapBuffer.length - countInWrapBuffer < bytesToMove) {
 					// reallocate
-					byte[] tmp = new byte[Math.max(this.wrapBuffer.length * 2, countInWrapBuffer + count)];
+					byte[] tmp = new byte[Math.max(this.wrapBuffer.length * 2, countInWrapBuffer + bytesToMove)];
 					System.arraycopy(this.wrapBuffer, 0, tmp, 0, countInWrapBuffer);
 					this.wrapBuffer = tmp;
 				}
 
-				System.arraycopy(this.readBuffer, startPos, this.wrapBuffer, countInWrapBuffer, count);
-				countInWrapBuffer += count;
+				// copy readBuffer to wrapBuffer (except delimiter chars)
+				System.arraycopy(this.readBuffer, startPos, this.wrapBuffer, countInWrapBuffer, bytesToMove);
+				countInWrapBuffer += bytesToMove;
+				// move delimiter chars to the beginning of the readBuffer
+				System.arraycopy(this.readBuffer, this.readPos - delimPos, this.readBuffer, 0, delimPos);
+
 			}
 		}
 	}
@@ -628,16 +657,20 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		this.currLen = len;
 	}
 
-	private boolean fillBuffer() throws IOException {
+	/**
+	 * Fills the read buffer with bytes read from the file starting from an offset.
+	 */
+	private boolean fillBuffer(int offset) throws IOException {
+		int maxReadLength = this.readBuffer.length - offset;
 		// special case for reading the whole split.
 		if (this.splitLength == FileInputFormat.READ_WHOLE_SPLIT_FLAG) {
-			int read = this.stream.read(this.readBuffer, 0, readBuffer.length);
+			int read = this.stream.read(this.readBuffer, offset, maxReadLength);
 			if (read == -1) {
 				this.stream.close();
 				this.stream = null;
 				return false;
 			} else {
-				this.readPos = 0;
+				this.readPos = offset;
 				this.limit = read;
 				return true;
 			}
@@ -647,7 +680,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		int toRead;
 		if (this.splitLength > 0) {
 			// if we have more data, read that
-			toRead = this.splitLength > this.readBuffer.length ? this.readBuffer.length : (int) this.splitLength;
+			toRead = this.splitLength > maxReadLength ? maxReadLength : (int) this.splitLength;
 		}
 		else {
 			// if we have exhausted our split, we need to complete the current record, or read one
@@ -655,11 +688,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			// the reason is that the next split will skip over the beginning until it finds the first
 			// delimiter, discarding it as an incomplete chunk of data that belongs to the last record in the
 			// previous split.
-			toRead = this.readBuffer.length;
+			toRead = maxReadLength;
 			this.overLimit = true;
 		}
 
-		int read = this.stream.read(this.readBuffer, 0, toRead);
+		int read = this.stream.read(this.readBuffer, offset, toRead);
 
 		if (read == -1) {
 			this.stream.close();
@@ -667,8 +700,8 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			return false;
 		} else {
 			this.splitLength -= read;
-			this.readPos = 0;
-			this.limit = read;
+			this.readPos = offset; // position from where to start reading
+			this.limit = read + offset; // number of valid bytes in the read buffer
 			return true;
 		}
 	}
@@ -719,7 +752,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			this.stream.seek(this.offset);
 			if (split.getLength() == -1) {
 				// this is the case for unsplittable files
-				fillBuffer();
+				fillBuffer(0);
 			} else {
 				this.splitLength = this.splitStart + split.getLength() - this.offset;
 				if (splitLength <= 0) {

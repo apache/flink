@@ -15,13 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.util;
+
+import org.apache.flink.api.common.io.DelimitedInputFormat;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.flink.api.common.io.DelimitedInputFormat;
-import org.apache.flink.api.java.tuple.Tuple2;
 
 /**
  * Generates records with an id and a and CoordVector. The input format is line-based, i.e. one record is read from one
@@ -89,7 +91,7 @@ public class PointInFormat extends DelimitedInputFormat<Tuple2<Integer, CoordVec
 		for (int i = 0; i < this.pointValues.length; i++) {
 			this.pointValues[i] = this.dimensionValues.get(i);
 		}
-		
+
 		reuse.f1 = new CoordVector(this.pointValues);
 		return reuse;
 	}

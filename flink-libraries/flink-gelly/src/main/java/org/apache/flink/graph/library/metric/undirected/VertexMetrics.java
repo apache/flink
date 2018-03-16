@@ -18,26 +18,26 @@
 
 package org.apache.flink.graph.library.metric.undirected;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.accumulators.LongMaximum;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphAnalyticBase;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.metric.undirected.VertexMetrics.Result;
 import org.apache.flink.types.LongValue;
+
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import java.io.IOException;
 import java.text.NumberFormat;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-
 /**
- * Compute the following vertex metrics in an undirected graph:
+ * Compute the following vertex metrics in an undirected graph.
  *  - number of vertices
  *  - number of edges
  *  - average degree
@@ -50,7 +50,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class VertexMetrics<K extends Comparable<K>, VV, EV>
-extends AbstractGraphAnalytic<K, VV, EV, Result> {
+extends GraphAnalyticBase<K, VV, EV, Result> {
 
 	private static final String VERTEX_COUNT = "vertexCount";
 
@@ -68,8 +68,6 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	private boolean includeZeroDegreeVertices = false;
 
 	private boolean reduceOnTargetId = false;
-
-	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * By default only the edge set is processed for the computation of degree.
@@ -97,18 +95,6 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 */
 	public VertexMetrics<K, VV, EV> setReduceOnTargetId(boolean reduceOnTargetId) {
 		this.reduceOnTargetId = reduceOnTargetId;
-
-		return this;
-	}
-
-	/**
-	 * Override the operator parallelism.
-	 *
-	 * @param parallelism operator parallelism
-	 * @return this
-	 */
-	public VertexMetrics<K, VV, EV> setParallelism(int parallelism) {
-		this.parallelism = parallelism;
 
 		return this;
 	}
@@ -183,7 +169,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	/**
 	 * Wraps vertex metrics.
 	 */
-	public static class Result {
+	public static class Result
+	implements PrintableResult {
 		private long vertexCount;
 		private long edgeCount;
 		private long tripletCount;
@@ -208,7 +195,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		/**
-		 * Get the number of edges.
+		 * Get the number of edges. Each edge is counted once even though Gelly
+		 * stores undirected edges twice, once in each direction.
 		 *
 		 * @return number of edges
 		 */
@@ -217,12 +205,28 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		/**
-		 * Get the average degree.
+		 * Get the average degree, the average number of edges per vertex.
+		 *
+		 * <p>A result of {@code Float.NaN} is returned for an empty graph for
+		 * which both the number of edges and number of vertices is zero.
 		 *
 		 * @return average degree
 		 */
-		public float getAverageDegree() {
-			return edgeCount / (float)vertexCount;
+		public double getAverageDegree() {
+			// each edge is incident on two vertices
+			return vertexCount == 0 ? Double.NaN : 2 * edgeCount / (double) vertexCount;
+		}
+
+		/**
+		 * Get the density, the ratio of actual to potential edges between vertices.
+		 *
+		 * <p>A result of {@code Float.NaN} is returned for a graph with fewer than
+		 * two vertices for which the number of edges is zero.
+		 *
+		 * @return density
+		 */
+		public double getDensity() {
+			return vertexCount <= 1 ? Double.NaN : edgeCount / (double) (vertexCount * (vertexCount - 1) / 2);
 		}
 
 		/**
@@ -254,11 +258,21 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public String toString() {
+			return toPrintableString();
+		}
+
+		@Override
+		public String toPrintableString() {
 			NumberFormat nf = NumberFormat.getInstance();
+
+			// format for very small fractional numbers
+			NumberFormat ff = NumberFormat.getInstance();
+			ff.setMaximumFractionDigits(8);
 
 			return "vertex count: " + nf.format(vertexCount)
 				+ "; edge count: " + nf.format(edgeCount)
 				+ "; average degree: " + nf.format(getAverageDegree())
+				+ "; density: " + ff.format(getDensity())
 				+ "; triplet count: " + nf.format(tripletCount)
 				+ "; maximum degree: " + nf.format(maximumDegree)
 				+ "; maximum triplets: " + nf.format(maximumTriplets);
@@ -277,11 +291,19 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (obj == null) { return false; }
-			if (obj == this) { return true; }
-			if (obj.getClass() != getClass()) { return false; }
+			if (obj == null) {
+				return false;
+			}
 
-			Result rhs = (Result)obj;
+			if (obj == this) {
+				return true;
+			}
+
+			if (obj.getClass() != getClass()) {
+				return false;
+			}
+
+			Result rhs = (Result) obj;
 
 			return new EqualsBuilder()
 				.append(vertexCount, rhs.vertexCount)

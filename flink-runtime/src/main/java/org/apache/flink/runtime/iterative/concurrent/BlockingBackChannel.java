@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.concurrent;
-
-import java.io.IOException;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.iterative.io.SerializedUpdateBuffer;
+
+import java.io.IOException;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 /**
  * A concurrent datastructure that establishes a backchannel buffer between an iteration head
@@ -33,10 +32,10 @@ import org.apache.flink.runtime.iterative.io.SerializedUpdateBuffer;
  */
 public class BlockingBackChannel {
 
-	/** buffer to send back the superstep results */
+	/** Buffer to send back the superstep results. */
 	private final SerializedUpdateBuffer buffer;
 
-	/** a one element queue used for blocking hand over of the buffer */
+	/** A one element queue used for blocking hand over of the buffer. */
 	private final BlockingQueue<SerializedUpdateBuffer> queue;
 
 	public BlockingBackChannel(SerializedUpdateBuffer buffer) {
@@ -51,9 +50,7 @@ public class BlockingBackChannel {
 	public DataInputView getReadEndAfterSuperstepEnded() {
 		try {
 			return queue.take().switchBuffers();
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		} catch (IOException e) {
+		} catch (InterruptedException | IOException e) {
 			throw new RuntimeException(e);
 		}
 	}

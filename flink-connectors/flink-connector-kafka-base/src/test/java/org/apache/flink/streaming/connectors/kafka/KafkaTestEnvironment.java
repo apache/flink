@@ -17,37 +17,96 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import kafka.server.KafkaServer;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
+import kafka.server.KafkaServer;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.Properties;
 
 /**
- * Abstract class providing a Kafka test environment
+ * Abstract class providing a Kafka test environment.
  */
 public abstract class KafkaTestEnvironment {
+	/**
+	 * Configuration class for {@link KafkaTestEnvironment}.
+	 */
+	public static class Config {
+		private int kafkaServersNumber = 1;
+		private Properties kafkaServerProperties = null;
+		private boolean secureMode = false;
+		private boolean hideKafkaBehindProxy = false;
+
+		/**
+		 * Please use {@link KafkaTestEnvironment#createConfig()} method.
+		 */
+		private Config() {
+		}
+
+		public int getKafkaServersNumber() {
+			return kafkaServersNumber;
+		}
+
+		public Config setKafkaServersNumber(int kafkaServersNumber) {
+			this.kafkaServersNumber = kafkaServersNumber;
+			return this;
+		}
+
+		public Properties getKafkaServerProperties() {
+			return kafkaServerProperties;
+		}
+
+		public Config setKafkaServerProperties(Properties kafkaServerProperties) {
+			this.kafkaServerProperties = kafkaServerProperties;
+			return this;
+		}
+
+		public boolean isSecureMode() {
+			return secureMode;
+		}
+
+		public Config setSecureMode(boolean secureMode) {
+			this.secureMode = secureMode;
+			return this;
+		}
+
+		public boolean isHideKafkaBehindProxy() {
+			return hideKafkaBehindProxy;
+		}
+
+		public Config setHideKafkaBehindProxy(boolean hideKafkaBehindProxy) {
+			this.hideKafkaBehindProxy = hideKafkaBehindProxy;
+			return this;
+		}
+	}
 
 	protected static final String KAFKA_HOST = "localhost";
 
-	public abstract void prepare(int numKafkaServers, Properties kafkaServerProperties, boolean secureMode);
+	protected final List<NetworkFailuresProxy> networkFailuresProxies = new ArrayList<>();
 
-	public void prepare(int numberOfKafkaServers, boolean secureMode) {
-		this.prepare(numberOfKafkaServers, null, secureMode);
+	public static Config createConfig() {
+		return new Config();
 	}
 
-	public abstract void shutdown();
+	public abstract void prepare(Config config);
+
+	public void shutdown() throws Exception {
+		for (NetworkFailuresProxy proxy : networkFailuresProxies) {
+			proxy.close();
+		}
+	}
 
 	public abstract void deleteTestTopic(String topic);
 
@@ -82,22 +141,40 @@ public abstract class KafkaTestEnvironment {
 
 	public abstract <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props);
 
+	public abstract <K, V> Collection<ConsumerRecord<K, V>> getAllRecordsFromTopic(
+			Properties properties,
+			String topic,
+			int partition,
+			long timeout);
+
 	public abstract <T> StreamSink<T> getProducerSink(String topic,
 			KeyedSerializationSchema<T> serSchema, Properties props,
-			KafkaPartitioner<T> partitioner);
+			FlinkKafkaPartitioner<T> partitioner);
 
 	public abstract <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic,
 														KeyedSerializationSchema<T> serSchema, Properties props,
-														KafkaPartitioner<T> partitioner);
+														FlinkKafkaPartitioner<T> partitioner);
+
+	public abstract <T> DataStreamSink<T> writeToKafkaWithTimestamps(
+			DataStream<T> stream,
+			String topic,
+			KeyedSerializationSchema<T> serSchema,
+			Properties props);
 
 	// -- offset handlers
 
+	/**
+	 * Simple interface to commit and retrieve offsets.
+	 */
 	public interface KafkaOffsetHandler {
 		Long getCommittedOffset(String topicName, int partition);
+
+		void setCommittedOffset(String topicName, int partition, long offset);
+
 		void close();
 	}
 
-	public abstract KafkaOffsetHandler createOffsetHandler(Properties props);
+	public abstract KafkaOffsetHandler createOffsetHandler();
 
 	// -- leader failure simulation
 
@@ -109,4 +186,21 @@ public abstract class KafkaTestEnvironment {
 
 	public abstract boolean isSecureRunSupported();
 
+	public void blockProxyTraffic() {
+		for (NetworkFailuresProxy proxy : networkFailuresProxies) {
+			proxy.blockTraffic();
+		}
+	}
+
+	public void unblockProxyTraffic() {
+		for (NetworkFailuresProxy proxy : networkFailuresProxies) {
+			proxy.unblockTraffic();
+		}
+	}
+
+	protected NetworkFailuresProxy createProxy(String remoteHost, int remotePort) {
+		NetworkFailuresProxy proxy = new NetworkFailuresProxy(0, remoteHost, remotePort);
+		networkFailuresProxies.add(proxy);
+		return proxy;
+	}
 }

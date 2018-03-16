@@ -18,11 +18,15 @@
 
 package org.apache.flink.streaming.connectors.wikiedits;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * This class is a SourceFunction that reads {@link WikipediaEditEvent} instances from the IRC channel
+ * <code>#en.wikipedia</code>.
+ */
 public class WikipediaEditsSource extends RichSourceFunction<WikipediaEditEvent> {
 
 	/** Hostname of the server to connect to. */
@@ -31,7 +35,7 @@ public class WikipediaEditsSource extends RichSourceFunction<WikipediaEditEvent>
 	/** Port of the server to connect to. */
 	public static final int DEFAULT_PORT = 6667;
 
-	/** IRC channel to join */
+	/** IRC channel to join. */
 	public static final String DEFAULT_CHANNEL = "#en.wikipedia";
 
 	private final String host;
@@ -39,8 +43,6 @@ public class WikipediaEditsSource extends RichSourceFunction<WikipediaEditEvent>
 	private final String channel;
 
 	private volatile boolean isRunning = true;
-
-	private WikipediaEditEventIrcStream ircStream;
 
 	/**
 	 * Creates a source reading {@link WikipediaEditEvent} instances from the
@@ -68,33 +70,27 @@ public class WikipediaEditsSource extends RichSourceFunction<WikipediaEditEvent>
 	public WikipediaEditsSource(String host, int port, String channel) {
 		this.host = host;
 		this.port = port;
-		this.channel = channel;
+		this.channel = Objects.requireNonNull(channel);
 	}
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
-		ircStream = new WikipediaEditEventIrcStream(host, port);
-		ircStream.start();
-		ircStream.join(channel);
-	}
+	public void run(SourceContext<WikipediaEditEvent> ctx) throws Exception {
+		try (WikipediaEditEventIrcStream ircStream = new WikipediaEditEventIrcStream(host, port)) {
+			// Open connection and join channel
+			ircStream.connect();
+			ircStream.join(channel);
 
-	@Override
-	public void close() throws Exception {
-		if (ircStream != null) {
-			ircStream.leave(channel);
-			ircStream.stop();
-		}
-	}
+			try {
+				while (isRunning) {
+					// Query for the next edit event
+					WikipediaEditEvent edit = ircStream.getEdits().poll(100, TimeUnit.MILLISECONDS);
 
-	@Override
-	public void run(SourceContext ctx) throws Exception {
-		while (isRunning) {
-			// Query for the next edit event
-			WikipediaEditEvent edit = ircStream.getEdits()
-					.poll(100, TimeUnit.MILLISECONDS);
-
-			if (edit != null) {
-				ctx.collect(edit);
+					if (edit != null) {
+						ctx.collect(edit);
+					}
+				}
+			} finally {
+				ircStream.leave(channel);
 			}
 		}
 	}

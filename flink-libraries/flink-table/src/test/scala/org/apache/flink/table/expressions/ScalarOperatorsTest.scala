@@ -18,15 +18,12 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.types.Row
-import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.ExpressionTestBase
+import org.apache.flink.table.expressions.utils.{ScalarOperatorsTestBase, ShouldNotExecuteFunc}
 import org.junit.Test
 
-class ScalarOperatorsTest extends ExpressionTestBase {
+class ScalarOperatorsTest extends ScalarOperatorsTestBase {
 
   @Test
   def testCasting(): Unit = {
@@ -79,20 +76,152 @@ class ScalarOperatorsTest extends ExpressionTestBase {
 
   @Test
   def testArithmetic(): Unit = {
-    // math arthmetic
-    testTableApi('f8 - 5, "f8 - 5", "0")
-    testTableApi('f8 + 5, "f8 + 5", "10")
-    testTableApi('f8 / 2, "f8 / 2", "2")
-    testTableApi('f8 * 2, "f8 * 2", "10")
-    testTableApi('f8 % 2, "f8 % 2", "1")
+
+    // math arithmetic
+
+    // test addition
+    testAllApis(
+      1514356320000L + 6000,
+      "1514356320000L + 6000",
+      "1514356320000 + 6000",
+      "1514356326000")
+
+    testAllApis(
+      'f20 + 6,
+      "f20 + 6",
+      "f20 + 6",
+      "1514356320006")
+
+    testAllApis(
+      'f20 + 'f20,
+      "f20 + f20",
+      "f20 + f20",
+      "3028712640000")
+
+    // test subtraction
+    testAllApis(
+      1514356320000L - 6000,
+      "1514356320000L - 6000",
+      "1514356320000 - 6000",
+      "1514356314000")
+
+    testAllApis(
+      'f20 - 6,
+      "f20 - 6",
+      "f20 - 6",
+      "1514356319994")
+
+    testAllApis(
+      'f20 - 'f20,
+      "f20 - f20",
+      "f20 - f20",
+      "0")
+
+    // test multiplication
+    testAllApis(
+      1514356320000L * 60000,
+      "1514356320000L * 60000",
+      "1514356320000 * 60000",
+      "90861379200000000")
+
+    testAllApis(
+      'f20 * 6,
+      "f20 * 6",
+      "f20 * 6",
+      "9086137920000")
+
+    testAllApis(
+      'f20 * 'f20,
+      "f20 * f20",
+      "f20 * f20",
+      "2293275063923942400000000")
+
+    // test division
+    testAllApis(
+      1514356320000L / 60000,
+      "1514356320000L / 60000",
+      "1514356320000 / 60000",
+      "25239272")
+
+    testAllApis(
+      'f20 / 6,
+      "f20 / 6",
+      "f20 / 6",
+      "252392720000")
+
+    testAllApis(
+      'f20 / 'f20,
+      "f20 / f20",
+      "f20 / f20",
+      "1")
+
+    // test modulo
+    testAllApis(
+      1514356320000L % 60000,
+      "1514356320000L % 60000",
+      "mod(1514356320000,60000)",
+      "0")
+
+    testAllApis(
+      'f20.mod('f20),
+      "f20.mod(f20)",
+      "mod(f20,f20)",
+      "0")
+
+    testAllApis(
+      'f20.mod(6),
+      "f20.mod(6)",
+      "mod(f20,6)",
+      "0")
+
+    testAllApis(
+      'f3.mod('f2),
+      "f3.mod(f2)",
+      "MOD(f3, f2)",
+      "0")
+
+    testAllApis(
+      'f3.mod(3),
+      "mod(f3, 3)",
+      "MOD(f3, 3)",
+      "1")
+
+    // other math arithmetic
     testTableApi(-'f8, "-f8", "-5")
     testTableApi( +'f8, "+f8", "5") // additional space before "+" required because of checkstyle
     testTableApi(3.toExpr + 'f8, "3 + f8", "8")
 
-    // boolean arithmetic
-    testTableApi('f6 && true, "f6 && true", "true")
-    testTableApi('f6 && false, "f6 && false", "false")
-    testTableApi('f6 || false, "f6 || false", "true")
+    // boolean arithmetic: AND
+    testTableApi('f6 && true, "f6 && true", "true")      // true && true
+    testTableApi('f6 && false, "f6 && false", "false")   // true && false
+    testTableApi('f11 && true, "f11 && true", "false")   // false && true
+    testTableApi('f11 && false, "f11 && false", "false") // false && false
+    testTableApi('f6 && 'f12, "f6 && f12", "null")       // true && null
+    testTableApi('f11 && 'f12, "f11 && f12", "false")    // false && null
+    testTableApi('f12 && true, "f12 && true", "null")    // null && true
+    testTableApi('f12 && false, "f12 && false", "false") // null && false
+    testTableApi('f12 && 'f12, "f12 && f12", "null")     // null && null
+    testTableApi('f11 && ShouldNotExecuteFunc('f10),     // early out
+      "f11 && ShouldNotExecuteFunc(f10)", "false")
+    testTableApi('f6 && 'f11 && ShouldNotExecuteFunc('f10),  // early out
+      "f6 && f11 && ShouldNotExecuteFunc(f10)", "false")
+
+    // boolean arithmetic: OR
+    testTableApi('f6 || true, "f6 || true", "true")      // true || true
+    testTableApi('f6 || false, "f6 || false", "true")    // true || false
+    testTableApi('f11 || true, "f11 || true", "true")    // false || true
+    testTableApi('f11 || false, "f11 || false", "false") // false || false
+    testTableApi('f6 || 'f12, "f6 || f12", "true")       // true || null
+    testTableApi('f11 || 'f12, "f11 || f12", "null")     // false || null
+    testTableApi('f12 || true, "f12 || true", "true")    // null || true
+    testTableApi('f12 || false, "f12 || false", "null")  // null || false
+    testTableApi('f12 || 'f12, "f12 || f12", "null")     // null || null
+    testTableApi('f6 || ShouldNotExecuteFunc('f10),      // early out
+      "f6 || ShouldNotExecuteFunc(f10)", "true")
+    testTableApi('f11 || 'f6 || ShouldNotExecuteFunc('f10),  // early out
+      "f11 || f6 || ShouldNotExecuteFunc(f10)", "true")
+
+    // boolean arithmetic: NOT
     testTableApi(!'f6, "!f6", "false")
 
     // comparison
@@ -109,7 +238,117 @@ class ScalarOperatorsTest extends ExpressionTestBase {
   }
 
   @Test
+  def testIn(): Unit = {
+    testAllApis(
+      'f2.in(1, 2, 42),
+      "f2.in(1, 2, 42)",
+      "f2 IN (1, 2, 42)",
+      "true"
+    )
+
+    testAllApis(
+      'f0.in(BigDecimal(42.0), BigDecimal(2.00), BigDecimal(3.01), BigDecimal(1.000000)),
+      "f0.in(42.0p, 2.00p, 3.01p, 1.000000p)",
+      "CAST(f0 AS DECIMAL) IN (42.0, 2.00, 3.01, 1.000000)", // SQL would downcast otherwise
+      "true"
+    )
+
+    testAllApis(
+      'f10.in("This is a test String.", "String", "Hello world", "Comment#1"),
+      "f10.in('This is a test String.', 'String', 'Hello world', 'Comment#1')",
+      "f10 IN ('This is a test String.', 'String', 'Hello world', 'Comment#1')",
+      "true"
+    )
+
+    testAllApis(
+      'f14.in("This is a test String.", "Hello world"),
+      "f14.in('This is a test String.', 'Hello world')",
+      "f14 IN ('This is a test String.', 'String', 'Hello world')",
+      "null"
+    )
+
+    testAllApis(
+      'f15.in("1996-11-10".toDate),
+      "f15.in('1996-11-10'.toDate)",
+      "f15 IN (DATE '1996-11-10')",
+      "true"
+    )
+
+    testAllApis(
+      'f15.in("1996-11-10".toDate, "1996-11-11".toDate),
+      "f15.in('1996-11-10'.toDate, '1996-11-11'.toDate)",
+      "f15 IN (DATE '1996-11-10', DATE '1996-11-11')",
+      "true"
+    )
+
+    testAllApis(
+      'f7.in('f16, 'f17),
+      "f7.in(f16, f17)",
+      "f7 IN (f16, f17)",
+      "true"
+    )
+
+    // we do not test SQL here as this expression would be converted into values + join operations
+    testTableApi(
+      'f7.in(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21),
+      "f7.in(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21)",
+      "false"
+    )
+
+    testTableApi(
+      'f10.in("This is a test String.", "String", "Hello world", "Comment#1", Null(Types.STRING)),
+      "f10.in('This is a test String.', 'String', 'Hello world', 'Comment#1', Null(STRING))",
+      "true"
+    )
+
+    testTableApi(
+      'f10.in("FAIL", "FAIL"),
+      "f10.in('FAIL', 'FAIL')",
+      "false"
+    )
+
+    testTableApi(
+      'f10.in("FAIL", "FAIL", Null(Types.STRING)),
+      "f10.in('FAIL', 'FAIL', Null(STRING))",
+      "null"
+    )
+  }
+
+  @Test
   def testOtherExpressions(): Unit = {
+    // nested field null type
+    testSqlApi("CASE WHEN f13.f1 IS NULL THEN 'a' ELSE 'b' END", "a")
+    testSqlApi("CASE WHEN f13.f1 IS NOT NULL THEN 'a' ELSE 'b' END", "b")
+    testAllApis('f13.isNull, "f13.isNull", "f13 IS NULL", "false")
+    testAllApis('f13.isNotNull, "f13.isNotNull", "f13 IS NOT NULL", "true")
+    testAllApis('f13.get("f0").isNull, "f13.get('f0').isNull", "f13.f0 IS NULL", "false")
+    testAllApis('f13.get("f0").isNotNull, "f13.get('f0').isNotNull", "f13.f0 IS NOT NULL", "true")
+    testAllApis('f13.get("f1").isNull, "f13.get('f1').isNull", "f13.f1 IS NULL", "true")
+    testAllApis('f13.get("f1").isNotNull, "f13.get('f1').isNotNull", "f13.f1 IS NOT NULL", "false")
+
+    // array element access test
+    testSqlApi("CASE WHEN f18 IS NOT NULL THEN f18[1] ELSE NULL END", "1")
+    testSqlApi("CASE WHEN f19 IS NOT NULL THEN f19[1] ELSE NULL END", "(1,a)")
+
+    // boolean literals
+    testAllApis(
+      true,
+      "true",
+      "true",
+      "true")
+
+    testAllApis(
+      false,
+      "False",
+      "fAlse",
+      "false")
+
+    testAllApis(
+      true,
+      "TrUe",
+      "tRuE",
+      "true")
+
     // null
     testAllApis(Null(Types.INT), "Null(INT)", "CAST(NULL AS INT)", "null")
     testAllApis(
@@ -126,6 +365,11 @@ class ScalarOperatorsTest extends ExpressionTestBase {
       "true.?(true.?(true.?(10, 4), 4), 4)",
       "10")
     testTableApi(true, "?((f6 && true), 'true', 'false')", "true")
+    testTableApi(
+      If('f9 > 'f8, 'f9 - 1, 'f9),
+      "If(f9 > f8, f9 - 1, f9)",
+      "9"
+    )
     testSqlApi("CASE 11 WHEN 1 THEN 'a' ELSE 'b' END", "b")
     testSqlApi("CASE 2 WHEN 1 THEN 'a' ELSE 'b' END", "b")
     testSqlApi(
@@ -163,59 +407,4 @@ class ScalarOperatorsTest extends ExpressionTestBase {
       "trueX")
     testTableApi(12.isNull, "12.isNull", "false")
   }
-
-  @Test(expected = classOf[ValidationException])
-  def testIfInvalidTypesScala(): Unit = {
-    testTableApi(('f6 && true).?(5, "false"), "FAIL", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testIfInvalidTypesJava(): Unit = {
-    testTableApi("FAIL", "(f8 && true).?(5, 'false')", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidStringComparison1(): Unit = {
-    testTableApi("w" === 4, "FAIL", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidStringComparison2(): Unit = {
-    testTableApi("w" > 4.toExpr, "FAIL", "FAIL")
-  }
-
-  // ----------------------------------------------------------------------------------------------
-
-  def testData = {
-    val testData = new Row(11)
-    testData.setField(0, 1: Byte)
-    testData.setField(1, 1: Short)
-    testData.setField(2, 1)
-    testData.setField(3, 1L)
-    testData.setField(4, 1.0f)
-    testData.setField(5, 1.0d)
-    testData.setField(6, true)
-    testData.setField(7, 0.0d)
-    testData.setField(8, 5)
-    testData.setField(9, 10)
-    testData.setField(10, "String")
-    testData
-  }
-
-  def typeInfo = {
-    new RowTypeInfo(
-      Types.BYTE,
-      Types.SHORT,
-      Types.INT,
-      Types.LONG,
-      Types.FLOAT,
-      Types.DOUBLE,
-      Types.BOOLEAN,
-      Types.DOUBLE,
-      Types.INT,
-      Types.INT,
-      Types.STRING
-      ).asInstanceOf[TypeInformation[Any]]
-  }
-
 }

@@ -15,18 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
-import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
-import org.apache.flink.api.common.ArchivedExecutionConfig;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.util.SerializedValue;
 
-import java.io.IOException;
+import javax.annotation.Nullable;
+
 import java.util.Map;
 
 /**
@@ -48,7 +50,7 @@ public interface AccessExecutionGraph {
 	JobID getJobID();
 
 	/**
-	 * Returns the job name for thie execution graph.
+	 * Returns the job name for the execution graph.
 	 *
 	 * @return job name for this execution graph
 	 */
@@ -65,16 +67,18 @@ public interface AccessExecutionGraph {
 	 * Returns the exception that caused the job to fail. This is the first root exception
 	 * that was not recoverable and triggered job failure.
 	 *
-	 * @return failure causing exception as a string, or {@code "(null)"}
+	 * @return failure causing exception, or null
 	 */
-	String getFailureCauseAsString();
+	@Nullable
+	ErrorInfo getFailureInfo();
 
 	/**
 	 * Returns the job vertex for the given {@link JobVertexID}.
 	 *
 	 * @param id id of job vertex to be returned
-	 * @return job vertex for the given id, or null
+	 * @return job vertex for the given id, or {@code null}
 	 */
+	@Nullable
 	AccessExecutionJobVertex getJobVertex(JobVertexID id);
 
 	/**
@@ -87,7 +91,7 @@ public interface AccessExecutionGraph {
 	/**
 	 * Returns an iterable containing all job vertices for this execution graph in the order they were created.
 	 *
-	 * @return iterable containing all job vertices for this execution graph in the order they were creater
+	 * @return iterable containing all job vertices for this execution graph in the order they were created
 	 */
 	Iterable<? extends AccessExecutionJobVertex> getVerticesTopologically();
 
@@ -99,7 +103,7 @@ public interface AccessExecutionGraph {
 	Iterable<? extends AccessExecutionVertex> getAllExecutionVertices();
 
 	/**
-	 * Returns the timestamp for the given {@link JobStatus}
+	 * Returns the timestamp for the given {@link JobStatus}.
 	 *
 	 * @param status status for which the timestamp should be returned
 	 * @return timestamp for the given job status
@@ -107,25 +111,29 @@ public interface AccessExecutionGraph {
 	long getStatusTimestamp(JobStatus status);
 
 	/**
-	 * Returns the {@link CheckpointCoordinator} for this execution graph.
+	 * Returns the {@link CheckpointCoordinatorConfiguration} or <code>null</code> if
+	 * checkpointing is disabled.
 	 *
-	 * @return CheckpointCoordinator for this execution graph or <code>null</code>
-	 * if none is available.
+	 * @return JobCheckpointingConfiguration for this execution graph
 	 */
-	CheckpointCoordinator getCheckpointCoordinator();
+	@Nullable
+	CheckpointCoordinatorConfiguration getCheckpointCoordinatorConfiguration();
 
 	/**
-	 * Returns the {@link CheckpointStatsTracker} for this execution graph.
+	 * Returns a snapshot of the checkpoint statistics or <code>null</code> if
+	 * checkpointing is disabled.
 	 *
-	 * @return CheckpointStatsTracker for thie execution graph
+	 * @return Snapshot of the checkpoint statistics for this execution graph
 	 */
-	CheckpointStatsTracker getCheckpointStatsTracker();
+	@Nullable
+	CheckpointStatsSnapshot getCheckpointStatsSnapshot();
 
 	/**
 	 * Returns the {@link ArchivedExecutionConfig} for this execution graph.
 	 *
 	 * @return execution config summary for this execution graph, or null in case of errors
 	 */
+	@Nullable
 	ArchivedExecutionConfig getArchivedExecutionConfig();
 
 	/**
@@ -146,9 +154,8 @@ public interface AccessExecutionGraph {
 	 * Returns a map containing the serialized values of user-defined accumulators.
 	 *
 	 * @return map containing serialized values of user-defined accumulators
-	 * @throws IOException indicates that the serialization has failed
 	 */
-	Map<String, SerializedValue<Object>> getAccumulatorsSerialized() throws IOException;
+	Map<String, SerializedValue<Object>> getAccumulatorsSerialized();
 
 	/**
 	 * Returns whether this execution graph was archived.

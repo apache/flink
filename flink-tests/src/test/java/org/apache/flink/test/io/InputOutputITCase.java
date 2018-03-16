@@ -38,7 +38,7 @@ public class InputOutputITCase extends JavaProgramTestBase {
 		env.createInput(new TestNonRichInputFormat()).output(output);
 		try {
 			env.execute();
-		} catch(Exception e){
+		} catch (Exception e){
 			// we didn't break anything by making everything rich.
 			e.printStackTrace();
 			fail(e.getMessage());

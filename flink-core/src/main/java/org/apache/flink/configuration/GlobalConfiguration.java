@@ -18,15 +18,18 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-
-import org.apache.flink.annotation.Internal;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Global configuration object for Flink. Similar to Java properties configuration
@@ -46,24 +49,6 @@ public final class GlobalConfiguration {
 
 	// --------------------------------------------------------------------------------------------
 
-	private static Configuration dynamicProperties = null;
-
-	/**
-	 * Set the process-wide dynamic properties to be merged with the loaded configuration.
-     */
-	public static void setDynamicProperties(Configuration dynamicProperties) {
-		GlobalConfiguration.dynamicProperties = new Configuration(dynamicProperties);
-	}
-
-	/**
-	 * Get the dynamic properties.
-     */
-	public static Configuration getDynamicProperties() {
-		return GlobalConfiguration.dynamicProperties;
-	}
-
-	// --------------------------------------------------------------------------------------------
-
 	/**
 	 * Loads the global configuration from the environment. Fails if an error occurs during loading. Returns an
 	 * empty configuration object if the environment variable is not set. In production this variable is set but
@@ -76,18 +61,30 @@ public final class GlobalConfiguration {
 		if (configDir == null) {
 			return new Configuration();
 		}
-		return loadConfiguration(configDir);
+		return loadConfiguration(configDir, null);
 	}
 
 	/**
 	 * Loads the configuration files from the specified directory.
-	 * <p>
-	 * YAML files are supported as configuration files.
-	 * 
+	 *
+	 * <p>YAML files are supported as configuration files.
+	 *
 	 * @param configDir
 	 *        the directory which contains the configuration files
 	 */
 	public static Configuration loadConfiguration(final String configDir) {
+		return loadConfiguration(configDir, null);
+	}
+
+	/**
+	 * Loads the configuration files from the specified directory. If the dynamic properties
+	 * configuration is not null, then it is added to the loaded configuration.
+	 *
+	 * @param configDir directory to load the configuration from
+	 * @param dynamicProperties configuration file containing the dynamic properties. Null if none.
+	 * @return The configuration loaded from the given configuration directory
+	 */
+	public static Configuration loadConfiguration(final String configDir, @Nullable final Configuration dynamicProperties) {
 
 		if (configDir == null) {
 			throw new IllegalArgumentException("Given configuration directory is null, cannot load configuration");
@@ -109,32 +106,48 @@ public final class GlobalConfiguration {
 					"' (" + confDirFile.getAbsolutePath() + ") does not exist.");
 		}
 
-		Configuration conf = loadYAMLResource(yamlConfigFile);
+		Configuration configuration = loadYAMLResource(yamlConfigFile);
 
-		if(dynamicProperties != null) {
-			conf.addAll(dynamicProperties);
+		if (dynamicProperties != null) {
+			configuration.addAll(dynamicProperties);
 		}
 
-		return conf;
+		return configuration;
+	}
+
+	/**
+	 * Loads the global configuration and adds the given dynamic properties
+	 * configuration.
+	 *
+	 * @param dynamicProperties The given dynamic properties
+	 * @return Returns the loaded global configuration with dynamic properties
+	 */
+	public static Configuration loadConfigurationWithDynamicProperties(Configuration dynamicProperties) {
+		final String configDir = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
+		if (configDir == null) {
+			return new Configuration(dynamicProperties);
+		}
+
+		return loadConfiguration(configDir, dynamicProperties);
 	}
 
 	/**
 	 * Loads a YAML-file of key-value pairs.
-	 * <p>
-	 * Colon and whitespace ": " separate key and value (one per line). The hash tag "#" starts a single-line comment.
-	 * <p>
-	 * Example:
-	 * 
+	 *
+	 * <p>Colon and whitespace ": " separate key and value (one per line). The hash tag "#" starts a single-line comment.
+	 *
+	 * <p>Example:
+	 *
 	 * <pre>
 	 * jobmanager.rpc.address: localhost # network address for communication with the job manager
 	 * jobmanager.rpc.port   : 6123      # network port to connect to for communication with the job manager
 	 * taskmanager.rpc.port  : 6122      # network port the task manager expects incoming IPC connections
 	 * </pre>
-	 * <p>
-	 * This does not span the whole YAML specification, but only the *syntax* of simple YAML key-value pairs (see issue
+	 *
+	 * <p>This does not span the whole YAML specification, but only the *syntax* of simple YAML key-value pairs (see issue
 	 * #113 on GitHub). If at any point in time, there is a need to go beyond simple key-value pairs syntax
 	 * compatibility will allow to introduce a YAML parser library.
-	 * 
+	 *
 	 * @param file the YAML file to read from
 	 * @see <a href="http://www.yaml.org/spec/1.2/spec.html">YAML 1.2 specification</a>
 	 */
@@ -144,11 +157,12 @@ public final class GlobalConfiguration {
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)))){
 
 			String line;
+			int lineNo = 0;
 			while ((line = reader.readLine()) != null) {
-
+				lineNo++;
 				// 1. check for comments
 				String[] comments = line.split("#", 2);
-				String conf = comments[0];
+				String conf = comments[0].trim();
 
 				// 2. get key and value
 				if (conf.length() > 0) {
@@ -156,7 +170,7 @@ public final class GlobalConfiguration {
 
 					// skip line with no valid key-value pair
 					if (kv.length == 1) {
-						LOG.warn("Error while trying to split key and value in configuration file " + file + ": " + line);
+						LOG.warn("Error while trying to split key and value in configuration file " + file + ":" + lineNo + ": \"" + line + "\"");
 						continue;
 					}
 
@@ -165,7 +179,7 @@ public final class GlobalConfiguration {
 
 					// sanity check
 					if (key.length() == 0 || value.length() == 0) {
-						LOG.warn("Error after splitting key and value in configuration file " + file + ": " + line);
+						LOG.warn("Error after splitting key and value in configuration file " + file + ":" + lineNo + ": \"" + line + "\"");
 						continue;
 					}
 

@@ -18,80 +18,92 @@
 
 package org.apache.flink.table.plan.nodes.dataset
 
-import org.apache.calcite.plan._
-import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rel.metadata.RelMetadataQuery
+import org.apache.calcite.rex.RexNode
+import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.typeutils.PojoTypeInfo
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.plan.schema.FlinkTable
-import org.apache.flink.table.typeutils.TypeConverter.determineReturnType
+import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.plan.nodes.CommonScan
+import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.runtime.MapRunner
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.types.Row
 
-import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
+trait BatchScan extends CommonScan[Row] with DataSetRel {
 
-abstract class BatchScan(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    table: RelOptTable)
-  extends TableScan(cluster, traitSet, table)
-  with DataSetRel {
-
-  override def toString: String = {
-    s"Source(from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")}))"
-  }
-
-  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
-
-    val rowCnt = metadata.getRowCount(this)
-    planner.getCostFactory.makeCost(rowCnt, rowCnt, 0)
-  }
-
-  protected def convertToExpectedType(
+  protected def convertToInternalRow(
+      schema: RowSchema,
       input: DataSet[Any],
-      flinkTable: FlinkTable[_],
-      expectedType: Option[TypeInformation[Any]],
-      config: TableConfig): DataSet[Any] = {
+      fieldIdxs: Array[Int],
+      config: TableConfig,
+      rowtimeExpression: Option[RexNode]): DataSet[Row] = {
 
     val inputType = input.getType
+    val internalType = schema.typeInfo
 
-    expectedType match {
+    val hasTimeIndicator = fieldIdxs.exists(f =>
+      f == TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER ||
+      f == TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER)
 
-      // special case:
-      // if efficient type usage is enabled and no expected type is set
-      // we can simply forward the DataSet to the next operator.
-      // however, we cannot forward PojoTypes as their fields don't have an order
-      case None if config.getEfficientTypeUsage && !inputType.isInstanceOf[PojoTypeInfo[_]] =>
-        input
+    // conversion
+    if (inputType != internalType || hasTimeIndicator) {
 
-      case _ =>
-        val determinedType = determineReturnType(
-          getRowType,
-          expectedType,
-          config.getNullCheck,
-          config.getEfficientTypeUsage)
+      val function = generateConversionMapper(
+        config,
+        inputType,
+        internalType,
+        "DataSetSourceConversion",
+        schema.fieldNames,
+        fieldIdxs,
+        rowtimeExpression)
 
-        // conversion
-        if (determinedType != inputType) {
+      val runner = new MapRunner[Any, Row](
+        function.name,
+        function.code,
+        function.returnType)
 
-          val mapFunc = getConversionMapper(
-            config,
-            nullableInput = false,
-            inputType,
-            determinedType,
-            "DataSetSourceConversion",
-            getRowType.getFieldNames,
-            Some(flinkTable.fieldIndexes))
+      val opName = s"from: (${schema.fieldNames.mkString(", ")})"
 
-          val opName = s"from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
-
-          input.map(mapFunc).name(opName)
-        }
-        // no conversion necessary, forward
-        else {
-          input
-        }
+      input.map(runner).name(opName)
     }
+    // no conversion necessary, forward
+    else {
+      input.asInstanceOf[DataSet[Row]]
+    }
+  }
+
+  private def generateConversionMapper(
+      config: TableConfig,
+      inputType: TypeInformation[Any],
+      outputType: TypeInformation[Row],
+      conversionOperatorName: String,
+      fieldNames: Seq[String],
+      inputFieldMapping: Array[Int],
+      rowtimeExpression: Option[RexNode]): GeneratedFunction[MapFunction[Any, Row], Row] = {
+
+    val generator = new FunctionCodeGenerator(
+      config,
+      false,
+      inputType,
+      None,
+      Some(inputFieldMapping))
+
+    val conversion = generator.generateConverterResultExpression(
+      outputType,
+      fieldNames,
+      rowtimeExpression)
+
+    val body =
+      s"""
+         |${conversion.code}
+         |return ${conversion.resultTerm};
+         |""".stripMargin
+
+    generator.generateFunction(
+      "DataSetSourceConversion",
+      classOf[MapFunction[Any, Row]],
+      body,
+      outputType)
   }
 }

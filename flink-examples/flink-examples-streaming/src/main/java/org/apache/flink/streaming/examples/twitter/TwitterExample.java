@@ -25,26 +25,25 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.twitter.TwitterSource;
 import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData;
 import org.apache.flink.util.Collector;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.StringTokenizer;
 
 /**
  * Implements the "TwitterStream" program that computes a most used word
  * occurrence over JSON objects in a streaming fashion.
- * <p>
- * The input is a Tweet stream from a TwitterSource.
- * </p>
- * <p>
- * Usage: <code>Usage: TwitterExample [--output <path>]
- * [--twitter-source.consumerKey <key> --twitter-source.consumerSecret <secret> --twitter-source.token <token> --twitter-source.tokenSecret <tokenSecret>]</code><br>
  *
- * If no parameters are provided, the program is run with default data from
+ * <p>The input is a Tweet stream from a TwitterSource.
+ *
+ * <p>Usage: <code>Usage: TwitterExample [--output &lt;path&gt;]
+ * [--twitter-source.consumerKey &lt;key&gt; --twitter-source.consumerSecret &lt;secret&gt; --twitter-source.token &lt;token&gt; --twitter-source.tokenSecret &lt;tokenSecret&gt;]</code><br>
+ *
+ * <p>If no parameters are provided, the program is run with default data from
  * {@link TwitterExampleData}.
- * </p>
- * <p>
- * This example shows how to:
+ *
+ * <p>This example shows how to:
  * <ul>
  * <li>acquire external data,
  * <li>use in-line defined functions,
@@ -113,8 +112,7 @@ public class TwitterExample {
 	/**
 	 * Deserialize JSON from twitter source
 	 *
-	 * <p>
-	 * Implements a string tokenizer that splits sentences into words as a
+	 * <p>Implements a string tokenizer that splits sentences into words as a
 	 * user-defined FlatMapFunction. The function takes a line (String) and
 	 * splits it into multiple pairs in the form of "(word,1)" ({@code Tuple2<String,
 	 * Integer>}).
@@ -123,12 +121,13 @@ public class TwitterExample {
 		private static final long serialVersionUID = 1L;
 
 		private transient ObjectMapper jsonParser;
+
 		/**
-		 * Select the language from the incoming JSON text
+		 * Select the language from the incoming JSON text.
 		 */
 		@Override
 		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) throws Exception {
-			if(jsonParser == null) {
+			if (jsonParser == null) {
 				jsonParser = new ObjectMapper();
 			}
 			JsonNode jsonNode = jsonParser.readValue(value, JsonNode.class);

@@ -20,15 +20,13 @@ package org.apache.flink.table.functions.utils
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
-import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.functions.utils.ScalarSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getResultType, getSignature, getSignatures, signatureToString, signaturesToString}
+import org.apache.flink.table.functions.utils.ScalarSqlFunction.createReturnTypeInference
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 
 import scala.collection.JavaConverters._
 
@@ -36,23 +34,28 @@ import scala.collection.JavaConverters._
   * Calcite wrapper for user-defined scalar functions.
   *
   * @param name function name (used by SQL parser)
+  * @param displayName name to be displayed in operator name
   * @param scalarFunction scalar function to be called
   * @param typeFactory type factory for converting Flink's between Calcite's types
   */
 class ScalarSqlFunction(
     name: String,
+    displayName: String,
     scalarFunction: ScalarFunction,
     typeFactory: FlinkTypeFactory)
   extends SqlFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
     createReturnTypeInference(name, scalarFunction, typeFactory),
-    createOperandTypeInference(scalarFunction, typeFactory),
-    createOperandTypeChecker(name, scalarFunction),
+    createEvalOperandTypeInference(name, scalarFunction, typeFactory),
+    createEvalOperandTypeChecker(name, scalarFunction),
     null,
     SqlFunctionCategory.USER_DEFINED_FUNCTION) {
 
-  def getScalarFunction = scalarFunction
+  def getScalarFunction: ScalarFunction = scalarFunction
 
+  override def isDeterministic: Boolean = scalarFunction.isDeterministic
+
+  override def toString: String = displayName
 }
 
 object ScalarSqlFunction {
@@ -77,106 +80,15 @@ object ScalarSqlFunction {
               FlinkTypeFactory.toTypeInfo(operandType)
             }
           }
-        val foundSignature = getSignature(scalarFunction, parameters)
+        val foundSignature = getEvalMethodSignature(scalarFunction, parameters)
         if (foundSignature.isEmpty) {
           throw new ValidationException(
             s"Given parameters of function '$name' do not match any signature. \n" +
               s"Actual: ${signatureToString(parameters)} \n" +
-              s"Expected: ${signaturesToString(scalarFunction)}")
+              s"Expected: ${signaturesToString(scalarFunction, "eval")}")
         }
-        val resultType = getResultType(scalarFunction, foundSignature.get)
-        typeFactory.createTypeFromTypeInfo(resultType)
-      }
-    }
-  }
-
-  private[flink] def createOperandTypeInference(
-      scalarFunction: ScalarFunction,
-      typeFactory: FlinkTypeFactory)
-    : SqlOperandTypeInference = {
-    /**
-      * Operand type inference based on [[ScalarFunction]] given information.
-      */
-    new SqlOperandTypeInference {
-      override def inferOperandTypes(
-          callBinding: SqlCallBinding,
-          returnType: RelDataType,
-          operandTypes: Array[RelDataType]): Unit = {
-
-        val operandTypeInfo = getOperandTypeInfo(callBinding)
-
-        val foundSignature = getSignature(scalarFunction, operandTypeInfo)
-          .getOrElse(throw new ValidationException(s"Operand types of could not be inferred."))
-
-        val inferredTypes = scalarFunction
-          .getParameterTypes(foundSignature)
-          .map(typeFactory.createTypeFromTypeInfo)
-
-        inferredTypes.zipWithIndex.foreach {
-          case (inferredType, i) =>
-            operandTypes(i) = inferredType
-        }
-      }
-    }
-  }
-
-  private[flink] def createOperandTypeChecker(
-      name: String,
-      scalarFunction: ScalarFunction)
-    : SqlOperandTypeChecker = {
-
-    val signatures = getSignatures(scalarFunction)
-
-    /**
-      * Operand type checker based on [[ScalarFunction]] given information.
-      */
-    new SqlOperandTypeChecker {
-      override def getAllowedSignatures(op: SqlOperator, opName: String): String = {
-        s"$opName[${signaturesToString(scalarFunction)}]"
-      }
-
-      override def getOperandCountRange: SqlOperandCountRange = {
-        val signatureLengths = signatures.map(_.length)
-        SqlOperandCountRanges.between(signatureLengths.min, signatureLengths.max)
-      }
-
-      override def checkOperandTypes(
-          callBinding: SqlCallBinding,
-          throwOnFailure: Boolean)
-        : Boolean = {
-        val operandTypeInfo = getOperandTypeInfo(callBinding)
-
-        val foundSignature = getSignature(scalarFunction, operandTypeInfo)
-
-        if (foundSignature.isEmpty) {
-          if (throwOnFailure) {
-            throw new ValidationException(
-              s"Given parameters of function '$name' do not match any signature. \n" +
-                s"Actual: ${signatureToString(operandTypeInfo)} \n" +
-                s"Expected: ${signaturesToString(scalarFunction)}")
-          } else {
-            false
-          }
-        } else {
-          true
-        }
-      }
-
-      override def isOptional(i: Int): Boolean = false
-
-      override def getConsistency: Consistency = Consistency.NONE
-
-    }
-  }
-
-  private[flink] def getOperandTypeInfo(callBinding: SqlCallBinding): Seq[TypeInformation[_]] = {
-    val operandTypes = for (i <- 0 until callBinding.getOperandCount)
-      yield callBinding.getOperandType(i)
-    operandTypes.map { operandType =>
-      if (operandType.getSqlTypeName == SqlTypeName.NULL) {
-        null
-      } else {
-        FlinkTypeFactory.toTypeInfo(operandType)
+        val resultType = getResultTypeOfScalarFunction(scalarFunction, foundSignature.get)
+        typeFactory.createTypeFromTypeInfo(resultType, isNullable = true)
       }
     }
   }

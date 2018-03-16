@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.filecache;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.java.tuple.Tuple4;
@@ -30,7 +29,9 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ShutdownHookUtil;
 
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,8 +55,8 @@ import java.util.concurrent.TimeUnit;
 public class FileCache {
 
 	static final Logger LOG = LoggerFactory.getLogger(FileCache.class);
-	
-	/** cache-wide lock to ensure consistency. copies are not done under this lock */
+
+	/** cache-wide lock to ensure consistency. copies are not done under this lock. */
 	private final Object lock = new Object();
 
 	private final Map<JobID, Map<String, Tuple4<Integer, File, Path, Future<Path>>>> entries;
@@ -99,11 +100,12 @@ public class FileCache {
 		this.shutdownHook = createShutdownHook(this, LOG);
 
 		this.entries = new HashMap<JobID, Map<String, Tuple4<Integer, File, Path, Future<Path>>>>();
-		this.executorService = Executors.newScheduledThreadPool(10, ExecutorThreadFactory.INSTANCE);
+		this.executorService = Executors.newScheduledThreadPool(10,
+				new ExecutorThreadFactory("flink-file-cache"));
 	}
 
 	/**
-	 * Shuts down the file cache by cancelling all
+	 * Shuts down the file cache by cancelling all.
 	 */
 	public void shutdown() {
 		synchronized (lock) {
@@ -118,9 +120,9 @@ public class FileCache {
 					// may happen
 				}
 			}
-			
+
 			entries.clear();
-			
+
 			// clean up the all storage directories
 			for (File dir : storageDirectories) {
 				try {
@@ -131,19 +133,8 @@ public class FileCache {
 				}
 			}
 
-			// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
-			// shutdown hook itself
-			if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
-				try {
-					Runtime.getRuntime().removeShutdownHook(shutdownHook);
-				}
-				catch (IllegalStateException e) {
-					// race, JVM is in shutdown already, we can safely ignore this
-				}
-				catch (Throwable t) {
-					LOG.warn("Exception while unregistering file cache's cleanup shutdown hook.");
-				}
-			}
+			// Remove shutdown hook to prevent resource leaks
+			ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 		}
 	}
 
@@ -171,7 +162,7 @@ public class FileCache {
 				// file is already in the cache. return a future that
 				// immediately returns the file
 				fileEntry.f0 = fileEntry.f0 + 1;
-				
+
 				// return the future. may be that the copy is still in progress
 				return fileEntry.f3;
 			}
@@ -196,10 +187,10 @@ public class FileCache {
 				CopyProcess cp = new CopyProcess(entry, target);
 				FutureTask<Path> copyTask = new FutureTask<Path>(cp);
 				executorService.submit(copyTask);
-				
+
 				// store our entry
 				jobEntries.put(name, new Tuple4<Integer, File, Path, Future<Path>>(1, tempDirToUse, target, copyTask));
-				
+
 				return copyTask;
 			}
 		}
@@ -215,8 +206,7 @@ public class FileCache {
 		DeleteProcess dp = new DeleteProcess(lock, entries, name, jobID);
 		executorService.schedule(dp, 5000L, TimeUnit.MILLISECONDS);
 	}
-	
-	
+
 	boolean holdsStillReference(String name, JobID jobId) {
 		Map<String, Tuple4<Integer, File, Path, Future<Path>>> jobEntries = entries.get(jobId);
 		if (jobEntries != null) {
@@ -252,7 +242,7 @@ public class FileCache {
 					copy(content.getPath(), new Path(localPath), executable);
 				}
 			} else {
-				try (FSDataOutputStream lfsOutput = tFS.create(targetPath, false); FSDataInputStream fsInput = sFS.open(sourcePath)) {
+				try (FSDataOutputStream lfsOutput = tFS.create(targetPath, FileSystem.WriteMode.NO_OVERWRITE); FSDataInputStream fsInput = sFS.open(sourcePath)) {
 					IOUtils.copyBytes(fsInput, lfsOutput);
 					//noinspection ResultOfMethodCallIgnored
 					new File(targetPath.toString()).setExecutable(executable);
@@ -265,31 +255,11 @@ public class FileCache {
 
 	private static Thread createShutdownHook(final FileCache cache, final Logger logger) {
 
-		Thread shutdownHook = new Thread(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					cache.shutdown();
-				}
-				catch (Throwable t) {
-					logger.error("Error during shutdown of file cache via JVM shutdown hook: " + t.getMessage(), t);
-				}
-			}
-		});
-
-		try {
-			// Add JVM shutdown hook to call shutdown of service
-			Runtime.getRuntime().addShutdownHook(shutdownHook);
-			return shutdownHook;
-		}
-		catch (IllegalStateException e) {
-			// JVM is already shutting down. no need to do our work
-			return null;
-		}
-		catch (Throwable t) {
-			logger.error("Cannot register shutdown hook that cleanly terminates the file cache service.");
-			return null;
-		}
+		return ShutdownHookUtil.addShutdownHook(
+			cache::shutdown,
+			FileCache.class.getSimpleName(),
+			logger
+		);
 	}
 
 	// ------------------------------------------------------------------------
@@ -297,7 +267,7 @@ public class FileCache {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Asynchronous file copy process
+	 * Asynchronous file copy process.
 	 */
 	private static class CopyProcess implements Callable<Path> {
 
@@ -332,8 +302,7 @@ public class FileCache {
 		private final JobID jobID;
 
 		public DeleteProcess(Object lock, Map<JobID, Map<String, Tuple4<Integer, File, Path, Future<Path>>>> entries,
-								String name, JobID jobID)
-		{
+								String name, JobID jobID) {
 			this.lock = lock;
 			this.entries = entries;
 			this.name = name;
@@ -345,10 +314,10 @@ public class FileCache {
 			try {
 				synchronized (lock) {
 					Map<String, Tuple4<Integer, File, Path, Future<Path>>> jobEntries = entries.get(jobID);
-					
+
 					if (jobEntries != null) {
 						Tuple4<Integer, File, Path, Future<Path>> entry = jobEntries.get(name);
-						
+
 						if (entry != null) {
 							int count = entry.f0;
 							if (count > 1) {
@@ -361,7 +330,7 @@ public class FileCache {
 								if (jobEntries.isEmpty()) {
 									entries.remove(jobID);
 								}
-								
+
 								// abort the copy
 								entry.f3.cancel(true);
 
@@ -375,7 +344,7 @@ public class FileCache {
 										LOG.error("Could not delete locally cached file " + file.getAbsolutePath());
 									}
 								}
-								
+
 								// remove the job wide temp directory, if it is now empty
 								File parent = entry.f1;
 								if (parent.isDirectory()) {

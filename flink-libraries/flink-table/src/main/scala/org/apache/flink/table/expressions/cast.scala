@@ -30,12 +30,13 @@ case class Cast(child: Expression, resultType: TypeInformation[_]) extends Unary
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    val childRexNode = child.toRexNode
     relBuilder
       .getRexBuilder
       // we use abstract cast here because RelBuilder.cast() has to many side effects
       .makeAbstractCast(
-        typeFactory.createTypeFromTypeInfo(resultType),
-        child.toRexNode)
+        typeFactory.createTypeFromTypeInfo(resultType, childRexNode.getType.isNullable),
+        childRexNode)
   }
 
   override private[flink] def makeCopy(anyRefs: Array[AnyRef]): this.type = {

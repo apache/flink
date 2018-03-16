@@ -24,27 +24,37 @@ import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for lambda support in CEP.
+ */
 public class CEPLambdaTest extends TestLogger {
+	/**
+	 * Test event class.
+	 */
 	public static class EventA {}
 
+	/**
+	 * Test event class.
+	 */
 	public static class EventB {}
 
 	/**
-	 * Tests that a Java8 lambda can be passed as a CEP select function
+	 * Tests that a Java8 lambda can be passed as a CEP select function.
 	 */
 	@Test
 	public void testLambdaSelectFunction() {
 		TypeInformation<EventA> eventTypeInformation = TypeExtractor.getForClass(EventA.class);
 		TypeInformation<EventB> outputTypeInformation = TypeExtractor.getForClass(EventB.class);
-
 
 		DataStream<EventA> inputStream = new DataStream<>(
 			StreamExecutionEnvironment.getExecutionEnvironment(),
@@ -59,14 +69,14 @@ public class CEPLambdaTest extends TestLogger {
 		PatternStream<EventA> patternStream = new PatternStream<>(inputStream, dummyPattern);
 
 		DataStream<EventB> result = patternStream.select(
-			map -> new EventB()
+				(Map<String, List<EventA>> map) -> new EventB()
 		);
 
 		assertEquals(outputTypeInformation, result.getType());
 	}
 
 	/**
-	 * Tests that a Java8 labmda can be passed as a CEP flat select function
+	 * Tests that a Java8 lambda can be passed as a CEP flat select function.
 	 */
 	@Test
 	public void testLambdaFlatSelectFunction() {
@@ -86,7 +96,7 @@ public class CEPLambdaTest extends TestLogger {
 		PatternStream<EventA> patternStream = new PatternStream<>(inputStream, dummyPattern);
 
 		DataStream<EventB> result = patternStream.flatSelect(
-			(map, collector) -> collector.collect(new EventB())
+			(Map<String, List<EventA>> map, Collector<EventB> collector) -> collector.collect(new EventB())
 		);
 
 		assertEquals(outputTypeInformation, result.getType());

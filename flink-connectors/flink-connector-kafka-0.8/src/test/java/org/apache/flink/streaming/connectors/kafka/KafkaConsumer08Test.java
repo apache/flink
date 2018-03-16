@@ -18,10 +18,23 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.kafka.internals.Kafka08PartitionDiscoverer;
+import org.apache.flink.util.NetUtils;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.powermock.api.mockito.PowerMockito.when;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Matchers;
+import org.mockito.Mockito;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.net.InetAddress;
 import java.net.URL;
@@ -29,20 +42,17 @@ import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.Properties;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
-import org.apache.flink.util.NetUtils;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Matchers;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.powermock.api.mockito.PowerMockito.when;
 
+/**
+ * Tests for the {@link FlinkKafkaConsumer08}.
+ */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(FlinkKafkaConsumer08.class)
+@PrepareForTest(Kafka08PartitionDiscoverer.class)
 @PowerMockIgnore("javax.management.*")
 public class KafkaConsumer08Test {
 
@@ -86,7 +96,7 @@ public class KafkaConsumer08Test {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testCreateSourceWithoutCluster() {
 		try {
@@ -96,8 +106,14 @@ public class KafkaConsumer08Test {
 			props.setProperty("group.id", "non-existent-group");
 			props.setProperty(FlinkKafkaConsumer08.GET_PARTITIONS_RETRIES_KEY, "1");
 
-			FlinkKafkaConsumer08<String> consumer = new FlinkKafkaConsumer08<>(Collections.singletonList("no op topic"), new SimpleStringSchema(), props);
+			FlinkKafkaConsumer08<String> consumer = new FlinkKafkaConsumer08<>(
+				Collections.singletonList("no op topic"), new SimpleStringSchema(), props);
+			StreamingRuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
+			Mockito.when(mockRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+			consumer.setRuntimeContext(mockRuntimeContext);
+
 			consumer.open(new Configuration());
+
 			fail();
 		}
 		catch (Exception e) {
@@ -118,24 +134,29 @@ public class KafkaConsumer08Test {
 			String zookeeperConnect = "localhost:56794";
 			String groupId = "non-existent-group";
 			Properties props = createKafkaProps(zookeeperConnect, unknownHost, groupId);
-			FlinkKafkaConsumer08<String> consumer = new FlinkKafkaConsumer08<>(Collections.singletonList("no op topic"),
-					new SimpleStringSchema(), props);
+
+			FlinkKafkaConsumer08<String> consumer = new FlinkKafkaConsumer08<>(
+				Collections.singletonList("no op topic"), new SimpleStringSchema(), props);
+			StreamingRuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
+			Mockito.when(mockRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+			consumer.setRuntimeContext(mockRuntimeContext);
+
 			consumer.open(new Configuration());
+
 			fail();
-		} catch (Exception e) {
+		} catch (Exception expected) {
 			assertTrue("Exception should be thrown containing 'all bootstrap servers invalid' message!",
-					e.getMessage().contains("All the servers provided in: '" + ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG
+					expected.getMessage().contains("All the servers provided in: '" + ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG
 							+ "' config are invalid"));
 		}
 	}
 
 	@Test
-	public void testAtLeastOneBootstrapServerHostIsValid() {
+	public void testAtLeastOneBootstrapServerHostIsValid() throws Exception {
 		try {
 			String zookeeperConnect = "localhost:56794";
 			String unknownHost = "foobar:11111";
-			// we declare one valid bootstrap server, namely the one with
-			// 'localhost'
+			// we declare one valid bootstrap server, namely the one with 'localhost'
 			String bootstrapServers = unknownHost + ", localhost:22222";
 
 			URL unknownHostURL = NetUtils.getCorrectHostnamePort(unknownHost);
@@ -145,18 +166,20 @@ public class KafkaConsumer08Test {
 
 			String groupId = "non-existent-group";
 			Properties props = createKafkaProps(zookeeperConnect, bootstrapServers, groupId);
-			FlinkKafkaConsumer08<String> consumer = new FlinkKafkaConsumer08<>(Collections.singletonList("no op topic"),
-					new SimpleStringSchema(), props);
+			DummyFlinkKafkaConsumer consumer = new DummyFlinkKafkaConsumer(
+				"no op topic",
+				new SimpleStringSchema(),
+				props);
 			consumer.open(new Configuration());
-			fail();
+
+			// no exception should be thrown, because we have one valid bootstrap server; test passes if we reach here
 		} catch (Exception e) {
-			// test is not failing because we have one valid boostrap server
-			assertTrue("The cause of the exception should not be 'all boostrap server are invalid'!",
-					!e.getMessage().contains("All the hosts provided in: " + ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG
-							+ " config are invalid"));
+			assertFalse("No exception should be thrown containing 'all bootstrap servers invalid' message!",
+				e.getMessage().contains("All the servers provided in: '" + ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG
+					+ "' config are invalid"));
 		}
 	}
-	
+
 	private Properties createKafkaProps(String zookeeperConnect, String bootstrapServers, String groupId) {
 		Properties props = new Properties();
 		props.setProperty("zookeeper.connect", zookeeperConnect);
@@ -165,5 +188,22 @@ public class KafkaConsumer08Test {
 		props.setProperty("socket.timeout.ms", "100");
 		props.setProperty(FlinkKafkaConsumer08.GET_PARTITIONS_RETRIES_KEY, "1");
 		return props;
+	}
+
+	private static class DummyFlinkKafkaConsumer extends FlinkKafkaConsumer08<String> {
+
+		private static final long serialVersionUID = -3939402845009972810L;
+
+		public DummyFlinkKafkaConsumer(String topic, DeserializationSchema<String> schema, Properties props) {
+			super(Collections.singletonList(topic), schema, props);
+		}
+
+		@Override
+		public RuntimeContext getRuntimeContext() {
+			RuntimeContext mockRuntimeContext = mock(RuntimeContext.class);
+			when(mockRuntimeContext.getIndexOfThisSubtask()).thenReturn(0);
+			when(mockRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(1);
+			return mockRuntimeContext;
+		}
 	}
 }

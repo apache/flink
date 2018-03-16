@@ -18,15 +18,17 @@
 
 package org.apache.flink.streaming.api.graph;
 
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+
+import org.apache.flink.shaded.guava18.com.google.common.hash.HashFunction;
+import org.apache.flink.shaded.guava18.com.google.common.hash.Hasher;
+import org.apache.flink.shaded.guava18.com.google.common.hash.Hashing;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,17 +61,15 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 	 * StreamGraph}. The hash is used as the {@link JobVertexID} in order to
 	 * identify nodes across job submissions if they didn't change.
 	 *
-	 * <p>
 	 * <p>The complete {@link StreamGraph} is traversed. The hash is either
 	 * computed from the transformation's user-specified id (see
 	 * {@link StreamTransformation#getUid()}) or generated in a deterministic way.
 	 *
-	 * <p>
 	 * <p>The generated hash is deterministic with respect to:
 	 * <ul>
-	 * <li>node-local properties (like parallelism, UDF, node ID),
-	 * <li>chained output nodes, and
-	 * <li>input nodes hashes
+	 *   <li>node-local properties (like parallelism, UDF, node ID),
+	 *   <li>chained output nodes, and
+	 *   <li>input nodes hashes
 	 * </ul>
 	 *
 	 * @return A map from {@link StreamNode#id} to hash as 16-byte array.
@@ -148,7 +148,7 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 			boolean isChainingEnabled) {
 
 		// Check for user-specified ID
-		String userSpecifiedHash = node.getTransformationId();
+		String userSpecifiedHash = node.getTransformationUID();
 
 		if (userSpecifiedHash == null) {
 			// Check that all input nodes have their hashes computed
@@ -172,19 +172,6 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 
 			return true;
 		} else {
-			// Check that this node is not part of a chain. This is currently
-			// not supported, because the runtime takes the snapshots by the
-			// operator ID of the first vertex in a chain. It's OK if the node
-			// has chained outputs.
-			for (StreamEdge inEdge : node.getInEdges()) {
-				if (isChainable(inEdge, isChainingEnabled)) {
-					throw new UnsupportedOperationException("Cannot assign user-specified hash "
-							+ "to intermediate node in chain. This will be supported in future "
-							+ "versions of Flink. As a work around start new chain at task "
-							+ node.getOperatorName() + ".");
-				}
-			}
-
 			Hasher hasher = hashFunction.newHasher();
 			byte[] hash = generateUserSpecifiedHash(node, hasher);
 
@@ -210,7 +197,7 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 	 * Generates a hash from a user-specified ID.
 	 */
 	private byte[] generateUserSpecifiedHash(StreamNode node, Hasher hasher) {
-		hasher.putString(node.getTransformationId(), Charset.forName("UTF-8"));
+		hasher.putString(node.getTransformationUID(), Charset.forName("UTF-8"));
 
 		return hasher.hash().asBytes();
 	}
@@ -282,7 +269,6 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 	 * attributes are taken into account). The hasher encapsulates the current
 	 * state of the hash.
 	 *
-	 * <p>
 	 * <p>The specified ID is local to this node. We cannot use the
 	 * {@link StreamNode#id}, because it is incremented in a static counter.
 	 * Therefore, the IDs for identical jobs will otherwise be different.

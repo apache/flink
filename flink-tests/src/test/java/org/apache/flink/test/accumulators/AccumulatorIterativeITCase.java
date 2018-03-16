@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.accumulators;
 
 import org.apache.flink.api.common.accumulators.IntCounter;
@@ -27,13 +26,17 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 
-public class AccumulatorIterativeITCase extends JavaProgramTestBase {	
+/**
+ * Test accumulator within iteration.
+ */
+public class AccumulatorIterativeITCase extends JavaProgramTestBase {
 	private static final int NUM_ITERATIONS = 3;
 	private static final int NUM_SUBTASKS = 1;
 	private static final String ACC_NAME = "test";
-	
+
 	@Override
 	protected boolean skipCollectionExecution() {
 		return true;
@@ -43,20 +46,20 @@ public class AccumulatorIterativeITCase extends JavaProgramTestBase {
 	protected void testProgram() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(NUM_SUBTASKS);
-		
+
 		IterativeDataSet<Integer> iteration = env.fromElements(1, 2, 3).iterate(NUM_ITERATIONS);
-		
+
 		iteration.closeWith(iteration.reduceGroup(new SumReducer())).output(new DiscardingOutputFormat<Integer>());
-		
-		Assert.assertEquals(NUM_ITERATIONS * 6, env.execute().getAccumulatorResult(ACC_NAME));
+
+		Assert.assertEquals(NUM_ITERATIONS * 6, (int) env.execute().getAccumulatorResult(ACC_NAME));
 	}
-	
+
 	static final class SumReducer extends RichGroupReduceFunction<Integer, Integer> {
-		
+
 		private static final long serialVersionUID = 1L;
-		
+
 		private IntCounter testCounter = new IntCounter();
-		
+
 		@Override
 		public void open(Configuration config) throws Exception {
 			getRuntimeContext().addAccumulator(ACC_NAME, this.testCounter);

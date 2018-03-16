@@ -34,7 +34,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
@@ -42,19 +42,21 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
+/**
+ * Test class used by the {@link org.apache.flink.test.classloading.ClassLoaderITCase}.
+ */
 public class CheckpointingCustomKvStateProgram {
 
 	public static void main(String[] args) throws Exception {
-		final String jarFile = args[0];
-		final String host = args[1];
-		final int port = Integer.parseInt(args[2]);
-		final String checkpointPath = args[3];
-		final String outputPath = args[4];
+		final String checkpointPath = args[0];
+		final String outputPath = args[1];
 		final int parallelism = 1;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(parallelism);
 		env.getConfig().disableSysoutLogging();
@@ -72,7 +74,7 @@ public class CheckpointingCustomKvStateProgram {
 						return new Tuple2<>(ThreadLocalRandom.current().nextInt(parallelism), value);
 					}
 				})
-				.keyBy(new KeySelector<Tuple2<Integer,Integer>, Integer>() {
+				.keyBy(new KeySelector<Tuple2<Integer, Integer>, Integer>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
@@ -84,7 +86,7 @@ public class CheckpointingCustomKvStateProgram {
 		env.execute();
 	}
 
-	private static class InfiniteIntegerSource implements ParallelSourceFunction<Integer>, Checkpointed<Integer> {
+	private static class InfiniteIntegerSource implements ParallelSourceFunction<Integer>, ListCheckpointed<Integer> {
 		private static final long serialVersionUID = -7517574288730066280L;
 		private volatile boolean running = true;
 
@@ -104,17 +106,18 @@ public class CheckpointingCustomKvStateProgram {
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return 0;
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(0);
 		}
 
 		@Override
-		public void restoreState(Integer state) throws Exception {
+		public void restoreState(List<Integer> state) throws Exception {
 
 		}
 	}
 
-	private static class ReducingStateFlatMap extends RichFlatMapFunction<Tuple2<Integer, Integer>, Integer> implements Checkpointed<ReducingStateFlatMap>, CheckpointListener {
+	private static class ReducingStateFlatMap extends RichFlatMapFunction<Tuple2<Integer, Integer>, Integer>
+			implements ListCheckpointed<ReducingStateFlatMap>, CheckpointListener {
 
 		private static final long serialVersionUID = -5939722892793950253L;
 		private transient ReducingState<Integer> kvState;
@@ -133,12 +136,11 @@ public class CheckpointingCustomKvStateProgram {
 			this.kvState = getRuntimeContext().getReducingState(stateDescriptor);
 		}
 
-
 		@Override
 		public void flatMap(Tuple2<Integer, Integer> value, Collector<Integer> out) throws Exception {
 			kvState.add(value.f1);
 
-			if(atLeastOneSnapshotComplete) {
+			if (atLeastOneSnapshotComplete) {
 				if (restored) {
 					throw new SuccessException();
 				} else {
@@ -148,12 +150,12 @@ public class CheckpointingCustomKvStateProgram {
 		}
 
 		@Override
-		public ReducingStateFlatMap snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return this;
+		public List<ReducingStateFlatMap> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this);
 		}
 
 		@Override
-		public void restoreState(ReducingStateFlatMap state) throws Exception {
+		public void restoreState(List<ReducingStateFlatMap> state) throws Exception {
 			restored = true;
 			atLeastOneSnapshotComplete = true;
 		}
@@ -228,6 +230,5 @@ public class CheckpointingCustomKvStateProgram {
 		public boolean canEqual(Object obj) {
 			return obj instanceof CustomIntSerializer;
 		}
-
 	}
 }

@@ -44,9 +44,9 @@ public class ConnectedComponentsDefaultData {
 	};
 
 	public static DataSet<Edge<Long, NullValue>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
-		List<Edge<Long, NullValue>> edgeList = new LinkedList<Edge<Long, NullValue>>();
+		List<Edge<Long, NullValue>> edgeList = new LinkedList<>();
 		for (Object[] edge : DEFAULT_EDGES) {
-			edgeList.add(new Edge<Long, NullValue>((Long) edge[0], (Long) edge[1], NullValue.getInstance()));
+			edgeList.add(new Edge<>((long) edge[0], (long) edge[1], NullValue.getInstance()));
 		}
 		return env.fromCollection(edgeList);
 	}

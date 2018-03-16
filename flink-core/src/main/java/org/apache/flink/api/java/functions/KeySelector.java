@@ -24,19 +24,20 @@ import org.apache.flink.api.common.functions.Function;
 import java.io.Serializable;
 
 /**
- * The {@link KeySelector} allows to use arbitrary objects for operations such as
- * reduce, reduceGroup, join, coGoup, etc.
+ * The {@link KeySelector} allows to use deterministic objects for operations such as
+ * reduce, reduceGroup, join, coGroup, etc. If invoked multiple times on the same object,
+ * the returned key must be the same.
  * 
- * The extractor takes an object and returns the key for that object.
+ * The extractor takes an object and returns the deterministic key for that object.
  *
  * @param <IN> Type of objects to extract the key from.
  * @param <KEY> Type of key.
  */
 @Public
 public interface KeySelector<IN, KEY> extends Function, Serializable {
-	
+
 	/**
-	 * User-defined function that extracts the key from an arbitrary object.
+	 * User-defined function that deterministically extracts the key from an object.
 	 * 
 	 * For example for a class:
 	 * <pre>

@@ -23,10 +23,10 @@ import org.apache.flink.annotation.PublicEvolving;
 /**
  * Generic Column Summary for Numeric Types.
  *
- * Some values are considered "missing" where "missing" is defined as null, NaN, or Infinity.
+ * <p>Some values are considered "missing" where "missing" is defined as null, NaN, or Infinity.
  * These values are ignored in some calculations like mean, variance, and standardDeviation.
  *
- * Uses the Kahan summation algorithm to avoid numeric instability when computing variance.
+ * <p>Uses the Kahan summation algorithm to avoid numeric instability when computing variance.
  * The algorithm is described in: "Scalable and Numerically Stable Descriptive Statistics in SystemML",
  * Tian et al, International Conference on Data Engineering 2012.
  *
@@ -66,7 +66,7 @@ public class NumericColumnSummary<T> extends ColumnSummary implements java.io.Se
 	/**
 	 * The number of "missing" values where "missing" is defined as null, NaN, or Infinity.
 	 *
-	 * These values are ignored in some calculations like mean, variance, and standardDeviation.
+	 * <p>These values are ignored in some calculations like mean, variance, and standardDeviation.
 	 */
 	public long getMissingCount() {
 		return nullCount + nanCount + infinityCount;
@@ -80,7 +80,7 @@ public class NumericColumnSummary<T> extends ColumnSummary implements java.io.Se
 	}
 
 	/**
-	 * The number of non-null values in this column
+	 * The number of non-null values in this column.
 	 */
 	@Override
 	public long getNonNullCount() {
@@ -95,7 +95,7 @@ public class NumericColumnSummary<T> extends ColumnSummary implements java.io.Se
 	/**
 	 * Number of values that are NaN.
 	 *
-	 * (always zero for types like Short, Integer, Long)
+	 * <p>(always zero for types like Short, Integer, Long)
 	 */
 	public long getNanCount() {
 		return nanCount;
@@ -104,7 +104,7 @@ public class NumericColumnSummary<T> extends ColumnSummary implements java.io.Se
 	/**
 	 * Number of values that are positive or negative infinity.
 	 *
-	 * (always zero for types like Short, Integer, Long)
+	 * <p>(always zero for types like Short, Integer, Long)
 	 */
 	public long getInfinityCount() {
 		return infinityCount;
@@ -134,7 +134,7 @@ public class NumericColumnSummary<T> extends ColumnSummary implements java.io.Se
 	/**
 	 * Variance is a measure of how far a set of numbers are spread out.
 	 *
-	 * Null, NaN, and Infinite values are ignored in this calculation.
+	 * <p>Null, NaN, and Infinite values are ignored in this calculation.
 	 *
 	 * @see <a href="https://en.wikipedia.org/wiki/Variance">Variance</a>
 	 */
@@ -145,7 +145,7 @@ public class NumericColumnSummary<T> extends ColumnSummary implements java.io.Se
 	/**
 	 * Standard Deviation is a measure of variation in a set of numbers.  It is the square root of the variance.
 	 *
-	 * Null, NaN, and Infinite values are ignored in this calculation.
+	 * <p>Null, NaN, and Infinite values are ignored in this calculation.
 	 *
 	 * @see <a href="https://en.wikipedia.org/wiki/Standard_deviation">Standard Deviation</a>
 	 */

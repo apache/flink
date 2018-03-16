@@ -17,35 +17,35 @@
 
 package org.apache.flink.storm.wordcount;
 
-import org.apache.storm.Config;
-import org.apache.storm.StormSubmitter;
-import org.apache.storm.generated.StormTopology;
-
-import org.apache.storm.topology.TopologyBuilder;
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.api.FlinkClient;
 import org.apache.flink.storm.api.FlinkSubmitter;
 import org.apache.flink.storm.api.FlinkTopology;
+import org.apache.flink.storm.wordcount.util.WordCountData;
+
+import org.apache.storm.Config;
+import org.apache.storm.StormSubmitter;
+import org.apache.storm.generated.StormTopology;
+import org.apache.storm.topology.TopologyBuilder;
 
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
  * fashion. The program is constructed as a regular {@link StormTopology} and submitted to Flink for execution in the
  * same way as to a Storm cluster similar to {@link StormSubmitter}. The Flink cluster can be local or remote.
- * <p>
- * This example shows how to submit the program via Java as well as Flink's command line client (ie, bin/flink).
- * <p>
- * The input is a plain text file with lines separated by newline characters.
- * <p>
- * Usage: <code>WordCountRemoteBySubmitter &lt;text path&gt; &lt;result path&gt;</code><br>
+ *
+ * <p>This example shows how to submit the program via Java as well as Flink's command line client (ie, bin/flink).
+ *
+ * <p>The input is a plain text file with lines separated by newline characters.
+ *
+ * <p>Usage: <code>WordCountRemoteBySubmitter &lt;text path&gt; &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData}.
- * <p>
- * This example shows how to:
+ *
+ * <p>This example shows how to:
  * <ul>
  * <li>submit a regular Storm program to a local or remote Flink cluster.</li>
  * </ul>
  */
 public class WordCountRemoteBySubmitter {
-	public final static String topologyId = "Storm WordCount";
+	private static final String topologyId = "Storm WordCount";
 
 	// *************************************************************************
 	// PROGRAM

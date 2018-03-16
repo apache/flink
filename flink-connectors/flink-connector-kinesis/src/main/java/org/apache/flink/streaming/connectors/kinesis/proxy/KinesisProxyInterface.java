@@ -17,14 +17,17 @@
 
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
+
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
-import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 
 import java.util.Map;
 
 /**
  * Interface for a Kinesis proxy that operates on multiple Kinesis streams within the same AWS service region.
  */
+@Internal
 public interface KinesisProxyInterface {
 
 	/**
@@ -34,17 +37,19 @@ public interface KinesisProxyInterface {
 	 *
 	 * @param shard the shard to get the iterator
 	 * @param shardIteratorType the iterator type, defining how the shard is to be iterated
-	 *                          (one of: TRIM_HORIZON, LATEST, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER)
-	 * @param startingSeqNum sequence number, must be null if shardIteratorType is TRIM_HORIZON or LATEST
+	 *                          (one of: TRIM_HORIZON, LATEST, AT_TIMESTAMP, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER)
+	 * @param startingMarker should be {@code null} if shardIteratorType is TRIM_HORIZON or LATEST,
+	 *                       should be a {@code Date} value if shardIteratorType is AT_TIMESTAMP,
+	 *                       should be a {@code String} representing the sequence number if shardIteratorType is AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER
 	 * @return shard iterator which can be used to read data from Kinesis
 	 * @throws InterruptedException this method will retry with backoff if AWS Kinesis complains that the
 	 *                              operation has exceeded the rate limit; this exception will be thrown
 	 *                              if the backoff is interrupted.
 	 */
-	String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) throws InterruptedException;
+	String getShardIterator(StreamShardHandle shard, String shardIteratorType, Object startingMarker) throws InterruptedException;
 
 	/**
-	 * Get the next batch of data records using a specific shard iterator
+	 * Get the next batch of data records using a specific shard iterator.
 	 *
 	 * @param shardIterator a shard iterator that encodes info about which shard to read and where to start reading
 	 * @param maxRecordsToGet the maximum amount of records to retrieve for this batch
@@ -65,5 +70,5 @@ public interface KinesisProxyInterface {
 	 *                              operation has exceeded the rate limit; this exception will be thrown
 	 *                              if the backoff is interrupted.
 	 */
-	GetShardListResult getShardList(Map<String,String> streamNamesWithLastSeenShardIds) throws InterruptedException;
+	GetShardListResult getShardList(Map<String, String> streamNamesWithLastSeenShardIds) throws InterruptedException;
 }

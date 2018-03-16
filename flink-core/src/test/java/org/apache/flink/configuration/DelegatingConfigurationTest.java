@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.configuration;
 
 import org.junit.Test;
@@ -26,10 +25,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Set;
 
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-
+/**
+ * Tests for the {@link DelegatingConfiguration}.
+ */
 public class DelegatingConfigurationTest {
 
 	@Test
@@ -40,7 +41,7 @@ public class DelegatingConfigurationTest {
 		Method[] delegateMethods = DelegatingConfiguration.class.getDeclaredMethods();
 
 		for (Method configurationMethod : confMethods) {
-			if (!Modifier.isPublic(configurationMethod.getModifiers()) ) {
+			if (!Modifier.isPublic(configurationMethod.getModifiers())) {
 				continue;
 			}
 
@@ -67,11 +68,11 @@ public class DelegatingConfigurationTest {
 				}
 			}
 
-			assertTrue("Configuration method '" + configurationMethod.getName() + 
+			assertTrue("Configuration method '" + configurationMethod.getName() +
 					"' has not been wrapped correctly in DelegatingConfiguration wrapper", hasMethod);
 		}
 	}
-	
+
 	@Test
 	public void testDelegationConfigurationWithNullPrefix() {
 		Configuration backingConf = new Configuration();
@@ -98,7 +99,6 @@ public class DelegatingConfigurationTest {
 
 		DelegatingConfiguration configuration = new DelegatingConfiguration(backingConf, prefix);
 		Set<String> keySet = configuration.keySet();
-		
 
 		assertEquals(keySet.size(), 1);
 		assertEquals(keySet.iterator().next(), expectedKey);

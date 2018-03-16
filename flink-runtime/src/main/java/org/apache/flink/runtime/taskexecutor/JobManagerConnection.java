@@ -18,23 +18,27 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.util.Preconditions;
-
-import java.util.UUID;
 
 /**
  * Container class for JobManager specific communication utils used by the {@link TaskExecutor}.
  */
 public class JobManagerConnection {
 
-	// Job master leader session id
-	private final UUID leaderId;
+	// Job id related with the job manager
+	private final JobID jobID;
+
+	// The unique id used for identifying the job manager
+	private final ResourceID resourceID;
 
 	// Gateway to the job master
 	private final JobMasterGateway jobMasterGateway;
@@ -55,14 +59,16 @@ public class JobManagerConnection {
 	private final PartitionProducerStateChecker partitionStateChecker;
 
 	public JobManagerConnection(
-		JobMasterGateway jobMasterGateway,
-		UUID leaderId,
-		TaskManagerActions taskManagerActions,
-		CheckpointResponder checkpointResponder,
-		LibraryCacheManager libraryCacheManager,
-		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
-		PartitionProducerStateChecker partitionStateChecker) {
-		this.leaderId = Preconditions.checkNotNull(leaderId);
+				JobID jobID,
+				ResourceID resourceID,
+				JobMasterGateway jobMasterGateway,
+				TaskManagerActions taskManagerActions,
+				CheckpointResponder checkpointResponder,
+				LibraryCacheManager libraryCacheManager,
+				ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
+				PartitionProducerStateChecker partitionStateChecker) {
+		this.jobID = Preconditions.checkNotNull(jobID);
+		this.resourceID = Preconditions.checkNotNull(resourceID);
 		this.jobMasterGateway = Preconditions.checkNotNull(jobMasterGateway);
 		this.taskManagerActions = Preconditions.checkNotNull(taskManagerActions);
 		this.checkpointResponder = Preconditions.checkNotNull(checkpointResponder);
@@ -71,8 +77,16 @@ public class JobManagerConnection {
 		this.partitionStateChecker = Preconditions.checkNotNull(partitionStateChecker);
 	}
 
-	public UUID getLeaderId() {
-		return leaderId;
+	public JobID getJobID() {
+		return jobID;
+	}
+
+	public ResourceID getResourceID() {
+		return resourceID;
+	}
+
+	public JobMasterId getJobMasterId() {
+		return jobMasterGateway.getFencingToken();
 	}
 
 	public JobMasterGateway getJobManagerGateway() {

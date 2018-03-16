@@ -48,7 +48,7 @@ boolean wrapEndpoints = false;
 
 int parallelism = 4;
 
-Graph<LongValue,NullValue,NullValue> graph = new GridGraph(env)
+Graph<LongValue, NullValue, NullValue> graph = new GridGraph(env)
     .addDimension(2, wrapEndpoints)
     .addDimension(4, wrapEndpoints)
     .setParallelism(parallelism)
@@ -72,6 +72,42 @@ val graph = new GridGraph(env.getJavaEnv).addDimension(2, wrapEndpoints).addDime
 </div>
 </div>
 
+## Circulant Graph
+
+A [circulant graph](http://mathworld.wolfram.com/CirculantGraph.html) is an
+[oriented graph](http://mathworld.wolfram.com/OrientedGraph.html) configured
+with one or more contiguous ranges of offsets. Edges connect integer vertex IDs
+whose difference equals a configured offset. The circulant graph with no offsets
+is the [empty graph](#empty-graph) and the graph with the maximum range is the
+[complete graph](#complete-graph).
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+long vertexCount = 5;
+
+Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, vertexCount)
+    .addRange(1, 2)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.CirculantGraph
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+val vertexCount = 5
+
+val graph = new CirculantGraph(env.getJavaEnv, vertexCount).addRange(1, 2).generate()
+{% endhighlight %}
+</div>
+</div>
+
 ## Complete Graph
 
 An undirected graph connecting every distinct pair of vertices.
@@ -83,7 +119,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 long vertexCount = 5;
 
-Graph<LongValue,NullValue,NullValue> graph = new CompleteGraph(env, vertexCount)
+Graph<LongValue, NullValue, NullValue> graph = new CompleteGraph(env, vertexCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -138,7 +174,8 @@ val graph = new CompleteGraph(env.getJavaEnv, vertexCount).generate()
 
 ## Cycle Graph
 
-An undirected graph where all edges form a single cycle.
+An undirected graph where the set of edges form a single cycle by connecting
+each vertex to two adjacent vertices in a chained loop.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -147,7 +184,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 long vertexCount = 5;
 
-Graph<LongValue,NullValue,NullValue> graph = new CycleGraph(env, vertexCount)
+Graph<LongValue, NullValue, NullValue> graph = new CycleGraph(env, vertexCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -192,9 +229,44 @@ val graph = new CycleGraph(env.getJavaEnv, vertexCount).generate()
     <text x="51" y="199">4</text>
 </svg>
 
+## Echo Graph
+
+An [echo graph](http://mathworld.wolfram.com/EchoGraph.html) is a
+[circulant graph](#circulant-graph) with `n` vertices defined by the width of a
+single range of offsets centered at `n/2`. A vertex is connected to 'far'
+vertices, which connect to 'near' vertices, which connect to 'far' vertices, ....
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+long vertexCount = 5;
+long vertexDegree = 2;
+
+Graph<LongValue, NullValue, NullValue> graph = new EchoGraph(env, vertexCount, vertexDegree)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.EchoGraph
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+val vertexCount = 5
+val vertexDegree = 2
+
+val graph = new EchoGraph(env.getJavaEnv, vertexCount, vertexDegree).generate()
+{% endhighlight %}
+</div>
+</div>
+
 ## Empty Graph
 
-The graph containing no edges.
+A graph containing no edges.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -203,7 +275,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 long vertexCount = 5;
 
-Graph<LongValue,NullValue,NullValue> graph = new EmptyGraph(env, vertexCount)
+Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, vertexCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -256,7 +328,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 boolean wrapEndpoints = false;
 
-Graph<LongValue,NullValue,NullValue> graph = new GridGraph(env)
+Graph<LongValue, NullValue, NullValue> graph = new GridGraph(env)
     .addDimension(2, wrapEndpoints)
     .addDimension(4, wrapEndpoints)
     .generate();
@@ -316,7 +388,7 @@ val graph = new GridGraph(env.getJavaEnv).addDimension(2, wrapEndpoints).addDime
 
 ## Hypercube Graph
 
-An undirected graph where edges form an n-dimensional hypercube. Each vertex
+An undirected graph where edges form an `n`-dimensional hypercube. Each vertex
 in a hypercube connects to one other vertex in each dimension.
 
 <div class="codetabs" markdown="1">
@@ -326,7 +398,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 long dimensions = 3;
 
-Graph<LongValue,NullValue,NullValue> graph = new HypercubeGraph(env, dimensions)
+Graph<LongValue, NullValue, NullValue> graph = new HypercubeGraph(env, dimensions)
     .generate();
 {% endhighlight %}
 </div>
@@ -391,7 +463,9 @@ val graph = new HypercubeGraph(env.getJavaEnv, dimensions).generate()
 
 ## Path Graph
 
-An undirected Graph where all edges form a single path.
+An undirected graph where the set of edges form a single path by connecting
+two `endpoint` vertices with degree `1` and all midpoint vertices with degree
+`2`. A path graph can be formed by removing a single edge from a cycle graph.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -400,7 +474,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 long vertexCount = 5
 
-Graph<LongValue,NullValue,NullValue> graph = new PathGraph(env, vertexCount)
+Graph<LongValue, NullValue, NullValue> graph = new PathGraph(env, vertexCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -443,7 +517,7 @@ val graph = new PathGraph(env.getJavaEnv, vertexCount).generate()
 
 ## RMat Graph
 
-A directed or undirected power-law graph generated using the
+A directed power-law multigraph generated using the
 [Recursive Matrix (R-Mat)](http://www.cs.cmu.edu/~christos/PUBLICATIONS/siam04.pdf) model.
 
 RMat is a stochastic generator configured with a source of randomness implementing the
@@ -461,7 +535,7 @@ RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory()
 int vertexCount = 1 << scale;
 int edgeCount = edgeFactor * vertexCount;
 
-Graph<LongValue,NullValue,NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
+Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -481,10 +555,10 @@ val graph = new RMatGraph(env.getJavaEnv, rnd, vertexCount, edgeCount).generate(
 </div>
 </div>
 
-The default RMat contants can be overridden as shown in the following example.
-The contants define the interdependence of bits from each generated edge's source
+The default RMat constants can be overridden as shown in the following example.
+The constants define the interdependence of bits from each generated edge's source
 and target labels. The RMat noise can be enabled and progressively perturbs the
-contants while generating each edge.
+constants while generating each edge.
 
 The RMat generator can be configured to produce a simple graph by removing self-loops
 and duplicate edges. Symmetrization is performed either by a "clip-and-flip" throwing away
@@ -502,7 +576,7 @@ int edgeCount = edgeFactor * vertexCount;
 
 boolean clipAndFlip = false;
 
-Graph<LongValue,NullValue,NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
+Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
     .setConstants(0.57f, 0.19f, 0.19f)
     .setNoise(true, 0.10f)
     .generate();
@@ -528,7 +602,8 @@ val graph = new RMatGraph(env.getJavaEnv, rnd, vertexCount, edgeCount).setConsta
 
 ## Singleton Edge Graph
 
-An undirected graph containing isolated two-paths.
+An undirected graph containing isolated two-paths where every vertex has degree
+`1`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -538,7 +613,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 long vertexPairCount = 4
 
 // note: configured with the number of vertex pairs
-Graph<LongValue,NullValue,NullValue> graph = new SingletonEdgeGraph(env, vertexPairCount)
+Graph<LongValue, NullValue, NullValue> graph = new SingletonEdgeGraph(env, vertexPairCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -603,7 +678,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 long vertexCount = 6;
 
-Graph<LongValue,NullValue,NullValue> graph = new StarGraph(env, vertexCount)
+Graph<LongValue, NullValue, NullValue> graph = new StarGraph(env, vertexCount)
     .generate();
 {% endhighlight %}
 </div>

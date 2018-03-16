@@ -21,10 +21,10 @@ package org.apache.flink.graph.scala.examples
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.scala._
 import org.apache.flink.graph.Edge
+import org.apache.flink.graph.examples.data.SingleSourceShortestPathsData
 import org.apache.flink.graph.gsa.{ApplyFunction, GatherFunction, Neighbor, SumFunction}
 import org.apache.flink.graph.scala._
 import org.apache.flink.graph.scala.utils.Tuple3ToEdgeMap
-import org.apache.flink.graph.examples.data.SingleSourceShortestPathsData
 
 /**
  * This example shows how to use Gelly's gather-sum-apply iterations.
