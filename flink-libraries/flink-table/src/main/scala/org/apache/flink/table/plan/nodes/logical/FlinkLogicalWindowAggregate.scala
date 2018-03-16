@@ -112,7 +112,10 @@ class FlinkLogicalWindowAggregateConverter
     // we do not support these functions natively
     // they have to be converted using the WindowAggregateReduceFunctionsRule
     val supported = agg.getAggCallList.asScala.map(_.getAggregation.getKind).forall {
-      case SqlKind.STDDEV_POP | SqlKind.STDDEV_SAMP | SqlKind.VAR_POP | SqlKind.VAR_SAMP => false
+      // we support AVG
+      case SqlKind.AVG => true
+      // but none of the other AVG agg functions
+      case k if SqlKind.AVG_AGG_FUNCTIONS.contains(k) => false
       case _ => true
     }
 
