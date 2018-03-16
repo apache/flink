@@ -45,8 +45,9 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -177,7 +178,8 @@ public class DispatcherTest extends TestLogger {
 			mock(ResourceManagerGateway.class),
 			new BlobServer(blobServerConfig, new VoidBlobStore()),
 			heartbeatServices,
-			NoOpMetricRegistry.INSTANCE,
+			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+			null,
 			new MemoryArchivedExecutionGraphStore(),
 			fatalErrorHandler,
 			TEST_JOB_ID);
@@ -360,7 +362,8 @@ public class DispatcherTest extends TestLogger {
 				ResourceManagerGateway resourceManagerGateway,
 				BlobServer blobServer,
 				HeartbeatServices heartbeatServices,
-				MetricRegistry metricRegistry,
+				JobManagerMetricGroup jobManagerMetricGroup,
+				@Nullable String metricQueryServicePath,
 				ArchivedExecutionGraphStore archivedExecutionGraphStore,
 				FatalErrorHandler fatalErrorHandler,
 				JobID expectedJobId) throws Exception {
@@ -373,7 +376,8 @@ public class DispatcherTest extends TestLogger {
 				resourceManagerGateway,
 				blobServer,
 				heartbeatServices,
-				metricRegistry,
+				jobManagerMetricGroup,
+				metricQueryServicePath,
 				archivedExecutionGraphStore,
 				new ExpectedJobIdJobManagerRunnerFactory(expectedJobId),
 				fatalErrorHandler,
@@ -421,7 +425,8 @@ public class DispatcherTest extends TestLogger {
 				HeartbeatServices heartbeatServices,
 				BlobServer blobServer,
 				JobManagerSharedServices jobManagerSharedServices,
-				MetricRegistry metricRegistry,
+				JobManagerJobMetricGroup jobManagerJobMetricGroup,
+				@Nullable String metricQueryServicePath,
 				@Nullable String restAddress) throws Exception {
 			assertEquals(expectedJobId, jobGraph.getJobID());
 
@@ -434,7 +439,8 @@ public class DispatcherTest extends TestLogger {
 				heartbeatServices,
 				blobServer,
 				jobManagerSharedServices,
-				metricRegistry,
+				jobManagerJobMetricGroup,
+				metricQueryServicePath,
 				restAddress);
 		}
 	}

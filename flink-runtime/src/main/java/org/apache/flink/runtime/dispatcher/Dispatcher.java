@@ -49,7 +49,8 @@ import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
@@ -97,7 +98,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	private final JobManagerSharedServices jobManagerSharedServices;
 	private final HeartbeatServices heartbeatServices;
 	private final BlobServer blobServer;
-	private final MetricRegistry metricRegistry;
 
 	private final FatalErrorHandler fatalErrorHandler;
 
@@ -108,6 +108,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	private final ArchivedExecutionGraphStore archivedExecutionGraphStore;
 
 	private final JobManagerRunnerFactory jobManagerRunnerFactory;
+
+	private final JobManagerMetricGroup jobManagerMetricGroup;
+
+	@Nullable
+	private final String metricQueryServicePath;
 
 	@Nullable
 	protected final String restAddress;
@@ -123,7 +128,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			ResourceManagerGateway resourceManagerGateway,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry,
+			JobManagerMetricGroup jobManagerMetricGroup,
+			@Nullable String metricServiceQueryPath,
 			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			JobManagerRunnerFactory jobManagerRunnerFactory,
 			FatalErrorHandler fatalErrorHandler,
@@ -135,9 +141,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		this.resourceManagerGateway = Preconditions.checkNotNull(resourceManagerGateway);
 		this.heartbeatServices = Preconditions.checkNotNull(heartbeatServices);
 		this.blobServer = Preconditions.checkNotNull(blobServer);
-		this.metricRegistry = Preconditions.checkNotNull(metricRegistry);
 		this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
 		this.submittedJobGraphStore = Preconditions.checkNotNull(submittedJobGraphStore);
+		this.jobManagerMetricGroup = Preconditions.checkNotNull(jobManagerMetricGroup);
+		this.metricQueryServicePath = metricServiceQueryPath;
 
 		this.jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(
 			configuration,
@@ -191,6 +198,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				} catch (Exception e) {
 					exception = ExceptionUtils.firstOrSuppressed(e, exception);
 				}
+
+				jobManagerMetricGroup.close();
 
 				if (exception != null) {
 					throw exception;
@@ -251,7 +260,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 					heartbeatServices,
 					blobServer,
 					jobManagerSharedServices,
-					metricRegistry,
+					jobManagerMetricGroup.addJob(jobGraph),
+					metricQueryServicePath,
 					restAddress);
 
 				jobManagerRunner.getResultFuture().whenCompleteAsync(
@@ -464,8 +474,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public CompletableFuture<Collection<String>> requestMetricQueryServicePaths(Time timeout) {
-		final String metricQueryServicePath = metricRegistry.getMetricQueryServicePath();
-
 		if (metricQueryServicePath != null) {
 			return CompletableFuture.completedFuture(Collections.singleton(metricQueryServicePath));
 		} else {
@@ -512,6 +520,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			final CompletableFuture<Void> jobManagerRunnerTerminationFuture = jobManagerRunner.closeAsync();
 			registerOrphanedJobManagerTerminationFuture(jobManagerRunnerTerminationFuture);
 		}
+
+		jobManagerMetricGroup.removeJob(jobId);
 
 		if (cleanupHA) {
 			submittedJobGraphStore.removeJobGraph(jobId);
@@ -725,7 +735,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			HeartbeatServices heartbeatServices,
 			BlobServer blobServer,
 			JobManagerSharedServices jobManagerServices,
-			MetricRegistry metricRegistry,
+			JobManagerJobMetricGroup jobManagerJobMetricGroup,
+			@Nullable String metricQueryServicePath,
 			@Nullable String restAddress) throws Exception;
 	}
 
@@ -745,7 +756,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				HeartbeatServices heartbeatServices,
 				BlobServer blobServer,
 				JobManagerSharedServices jobManagerServices,
-				MetricRegistry metricRegistry,
+				JobManagerJobMetricGroup jobManagerJobMetricGroup,
+				@Nullable String metricQueryServicePath,
 				@Nullable String restAddress) throws Exception {
 			return new JobManagerRunner(
 				resourceId,
@@ -756,7 +768,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				heartbeatServices,
 				blobServer,
 				jobManagerServices,
-				metricRegistry,
+				jobManagerJobMetricGroup,
+				metricQueryServicePath,
 				restAddress);
 		}
 	}

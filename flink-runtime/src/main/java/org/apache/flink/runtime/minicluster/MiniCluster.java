@@ -50,6 +50,8 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRunner;
@@ -152,6 +154,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 	@GuardedBy("lock")
 	private StandaloneDispatcher dispatcher;
+
+	@GuardedBy("lock")
+	private JobManagerMetricGroup jobManagerMetricGroup;
 
 	@GuardedBy("lock")
 	private RpcGatewayRetriever<DispatcherId, DispatcherGateway> dispatcherGatewayRetriever;
@@ -344,6 +349,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				// bring up the dispatcher that launches JobManagers when jobs submitted
 				LOG.info("Starting job dispatcher(s) for JobManger");
 
+				this.jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, "localhost");
+
 				dispatcher = new StandaloneDispatcher(
 					jobManagerRpcService,
 					Dispatcher.DISPATCHER_NAME + UUID.randomUUID(),
@@ -352,7 +359,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					resourceManagerRunner.getResourceManageGateway(),
 					blobServer,
 					heartbeatServices,
-					metricRegistry,
+					jobManagerMetricGroup,
+					metricRegistry.getMetricQueryServicePath(),
 					new MemoryArchivedExecutionGraphStore(),
 					Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
 					new ShutDownFatalErrorHandler(),
@@ -424,6 +432,10 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 						componentsTerminationFuture,
 						() -> {
 							synchronized (lock) {
+								if (jobManagerMetricGroup != null) {
+									jobManagerMetricGroup.close();
+									jobManagerMetricGroup = null;
+								}
 								// metrics shutdown
 								if (metricRegistry != null) {
 									metricRegistry.shutdown();

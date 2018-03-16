@@ -32,8 +32,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
-import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -76,8 +75,6 @@ public class JobManagerRunnerTest extends TestLogger {
 
 	private static JobManagerSharedServices jobManagerSharedServices;
 
-	private static MetricRegistry metricRegistry;
-
 	private static JobGraph jobGraph;
 
 	private static ArchivedExecutionGraph archivedExecutionGraph;
@@ -96,8 +93,6 @@ public class JobManagerRunnerTest extends TestLogger {
 			new VoidBlobStore());
 
 		jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(configuration, blobServer);
-
-		metricRegistry = NoOpMetricRegistry.INSTANCE;
 
 		final JobVertex jobVertex = new JobVertex("Test vertex");
 		jobVertex.setInvokableClass(NoOpInvokable.class);
@@ -215,7 +210,8 @@ public class JobManagerRunnerTest extends TestLogger {
 			heartbeatServices,
 			blobServer,
 			jobManagerSharedServices,
-			metricRegistry,
+			UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup(),
+			null,
 			null);
 	}
 }

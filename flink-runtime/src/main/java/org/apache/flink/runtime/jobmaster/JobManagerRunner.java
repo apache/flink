@@ -35,9 +35,7 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
-import org.apache.flink.runtime.metrics.util.MetricUtils;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -82,8 +80,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 
 	private final JobMaster jobManager;
 
-	private final JobManagerMetricGroup jobManagerMetricGroup;
-
 	private final Time rpcTimeout;
 
 	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
@@ -111,10 +107,9 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			final HeartbeatServices heartbeatServices,
 			final BlobServer blobServer,
 			final JobManagerSharedServices jobManagerSharedServices,
-			final MetricRegistry metricRegistry,
+			final JobManagerJobMetricGroup jobManagerJobMetricGroup,
+			@Nullable final String metricQueryServicePath,
 			@Nullable final String restAddress) throws Exception {
-
-		JobManagerMetricGroup jobManagerMetrics = null;
 
 		this.resultFuture = new CompletableFuture<>();
 		this.terminationFuture = new CompletableFuture<>();
@@ -125,10 +120,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			this.jobManagerSharedServices = checkNotNull(jobManagerSharedServices);
 
 			checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
-
-			final String hostAddress = rpcService.getAddress().isEmpty() ? "localhost" : rpcService.getAddress();
-			jobManagerMetrics = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, hostAddress);
-			this.jobManagerMetricGroup = jobManagerMetrics;
 
 			// libraries and class loader first
 			final LibraryCacheManager libraryCacheManager = jobManagerSharedServices.getLibraryCacheManager();
@@ -162,19 +153,14 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 				jobManagerSharedServices,
 				heartbeatServices,
 				blobServer,
-				jobManagerMetrics,
+				jobManagerJobMetricGroup,
 				this,
 				this,
 				userCodeLoader,
 				restAddress,
-				metricRegistry.getMetricQueryServicePath());
+				metricQueryServicePath);
 		}
 		catch (Throwable t) {
-			// clean up everything
-			if (jobManagerMetrics != null) {
-				jobManagerMetrics.close();
-			}
-
 			terminationFuture.completeExceptionally(t);
 			resultFuture.completeExceptionally(t);
 
@@ -228,13 +214,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 							leaderElectionService.stop();
 						} catch (Throwable t) {
 							throwable = ExceptionUtils.firstOrSuppressed(t, ExceptionUtils.stripCompletionException(throwable));
-						}
-
-						// make all registered metrics go away
-						try {
-							jobManagerMetricGroup.close();
-						} catch (Throwable t) {
-							throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
 						}
 
 						if (throwable != null) {

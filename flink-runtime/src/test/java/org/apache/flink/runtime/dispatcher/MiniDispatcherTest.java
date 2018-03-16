@@ -35,8 +35,8 @@ import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -254,7 +254,8 @@ public class MiniDispatcherTest extends TestLogger {
 			resourceManagerGateway,
 			blobServer,
 			heartbeatServices,
-			NoOpMetricRegistry.INSTANCE,
+			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+			null,
 			archivedExecutionGraphStore,
 			testingJobManagerRunnerFactory,
 			testingFatalErrorHandler,
@@ -283,7 +284,8 @@ public class MiniDispatcherTest extends TestLogger {
 				HeartbeatServices heartbeatServices,
 				BlobServer blobServer,
 				JobManagerSharedServices jobManagerSharedServices,
-				MetricRegistry metricRegistry,
+				JobManagerJobMetricGroup jobManagerJobMetricGroup,
+				@Nullable String metricQueryServicePath,
 				@Nullable String restAddress) throws Exception {
 			jobGraphFuture.complete(jobGraph);
 
