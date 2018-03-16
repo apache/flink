@@ -202,22 +202,30 @@ public class BufferBuilderAndConsumerTest {
 		for (int i = 0; i < writes; i++) {
 			assertEquals(Integer.BYTES, bufferBuilder.appendAndCommit(toByteBuffer(42)));
 		}
+		int expectedWrittenBytes = writes * Integer.BYTES;
 
 		assertFalse(bufferBuilder.isFinished());
 		assertFalse(bufferConsumer.isFinished());
+		assertEquals(0, bufferConsumer.getWrittenBytes());
 
 		bufferConsumer.build();
-
 		assertFalse(bufferBuilder.isFinished());
 		assertFalse(bufferConsumer.isFinished());
+		assertEquals(expectedWrittenBytes, bufferConsumer.getWrittenBytes());
 
-		bufferBuilder.finish();
-
+		int actualWrittenBytes = bufferBuilder.finish();
+		assertEquals(expectedWrittenBytes, actualWrittenBytes);
 		assertTrue(bufferBuilder.isFinished());
 		assertFalse(bufferConsumer.isFinished());
+		assertEquals(expectedWrittenBytes, bufferConsumer.getWrittenBytes());
 
-		bufferConsumer.build();
+		actualWrittenBytes = bufferBuilder.finish();
+		assertEquals(expectedWrittenBytes, actualWrittenBytes);
+		assertTrue(bufferBuilder.isFinished());
+		assertFalse(bufferConsumer.isFinished());
+		assertEquals(expectedWrittenBytes, bufferConsumer.getWrittenBytes());
 
+		assertEquals(0, bufferConsumer.build().getSize());
 		assertTrue(bufferConsumer.isFinished());
 	}
 
