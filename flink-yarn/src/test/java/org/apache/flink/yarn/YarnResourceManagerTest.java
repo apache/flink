@@ -72,8 +72,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -105,13 +103,11 @@ import static org.mockito.Mockito.when;
  */
 public class YarnResourceManagerTest extends TestLogger {
 
-	private static final Logger LOG = LoggerFactory.getLogger(YarnResourceManagerTest.class);
+	private static final Time TIMEOUT = Time.seconds(10L);
 
 	private static Configuration flinkConfig = new Configuration();
 
 	private static Map<String, String> env = new HashMap<>();
-
-	private static final Time timeout = Time.seconds(10L);
 
 	@Rule
 	public TemporaryFolder folder = new TemporaryFolder();
@@ -178,7 +174,7 @@ public class YarnResourceManagerTest extends TestLogger {
 		}
 
 		public <T> CompletableFuture<T> runInMainThread(Callable<T> callable) {
-			return callAsync(callable, timeout);
+			return callAsync(callable, TIMEOUT);
 		}
 
 		public MainThreadExecutor getMainThreadExecutorForTesting() {
@@ -196,6 +192,11 @@ public class YarnResourceManagerTest extends TestLogger {
 		@Override
 		protected NMClient createAndStartNodeManagerClient(YarnConfiguration yarnConfiguration) {
 			return mockNMClient;
+		}
+
+		@Override
+		protected void runAsync(final Runnable runnable) {
+			runnable.run();
 		}
 	}
 
@@ -292,7 +293,7 @@ public class YarnResourceManagerTest extends TestLogger {
 
 			public void grantLeadership() throws Exception {
 				rmLeaderSessionId = UUID.randomUUID();
-				rmLeaderElectionService.isLeader(rmLeaderSessionId).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+				rmLeaderElectionService.isLeader(rmLeaderSessionId).get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
 			}
 		}
 
