@@ -389,13 +389,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	public void onShutdownRequest() {
-		runAsync(() -> {
-			try {
-				shutDown();
-			} catch (Exception e) {
-				log.warn("Fail to shutdown the YARN resource manager.", e);
-			}
-		});
+		shutDown();
 	}
 
 	@Override
@@ -405,7 +399,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	public void onError(Throwable error) {
-		runAsync(() -> onFatalError(error));
+		onFatalError(error);
 	}
 
 	// ------------------------------------------------------------------------
