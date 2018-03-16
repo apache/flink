@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview;
 import org.apache.flink.runtime.rest.messages.JobIdsWithStatusesOverviewHeaders;
+import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -70,6 +71,7 @@ public class CurrentJobIdsHandler extends AbstractJsonRequestHandler {
 
 						StringWriter writer = new StringWriter();
 						JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+						gen.setCodec(RestMapperUtils.getStrictObjectMapper());
 
 						gen.writeStartObject();
 						gen.writeArrayFieldStart(JobIdsWithStatusOverview.FIELD_NAME_JOBS);
