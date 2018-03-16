@@ -35,8 +35,8 @@ import org.apache.flink.util.Collector
 import org.slf4j.LoggerFactory
 
 class QueryableTableSink(
-  private val namePrefix: String,
-  private val queryConfig: StreamQueryConfig)
+    private val namePrefix: String,
+    private val queryConfig: StreamQueryConfig)
   extends UpsertStreamTableSink[Row]
     with TableSinkBase[JTuple2[JBool, Row]] {
   private var keys: Array[String] = _
