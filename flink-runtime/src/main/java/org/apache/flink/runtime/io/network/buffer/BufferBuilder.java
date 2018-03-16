@@ -99,10 +99,11 @@ public class BufferBuilder {
 	 * Mark this {@link BufferBuilder} and associated {@link BufferConsumer} as finished - no new data writes will be
 	 * allowed.
 	 *
+	 * <p>This method should be idempotent to handle failures and task interruptions. Check FLINK-8948 for more details.
+	 *
 	 * @return number of written bytes.
 	 */
 	public int finish() {
-		checkState(!isFinished());
 		positionMarker.markFinished();
 		commit();
 		return getWrittenBytes();
@@ -125,7 +126,7 @@ public class BufferBuilder {
 		return memorySegment.size();
 	}
 
-	public int getWrittenBytes() {
+	private int getWrittenBytes() {
 		return positionMarker.getCached();
 	}
 
