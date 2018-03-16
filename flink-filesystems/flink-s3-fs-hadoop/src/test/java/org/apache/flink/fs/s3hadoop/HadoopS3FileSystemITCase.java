@@ -95,7 +95,7 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 	@AfterClass
 	public static void cleanUp() throws IOException, InterruptedException {
 		if (!skipTest) {
-			final long deadline = System.currentTimeMillis() + 30_000L; // 30 secs
+			final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
 			// initialize configuration with valid credentials
 			final Configuration conf = new Configuration();
 			conf.setString("s3.access.key", ACCESS_KEY);
@@ -171,7 +171,7 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 
 	@Test
 	public void testSimpleFileWriteAndRead() throws Exception {
-		final long deadline = System.currentTimeMillis() + 30_000L; // 30 secs
+		final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
 		final Configuration conf = new Configuration();
 		conf.setString("s3.access.key", ACCESS_KEY);
 		conf.setString("s3.secret.key", SECRET_KEY);
@@ -206,7 +206,7 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 
 	@Test
 	public void testDirectoryListing() throws Exception {
-		final long deadline = System.currentTimeMillis() + 30_000L; // 30 secs
+		final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
 		final Configuration conf = new Configuration();
 		conf.setString("s3.access.key", ACCESS_KEY);
 		conf.setString("s3.secret.key", SECRET_KEY);
@@ -268,7 +268,7 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 			long deadline) throws IOException, InterruptedException {
 		boolean dirExists;
 		while ((dirExists = fs.exists(path)) != expectedExists &&
-				System.currentTimeMillis() < deadline) {
+				System.nanoTime() < deadline) {
 			Thread.sleep(10);
 		}
 		assertEquals(expectedExists, dirExists);
