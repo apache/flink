@@ -325,7 +325,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				metricRegistry,
 				this,
 				clusterInformation,
-				webMonitorEndpoint.getRestAddress());
+				webMonitorEndpoint.getRestBaseUrl());
 
 			dispatcher = createDispatcher(
 				configuration,
@@ -337,7 +337,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				metricRegistry,
 				archivedExecutionGraphStore,
 				this,
-				webMonitorEndpoint.getRestAddress());
+				webMonitorEndpoint.getRestBaseUrl());
 
 			LOG.debug("Starting ResourceManager.");
 			resourceManager.start();
