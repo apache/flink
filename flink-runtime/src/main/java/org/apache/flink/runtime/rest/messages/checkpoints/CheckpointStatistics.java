@@ -51,7 +51,8 @@ import java.util.Objects;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "@class")
 @JsonSubTypes({
 	@JsonSubTypes.Type(value = CheckpointStatistics.CompletedCheckpointStatistics.class, name = "completed"),
-	@JsonSubTypes.Type(value = CheckpointStatistics.FailedCheckpointStatistics.class, name = "failed")})
+	@JsonSubTypes.Type(value = CheckpointStatistics.FailedCheckpointStatistics.class, name = "failed"),
+	@JsonSubTypes.Type(value = CheckpointStatistics.PendingCheckpointStatistics.class, name = "in_progress")})
 public class CheckpointStatistics implements ResponseBody {
 
 	public static final String FIELD_NAME_ID = "id";
@@ -273,7 +274,7 @@ public class CheckpointStatistics implements ResponseBody {
 				checkpointStatisticsPerTask,
 				failedCheckpointStats.getFailureTimestamp(),
 				failedCheckpointStats.getFailureMessage());
-		} else {
+		} else if (checkpointStats instanceof PendingCheckpointStats) {
 			final PendingCheckpointStats pendingCheckpointStats = ((PendingCheckpointStats) checkpointStats);
 
 			return new CheckpointStatistics.PendingCheckpointStatistics(
@@ -289,6 +290,9 @@ public class CheckpointStatistics implements ResponseBody {
 				pendingCheckpointStats.getNumberOfAcknowledgedSubtasks(),
 				checkpointStatisticsPerTask
 			);
+		} else {
+			throw new IllegalArgumentException("Given checkpoint stats object of type "
+				+ checkpointStats.getClass().getName() + " cannot be converted.");
 		}
 	}
 
