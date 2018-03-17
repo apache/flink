@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.minicluster.JobExecutorService;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
@@ -192,6 +193,10 @@ public class MiniClusterResource extends ExternalResource {
 		// enabled this by default
 		if (!configuration.contains(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE)) {
 			configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+		}
+
+		if (!configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
+			configuration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, TestBaseUtils.TASK_MANAGER_MEMORY_SIZE);
 		}
 
 		// set rest port to 0 to avoid clashes with concurrent MiniClusters
