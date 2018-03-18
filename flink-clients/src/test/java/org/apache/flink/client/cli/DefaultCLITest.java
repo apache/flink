@@ -18,12 +18,12 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
+import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.cli.CommandLine;
 import org.hamcrest.Matchers;
@@ -36,7 +36,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for the {@link DefaultCLI}.
  */
-public class DefaultCLITest extends TestLogger {
+public class DefaultCLITest extends CliFrontendTestBase {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -47,7 +47,7 @@ public class DefaultCLITest extends TestLogger {
 	 */
 	@Test
 	public void testConfigurationPassing() throws Exception {
-		final Configuration configuration = new Configuration();
+		final Configuration configuration = getConfiguration();
 
 		final String localhost = "localhost";
 		final int port = 1234;
@@ -55,13 +55,16 @@ public class DefaultCLITest extends TestLogger {
 		configuration.setString(JobManagerOptions.ADDRESS, localhost);
 		configuration.setInteger(JobManagerOptions.PORT, port);
 
-		final DefaultCLI defaultCLI = new DefaultCLI(configuration);
+		@SuppressWarnings("unchecked")
+		final AbstractCustomCommandLine<StandaloneClusterId> defaultCLI =
+			(AbstractCustomCommandLine<StandaloneClusterId>) getCli(configuration);
 
 		final String[] args = {};
 
 		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
 
-		final StandaloneClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
+		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor =
+			defaultCLI.createClusterDescriptor(commandLine);
 
 		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
 
@@ -78,12 +81,14 @@ public class DefaultCLITest extends TestLogger {
 	public void testManualConfigurationOverride() throws Exception {
 		final String localhost = "localhost";
 		final int port = 1234;
-		final Configuration configuration = new Configuration();
+		final Configuration configuration = getConfiguration();
 
 		configuration.setString(JobManagerOptions.ADDRESS, localhost);
 		configuration.setInteger(JobManagerOptions.PORT, port);
 
-		final DefaultCLI defaultCLI = new DefaultCLI(configuration);
+		@SuppressWarnings("unchecked")
+		final AbstractCustomCommandLine<StandaloneClusterId> defaultCLI =
+			(AbstractCustomCommandLine<StandaloneClusterId>) getCli(configuration);
 
 		final String manualHostname = "123.123.123.123";
 		final int manualPort = 4321;
@@ -91,7 +96,8 @@ public class DefaultCLITest extends TestLogger {
 
 		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
 
-		final StandaloneClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
+		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor =
+			defaultCLI.createClusterDescriptor(commandLine);
 
 		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
 
