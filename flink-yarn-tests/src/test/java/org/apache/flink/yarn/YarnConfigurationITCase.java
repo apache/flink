@@ -37,8 +37,8 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
@@ -51,7 +51,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -88,6 +87,17 @@ public class YarnConfigurationITCase extends YarnTestBase {
 		configuration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
 		configuration.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, (1L << 20));
 		configuration.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, (4L << 20));
+		configuration.setString(YarnConfigOptions.FLINK_JAR, flinkUberjar.getAbsolutePath());
+
+		StringBuilder sb = new StringBuilder();
+		for (File file : flinkLibFolder.listFiles()) {
+			sb.append(file.getAbsolutePath());
+			sb.append(",");
+		}
+
+		String linkedShipFiles = sb.toString();
+		linkedShipFiles = linkedShipFiles.substring(0, linkedShipFiles.length() - 1);
+		configuration.setString(YarnConfigOptions.YARN_SHIP_PATHS, linkedShipFiles);
 
 		final YarnConfiguration yarnConfiguration = getYarnConfiguration();
 		final Flip6YarnClusterDescriptor clusterDescriptor = new Flip6YarnClusterDescriptor(
@@ -96,9 +106,6 @@ public class YarnConfigurationITCase extends YarnTestBase {
 			CliFrontend.getConfigurationDirectoryFromEnv(),
 			yarnClient,
 			true);
-
-		clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-		clusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 
 		final File streamingWordCountFile = new File("target/programs/WindowJoin.jar");
 

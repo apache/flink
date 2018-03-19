@@ -27,8 +27,8 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.junit.BeforeClass;
@@ -36,7 +36,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
-import java.util.Arrays;
 import java.util.Random;
 
 /**
@@ -55,7 +54,19 @@ public class YARNITCase extends YarnTestBase {
 	public void testPerJobMode() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
-		final YarnClient yarnClient = getYarnClient();
+		configuration.setString(YarnConfigOptions.FLINK_JAR, flinkUberjar.getAbsolutePath());
+
+		StringBuilder sb = new StringBuilder();
+		for (File file : flinkLibFolder.listFiles()) {
+			sb.append(file.getAbsolutePath());
+			sb.append(",");
+		}
+
+		String linkedShipFiles = sb.toString();
+		linkedShipFiles = linkedShipFiles.substring(0, linkedShipFiles.length() - 1);
+		configuration.setString(YarnConfigOptions.YARN_SHIP_PATHS, linkedShipFiles);
+
+		final YarnClient yarnClient = YarnClient.createYarnClient();
 
 		try (final Flip6YarnClusterDescriptor flip6YarnClusterDescriptor = new Flip6YarnClusterDescriptor(
 			configuration,
@@ -63,9 +74,6 @@ public class YARNITCase extends YarnTestBase {
 			System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR),
 			yarnClient,
 			true)) {
-
-			flip6YarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-			flip6YarnClusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 
 			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 				.setMasterMemoryMB(768)

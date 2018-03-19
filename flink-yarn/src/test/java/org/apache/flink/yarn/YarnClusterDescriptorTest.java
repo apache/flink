@@ -29,7 +29,6 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.client.api.YarnClient;
@@ -44,10 +43,8 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -90,15 +87,17 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 	@Test
 	public void testFailIfTaskSlotsHigherThanMaxVcores() throws ClusterDeploymentException {
+		final YarnClient yarnClient = YarnClient.createYarnClient();
+
+		Configuration flinkConfig = new Configuration();
+		flinkConfig.setString(YarnConfigOptions.FLINK_JAR, flinkJar.getPath());
 
 		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
-			new Configuration(),
+			flinkConfig,
 			yarnConfiguration,
 			temporaryFolder.getRoot().getAbsolutePath(),
 			yarnClient,
 			true);
-
-		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
 
 		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 			.setMasterMemoryMB(-1)
@@ -126,6 +125,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		Configuration configuration = new Configuration();
 		// overwrite vcores in config
 		configuration.setInteger(YarnConfigOptions.VCORES, Integer.MAX_VALUE);
+		configuration.setString(YarnConfigOptions.FLINK_JAR, flinkJar.getPath());
 
 		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
 			configuration,
@@ -133,8 +133,6 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			temporaryFolder.getRoot().getAbsolutePath(),
 			yarnClient,
 			true);
-
-		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
 
 		// configure slots
 		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
@@ -412,28 +410,38 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	 */
 	@Test
 	public void testExplicitLibShipping() throws Exception {
+		Configuration flinkConfiguration = new Configuration();
+
+		File libFile = temporaryFolder.newFile("libFile.jar");
+		File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
+
 		AbstractYarnClusterDescriptor descriptor = new YarnClusterDescriptor(
-			new Configuration(),
+			flinkConfiguration,
 			yarnConfiguration,
 			temporaryFolder.getRoot().getAbsolutePath(),
 			yarnClient,
 			true);
 
 		try {
-			descriptor.setLocalJarPath(new Path("/path/to/flink.jar"));
-
-			File libFile = temporaryFolder.newFile("libFile.jar");
-			File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
-
 			Assert.assertFalse(descriptor.shipFiles.contains(libFile));
 			Assert.assertFalse(descriptor.shipFiles.contains(libFolder));
+		} finally {
+			descriptor.close();
+		}
 
-			List<File> shipFiles = new ArrayList<>();
-			shipFiles.add(libFile);
-			shipFiles.add(libFolder);
+		flinkConfiguration = new Configuration();
+		flinkConfiguration.setString(YarnConfigOptions.FLINK_JAR, "/path/to/flink.jar");
+		String shipFilePaths = libFile.getAbsolutePath() + "," + libFolder.getAbsolutePath();
+		flinkConfiguration.setString(YarnConfigOptions.YARN_SHIP_PATHS, shipFilePaths);
 
-			descriptor.addShipFiles(shipFiles);
+		descriptor = new YarnClusterDescriptor(
+			flinkConfiguration,
+			yarnConfiguration,
+			temporaryFolder.getRoot().getAbsolutePath(),
+			yarnClient,
+			true);
 
+		try {
 			Assert.assertTrue(descriptor.shipFiles.contains(libFile));
 			Assert.assertTrue(descriptor.shipFiles.contains(libFolder));
 

@@ -142,6 +142,54 @@ public class YarnConfigOptions {
 		.defaultValue("")
 		.withDescription("A comma-separated list of tags to apply to the Flink YARN application.");
 
+	/**
+	 * A command option to specify the application will submit to which YARN queue.
+	 */
+	public static final ConfigOption<String> YARN_QUEUE =
+		key("yarn.queue")
+		.noDefaultValue()
+		.withDescription("A command option to specify the application will submit to which YARN queue.");
+
+	/**
+	 * A command option to specify whether the application submission uses detached mode or not.
+	 */
+	public static final ConfigOption<Boolean> DETACHED_MODE =
+		key("yarn.detached-mode")
+		.defaultValue(false)
+		.withDescription("A command option to specify whether the application submission uses detached mode or not.");
+
+	/**
+	 * A command option to specify the encoded dynamic properties.
+	 */
+	public static final ConfigOption<String> DYNAMIC_PROPERTIES_ENCODED =
+		key("yarn.dynamic-properties-encoded")
+		.noDefaultValue()
+		.withDescription("A command option to specify the encoded dynamic properties.");
+
+	/**
+	 * A command option to specify the flink jar path.
+	 */
+	public static final ConfigOption<String> FLINK_JAR =
+		key("yarn.flink-jar")
+		.noDefaultValue()
+		.withDescription("A command option to specify the flink jar path.");
+
+	/**
+	 * A command option to specify the YARN flink application name.
+	 */
+	public static final ConfigOption<String> YARN_APPLICATION_NAME =
+		key("yarn.application-name")
+		.noDefaultValue()
+		.withDescription("A command option to specify the YARN flink application name.");
+
+	/**
+	 * A command option which contains comma-separated list of ship paths.
+	 */
+	public static final ConfigOption<String> YARN_SHIP_PATHS =
+		key("yarn.ship-paths")
+		.noDefaultValue()
+		.withDescription("A comma-separated list of ship paths.");
+
 	// ------------------------------------------------------------------------
 
 	/** This class is not meant to be instantiated. */
