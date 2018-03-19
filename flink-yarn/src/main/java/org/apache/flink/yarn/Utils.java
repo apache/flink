@@ -489,14 +489,15 @@ public final class Utils {
 
 		ctx.setEnvironment(containerEnv);
 
-		try (DataOutputBuffer dob = new DataOutputBuffer()) {
-			log.debug("Adding security tokens to Task Executor Container launch Context....");
+		// For TaskManager YARN container context, read the tokens from the jobmanager yarn container local file.
+		// NOTE: must read the tokens from the local file, not from the UGI context, because if UGI is login
+		// using Kerberos keytabs, there is no HDFS delegation token in the UGI context.
+		final String fileLocation = System.getenv(UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION);
 
-			// For TaskManager YARN container context, read the tokens from the jobmanager yarn container local flie.
-			// NOTE: must read the tokens from the local file, not from the UGI context, because if UGI is login
-			// using Kerberos keytabs, there is no HDFS delegation token in the UGI context.
-			String fileLocation = System.getenv(UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION);
-			if (fileLocation != null) {
+		if (fileLocation != null) {
+			log.debug("Adding security tokens to TaskExecutor's container launch context.");
+
+			try (DataOutputBuffer dob = new DataOutputBuffer()) {
 				Method readTokenStorageFileMethod = Credentials.class.getMethod(
 					"readTokenStorageFile", File.class, org.apache.hadoop.conf.Configuration.class);
 
@@ -509,10 +510,11 @@ public final class Utils {
 				cred.writeTokenStorageToStream(dob);
 				ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
 				ctx.setTokens(securityTokens);
+			} catch (Throwable t) {
+				log.error("Failed to add Hadoop's security tokens.", t);
 			}
-		}
-		catch (Throwable t) {
-			log.error("Getting current user info failed when trying to launch the container", t);
+		} else {
+			log.info("Could not set security tokens because Hadoop's token file location is unknown.");
 		}
 
 		return ctx;
