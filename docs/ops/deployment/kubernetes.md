@@ -42,8 +42,8 @@ Using the [resource definitions found below](#simple-kubernetes-flink-cluster-
 resources), launch the cluster with the `kubectl` command:
 
     kubectl create -f jobmanager-deployment.yaml
-    kubectl create -f taskmanager-deployment.yaml
     kubectl create -f jobmanager-service.yaml
+    kubectl create -f taskmanager-deployment.yaml
 
 You can then access the Flink UI via `kubectl proxy`:
 
