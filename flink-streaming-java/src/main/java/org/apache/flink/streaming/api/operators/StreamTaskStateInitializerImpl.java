@@ -167,18 +167,17 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			// cleanup if something went wrong before results got published.
 			if (streamTaskCloseableRegistry.unregisterCloseable(keyedStatedBackend)) {
 				IOUtils.closeQuietly(keyedStatedBackend);
+				// release resource (e.g native resource)
+				keyedStatedBackend.dispose();
 			}
 
 			if (streamTaskCloseableRegistry.unregisterCloseable(operatorStateBackend)) {
-				IOUtils.closeQuietly(keyedStatedBackend);
+				IOUtils.closeQuietly(operatorStateBackend);
+				operatorStateBackend.dispose();
 			}
 
 			if (streamTaskCloseableRegistry.unregisterCloseable(rawKeyedStateInputs)) {
 				IOUtils.closeQuietly(rawKeyedStateInputs);
-			}
-
-			if (streamTaskCloseableRegistry.unregisterCloseable(rawOperatorStateInputs)) {
-				IOUtils.closeQuietly(rawOperatorStateInputs);
 			}
 
 			if (streamTaskCloseableRegistry.unregisterCloseable(rawOperatorStateInputs)) {
