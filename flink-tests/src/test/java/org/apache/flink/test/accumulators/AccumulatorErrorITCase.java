@@ -46,7 +46,7 @@ import static org.junit.Assert.fail;
  *  a) throw errors during runtime
  *  b) are not compatible with existing accumulator.
  */
-@Category(Old.class) // TODO: FLINK-8721 
+@Category(Old.class) // TODO: FLINK-8721
 public class AccumulatorErrorITCase extends TestLogger {
 
 	private static LocalFlinkMiniCluster cluster;
