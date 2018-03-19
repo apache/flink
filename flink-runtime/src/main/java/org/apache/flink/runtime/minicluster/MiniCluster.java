@@ -28,6 +28,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -87,6 +89,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -473,6 +476,20 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	//  Accessing jobs
 	// ------------------------------------------------------------------------
 
+	public CompletableFuture<Collection<JobStatusMessage>> listJobs() {
+		try {
+			return getDispatcherGateway().requestMultipleJobDetails(rpcTimeout)
+				.thenApply(jobs -> jobs.getJobs().stream()
+					.map(details -> new JobStatusMessage(details.getJobId(), details.getJobName(), details.getStatus(), details.getStartTime()))
+					.collect(Collectors.toList()));
+		} catch (LeaderRetrievalException | InterruptedException e) {
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					"Could not retrieve job list.",
+					e));
+		}
+	}
+
 	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
 		try {
 			return getDispatcherGateway().requestJobStatus(jobId, rpcTimeout);
@@ -495,6 +512,17 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
+	public CompletableFuture<Acknowledge> stopJob(JobID jobId) {
+		try {
+			return getDispatcherGateway().stopJob(jobId, rpcTimeout);
+		} catch (LeaderRetrievalException | InterruptedException e) {
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					String.format("Could not stop job %s.", jobId),
+					e));
+		}
+	}
+
 	public CompletableFuture<String> triggerSavepoint(JobID jobId, String targetDirectory, boolean cancelJob) {
 		try {
 			return getDispatcherGateway().triggerSavepoint(jobId, targetDirectory, cancelJob, rpcTimeout);
@@ -502,6 +530,17 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			return FutureUtils.completedExceptionally(
 				new FlinkException(
 					String.format("Could not trigger savepoint for job %s.", jobId),
+					e));
+		}
+	}
+
+	public CompletableFuture<? extends AccessExecutionGraph> getExecutionGraph(JobID jobId) {
+		try {
+			return getDispatcherGateway().requestJob(jobId, rpcTimeout);
+		} catch (LeaderRetrievalException | InterruptedException e) {
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					String.format("Could not retrieve job job %s.", jobId),
 					e));
 		}
 	}
