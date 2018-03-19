@@ -82,6 +82,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.configuration.CoreOptions.OLD_MODE;
+
 /**
  * This base class allows to use the MiniYARNCluster.
  * The cluster is re-used for all tests.
@@ -530,6 +532,7 @@ public abstract class YarnTestBase extends TestLogger {
 					out.println("#Security Configurations Auto Populated ");
 					out.println(SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + ": " + keytab);
 					out.println(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key() + ": " + principal);
+					out.println(CoreOptions.MODE.key() + ": " + OLD_MODE);
 					out.println("");
 				} catch (IOException e) {
 					throw new RuntimeException("Exception occured while trying to append the security configurations.", e);
