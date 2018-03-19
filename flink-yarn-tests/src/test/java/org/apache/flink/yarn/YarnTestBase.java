@@ -401,6 +401,7 @@ public abstract class YarnTestBase extends TestLogger {
 	}
 
 	public static void ensureStringInNamedLogFiles(final String[] mustHave, final String fileName) {
+		List<String> mustHaveList = Arrays.asList(mustHave);
 		File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
 		Assert.assertTrue("Expecting directory " + cwd.getAbsolutePath() + " to exist", cwd.exists());
 		Assert.assertTrue(
@@ -415,7 +416,7 @@ public abstract class YarnTestBase extends TestLogger {
 				File f = new File(dir.getAbsolutePath() + "/" + name);
 				LOG.info("Searching in {}", f.getAbsolutePath());
 				try {
-					Set<String> foundSet = new HashSet<String>(mustHave.length);
+					Set<String> foundSet = new HashSet<>(mustHave.length);
 					Scanner scanner = new Scanner(f);
 					while (scanner.hasNextLine()) {
 						final String lineFromFile = scanner.nextLine();
@@ -424,7 +425,7 @@ public abstract class YarnTestBase extends TestLogger {
 								foundSet.add(str);
 							}
 						}
-						if (foundSet.containsAll(Arrays.asList(mustHave))) {
+						if (foundSet.containsAll(mustHaveList)) {
 							return true;
 						}
 					}
