@@ -68,7 +68,6 @@ public class ListStateDescriptorTest {
 	 * <p>Tests that the returned serializer is duplicated. This allows to
 	 * share the state descriptor.
 	 */
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testSerializerDuplication() {
 		// we need a serializer that actually duplicates for testing (a stateful one)
