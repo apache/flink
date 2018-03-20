@@ -58,6 +58,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -75,6 +76,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 /**
@@ -414,7 +416,29 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		final JobManagerRunner jobManagerRunner = jobManagerRunners.get(jobId);
 
 		if (jobManagerRunner != null) {
-			return jobManagerRunner.getJobManagerGateway().requestJobStatus(timeout);
+				CompletableFuture<JobStatus> statusFuture = jobManagerRunner.getJobManagerGateway().requestJobStatus(timeout);
+				statusFuture.handle((JobStatus status, Throwable throwable) -> {
+					if (throwable != null) {
+						Throwable error = ExceptionUtils.stripCompletionException(throwable);
+
+						if (error instanceof FencingTokenException) {
+							log.warn("It occurs FencingTokenException may be the job manager runner has no leadership or" +
+								" the job has finished, so we would try to get it from archived execution graph store.");
+							final JobDetails jobDetails = archivedExecutionGraphStore.getAvailableJobDetails(jobId);
+
+							if (jobDetails != null) {
+								return jobDetails.getStatus();
+							} else {
+								throw new CompletionException(new FlinkJobNotFoundException(jobId));
+							}
+						}
+
+					}
+
+					return status;
+				});
+
+				return statusFuture;
 		} else {
 			final JobDetails jobDetails = archivedExecutionGraphStore.getAvailableJobDetails(jobId);
 
