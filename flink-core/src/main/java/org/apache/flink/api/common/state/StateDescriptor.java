@@ -23,17 +23,11 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.SerializableSupplier;
 
 import javax.annotation.Nullable;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -76,12 +70,12 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	// ------------------------------------------------------------------------
 
 	/** Name that uniquely identifies state created from this StateDescriptor. */
-	protected final String name;
+	private final String name;
 
 	/** The serializer for the type. May be eagerly initialized in the constructor,
 	 * or lazily once the type is serialized or an ExecutionConfig is provided. */
 	@Nullable
-	protected TypeSerializer<T> serializer;
+	private TypeSerializer<T> serializer;
 
 	/** The type information describing the value type. Only used to lazily create the serializer
 	 * and dropped during serialization */
@@ -94,7 +88,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 
 	/** The default value returned by the state when no other value is bound to a key. */
 	@Nullable
-	protected transient T defaultValue;
+	private final SerializableSupplier<T> defaultValueSupplier;
 
 	// ------------------------------------------------------------------------
 
@@ -103,13 +97,17 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 *
 	 * @param name The name of the {@code StateDescriptor}.
 	 * @param serializer The type serializer for the values in the state.
-	 * @param defaultValue The default value that will be set when requesting state without setting
-	 *                     a value before.
+	 * @param defaultValue The supplier for the default value, which is returned when no
+	 *                     value has been set previously.
 	 */
-	protected StateDescriptor(String name, TypeSerializer<T> serializer, @Nullable T defaultValue) {
+	protected StateDescriptor(
+			String name,
+			TypeSerializer<T> serializer,
+			@Nullable SerializableSupplier<T> defaultValue) {
+
 		this.name = checkNotNull(name, "name must not be null");
 		this.serializer = checkNotNull(serializer, "serializer must not be null");
-		this.defaultValue = defaultValue;
+		this.defaultValueSupplier = defaultValue;
 	}
 
 	/**
@@ -117,27 +115,35 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 *
 	 * @param name The name of the {@code StateDescriptor}.
 	 * @param typeInfo The type information for the values in the state.
-	 * @param defaultValue The default value that will be set when requesting state without setting
-	 *                     a value before.
+	 * @param defaultValue The supplier for the default value, which is returned when no
+	 *                     value has been set previously.
 	 */
-	protected StateDescriptor(String name, TypeInformation<T> typeInfo, @Nullable T defaultValue) {
+	protected StateDescriptor(
+			String name,
+			TypeInformation<T> typeInfo,
+			@Nullable SerializableSupplier<T> defaultValue) {
+
 		this.name = checkNotNull(name, "name must not be null");
 		this.typeInfo = checkNotNull(typeInfo, "type information must not be null");
-		this.defaultValue = defaultValue;
+		this.defaultValueSupplier = defaultValue;
 	}
 
 	/**
 	 * Create a new {@code StateDescriptor} with the given name and the given type information.
 	 *
 	 * <p>If this constructor fails (because it is not possible to describe the type via a class),
-	 * consider using the {@link #StateDescriptor(String, TypeInformation, Object)} constructor.
+	 * consider using the {@link #StateDescriptor(String, TypeInformation, SerializableSupplier)} constructor.
 	 *
 	 * @param name The name of the {@code StateDescriptor}.
 	 * @param type The class of the type of values in the state.
-	 * @param defaultValue The default value that will be set when requesting state without setting
-	 *                     a value before.
+	 * @param defaultValue The supplier for the default value, which is returned when no
+	 *                     value has been set previously.
 	 */
-	protected StateDescriptor(String name, Class<T> type, @Nullable T defaultValue) {
+	protected StateDescriptor(
+			String name,
+			Class<T> type,
+			@Nullable SerializableSupplier<T> defaultValue) {
+
 		this.name = checkNotNull(name, "name must not be null");
 		checkNotNull(type, "type class must not be null");
 
@@ -152,7 +158,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 					"'new PravegaDeserializationSchema<>(new TypeHint<Tuple2<String, String>>(){}, serializer);'", e);
 		}
 
-		this.defaultValue = defaultValue;
+		this.defaultValueSupplier = defaultValue;
 	}
 
 	// ------------------------------------------------------------------------
@@ -168,15 +174,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 * Returns the default value.
 	 */
 	public T getDefaultValue() {
-		if (defaultValue != null) {
-			if (serializer != null) {
-				return serializer.copy(defaultValue);
-			} else {
-				throw new IllegalStateException("Serializer not yet initialized.");
-			}
-		} else {
-			return null;
-		}
+		return defaultValueSupplier == null ? null : defaultValueSupplier.get();
 	}
 
 	/**
@@ -237,6 +235,12 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 */
 	public abstract S bind(StateBinder stateBinder) throws Exception;
 
+	/**
+	 * Gets the type of the state represented by this descriptor, as defined via
+	 * the {@link Type} enumeration.
+	 */
+	public abstract Type getType();
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -294,73 +298,9 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	public String toString() {
 		return getClass().getSimpleName() +
 				"{name=" + name +
-				", defaultValue=" + defaultValue +
+				", typeInfo=" + typeInfo +
 				", serializer=" + serializer +
-				(isQueryable() ? ", queryableStateName=" + queryableStateName + "" : "") +
+				", queryableStateName=" + (isQueryable() ? queryableStateName : "(not queryable)") +
 				'}';
-	}
-
-	public abstract Type getType();
-
-	// ------------------------------------------------------------------------
-	//  Serialization
-	// ------------------------------------------------------------------------
-
-	private void writeObject(final ObjectOutputStream out) throws IOException {
-		// write all the non-transient fields
-		out.defaultWriteObject();
-
-		// write the non-serializable default value field
-		if (defaultValue == null) {
-			// we don't have a default value
-			out.writeBoolean(false);
-		} else {
-			// we have a default value
-			out.writeBoolean(true);
-
-			byte[] serializedDefaultValue;
-			try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-					DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(baos)) {
-
-				TypeSerializer<T> duplicateSerializer = serializer.duplicate();
-				duplicateSerializer.serialize(defaultValue, outView);
-
-				outView.flush();
-				serializedDefaultValue = baos.toByteArray();
-			}
-			catch (Exception e) {
-				throw new IOException("Unable to serialize default value of type " +
-						defaultValue.getClass().getSimpleName() + ".", e);
-			}
-
-			out.writeInt(serializedDefaultValue.length);
-			out.write(serializedDefaultValue);
-		}
-	}
-
-	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
-		// read the non-transient fields
-		in.defaultReadObject();
-
-		// read the default value field
-		boolean hasDefaultValue = in.readBoolean();
-		if (hasDefaultValue) {
-			int size = in.readInt();
-
-			byte[] buffer = new byte[size];
-
-			in.readFully(buffer);
-
-			try (ByteArrayInputStream bais = new ByteArrayInputStream(buffer);
-					DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(bais)) {
-
-				defaultValue = serializer.deserialize(inView);
-			}
-			catch (Exception e) {
-				throw new IOException("Unable to deserialize default value.", e);
-			}
-		} else {
-			defaultValue = null;
-		}
 	}
 }

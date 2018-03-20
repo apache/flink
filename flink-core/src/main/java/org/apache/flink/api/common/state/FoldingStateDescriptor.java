@@ -55,7 +55,7 @@ public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState
 	 * @param typeClass The type of the values in the state.
 	 */
 	public FoldingStateDescriptor(String name, ACC initialValue, FoldFunction<T, ACC> foldFunction, Class<ACC> typeClass) {
-		super(name, typeClass, initialValue);
+		super(name, typeClass, DefaultValueFactory.create(typeClass, initialValue));
 		this.foldFunction = requireNonNull(foldFunction);
 
 		if (foldFunction instanceof RichFunction) {
@@ -72,7 +72,7 @@ public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState
 	 * @param typeInfo The type of the values in the state.
 	 */
 	public FoldingStateDescriptor(String name, ACC initialValue, FoldFunction<T, ACC> foldFunction, TypeInformation<ACC> typeInfo) {
-		super(name, typeInfo, initialValue);
+		super(name, typeInfo, DefaultValueFactory.create(typeInfo, initialValue));
 		this.foldFunction = requireNonNull(foldFunction);
 
 		if (foldFunction instanceof RichFunction) {
@@ -89,7 +89,7 @@ public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState
 	 * @param typeSerializer The type serializer of the values in the state.
 	 */
 	public FoldingStateDescriptor(String name, ACC initialValue, FoldFunction<T, ACC> foldFunction, TypeSerializer<ACC> typeSerializer) {
-		super(name, typeSerializer, initialValue);
+		super(name, typeSerializer, DefaultValueFactory.create(typeSerializer, initialValue));
 		this.foldFunction = requireNonNull(foldFunction);
 
 		if (foldFunction instanceof RichFunction) {

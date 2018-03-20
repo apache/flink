@@ -2558,7 +2558,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	public void testValueStateDefaultValue() throws Exception {
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
-		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, "Hello");
+		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<String>("id", () -> "Hello", String.class);
 
 		ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 

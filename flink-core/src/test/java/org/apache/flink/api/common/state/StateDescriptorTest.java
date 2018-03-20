@@ -21,10 +21,13 @@ package org.apache.flink.api.common.state;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntValueSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.util.function.SerializableSupplier;
 
 import org.junit.Test;
 
@@ -35,6 +38,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -137,7 +141,35 @@ public class StateDescriptorTest {
 	}
 
 	// ------------------------------------------------------------------------
-	//  Tests for serializer initialization
+	//  Tests for default value handling
+	// ------------------------------------------------------------------------
+
+	@Test
+	public void testNoDefaultValue() throws Exception {
+		TestStateDescriptor<String> descr1 = new TestStateDescriptor<>("foobar", StringSerializer.INSTANCE);
+		assertNull(descr1.getDefaultValue());
+
+		TestStateDescriptor<String> descr2 = new TestStateDescriptor<>("foobar", StringSerializer.INSTANCE, null);
+		assertNull(descr2.getDefaultValue());
+	}
+
+	@SuppressWarnings("UnnecessaryBoxing")
+	@Test
+	public void testCopiesDefaultValue() throws Exception {
+		TestStateDescriptor<IntValue> descr = new TestStateDescriptor<>(
+				"foobar",
+				IntValueSerializer.INSTANCE,
+				() -> new IntValue(0));
+
+		IntValue i1 = descr.getDefaultValue();
+		IntValue i2 = descr.getDefaultValue();
+
+		assertNotSame(i1, i2);
+		assertEquals(i1, i2);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Tests for serializer duplication
 	// ------------------------------------------------------------------------
 
 	/**
@@ -218,6 +250,18 @@ public class StateDescriptorTest {
 
 		TestStateDescriptor(String name, Class<T> type) {
 			super(name, type, null);
+		}
+
+		TestStateDescriptor(String name, TypeSerializer<T> serializer, SerializableSupplier<T> defaultValue) {
+			super(name, serializer, defaultValue);
+		}
+
+		TestStateDescriptor(String name, TypeInformation<T> typeInfo, SerializableSupplier<T> defaultValue) {
+			super(name, typeInfo, defaultValue);
+		}
+
+		TestStateDescriptor(String name, Class<T> type, SerializableSupplier<T> defaultValue) {
+			super(name, type, defaultValue);
 		}
 
 		@Override
