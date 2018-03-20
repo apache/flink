@@ -32,23 +32,22 @@ import java.util.Map;
 public class ContaineredTaskManagerParameters implements java.io.Serializable {
 
 	private static final long serialVersionUID = -3096987654278064670L;
-	
-	/** Total container memory, in bytes */
+
+	/** Total container memory, in bytes. */
 	private final long totalContainerMemoryMB;
 
-	/** Heap size to be used for the Java process */
+	/** Heap size to be used for the Java process. */
 	private final long taskManagerHeapSizeMB;
 
-	/** Direct memory limit for the Java process */
+	/** Direct memory limit for the Java process. */
 	private final long taskManagerDirectMemoryLimitMB;
 
-	/** The number of slots per TaskManager */
+	/** The number of slots per TaskManager. */
 	private final int numSlots;
-	
-	/** Environment variables to add to the Java process */
+
+	/** Environment variables to add to the Java process. */
 	private final HashMap<String, String> taskManagerEnv;
 
-	
 	public ContaineredTaskManagerParameters(
 			long totalContainerMemoryMB,
 			long taskManagerHeapSizeMB,
@@ -62,7 +61,7 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 		this.numSlots = numSlots;
 		this.taskManagerEnv = taskManagerEnv;
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	public long taskManagerTotalMemoryMB() {
@@ -87,7 +86,7 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 
 
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return "TaskManagerParameters {" +
@@ -104,7 +103,7 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * calcuate cutoff memory size used by container, it will throw an {@link IllegalArgumentException}
+	 * Calcuate cutoff memory size used by container, it will throw an {@link IllegalArgumentException}
 	 * if the config is invalid or return the cutoff value if valid.
 	 *
 	 * @param config The Flink configuration.
@@ -151,8 +150,9 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 	 * @return The parameters to start the TaskManager processes with.
 	 */
 	public static ContaineredTaskManagerParameters create(
-		Configuration config, long containerMemoryMB, int numSlots)
-	{
+			Configuration config,
+			long containerMemoryMB,
+			int numSlots) {
 		// (1) try to compute how much memory used by container
 		final long cutoffMB = calculateCutoffMB(config, containerMemoryMB);
 
@@ -164,7 +164,7 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 		// (3) obtain the additional environment variables from the configuration
 		final HashMap<String, String> envVars = new HashMap<>();
 		final String prefix = ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX;
-		
+
 		for (String key : config.keySet()) {
 			if (key.startsWith(prefix) && key.length() > prefix.length()) {
 				// remove prefix

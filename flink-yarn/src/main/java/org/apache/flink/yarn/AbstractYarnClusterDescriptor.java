@@ -413,23 +413,23 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	/**
 	 * Method to validate cluster specification before deploy it, it will throw
-	 * an {@link IllegalConfigurationException} if the {@link ClusterSpecification} is invalid.
+	 * an {@link FlinkException} if the {@link ClusterSpecification} is invalid.
+	 *
+	 * @param clusterSpecification cluster specification to check against the configuration of the
+	 *                             AbstractYarnClusterDescriptor
+	 * @throws FlinkException if the cluster cannot be started with the provided {@link ClusterSpecification}
 	 */
-	private void validateClusterSpecification(ClusterSpecification clusterSpecification) {
-		long taskManagerMemorySize = clusterSpecification.getTaskManagerMemoryMB();
-		long cutoff;
+	private void validateClusterSpecification(ClusterSpecification clusterSpecification) throws FlinkException {
 		try {
+			final long taskManagerMemorySize = clusterSpecification.getTaskManagerMemoryMB();
 			// We do the validation by calling the calculation methods here
-			cutoff = ContaineredTaskManagerParameters.calculateCutoffMB(flinkConfiguration, taskManagerMemorySize);
-		} catch (IllegalArgumentException cutoffConfigurationInvalidEx) {
-			throw new IllegalConfigurationException("Configurations related to cutoff checked failed.", cutoffConfigurationInvalidEx);
-		}
-
-		try {
-			// We do the validation by calling the calculation methods here
+			// Internally these methods will check whether the cluster can be started with the provided
+			// ClusterSpecification and the configured memory requirements
+			final long cutoff = ContaineredTaskManagerParameters.calculateCutoffMB(flinkConfiguration, taskManagerMemorySize);
 			TaskManagerServices.calculateHeapSizeMB(taskManagerMemorySize - cutoff, flinkConfiguration);
-		} catch (IllegalArgumentException heapSizeConfigurationInvalidEx) {
-			throw new IllegalConfigurationException("Configurations related to heap size checked failed.", heapSizeConfigurationInvalidEx);
+		} catch (IllegalArgumentException iae) {
+			throw new FlinkException("Cannot fulfill the minimum memory requirements with the provided " +
+				"cluster specification. Please increase the memory of the cluster.", iae);
 		}
 	}
 
