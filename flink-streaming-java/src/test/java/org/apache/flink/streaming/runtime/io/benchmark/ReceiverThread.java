@@ -89,7 +89,7 @@ public abstract class ReceiverThread extends CheckedThread {
 
 	protected abstract void readRecords(long lastExpectedRecord) throws Exception;
 
-	public void shutdown() {
+	public synchronized void shutdown() {
 		running = false;
 		interrupt();
 		expectedRecord.complete(0L);
