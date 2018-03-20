@@ -18,17 +18,16 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import static org.junit.Assert.assertNotSame;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link AggregatingStateDescriptor}.
@@ -41,16 +40,11 @@ public class AggregatingStateDescriptorTest extends TestLogger {
 	 * <p>Tests that the returned serializer is duplicated. This allows to
 	 * share the state descriptor.
 	 */
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testSerializerDuplication() {
-		TypeSerializer<Long> serializer = mock(TypeSerializer.class);
-		when(serializer.duplicate()).thenAnswer(new Answer<TypeSerializer<Long>>() {
-			@Override
-			public TypeSerializer<Long> answer(InvocationOnMock invocation) throws Throwable {
-				return mock(TypeSerializer.class);
-			}
-		});
+		// we need a serializer that actually duplicates for testing (a stateful one)
+		// we use Kryo here, because it meets these conditions
+		TypeSerializer<Long> serializer = new KryoSerializer<>(Long.class, new ExecutionConfig());
 
 		AggregateFunction<Long, Long, Long> aggregatingFunction = mock(AggregateFunction.class);
 
