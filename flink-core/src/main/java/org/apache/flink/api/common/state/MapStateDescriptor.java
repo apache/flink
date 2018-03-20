@@ -117,33 +117,4 @@ public class MapStateDescriptor<UK, UV> extends StateDescriptor<MapState<UK, UV>
 
 		return ((MapSerializer<UK, UV>) rawSerializer).getValueSerializer();
 	}
-
-	@Override
-	public int hashCode() {
-		int result = serializer.hashCode();
-		result = 31 * result + name.hashCode();
-		return result;
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-
-		MapStateDescriptor<?, ?> that = (MapStateDescriptor<?, ?>) o;
-		return serializer.equals(that.serializer) && name.equals(that.name);
-	}
-
-	@Override
-	public String toString() {
-		return "MapStateDescriptor{" +
-				"name=" + name +
-				", serializer=" + serializer +
-				'}';
-	}
 }
