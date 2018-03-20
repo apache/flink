@@ -27,16 +27,58 @@ import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{ResultTypeQueryable, RowTypeInfo}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
+import org.apache.flink.streaming.api.{TimeCharacteristic, TimeDomain}
 import org.apache.flink.table.api.StreamQueryConfig
-import org.apache.flink.table.runtime.aggregate.ProcessFunctionWithCleanupState
+import org.apache.flink.table.runtime.aggregate.KeyedProcessFunctionWithCleanupState
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-import org.slf4j.LoggerFactory
 
+/**
+  * A QueryableTableSink stores table in queryable state.
+  *
+  * This class stores table in queryable state so that users can access table data without
+  * dependency on external storage.
+  *
+  * Since this is only a kv storage, currently user can only do point query against it.
+  *
+  * Example:
+  * {{{
+  *   val env = ExecutionEnvironment.getExecutionEnvironment
+  *   val tEnv = TableEnvironment.getTableEnvironment(env)
+  *
+  *   val table: Table  = ...
+  *
+  *   val queryableTableSink: QueryableTableSink = new QueryableTableSink(
+  *       "prefix",
+  *       queryConfig,
+  *       None)
+  *
+  *   tEnv.writeToSink(table, queryableTableSink, config)
+  * }}}
+  *
+  * When program starts to run, user can access state with QueryableStateClient.
+  * {{{
+  *   val client = new QueryableStateClient(tmHostname, proxyPort)
+  *   val data = client.getKvState(
+  *       jobId,
+  *       "prefix-column1",
+  *       Row.of(1),
+  *       new RowTypeInfo(Array(TypeInfoformation.of(classOf[Int]), Array("id"))
+  *       stateDescriptor)
+  *     .get();
+  *
+  * }}}
+  *
+  *
+  * @param namePrefix
+  * @param queryConfig
+  * @param cleanupTimeDomain
+  */
 class QueryableTableSink(
     private val namePrefix: String,
-    private val queryConfig: StreamQueryConfig)
+    private val queryConfig: StreamQueryConfig,
+    private val cleanupTimeDomain: Option[TimeDomain])
   extends UpsertStreamTableSink[Row]
     with TableSinkBase[JTuple2[JBool, Row]] {
   private var keys: Array[String] = _
@@ -68,14 +110,28 @@ class QueryableTableSink(
       queryConfig,
       keys,
       getFieldNames,
-      getFieldTypes)
+      getFieldTypes,
+      calculateCleanupTimeDomain(dataStream.getExecutionEnvironment.getStreamTimeCharacteristic))
 
     dataStream.keyBy(new RowKeySelector(keyIndices, keySelectorType))
       .process(processFunction)
   }
 
+  private def calculateCleanupTimeDomain(timeCharacteristic: TimeCharacteristic): TimeDomain = {
+    val timeDomainFromTimeCharacteristic = {
+      timeCharacteristic match {
+        case TimeCharacteristic.IngestionTime | TimeCharacteristic.ProcessingTime =>
+          TimeDomain.PROCESSING_TIME
+        case TimeCharacteristic.EventTime =>
+          TimeDomain.EVENT_TIME
+      }
+    }
+
+    cleanupTimeDomain.getOrElse(timeDomainFromTimeCharacteristic)
+  }
+
   override protected def copy: TableSinkBase[JTuple2[JBool, Row]] = {
-    new QueryableTableSink(this.namePrefix, this.queryConfig)
+    new QueryableTableSink(this.namePrefix, this.queryConfig, this.cleanupTimeDomain)
   }
 }
 
@@ -104,12 +160,13 @@ class RowKeySelector(
 }
 
 class QueryableStateProcessFunction(
-  private val namePrefix: String,
-  private val queryConfig: StreamQueryConfig,
-  private val keyNames: Array[String],
-  private val fieldNames: Array[String],
-  private val fieldTypes: Array[TypeInformation[_]])
-  extends ProcessFunctionWithCleanupState[JTuple2[JBool, Row], Void](queryConfig) {
+    private val namePrefix: String,
+    private val queryConfig: StreamQueryConfig,
+    private val keyNames: Array[String],
+    private val fieldNames: Array[String],
+    private val fieldTypes: Array[TypeInformation[_]],
+    private val cleanupTimeDomain: TimeDomain)
+  extends KeyedProcessFunctionWithCleanupState[Row, JTuple2[JBool, Row], Void](queryConfig) {
 
   @transient private var states = Array[ValueState[AnyRef]]()
   @transient private var nonKeyIndices = Array[Int]()
@@ -126,7 +183,7 @@ class QueryableStateProcessFunction(
     for (i <- nonKeyIndices) {
       val stateDesc = new ValueStateDescriptor(fieldNames(i), fieldTypes(i))
       stateDesc.initializeSerializerUnlessSet(getRuntimeContext.getExecutionConfig)
-      stateDesc.setQueryable(fieldNames(i))
+      stateDesc.setQueryable(s"$namePrefix-${fieldNames(i)}")
       statesBuilder += getRuntimeContext.getState(stateDesc).asInstanceOf[ValueState[AnyRef]]
     }
 
@@ -137,15 +194,19 @@ class QueryableStateProcessFunction(
 
   override def processElement(
     value: JTuple2[JBool, Row],
-    ctx: ProcessFunction[JTuple2[JBool, Row], Void]#Context,
+    ctx: KeyedProcessFunction[Row, JTuple2[JBool, Row], Void]#Context,
     out: Collector[Void]): Unit = {
     if (value.f0) {
       for (i <- nonKeyIndices.indices) {
         states(i).update(value.f1.getField(nonKeyIndices(i)))
       }
 
-      val currentTime = ctx.timerService().currentProcessingTime()
-      registerProcessingCleanupTimer(ctx, currentTime)
+      val currentTime: Long = cleanupTimeDomain match{
+        case TimeDomain.EVENT_TIME => ctx.timestamp()
+        case TimeDomain.PROCESSING_TIME => ctx.timerService().currentProcessingTime()
+      }
+
+      registerCleanupTimer(ctx, currentTime, cleanupTimeDomain)
     } else {
       cleanupState(states: _*)
     }
@@ -153,7 +214,7 @@ class QueryableStateProcessFunction(
 
   override def onTimer(
     timestamp: Long,
-    ctx: ProcessFunction[JTuple2[JBool, Row], Void]#OnTimerContext,
+    ctx: KeyedProcessFunction[Row, JTuple2[JBool, Row], Void]#OnTimerContext,
     out: Collector[Void]): Unit = {
     if (needToCleanupState(timestamp)) {
       cleanupState(states: _*)

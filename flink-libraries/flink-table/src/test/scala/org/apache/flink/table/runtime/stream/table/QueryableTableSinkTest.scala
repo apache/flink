@@ -25,7 +25,8 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator
+import org.apache.flink.streaming.api.TimeDomain
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.runtime.harness.HarnessTestBase
 import org.apache.flink.table.sinks.{QueryableStateProcessFunction, RowKeySelector}
@@ -58,9 +59,15 @@ class QueryableTableSinkTest extends HarnessTestBase {
       TypeInformation.of(classOf[String]).asInstanceOf[TypeInformation[_]],
       TypeInformation.of(classOf[JBool]).asInstanceOf[TypeInformation[_]],
       TypeInformation.of(classOf[String]).asInstanceOf[TypeInformation[_]])
-    val func = new QueryableStateProcessFunction("test", queryConfig, keys, fieldNames, fieldTypes)
+    val func = new QueryableStateProcessFunction(
+      "test",
+      queryConfig,
+      keys,
+      fieldNames,
+      fieldTypes,
+      TimeDomain.PROCESSING_TIME)
 
-    val operator = new LegacyKeyedProcessOperator[Row, JTuple2[JBool, Row], Void](func)
+    val operator = new KeyedProcessOperator[Row, JTuple2[JBool, Row], Void](func)
 
     val testHarness = createHarnessTester(operator,
       new RowKeySelector(Array(0), keyType),
