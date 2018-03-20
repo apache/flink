@@ -23,6 +23,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -63,7 +64,7 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
 		if (!stopped) {
 			log.debug("Trigger heartbeat request.");
 			for (HeartbeatMonitor<O> heartbeatMonitor : getHeartbeatTargets()) {
-				CompletableFuture<O> futurePayload = getHeartbeatListener().retrievePayload();
+				CompletableFuture<O> futurePayload = getHeartbeatListener().retrievePayload(heartbeatMonitor.getHeartbeatTargetId());
 				final HeartbeatTarget<O> heartbeatTarget = heartbeatMonitor.getHeartbeatTarget();
 
 				if (futurePayload != null) {
