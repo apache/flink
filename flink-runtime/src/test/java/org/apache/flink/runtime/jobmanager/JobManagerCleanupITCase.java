@@ -25,6 +25,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
@@ -146,7 +147,7 @@ public class JobManagerCleanupITCase extends TestLogger {
 
 					try {
 						Configuration config = new Configuration();
-						config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
+						config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
 						config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 						config.setString(AkkaOptions.ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT());
 						config.setString(BlobServerOptions.STORAGE_DIRECTORY, blobBaseDir.getAbsolutePath());
