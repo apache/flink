@@ -22,6 +22,8 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ClusterClient;
@@ -33,6 +35,7 @@ import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -50,9 +53,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -136,6 +141,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 	}
 
 	private static void submitJobAndVerifyResults(JobGraph jobGraph) throws Exception {
+		Deadline deadline = Deadline.now().plus(Duration.ofSeconds(30));
 
 		ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
 
@@ -144,12 +150,22 @@ public class AccumulatorLiveITCase extends TestLogger {
 
 		try {
 			NotifyingMapper.notifyLatch.await();
-			Thread.sleep(HEARTBEAT_INTERVAL * 4); // wait for heartbeat
 
-			Map<String, Object> initialAccumulators = client.getAccumulators(jobGraph.getJobID());
-			assertEquals(1, initialAccumulators.size());
-			assertTrue(initialAccumulators.containsKey(ACCUMULATOR_NAME));
-			assertEquals(NUM_ITERATIONS, (int) initialAccumulators.get(ACCUMULATOR_NAME));
+			FutureUtils.retrySuccesfulWithDelay(
+				() -> {
+					try {
+						return CompletableFuture.completedFuture(client.getAccumulators(jobGraph.getJobID()));
+					} catch (Exception e) {
+						return FutureUtils.completedExceptionally(e);
+					}
+				},
+				Time.milliseconds(20),
+				deadline,
+				accumulators -> accumulators.size() == 1
+					&& accumulators.containsKey(ACCUMULATOR_NAME)
+					&& (int) accumulators.get(ACCUMULATOR_NAME) == NUM_ITERATIONS,
+				TestingUtils.defaultScheduledExecutor()
+			).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
 			NotifyingMapper.shutdownLatch.trigger();
 		} finally {
