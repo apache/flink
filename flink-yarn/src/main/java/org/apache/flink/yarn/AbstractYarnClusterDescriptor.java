@@ -36,9 +36,11 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -410,6 +412,28 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	/**
+	 * Method to validate cluster specification before deploy it, it will throw
+	 * an {@link IllegalConfigurationException} if the {@link ClusterSpecification} is invalid.
+	 */
+	private void validateClusterSpecification(ClusterSpecification clusterSpecification) {
+		long taskManagerMemorySize = clusterSpecification.getTaskManagerMemoryMB();
+		long cutoff;
+		try {
+			// We do the validation by calling the calculation methods here
+			cutoff = ContaineredTaskManagerParameters.calculateCutoffMB(flinkConfiguration, taskManagerMemorySize);
+		} catch (IllegalArgumentException cutoffConfigurationInvalidEx) {
+			throw new IllegalConfigurationException("Configurations related to cutoff checked failed.", cutoffConfigurationInvalidEx);
+		}
+
+		try {
+			// We do the validation by calling the calculation methods here
+			TaskManagerServices.calculateHeapSizeMB(taskManagerMemorySize - cutoff, flinkConfiguration);
+		} catch (IllegalArgumentException heapSizeConfigurationInvalidEx) {
+			throw new IllegalConfigurationException("Configurations related to heap size checked failed.", heapSizeConfigurationInvalidEx);
+		}
+	}
+
+	/**
 	 * This method will block until the ApplicationMaster/JobManager have been deployed on YARN.
 	 *
 	 * @param clusterSpecification Initial cluster specification for the Flink cluster to be deployed
@@ -422,6 +446,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			String yarnClusterEntrypoint,
 			@Nullable JobGraph jobGraph,
 			boolean detached) throws Exception {
+
+		// ------------------ Check if configuration is valid --------------------
+		validateClusterSpecification(clusterSpecification);
 
 		if (UserGroupInformation.isSecurityEnabled()) {
 			// note: UGI::hasKerberosCredentials inaccurately reports false

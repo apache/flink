@@ -631,7 +631,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 				if (detachedMode) {
 					LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
 						"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
-						"yarn application -kill " + applicationId.getOpt());
+						"yarn application -kill " + yarnApplicationId);
 				} else {
 					ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
