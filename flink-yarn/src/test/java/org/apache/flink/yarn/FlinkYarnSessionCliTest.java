@@ -260,13 +260,14 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 	@Test
 	public void testCommandLineClusterSpecification() throws Exception {
 		final Configuration configuration = new Configuration();
-		configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, 1337);
-		configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, 7331);
-		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
-
 		final int jobManagerMemory = 1337;
 		final int taskManagerMemory = 7331;
 		final int slotsPerTaskManager = 30;
+
+		configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, jobManagerMemory);
+		configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, taskManagerMemory);
+		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
+
 		final String[] args = {"-yjm", String.valueOf(jobManagerMemory), "-ytm", String.valueOf(taskManagerMemory), "-ys", String.valueOf(slotsPerTaskManager)};
 		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
 			configuration,

@@ -44,7 +44,7 @@ public class TaskManagerServicesTest extends TestLogger {
 	 */
 	@SuppressWarnings("deprecation")
 	@Test
-	public void calculateNetworkBufOld() throws Exception {
+	public void calculateNetworkBufOld() {
 		Configuration config = new Configuration();
 		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 1);
 

@@ -98,10 +98,10 @@ public class ContaineredTaskManagerParametersTest extends TestLogger {
 	 * Test to guard {@link ContaineredTaskManagerParameters#calculateCutoffMB(Configuration, long)}.
 	 */
 	@Test
-	public void testCalculateCutoffMB() throws Exception {
+	public void testCalculateCutoffMB() {
 
 		Configuration config = new Configuration();
-		long containerMemoryMB = 1000;
+		long containerMemoryMB = 1000L;
 
 		config.setFloat(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO, 0.1f);
 		config.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 128);
@@ -117,10 +117,9 @@ public class ContaineredTaskManagerParametersTest extends TestLogger {
 
 		try {
 			ContaineredTaskManagerParameters.calculateCutoffMB(config, containerMemoryMB);
-		} catch (IllegalArgumentException expected) {
+			fail("Expected to fail with an invalid argument exception.");
+		} catch (IllegalArgumentException ignored) {
 			// we expected it.
-			return;
 		}
-		fail();
 	}
 }
