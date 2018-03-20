@@ -21,27 +21,30 @@ package org.apache.flink.test.example.client;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.deployment.StandaloneClusterId;
-import org.apache.flink.client.program.rest.RestClusterClient;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.runtime.client.JobRetrievalException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
-import org.apache.flink.testutils.category.Flip6;
-import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
+import org.apache.flink.runtime.testingUtils.TestingCluster;
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.util.TestLogger;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.testkit.JavaTestKit;
 import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
-import java.util.Optional;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
+
+import scala.collection.Seq;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
@@ -49,41 +52,23 @@ import static org.junit.Assert.fail;
 /**
  * Tests retrieval of a job from a running Flink cluster.
  */
-@Category(Flip6.class)
-public class JobRetrievalITCase extends TestLogger {
+public class LegacyJobRetrievalITCase extends TestLogger {
 
 	private static final Semaphore lock = new Semaphore(1);
 
-	private static final MiniCluster CLUSTER;
-	private static final RestClusterClient<StandaloneClusterId> CLIENT;
+	private static FlinkMiniCluster cluster;
 
-	static {
-		try {
-		MiniClusterConfiguration clusterConfiguration = new MiniClusterConfiguration.Builder()
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(4)
-			.build();
-		CLUSTER = new MiniCluster(clusterConfiguration);
-		CLUSTER.start();
-
-		final Configuration clientConfig = new Configuration();
-		clientConfig.setString(JobManagerOptions.ADDRESS, "localhost");
-		clientConfig.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 0);
-		clientConfig.setLong(RestOptions.RETRY_DELAY, 0);
-
-		CLIENT = new RestClusterClient<>(
-			clientConfig,
-			StandaloneClusterId.getInstance());
-
-		} catch (Exception e) {
-			throw new AssertionError("Could not setup cluster.", e);
-		}
+	@BeforeClass
+	public static void before() {
+		Configuration configuration = new Configuration();
+		cluster = new TestingCluster(configuration, false);
+		cluster.start();
 	}
 
 	@AfterClass
-	public static void shutdownCluster() throws Exception {
-		CLIENT.shutdown();
-		CLUSTER.close();
+	public static void after() {
+		cluster.stop();
+		cluster = null;
 	}
 
 	@Test
@@ -95,38 +80,42 @@ public class JobRetrievalITCase extends TestLogger {
 
 		final JobGraph jobGraph = new JobGraph(jobID, "testjob", imalock);
 
+		final ClusterClient<StandaloneClusterId> client = new StandaloneClusterClient(cluster.configuration(), cluster.highAvailabilityServices(), true);
+
 		// acquire the lock to make sure that the job cannot complete until the job client
 		// has been attached in resumingThread
 		lock.acquire();
-
-		CLIENT.setDetached(true);
-		CLIENT.submitJob(jobGraph, JobRetrievalITCase.class.getClassLoader());
-
+		client.runDetached(jobGraph, LegacyJobRetrievalITCase.class.getClassLoader());
 		final AtomicReference<Throwable> error = new AtomicReference<>();
 
 		final Thread resumingThread = new Thread(new Runnable() {
 			@Override
 			public void run() {
 				try {
-					assertNotNull(CLIENT.requestJobResult(jobID).get());
+					assertNotNull(client.retrieveJob(jobID));
 				} catch (Throwable e) {
 					error.set(e);
 				}
 			}
 		}, "Flink-Job-Retriever");
 
-		// wait until the job is running
-		while (CLIENT.listJobs().get().isEmpty()) {
-			Thread.sleep(50);
-		}
+		final Seq<ActorSystem> actorSystemSeq = cluster.jobManagerActorSystems().get();
+		final ActorSystem actorSystem = actorSystemSeq.last();
+		JavaTestKit testkit = new JavaTestKit(actorSystem);
+
+		final ActorRef jm = cluster.getJobManagersAsJava().get(0);
+		// wait until client connects
+		jm.tell(TestingJobManagerMessages.getNotifyWhenClientConnects(), testkit.getRef());
+		// confirm registration
+		testkit.expectMsgEquals(true);
 
 		// kick off resuming
 		resumingThread.start();
 
 		// wait for client to connect
-		while (resumingThread.getState() != Thread.State.WAITING) {
-			Thread.sleep(10);
-		}
+		testkit.expectMsgAllOf(
+			TestingJobManagerMessages.getClientConnected(),
+			TestingJobManagerMessages.getClassLoadingPropsDelivered());
 
 		// client has connected, we can release the lock
 		lock.release();
@@ -142,16 +131,13 @@ public class JobRetrievalITCase extends TestLogger {
 	@Test
 	public void testNonExistingJobRetrieval() throws Exception {
 		final JobID jobID = new JobID();
+		ClusterClient<StandaloneClusterId> client = new StandaloneClusterClient(cluster.configuration());
 
 		try {
-			CLIENT.requestJobResult(jobID).get();
+			client.retrieveJob(jobID);
 			fail();
-		} catch (Exception exception) {
-			Optional<Throwable> expectedCause = ExceptionUtils.findThrowable(exception,
-				candidate -> candidate.getMessage() != null && candidate.getMessage().contains("Could not find Flink job"));
-			if (!expectedCause.isPresent()) {
-				throw exception;
-			}
+		} catch (JobRetrievalException ignored) {
+			// this is what we want
 		}
 	}
 
