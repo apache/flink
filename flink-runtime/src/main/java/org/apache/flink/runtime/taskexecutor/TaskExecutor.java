@@ -107,6 +107,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -138,7 +139,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	private final TaskManagerConfiguration taskManagerConfiguration;
 
 	/** The heartbeat manager for job manager in the task manager. */
-	private final HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
+	private final HeartbeatManager<Void, AccumulatorReport> jobManagerHeartbeatManager;
 
 	/** The heartbeat manager for resource manager in the task manager. */
 	private final HeartbeatManager<Void, SlotReport> resourceManagerHeartbeatManager;
@@ -1050,14 +1051,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		jobManagerTable.put(jobId, newJobManagerConnection);
 
 		// monitor the job manager as heartbeat target
-		jobManagerHeartbeatManager.monitorTarget(jobManagerResourceID, new HeartbeatTarget<Void>() {
+		jobManagerHeartbeatManager.monitorTarget(jobManagerResourceID, new HeartbeatTarget<AccumulatorReport>() {
 			@Override
-			public void receiveHeartbeat(ResourceID resourceID, Void payload) {
-				jobMasterGateway.heartbeatFromTaskManager(resourceID);
+			public void receiveHeartbeat(ResourceID resourceID, AccumulatorReport payload) {
+				jobMasterGateway.heartbeatFromTaskManager(resourceID, payload);
 			}
 
 			@Override
-			public void requestHeartbeat(ResourceID resourceID, Void payload) {
+			public void requestHeartbeat(ResourceID resourceID, AccumulatorReport payload) {
 				// request heartbeat will never be called on the task manager side
 			}
 		});
@@ -1488,7 +1489,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 	}
 
-	private class JobManagerHeartbeatListener implements HeartbeatListener<Void, Void> {
+	private class JobManagerHeartbeatListener implements HeartbeatListener<Void, AccumulatorReport> {
 
 		@Override
 		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
@@ -1515,8 +1516,23 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 
 		@Override
-		public CompletableFuture<Void> retrievePayload() {
-			return CompletableFuture.completedFuture(null);
+		public CompletableFuture<AccumulatorReport> retrievePayload(ResourceID resourceID) {
+			validateRunsInMainThread();
+			JobManagerConnection jobManagerConnection = jobManagerConnections.get(resourceID);
+			if (jobManagerConnection != null) {
+				JobID jobId = jobManagerConnection.getJobID();
+
+				List<AccumulatorSnapshot> accumulatorSnapshots = new ArrayList<>(16);
+				Iterator<Task> allTasks = taskSlotTable.getTasks(jobId);
+
+				while (allTasks.hasNext()) {
+					Task task = allTasks.next();
+					accumulatorSnapshots.add(task.getAccumulatorRegistry().getSnapshot());
+				}
+				return CompletableFuture.completedFuture(new AccumulatorReport(accumulatorSnapshots));
+			} else {
+				return CompletableFuture.completedFuture(new AccumulatorReport(Collections.emptyList()));
+			}
 		}
 	}
 
@@ -1544,7 +1560,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 
 		@Override
-		public CompletableFuture<SlotReport> retrievePayload() {
+		public CompletableFuture<SlotReport> retrievePayload(ResourceID resourceID) {
 			return callAsync(
 					() -> taskSlotTable.createSlotReport(getResourceID()),
 					taskManagerConfiguration.getTimeout());
