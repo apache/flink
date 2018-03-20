@@ -21,21 +21,20 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 
 import java.io.Serializable;
-import java.util.Iterator;
+import java.util.Collection;
 import java.util.List;
 
 /**
  * A report about the current values of all accumulators of the TaskExecutor for a given job.
  */
-public class AccumulatorReport implements Serializable, Iterable<AccumulatorSnapshot> {
-	private final List<AccumulatorSnapshot> accumulatorSnapshots;
+public class AccumulatorReport implements Serializable {
+	private final Collection<AccumulatorSnapshot> accumulatorSnapshots;
 
 	public AccumulatorReport(List<AccumulatorSnapshot> accumulatorSnapshots) {
 		this.accumulatorSnapshots = accumulatorSnapshots;
 	}
 
-	@Override
-	public Iterator<AccumulatorSnapshot> iterator() {
-		return accumulatorSnapshots.iterator();
+	public Collection<AccumulatorSnapshot> getAccumulatorSnapshots() {
+		return accumulatorSnapshots;
 	}
 }
