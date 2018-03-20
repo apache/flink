@@ -477,11 +477,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	public ClusterSpecification getClusterSpecification(CommandLine commandLine) throws FlinkException {
 		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(commandLine);
 
-		// aim to check the parameters
-		ContaineredTaskManagerParameters.create(
-			effectiveConfiguration,
-			effectiveConfiguration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY), 1);
-
 		return createClusterSpecification(effectiveConfiguration, commandLine);
 	}
 

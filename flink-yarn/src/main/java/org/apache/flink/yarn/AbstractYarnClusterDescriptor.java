@@ -39,6 +39,8 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
+import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -409,6 +411,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 	}
 
+	private void checkConfig(ClusterSpecification clusterSpecification) {
+		long taskManagerMemorySize = clusterSpecification.getTaskManagerMemoryMB();
+		long cutoff = ResourceManagerRuntimeServices.calculateCutoffMB(flinkConfiguration, taskManagerMemorySize);
+		TaskManagerServices.calculateHeapSizeMB(taskManagerMemorySize - cutoff, flinkConfiguration);
+	}
+
 	/**
 	 * This method will block until the ApplicationMaster/JobManager have been deployed on YARN.
 	 *
@@ -422,6 +430,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			String yarnClusterEntrypoint,
 			@Nullable JobGraph jobGraph,
 			boolean detached) throws Exception {
+
+		// ------------------ Check if configuration is valid --------------------
+		checkConfig(clusterSpecification);
 
 		if (UserGroupInformation.isSecurityEnabled()) {
 			// note: UGI::hasKerberosCredentials inaccurately reports false

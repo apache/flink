@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 
 import java.util.HashMap;
@@ -101,7 +102,7 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 	// ------------------------------------------------------------------------
 	//  Factory
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Computes the parameters to be used to start a TaskManager Java process.
 	 *
@@ -112,35 +113,11 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 	public static ContaineredTaskManagerParameters create(
 		Configuration config, long containerMemoryMB, int numSlots)
 	{
-		// (1) compute how much memory we subtract from the total memory, to get the Java memory
-
-		final float memoryCutoffRatio = config.getFloat(
-			ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO);
-
-		final int minCutoff = config.getInteger(
-			ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN);
-
-		if (memoryCutoffRatio >= 1 || memoryCutoffRatio <= 0) {
-			throw new IllegalArgumentException("The configuration value '"
-				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key() + "' must be between 0 and 1. Value given="
-				+ memoryCutoffRatio);
-		}
-
-		if (minCutoff >= containerMemoryMB) {
-			throw new IllegalArgumentException("The configuration value '"
-				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key() + "'='" + minCutoff
-				+ "' is larger than the total container memory " + containerMemoryMB);
-		}
-
-		long cutoff = (long) (containerMemoryMB * memoryCutoffRatio);
-		if (cutoff < minCutoff) {
-			cutoff = minCutoff;
-		}
-
-		final long javaMemorySizeMB = containerMemoryMB - cutoff;
+		// (1) try to compute how much memory used by container
+		final long cutoffMB = ResourceManagerRuntimeServices.calculateCutoffMB(config, containerMemoryMB);
 
 		// (2) split the remaining Java memory between heap and off-heap
-		final long heapSizeMB = TaskManagerServices.calculateHeapSizeMB(javaMemorySizeMB, config);
+		final long heapSizeMB = TaskManagerServices.calculateHeapSizeMB(containerMemoryMB - cutoffMB, config);
 		// use the cut-off memory for off-heap (that was its intention)
 		final long offHeapSizeMB = containerMemoryMB - heapSizeMB;
 
