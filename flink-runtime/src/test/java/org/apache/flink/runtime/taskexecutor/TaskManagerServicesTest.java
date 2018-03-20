@@ -214,5 +214,4 @@ public class TaskManagerServicesTest extends TestLogger {
 		config.setFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION, 0.1f); // 10%
 		assertEquals(810, TaskManagerServices.calculateHeapSizeMB(1000, config));
 	}
-
 }
