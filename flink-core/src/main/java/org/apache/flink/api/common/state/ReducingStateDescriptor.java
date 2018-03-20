@@ -24,7 +24,7 @@ import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * {@link StateDescriptor} for {@link ReducingState}. This can be used to create partitioned
@@ -52,7 +52,7 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
 	 */
 	public ReducingStateDescriptor(String name, ReduceFunction<T> reduceFunction, Class<T> typeClass) {
 		super(name, typeClass, null);
-		this.reduceFunction = requireNonNull(reduceFunction);
+		this.reduceFunction = checkNotNull(reduceFunction);
 
 		if (reduceFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("ReduceFunction of ReducingState can not be a RichFunction.");
@@ -68,7 +68,7 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
 	 */
 	public ReducingStateDescriptor(String name, ReduceFunction<T> reduceFunction, TypeInformation<T> typeInfo) {
 		super(name, typeInfo, null);
-		this.reduceFunction = requireNonNull(reduceFunction);
+		this.reduceFunction = checkNotNull(reduceFunction);
 	}
 
 	/**
@@ -80,7 +80,7 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
 	 */
 	public ReducingStateDescriptor(String name, ReduceFunction<T> reduceFunction, TypeSerializer<T> typeSerializer) {
 		super(name, typeSerializer, null);
-		this.reduceFunction = requireNonNull(reduceFunction);
+		this.reduceFunction = checkNotNull(reduceFunction);
 	}
 
 	// ------------------------------------------------------------------------
