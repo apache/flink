@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -58,7 +59,6 @@ import org.slf4j.MarkerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -69,7 +69,6 @@ import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintStream;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -515,28 +514,23 @@ public abstract class YarnTestBase extends TestLogger {
 
 			File flinkConfDirPath = findFile(flinkDistRootDir, new ContainsName(new String[]{"flink-conf.yaml"}));
 			Assert.assertNotNull(flinkConfDirPath);
+			org.apache.flink.configuration.Configuration flinkCfg =
+					new org.apache.flink.configuration.Configuration();
 
 			if (!StringUtils.isBlank(principal) && !StringUtils.isBlank(keytab)) {
+
 				//copy conf dir to test temporary workspace location
 				tempConfPathForSecureRun = tmp.newFolder("conf");
 
 				String confDirPath = flinkConfDirPath.getParentFile().getAbsolutePath();
 				FileUtils.copyDirectory(new File(confDirPath), tempConfPathForSecureRun);
 
-				try (FileWriter fw = new FileWriter(new File(tempConfPathForSecureRun, "flink-conf.yaml"), true);
-					BufferedWriter bw = new BufferedWriter(fw);
-					PrintWriter out = new PrintWriter(bw)) {
+				flinkCfg.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB.key(), keytab);
+				flinkCfg.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(), principal);
+				flinkCfg.setString(CoreOptions.MODE.key(), OLD_MODE);
 
-					LOG.info("writing keytab: " + keytab + " and principal: " + principal + " to config file");
-					out.println("");
-					out.println("#Security Configurations Auto Populated ");
-					out.println(SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + ": " + keytab);
-					out.println(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key() + ": " + principal);
-					out.println(CoreOptions.MODE.key() + ": " + OLD_MODE);
-					out.println("");
-				} catch (IOException e) {
-					throw new RuntimeException("Exception occured while trying to append the security configurations.", e);
-				}
+				BootstrapTools.writeConfiguration(flinkCfg,
+						new File(tempConfPathForSecureRun, "flink-conf.yaml"));
 
 				String configDir = tempConfPathForSecureRun.getAbsolutePath();
 
