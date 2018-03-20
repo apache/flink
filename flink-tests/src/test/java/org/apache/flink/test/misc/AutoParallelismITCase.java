@@ -27,11 +27,13 @@ import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,6 +46,7 @@ import static org.junit.Assert.fail;
  * This test verifies that the auto parallelism is properly forwarded to the runtime.
  */
 @SuppressWarnings("serial")
+@Category(Old.class) // TODO: FLINK-8813
 public class AutoParallelismITCase extends TestLogger {
 
 	private static final int NUM_TM = 2;

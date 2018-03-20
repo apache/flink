@@ -32,6 +32,7 @@ import java.util.List;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.util.StartupUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
@@ -40,12 +41,14 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 /**
  * Tests that verify the startup behavior of the JobManager in failure
  * situations, when the JobManager cannot be started.
  */
+@Category(Old.class)
 public class JobManagerStartupTest extends TestLogger {
 
 	private final static String DOES_NOT_EXISTS_NO_SIR = "does-not-exist-no-sir";

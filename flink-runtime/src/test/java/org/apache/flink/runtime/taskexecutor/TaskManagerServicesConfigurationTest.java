@@ -20,18 +20,15 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.testutils.category.OldAndFlip6;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import static org.junit.Assert.*;
 
 /**
  * Unit test for {@link TaskManagerServicesConfiguration}.
  */
-@Category(OldAndFlip6.class)
 public class TaskManagerServicesConfigurationTest extends TestLogger {
 	/**
 	 * Verifies that {@link TaskManagerServicesConfiguration#hasNewNetworkBufConf(Configuration)}

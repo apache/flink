@@ -69,6 +69,7 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -81,6 +82,7 @@ import akka.testkit.JavaTestKit;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,6 +117,7 @@ import static org.junit.Assert.fail;
  * Integration test for triggering and resuming from savepoints.
  */
 @SuppressWarnings("serial")
+@Category(Old.class)
 public class SavepointITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointITCase.class);

@@ -30,6 +30,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -37,6 +38,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -50,6 +52,7 @@ import static org.junit.Assert.fail;
  * This test starts a job client without the JobManager being reachable. It
  * tests for a timely error and a meaningful error message.
  */
+@Category(Old.class)
 public class ClientConnectionTest extends TestLogger {
 
 	private static final long CONNECT_TIMEOUT = 100L; // 100 ms

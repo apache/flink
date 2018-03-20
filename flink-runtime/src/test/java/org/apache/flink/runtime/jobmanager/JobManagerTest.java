@@ -101,6 +101,7 @@ import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.StoppableInvokable;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
@@ -116,6 +117,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -155,6 +157,7 @@ import static org.junit.Assert.fail;
 
 import static org.mockito.Mockito.mock;
 
+@Category(Old.class)
 public class JobManagerTest extends TestLogger {
 
 	@Rule

@@ -30,6 +30,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.test.util.TestEnvironment;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
@@ -37,6 +38,7 @@ import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import akka.pattern.Patterns;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -64,6 +66,7 @@ import static org.junit.Assert.fail;
  * the original task managers. The recovery should restart the tasks on the new TaskManager.
  */
 @SuppressWarnings("serial")
+@Category(Old.class)
 public class TaskManagerFailureRecoveryITCase extends TestLogger {
 
 	@Test

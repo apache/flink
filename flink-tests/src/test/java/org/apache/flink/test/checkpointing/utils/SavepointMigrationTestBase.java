@@ -35,12 +35,14 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.testutils.category.Old;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +65,7 @@ import static junit.framework.Assert.fail;
 /**
  * Test savepoint migration.
  */
+@Category(Old.class)
 public class SavepointMigrationTestBase extends TestBaseUtils {
 
 	@BeforeClass

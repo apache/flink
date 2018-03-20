@@ -71,6 +71,7 @@ import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testutils.StoppableInvokable;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.SerializedValue;
@@ -89,6 +90,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,6 +124,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
+@Category(Old.class)
 public class TaskManagerTest extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerTest.class);

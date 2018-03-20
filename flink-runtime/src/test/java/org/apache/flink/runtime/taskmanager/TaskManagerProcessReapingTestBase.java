@@ -33,12 +33,14 @@ import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.io.File;
 import java.io.IOException;
@@ -62,6 +64,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests that the TaskManager process properly exits when the TaskManager actor dies.
  */
+@Category(Old.class)
 public abstract class TaskManagerProcessReapingTestBase extends TestLogger {
 
 	/**

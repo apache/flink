@@ -33,8 +33,10 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import org.apache.flink.configuration.Configuration;
 import scala.Some;
@@ -52,6 +54,7 @@ import java.util.regex.Pattern;
 /**
  * Tests that the JobManager process properly exits when the JobManager actor dies.
  */
+@Category(Old.class)
 public class JobManagerProcessReapingTest extends TestLogger {
 
 	@Test

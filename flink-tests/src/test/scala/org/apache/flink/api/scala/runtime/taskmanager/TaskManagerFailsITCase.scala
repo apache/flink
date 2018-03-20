@@ -33,11 +33,14 @@ import org.apache.flink.runtime.messages.TaskManagerMessages.{NotifyWhenRegister
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingCluster, TestingUtils}
+import org.apache.flink.testutils.category.Old
+import org.junit.experimental.categories.Category
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 @RunWith(classOf[JUnitRunner])
+@Category(Array(classOf[Old]))
 class TaskManagerFailsITCase(_system: ActorSystem)
   extends TestKit(_system)
   with ImplicitSender

@@ -22,6 +22,8 @@ import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.configuration._
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingCluster, TestingUtils}
+import org.apache.flink.testutils.category.Old
+import org.junit.experimental.categories.Category
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.scalatest.junit.JUnitRunner
@@ -30,6 +32,7 @@ import org.scalatest.junit.JUnitRunner
   * Testing the flink cluster using SSL transport for akka remoting
   */
 @RunWith(classOf[JUnitRunner])
+@Category(Array(classOf[Old]))
 class AkkaSslITCase(_system: ActorSystem)
   extends TestKit(_system)
     with ImplicitSender

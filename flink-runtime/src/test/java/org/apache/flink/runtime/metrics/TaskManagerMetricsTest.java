@@ -35,6 +35,7 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
@@ -43,6 +44,7 @@ import akka.actor.Props;
 import akka.testkit.JavaTestKit;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.net.InetAddress;
 import java.util.UUID;
@@ -54,6 +56,7 @@ import scala.concurrent.duration.FiniteDuration;
 /**
  * Tests for the behavior of the metric system on a task manager.
  */
+@Category(Old.class)
 public class TaskManagerMetricsTest extends TestLogger {
 
 	/**

@@ -33,9 +33,11 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
+import org.apache.flink.testutils.category.Old;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
@@ -55,6 +57,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests to verify JMX reporter functionality on the JobManager.
  */
+@Category(Old.class)
 public class JMXJobManagerMetricTest {
 
 	/**

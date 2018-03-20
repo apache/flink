@@ -35,10 +35,12 @@ import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunningOrFinished;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
@@ -51,6 +53,7 @@ import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.*;
 
+@Category(Old.class)
 public class LeaderChangeStateCleanupTest extends TestLogger {
 
 	private static Logger LOG = LoggerFactory.getLogger(LeaderChangeStateCleanupTest.class);

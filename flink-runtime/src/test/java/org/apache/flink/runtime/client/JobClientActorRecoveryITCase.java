@@ -31,11 +31,13 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import scala.concurrent.Await;
 import scala.concurrent.Promise;
@@ -45,7 +47,7 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.util.concurrent.TimeUnit;
 
-
+@Category(Old.class)
 public class JobClientActorRecoveryITCase extends TestLogger {
 
 	@Rule

@@ -31,6 +31,8 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
 import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, JobSubmitSuccess, SubmitJob}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingCluster, TestingUtils}
+import org.apache.flink.testutils.category.Old
+import org.junit.experimental.categories.Category
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.scalatest.junit.JUnitRunner
@@ -39,6 +41,7 @@ import scala.concurrent.duration._
 import language.postfixOps
 
 @RunWith(classOf[JUnitRunner])
+@Category(Array(classOf[Old]))
 class RecoveryITCase(_system: ActorSystem)
   extends TestKit(_system)
   with ImplicitSender

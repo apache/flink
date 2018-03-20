@@ -30,12 +30,14 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.test.util.TestEnvironment;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import static org.junit.Assert.fail;
 
@@ -44,6 +46,7 @@ import static org.junit.Assert.fail;
  *  a) throw errors during runtime
  *  b) are not compatible with existing accumulator.
  */
+@Category(Old.class) // TODO: FLINK-8721
 public class AccumulatorErrorITCase extends TestLogger {
 
 	private static LocalFlinkMiniCluster cluster;

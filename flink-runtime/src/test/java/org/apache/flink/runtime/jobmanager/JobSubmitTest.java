@@ -41,11 +41,13 @@ import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.NetUtils;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import scala.Option;
 import scala.Tuple2;
@@ -66,6 +68,7 @@ import static org.junit.Assert.fail;
  * Tests that the JobManager handles Jobs correctly that fail in
  * the initialization during the submit phase.
  */
+@Category(Old.class)
 public class JobSubmitTest {
 
 	private static final FiniteDuration timeout = new FiniteDuration(60000, TimeUnit.MILLISECONDS);

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -46,6 +47,7 @@ import akka.actor.ActorSystem;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.io.File;
 import java.io.StringWriter;
@@ -72,6 +74,7 @@ import static org.junit.Assert.fail;
  * the task manager went down and did not respond to cancel messages.
  */
 @SuppressWarnings("serial")
+@Category(Old.class)
 public class ProcessFailureCancelingITCase extends TestLogger {
 
 	@Test

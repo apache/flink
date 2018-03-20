@@ -48,6 +48,7 @@ import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -59,6 +60,7 @@ import akka.util.Timeout;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,6 +91,7 @@ import static org.junit.Assert.fail;
  * that's why exact guarantees about the number of records read are very hard to make. Thus, why we
  * check for an upper bound of the elements read.
  */
+@Category(Old.class)
 public class AccumulatorLiveITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AccumulatorLiveITCase.class);

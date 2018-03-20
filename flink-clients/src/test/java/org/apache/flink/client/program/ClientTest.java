@@ -43,6 +43,7 @@ import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.testutils.category.Old;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
@@ -53,6 +54,7 @@ import akka.actor.Status;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -70,6 +72,7 @@ import static org.mockito.Mockito.when;
 /**
  * Simple and maybe stupid test to check the {@link ClusterClient} class.
  */
+@Category(Old.class)
 public class ClientTest extends TestLogger {
 
 	private PackagedProgram program;
