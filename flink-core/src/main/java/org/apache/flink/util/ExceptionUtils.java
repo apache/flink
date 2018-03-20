@@ -35,6 +35,7 @@ import java.io.StringWriter;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Predicate;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -317,6 +318,30 @@ public final class ExceptionUtils {
 		while (t != null) {
 			if (searchType.isAssignableFrom(t.getClass())) {
 				return Optional.of(searchType.cast(t));
+			} else {
+				t = t.getCause();
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	/**
+	 * Checks whether a throwable chain contains an exception matching a predicate and returns it.
+	 *
+	 * @param throwable the throwable chain to check.
+	 * @param predicate the predicate of the exception to search for in the chain.
+	 * @return Optional throwable of the requested type if available, otherwise empty
+	 */
+	public static Optional<Throwable> findThrowable(Throwable throwable, Predicate<Throwable> predicate) {
+		if (throwable == null || predicate == null) {
+			return Optional.empty();
+		}
+
+		Throwable t = throwable;
+		while (t != null) {
+			if (predicate.test(t)) {
+				return Optional.of(t);
 			} else {
 				t = t.getCause();
 			}
