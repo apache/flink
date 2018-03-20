@@ -42,6 +42,8 @@ import java.util.Map;
 @PublicEvolving
 public class MapStateDescriptor<UK, UV> extends StateDescriptor<MapState<UK, UV>, Map<UK, UV>> {
 
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * Create a new {@code MapStateDescriptor} with the given name and the given type serializers.
 	 *
