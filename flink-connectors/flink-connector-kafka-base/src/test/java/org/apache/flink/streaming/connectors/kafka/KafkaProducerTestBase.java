@@ -482,8 +482,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 
 		private static final long serialVersionUID = 6334389850158707313L;
 
-		public static volatile boolean restartedLeaderBefore;
-		public static volatile boolean hasBeenCheckpointedBeforeFailure;
+		public static volatile boolean triggeredShutdown;
 		public static volatile int numElementsBeforeSnapshot;
 		public static volatile Runnable shutdownAction;
 
@@ -491,11 +490,9 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 		private int numElementsTotal;
 
 		private boolean failer;
-		private boolean hasBeenCheckpointed;
 
 		public static void resetState(Runnable shutdownAction) {
-			restartedLeaderBefore = false;
-			hasBeenCheckpointedBeforeFailure = false;
+			triggeredShutdown = false;
 			numElementsBeforeSnapshot = 0;
 			BrokerRestartingMapper.shutdownAction = shutdownAction;
 		}
@@ -513,13 +510,12 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 		public T map(T value) throws Exception {
 			numElementsTotal++;
 
-			if (!restartedLeaderBefore) {
+			if (!triggeredShutdown) {
 				Thread.sleep(10);
 
 				if (failer && numElementsTotal >= failCount) {
 					// shut down a Kafka broker
-					hasBeenCheckpointedBeforeFailure = hasBeenCheckpointed;
-					restartedLeaderBefore = true;
+					triggeredShutdown = true;
 					shutdownAction.run();
 				}
 			}
@@ -528,7 +524,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) {
-			hasBeenCheckpointed = true;
 		}
 
 		@Override
