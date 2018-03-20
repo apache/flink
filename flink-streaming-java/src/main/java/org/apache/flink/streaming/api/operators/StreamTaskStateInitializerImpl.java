@@ -279,8 +279,6 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 		if (restoreStateAlternatives.hasNext()) {
 
-			final CloseableRegistry closeableRegistry = new CloseableRegistry();
-
 			Collection<OperatorStateHandle> rawOperatorState = restoreStateAlternatives.next();
 			// TODO currently this does not support local state recovery, so we expect there is only one handle.
 			Preconditions.checkState(
@@ -288,6 +286,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 				"Local recovery is currently not implemented for raw operator state, but found state alternative.");
 
 			if (rawOperatorState != null) {
+				final CloseableRegistry closeableRegistry = new CloseableRegistry();
 
 				return new CloseableIterable<StatePartitionStreamProvider>() {
 					@Override
