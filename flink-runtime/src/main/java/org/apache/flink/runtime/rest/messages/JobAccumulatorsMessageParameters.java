@@ -22,7 +22,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * request parameter for job accumulator's handler {@link org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler}.
+ * Request parameter for job accumulator's handler {@link org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler}.
  */
 public class JobAccumulatorsMessageParameters extends JobMessageParameters {
 

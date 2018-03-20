@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rest.messages;
 
 /**
- * query parameter for job's accumulator handler {@link org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler}.
+ * Query parameter for job's accumulator handler {@link org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler}.
  */
 public class AccumulatorsIncludeSerializedValueQueryParameter extends MessageQueryParameter<Boolean> {
 

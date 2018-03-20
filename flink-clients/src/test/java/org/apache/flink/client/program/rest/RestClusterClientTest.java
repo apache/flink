@@ -551,8 +551,7 @@ public class RestClusterClientTest extends TestLogger {
 
 	@Test
 	public void testGetAccumulators() throws Exception {
-		TestAccumulatorHandlers accumulatorHandlers = new TestAccumulatorHandlers();
-		TestAccumulatorHandlers.TestAccumulatorHandler accumulatorHandler = accumulatorHandlers.new TestAccumulatorHandler();
+		TestAccumulatorHandler accumulatorHandler = new TestAccumulatorHandler();
 
 		try (TestRestServerEndpoint ignored = createRestServerEndpoint(accumulatorHandler)){
 
@@ -569,46 +568,46 @@ public class RestClusterClientTest extends TestLogger {
 		}
 	}
 
-	private class TestAccumulatorHandlers  {
+	private class TestAccumulatorHandler extends TestHandler<EmptyRequestBody, JobAccumulatorsInfo, JobAccumulatorsMessageParameters> {
 
-		private class TestAccumulatorHandler extends TestHandler<EmptyRequestBody, JobAccumulatorsInfo, JobAccumulatorsMessageParameters> {
-
-			public TestAccumulatorHandler() {
-				super(JobAccumulatorsHeaders.getInstance());
-			}
-
-			@Override
-			protected CompletableFuture<JobAccumulatorsInfo> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody,
-				JobAccumulatorsMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
-				JobAccumulatorsInfo accumulatorsInfo;
-				List<Boolean> queryParams = request.getQueryParameter(AccumulatorsIncludeSerializedValueQueryParameter.class);
-
-				boolean includeSerializedValue = false;
-				if (!queryParams.isEmpty()) {
-					includeSerializedValue = queryParams.get(0);
-				}
-
-				List<JobAccumulatorsInfo.UserTaskAccumulator> userTaskAccumulators = new ArrayList<JobAccumulatorsInfo.UserTaskAccumulator>() {{
-					this.add(new JobAccumulatorsInfo.UserTaskAccumulator("testName", "testType", "testValue"));
-				}};
-
-				if (includeSerializedValue) {
-					Map<String, SerializedValue<Object>> serializedUserTaskAccumulators = new HashMap<>(1);
-					try {
-						serializedUserTaskAccumulators.put("testKey", new SerializedValue<>("testValue"));
-					} catch (IOException e) {
-						throw new RuntimeException(e);
-					}
-
-					accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), userTaskAccumulators, serializedUserTaskAccumulators);
-				} else {
-					accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), userTaskAccumulators, Collections.emptyMap());
-				}
-
-				return CompletableFuture.completedFuture(accumulatorsInfo);
-			}
+		public TestAccumulatorHandler() {
+			super(JobAccumulatorsHeaders.getInstance());
 		}
 
+		@Override
+		protected CompletableFuture<JobAccumulatorsInfo> handleRequest(
+			@Nonnull HandlerRequest<EmptyRequestBody,
+				JobAccumulatorsMessageParameters> request,
+			@Nonnull DispatcherGateway gateway) throws RestHandlerException {
+			JobAccumulatorsInfo accumulatorsInfo;
+			List<Boolean> queryParams = request.getQueryParameter(AccumulatorsIncludeSerializedValueQueryParameter.class);
+
+			final boolean includeSerializedValue;
+			if (!queryParams.isEmpty()) {
+				includeSerializedValue = queryParams.get(0);
+			} else {
+				includeSerializedValue = false;
+			}
+
+			List<JobAccumulatorsInfo.UserTaskAccumulator> userTaskAccumulators = new ArrayList<>(1);
+
+			userTaskAccumulators.add(new JobAccumulatorsInfo.UserTaskAccumulator("testName", "testType", "testValue"));
+
+			if (includeSerializedValue) {
+				Map<String, SerializedValue<Object>> serializedUserTaskAccumulators = new HashMap<>(1);
+				try {
+					serializedUserTaskAccumulators.put("testKey", new SerializedValue<>("testValue"));
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+
+				accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), userTaskAccumulators, serializedUserTaskAccumulators);
+			} else {
+				accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), userTaskAccumulators, Collections.emptyMap());
+			}
+
+			return CompletableFuture.completedFuture(accumulatorsInfo);
+		}
 	}
 
 	private class TestListJobsHandler extends TestHandler<EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters> {

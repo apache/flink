@@ -68,9 +68,11 @@ public class JobAccumulatorsHandler extends AbstractExecutionGraphHandler<JobAcc
 		JobAccumulatorsInfo accumulatorsInfo;
 		List<Boolean> queryParams = request.getQueryParameter(AccumulatorsIncludeSerializedValueQueryParameter.class);
 
-		boolean includeSerializedValue = false;
+		final boolean includeSerializedValue;
 		if (!queryParams.isEmpty()) {
 			includeSerializedValue = queryParams.get(0);
+		} else {
+			includeSerializedValue = false;
 		}
 
 		StringifiedAccumulatorResult[] stringifiedAccs = graph.getAccumulatorResultsStringified();

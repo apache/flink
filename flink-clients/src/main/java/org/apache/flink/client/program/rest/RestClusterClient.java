@@ -395,11 +395,6 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	}
 
 	@Override
-	public Map<String, Object> getAccumulators(JobID jobID) throws Exception {
-		return getAccumulators(jobID, ClassLoader.getSystemClassLoader());
-	}
-
-	@Override
 	public Map<String, Object> getAccumulators(final JobID jobID, ClassLoader loader) throws Exception {
 		final JobAccumulatorsHeaders accumulatorsHeaders = JobAccumulatorsHeaders.getInstance();
 		final JobAccumulatorsMessageParameters accMsgParams = accumulatorsHeaders.getUnresolvedMessageParameters();
@@ -412,15 +407,12 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		);
 
 		return responseFuture.thenApply((JobAccumulatorsInfo accumulatorsInfo) -> {
-			if (accumulatorsInfo != null && accumulatorsInfo.getSerializedUserAccumulators() != null) {
-				try {
-					return AccumulatorHelper.deserializeAccumulators(accumulatorsInfo.getSerializedUserAccumulators(), loader);
-				} catch (Exception e) {
-					log.error("Deserialize accumulators with customized classloader error : {}", e);
-				}
+			try {
+				return AccumulatorHelper.deserializeAccumulators(accumulatorsInfo.getSerializedUserAccumulators(), loader);
+			} catch (Exception e) {
+				log.error("Deserialize accumulators with customized classloader error .", e);
+				throw new CompletionException(new FlinkException("Deserialize accumulators with customized classloader error ", e));
 			}
-
-			return Collections.EMPTY_MAP;
 		}).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
