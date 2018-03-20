@@ -292,7 +292,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 				properties,
 				topic,
 				partition,
-				Collections.unmodifiableSet(new HashSet<>(getIntegersSequence(BrokerRestartingMapper.numElementsBeforeSnapshot))),
+				Collections.unmodifiableSet(new HashSet<>(getIntegersSequence(BrokerRestartingMapper.lastSnapshotedElementBeforeShutdown))),
 				KAFKA_READ_TIMEOUT);
 
 		deleteTestTopic(topic);
@@ -483,7 +483,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 		private static final long serialVersionUID = 6334389850158707313L;
 
 		public static volatile boolean triggeredShutdown;
-		public static volatile int numElementsBeforeSnapshot;
+		public static volatile int lastSnapshotedElementBeforeShutdown;
 		public static volatile Runnable shutdownAction;
 
 		private final int failCount;
@@ -493,7 +493,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 
 		public static void resetState(Runnable shutdownAction) {
 			triggeredShutdown = false;
-			numElementsBeforeSnapshot = 0;
+			lastSnapshotedElementBeforeShutdown = 0;
 			BrokerRestartingMapper.shutdownAction = shutdownAction;
 		}
 
@@ -509,15 +509,12 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 		@Override
 		public T map(T value) throws Exception {
 			numElementsTotal++;
+			Thread.sleep(10);
 
-			if (!triggeredShutdown) {
-				Thread.sleep(10);
-
-				if (failer && numElementsTotal >= failCount) {
-					// shut down a Kafka broker
-					triggeredShutdown = true;
-					shutdownAction.run();
-				}
+			if (!triggeredShutdown && failer && numElementsTotal >= failCount) {
+				// shut down a Kafka broker
+				triggeredShutdown = true;
+				shutdownAction.run();
 			}
 			return value;
 		}
@@ -528,7 +525,9 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 
 		@Override
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			numElementsBeforeSnapshot = numElementsTotal;
+			if (!triggeredShutdown) {
+				lastSnapshotedElementBeforeShutdown = numElementsTotal;
+			}
 		}
 
 		@Override
