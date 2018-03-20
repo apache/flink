@@ -21,6 +21,7 @@ package org.apache.flink.api.common.state;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.testutils.CommonTestUtils;
 
@@ -65,6 +66,34 @@ public class MapStateDescriptorTest {
 		assertEquals(keySerializer, copy.getKeySerializer());
 		assertNotNull(copy.getValueSerializer());
 		assertEquals(valueSerializer, copy.getValueSerializer());
+	}
+
+	@Test
+	public void testHashCodeEquals() throws Exception {
+		final String name = "testName";
+
+		MapStateDescriptor<String, String> original = new MapStateDescriptor<>(name, String.class, String.class);
+		MapStateDescriptor<String, String> same = new MapStateDescriptor<>(name, String.class, String.class);
+		MapStateDescriptor<String, String> sameBySerializer =
+				new MapStateDescriptor<>(name, StringSerializer.INSTANCE, StringSerializer.INSTANCE);
+
+		// test that hashCode() works on state descriptors with initialized and uninitialized serializers
+		assertEquals(original.hashCode(), same.hashCode());
+		assertEquals(original.hashCode(), sameBySerializer.hashCode());
+
+		assertEquals(original, same);
+		assertEquals(original, sameBySerializer);
+
+		// equality with a clone
+		MapStateDescriptor<String, String> clone = CommonTestUtils.createCopySerializable(original);
+		assertEquals(original, clone);
+
+		// equality with an initialized
+		clone.initializeSerializerUnlessSet(new ExecutionConfig());
+		assertEquals(original, clone);
+
+		original.initializeSerializerUnlessSet(new ExecutionConfig());
+		assertEquals(original, same);
 	}
 
 	/**
