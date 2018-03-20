@@ -29,7 +29,6 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
 
 /**
  * Tests for the {@link ReducingStateDescriptor}.
@@ -57,30 +56,4 @@ public class ReducingStateDescriptorTest extends TestLogger {
 		assertNotNull(copy.getSerializer());
 		assertEquals(serializer, copy.getSerializer());
 	}
-
-	/**
-	 * FLINK-6775.
-	 *
-	 * <p>Tests that the returned serializer is duplicated. This allows to
-	 * share the state descriptor.
-	 */
-	@SuppressWarnings("unchecked")
-	@Test
-	public void testSerializerDuplication() {
-		// we need a serializer that actually duplicates for testing (a stateful one)
-		// we use Kryo here, because it meets these conditions
-		TypeSerializer<String> statefulSerializer = new KryoSerializer<>(String.class, new ExecutionConfig());
-
-		ReducingStateDescriptor<String> descr = new ReducingStateDescriptor<>(
-				"foobar",
-				(a, b) -> a,
-				statefulSerializer);
-
-		TypeSerializer<String> serializerA = descr.getSerializer();
-		TypeSerializer<String> serializerB = descr.getSerializer();
-
-		// check that the retrieved serializers are not the same
-		assertNotSame(serializerA, serializerB);
-	}
-
 }

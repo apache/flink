@@ -33,6 +33,7 @@ import java.io.File;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -40,6 +41,10 @@ import static org.junit.Assert.fail;
  * Tests for the common/shared functionality of {@link StateDescriptor}.
  */
 public class StateDescriptorTest {
+
+	// ------------------------------------------------------------------------
+	//  Tests for serializer initialization
+	// ------------------------------------------------------------------------
 
 	@Test
 	public void testInitializeWithSerializer() throws Exception {
@@ -130,6 +135,31 @@ public class StateDescriptorTest {
 				.getRegistration(File.class).getId() > 0);
 	}
 
+	// ------------------------------------------------------------------------
+	//  Tests for serializer initialization
+	// ------------------------------------------------------------------------
+
+	/**
+	 * FLINK-6775, tests that the returned serializer is duplicated.
+	 * This allows to share the state descriptor across threads.
+	 */
+	@Test
+	public void testSerializerDuplication() throws Exception {
+		// we need a serializer that actually duplicates for testing (a stateful one)
+		// we use Kryo here, because it meets these conditions
+		TypeSerializer<String> statefulSerializer = new KryoSerializer<>(String.class, new ExecutionConfig());
+
+		TestStateDescriptor<String> descr = new TestStateDescriptor<>("foobar", statefulSerializer);
+
+		TypeSerializer<String> serializerA = descr.getSerializer();
+		TypeSerializer<String> serializerB = descr.getSerializer();
+
+		// check that the retrieved serializers are not the same
+		assertNotSame(serializerA, serializerB);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Mock implementations and test types
 	// ------------------------------------------------------------------------
 
 	private static class TestStateDescriptor<T> extends StateDescriptor<State, T> {
