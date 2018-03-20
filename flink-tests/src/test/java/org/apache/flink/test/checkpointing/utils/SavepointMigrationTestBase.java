@@ -69,12 +69,7 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
 	@Rule
-	public final MiniClusterResource miniClusterResource = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfigurationSafe(),
-			1,
-			DEFAULT_PARALLELISM),
-		true);
+	public final MiniClusterResource miniClusterResource;
 
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointMigrationTestBase.class);
 	private static final Deadline DEADLINE = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
@@ -89,12 +84,13 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 		return resource.getFile();
 	}
 
-	private Configuration getConfigurationSafe() {
-		try {
-			return getConfiguration();
-		} catch (Exception e) {
-			throw new AssertionError("Could not initialize test.", e);
-		}
+	protected SavepointMigrationTestBase() throws Exception {
+		miniClusterResource = new MiniClusterResource(
+			new MiniClusterResource.MiniClusterResourceConfiguration(
+				getConfiguration(),
+				1,
+				DEFAULT_PARALLELISM),
+			true);
 	}
 
 	private Configuration getConfiguration() throws Exception {
