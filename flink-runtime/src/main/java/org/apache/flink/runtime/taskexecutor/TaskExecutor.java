@@ -1517,6 +1517,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		@Override
 		public CompletableFuture<AccumulatorReport> retrievePayload(ResourceID resourceID) {
+			validateRunsInMainThread();
 			JobManagerConnection jobManagerConnection = jobManagerConnections.get(resourceID);
 			if (jobManagerConnection != null) {
 				JobID jobId = jobManagerConnection.getJobID();
