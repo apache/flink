@@ -29,8 +29,6 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -38,7 +36,6 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link ReducingStateDescriptor}.
@@ -118,17 +115,14 @@ public class ReducingStateDescriptorTest extends TestLogger {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void testSerializerDuplication() {
-		TypeSerializer<String> statefulSerializer = mock(TypeSerializer.class);
-		when(statefulSerializer.duplicate()).thenAnswer(new Answer<TypeSerializer<String>>() {
-			@Override
-			public TypeSerializer<String> answer(InvocationOnMock invocation) throws Throwable {
-				return mock(TypeSerializer.class);
-			}
-		});
+		// we need a serializer that actually duplicates for testing (a stateful one)
+		// we use Kryo here, because it meets these conditions
+		TypeSerializer<String> statefulSerializer = new KryoSerializer<>(String.class, new ExecutionConfig());
 
-		ReduceFunction<String> reducer = mock(ReduceFunction.class);
-
-		ReducingStateDescriptor<String> descr = new ReducingStateDescriptor<>("foobar", reducer, statefulSerializer);
+		ReducingStateDescriptor<String> descr = new ReducingStateDescriptor<>(
+				"foobar",
+				(a, b) -> a,
+				statefulSerializer);
 
 		TypeSerializer<String> serializerA = descr.getSerializer();
 		TypeSerializer<String> serializerB = descr.getSerializer();
