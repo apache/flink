@@ -63,9 +63,9 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
 	public void run() {
 		if (!stopped) {
 			log.debug("Trigger heartbeat request.");
-			for (Map.Entry<ResourceID, HeartbeatMonitor<O>> heartbeatTargetEntry : getHeartbeatTargets()) {
-				CompletableFuture<O> futurePayload = getHeartbeatListener().retrievePayload(heartbeatTargetEntry.getKey());
-				final HeartbeatTarget<O> heartbeatTarget = heartbeatTargetEntry.getValue().getHeartbeatTarget();
+			for (HeartbeatMonitor<O> heartbeatMonitor : getHeartbeatTargets()) {
+				CompletableFuture<O> futurePayload = getHeartbeatListener().retrievePayload(heartbeatMonitor.getHeartbeatTargetId());
+				final HeartbeatTarget<O> heartbeatTarget = heartbeatMonitor.getHeartbeatTarget();
 
 				if (futurePayload != null) {
 					CompletableFuture<Void> requestHeartbeatFuture = futurePayload.thenAcceptAsync(

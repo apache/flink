@@ -107,8 +107,8 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 		return heartbeatListener;
 	}
 
-	Collection<Map.Entry<ResourceID, HeartbeatMonitor<O>>> getHeartbeatTargets() {
-		return heartbeatTargets.entrySet();
+	Collection<HeartbeatMonitor<O>> getHeartbeatTargets() {
+		return heartbeatTargets.values();
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -288,6 +288,10 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 
 		HeartbeatTarget<O> getHeartbeatTarget() {
 			return heartbeatTarget;
+		}
+
+		ResourceID getHeartbeatTargetId() {
+			return resourceID;
 		}
 
 		public long getLastHeartbeat() {
