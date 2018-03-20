@@ -128,7 +128,7 @@ public class StateMachineExample {
 		public void open(Configuration conf) {
 			// get access to the state object
 			currentState = getRuntimeContext().getState(
-						new ValueStateDescriptor<>("state", State.class));
+						new ValueStateDescriptor<>("state", () -> State.Initial, State.class));
 		}
 
 		@Override
@@ -136,9 +136,6 @@ public class StateMachineExample {
 			// get the current state for the key (source address)
 			// if no state exists, yet, the state must be the state machine's initial state
 			State state = currentState.value();
-			if (state == null) {
-				state = State.Initial;
-			}
 
 			// ask the state machine what state we should go to based on teh given event
 			State nextState = state.transition(evt.type());
