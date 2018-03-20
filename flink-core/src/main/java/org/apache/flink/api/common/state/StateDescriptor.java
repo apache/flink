@@ -82,7 +82,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	/** Name for queries against state created from this StateDescriptor. */
 	private String queryableStateName;
 
-	/** The default value returned by the state when no other value is bound to a key */
+	/** The default value returned by the state when no other value is bound to a key. */
 	protected transient T defaultValue;
 
 	/** The type information describing the value type. Only used to lazily create the serializer
@@ -111,7 +111,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 * @param name The name of the {@code StateDescriptor}.
 	 * @param typeInfo The type information for the values in the state.
 	 * @param defaultValue The default value that will be set when requesting state without setting
-	 *                     a value before.   
+	 *                     a value before.
 	 */
 	protected StateDescriptor(String name, TypeInformation<T> typeInfo, T defaultValue) {
 		this.name = requireNonNull(name, "name must not be null");
@@ -301,8 +301,8 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 
 			byte[] serializedDefaultValue;
 			try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-					DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(baos))
-			{
+					DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(baos)) {
+
 				TypeSerializer<T> duplicateSerializer = serializer.duplicate();
 				duplicateSerializer.serialize(defaultValue, outView);
 
@@ -333,8 +333,8 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 			in.readFully(buffer);
 
 			try (ByteArrayInputStream bais = new ByteArrayInputStream(buffer);
-					DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(bais))
-			{
+					DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(bais)) {
+
 				defaultValue = serializer.deserialize(inView);
 			}
 			catch (Exception e) {

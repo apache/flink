@@ -41,16 +41,19 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the {@link ListStateDescriptor}.
+ */
 public class ListStateDescriptorTest {
-	
+
 	@Test
 	public void testValueStateDescriptorEagerSerializer() throws Exception {
 
 		TypeSerializer<String> serializer = new KryoSerializer<>(String.class, new ExecutionConfig());
-		
-		ListStateDescriptor<String> descr = 
-				new ListStateDescriptor<String>("testName", serializer);
-		
+
+		ListStateDescriptor<String> descr =
+				new ListStateDescriptor<>("testName", serializer);
+
 		assertEquals("testName", descr.getName());
 		assertNotNull(descr.getSerializer());
 		assertTrue(descr.getSerializer() instanceof ListSerializer);
@@ -74,8 +77,8 @@ public class ListStateDescriptorTest {
 		cfg.registerKryoType(TaskInfo.class);
 
 		ListStateDescriptor<Path> descr =
-				new ListStateDescriptor<Path>("testName", Path.class);
-		
+				new ListStateDescriptor<>("testName", Path.class);
+
 		try {
 			descr.getSerializer();
 			fail("should cause an exception");
@@ -96,7 +99,7 @@ public class ListStateDescriptorTest {
 	public void testValueStateDescriptorAutoSerializer() throws Exception {
 
 		ListStateDescriptor<String> descr =
-				new ListStateDescriptor<String>("testName", String.class);
+				new ListStateDescriptor<>("testName", String.class);
 
 		ListStateDescriptor<String> copy = CommonTestUtils.createCopySerializable(descr);
 
@@ -110,9 +113,9 @@ public class ListStateDescriptorTest {
 	}
 
 	/**
-	 * FLINK-6775
+	 * FLINK-6775.
 	 *
-	 * Tests that the returned serializer is duplicated. This allows to
+	 * <p>Tests that the returned serializer is duplicated. This allows to
 	 * share the state descriptor.
 	 */
 	@SuppressWarnings("unchecked")

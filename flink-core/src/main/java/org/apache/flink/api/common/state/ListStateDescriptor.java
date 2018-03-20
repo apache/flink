@@ -29,12 +29,12 @@ import java.util.List;
 /**
  * A {@link StateDescriptor} for {@link ListState}. This can be used to create state where the type
  * is a list that can be appended and iterated over.
- * 
+ *
  * <p>Using {@code ListState} is typically more efficient than manually maintaining a list in a
  * {@link ValueState}, because the backing implementation can support efficient appends, rather than
  * replacing the full list on write.
- * 
- * <p>To create keyed list state (on a KeyedStream), use 
+ *
+ * <p>To create keyed list state (on a KeyedStream), use
  * {@link org.apache.flink.api.common.functions.RuntimeContext#getListState(ListStateDescriptor)}.
  *
  * @param <T> The type of the values that can be added to the list state.
@@ -85,7 +85,7 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, List<T
 
 	/**
 	 * Gets the serializer for the elements contained in the list.
-	 * 
+	 *
 	 * @return The serializer for the elements in the list.
 	 */
 	public TypeSerializer<T> getElementSerializer() {
