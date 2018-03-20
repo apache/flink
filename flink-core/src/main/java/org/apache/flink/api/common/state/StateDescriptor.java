@@ -34,7 +34,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
-import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Base class for state descriptors. A {@code StateDescriptor} is used for creating partitioned
@@ -100,8 +100,8 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 *                     a value before.
 	 */
 	protected StateDescriptor(String name, TypeSerializer<T> serializer, T defaultValue) {
-		this.name = requireNonNull(name, "name must not be null");
-		this.serializer = requireNonNull(serializer, "serializer must not be null");
+		this.name = checkNotNull(name, "name must not be null");
+		this.serializer = checkNotNull(serializer, "serializer must not be null");
 		this.defaultValue = defaultValue;
 	}
 
@@ -114,8 +114,8 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 *                     a value before.
 	 */
 	protected StateDescriptor(String name, TypeInformation<T> typeInfo, T defaultValue) {
-		this.name = requireNonNull(name, "name must not be null");
-		this.typeInfo = requireNonNull(typeInfo, "type information must not be null");
+		this.name = checkNotNull(name, "name must not be null");
+		this.typeInfo = checkNotNull(typeInfo, "type information must not be null");
 		this.defaultValue = defaultValue;
 	}
 
@@ -131,8 +131,8 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 *                     a value before.
 	 */
 	protected StateDescriptor(String name, Class<T> type, T defaultValue) {
-		this.name = requireNonNull(name, "name must not be null");
-		requireNonNull(type, "type class must not be null");
+		this.name = checkNotNull(name, "name must not be null");
+		checkNotNull(type, "type class must not be null");
 
 		try {
 			this.typeInfo = TypeExtractor.createTypeInfo(type);
