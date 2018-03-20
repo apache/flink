@@ -286,9 +286,10 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 				"Local recovery is currently not implemented for raw operator state, but found state alternative.");
 
 			if (rawOperatorState != null) {
-				final CloseableRegistry closeableRegistry = new CloseableRegistry();
-
 				return new CloseableIterable<StatePartitionStreamProvider>() {
+
+					final CloseableRegistry closeableRegistry = new CloseableRegistry();
+
 					@Override
 					public void close() throws IOException {
 						closeableRegistry.close();
