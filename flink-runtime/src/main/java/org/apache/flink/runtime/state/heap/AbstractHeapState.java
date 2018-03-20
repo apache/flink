@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -29,7 +28,7 @@ import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Base class for partitioned {@link ListState} implementations that are backed by a regular
+ * Base class for partitioned {@link State} implementations that are backed by a regular
  * heap hash map. The concrete implementations define how the state is checkpointed.
  *
  * @param <K> The type of the key.
