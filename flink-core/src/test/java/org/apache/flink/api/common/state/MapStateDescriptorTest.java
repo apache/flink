@@ -42,17 +42,20 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the {@link MapStateDescriptor}.
+ */
 public class MapStateDescriptorTest {
-	
+
 	@Test
 	public void testMapStateDescriptorEagerSerializer() throws Exception {
 
 		TypeSerializer<Integer> keySerializer = new KryoSerializer<>(Integer.class, new ExecutionConfig());
 		TypeSerializer<String> valueSerializer = new KryoSerializer<>(String.class, new ExecutionConfig());
-		
-		MapStateDescriptor<Integer, String> descr = 
+
+		MapStateDescriptor<Integer, String> descr =
 				new MapStateDescriptor<>("testName", keySerializer, valueSerializer);
-		
+
 		assertEquals("testName", descr.getName());
 		assertNotNull(descr.getSerializer());
 		assertTrue(descr.getSerializer() instanceof MapSerializer);
@@ -81,7 +84,7 @@ public class MapStateDescriptorTest {
 
 		MapStateDescriptor<Path, String> descr =
 				new MapStateDescriptor<>("testName", Path.class, String.class);
-		
+
 		try {
 			descr.getSerializer();
 			fail("should cause an exception");
@@ -96,7 +99,7 @@ public class MapStateDescriptorTest {
 		assertTrue(descr.getKeySerializer() instanceof KryoSerializer);
 
 		assertTrue(((KryoSerializer<?>) descr.getKeySerializer()).getKryo().getRegistration(TaskInfo.class).getId() > 0);
-		
+
 		assertNotNull(descr.getValueSerializer());
 		assertTrue(descr.getValueSerializer() instanceof StringSerializer);
 	}
@@ -121,9 +124,9 @@ public class MapStateDescriptorTest {
 	}
 
 	/**
-	 * FLINK-6775
+	 * FLINK-6775.
 	 *
-	 * Tests that the returned serializer is duplicated. This allows to
+	 * <p>Tests that the returned serializer is duplicated. This allows to
 	 * share the state descriptor.
 	 */
 	@SuppressWarnings("unchecked")

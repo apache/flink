@@ -49,8 +49,7 @@ public interface OperatorStateStore {
 	 * @param <K> The type of the keys in the broadcast state.
 	 * @param <V> The type of the values in the broadcast state.
 	 *
-	 * @return The {@link BroadcastState Broadcast State}.
-	 * @throws Exception
+	 * @return The Broadcast State
 	 */
 	<K, V> BroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> stateDescriptor) throws Exception;
 
@@ -73,7 +72,6 @@ public interface OperatorStateStore {
 	 * @param <S> The generic type of the state
 	 *
 	 * @return A list for all state partitions.
-	 * @throws Exception
 	 */
 	<S> ListState<S> getListState(ListStateDescriptor<S> stateDescriptor) throws Exception;
 
@@ -97,7 +95,6 @@ public interface OperatorStateStore {
 	 * @param <S> The generic type of the state
 	 *
 	 * @return A list for all state partitions.
-	 * @throws Exception
 	 */
 	<S> ListState<S> getUnionListState(ListStateDescriptor<S> stateDescriptor) throws Exception;
 
@@ -123,13 +120,12 @@ public interface OperatorStateStore {
 	 * Creates (or restores) a list state. Each state is registered under a unique name.
 	 * The provided serializer is used to de/serialize the state in case of checkpointing (snapshot/restore).
 	 *
-	 * The items in the list are repartitionable by the system in case of changed operator parallelism.
+	 * <p>The items in the list are repartitionable by the system in case of changed operator parallelism.
 	 *
 	 * @param stateDescriptor The descriptor for this state, providing a name and serializer.
 	 * @param <S> The generic type of the state
 	 *
 	 * @return A list for all state partitions.
-	 * @throws Exception
 	 *
 	 * @deprecated since 1.3.0. This was deprecated as part of a refinement to the function names.
 	 *             Please use {@link #getListState(ListStateDescriptor)} instead.
@@ -140,13 +136,12 @@ public interface OperatorStateStore {
 	/**
 	 * Creates a state of the given name that uses Java serialization to persist the state. The items in the list
 	 * are repartitionable by the system in case of changed operator parallelism.
-	 * 
+	 *
 	 * <p>This is a simple convenience method. For more flexibility on how state serialization
 	 * should happen, use the {@link #getListState(ListStateDescriptor)} method.
 	 *
 	 * @param stateName The name of state to create
 	 * @return A list state using Java serialization to serialize state objects.
-	 * @throws Exception
 	 *
 	 * @deprecated since 1.3.0. Using Java serialization for persisting state is not encouraged.
 	 *             Please use {@link #getListState(ListStateDescriptor)} instead.

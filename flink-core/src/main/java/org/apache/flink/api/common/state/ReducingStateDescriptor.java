@@ -35,9 +35,9 @@ import static java.util.Objects.requireNonNull;
  */
 @PublicEvolving
 public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>, T> {
+
 	private static final long serialVersionUID = 1L;
-	
-	
+
 	private final ReduceFunction<T> reduceFunction;
 
 	/**
@@ -47,7 +47,7 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
 	 * consider using the {@link #ReducingStateDescriptor(String, ReduceFunction, TypeInformation)} constructor.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param reduceFunction The {@code ReduceFunction} used to aggregate the state.   
+	 * @param reduceFunction The {@code ReduceFunction} used to aggregate the state.
 	 * @param typeClass The type of the values in the state.
 	 */
 	public ReducingStateDescriptor(String name, ReduceFunction<T> reduceFunction, Class<T> typeClass) {
@@ -84,7 +84,7 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public ReducingState<T> bind(StateBinder stateBinder) throws Exception {
 		return stateBinder.createReducingState(this);

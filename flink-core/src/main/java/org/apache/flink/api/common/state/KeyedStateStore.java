@@ -281,5 +281,5 @@ public interface KeyedStateStore {
 	 *                                       function (function is not part of a KeyedStream).
 	 */
 	@PublicEvolving
-	<UK, UV> MapState<UK,UV> getMapState(MapStateDescriptor<UK, UV> stateProperties);
+	<UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties);
 }

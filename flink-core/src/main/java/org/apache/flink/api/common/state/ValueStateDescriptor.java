@@ -34,11 +34,12 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  */
 @PublicEvolving
 public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
+
 	private static final long serialVersionUID = 1L;
-	
+
 	/**
 	 * Creates a new {@code ValueStateDescriptor} with the given name, type, and default value.
-	 * 
+	 *
 	 * <p>If this constructor fails (because it is not possible to describe the type via a class),
 	 * consider using the {@link #ValueStateDescriptor(String, TypeInformation, Object)} constructor.
 	 *
@@ -46,7 +47,7 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 	 * the default value by checking whether the contents of the state is {@code null}.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param typeClass The type of the values in the state.   
+	 * @param typeClass The type of the values in the state.
 	 * @param defaultValue The default value that will be set when requesting state without setting
 	 *                     a value before.
 	 */
@@ -122,7 +123,7 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public ValueState<T> bind(StateBinder stateBinder) throws Exception {
 		return stateBinder.createValueState(this);
