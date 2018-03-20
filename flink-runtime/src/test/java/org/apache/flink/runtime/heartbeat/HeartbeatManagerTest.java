@@ -401,10 +401,10 @@ public class HeartbeatManagerTest extends TestLogger {
 		final ResourceID specialTargetId = ResourceID.generate();
 
 		final OneShotLatch someTargetReceivedLatch = new OneShotLatch();
-		final OneShotLatch specialTargedReceivedLatch = new OneShotLatch();
+		final OneShotLatch specialTargetReceivedLatch = new OneShotLatch();
 
 		final TargetDependentHeartbeatReceiver someHeartbeatTarget = new TargetDependentHeartbeatReceiver(someTargetReceivedLatch);
-		final TargetDependentHeartbeatReceiver specialHeartbeatTarget = new TargetDependentHeartbeatReceiver(specialTargedReceivedLatch);
+		final TargetDependentHeartbeatReceiver specialHeartbeatTarget = new TargetDependentHeartbeatReceiver(specialTargetReceivedLatch);
 
 		final int defaultResponse = 0;
 		final int specialResponse = 1;
@@ -423,7 +423,7 @@ public class HeartbeatManagerTest extends TestLogger {
 			heartbeatManager.monitorTarget(specialTargetId, specialHeartbeatTarget);
 
 			someTargetReceivedLatch.await(5, TimeUnit.SECONDS);
-			specialTargedReceivedLatch.await(5, TimeUnit.SECONDS);
+			specialTargetReceivedLatch.await(5, TimeUnit.SECONDS);
 
 			assertEquals(defaultResponse, someHeartbeatTarget.getLastRequestedHeartbeatPayload());
 			assertEquals(specialResponse, specialHeartbeatTarget.getLastRequestedHeartbeatPayload());
