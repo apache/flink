@@ -264,8 +264,8 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, 7331);
 		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
 
-		final int jobManagerMemory = 42;
-		final int taskManagerMemory = 41;
+		final int jobManagerMemory = 1337;
+		final int taskManagerMemory = 7331;
 		final int slotsPerTaskManager = 30;
 		final String[] args = {"-yjm", String.valueOf(jobManagerMemory), "-ytm", String.valueOf(taskManagerMemory), "-ys", String.valueOf(slotsPerTaskManager)};
 		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(

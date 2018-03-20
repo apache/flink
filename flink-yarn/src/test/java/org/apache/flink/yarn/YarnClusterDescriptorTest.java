@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
@@ -91,8 +92,11 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	@Test
 	public void testFailIfTaskSlotsHigherThanMaxVcores() throws ClusterDeploymentException {
 
+		final Configuration flinkConfiguration = new Configuration();
+		flinkConfiguration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
+
 		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
-			new Configuration(),
+			flinkConfiguration,
 			yarnConfiguration,
 			temporaryFolder.getRoot().getAbsolutePath(),
 			yarnClient,
@@ -101,8 +105,8 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
 
 		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setMasterMemoryMB(-1)
-			.setTaskManagerMemoryMB(-1)
+			.setMasterMemoryMB(1)
+			.setTaskManagerMemoryMB(1)
 			.setNumberTaskManagers(1)
 			.setSlotsPerTaskManager(Integer.MAX_VALUE)
 			.createClusterSpecification();
@@ -126,6 +130,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		Configuration configuration = new Configuration();
 		// overwrite vcores in config
 		configuration.setInteger(YarnConfigOptions.VCORES, Integer.MAX_VALUE);
+		configuration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
 
 		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
 			configuration,
@@ -138,8 +143,8 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 		// configure slots
 		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setMasterMemoryMB(-1)
-			.setTaskManagerMemoryMB(-1)
+			.setMasterMemoryMB(1)
+			.setTaskManagerMemoryMB(1)
 			.setNumberTaskManagers(1)
 			.setSlotsPerTaskManager(1)
 			.createClusterSpecification();
