@@ -127,7 +127,7 @@ public class TestBaseUtils extends TestLogger {
 		Configuration config = new Configuration();
 
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
+		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, taskManagerNumSlots);
 
 		config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, startWebserver);
 

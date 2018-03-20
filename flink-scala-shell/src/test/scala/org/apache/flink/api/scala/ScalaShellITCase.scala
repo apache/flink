@@ -22,8 +22,8 @@ import java.io._
 
 import akka.actor.ActorRef
 import akka.pattern.Patterns
+import org.apache.flink.configuration.{Configuration, CoreOptions, TaskManagerOptions}
 import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
-import org.apache.flink.configuration.{ConfigConstants, Configuration, CoreOptions, GlobalConfiguration}
 import org.apache.flink.runtime.clusterframework.BootstrapTools
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.util.TestLogger
@@ -321,7 +321,7 @@ object ScalaShellITCase {
 
   @BeforeClass
   def beforeAll(): Unit = {
-    configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism)
+    configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, parallelism)
     configuration.setString(CoreOptions.MODE, CoreOptions.LEGACY_MODE)
 
     cluster = Option(new StandaloneMiniCluster(configuration))
