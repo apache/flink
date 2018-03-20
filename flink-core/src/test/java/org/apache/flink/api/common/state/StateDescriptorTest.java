@@ -32,6 +32,7 @@ import java.io.File;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
@@ -159,6 +160,47 @@ public class StateDescriptorTest {
 	}
 
 	// ------------------------------------------------------------------------
+	//  Test hashCode() and equals()
+	// ------------------------------------------------------------------------
+
+	@Test
+	public void testHashCodeAndEquals() throws Exception {
+		final String name = "testName";
+
+		TestStateDescriptor<String> original = new TestStateDescriptor<>(name, String.class);
+		TestStateDescriptor<String> same = new TestStateDescriptor<>(name, String.class);
+		TestStateDescriptor<String> sameBySerializer = new TestStateDescriptor<>(name, StringSerializer.INSTANCE);
+
+		// test that hashCode() works on state descriptors with initialized and uninitialized serializers
+		assertEquals(original.hashCode(), same.hashCode());
+		assertEquals(original.hashCode(), sameBySerializer.hashCode());
+
+		assertEquals(original, same);
+		assertEquals(original, sameBySerializer);
+
+		// equality with a clone
+		TestStateDescriptor<String> clone = CommonTestUtils.createCopySerializable(original);
+		assertEquals(original, clone);
+
+		// equality with an initialized
+		clone.initializeSerializerUnlessSet(new ExecutionConfig());
+		assertEquals(original, clone);
+
+		original.initializeSerializerUnlessSet(new ExecutionConfig());
+		assertEquals(original, same);
+	}
+
+	@Test
+	public void testEqualsSameNameAndTypeDifferentClass() throws Exception {
+		final String name = "test name";
+
+		final TestStateDescriptor<String> descr1 = new TestStateDescriptor<>(name, String.class);
+		final OtherTestStateDescriptor<String> descr2 = new OtherTestStateDescriptor<>(name, String.class);
+
+		assertNotEquals(descr1, descr2);
+	}
+
+	// ------------------------------------------------------------------------
 	//  Mock implementations and test types
 	// ------------------------------------------------------------------------
 
@@ -185,17 +227,34 @@ public class StateDescriptorTest {
 
 		@Override
 		public Type getType() {
+			return Type.VALUE;
+		}
+	}
+
+	private static class OtherTestStateDescriptor<T> extends StateDescriptor<State, T> {
+
+		private static final long serialVersionUID = 1L;
+
+		OtherTestStateDescriptor(String name, TypeSerializer<T> serializer) {
+			super(name, serializer, null);
+		}
+
+		OtherTestStateDescriptor(String name, TypeInformation<T> typeInfo) {
+			super(name, typeInfo, null);
+		}
+
+		OtherTestStateDescriptor(String name, Class<T> type) {
+			super(name, type, null);
+		}
+
+		@Override
+		public State bind(StateBinder stateBinder) throws Exception {
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public int hashCode() {
-			return 584523;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			return o != null && o.getClass() == TestStateDescriptor.class;
+		public Type getType() {
+			return Type.VALUE;
 		}
 	}
 }

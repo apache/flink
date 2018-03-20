@@ -273,10 +273,23 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	// ------------------------------------------------------------------------
 
 	@Override
-	public abstract int hashCode();
+	public final int hashCode() {
+		return name.hashCode() + 31 * getClass().hashCode();
+	}
 
 	@Override
-	public abstract boolean equals(Object o);
+	public final boolean equals(Object o) {
+		if (o == this) {
+			return true;
+		}
+		else if (o != null && o.getClass() == this.getClass()) {
+			final StateDescriptor<?, ?> that = (StateDescriptor<?, ?>) o;
+			return this.name.equals(that.name);
+		}
+		else {
+			return false;
+		}
+	}
 
 	@Override
 	public String toString() {

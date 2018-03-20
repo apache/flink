@@ -21,6 +21,7 @@ package org.apache.flink.api.common.state;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
@@ -55,5 +56,33 @@ public class ReducingStateDescriptorTest extends TestLogger {
 		assertEquals("testName", copy.getName());
 		assertNotNull(copy.getSerializer());
 		assertEquals(serializer, copy.getSerializer());
+	}
+
+	@Test
+	public void testHashCodeEquals() throws Exception {
+		final String name = "testName";
+		final ReduceFunction<String> reducer = (a, b) -> a;
+
+		ReducingStateDescriptor<String> original = new ReducingStateDescriptor<>(name, reducer, String.class);
+		ReducingStateDescriptor<String> same = new ReducingStateDescriptor<>(name, reducer, String.class);
+		ReducingStateDescriptor<String> sameBySerializer = new ReducingStateDescriptor<>(name, reducer, StringSerializer.INSTANCE);
+
+		// test that hashCode() works on state descriptors with initialized and uninitialized serializers
+		assertEquals(original.hashCode(), same.hashCode());
+		assertEquals(original.hashCode(), sameBySerializer.hashCode());
+
+		assertEquals(original, same);
+		assertEquals(original, sameBySerializer);
+
+		// equality with a clone
+		ReducingStateDescriptor<String> clone = CommonTestUtils.createCopySerializable(original);
+		assertEquals(original, clone);
+
+		// equality with an initialized
+		clone.initializeSerializerUnlessSet(new ExecutionConfig());
+		assertEquals(original, clone);
+
+		original.initializeSerializerUnlessSet(new ExecutionConfig());
+		assertEquals(original, same);
 	}
 }

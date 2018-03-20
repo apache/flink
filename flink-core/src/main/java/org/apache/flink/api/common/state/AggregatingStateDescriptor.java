@@ -111,35 +111,4 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<Ag
 	public Type getType() {
 		return Type.AGGREGATING;
 	}
-
-	// ------------------------------------------------------------------------
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		else if (o != null && getClass() == o.getClass()) {
-			AggregatingStateDescriptor<?, ?, ?> that = (AggregatingStateDescriptor<?, ?, ?>) o;
-			return serializer.equals(that.serializer) && name.equals(that.name);
-		}
-		else {
-			return false;
-		}
-	}
-
-	@Override
-	public int hashCode() {
-		int result = serializer.hashCode();
-		result = 31 * result + name.hashCode();
-		return result;
-	}
-
-	@Override
-	public String toString() {
-		return "AggregatingStateDescriptor{" +
-				"serializer=" + serializer +
-				", aggFunction=" + aggFunction +
-				'}';
-	}
 }

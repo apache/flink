@@ -102,34 +102,4 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, List<T
 	public Type getType() {
 		return Type.LIST;
 	}
-
-	// ------------------------------------------------------------------------
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-
-		final ListStateDescriptor<?> that = (ListStateDescriptor<?>) o;
-		return serializer.equals(that.serializer) && name.equals(that.name);
-
-	}
-
-	@Override
-	public int hashCode() {
-		int result = serializer.hashCode();
-		result = 31 * result + name.hashCode();
-		return result;
-	}
-
-	@Override
-	public String toString() {
-		return "ListStateDescriptor{" +
-				"serializer=" + serializer +
-				'}';
-	}
 }
