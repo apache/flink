@@ -1041,6 +1041,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	 */
 	@Override
 	public CompletableFuture<Acknowledge> registerTaskManager(final ResourceID resourceID) {
+		log.debug("Register new TaskExecutor {}.", resourceID);
 		registeredTaskManagers.add(resourceID);
 
 		return CompletableFuture.completedFuture(Acknowledge.get());
@@ -1119,8 +1120,15 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				freeSlotFuture.whenCompleteAsync(
 					(Acknowledge ignored, Throwable throwable) -> {
 						if (throwable != null) {
-							log.info("Releasing idle slot {} failed.", allocationID, throwable);
-							tryFulfillSlotRequestOrMakeAvailable(expiredSlot);
+							if (registeredTaskManagers.contains(expiredSlot.getTaskManagerId())) {
+								log.debug("Releasing slot {} of registered TaskExecutor {} failed. " +
+									"Trying to fulfill a different slot request.", allocationID, expiredSlot.getTaskManagerId(),
+									throwable);
+								tryFulfillSlotRequestOrMakeAvailable(expiredSlot);
+							} else {
+								log.debug("Releasing slot {} failed and owning TaskExecutor {} is no " +
+									"longer registered. Discarding slot.", allocationID, expiredSlot.getTaskManagerId());
+							}
 						}
 					},
 					getMainThreadExecutor());
