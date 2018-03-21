@@ -44,7 +44,6 @@ import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.util.concurrent.Executor;
 
 /**
@@ -83,7 +82,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 	@Override
 	protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
 			Configuration configuration,
-			ScheduledExecutor scheduledExecutor) throws IOException {
+			ScheduledExecutor scheduledExecutor) {
 		return new MemoryArchivedExecutionGraphStore();
 	}
 
