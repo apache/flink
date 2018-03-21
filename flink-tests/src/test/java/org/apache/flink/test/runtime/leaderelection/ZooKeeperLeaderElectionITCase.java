@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -53,6 +54,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.util.UUID;
 
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -99,6 +101,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 		Configuration configuration = ZooKeeperTestUtils.createZooKeeperHAConfig(
 			zkServer.getConnectString(),
 			rootFolder.getPath());
+		configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, UUID.randomUUID().toString());
 
 		int numJMs = 10;
 		int numTMs = 3;
@@ -150,6 +153,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 		Configuration configuration = ZooKeeperTestUtils.createZooKeeperHAConfig(
 			zkServer.getConnectString(),
 			rootFolder.getPath());
+		configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, UUID.randomUUID().toString());
 
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, numJMs);
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);

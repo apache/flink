@@ -570,7 +570,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				try {
 					jobIds = submittedJobGraphStore.getJobIds();
 				} catch (Exception e) {
-					log.error("Could not recover job ids from the submitted job graph store. Aborting recovery.", e);
+					onFatalError(new FlinkException("Could not recover job ids from the submitted job graph store. Aborting recovery.", e));
 					return;
 				}
 
@@ -580,7 +580,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 						runAsync(() -> submitJob(submittedJobGraph.getJobGraph(), RpcUtils.INF_TIMEOUT));
 					} catch (Exception e) {
-						log.error("Could not recover the job graph for " + jobId + '.', e);
+						onFatalError(new FlinkException("Could not recover the job graph for " + jobId + '.', e));
 					}
 				}
 			});

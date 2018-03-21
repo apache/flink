@@ -59,12 +59,12 @@ public class TestingFatalErrorHandler implements FatalErrorHandler {
 	@Nullable
 	public synchronized Throwable getException() {
 		if (errorFuture.isDone()) {
-			Throwable throwable = null;
+			Throwable throwable;
 
 			try {
 				throwable = errorFuture.get();
 			} catch (InterruptedException ie) {
-				Thread.interrupted();
+				ExceptionUtils.checkInterrupted(ie);
 				throw new FlinkRuntimeException("This should never happen since the future was completed.");
 			} catch (ExecutionException e) {
 				throwable = ExceptionUtils.stripExecutionException(e);

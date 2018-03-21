@@ -51,6 +51,7 @@ import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -66,6 +67,7 @@ import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -77,7 +79,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
-import org.mockito.Mockito;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -91,6 +92,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -111,9 +113,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
 
 /**
  * Test for the {@link Dispatcher} component.
@@ -137,7 +136,7 @@ public class DispatcherTest extends TestLogger {
 
 	private TestingFatalErrorHandler fatalErrorHandler;
 
-	private SubmittedJobGraphStore submittedJobGraphStore;
+	private InMemorySubmittedJobGraphStore submittedJobGraphStore;
 
 	private TestingLeaderElectionService dispatcherLeaderElectionService;
 
@@ -173,7 +172,7 @@ public class DispatcherTest extends TestLogger {
 
 		fatalErrorHandler = new TestingFatalErrorHandler();
 		final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 10000L);
-		submittedJobGraphStore = spy(new InMemorySubmittedJobGraphStore());
+		submittedJobGraphStore = new InMemorySubmittedJobGraphStore();
 
 		dispatcherLeaderElectionService = new TestingLeaderElectionService();
 		jobMasterLeaderElectionService = new TestingLeaderElectionService();
@@ -197,7 +196,7 @@ public class DispatcherTest extends TestLogger {
 			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
 			configuration,
 			haServices,
-			mock(ResourceManagerGateway.class),
+			new TestingResourceManagerGateway(),
 			new BlobServer(configuration, new VoidBlobStore()),
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
@@ -245,6 +244,13 @@ public class DispatcherTest extends TestLogger {
 	 */
 	@Test
 	public void testLeaderElection() throws Exception {
+		CompletableFuture<Void> jobIdsFuture = new CompletableFuture<>();
+		submittedJobGraphStore.setJobIdsFunction(
+			(Collection<JobID> jobIds) -> {
+				jobIdsFuture.complete(null);
+				return jobIds;
+			});
+
 		UUID expectedLeaderSessionId = UUID.randomUUID();
 
 		assertNull(dispatcherLeaderElectionService.getConfirmationFuture());
@@ -256,7 +262,8 @@ public class DispatcherTest extends TestLogger {
 
 		assertEquals(expectedLeaderSessionId, actualLeaderSessionId);
 
-		verify(submittedJobGraphStore, Mockito.timeout(TIMEOUT.toMilliseconds()).atLeast(1)).getJobIds();
+		// wait that we asked the SubmittedJobGraphStore for the stored jobs
+		jobIdsFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -429,6 +436,72 @@ public class DispatcherTest extends TestLogger {
 		jobMasterLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
 		assertThat(jobStatusFuture.get(), notNullValue());
+	}
+
+	/**
+	 * Tests that the {@link Dispatcher} terminates if it cannot recover jobs ids from
+	 * the {@link SubmittedJobGraphStore}. See FLINK-8943.
+	 */
+	@Test
+	public void testFatalErrorAfterJobIdRecoveryFailure() throws Exception {
+		final FlinkException testException = new FlinkException("Test exception");
+		submittedJobGraphStore.setJobIdsFunction(
+			(Collection<JobID> jobIds) -> {
+				throw testException;
+			});
+
+		UUID expectedLeaderSessionId = UUID.randomUUID();
+
+		assertNull(dispatcherLeaderElectionService.getConfirmationFuture());
+
+		dispatcherLeaderElectionService.isLeader(expectedLeaderSessionId);
+
+		UUID actualLeaderSessionId = dispatcherLeaderElectionService.getConfirmationFuture()
+			.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+		assertEquals(expectedLeaderSessionId, actualLeaderSessionId);
+
+		// we expect that a fatal error occurred
+		final Throwable error = fatalErrorHandler.getErrorFuture().get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+		assertThat(ExceptionUtils.findThrowableWithMessage(error, testException.getMessage()).isPresent(), is(true));
+
+		fatalErrorHandler.clearError();
+	}
+
+	/**
+	 * Tests that the {@link Dispatcher} terminates if it cannot recover jobs from
+	 * the {@link SubmittedJobGraphStore}. See FLINK-8943.
+	 */
+	@Test
+	public void testFatalErrorAfterJobRecoveryFailure() throws Exception {
+		final FlinkException testException = new FlinkException("Test exception");
+
+		final SubmittedJobGraph submittedJobGraph = new SubmittedJobGraph(jobGraph, null);
+		submittedJobGraphStore.putJobGraph(submittedJobGraph);
+
+		submittedJobGraphStore.setRecoverJobGraphFunction(
+			(JobID jobId, Map<JobID, SubmittedJobGraph> submittedJobs) -> {
+				throw testException;
+			});
+
+		UUID expectedLeaderSessionId = UUID.randomUUID();
+
+		assertNull(dispatcherLeaderElectionService.getConfirmationFuture());
+
+		dispatcherLeaderElectionService.isLeader(expectedLeaderSessionId);
+
+		UUID actualLeaderSessionId = dispatcherLeaderElectionService.getConfirmationFuture()
+			.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+		assertEquals(expectedLeaderSessionId, actualLeaderSessionId);
+
+		// we expect that a fatal error occurred
+		final Throwable error = fatalErrorHandler.getErrorFuture().get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+		assertThat(ExceptionUtils.findThrowableWithMessage(error, testException.getMessage()).isPresent(), is(true));
+
+		fatalErrorHandler.clearError();
 	}
 
 	private static class TestingDispatcher extends Dispatcher {
