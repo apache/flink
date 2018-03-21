@@ -69,7 +69,9 @@ import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ShutdownHookUtil;
 
 import akka.actor.ActorSystem;
 import org.slf4j.Logger;
@@ -78,10 +80,14 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -159,9 +165,13 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	@GuardedBy("lock")
 	private JobManagerMetricGroup jobManagerMetricGroup;
 
+	private final Thread shutDownHook;
+
 	protected ClusterEntrypoint(Configuration configuration) {
-		this.configuration = Preconditions.checkNotNull(configuration);
+		this.configuration = generateClusterConfiguration(configuration);
 		this.terminationFuture = new CompletableFuture<>();
+
+		shutDownHook = ShutdownHookUtil.addShutdownHook(this::cleanupDirectories, getClass().getSimpleName(), LOG);
 	}
 
 	public CompletableFuture<Void> getTerminationFuture() {
@@ -479,7 +489,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			}
 
 			if (webMonitorEndpoint != null) {
-				terminationFutures.add(webMonitorEndpoint.shutDownAsync());
+				terminationFutures.add(webMonitorEndpoint.closeAsync());
 			}
 
 			if (dispatcher != null) {
@@ -523,6 +533,17 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	// Internal methods
 	// --------------------------------------------------
 
+	private Configuration generateClusterConfiguration(Configuration configuration) {
+		final Configuration resultConfiguration = new Configuration(Preconditions.checkNotNull(configuration));
+
+		final String webTmpDir = configuration.getString(WebOptions.TMP_DIR);
+		final Path uniqueWebTmpDir = Paths.get(webTmpDir, "flink-web-" + UUID.randomUUID());
+
+		resultConfiguration.setString(WebOptions.TMP_DIR, uniqueWebTmpDir.toAbsolutePath().toString());
+
+		return resultConfiguration;
+	}
+
 	private CompletableFuture<Void> shutDownAsync(boolean cleanupHaData) {
 		if (isShutDown.compareAndSet(false, true)) {
 			LOG.info("Stopping {}.", getClass().getSimpleName());
@@ -535,11 +556,22 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 					serviceShutdownFuture.whenComplete(
 						(Void ignored2, Throwable serviceThrowable) -> {
+							Throwable finalException = null;
+
 							if (serviceThrowable != null) {
-								terminationFuture.completeExceptionally(
-									ExceptionUtils.firstOrSuppressed(serviceThrowable, componentThrowable));
+								finalException = ExceptionUtils.firstOrSuppressed(serviceThrowable, componentThrowable);
 							} else if (componentThrowable != null) {
-								terminationFuture.completeExceptionally(componentThrowable);
+								finalException = componentThrowable;
+							}
+
+							try {
+								cleanupDirectories();
+							} catch (IOException e) {
+								finalException = ExceptionUtils.firstOrSuppressed(e, finalException);
+							}
+
+							if (finalException != null) {
+								terminationFuture.completeExceptionally(finalException);
 							} else {
 								terminationFuture.complete(null);
 							}
@@ -574,6 +606,19 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				returnCode,
 				applicationStatus);
 		}
+	}
+
+	/**
+	 * Clean up of temporary directories created by the {@link ClusterEntrypoint}.
+	 *
+	 * @throws IOException if the temporary directories could not be cleaned up
+	 */
+	private void cleanupDirectories() throws IOException {
+		ShutdownHookUtil.removeShutdownHook(shutDownHook, getClass().getSimpleName(), LOG);
+
+		final String webTmpDir = configuration.getString(WebOptions.TMP_DIR);
+
+		FileUtils.deleteDirectory(new File(webTmpDir));
 	}
 
 	// --------------------------------------------------
