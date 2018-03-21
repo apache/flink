@@ -401,12 +401,13 @@ public abstract class YarnTestBase extends TestLogger {
 		}
 	}
 
-	public static void ensureStringInNamedLogFiles(final String[] mustHave, final String fileName) {
+	public static boolean verifyStringsInNamedLogFiles(
+			final String[] mustHave, final String fileName) {
 		List<String> mustHaveList = Arrays.asList(mustHave);
 		File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
-		Assert.assertTrue("Expecting directory " + cwd.getAbsolutePath() + " to exist", cwd.exists());
-		Assert.assertTrue(
-				"Expecting directory " + cwd.getAbsolutePath() + " to be a directory", cwd.isDirectory());
+		if (!cwd.exists() || !cwd.isDirectory()) {
+			return false;
+		}
 
 		File foundFile = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
 			@Override
@@ -439,10 +440,9 @@ public abstract class YarnTestBase extends TestLogger {
 
 		if (foundFile != null) {
 			LOG.info("Found string {} in {}.", Arrays.toString(mustHave), foundFile.getAbsolutePath());
+			return true;
 		} else {
-			Assert.fail(
-					"CAN NOT find a " + fileName + " file with the following strings " +
-							Arrays.toString(mustHave));
+			return false;
 		}
 	}
 
@@ -515,7 +515,7 @@ public abstract class YarnTestBase extends TestLogger {
 			File flinkConfDirPath = findFile(flinkDistRootDir, new ContainsName(new String[]{"flink-conf.yaml"}));
 			Assert.assertNotNull(flinkConfDirPath);
 			org.apache.flink.configuration.Configuration flinkCfg =
-					new org.apache.flink.configuration.Configuration();
+					GlobalConfiguration.loadConfiguration();
 
 			if (!StringUtils.isBlank(principal) && !StringUtils.isBlank(keytab)) {
 

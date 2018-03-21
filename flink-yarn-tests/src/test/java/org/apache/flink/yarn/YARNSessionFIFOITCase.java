@@ -106,8 +106,16 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			}
 		}
 
-		//additional sleep for the JM/TM to start and establish connection
-		sleep(3000);
+		// additional sleep for the JM/TM to start and establish connection
+		long startTime = System.currentTimeMillis();
+		while (System.currentTimeMillis() - startTime < 10000 &&
+				!(verifyStringsInNamedLogFiles(
+						new String[]{"YARN Application Master started"}, "jobmanager.log") &&
+						verifyStringsInNamedLogFiles(
+								new String[]{"Starting TaskManager actor"}, "taskmanager.log"))) {
+			LOG.info("Still waiting for JM/TM to initialize...");
+			sleep(500);
+		}
 		LOG.info("Two containers are running. Killing the application");
 
 		// kill application "externally".
