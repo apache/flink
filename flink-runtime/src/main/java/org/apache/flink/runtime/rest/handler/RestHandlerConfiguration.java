@@ -23,8 +23,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.util.Preconditions;
 
-import java.io.File;
-import java.util.UUID;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * Configuration object containing values for the rest handler configuration.
@@ -37,20 +37,20 @@ public class RestHandlerConfiguration {
 
 	private final Time timeout;
 
-	private final File tmpDir;
+	private final Path webUiDir;
 
 	public RestHandlerConfiguration(
 			long refreshInterval,
 			int maxCheckpointStatisticCacheEntries,
 			Time timeout,
-			File tmpDir) {
+			Path webUiDir) {
 		Preconditions.checkArgument(refreshInterval > 0L, "The refresh interval (ms) should be larger than 0.");
 		this.refreshInterval = refreshInterval;
 
 		this.maxCheckpointStatisticCacheEntries = maxCheckpointStatisticCacheEntries;
 
 		this.timeout = Preconditions.checkNotNull(timeout);
-		this.tmpDir = Preconditions.checkNotNull(tmpDir);
+		this.webUiDir = Preconditions.checkNotNull(webUiDir);
 	}
 
 	public long getRefreshInterval() {
@@ -65,8 +65,8 @@ public class RestHandlerConfiguration {
 		return timeout;
 	}
 
-	public File getTmpDir() {
-		return tmpDir;
+	public Path getWebUiDir() {
+		return webUiDir;
 	}
 
 	public static RestHandlerConfiguration fromConfiguration(Configuration configuration) {
@@ -76,13 +76,13 @@ public class RestHandlerConfiguration {
 
 		final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
 
-		final String rootDir = "flink-web-" + UUID.randomUUID();
-		final File tmpDir = new File(configuration.getString(WebOptions.TMP_DIR), rootDir);
+		final String rootDir = "flink-web-ui";
+		final Path webUiDir = Paths.get(configuration.getString(WebOptions.TMP_DIR), rootDir);
 
 		return new RestHandlerConfiguration(
 			refreshInterval,
 			maxCheckpointStatisticCacheEntries,
 			timeout,
-			tmpDir);
+			webUiDir);
 	}
 }
