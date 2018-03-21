@@ -265,7 +265,11 @@ class TaskManager(
       case t: Exception => log.error("FileCache did not shutdown properly.", t)
     }
 
-    taskManagerMetricGroup.close()
+    try {
+      taskManagerMetricGroup.close()
+    } catch {
+      case e: Exception => log.error("TaskManagerMetricGroup did not shutdown properly.", e)
+    }
 
     log.info(s"Task manager ${self.path} is completely shut down.")
   }
