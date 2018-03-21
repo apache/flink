@@ -636,6 +636,12 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 					in.setShipStrategy(ShipStrategyType.BROADCAST, in.getDataExchangeMode());
 				}
 			}
+
+			// The outgoing connection of an NAryUnion must be a forward connection.
+			if (input.getShipStrategy() != ShipStrategyType.FORWARD && !isBroadcast) {
+				throw new CompilerException("Optimized plan contains Union with non-forward outgoing ship strategy.");
+			}
+
 		}
 		else if (inputPlanNode instanceof BulkPartialSolutionPlanNode) {
 			if (this.vertices.get(inputPlanNode) == null) {
