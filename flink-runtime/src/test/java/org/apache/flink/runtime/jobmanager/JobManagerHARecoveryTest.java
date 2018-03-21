@@ -96,6 +96,7 @@ import akka.japi.pf.ReceiveBuilder;
 import akka.pattern.Patterns;
 import akka.testkit.CallingThreadDispatcher;
 import akka.testkit.JavaTestKit;
+import akka.testkit.TestProbe;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -127,7 +128,8 @@ import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 import scala.runtime.BoxedUnit;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -160,7 +162,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 	@Test
 	public void testJobRecoveryWhenLosingLeadership() throws Exception {
 		FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
-		FiniteDuration jobRecoveryTimeout = new FiniteDuration(3, TimeUnit.SECONDS);
+		FiniteDuration jobRecoveryTimeout = new FiniteDuration(0, TimeUnit.SECONDS);
 		Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
 		Configuration flinkConfiguration = new Configuration();
 		UUID leaderSessionID = UUID.randomUUID();
@@ -229,7 +231,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				testingHighAvailabilityServices,
 				NoOpMetricRegistry.INSTANCE,
 				"localhost",
-				Option.apply("taskmanager"),
+				Option.<String>apply("taskmanager"),
 				true,
 				TestingTaskManager.class);
 
@@ -341,7 +343,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that a failing job recovery won't cause other job recoveries to fail.
+	 * Tests that a job recovery failure terminates the {@link JobManager}.
 	 */
 	@Test
 	public void testFailingJobRecovery() throws Exception {
@@ -396,6 +398,10 @@ public class JobManagerHARecoveryTest extends TestLogger {
 
 			jobManager = system.actorOf(jobManagerProps);
 
+			final TestProbe testProbe = new TestProbe(system);
+
+			testProbe.watch(jobManager);
+
 			Future<Object> started = Patterns.ask(jobManager, new Identify(42), deadline.timeLeft().toMillis());
 
 			Await.ready(started, deadline.timeLeft());
@@ -403,8 +409,11 @@ public class JobManagerHARecoveryTest extends TestLogger {
 			// make the job manager the leader --> this triggers the recovery of all jobs
 			myLeaderElectionService.isLeader(leaderSessionID);
 
-			// check that we have successfully recovered the second job
-			assertThat(recoveredJobs, containsInAnyOrder(jobId2));
+			// check that we did not recover any jobs
+			assertThat(recoveredJobs, is(empty()));
+
+			// verify that the JobManager terminated
+			testProbe.expectTerminated(jobManager, timeout);
 		} finally {
 			TestingUtils.stopActor(jobManager);
 		}
@@ -447,7 +456,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				checkpointRecoveryFactory,
 				jobRecoveryTimeout,
 				jobManagerMetricGroup,
-				Option.empty());
+				Option.<String>empty());
 
 			this.recoveredJobs = recoveredJobs;
 		}
