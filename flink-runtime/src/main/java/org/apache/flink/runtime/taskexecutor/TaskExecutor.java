@@ -292,6 +292,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
 		}
 
+		// it will call close() recursively from the parent to children
+		taskManagerMetricGroup.close();
+
 		if (throwable != null) {
 			return FutureUtils.completedExceptionally(new FlinkException("Error while shutting the TaskExecutor down.", throwable));
 		} else {
