@@ -411,6 +411,40 @@ public class FutureUtils {
 		return resultFuture;
 	}
 
+	/**
+	 * Run the given asynchronous action after the completion of the given future. The given future can be
+	 * completed normally or exceptionally. In case of an exceptional completion, the
+	 * asynchronous action's exception will be added to the initial exception.
+	 *
+	 * @param future to wait for its completion
+	 * @param composedAction asynchronous action which is triggered after the future's completion
+	 * @return Future which is completed after the asynchronous action has completed. This future can contain
+	 * an exception if an error occurred in the given future or asynchronous action.
+	 */
+	public static CompletableFuture<Void> composeAfterwards(
+			CompletableFuture<?> future,
+			Supplier<CompletableFuture<?>> composedAction) {
+		final CompletableFuture<Void> resultFuture = new CompletableFuture<>();
+
+		future.whenComplete(
+			(Object outerIgnored, Throwable outerThrowable) -> {
+				final CompletableFuture<?> composedActionFuture = composedAction.get();
+
+				composedActionFuture.whenComplete(
+					(Object innerIgnored, Throwable innerThrowable) -> {
+						if (innerThrowable != null) {
+							resultFuture.completeExceptionally(ExceptionUtils.firstOrSuppressed(innerThrowable, outerThrowable));
+						} else if (outerThrowable != null) {
+							resultFuture.completeExceptionally(outerThrowable);
+						} else {
+							resultFuture.complete(null);
+						}
+					});
+			});
+
+		return resultFuture;
+	}
+
 	// ------------------------------------------------------------------------
 	//  composing futures
 	// ------------------------------------------------------------------------
