@@ -737,7 +737,7 @@ public class MesosResourceManagerTest extends TestLogger {
 	public void testShutdownApplication() throws Exception {
 		new Context() {{
 			startResourceManager();
-			resourceManager.shutDownCluster(ApplicationStatus.SUCCEEDED, "");
+			resourceManager.deregisterApplication(ApplicationStatus.SUCCEEDED, "");
 
 			// verify that the Mesos framework is shutdown
 			verify(rmServices.schedulerDriver).stop(false);

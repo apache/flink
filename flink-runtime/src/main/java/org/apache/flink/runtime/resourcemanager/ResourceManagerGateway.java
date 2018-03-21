@@ -41,6 +41,8 @@ import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
@@ -133,11 +135,12 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	void unRegisterInfoMessageListener(String infoMessageListenerAddress);
 
 	/**
-	 * shutdown cluster
-	 * @param finalStatus
-	 * @param optionalDiagnostics
+	 * Deregister Flink from the underlying resource management system.
+	 *
+	 * @param finalStatus final status with which to deregister the Flink application
+	 * @param diagnostics additional information for the resource management system, can be {@code null}
 	 */
-	void shutDownCluster(final ApplicationStatus finalStatus, final String optionalDiagnostics);
+	CompletableFuture<Acknowledge> deregisterApplication(final ApplicationStatus finalStatus, @Nullable final String diagnostics);
 
 	/**
 	 * Gets the currently registered number of TaskManagers.
