@@ -587,12 +587,12 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		ApplicationStatus applicationStatus,
 		boolean cleanupHaData) {
 
-		LOG.info("Shut down and terminate {} with return code {} and application status {}.",
-			getClass().getSimpleName(),
-			returnCode,
-			applicationStatus);
-
 		if (isTerminating.compareAndSet(false, true)) {
+			LOG.info("Shut down and terminate {} with return code {} and application status {}.",
+				getClass().getSimpleName(),
+				returnCode,
+				applicationStatus);
+
 			shutDownAsync(cleanupHaData).whenComplete(
 				(Void ignored, Throwable t) -> {
 					if (t != null) {
