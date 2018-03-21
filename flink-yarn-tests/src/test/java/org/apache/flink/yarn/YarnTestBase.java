@@ -149,7 +149,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 	private YarnClient yarnClient = null;
 
-	protected org.apache.flink.configuration.Configuration flinkConfiguration;
+	protected static org.apache.flink.configuration.Configuration flinkConfiguration;
 
 	protected boolean flip6;
 
@@ -216,8 +216,6 @@ public abstract class YarnTestBase extends TestLogger {
 						"App " + app.getApplicationId() + " is in state " + app.getYarnApplicationState());
 			}
 		}
-
-		flinkConfiguration = GlobalConfiguration.loadConfiguration();
 
 		flip6 = CoreOptions.FLIP6_MODE.equalsIgnoreCase(flinkConfiguration.getString(CoreOptions.MODE));
 	}
@@ -514,7 +512,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 			File flinkConfDirPath = findFile(flinkDistRootDir, new ContainsName(new String[]{"flink-conf.yaml"}));
 			Assert.assertNotNull(flinkConfDirPath);
-			org.apache.flink.configuration.Configuration flinkCfg =
+			flinkConfiguration =
 					GlobalConfiguration.loadConfiguration();
 
 			if (!StringUtils.isBlank(principal) && !StringUtils.isBlank(keytab)) {
@@ -525,11 +523,11 @@ public abstract class YarnTestBase extends TestLogger {
 				String confDirPath = flinkConfDirPath.getParentFile().getAbsolutePath();
 				FileUtils.copyDirectory(new File(confDirPath), tempConfPathForSecureRun);
 
-				flinkCfg.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB.key(), keytab);
-				flinkCfg.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(), principal);
-				flinkCfg.setString(CoreOptions.MODE.key(), OLD_MODE);
+				flinkConfiguration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB.key(), keytab);
+				flinkConfiguration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(), principal);
+				flinkConfiguration.setString(CoreOptions.MODE.key(), OLD_MODE);
 
-				BootstrapTools.writeConfiguration(flinkCfg,
+				BootstrapTools.writeConfiguration(flinkConfiguration,
 						new File(tempConfPathForSecureRun, "flink-conf.yaml"));
 
 				String configDir = tempConfPathForSecureRun.getAbsolutePath();

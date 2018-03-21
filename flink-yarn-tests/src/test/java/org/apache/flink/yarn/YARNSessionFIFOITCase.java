@@ -49,6 +49,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.yarn.UtilsTest.addTestAppender;
 import static org.apache.flink.yarn.UtilsTest.checkForLogString;
@@ -107,8 +108,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		}
 
 		// additional sleep for the JM/TM to start and establish connection
-		long startTime = System.currentTimeMillis();
-		while (System.currentTimeMillis() - startTime < 10000 &&
+		long startTime = System.nanoTime();
+		while (System.nanoTime() - startTime < TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS) &&
 				!(verifyStringsInNamedLogFiles(
 						new String[]{"YARN Application Master started"}, "jobmanager.log") &&
 						verifyStringsInNamedLogFiles(
