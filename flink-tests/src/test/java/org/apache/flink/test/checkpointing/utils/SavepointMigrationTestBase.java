@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.util.OptionalFailure;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.BeforeClass;
@@ -138,11 +139,11 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 		boolean done = false;
 		while (DEADLINE.hasTimeLeft()) {
 			Thread.sleep(100);
-			Map<String, Object> accumulators = client.getAccumulators(jobSubmissionResult.getJobID());
+			Map<String, OptionalFailure<Object>> accumulators = client.getAccumulators(jobSubmissionResult.getJobID());
 
 			boolean allDone = true;
 			for (Tuple2<String, Integer> acc : expectedAccumulators) {
-				Integer numFinished = (Integer) accumulators.get(acc.f0);
+				Integer numFinished = (Integer) accumulators.get(acc.f0).get();
 				if (numFinished == null) {
 					allDone = false;
 					break;
@@ -211,16 +212,16 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 			}
 
 			Thread.sleep(100);
-			Map<String, Object> accumulators = client.getAccumulators(jobId);
+			Map<String, OptionalFailure<Object>> accumulators = client.getAccumulators(jobId);
 
 			boolean allDone = true;
 			for (Tuple2<String, Integer> acc : expectedAccumulators) {
-				Integer numFinished = (Integer) accumulators.get(acc.f0);
+				OptionalFailure<Object> numFinished = accumulators.get(acc.f0);
 				if (numFinished == null) {
 					allDone = false;
 					break;
 				}
-				if (!numFinished.equals(acc.f1)) {
+				if (!numFinished.get().equals(acc.f1)) {
 					allDone = false;
 					break;
 				}

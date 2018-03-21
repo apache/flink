@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.messages.job;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 
@@ -54,7 +55,7 @@ public class JobExecutionResultResponseBodyTest
 
 	private static final String TEST_ACCUMULATOR_NAME = "test";
 
-	private static final Map<String, SerializedValue<Object>> TEST_ACCUMULATORS = Collections.singletonMap(
+	private static final Map<String, SerializedValue<OptionalFailure<Object>>> TEST_ACCUMULATORS = Collections.singletonMap(
 		TEST_ACCUMULATOR_NAME,
 		SerializedValue.fromBytes(TEST_ACCUMULATOR_VALUE));
 
