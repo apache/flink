@@ -1620,7 +1620,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			CheckpointOptions checkpointOptions) throws Exception {
 
 			long startTime = System.currentTimeMillis();
-			final CloseableRegistry snapshotCloseableRegistry = new CloseableRegistry();
 
 			if (kvStateInformation.isEmpty()) {
 				if (LOG.isDebugEnabled()) {
@@ -1646,6 +1645,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					() -> CheckpointStreamWithResultProvider.createSimpleStream(
 						CheckpointedStateScope.EXCLUSIVE,
 						primaryStreamFactory);
+
+			final CloseableRegistry snapshotCloseableRegistry = new CloseableRegistry();
 
 			final RocksDBFullSnapshotOperation<K> snapshotOperation =
 				new RocksDBFullSnapshotOperation<>(
