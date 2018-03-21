@@ -35,6 +35,9 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
+import org.apache.flink.optimizer.testfunctions.IdentityFilter;
+import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
+import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
@@ -436,6 +439,64 @@ public class UnionReplacementTest extends CompilerTestBase {
 			assertEquals("Union input channel should be broadcasting",
 				ShipStrategyType.BROADCAST, c.getShipStrategy());
 		}
+	}
+
+	/**
+	 * Tests that a the outgoing connection of a Union node is FORWARD.
+	 * See FLINK-9031 for a bug report.
+	 *
+	 * The issue is quite hard to reproduce as the plan choice seems to depend on the enumeration
+	 * order due to lack of plan costs. This test is a smaller variant of the job that was reported
+	 * to fail.
+	 *
+	 *       /-\           /- PreFilter1 -\-/- Union - PostFilter1 - Reducer1 -\
+	 * Src -<   >- Union -<                X                                    >- Union - Out
+	 *       \-/           \- PreFilter2 -/-\- Union - PostFilter2 - Reducer2 -/
+	 */
+	@Test
+	public void testUnionForwardOutput() throws Exception {
+
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+
+		DataSet<Tuple2<Long, Long>> src1 = env.fromElements(new Tuple2<>(0L, 0L));
+
+		DataSet<Tuple2<Long, Long>> u1 = src1.union(src1)
+			.map(new IdentityMapper<>());
+
+		DataSet<Tuple2<Long, Long>> s1 = u1
+			.filter(new IdentityFilter<>()).name("preFilter1");
+		DataSet<Tuple2<Long, Long>> s2 = u1
+			.filter(new IdentityFilter<>()).name("preFilter2");
+
+		DataSet<Tuple2<Long, Long>> reduced1 = s1
+			.union(s2)
+			.filter(new IdentityFilter<>()).name("postFilter1")
+			.groupBy(0)
+			.reduceGroup(new IdentityGroupReducer<>()).name("reducer1");
+		DataSet<Tuple2<Long, Long>> reduced2 = s1
+			.union(s2)
+			.filter(new IdentityFilter<>()).name("postFilter2")
+			.groupBy(1)
+			.reduceGroup(new IdentityGroupReducer<>()).name("reducer2");
+
+		reduced1
+			.union(reduced2)
+			.output(new DiscardingOutputFormat<>());
+
+		// -----------------------------------------------------------------------------------------
+		// Verify optimized plan
+		// -----------------------------------------------------------------------------------------
+
+		OptimizedPlan optimizedPlan = compileNoStats(env.createProgramPlan());
+
+		OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(optimizedPlan);
+
+		SingleInputPlanNode unionOut1 = resolver.getNode("postFilter1");
+		SingleInputPlanNode unionOut2 = resolver.getNode("postFilter2");
+
+		assertEquals(ShipStrategyType.FORWARD, unionOut1.getInput().getShipStrategy());
+		assertEquals(ShipStrategyType.FORWARD, unionOut2.getInput().getShipStrategy());
 	}
 
 }
