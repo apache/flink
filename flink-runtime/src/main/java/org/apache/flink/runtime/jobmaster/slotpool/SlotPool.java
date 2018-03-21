@@ -322,7 +322,6 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			SlotProfile slotProfile,
 			boolean allowQueuedScheduling,
 			Time allocationTimeout) {
-
 		final SlotSharingGroupId slotSharingGroupId = task.getSlotSharingGroupId();
 
 		if (slotSharingGroupId != null) {
@@ -955,7 +954,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		}
 
 		final AllocatedSlot allocatedSlot = new AllocatedSlot(
-			slotOffer.getAllocationId(),
+			allocationID,
 			taskManagerLocation,
 			slotOffer.getSlotIndex(),
 			slotOffer.getResourceProfile(),
@@ -971,6 +970,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				// we could not complete the pending slot future --> try to fulfill another pending request
 				allocatedSlots.remove(pendingRequest.getSlotRequestId());
 				tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
+			} else {
+				log.debug("Fulfilled slot request {} with allocated slot {}.", pendingRequest.getSlotRequestId(), allocationID);
 			}
 		}
 		else {
