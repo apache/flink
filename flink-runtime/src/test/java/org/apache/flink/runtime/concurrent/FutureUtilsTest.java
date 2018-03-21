@@ -46,6 +46,7 @@ import java.util.function.Supplier;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.Matchers.arrayContaining;
+import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.emptyArray;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -324,6 +325,124 @@ public class FutureUtilsTest extends TestLogger {
 			fail("Expected an exceptional completion");
 		} catch (ExecutionException ee) {
 			assertThat(ExceptionUtils.stripExecutionException(ee), is(testException));
+		}
+	}
+
+	@Test
+	public void testComposeAfterwards() throws ExecutionException, InterruptedException {
+		final CompletableFuture<Void> inputFuture = new CompletableFuture<>();
+		final OneShotLatch composeLatch = new OneShotLatch();
+
+		final CompletableFuture<Void> composeFuture = FutureUtils.composeAfterwards(
+			inputFuture,
+			() -> {
+				composeLatch.trigger();
+				return CompletableFuture.completedFuture(null);
+			});
+
+		assertThat(composeLatch.isTriggered(), is(false));
+		assertThat(composeFuture.isDone(), is(false));
+
+		inputFuture.complete(null);
+
+		assertThat(composeLatch.isTriggered(), is(true));
+		assertThat(composeFuture.isDone(), is(true));
+
+		// check that tthis future is not exceptionally completed
+		composeFuture.get();
+	}
+
+	@Test
+	public void testComposeAfterwardsFirstExceptional() throws InterruptedException {
+		final CompletableFuture<Void> inputFuture = new CompletableFuture<>();
+		final OneShotLatch composeLatch = new OneShotLatch();
+		final FlinkException testException = new FlinkException("Test exception");
+
+		final CompletableFuture<Void> composeFuture = FutureUtils.composeAfterwards(
+			inputFuture,
+			() -> {
+				composeLatch.trigger();
+				return CompletableFuture.completedFuture(null);
+			});
+
+		assertThat(composeLatch.isTriggered(), is(false));
+		assertThat(composeFuture.isDone(), is(false));
+
+		inputFuture.completeExceptionally(testException);
+
+		assertThat(composeLatch.isTriggered(), is(true));
+		assertThat(composeFuture.isDone(), is(true));
+
+		// check that this future is not exceptionally completed
+		try {
+			composeFuture.get();
+			fail("Expected an exceptional completion");
+		} catch (ExecutionException ee) {
+			assertThat(ExceptionUtils.stripExecutionException(ee), is(testException));
+		}
+	}
+
+	@Test
+	public void testComposeAfterwardsSecondExceptional() throws InterruptedException {
+		final CompletableFuture<Void> inputFuture = new CompletableFuture<>();
+		final OneShotLatch composeLatch = new OneShotLatch();
+		final FlinkException testException = new FlinkException("Test exception");
+
+		final CompletableFuture<Void> composeFuture = FutureUtils.composeAfterwards(
+			inputFuture,
+			() -> {
+				composeLatch.trigger();
+				return FutureUtils.completedExceptionally(testException);
+			});
+
+		assertThat(composeLatch.isTriggered(), is(false));
+		assertThat(composeFuture.isDone(), is(false));
+
+		inputFuture.complete(null);
+
+		assertThat(composeLatch.isTriggered(), is(true));
+		assertThat(composeFuture.isDone(), is(true));
+
+		// check that this future is not exceptionally completed
+		try {
+			composeFuture.get();
+			fail("Expected an exceptional completion");
+		} catch (ExecutionException ee) {
+			assertThat(ExceptionUtils.stripExecutionException(ee), is(testException));
+		}
+	}
+
+	@Test
+	public void testComposeAfterwardsBothExceptional() throws InterruptedException {
+		final CompletableFuture<Void> inputFuture = new CompletableFuture<>();
+		final FlinkException testException1 = new FlinkException("Test exception1");
+		final FlinkException testException2 = new FlinkException("Test exception2");
+		final OneShotLatch composeLatch = new OneShotLatch();
+
+		final CompletableFuture<Void> composeFuture = FutureUtils.composeAfterwards(
+			inputFuture,
+			() -> {
+				composeLatch.trigger();
+				return FutureUtils.completedExceptionally(testException2);
+			});
+
+		assertThat(composeLatch.isTriggered(), is(false));
+		assertThat(composeFuture.isDone(), is(false));
+
+		inputFuture.completeExceptionally(testException1);
+
+		assertThat(composeLatch.isTriggered(), is(true));
+		assertThat(composeFuture.isDone(), is(true));
+
+		// check that this future is not exceptionally completed
+		try {
+			composeFuture.get();
+			fail("Expected an exceptional completion");
+		} catch (ExecutionException ee) {
+			final Throwable actual = ExceptionUtils.stripExecutionException(ee);
+			assertThat(actual, is(testException1));
+			assertThat(actual.getSuppressed(), arrayWithSize(1));
+			assertThat(actual.getSuppressed()[0], is(testException2));
 		}
 	}
 
