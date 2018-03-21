@@ -214,8 +214,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	}
 
 	@Override
-	public void shutDownCluster(ApplicationStatus finalStatus, String optionalDiagnostics) {
-
+	public CompletableFuture<Acknowledge> deregisterApplication(ApplicationStatus finalStatus, String diagnostics) {
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
 	@Override

@@ -486,19 +486,21 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 * Cleanup application and shut down cluster.
 	 *
 	 * @param finalStatus of the Flink application
-	 * @param optionalDiagnostics diagnostics message for the Flink application or {@code null}
+	 * @param diagnostics diagnostics message for the Flink application or {@code null}
 	 */
 	@Override
-	public void shutDownCluster(
+	public CompletableFuture<Acknowledge> deregisterApplication(
 			final ApplicationStatus finalStatus,
-			@Nullable final String optionalDiagnostics) {
-		log.info("Shut down cluster because application is in {}, diagnostics {}.", finalStatus, optionalDiagnostics);
+			@Nullable final String diagnostics) {
+		log.info("Shut down cluster because application is in {}, diagnostics {}.", finalStatus, diagnostics);
 
 		try {
-			shutDownApplication(finalStatus, optionalDiagnostics);
+			internalDeregisterApplication(finalStatus, diagnostics);
 		} catch (ResourceManagerException e) {
 			log.warn("Could not properly shutdown the application.", e);
 		}
+
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
 	@Override
@@ -946,7 +948,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	protected abstract void initialize() throws ResourceManagerException;
 
 	/**
-	 * The framework specific code for shutting down the application. This should report the
+	 * The framework specific code to deregister the application. This should report the
 	 * application's final status and shut down the resource manager cleanly.
 	 *
 	 * <p>This method also needs to make sure all pending containers that are not registered
@@ -956,7 +958,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 * @param optionalDiagnostics A diagnostics message or {@code null}.
 	 * @throws ResourceManagerException if the application could not be shut down.
 	 */
-	protected abstract void shutDownApplication(
+	protected abstract void internalDeregisterApplication(
 		ApplicationStatus finalStatus,
 		@Nullable String optionalDiagnostics) throws ResourceManagerException;
 

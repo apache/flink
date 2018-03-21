@@ -197,6 +197,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			shutDownAndTerminate(
 				STARTUP_FAILURE_RETURN_CODE,
 				ApplicationStatus.FAILED,
+				t.getMessage(),
 				false);
 		}
 	}
@@ -245,6 +246,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 					shutDownAndTerminate(
 						SUCCESS_RETURN_CODE,
 						ApplicationStatus.SUCCEEDED,
+						throwable != null ? throwable.getMessage() : null,
 						true);
 				});
 		}
@@ -544,38 +546,34 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		return resultConfiguration;
 	}
 
-	private CompletableFuture<Void> shutDownAsync(boolean cleanupHaData) {
+	private CompletableFuture<Void> shutDownAsync(
+			boolean cleanupHaData,
+			ApplicationStatus applicationStatus,
+			@Nullable String diagnostics) {
 		if (isShutDown.compareAndSet(false, true)) {
 			LOG.info("Stopping {}.", getClass().getSimpleName());
 
-			final CompletableFuture<Void> componentShutdownFuture = stopClusterComponents();
+			final CompletableFuture<Void> shutDownApplicationFuture = deregisterApplication(applicationStatus, diagnostics);
 
-			componentShutdownFuture.whenComplete(
-				(Void ignored1, Throwable componentThrowable) -> {
-					final CompletableFuture<Void> serviceShutdownFuture = stopClusterServices(cleanupHaData);
+			final CompletableFuture<Void> componentShutdownFuture = FutureUtils.composeAfterwards(
+				shutDownApplicationFuture,
+				this::stopClusterComponents);
 
-					serviceShutdownFuture.whenComplete(
-						(Void ignored2, Throwable serviceThrowable) -> {
-							Throwable finalException = null;
+			final CompletableFuture<Void> serviceShutdownFuture = FutureUtils.composeAfterwards(
+				componentShutdownFuture,
+				() -> stopClusterServices(cleanupHaData));
 
-							if (serviceThrowable != null) {
-								finalException = ExceptionUtils.firstOrSuppressed(serviceThrowable, componentThrowable);
-							} else if (componentThrowable != null) {
-								finalException = componentThrowable;
-							}
+			final CompletableFuture<Void> cleanupDirectoriesFuture = FutureUtils.runAfterwards(
+				serviceShutdownFuture,
+				this::cleanupDirectories);
 
-							try {
-								cleanupDirectories();
-							} catch (IOException e) {
-								finalException = ExceptionUtils.firstOrSuppressed(e, finalException);
-							}
-
-							if (finalException != null) {
-								terminationFuture.completeExceptionally(finalException);
-							} else {
-								terminationFuture.complete(null);
-							}
-						});
+			cleanupDirectoriesFuture.whenComplete(
+				(Void ignored2, Throwable serviceThrowable) -> {
+					if (serviceThrowable != null) {
+						terminationFuture.completeExceptionally(serviceThrowable);
+					} else {
+						terminationFuture.complete(null);
+					}
 				});
 		}
 
@@ -585,6 +583,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	private void shutDownAndTerminate(
 		int returnCode,
 		ApplicationStatus applicationStatus,
+		@Nullable String diagnostics,
 		boolean cleanupHaData) {
 
 		if (isTerminating.compareAndSet(false, true)) {
@@ -593,7 +592,10 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				returnCode,
 				applicationStatus);
 
-			shutDownAsync(cleanupHaData).whenComplete(
+			shutDownAsync(
+				cleanupHaData,
+				applicationStatus,
+				diagnostics).whenComplete(
 				(Void ignored, Throwable t) -> {
 					if (t != null) {
 						LOG.info("Could not properly shut down cluster entrypoint.", t);
@@ -605,6 +607,25 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			LOG.debug("Concurrent termination call detected. Ignoring termination call with return code {} and application status {}.",
 				returnCode,
 				applicationStatus);
+		}
+	}
+
+	/**
+	 * Deregister the Flink application from the resource management system by signalling
+	 * the {@link ResourceManager}.
+	 *
+	 * @param applicationStatus to terminate the application with
+	 * @param diagnostics additional information about the shut down, can be {@code null}
+	 * @return Future which is completed once the shut down
+	 */
+	private CompletableFuture<Void> deregisterApplication(ApplicationStatus applicationStatus, @Nullable String diagnostics) {
+		synchronized (lock) {
+			if (resourceManager != null) {
+				final ResourceManagerGateway selfGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
+				return selfGateway.deregisterApplication(applicationStatus, diagnostics).thenApply(ack -> null);
+			} else {
+				return CompletableFuture.completedFuture(null);
+			}
 		}
 	}
 

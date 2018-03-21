@@ -68,7 +68,7 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
 	}
 
 	@Override
-	protected void shutDownApplication(ApplicationStatus finalStatus, @Nullable String optionalDiagnostics) throws ResourceManagerException {
+	protected void internalDeregisterApplication(ApplicationStatus finalStatus, @Nullable String diagnostics) throws ResourceManagerException {
 		// noop
 	}
 
