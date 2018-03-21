@@ -42,7 +42,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -51,8 +50,6 @@ import java.util.concurrent.Executor;
  * REST endpoint for the {@link Dispatcher} component.
  */
 public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway> {
-
-	private final Path uploadDir;
 
 	private WebMonitorExtension webSubmissionExtension;
 
@@ -80,7 +77,6 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			leaderElectionService,
 			fatalErrorHandler);
 
-		uploadDir = endpointConfiguration.getUploadDir();
 		webSubmissionExtension = WebMonitorExtension.empty();
 	}
 

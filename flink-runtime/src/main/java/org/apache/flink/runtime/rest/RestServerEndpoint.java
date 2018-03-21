@@ -77,8 +77,9 @@ public abstract class RestServerEndpoint {
 	private final String restBindAddress;
 	private final int restBindPort;
 	private final SSLEngine sslEngine;
-	private final Path uploadDir;
 	private final int maxContentLength;
+
+	protected final Path uploadDir;
 	protected final Map<String, String> responseHeaders;
 
 	private final CompletableFuture<Void> terminationFuture;
