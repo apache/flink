@@ -43,6 +43,7 @@ import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.postpass.OptimizerPostPass;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.optimizer.traversals.RangePartitionRewriter;
+import org.apache.flink.optimizer.traversals.UnionParallelismAndForwardEnforcer;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.slf4j.Logger;
@@ -475,6 +476,11 @@ public class Optimizer {
 		// now that we have all nodes created and recorded which ones consume memory, tell the nodes their minimal
 		// guaranteed memory, for further cost estimations. We assume an equal distribution of memory among consumer tasks
 		rootNode.accept(new IdAndEstimatesVisitor(this.statistics));
+
+		// We need to enforce that union nodes always forward their output to their successor.
+		// Any partitioning must be either pushed before or done after the union, but not on the union's output.
+		UnionParallelismAndForwardEnforcer unionEnforcer = new UnionParallelismAndForwardEnforcer();
+		rootNode.accept(unionEnforcer);
 
 		// We are dealing with operator DAGs, rather than operator trees.
 		// That requires us to deviate at some points from the classical DB optimizer algorithms.
