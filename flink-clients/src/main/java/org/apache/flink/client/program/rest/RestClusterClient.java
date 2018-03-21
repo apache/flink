@@ -89,6 +89,7 @@ import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.CheckedSupplier;
 
@@ -409,7 +410,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	}
 
 	@Override
-	public Map<String, Object> getAccumulators(final JobID jobID, ClassLoader loader) throws Exception {
+	public Map<String, OptionalFailure<Object>> getAccumulators(final JobID jobID, ClassLoader loader) throws Exception {
 		final JobAccumulatorsHeaders accumulatorsHeaders = JobAccumulatorsHeaders.getInstance();
 		final JobAccumulatorsMessageParameters accMsgParams = accumulatorsHeaders.getUnresolvedMessageParameters();
 		accMsgParams.jobPathParameter.resolve(jobID);
@@ -420,7 +421,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			accMsgParams
 		);
 
-		Map<String, Object> result = Collections.emptyMap();
+		Map<String, OptionalFailure<Object>> result = Collections.emptyMap();
 
 		try {
 			result = responseFuture.thenApply((JobAccumulatorsInfo accumulatorsInfo) -> {

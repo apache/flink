@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
@@ -155,7 +156,7 @@ public interface AccessExecutionGraph {
 	 *
 	 * @return map containing serialized values of user-defined accumulators
 	 */
-	Map<String, SerializedValue<Object>> getAccumulatorsSerialized();
+	Map<String, SerializedValue<OptionalFailure<Object>>> getAccumulatorsSerialized();
 
 	/**
 	 * Returns whether this execution graph was archived.

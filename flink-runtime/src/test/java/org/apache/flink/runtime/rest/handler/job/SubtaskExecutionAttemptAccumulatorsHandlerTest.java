@@ -36,6 +36,8 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumul
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsInfo;
 import org.apache.flink.runtime.rest.messages.job.UserAccumulator;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -76,9 +78,10 @@ public class SubtaskExecutionAttemptAccumulatorsHandlerTest extends TestLogger {
 			new SubtaskAttemptMessageParameters()
 		);
 
-		final Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<>(2);
-		userAccumulators.put("IntCounter", new IntCounter(10));
-		userAccumulators.put("LongCounter", new LongCounter(100L));
+		final Map<String, OptionalFailure<Accumulator<?, ?>>> userAccumulators = new HashMap<>(3);
+		userAccumulators.put("IntCounter", OptionalFailure.of(new IntCounter(10)));
+		userAccumulators.put("LongCounter", OptionalFailure.of(new LongCounter(100L)));
+		userAccumulators.put("Failure", OptionalFailure.ofFailure(new FlinkRuntimeException("Test")));
 
 		// Instance the expected result.
 		final StringifiedAccumulatorResult[] accumulatorResults =

@@ -48,6 +48,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.types.Either;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -597,7 +598,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	// --------------------------------------------------------------------------------------------
 
 	public StringifiedAccumulatorResult[] getAggregatedUserAccumulatorsStringified() {
-		Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<String, Accumulator<?, ?>>();
+		Map<String, OptionalFailure<Accumulator<?, ?>>> userAccumulators = new HashMap<>();
 
 		for (ExecutionVertex vertex : taskVertices) {
 			Map<String, Accumulator<?, ?>> next = vertex.getCurrentExecutionAttempt().getUserAccumulators();
