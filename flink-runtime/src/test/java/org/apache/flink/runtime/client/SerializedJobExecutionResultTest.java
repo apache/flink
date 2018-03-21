@@ -21,19 +21,28 @@ package org.apache.flink.runtime.client;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the SerializedJobExecutionResult
  */
-public class SerializedJobExecutionResultTest {
+public class SerializedJobExecutionResultTest extends TestLogger {
 
 	@Test
 	public void testSerialization() throws Exception {
@@ -42,9 +51,10 @@ public class SerializedJobExecutionResultTest {
 		JobID origJobId = new JobID();
 		long origTime = 65927436589267L;
 
-		Map<String, SerializedValue<Object>> origMap = new HashMap<String, SerializedValue<Object>>();
-		origMap.put("name1", new SerializedValue<Object>(723L));
-		origMap.put("name2", new SerializedValue<Object>("peter"));
+		Map<String, SerializedValue<OptionalFailure<Object>>> origMap = new HashMap<>();
+		origMap.put("name1", new SerializedValue<>(OptionalFailure.of(723L)));
+		origMap.put("name2", new SerializedValue<>(OptionalFailure.of("peter")));
+		origMap.put("name3", new SerializedValue<>(OptionalFailure.ofFailure(new ExpectedTestException())));
 
 		SerializedJobExecutionResult result = new SerializedJobExecutionResult(origJobId, origTime, origMap);
 
@@ -67,11 +77,29 @@ public class SerializedJobExecutionResultTest {
 		assertEquals(origTime, jResultCopied.getNetRuntime());
 		assertEquals(origTime, jResultCopied.getNetRuntime(TimeUnit.MILLISECONDS));
 
-		for (Map.Entry<String, SerializedValue<Object>> entry : origMap.entrySet()) {
+		for (Map.Entry<String, SerializedValue<OptionalFailure<Object>>> entry : origMap.entrySet()) {
 			String name = entry.getKey();
-			Object value = entry.getValue().deserializeValue(classloader);
-			assertEquals(value, jResult.getAccumulatorResult(name));
-			assertEquals(value, jResultCopied.getAccumulatorResult(name));
+			OptionalFailure<Object> value = entry.getValue().deserializeValue(classloader);
+			if (value.isFailure()) {
+				try {
+					jResult.getAccumulatorResult(name);
+					fail("expected failure");
+				}
+				catch (FlinkRuntimeException ex) {
+					assertTrue(ExceptionUtils.findThrowable(ex, ExpectedTestException.class).isPresent());
+				}
+				try {
+					jResultCopied.getAccumulatorResult(name);
+					fail("expected failure");
+				}
+				catch (FlinkRuntimeException ex) {
+					assertTrue(ExceptionUtils.findThrowable(ex, ExpectedTestException.class).isPresent());
+				}
+			}
+			else {
+				assertEquals(value.get(), jResult.getAccumulatorResult(name));
+				assertEquals(value.get(), jResultCopied.getAccumulatorResult(name));
+			}
 		}
 	}
 

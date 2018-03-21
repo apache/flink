@@ -49,6 +49,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
@@ -195,7 +196,7 @@ public class LegacyAccumulatorLiveITCase extends TestLogger {
 			expectMsgClass(TIMEOUT, JobManagerMessages.JobSubmitSuccess.class);
 
 			TestingJobManagerMessages.UpdatedAccumulators msg = (TestingJobManagerMessages.UpdatedAccumulators) receiveOne(TIMEOUT);
-			Map<String, Accumulator<?, ?>> userAccumulators = msg.userAccumulators();
+			Map<String, OptionalFailure<Accumulator<?, ?>>> userAccumulators = msg.userAccumulators();
 
 			ExecutionAttemptID mapperTaskID = null;
 
@@ -264,9 +265,9 @@ public class LegacyAccumulatorLiveITCase extends TestLogger {
 		}};
 	}
 
-	private static boolean checkUserAccumulators(int expected, Map<String, Accumulator<?, ?>> accumulatorMap) {
+	private static boolean checkUserAccumulators(int expected, Map<String, OptionalFailure<Accumulator<?, ?>>> accumulatorMap) {
 		LOG.info("checking user accumulators");
-		return accumulatorMap.containsKey(ACCUMULATOR_NAME) && expected == ((IntCounter) accumulatorMap.get(ACCUMULATOR_NAME)).getLocalValue();
+		return accumulatorMap.containsKey(ACCUMULATOR_NAME) && expected == ((IntCounter) accumulatorMap.get(ACCUMULATOR_NAME).getUnchecked()).getLocalValue();
 	}
 
 	/**
