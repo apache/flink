@@ -154,7 +154,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 
 		if (serverEndpoint != null) {
-			serverEndpoint.shutDownAsync().get();
+			serverEndpoint.close();
 			serverEndpoint = null;
 		}
 	}

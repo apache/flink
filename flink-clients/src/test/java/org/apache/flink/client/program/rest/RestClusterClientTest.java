@@ -666,11 +666,6 @@ public class RestClusterClientTest extends TestLogger {
 
 		@Override
 		protected void startInternal() throws Exception {}
-
-		@Override
-		public void close() throws Exception {
-			shutDownAsync().get();
-		}
 	}
 
 	@FunctionalInterface

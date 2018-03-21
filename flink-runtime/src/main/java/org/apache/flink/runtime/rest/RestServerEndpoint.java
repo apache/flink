@@ -25,8 +25,8 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.RouterHandler;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
@@ -67,7 +67,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * An abstract class for netty-based REST server endpoints.
  */
-public abstract class RestServerEndpoint {
+public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -256,7 +256,8 @@ public abstract class RestServerEndpoint {
 		}
 	}
 
-	public final CompletableFuture<Void> shutDownAsync() {
+	@Override
+	public CompletableFuture<Void> closeAsync() {
 		synchronized (lock) {
 			log.info("Shutting down rest endpoint.");
 
@@ -370,12 +371,7 @@ public abstract class RestServerEndpoint {
 						});
 			});
 
-			return FutureUtils.runAfterwards(
-				channelTerminationFuture,
-				() -> {
-					log.info("Cleaning upload directory {}", uploadDir);
-					FileUtils.cleanDirectory(uploadDir.toFile());
-				});
+			return channelTerminationFuture;
 		}
 	}
 
