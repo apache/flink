@@ -764,21 +764,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	/**
-	 * Gets the accumulator results.
-	 */
-	public Map<String, Object> getAccumulators() {
-
-		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
-
-		Map<String, Object> result = new HashMap<>();
-		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
-			result.put(entry.getKey(), entry.getValue().getLocalValue());
-		}
-
-		return result;
-	}
-
-	/**
 	 * Gets a serialized accumulator map.
 	 * @return The accumulator map with serialized accumulator values.
 	 */

@@ -229,10 +229,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		return true;
 	}
 
-	public StringifiedAccumulatorResult[] getUserAccumulators() {
-		return archivedUserAccumulators;
-	}
-
+	@Override
 	public ArchivedExecutionConfig getArchivedExecutionConfig() {
 		return archivedExecutionConfig;
 	}
