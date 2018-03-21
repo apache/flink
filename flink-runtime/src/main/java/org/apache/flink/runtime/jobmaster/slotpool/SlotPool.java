@@ -69,7 +69,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -721,15 +720,6 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			if (log.isDebugEnabled()) {
 				log.debug("Unregistered slot request {} failed.", slotRequestID, failure);
 			}
-		}
-	}
-
-	private void checkTimeoutSlotAllocation(SlotRequestId slotRequestID) {
-		PendingRequest request = pendingRequests.removeKeyA(slotRequestID);
-		if (request != null) {
-			failPendingRequest(
-				request,
-				new TimeoutException("Slot allocation request " + slotRequestID + " timed out"));
 		}
 	}
 
