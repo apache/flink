@@ -111,6 +111,34 @@ function stop_cluster {
   rm $FLINK_DIR/log/*
 }
 
+function add_taskmanagers {
+  for i in {1..$1}; do
+    "$FLINK_DIR"/bin/taskmanager.sh start
+  done
+}
+
+function wait_job_running {
+  for i in {1..10}; do
+    JOB_LIST_RESULT=$("$FLINK_DIR"/bin/flink list | grep "$1")
+
+    if [[ "$JOB_LIST_RESULT" == "" ]]; then
+      echo "Job ($1) is not yet running."
+    else
+      echo "Job ($1) is running."
+      break
+    fi
+    sleep 1
+  done
+}
+
+function take_savepoint {
+  "$FLINK_DIR"/bin/flink savepoint $1 $2
+}
+
+function cancel_job {
+  "$FLINK_DIR"/bin/flink cancel $1
+}
+
 function check_result_hash {
   local name=$1
   local outfile_prefix=$2
