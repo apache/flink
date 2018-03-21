@@ -758,7 +758,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 
 		if (dispatcherRestEndpoint != null) {
-			terminationFutures.add(dispatcherRestEndpoint.shutDownAsync());
+			terminationFutures.add(dispatcherRestEndpoint.closeAsync());
 
 			dispatcherRestEndpoint = null;
 		}

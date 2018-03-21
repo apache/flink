@@ -36,7 +36,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Map;
-import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -172,7 +171,7 @@ public final class RestServerEndpointConfiguration {
 
 		final Path uploadDir = Paths.get(
 			config.getString(WebOptions.UPLOAD_DIR,	config.getString(WebOptions.TMP_DIR)),
-			"flink-web-upload-" + UUID.randomUUID());
+			"flink-web-upload");
 
 		final int maxContentLength = config.getInteger(RestOptions.REST_SERVER_MAX_CONTENT_LENGTH);
 
