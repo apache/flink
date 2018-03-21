@@ -80,7 +80,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 	 * This test ensures that transactions reusing transactional.ids (after returning to the pool) will not clash
 	 * with previous transactions using same transactional.ids.
 	 */
-	@Test(timeout = 120_000L)
+	@Test
 	public void testRestoreToCheckpointAfterExceedingProducersPool() throws Exception {
 		String topic = "flink-kafka-producer-fail-before-notify";
 
@@ -123,7 +123,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		}
 	}
 
-	@Test(timeout = 120_000L)
+	@Test
 	public void testFlinkKafkaProducer011FailBeforeNotify() throws Exception {
 		String topic = "flink-kafka-producer-fail-before-notify";
 
@@ -166,7 +166,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		deleteTestTopic(topic);
 	}
 
-	@Test(timeout = 120_000L)
+	@Test
 	public void testFlinkKafkaProducer011FailTransactionCoordinatorBeforeNotify() throws Exception {
 		String topic = "flink-kafka-producer-fail-transaction-coordinator-before-notify";
 
@@ -221,7 +221,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 	 * If such transactions were left alone lingering it consumers would be unable to read committed records
 	 * that were created after this lingering transaction.
 	 */
-	@Test(timeout = 120_000L)
+	@Test
 	public void testFailBeforeNotifyAndResumeWorkAfterwards() throws Exception {
 		String topic = "flink-kafka-producer-fail-before-notify";
 
@@ -263,7 +263,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		deleteTestTopic(topic);
 	}
 
-	@Test(timeout = 120_000L)
+	@Test
 	public void testFailAndRecoverSameCheckpointTwice() throws Exception {
 		String topic = "flink-kafka-producer-fail-and-recover-same-checkpoint-twice";
 
@@ -316,7 +316,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 	 * If such transactions were left alone lingering it consumers would be unable to read committed records
 	 * that were created after this lingering transaction.
 	 */
-	@Test(timeout = 120_000L)
+	@Test
 	public void testScaleDownBeforeFirstCheckpoint() throws Exception {
 		String topic = "scale-down-before-first-checkpoint";
 
@@ -381,7 +381,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 	 * new subtask have to generate new id(s), but he can not use ids that are potentially in use, so it has to generate
 	 * new ones that are greater then 4.
 	 */
-	@Test(timeout = 120_000L)
+	@Test
 	public void testScaleUpAfterScalingDown() throws Exception {
 		String topic = "scale-down-before-first-checkpoint";
 
