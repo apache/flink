@@ -51,6 +51,7 @@ run_test "Shaded Hadoop S3A end-to-end test" "$END_TO_END_DIR/test-scripts/test_
 run_test "Shaded Presto S3 end-to-end test" "$END_TO_END_DIR/test-scripts/test_shaded_presto_s3.sh"
 run_test "Hadoop-free Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_hadoop_free.sh"
 run_test "Distributed cache end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_distributed_cache_via_blob.sh"
+run_test "Avro end-to-end test" "$END_TO_END_DIR/test-scripts/test_avro_classloading.sh"
 
 printf "\n[PASS] All tests passed\n"
 exit 0

@@ -1,0 +1,9 @@
+{
+     "type": "record",
+     "namespace": "org.apache.flink.tests.streaming",
+     "name": "User",
+     "fields": [
+       { "name": "first", "type": "string" },
+       { "name": "last", "type": "string" }
+     ]
+}

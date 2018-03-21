@@ -1,0 +1,465 @@
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.apache.flink</groupId>
+		<artifactId>flink-end-to-end-tests</artifactId>
+		<version>1.6-SNAPSHOT</version>
+		<relativePath>..</relativePath>
+	</parent>
+
+	<artifactId>flink-avro-classloading-test_${scala.binary.version}</artifactId>
+	<name>flink-avro-classloading-test</name>
+	<packaging>jar</packaging>
+
+	<repositories>
+		<repository>
+			<id>apache.snapshots</id>
+			<name>Apache Development Snapshot Repository</name>
+			<url>https://repository.apache.org/content/repositories/snapshots/</url>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
+
+	<!--
+
+        Execute "mvn clean package -Pbuild-jar"
+        to build a jar file out of this project!
+
+        How to use the Flink Quickstart pom:
+
+        a) Adding new dependencies:
+            You can add dependencies to the list below.
+            Please check if the maven-shade-plugin below is filtering out your dependency
+            and remove the exclude from there.
+
+        b) Build a jar for running on the cluster:
+            There are two options for creating a jar from this project
+
+            b.1) "mvn clean package" -> this will create a fat jar which contains all
+                    dependencies necessary for running the jar created by this pom in a cluster.
+                    The "maven-shade-plugin" excludes everything that is provided on a running Flink cluster.
+
+            b.2) "mvn clean package -Pbuild-jar" -> This will also create a fat-jar, but with much
+                    nicer dependency exclusion handling. This approach is preferred and leads to
+                    much cleaner jar files.
+    -->
+
+	<dependencies>
+		<!-- Apache Flink dependencies -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-scala_${scala.binary.version}</artifactId>
+			<version>${project.parent.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
+			<version>${project.parent.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<version>${project.parent.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.avro</groupId>
+			<artifactId>avro</artifactId>
+			<version>${avro.version}</version>
+		</dependency>
+
+		<!-- explicitly add a standard loggin framework, as Flink does not have
+            a hard dependency on one specific framework by default -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+			<version>${log4j.version}</version>
+		</dependency>
+	</dependencies>
+
+	<profiles>
+		<profile>
+			<!-- Profile for packaging correct JAR files -->
+			<id>build-jar</id>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-scala_${scala.binary.version}</artifactId>
+					<version>${project.parent.version}</version>
+					<scope>provided</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
+					<version>${project.parent.version}</version>
+					<scope>provided</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-clients_${scala.binary.version}</artifactId>
+					<version>${project.parent.version}</version>
+					<scope>provided</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+					<version>${slf4j.version}</version>
+					<scope>provided</scope>
+				</dependency>
+				<dependency>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+					<version>${log4j.version}</version>
+					<scope>provided</scope>
+				</dependency>
+			</dependencies>
+
+			<build>
+				<plugins>
+					<!-- disable the exclusion rules -->
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-shade-plugin</artifactId>
+						<version>2.4.1</version>
+						<executions>
+							<execution>
+								<phase>package</phase>
+								<goals>
+									<goal>shade</goal>
+								</goals>
+								<configuration>
+									<artifactSet>
+										<excludes combine.self="override"></excludes>
+									</artifactSet>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
+	<!-- We use the maven-assembly plugin to create a fat jar that contains all dependencies
+        except flink and its transitive dependencies. The resulting fat-jar can be executed
+        on a cluster. Change the value of Program-Class if your program entry point changes. -->
+	<build>
+		<plugins>
+			<!-- We use the maven-shade plugin to create a fat jar that contains all dependencies
+            except flink and it's transitive dependencies. The resulting fat-jar can be executed
+            on a cluster. Change the value of Program-Class if your program entry point changes. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>2.4.1</version>
+				<executions>
+					<!-- Run shade goal on package phase -->
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<artifactSet>
+								<excludes>
+									<!-- This list contains all dependencies of flink-dist
+                                    Everything else will be packaged into the fat-jar
+                                    -->
+									<exclude>org.apache.flink:flink-annotations</exclude>
+									<exclude>org.apache.flink:flink-shaded-hadoop2</exclude>
+									<exclude>org.apache.flink:flink-shaded-curator-recipes</exclude>
+									<exclude>org.apache.flink:flink-core</exclude>
+									<exclude>org.apache.flink:flink-java</exclude>
+									<exclude>org.apache.flink:flink-scala_${scala.binary.version}
+									</exclude>
+									<exclude>
+										org.apache.flink:flink-runtime_${scala.binary.version}
+									</exclude>
+									<exclude>
+										org.apache.flink:flink-optimizer_${scala.binary.version}
+									</exclude>
+									<exclude>
+										org.apache.flink:flink-clients_${scala.binary.version}
+									</exclude>
+									<exclude>org.apache.flink:flink-avro_${scala.binary.version}
+									</exclude>
+									<exclude>
+										org.apache.flink:flink-examples-batch_${scala.binary.version}
+									</exclude>
+									<exclude>
+										org.apache.flink:flink-examples-streaming_${scala.binary.version}
+									</exclude>
+									<exclude>
+										org.apache.flink:flink-streaming-java_${scala.binary.version}
+									</exclude>
+									<exclude>
+										org.apache.flink:flink-streaming-scala_${scala.binary.version}
+									</exclude>
+									<exclude>
+										org.apache.flink:flink-scala-shell_${scala.binary.version}
+									</exclude>
+									<exclude>org.apache.flink:flink-python</exclude>
+									<exclude>org.apache.flink:flink-metrics-core</exclude>
+									<exclude>org.apache.flink:flink-metrics-jmx</exclude>
+									<exclude>
+										org.apache.flink:flink-statebackend-rocksdb_${scala.binary.version}
+									</exclude>
+
+									<!-- Also exclude very big transitive dependencies of Flink
+
+                                    WARNING: You have to remove these excludes if your code relies on other
+                                    versions of these dependencies.
+
+                                    -->
+
+									<exclude>log4j:log4j</exclude>
+									<exclude>org.scala-lang:scala-library</exclude>
+									<exclude>org.scala-lang:scala-compiler</exclude>
+									<exclude>org.scala-lang:scala-reflect</exclude>
+									<exclude>com.data-artisans:flakka-actor_*</exclude>
+									<exclude>com.data-artisans:flakka-remote_*</exclude>
+									<exclude>com.data-artisans:flakka-slf4j_*</exclude>
+									<exclude>io.netty:netty-all</exclude>
+									<exclude>io.netty:netty</exclude>
+									<exclude>commons-fileupload:commons-fileupload</exclude>
+									<!--<exclude>org.apache.avro:avro</exclude>-->
+									<exclude>commons-collections:commons-collections</exclude>
+									<exclude>com.thoughtworks.paranamer:paranamer</exclude>
+									<exclude>org.xerial.snappy:snappy-java</exclude>
+									<exclude>org.apache.commons:commons-compress</exclude>
+									<exclude>org.tukaani:xz</exclude>
+									<exclude>com.esotericsoftware.kryo:kryo</exclude>
+									<exclude>com.esotericsoftware.minlog:minlog</exclude>
+									<exclude>org.objenesis:objenesis</exclude>
+									<exclude>com.twitter:chill_*</exclude>
+									<exclude>com.twitter:chill-java</exclude>
+									<exclude>commons-lang:commons-lang</exclude>
+									<exclude>junit:junit</exclude>
+									<exclude>org.apache.commons:commons-lang3</exclude>
+									<exclude>org.slf4j:slf4j-api</exclude>
+									<exclude>org.slf4j:slf4j-log4j12</exclude>
+									<exclude>log4j:log4j</exclude>
+									<exclude>org.apache.commons:commons-math</exclude>
+									<exclude>org.apache.sling:org.apache.sling.commons.json
+									</exclude>
+									<exclude>commons-logging:commons-logging</exclude>
+									<exclude>commons-codec:commons-codec</exclude>
+									<exclude>com.fasterxml.jackson.core:jackson-core</exclude>
+									<exclude>com.fasterxml.jackson.core:jackson-databind</exclude>
+									<exclude>com.fasterxml.jackson.core:jackson-annotations
+									</exclude>
+									<exclude>stax:stax-api</exclude>
+									<exclude>com.typesafe:config</exclude>
+									<exclude>org.uncommons.maths:uncommons-maths</exclude>
+									<exclude>com.github.scopt:scopt_*</exclude>
+									<exclude>commons-io:commons-io</exclude>
+									<exclude>commons-cli:commons-cli</exclude>
+								</excludes>
+							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:*</artifact>
+									<excludes>
+										<!-- exclude shaded google but include shaded curator -->
+										<exclude>org/apache/flink/shaded/com/**</exclude>
+										<exclude>web-docs/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<!-- Do not copy the signatures in the META-INF folder.
+                                    Otherwise, this might cause SecurityExceptions when using the JAR. -->
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+									</excludes>
+								</filter>
+							</filters>
+							<transformers>
+								<transformer
+									implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>
+										org.apache.flink.tests.streaming.AvroClassLoadingTest
+									</mainClass>
+								</transformer>
+							</transformers>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.avro</groupId>
+				<artifactId>avro-maven-plugin</artifactId>
+				<version>${avro.version}</version>
+				<executions>
+					<execution>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>schema</goal>
+						</goals>
+						<configuration>
+							<sourceDirectory>${project.basedir}/src/main/avro/</sourceDirectory>
+							<outputDirectory>${project.basedir}/src/main/java/</outputDirectory>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.1</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>net.alchim31.maven</groupId>
+				<artifactId>scala-maven-plugin</artifactId>
+				<version>3.2.2</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>compile</goal>
+							<goal>testCompile</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Eclipse Integration -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-eclipse-plugin</artifactId>
+				<version>2.8</version>
+				<configuration>
+					<downloadSources>true</downloadSources>
+					<projectnatures>
+						<projectnature>org.scala-ide.sdt.core.scalanature</projectnature>
+						<projectnature>org.eclipse.jdt.core.javanature</projectnature>
+					</projectnatures>
+					<buildcommands>
+						<buildcommand>org.scala-ide.sdt.core.scalabuilder</buildcommand>
+					</buildcommands>
+					<classpathContainers>
+						<classpathContainer>org.scala-ide.sdt.launching.SCALA_CONTAINER
+						</classpathContainer>
+						<classpathContainer>org.eclipse.jdt.launching.JRE_CONTAINER
+						</classpathContainer>
+					</classpathContainers>
+					<excludes>
+						<exclude>org.scala-lang:scala-library</exclude>
+						<exclude>org.scala-lang:scala-compiler</exclude>
+					</excludes>
+					<sourceIncludes>
+						<sourceInclude>**/*.scala</sourceInclude>
+						<sourceInclude>**/*.java</sourceInclude>
+					</sourceIncludes>
+				</configuration>
+			</plugin>
+
+			<!-- Adding scala source directories to build path -->
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<version>1.7</version>
+				<executions>
+					<!-- Add src/main/scala to eclipse build path -->
+					<execution>
+						<id>add-source</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>add-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>src/main/scala</source>
+							</sources>
+						</configuration>
+					</execution>
+					<!-- Add src/test/scala to eclipse build path -->
+					<execution>
+						<id>add-test-source</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>add-test-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>src/test/scala</source>
+							</sources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<configuration>
+					<!-- The User.java file in this package is generated by avro and does not correspond to our codestyle-->
+					<excludes>org/apache/flink/tests/streaming/*</excludes>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<version>1.7</version>
+				<executions>
+					<execution>
+						<id>rename</id>
+						<phase>package</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<target>
+								<copy file="${project.basedir}/target/flink-avro-classloading-test_${scala.binary.version}-${project.version}.jar" tofile="${project.basedir}/target/AvroClassLoading.jar" />
+							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+		</plugins>
+	</build>
+</project>

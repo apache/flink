@@ -281,6 +281,7 @@ function check_logs_for_errors {
       | grep -v "An exception was thrown by an exception handler" \
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/yarn/exceptions/YarnException" \
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/conf/Configuration" \
+      | grep -v "java.lang.RuntimeException: /tmp/die exists!" \
       | grep -iq "error"; then
     echo "Found error in log files:"
     cat $FLINK_DIR/log/*
@@ -306,6 +307,7 @@ function check_logs_for_exceptions {
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/conf/Configuration" \
       | grep -v "java.lang.Exception: Execution was suspended" \
       | grep -v "Caused by: java.lang.Exception: JobManager is shutting down" \
+      | grep -v "java.lang.RuntimeException: /tmp/die exists!" \
       | grep -iq "exception"; then
     echo "Found exception in log files:"
     cat $FLINK_DIR/log/*
@@ -340,7 +342,7 @@ function wait_for_job_state_transition {
   local job=$1
   local initial_state=$2
   local next_state=$3
-    
+
   echo "Waiting for job ($job) to switch from state ${initial_state} to state ${next_state} ..."
 
   while : ; do
@@ -391,6 +393,14 @@ function take_savepoint {
 
 function cancel_job {
   "$FLINK_DIR"/bin/flink cancel $1
+}
+
+function fail_if_logs_contain {
+    if grep -rq "$1" ${FLINK_DIR}/log/
+    then
+        echo "Failing tests because the pattern '$1' was found in the log files"
+        exit 1
+    fi
 }
 
 function check_result_hash {
