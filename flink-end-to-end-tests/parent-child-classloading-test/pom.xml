@@ -30,7 +30,8 @@
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<artifactId>parent-child-classloading-test</artifactId>
+	<artifactId>flink-parent-child-classloading-test_${scala.binary.version}</artifactId>
+	<name>flink-parent-child-classloading-test</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
@@ -94,7 +95,7 @@
 						</goals>
 						<configuration>
 							<target>
-								<copy file="${project.basedir}/target/parent-child-classloading-test-${project.version}-ClassLoaderTestProgram.jar" tofile="${project.basedir}/target/ClassLoaderTestProgram.jar" />
+								<copy file="${project.basedir}/target/flink-parent-child-classloading-test_${scala.binary.version}-${project.version}-ClassLoaderTestProgram.jar" tofile="${project.basedir}/target/ClassLoaderTestProgram.jar" />
 							</target>
 						</configuration>
 					</execution>
