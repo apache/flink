@@ -266,16 +266,16 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	@Override
-	protected void shutDownApplication(
+	protected void internalDeregisterApplication(
 		ApplicationStatus finalStatus,
-		@Nullable String optionalDiagnostics) {
+		@Nullable String diagnostics) {
 
 		// first, de-register from YARN
 		FinalApplicationStatus yarnStatus = getYarnStatus(finalStatus);
 		log.info("Unregister application from the YARN Resource Manager with final status {}.", yarnStatus);
 
 		try {
-			resourceManagerClient.unregisterApplicationMaster(yarnStatus, optionalDiagnostics, "");
+			resourceManagerClient.unregisterApplicationMaster(yarnStatus, diagnostics, "");
 		} catch (Throwable t) {
 			log.error("Could not unregister the application master.", t);
 		}
