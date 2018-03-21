@@ -128,7 +128,6 @@ under the License.
 		<hamcrest.version>1.3</hamcrest.version>
 		<japicmp.skip>false</japicmp.skip>
 		<!-- run all groups except flip6 by default -->
-		<test.groups></test.groups>
 		<test.excludedGroups>org.apache.flink.testutils.category.Flip6</test.excludedGroups>
 		<codebase>old</codebase>
 		<!--
@@ -595,8 +594,12 @@ under the License.
 
 		<profile>
 			<id>flip6</id>
+			<activation>
+				<property>
+					<name>flip6</name>
+				</property>
+			</activation>
 			<properties>
-				<test.groups>org.apache.flink.testutils.category.Flip6, org.apache.flink.testutils.category.OldAndFlip6</test.groups>
 				<!-- clear the excluded groups list -->
 				<test.excludedGroups></test.excludedGroups>
 				<codebase>flip6</codebase>

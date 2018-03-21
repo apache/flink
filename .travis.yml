@@ -39,27 +39,27 @@ matrix:
     - jdk: "oraclejdk8"
       env:
         - TEST="core"
-        - PROFILE="-Dhadoop.version=2.8.3"
+        - PROFILE="-Dhadoop.version=2.8.3 -Dflip6"
         - CACHE_NAME=JDK8_H280_CO
     - jdk: "oraclejdk8"
       env:
         - TEST="libraries"
-        - PROFILE="-Dhadoop.version=2.8.3"
+        - PROFILE="-Dhadoop.version=2.8.3 -Dflip6"
         - CACHE_NAME=JDK8_H280_L
     - jdk: "oraclejdk8"
       env:
         - TEST="connectors"
-        - PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis"
+        - PROFILE="-Dhadoop.version=2.8.3 -Dflip6 -Pinclude-kinesis"
         - CACHE_NAME=JDK8_H280_CN
     - jdk: "oraclejdk8"
       env:
         - TEST="tests"
-        - PROFILE="-Dhadoop.version=2.8.3"
+        - PROFILE="-Dhadoop.version=2.8.3 -Dflip6"
         - CACHE_NAME=JDK8_H280_T
     - jdk: "oraclejdk8"
       env:
         - TEST="misc"
-        - PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws"
+        - PROFILE="-Dhadoop.version=2.8.3 -Dflip6 -Dinclude_hadoop_aws"
         - CACHE_NAME=JDK8_H280_M
     - jdk: "openjdk8"
       env:
@@ -86,16 +86,6 @@ matrix:
         - TEST="misc"
         - PROFILE="-Dhadoop.version=2.4.1"
         - CACHE_NAME=JDK8_H241_M
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="core"
-        - PROFILE="-Dhadoop.version=2.8.0 -Pflip6"
-        - CACHE_NAME=JDK8_H280_F6_CO
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="tests"
-        - PROFILE="-Dhadoop.version=2.8.0 -Pflip6"
-        - CACHE_NAME=JDK8_H280_F6_T
 
 git:
   depth: 100
