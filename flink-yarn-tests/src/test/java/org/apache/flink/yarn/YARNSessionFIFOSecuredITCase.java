@@ -29,6 +29,7 @@ import org.apache.flink.test.util.TestingSecurityContext;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
+import org.hamcrest.Matchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -102,12 +103,17 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 	@Override
 	public void testDetachedMode() throws InterruptedException, IOException {
 		super.testDetachedMode();
-		if (!verifyStringsInNamedLogFiles(
-				new String[]{"Login successful for user", "using keytab file"}, "jobmanager.log") ||
-				!verifyStringsInNamedLogFiles(
-						new String[]{"Login successful for user", "using keytab file"}, "taskmanager.log")) {
-			Assert.fail("Can not find expected strings in log files.");
-		}
+		final String[] mustHave = {"Login successful for user", "using keytab file"};
+		final boolean jobManagerRunsWithKerberos = verifyStringsInNamedLogFiles(
+			mustHave,
+			"jobmanager.log");
+		final boolean taskManagerRunsWithKerberos = verifyStringsInNamedLogFiles(
+			mustHave, "taskmanager.log");
+
+		Assert.assertThat(
+			"The JobManager and the TaskManager should both run with Kerberos.",
+			jobManagerRunsWithKerberos && taskManagerRunsWithKerberos,
+			Matchers.is(true));
 	}
 
 	/* For secure cluster testing, it is enough to run only one test and override below test methods

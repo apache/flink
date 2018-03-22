@@ -149,7 +149,9 @@ public abstract class YarnTestBase extends TestLogger {
 
 	private YarnClient yarnClient = null;
 
-	protected static org.apache.flink.configuration.Configuration flinkConfiguration;
+	private static org.apache.flink.configuration.Configuration globalConfiguration;
+
+	protected org.apache.flink.configuration.Configuration flinkConfiguration;
 
 	protected boolean flip6;
 
@@ -217,6 +219,7 @@ public abstract class YarnTestBase extends TestLogger {
 			}
 		}
 
+		flinkConfiguration = new org.apache.flink.configuration.Configuration(globalConfiguration);
 		flip6 = CoreOptions.FLIP6_MODE.equalsIgnoreCase(flinkConfiguration.getString(CoreOptions.MODE));
 	}
 
@@ -512,23 +515,24 @@ public abstract class YarnTestBase extends TestLogger {
 
 			File flinkConfDirPath = findFile(flinkDistRootDir, new ContainsName(new String[]{"flink-conf.yaml"}));
 			Assert.assertNotNull(flinkConfDirPath);
-			flinkConfiguration =
-					GlobalConfiguration.loadConfiguration();
+
+			final String confDirPath = flinkConfDirPath.getParentFile().getAbsolutePath();
+			globalConfiguration = GlobalConfiguration.loadConfiguration(confDirPath);
 
 			if (!StringUtils.isBlank(principal) && !StringUtils.isBlank(keytab)) {
 
 				//copy conf dir to test temporary workspace location
 				tempConfPathForSecureRun = tmp.newFolder("conf");
 
-				String confDirPath = flinkConfDirPath.getParentFile().getAbsolutePath();
 				FileUtils.copyDirectory(new File(confDirPath), tempConfPathForSecureRun);
 
-				flinkConfiguration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB.key(), keytab);
-				flinkConfiguration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(), principal);
-				flinkConfiguration.setString(CoreOptions.MODE.key(), OLD_MODE);
+				globalConfiguration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB.key(), keytab);
+				globalConfiguration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(), principal);
+				globalConfiguration.setString(CoreOptions.MODE.key(), OLD_MODE);
 
-				BootstrapTools.writeConfiguration(flinkConfiguration,
-						new File(tempConfPathForSecureRun, "flink-conf.yaml"));
+				BootstrapTools.writeConfiguration(
+					globalConfiguration,
+					new File(tempConfPathForSecureRun, "flink-conf.yaml"));
 
 				String configDir = tempConfPathForSecureRun.getAbsolutePath();
 
