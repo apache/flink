@@ -20,6 +20,7 @@ package org.apache.flink.optimizer.traversals;
 
 import org.apache.flink.optimizer.dag.BinaryUnionNode;
 import org.apache.flink.optimizer.dag.DagConnection;
+import org.apache.flink.optimizer.dag.IterationNode;
 import org.apache.flink.optimizer.dag.OptimizerNode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Visitor;
@@ -43,6 +44,11 @@ public class UnionForwardEnforcer implements Visitor<OptimizerNode> {
 			for (DagConnection conn : node.getOutgoingConnections()) {
 				conn.setShipStrategy(ShipStrategyType.FORWARD);
 			}
+		}
+
+		// if required, recurse into the step function
+		if (node instanceof IterationNode) {
+			((IterationNode) node).acceptForStepFunction(this);
 		}
 	}
 }
