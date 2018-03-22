@@ -78,7 +78,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
 	@Test(timeout = 60000)
 	public void testFlinkContainerMemory() throws Exception {
 		final YarnClient yarnClient = getYarnClient();
-		final Configuration configuration = new Configuration(flinkConfiguration.clone());
+		final Configuration configuration = new Configuration(flinkConfiguration);
 
 		final int masterMemory = 64;
 		final int taskManagerMemory = 128;
