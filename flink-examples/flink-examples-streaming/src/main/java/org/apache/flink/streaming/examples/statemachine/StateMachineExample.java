@@ -108,7 +108,7 @@ public class StateMachineExample {
 		alerts.print();
 
 		// trigger program execution
-		env.execute();
+		env.execute("State machine job");
 	}
 
 	// ------------------------------------------------------------------------

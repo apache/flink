@@ -111,12 +111,6 @@ function stop_cluster {
   rm $FLINK_DIR/log/*
 }
 
-function add_taskmanagers {
-  for i in {1..$1}; do
-    "$FLINK_DIR"/bin/taskmanager.sh start
-  done
-}
-
 function wait_job_running {
   for i in {1..10}; do
     JOB_LIST_RESULT=$("$FLINK_DIR"/bin/flink list | grep "$1")
