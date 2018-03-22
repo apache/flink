@@ -49,6 +49,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.yarn.UtilsTest.addTestAppender;
 import static org.apache.flink.yarn.UtilsTest.checkForLogString;
@@ -106,8 +107,16 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			}
 		}
 
-		//additional sleep for the JM/TM to start and establish connection
-		sleep(2000);
+		// additional sleep for the JM/TM to start and establish connection
+		long startTime = System.nanoTime();
+		while (System.nanoTime() - startTime < TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS) &&
+				!(verifyStringsInNamedLogFiles(
+						new String[]{"YARN Application Master started"}, "jobmanager.log") &&
+						verifyStringsInNamedLogFiles(
+								new String[]{"Starting TaskManager actor"}, "taskmanager.log"))) {
+			LOG.info("Still waiting for JM/TM to initialize...");
+			sleep(500);
+		}
 		LOG.info("Two containers are running. Killing the application");
 
 		// kill application "externally".
