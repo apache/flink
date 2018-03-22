@@ -90,7 +90,7 @@ public class RescalingITCase extends TestLogger {
 	private static final int slotsPerTaskManager = 2;
 	private static final int numSlots = numTaskManagers * slotsPerTaskManager;
 
-	@Parameterized.Parameters
+	@Parameterized.Parameters(name = "backend = {0}")
 	public static Object[] data() {
 		return new Object[]{"filesystem", "rocksdb"};
 	}
