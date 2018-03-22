@@ -26,26 +26,32 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Visitor;
 
 /**
- * Enforces that the outgoing connections of all union nodes are forward ship strategies.
+ * Enforces that all union nodes have the same parallelism as their successor (there must be only one!)
+ * and that the union node and its successor are connected by a forward ship strategy.
  */
-public class UnionForwardEnforcer implements Visitor<OptimizerNode> {
+public class UnionParallelismAndForwardEnforcer implements Visitor<OptimizerNode> {
 
 	@Override
 	public boolean preVisit(OptimizerNode node) {
+
+		// if the current node is a union
+		if (node instanceof BinaryUnionNode) {
+			int parallelism = -1;
+			// set ship strategy of all outgoing connections to FORWARD.
+			for (DagConnection conn : node.getOutgoingConnections()) {
+				parallelism = conn.getTarget().getParallelism();
+				conn.setShipStrategy(ShipStrategyType.FORWARD);
+			}
+			// adjust parallelism to be same as successor
+			node.setParallelism(parallelism);
+		}
+
 		// traverse the whole plan
 		return true;
 	}
 
 	@Override
 	public void postVisit(OptimizerNode node) {
-		// if the current node is a union
-		if (node instanceof BinaryUnionNode) {
-			// set ship strategy of all outgoing connections to FORWARD.
-			for (DagConnection conn : node.getOutgoingConnections()) {
-				conn.setShipStrategy(ShipStrategyType.FORWARD);
-			}
-		}
-
 		// if required, recurse into the step function
 		if (node instanceof IterationNode) {
 			((IterationNode) node).acceptForStepFunction(this);
