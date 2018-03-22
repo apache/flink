@@ -36,68 +36,56 @@ import static org.junit.Assert.*;
 public class SerializedJobExecutionResultTest {
 
 	@Test
-	public void testSerialization() {
-		try {
-			final ClassLoader classloader = getClass().getClassLoader();
+	public void testSerialization() throws Exception {
+		final ClassLoader classloader = getClass().getClassLoader();
 
-			JobID origJobId = new JobID();
-			long origTime = 65927436589267L;
+		JobID origJobId = new JobID();
+		long origTime = 65927436589267L;
 
-			Map<String, SerializedValue<Object>> origMap = new HashMap<String, SerializedValue<Object>>();
-			origMap.put("name1", new SerializedValue<Object>(723L));
-			origMap.put("name2", new SerializedValue<Object>("peter"));
+		Map<String, SerializedValue<Object>> origMap = new HashMap<String, SerializedValue<Object>>();
+		origMap.put("name1", new SerializedValue<Object>(723L));
+		origMap.put("name2", new SerializedValue<Object>("peter"));
 
-			SerializedJobExecutionResult result = new SerializedJobExecutionResult(origJobId, origTime, origMap);
+		SerializedJobExecutionResult result = new SerializedJobExecutionResult(origJobId, origTime, origMap);
 
-			// serialize and deserialize the object
-			SerializedJobExecutionResult cloned = CommonTestUtils.createCopySerializable(result);
+		// serialize and deserialize the object
+		SerializedJobExecutionResult cloned = CommonTestUtils.createCopySerializable(result);
 
-			assertEquals(origJobId, cloned.getJobId());
-			assertEquals(origTime, cloned.getNetRuntime());
-			assertEquals(origTime, cloned.getNetRuntime(TimeUnit.MILLISECONDS));
-			assertEquals(origMap, cloned.getSerializedAccumulatorResults());
+		assertEquals(origJobId, cloned.getJobId());
+		assertEquals(origTime, cloned.getNetRuntime());
+		assertEquals(origTime, cloned.getNetRuntime(TimeUnit.MILLISECONDS));
+		assertEquals(origMap, cloned.getSerializedAccumulatorResults());
 
-			// convert to deserialized result
-			JobExecutionResult jResult = result.toJobExecutionResult(classloader);
-			JobExecutionResult jResultCopied = result.toJobExecutionResult(classloader);
+		// convert to deserialized result
+		JobExecutionResult jResult = result.toJobExecutionResult(classloader);
+		JobExecutionResult jResultCopied = result.toJobExecutionResult(classloader);
 
-			assertEquals(origJobId, jResult.getJobID());
-			assertEquals(origJobId, jResultCopied.getJobID());
-			assertEquals(origTime, jResult.getNetRuntime());
-			assertEquals(origTime, jResult.getNetRuntime(TimeUnit.MILLISECONDS));
-			assertEquals(origTime, jResultCopied.getNetRuntime());
-			assertEquals(origTime, jResultCopied.getNetRuntime(TimeUnit.MILLISECONDS));
+		assertEquals(origJobId, jResult.getJobID());
+		assertEquals(origJobId, jResultCopied.getJobID());
+		assertEquals(origTime, jResult.getNetRuntime());
+		assertEquals(origTime, jResult.getNetRuntime(TimeUnit.MILLISECONDS));
+		assertEquals(origTime, jResultCopied.getNetRuntime());
+		assertEquals(origTime, jResultCopied.getNetRuntime(TimeUnit.MILLISECONDS));
 
-			for (Map.Entry<String, SerializedValue<Object>> entry : origMap.entrySet()) {
-				String name = entry.getKey();
-				Object value = entry.getValue().deserializeValue(classloader);
-				assertEquals(value, jResult.getAccumulatorResult(name));
-				assertEquals(value, jResultCopied.getAccumulatorResult(name));
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+		for (Map.Entry<String, SerializedValue<Object>> entry : origMap.entrySet()) {
+			String name = entry.getKey();
+			Object value = entry.getValue().deserializeValue(classloader);
+			assertEquals(value, jResult.getAccumulatorResult(name));
+			assertEquals(value, jResultCopied.getAccumulatorResult(name));
 		}
 	}
 
 	@Test
-	public void testSerializationWithNullValues() {
-		try {
-			SerializedJobExecutionResult result = new SerializedJobExecutionResult(null, 0L, null);
-			SerializedJobExecutionResult cloned = CommonTestUtils.createCopySerializable(result);
+	public void testSerializationWithNullValues() throws Exception {
+		SerializedJobExecutionResult result = new SerializedJobExecutionResult(null, 0L, null);
+		SerializedJobExecutionResult cloned = CommonTestUtils.createCopySerializable(result);
 
-			assertNull(cloned.getJobId());
-			assertEquals(0L, cloned.getNetRuntime());
-			assertNull(cloned.getSerializedAccumulatorResults());
+		assertNull(cloned.getJobId());
+		assertEquals(0L, cloned.getNetRuntime());
+		assertNull(cloned.getSerializedAccumulatorResults());
 
-			JobExecutionResult jResult = result.toJobExecutionResult(getClass().getClassLoader());
-			assertNull(jResult.getJobID());
-			assertTrue(jResult.getAllAccumulatorResults().isEmpty());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		JobExecutionResult jResult = result.toJobExecutionResult(getClass().getClassLoader());
+		assertNull(jResult.getJobID());
+		assertTrue(jResult.getAllAccumulatorResults().isEmpty());
 	}
 }
