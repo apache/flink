@@ -159,10 +159,11 @@ class TaskMonitor(
         case TASK_RUNNING =>
           LOG.info(s"Mesos task ${goal.taskID.getValue} is running.")
           goto(Running)
-        case TASK_FINISHED | TASK_LOST | TASK_FAILED | TASK_KILLED | TASK_KILLING | TASK_ERROR =>
+        case TASK_FINISHED | TASK_LOST | TASK_FAILED | TASK_KILLED | TASK_ERROR =>
           LOG.warn(s"Mesos task ${goal.taskID.getValue} failed unexpectedly.")
           context.parent ! TaskTerminated(goal.taskID, msg.status())
           stop()
+        case TASK_KILLING => stay()
       }
 
     case Event(msg: StatusUpdate, StateData(goal: Released)) =>
@@ -171,10 +172,11 @@ class TaskMonitor(
         case TASK_STAGING | TASK_STARTING | TASK_RUNNING =>
           LOG.info(s"Mesos task ${goal.taskID.getValue} is running unexpectedly; killing.")
           goto(Killing)
-        case TASK_FINISHED | TASK_LOST | TASK_FAILED | TASK_KILLED | TASK_KILLING | TASK_ERROR =>
+        case TASK_FINISHED | TASK_LOST | TASK_FAILED | TASK_KILLED | TASK_ERROR =>
           LOG.info(s"Mesos task ${goal.taskID.getValue} exited as planned.")
           context.parent ! TaskTerminated(goal.taskID, msg.status())
           stop()
+        case TASK_KILLING => stay()
       }
   }
 
