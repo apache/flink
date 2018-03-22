@@ -20,8 +20,6 @@ package org.apache.flink.api.common.state;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-import java.util.List;
-
 /**
  * {@link State} interface for partitioned list state in Operations.
  * The state is accessed and modified by user functions, and checkpointed consistently
@@ -48,7 +46,7 @@ public interface ListState<T> extends MergingState<T, Iterable<T>> {
 	 *
 	 * @throws Exception The method may forward exception thrown internally (by I/O or functions).
 	 */
-	void update(List<T> values) throws Exception;
+	void update(Iterable<T> values) throws Exception;
 
 	/**
 	 * Updates the operator state accessible by {@link #get()} by adding the given values
@@ -61,5 +59,5 @@ public interface ListState<T> extends MergingState<T, Iterable<T>> {
 	 *
 	 * @throws Exception The method may forward exception thrown internally (by I/O or functions).
 	 */
-	void addAll(List<T> values) throws Exception;
+	void addAll(Iterable<T> values) throws Exception;
 }

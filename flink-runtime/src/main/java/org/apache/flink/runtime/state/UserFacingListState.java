@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.state.ListState;
 
 import java.util.Collections;
-import java.util.List;
 
 /**
  * Simple wrapper list state that exposes empty state properly as an empty list.
@@ -57,12 +56,12 @@ class UserFacingListState<T> implements ListState<T> {
 	}
 
 	@Override
-	public void update(List<T> values) throws Exception {
+	public void update(Iterable<T> values) throws Exception {
 		originalState.update(values);
 	}
 
 	@Override
-	public void addAll(List<T> values) throws Exception {
+	public void addAll(Iterable<T> values) throws Exception {
 		originalState.addAll(values);
 	}
 }

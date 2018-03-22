@@ -691,17 +691,19 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		}
 
 		@Override
-		public void update(List<S> values) throws Exception {
+		public void update(Iterable<S> values) {
 			internalList.clear();
 
 			addAll(values);
 		}
 
 		@Override
-		public void addAll(List<S> values) throws Exception {
-			if (values != null && !values.isEmpty()) {
-				internalList.addAll(values);
+		public void addAll(Iterable<S> values) {
+			for (S v : values) {
+				Preconditions.checkNotNull(v, "You cannot add null to a ListState.");
+				internalList.add(v);
 			}
+
 		}
 	}
 

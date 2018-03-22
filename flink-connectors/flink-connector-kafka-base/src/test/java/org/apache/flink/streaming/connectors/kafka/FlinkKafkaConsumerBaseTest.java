@@ -717,18 +717,20 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 
 		@Override
-		public void update(List<T> values) throws Exception {
+		public void update(Iterable<T> values) throws Exception {
 			clear();
 
 			addAll(values);
 		}
 
 		@Override
-		public void addAll(List<T> values) throws Exception {
+		public void addAll(Iterable<T> values) throws Exception {
 			if (values != null) {
 				values.forEach(v -> Preconditions.checkNotNull(v, "You cannot add null to a ListState."));
 
-				list.addAll(values);
+				for (T v : values) {
+					list.add(v);
+				}
 			}
 		}
 	}

@@ -20,8 +20,6 @@ package org.apache.flink.runtime.state.internal;
 
 import org.apache.flink.api.common.state.ListState;
 
-import java.util.List;
-
 /**
  * The peer to the {@link ListState} in the internal state type hierarchy.
  * 
@@ -42,7 +40,7 @@ public interface InternalListState<N, T> extends InternalMergingState<N, T, Iter
 	 *
 	 * @throws Exception The method may forward exception thrown internally (by I/O or functions).
 	 */
-	void update(List<T> values) throws Exception;
+	void update(Iterable<T> values) throws Exception;
 
 	/**
 	 * Updates the operator state accessible by {@link #get()} by adding the given values
@@ -55,5 +53,5 @@ public interface InternalListState<N, T> extends InternalMergingState<N, T, Iter
 	 *
 	 * @throws Exception The method may forward exception thrown internally (by I/O or functions).
 	 */
-	void addAll(List<T> values) throws Exception;
+	void addAll(Iterable<T> values) throws Exception;
 }

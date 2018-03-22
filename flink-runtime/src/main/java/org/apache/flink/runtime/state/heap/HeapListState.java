@@ -120,13 +120,8 @@ public class HeapListState<K, N, V>
 	}
 
 	@Override
-	public void update(List<V> values) throws Exception {
+	public void update(Iterable<V> values) {
 		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
-
-		if (values.isEmpty()) {
-			clear();
-			return;
-		}
 
 		List<V> newStateList = new ArrayList<>();
 		for (V v : values) {
@@ -134,24 +129,26 @@ public class HeapListState<K, N, V>
 			newStateList.add(v);
 		}
 
-		stateTable.put(currentNamespace, newStateList);
+		if (newStateList.isEmpty()) {
+			clear();
+		} else {
+			stateTable.put(currentNamespace, newStateList);
+		}
 	}
 
 	@Override
-	public void addAll(List<V> values) throws Exception {
+	public void addAll(Iterable<V> values) throws Exception {
 		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
 
-		if (!values.isEmpty()) {
-			stateTable.transform(currentNamespace, values, (previousState, value) -> {
-				if (previousState == null) {
-					previousState = new ArrayList<>();
-				}
-				for (V v : value) {
-					Preconditions.checkNotNull(v, "You cannot add null to a ListState.");
-					previousState.add(v);
-				}
-				return previousState;
-			});
-		}
+		stateTable.transform(currentNamespace, values, (previousState, value) -> {
+			if (previousState == null) {
+				previousState = new ArrayList<>();
+			}
+			for (V v : value) {
+				Preconditions.checkNotNull(v, "You cannot add null to a ListState.");
+				previousState.add(v);
+			}
+			return previousState;
+		});
 	}
 }

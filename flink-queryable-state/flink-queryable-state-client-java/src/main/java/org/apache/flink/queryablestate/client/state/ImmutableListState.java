@@ -69,12 +69,12 @@ public final class ImmutableListState<V> extends ImmutableState implements ListS
 	}
 
 	@Override
-	public void update(List<V> values) throws Exception {
+	public void update(Iterable<V> values) throws Exception {
 		throw MODIFICATION_ATTEMPT_ERROR;
 	}
 
 	@Override
-	public void addAll(List<V> values) throws Exception {
+	public void addAll(Iterable<V> values) throws Exception {
 		throw MODIFICATION_ATTEMPT_ERROR;
 	}
 }

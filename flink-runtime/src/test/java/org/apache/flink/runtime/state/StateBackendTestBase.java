@@ -1353,7 +1353,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 	/**
 	 * This test verifies that all ListState implementations are consistent in not allowing
-	 * {@link ListState#addAll(List)} to be called with {@code null} entries in the list of entries
+	 * {@link ListState#addAll(Iterable)} to be called with {@code null} entries in the list of entries
 	 * to add.
 	 */
 	@Test
@@ -1387,7 +1387,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 	/**
 	 * This test verifies that all ListState implementations are consistent in not allowing
-	 * {@link ListState#addAll(List)} to be called with {@code null}.
+	 * {@link ListState#addAll(Iterable)} to be called with {@code null}.
 	 */
 	@Test
 	public void testListStateAddAllNull() throws Exception {
@@ -1415,7 +1415,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 	/**
 	 * This test verifies that all ListState implementations are consistent in not allowing
-	 * {@link ListState#addAll(List)} to be called with {@code null} entries in the list of entries
+	 * {@link ListState#addAll(Iterable)} to be called with {@code null} entries in the list of entries
 	 * to add.
 	 */
 	@Test
@@ -1449,7 +1449,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 	/**
 	 * This test verifies that all ListState implementations are consistent in not allowing
-	 * {@link ListState#addAll(List)} to be called with {@code null}.
+	 * {@link ListState#addAll(Iterable)} to be called with {@code null}.
 	 */
 	@Test
 	public void testListStateUpdateNull() throws Exception {
