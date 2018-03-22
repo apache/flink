@@ -19,26 +19,17 @@
 package org.apache.flink.api.common.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link ReducingStateDescriptor}.
@@ -46,10 +37,9 @@ import static org.mockito.Mockito.when;
 public class ReducingStateDescriptorTest extends TestLogger {
 
 	@Test
-	public void testValueStateDescriptorEagerSerializer() throws Exception {
+	public void testReducingStateDescriptor() throws Exception {
 
-		@SuppressWarnings("unchecked")
-		ReduceFunction<String> reducer = mock(ReduceFunction.class);
+		ReduceFunction<String> reducer = (a, b) -> a;
 
 		TypeSerializer<String> serializer = new KryoSerializer<>(String.class, new ExecutionConfig());
 
@@ -59,6 +49,7 @@ public class ReducingStateDescriptorTest extends TestLogger {
 		assertEquals("testName", descr.getName());
 		assertNotNull(descr.getSerializer());
 		assertEquals(serializer, descr.getSerializer());
+		assertEquals(reducer, descr.getReduceFunction());
 
 		ReducingStateDescriptor<String> copy = CommonTestUtils.createCopySerializable(descr);
 
@@ -68,73 +59,30 @@ public class ReducingStateDescriptorTest extends TestLogger {
 	}
 
 	@Test
-	public void testValueStateDescriptorLazySerializer() throws Exception {
+	public void testHashCodeEquals() throws Exception {
+		final String name = "testName";
+		final ReduceFunction<String> reducer = (a, b) -> a;
 
-		@SuppressWarnings("unchecked")
-		ReduceFunction<Path> reducer = mock(ReduceFunction.class);
+		ReducingStateDescriptor<String> original = new ReducingStateDescriptor<>(name, reducer, String.class);
+		ReducingStateDescriptor<String> same = new ReducingStateDescriptor<>(name, reducer, String.class);
+		ReducingStateDescriptor<String> sameBySerializer = new ReducingStateDescriptor<>(name, reducer, StringSerializer.INSTANCE);
 
-		// some different registered value
-		ExecutionConfig cfg = new ExecutionConfig();
-		cfg.registerKryoType(TaskInfo.class);
+		// test that hashCode() works on state descriptors with initialized and uninitialized serializers
+		assertEquals(original.hashCode(), same.hashCode());
+		assertEquals(original.hashCode(), sameBySerializer.hashCode());
 
-		ReducingStateDescriptor<Path> descr =
-				new ReducingStateDescriptor<>("testName", reducer, Path.class);
+		assertEquals(original, same);
+		assertEquals(original, sameBySerializer);
 
-		try {
-			descr.getSerializer();
-			fail("should cause an exception");
-		} catch (IllegalStateException ignored) {}
+		// equality with a clone
+		ReducingStateDescriptor<String> clone = CommonTestUtils.createCopySerializable(original);
+		assertEquals(original, clone);
 
-		descr.initializeSerializerUnlessSet(cfg);
+		// equality with an initialized
+		clone.initializeSerializerUnlessSet(new ExecutionConfig());
+		assertEquals(original, clone);
 
-		assertNotNull(descr.getSerializer());
-		assertTrue(descr.getSerializer() instanceof KryoSerializer);
-
-		assertTrue(((KryoSerializer<?>) descr.getSerializer()).getKryo().getRegistration(TaskInfo.class).getId() > 0);
+		original.initializeSerializerUnlessSet(new ExecutionConfig());
+		assertEquals(original, same);
 	}
-
-	@Test
-	public void testValueStateDescriptorAutoSerializer() throws Exception {
-
-		@SuppressWarnings("unchecked")
-		ReduceFunction<String> reducer = mock(ReduceFunction.class);
-
-		ReducingStateDescriptor<String> descr =
-				new ReducingStateDescriptor<>("testName", reducer, String.class);
-
-		ReducingStateDescriptor<String> copy = CommonTestUtils.createCopySerializable(descr);
-
-		assertEquals("testName", copy.getName());
-		assertNotNull(copy.getSerializer());
-		assertEquals(StringSerializer.INSTANCE, copy.getSerializer());
-	}
-
-	/**
-	 * FLINK-6775.
-	 *
-	 * <p>Tests that the returned serializer is duplicated. This allows to
-	 * share the state descriptor.
-	 */
-	@SuppressWarnings("unchecked")
-	@Test
-	public void testSerializerDuplication() {
-		TypeSerializer<String> statefulSerializer = mock(TypeSerializer.class);
-		when(statefulSerializer.duplicate()).thenAnswer(new Answer<TypeSerializer<String>>() {
-			@Override
-			public TypeSerializer<String> answer(InvocationOnMock invocation) throws Throwable {
-				return mock(TypeSerializer.class);
-			}
-		});
-
-		ReduceFunction<String> reducer = mock(ReduceFunction.class);
-
-		ReducingStateDescriptor<String> descr = new ReducingStateDescriptor<>("foobar", reducer, statefulSerializer);
-
-		TypeSerializer<String> serializerA = descr.getSerializer();
-		TypeSerializer<String> serializerB = descr.getSerializer();
-
-		// check that the retrieved serializers are not the same
-		assertNotSame(serializerA, serializerB);
-	}
-
 }

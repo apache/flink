@@ -19,28 +19,17 @@
 package org.apache.flink.api.common.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
-import java.io.File;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link ValueStateDescriptor}.
@@ -48,67 +37,30 @@ import static org.mockito.Mockito.when;
 public class ValueStateDescriptorTest extends TestLogger {
 
 	@Test
-	public void testValueStateDescriptorEagerSerializer() throws Exception {
+	public void testHashCodeEquals() throws Exception {
+		final String name = "testName";
 
-		TypeSerializer<String> serializer = new KryoSerializer<>(String.class, new ExecutionConfig());
-		String defaultValue = "le-value-default";
+		ValueStateDescriptor<String> original = new ValueStateDescriptor<>(name, String.class);
+		ValueStateDescriptor<String> same = new ValueStateDescriptor<>(name, String.class);
+		ValueStateDescriptor<String> sameBySerializer = new ValueStateDescriptor<>(name, StringSerializer.INSTANCE);
 
-		ValueStateDescriptor<String> descr =
-				new ValueStateDescriptor<>("testName", serializer, defaultValue);
+		// test that hashCode() works on state descriptors with initialized and uninitialized serializers
+		assertEquals(original.hashCode(), same.hashCode());
+		assertEquals(original.hashCode(), sameBySerializer.hashCode());
 
-		assertEquals("testName", descr.getName());
-		assertEquals(defaultValue, descr.getDefaultValue());
-		assertNotNull(descr.getSerializer());
-		assertEquals(serializer, descr.getSerializer());
+		assertEquals(original, same);
+		assertEquals(original, sameBySerializer);
 
-		ValueStateDescriptor<String> copy = CommonTestUtils.createCopySerializable(descr);
+		// equality with a clone
+		ValueStateDescriptor<String> clone = CommonTestUtils.createCopySerializable(original);
+		assertEquals(original, clone);
 
-		assertEquals("testName", copy.getName());
-		assertEquals(defaultValue, copy.getDefaultValue());
-		assertNotNull(copy.getSerializer());
-		assertEquals(serializer, copy.getSerializer());
-	}
+		// equality with an initialized
+		clone.initializeSerializerUnlessSet(new ExecutionConfig());
+		assertEquals(original, clone);
 
-	@Test
-	public void testValueStateDescriptorLazySerializer() throws Exception {
-
-		// some default value that goes to the generic serializer
-		Path defaultValue = new Path(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).toURI());
-
-		// some different registered value
-		ExecutionConfig cfg = new ExecutionConfig();
-		cfg.registerKryoType(TaskInfo.class);
-
-		ValueStateDescriptor<Path> descr =
-				new ValueStateDescriptor<>("testName", Path.class, defaultValue);
-
-		try {
-			descr.getSerializer();
-			fail("should cause an exception");
-		} catch (IllegalStateException ignored) {}
-
-		descr.initializeSerializerUnlessSet(cfg);
-
-		assertNotNull(descr.getSerializer());
-		assertTrue(descr.getSerializer() instanceof KryoSerializer);
-
-		assertTrue(((KryoSerializer<?>) descr.getSerializer()).getKryo().getRegistration(TaskInfo.class).getId() > 0);
-	}
-
-	@Test
-	public void testValueStateDescriptorAutoSerializer() throws Exception {
-
-		String defaultValue = "le-value-default";
-
-		ValueStateDescriptor<String> descr =
-				new ValueStateDescriptor<>("testName", String.class, defaultValue);
-
-		ValueStateDescriptor<String> copy = CommonTestUtils.createCopySerializable(descr);
-
-		assertEquals("testName", copy.getName());
-		assertEquals(defaultValue, copy.getDefaultValue());
-		assertNotNull(copy.getSerializer());
-		assertEquals(StringSerializer.INSTANCE, copy.getSerializer());
+		original.initializeSerializerUnlessSet(new ExecutionConfig());
+		assertEquals(original, same);
 	}
 
 	@Test
@@ -138,31 +90,5 @@ public class ValueStateDescriptorTest extends TestLogger {
 		assertEquals(defaultValue, copy.getDefaultValue());
 		assertNotNull(copy.getSerializer());
 		assertEquals(serializer, copy.getSerializer());
-	}
-
-	/**
-	 * FLINK-6775.
-	 *
-	 * <p>Tests that the returned serializer is duplicated. This allows to
-	 * share the state descriptor.
-	 */
-	@SuppressWarnings("unchecked")
-	@Test
-	public void testSerializerDuplication() {
-		TypeSerializer<String> statefulSerializer = mock(TypeSerializer.class);
-		when(statefulSerializer.duplicate()).thenAnswer(new Answer<TypeSerializer<String>>() {
-			@Override
-			public TypeSerializer<String> answer(InvocationOnMock invocation) throws Throwable {
-				return mock(TypeSerializer.class);
-			}
-		});
-
-		ValueStateDescriptor<String> descr = new ValueStateDescriptor<>("foobar", statefulSerializer);
-
-		TypeSerializer<String> serializerA = descr.getSerializer();
-		TypeSerializer<String> serializerB = descr.getSerializer();
-
-		// check that the retrieved serializers are not the same
-		assertNotSame(serializerA, serializerB);
 	}
 }
