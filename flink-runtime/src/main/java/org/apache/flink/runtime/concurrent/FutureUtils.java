@@ -750,7 +750,7 @@ public class FutureUtils {
 
 		scalaFuture.onComplete(new OnComplete<T>() {
 			@Override
-			public void onComplete(Throwable failure, T success) throws Throwable {
+			public void onComplete(Throwable failure, T success) {
 				if (failure != null) {
 					result.completeExceptionally(failure);
 				} else {
