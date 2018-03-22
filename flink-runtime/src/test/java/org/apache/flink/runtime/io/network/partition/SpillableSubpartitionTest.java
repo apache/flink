@@ -34,6 +34,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -74,7 +75,12 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	private static final ExecutorService executorService = Executors.newCachedThreadPool();
 
 	/** Asynchronous I/O manager. */
-	private static final IOManager ioManager = new IOManagerAsync();
+	private static IOManager ioManager;
+
+	@BeforeClass
+	public static void setup() {
+		ioManager = new IOManagerAsync();
+	}
 
 	@AfterClass
 	public static void shutdown() {
