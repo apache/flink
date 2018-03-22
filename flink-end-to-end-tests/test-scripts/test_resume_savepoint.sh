@@ -17,11 +17,25 @@
 # limitations under the License.
 ################################################################################
 
+if [ -z $1 ] || [ -z $2 ]; then
+  echo "Usage: ./test_resume_savepoint.sh <original_dop> <new_dop>"
+  exit 1
+fi
+
 source "$(dirname "$0")"/common.sh
 
-# modify configuration to have 2 slots
+ORIGINAL_DOP=$1
+NEW_DOP=$2
+
+if (( $ORIGINAL_DOP >= $NEW_DOP )); then
+  NUM_SLOTS=$(( $ORIGINAL_DOP + 1 ))
+else
+  NUM_SLOTS=$(( $NEW_DOP + 1 ))
+fi
+
+# modify configuration to have enough slots
 cp $FLINK_DIR/conf/flink-conf.yaml $FLINK_DIR/conf/flink-conf.yaml.bak
-sed -i -e 's/taskmanager.numberOfTaskSlots: 1/taskmanager.numberOfTaskSlots: 2/' $FLINK_DIR/conf/flink-conf.yaml
+sed -i -e "s/taskmanager.numberOfTaskSlots: 1/taskmanager.numberOfTaskSlots: $NUM_SLOTS/" $FLINK_DIR/conf/flink-conf.yaml
 
 # modify configuration to use SLF4J reporter; we will be using this to monitor the state machine progress
 cp $FLINK_DIR/opt/flink-metrics-slf4j-1.6-SNAPSHOT.jar $FLINK_DIR/lib/
@@ -77,7 +91,7 @@ done
 $KAFKA_DIR/bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic test-input
 
 # run the state machine example job
-STATE_MACHINE_JOB=$($FLINK_DIR/bin/flink run -d $FLINK_DIR/examples/streaming/StateMachineExample.jar \
+STATE_MACHINE_JOB=$($FLINK_DIR/bin/flink run -d -p $ORIGINAL_DOP $FLINK_DIR/examples/streaming/StateMachineExample.jar \
   --kafka-topic test-input \
   | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
@@ -126,7 +140,7 @@ cancel_job $STATE_MACHINE_JOB
 OLD_NUM_METRICS=$(get_num_metric_samples)
 
 # resume state machine job with savepoint
-STATE_MACHINE_JOB=$($FLINK_DIR/bin/flink run -s $SAVEPOINT_PATH -d $FLINK_DIR/examples/streaming/StateMachineExample.jar \
+STATE_MACHINE_JOB=$($FLINK_DIR/bin/flink run -s $SAVEPOINT_PATH -p $NEW_DOP -d $FLINK_DIR/examples/streaming/StateMachineExample.jar \
   --kafka-topic test-input \
   | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
