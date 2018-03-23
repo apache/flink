@@ -69,6 +69,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * The constant to use for the parallelism, if the system should use the number
 	 * of currently available slots.
 	 */
+	@Deprecated
 	public static final int PARALLELISM_AUTO_MAX = Integer.MAX_VALUE;
 
 	/**
