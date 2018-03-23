@@ -20,7 +20,6 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -106,13 +105,7 @@ public class ResourceManagerRunner implements FatalErrorHandler, AutoCloseableAs
 		synchronized (lock) {
 			resourceManager.shutDown();
 
-			return FutureUtils.runAfterwards(
-				resourceManager.getTerminationFuture(),
-				() -> {
-					synchronized (lock) {
-						resourceManagerRuntimeServices.shutDown();
-					}
-				});
+			return resourceManager.getTerminationFuture();
 		}
 	}
 
