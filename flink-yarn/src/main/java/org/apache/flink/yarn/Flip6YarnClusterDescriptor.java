@@ -75,6 +75,7 @@ public class Flip6YarnClusterDescriptor extends AbstractYarnClusterDescriptor {
 		try {
 			return deployInternal(
 				clusterSpecification,
+				"Flink per-job cluster",
 				getYarnJobClusterEntrypoint(),
 				jobGraph,
 				detached);

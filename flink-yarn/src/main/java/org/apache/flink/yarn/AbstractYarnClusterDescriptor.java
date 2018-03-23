@@ -394,6 +394,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		try {
 			return deployInternal(
 				clusterSpecification,
+				"Flink session cluster",
 				getYarnSessionClusterEntrypoint(),
 				null,
 				false);
@@ -437,12 +438,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	 * This method will block until the ApplicationMaster/JobManager have been deployed on YARN.
 	 *
 	 * @param clusterSpecification Initial cluster specification for the Flink cluster to be deployed
+	 * @param applicationName name of the Yarn application to start
 	 * @param yarnClusterEntrypoint Class name of the Yarn cluster entry point.
 	 * @param jobGraph A job graph which is deployed with the Flink cluster, {@code null} if none
 	 * @param detached True if the cluster should be started in detached mode
 	 */
 	protected ClusterClient<ApplicationId> deployInternal(
 			ClusterSpecification clusterSpecification,
+			String applicationName,
 			String yarnClusterEntrypoint,
 			@Nullable JobGraph jobGraph,
 			boolean detached) throws Exception {
@@ -517,6 +520,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		ApplicationReport report = startAppMaster(
 			flinkConfiguration,
+			applicationName,
 			yarnClusterEntrypoint,
 			jobGraph,
 			yarnClient,
@@ -670,6 +674,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	public ApplicationReport startAppMaster(
 			Configuration configuration,
+			String applicationName,
 			String yarnClusterEntrypoint,
 			JobGraph jobGraph,
 			YarnClient yarnClient,
@@ -1005,17 +1010,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		capability.setMemory(clusterSpecification.getMasterMemoryMB());
 		capability.setVirtualCores(1);
 
-		String name;
-		if (customName == null) {
-			name = "Flink session with " + clusterSpecification.getNumberTaskManagers() + " TaskManagers";
-			if (detached) {
-				name += " (detached)";
-			}
-		} else {
-			name = customName;
-		}
+		final String customApplicationName = customName != null ? customName : applicationName;
 
-		appContext.setApplicationName(name);
+		appContext.setApplicationName(customApplicationName);
 		appContext.setApplicationType("Apache Flink");
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
