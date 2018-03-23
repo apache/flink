@@ -1262,6 +1262,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	private void freeSlotInternal(AllocationID allocationId, Throwable cause) {
 		checkNotNull(allocationId);
 
+		log.debug("Free slot with allocation id {} because: {}", allocationId, cause.getMessage());
+
 		try {
 			final JobID jobId = taskSlotTable.getOwningJob(allocationId);
 

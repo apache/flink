@@ -682,7 +682,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		WorkerRegistration<WorkerType> oldRegistration = taskExecutors.remove(taskExecutorResourceId);
 		if (oldRegistration != null) {
 			// TODO :: suggest old taskExecutor to stop itself
-			log.info("Replacing old instance of worker for ResourceID {}", taskExecutorResourceId);
+			log.info("Replacing old registration of TaskExecutor {}.", taskExecutorResourceId);
 
 			// remove old task manager registration from slot manager
 			slotManager.unregisterTaskManager(oldRegistration.getInstanceID());
@@ -779,14 +779,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		WorkerRegistration<WorkerType> workerRegistration = taskExecutors.remove(resourceID);
 
 		if (workerRegistration != null) {
-			log.info("Task manager {} failed because {}.", resourceID, cause.getMessage());
+			log.info("Closing TaskExecutor connection {} because: {}", resourceID, cause.getMessage());
 
 			// TODO :: suggest failed task executor to stop itself
 			slotManager.unregisterTaskManager(workerRegistration.getInstanceID());
 
 			workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
 		} else {
-			log.debug("Could not find a registered task manager with the process id {}.", resourceID);
+			log.debug("No open TaskExecutor connection {}. Ignoring close TaskExecutor connection.", resourceID);
 		}
 	}
 
@@ -816,7 +816,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 	}
 
-	protected void releaseResource(InstanceID instanceId) {
+	protected void releaseResource(InstanceID instanceId, Exception cause) {
 		WorkerType worker = null;
 
 		// TODO: Improve performance by having an index on the instanceId
@@ -829,10 +829,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		if (worker != null) {
 			if (stopWorker(worker)) {
-				closeTaskManagerConnection(worker.getResourceID(),
-						new FlinkException("Worker was stopped."));
+				closeTaskManagerConnection(worker.getResourceID(), cause);
 			} else {
-				log.debug("Worker {} was not stopped.", worker.getResourceID());
+				log.debug("Worker {} could not be stopped.", worker.getResourceID());
 			}
 		} else {
 			// unregister in order to clean up potential left over state
@@ -990,10 +989,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	private class ResourceActionsImpl implements ResourceActions {
 
 		@Override
-		public void releaseResource(InstanceID instanceId) {
+		public void releaseResource(InstanceID instanceId, Exception cause) {
 			validateRunsInMainThread();
 
-			ResourceManager.this.releaseResource(instanceId);
+			ResourceManager.this.releaseResource(instanceId, cause);
 		}
 
 		@Override

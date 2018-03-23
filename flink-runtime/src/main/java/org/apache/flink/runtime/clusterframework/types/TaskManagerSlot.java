@@ -139,6 +139,16 @@ public class TaskManagerSlot {
 		return resourceProfile.isMatching(required);
 	}
 
+	@Override
+	public String toString() {
+		return "TaskManagerSlot{" +
+			"slotId=" + slotId +
+			", allocationId=" + allocationId +
+			", assignedSlotRequest=" + assignedSlotRequest +
+			", state=" + state +
+			'}';
+	}
+
 	/**
 	 * State of the {@link TaskManagerSlot}.
 	 */

@@ -78,4 +78,11 @@ public class PendingSlotRequest {
 	public CompletableFuture<Acknowledge> getRequestFuture() {
 		return requestFuture;
 	}
+
+	@Override
+	public String toString() {
+		return "PendingSlotRequest{" +
+			"slotRequest=" + slotRequest +
+			'}';
+	}
 }

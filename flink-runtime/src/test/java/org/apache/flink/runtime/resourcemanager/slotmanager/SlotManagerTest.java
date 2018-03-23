@@ -685,7 +685,7 @@ public class SlotManagerTest extends TestLogger {
 			});
 
 			verify(resourceManagerActions, timeout(100L * tmTimeout).times(1))
-				.releaseResource(eq(taskManagerConnection.getInstanceID()));
+				.releaseResource(eq(taskManagerConnection.getInstanceID()), any(Exception.class));
 		}
 	}
 
@@ -1027,13 +1027,13 @@ public class SlotManagerTest extends TestLogger {
 
 			assertTrue(idleFuture2.get());
 
-			verify(resourceManagerActions, timeout(verifyTimeout).times(1)).releaseResource(eq(taskManagerConnection.getInstanceID()));
+			verify(resourceManagerActions, timeout(verifyTimeout).times(1)).releaseResource(eq(taskManagerConnection.getInstanceID()), any(Exception.class));
 		}
 	}
 
 	/**
 	 * Tests that a task manager timeout does not remove the slots from the SlotManager.
-	 * A timeout should only trigger the {@link ResourceActions#releaseResource(InstanceID)}
+	 * A timeout should only trigger the {@link ResourceActions#releaseResource(InstanceID, Exception)}
 	 * callback. The receiver of the callback can then decide what to do with the TaskManager.
 	 *
 	 * FLINK-7793
@@ -1064,7 +1064,7 @@ public class SlotManagerTest extends TestLogger {
 			assertEquals(1, slotManager.getNumberRegisteredSlots());
 
 			// wait for the timeout call to happen
-			verify(resourceActions, timeout(taskManagerTimeout.toMilliseconds() * 20L).atLeast(1)).releaseResource(eq(taskExecutorConnection.getInstanceID()));
+			verify(resourceActions, timeout(taskManagerTimeout.toMilliseconds() * 20L).atLeast(1)).releaseResource(eq(taskExecutorConnection.getInstanceID()), any(Exception.class));
 
 			assertEquals(1, slotManager.getNumberRegisteredSlots());
 

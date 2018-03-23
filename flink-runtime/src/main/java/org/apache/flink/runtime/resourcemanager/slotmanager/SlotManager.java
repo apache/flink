@@ -36,6 +36,7 @@ import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -879,8 +880,6 @@ public class SlotManager implements AutoCloseable {
 
 			// first retrieve the timed out TaskManagers
 			for (TaskManagerRegistration taskManagerRegistration : taskManagerRegistrations.values()) {
-				LOG.debug("Evaluating TaskManager {} for idleness.", taskManagerRegistration.getInstanceId());
-
 				if (currentTime - taskManagerRegistration.getIdleSince() >= taskManagerTimeout.toMilliseconds()) {
 					// we collect the instance ids first in order to avoid concurrent modifications by the
 					// ResourceActions.releaseResource call
@@ -890,7 +889,8 @@ public class SlotManager implements AutoCloseable {
 
 			// second we trigger the release resource callback which can decide upon the resource release
 			for (InstanceID timedOutTaskManagerId : timedOutTaskManagerIds) {
-				resourceActions.releaseResource(timedOutTaskManagerId);
+				LOG.debug("Release TaskExecutor {} because it exceeded the idle timeout.", timedOutTaskManagerId);
+				resourceActions.releaseResource(timedOutTaskManagerId, new FlinkException("TaskExecutor exceeded the idle timeout."));
 			}
 		}
 	}
@@ -976,7 +976,7 @@ public class SlotManager implements AutoCloseable {
 
 			internalUnregisterTaskManager(taskManagerRegistration);
 
-			resourceActions.releaseResource(taskManagerRegistration.getInstanceId());
+			resourceActions.releaseResource(taskManagerRegistration.getInstanceId(), new FlinkException("Triggering of SlotManager#unregisterTaskManagersAndReleaseResources."));
 		}
 	}
 }

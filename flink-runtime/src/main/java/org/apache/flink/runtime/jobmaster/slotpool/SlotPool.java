@@ -69,7 +69,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -322,7 +321,6 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			SlotProfile slotProfile,
 			boolean allowQueuedScheduling,
 			Time allocationTimeout) {
-
 		final SlotSharingGroupId slotSharingGroupId = task.getSlotSharingGroupId();
 
 		if (slotSharingGroupId != null) {
@@ -725,15 +723,6 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		}
 	}
 
-	private void checkTimeoutSlotAllocation(SlotRequestId slotRequestID) {
-		PendingRequest request = pendingRequests.removeKeyA(slotRequestID);
-		if (request != null) {
-			failPendingRequest(
-				request,
-				new TimeoutException("Slot allocation request " + slotRequestID + " timed out"));
-		}
-	}
-
 	private void stashRequestWaitingForResourceManager(final PendingRequest pendingRequest) {
 
 		log.info("Cannot serve slot request, no ResourceManager connected. " +
@@ -955,7 +944,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		}
 
 		final AllocatedSlot allocatedSlot = new AllocatedSlot(
-			slotOffer.getAllocationId(),
+			allocationID,
 			taskManagerLocation,
 			slotOffer.getSlotIndex(),
 			slotOffer.getResourceProfile(),
@@ -971,6 +960,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				// we could not complete the pending slot future --> try to fulfill another pending request
 				allocatedSlots.remove(pendingRequest.getSlotRequestId());
 				tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
+			} else {
+				log.debug("Fulfilled slot request {} with allocated slot {}.", pendingRequest.getSlotRequestId(), allocationID);
 			}
 		}
 		else {
@@ -1040,6 +1031,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	 */
 	@Override
 	public CompletableFuture<Acknowledge> registerTaskManager(final ResourceID resourceID) {
+		log.debug("Register new TaskExecutor {}.", resourceID);
 		registeredTaskManagers.add(resourceID);
 
 		return CompletableFuture.completedFuture(Acknowledge.get());
@@ -1118,8 +1110,15 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				freeSlotFuture.whenCompleteAsync(
 					(Acknowledge ignored, Throwable throwable) -> {
 						if (throwable != null) {
-							log.info("Releasing idle slot {} failed.", allocationID, throwable);
-							tryFulfillSlotRequestOrMakeAvailable(expiredSlot);
+							if (registeredTaskManagers.contains(expiredSlot.getTaskManagerId())) {
+								log.debug("Releasing slot {} of registered TaskExecutor {} failed. " +
+									"Trying to fulfill a different slot request.", allocationID, expiredSlot.getTaskManagerId(),
+									throwable);
+								tryFulfillSlotRequestOrMakeAvailable(expiredSlot);
+							} else {
+								log.debug("Releasing slot {} failed and owning TaskExecutor {} is no " +
+									"longer registered. Discarding slot.", allocationID, expiredSlot.getTaskManagerId());
+							}
 						}
 					},
 					getMainThreadExecutor());
