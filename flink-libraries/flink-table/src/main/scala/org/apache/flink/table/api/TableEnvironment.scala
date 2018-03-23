@@ -574,9 +574,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     *   tEnv.sql(s"SELECT * FROM $table")
     * }}}
     *
+    * @deprecated Use sqlQuery() instead.
     * @param query The SQL query to evaluate.
     * @return The result of the query as Table.
     */
+  @Deprecated
   @deprecated("Please use sqlQuery() instead.")
   def sql(query: String): Table = {
     sqlQuery(query)
