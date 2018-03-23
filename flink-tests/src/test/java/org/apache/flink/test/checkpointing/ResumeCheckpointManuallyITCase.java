@@ -270,7 +270,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 
 		MiniClusterResource cluster = new MiniClusterResource(
 			new MiniClusterResource.MiniClusterResourceConfiguration(
-				new Configuration(),
+				config,
 				NUM_TASK_MANAGERS,
 				SLOTS_PER_TASK_MANAGER),
 			true);
