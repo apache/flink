@@ -72,7 +72,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 	}
 
 	@Override
-	protected void shutDownApplication(ApplicationStatus finalStatus, @Nullable String optionalDiagnostics) {
+	protected void internalDeregisterApplication(ApplicationStatus finalStatus, @Nullable String diagnostics) {
 	}
 
 	@Override

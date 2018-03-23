@@ -69,7 +69,9 @@ import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ShutdownHookUtil;
 
 import akka.actor.ActorSystem;
 import org.slf4j.Logger;
@@ -78,10 +80,14 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -159,9 +165,13 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	@GuardedBy("lock")
 	private JobManagerMetricGroup jobManagerMetricGroup;
 
+	private final Thread shutDownHook;
+
 	protected ClusterEntrypoint(Configuration configuration) {
-		this.configuration = Preconditions.checkNotNull(configuration);
+		this.configuration = generateClusterConfiguration(configuration);
 		this.terminationFuture = new CompletableFuture<>();
+
+		shutDownHook = ShutdownHookUtil.addShutdownHook(this::cleanupDirectories, getClass().getSimpleName(), LOG);
 	}
 
 	public CompletableFuture<Void> getTerminationFuture() {
@@ -187,6 +197,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			shutDownAndTerminate(
 				STARTUP_FAILURE_RETURN_CODE,
 				ApplicationStatus.FAILED,
+				t.getMessage(),
 				false);
 		}
 	}
@@ -235,6 +246,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 					shutDownAndTerminate(
 						SUCCESS_RETURN_CODE,
 						ApplicationStatus.SUCCEEDED,
+						throwable != null ? throwable.getMessage() : null,
 						true);
 				});
 		}
@@ -479,7 +491,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			}
 
 			if (webMonitorEndpoint != null) {
-				terminationFutures.add(webMonitorEndpoint.shutDownAsync());
+				terminationFutures.add(webMonitorEndpoint.closeAsync());
 			}
 
 			if (dispatcher != null) {
@@ -523,27 +535,45 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	// Internal methods
 	// --------------------------------------------------
 
-	private CompletableFuture<Void> shutDownAsync(boolean cleanupHaData) {
+	private Configuration generateClusterConfiguration(Configuration configuration) {
+		final Configuration resultConfiguration = new Configuration(Preconditions.checkNotNull(configuration));
+
+		final String webTmpDir = configuration.getString(WebOptions.TMP_DIR);
+		final Path uniqueWebTmpDir = Paths.get(webTmpDir, "flink-web-" + UUID.randomUUID());
+
+		resultConfiguration.setString(WebOptions.TMP_DIR, uniqueWebTmpDir.toAbsolutePath().toString());
+
+		return resultConfiguration;
+	}
+
+	private CompletableFuture<Void> shutDownAsync(
+			boolean cleanupHaData,
+			ApplicationStatus applicationStatus,
+			@Nullable String diagnostics) {
 		if (isShutDown.compareAndSet(false, true)) {
 			LOG.info("Stopping {}.", getClass().getSimpleName());
 
-			final CompletableFuture<Void> componentShutdownFuture = stopClusterComponents();
+			final CompletableFuture<Void> shutDownApplicationFuture = deregisterApplication(applicationStatus, diagnostics);
 
-			componentShutdownFuture.whenComplete(
-				(Void ignored1, Throwable componentThrowable) -> {
-					final CompletableFuture<Void> serviceShutdownFuture = stopClusterServices(cleanupHaData);
+			final CompletableFuture<Void> componentShutdownFuture = FutureUtils.composeAfterwards(
+				shutDownApplicationFuture,
+				this::stopClusterComponents);
 
-					serviceShutdownFuture.whenComplete(
-						(Void ignored2, Throwable serviceThrowable) -> {
-							if (serviceThrowable != null) {
-								terminationFuture.completeExceptionally(
-									ExceptionUtils.firstOrSuppressed(serviceThrowable, componentThrowable));
-							} else if (componentThrowable != null) {
-								terminationFuture.completeExceptionally(componentThrowable);
-							} else {
-								terminationFuture.complete(null);
-							}
-						});
+			final CompletableFuture<Void> serviceShutdownFuture = FutureUtils.composeAfterwards(
+				componentShutdownFuture,
+				() -> stopClusterServices(cleanupHaData));
+
+			final CompletableFuture<Void> cleanupDirectoriesFuture = FutureUtils.runAfterwards(
+				serviceShutdownFuture,
+				this::cleanupDirectories);
+
+			cleanupDirectoriesFuture.whenComplete(
+				(Void ignored2, Throwable serviceThrowable) -> {
+					if (serviceThrowable != null) {
+						terminationFuture.completeExceptionally(serviceThrowable);
+					} else {
+						terminationFuture.complete(null);
+					}
 				});
 		}
 
@@ -553,15 +583,19 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	private void shutDownAndTerminate(
 		int returnCode,
 		ApplicationStatus applicationStatus,
+		@Nullable String diagnostics,
 		boolean cleanupHaData) {
 
-		LOG.info("Shut down and terminate {} with return code {} and application status {}.",
-			getClass().getSimpleName(),
-			returnCode,
-			applicationStatus);
-
 		if (isTerminating.compareAndSet(false, true)) {
-			shutDownAsync(cleanupHaData).whenComplete(
+			LOG.info("Shut down and terminate {} with return code {} and application status {}.",
+				getClass().getSimpleName(),
+				returnCode,
+				applicationStatus);
+
+			shutDownAsync(
+				cleanupHaData,
+				applicationStatus,
+				diagnostics).whenComplete(
 				(Void ignored, Throwable t) -> {
 					if (t != null) {
 						LOG.info("Could not properly shut down cluster entrypoint.", t);
@@ -574,6 +608,38 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				returnCode,
 				applicationStatus);
 		}
+	}
+
+	/**
+	 * Deregister the Flink application from the resource management system by signalling
+	 * the {@link ResourceManager}.
+	 *
+	 * @param applicationStatus to terminate the application with
+	 * @param diagnostics additional information about the shut down, can be {@code null}
+	 * @return Future which is completed once the shut down
+	 */
+	private CompletableFuture<Void> deregisterApplication(ApplicationStatus applicationStatus, @Nullable String diagnostics) {
+		synchronized (lock) {
+			if (resourceManager != null) {
+				final ResourceManagerGateway selfGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
+				return selfGateway.deregisterApplication(applicationStatus, diagnostics).thenApply(ack -> null);
+			} else {
+				return CompletableFuture.completedFuture(null);
+			}
+		}
+	}
+
+	/**
+	 * Clean up of temporary directories created by the {@link ClusterEntrypoint}.
+	 *
+	 * @throws IOException if the temporary directories could not be cleaned up
+	 */
+	private void cleanupDirectories() throws IOException {
+		ShutdownHookUtil.removeShutdownHook(shutDownHook, getClass().getSimpleName(), LOG);
+
+		final String webTmpDir = configuration.getString(WebOptions.TMP_DIR);
+
+		FileUtils.deleteDirectory(new File(webTmpDir));
 	}
 
 	// --------------------------------------------------
