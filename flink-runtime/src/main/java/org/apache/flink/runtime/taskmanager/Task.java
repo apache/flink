@@ -628,8 +628,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			// next, kick off the background copying of files for the distributed cache
 			try {
 				for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry :
-						DistributedCache.readFileInfoFromConfig(jobConfiguration))
-				{
+						DistributedCache.readFileInfoFromConfig(jobConfiguration)) {
 					LOG.info("Obtaining local cache file for '{}'.", entry.getKey());
 					Future<Path> cp = fileCache.createTmpFile(entry.getKey(), entry.getValue(), jobId);
 					distributedCacheEntries.put(entry.getKey(), cp);
@@ -943,26 +942,34 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	 * This method never blocks.
 	 * </p>
 	 *
-	 * @throws UnsupportedOperationException
-	 *             if the {@link AbstractInvokable} does not implement {@link StoppableTask}
+	 * @throws UnsupportedOperationException if the {@link AbstractInvokable} does not implement {@link StoppableTask}
+	 * @throws IllegalStateException if the {@link Task} is not yet running
 	 */
-	public void stopExecution() throws UnsupportedOperationException {
-		LOG.info("Attempting to stop task {} ({}).", taskNameWithSubtask, executionId);
-		if (invokable instanceof StoppableTask) {
-			Runnable runnable = new Runnable() {
-				@Override
-				public void run() {
-					try {
-						((StoppableTask) invokable).stop();
-					} catch (RuntimeException e) {
-						LOG.error("Stopping task {} ({}) failed.", taskNameWithSubtask, executionId, e);
-						taskManagerActions.failTask(executionId, e);
+	public void stopExecution() {
+		if (invokable != null) {
+			LOG.info("Attempting to stop task {} ({}).", taskNameWithSubtask, executionId);
+			if (invokable instanceof StoppableTask) {
+				Runnable runnable = new Runnable() {
+					@Override
+					public void run() {
+						try {
+							((StoppableTask) invokable).stop();
+						} catch (RuntimeException e) {
+							LOG.error("Stopping task {} ({}) failed.", taskNameWithSubtask, executionId, e);
+							taskManagerActions.failTask(executionId, e);
+						}
 					}
-				}
-			};
-			executeAsyncCallRunnable(runnable, String.format("Stopping source task %s (%s).", taskNameWithSubtask, executionId));
+				};
+				executeAsyncCallRunnable(runnable, String.format("Stopping source task %s (%s).", taskNameWithSubtask, executionId));
+			} else {
+				throw new UnsupportedOperationException(String.format("Stopping not supported by task %s (%s).", taskNameWithSubtask, executionId));
+			}
 		} else {
-			throw new UnsupportedOperationException(String.format("Stopping not supported by task %s (%s).", taskNameWithSubtask, executionId));
+			throw new IllegalStateException(
+				String.format(
+					"Cannot stop task %s (%s) because it is not yet running.",
+					taskNameWithSubtask,
+					executionId));
 		}
 	}
 
