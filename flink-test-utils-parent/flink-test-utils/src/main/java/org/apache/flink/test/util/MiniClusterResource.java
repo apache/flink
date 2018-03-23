@@ -93,6 +93,10 @@ public class MiniClusterResource extends ExternalResource {
 		this.enableClusterClient = enableClusterClient;
 	}
 
+	public MiniClusterType getMiniClusterType() {
+		return miniClusterType;
+	}
+
 	public int getNumberSlots() {
 		return numberSlots;
 	}
