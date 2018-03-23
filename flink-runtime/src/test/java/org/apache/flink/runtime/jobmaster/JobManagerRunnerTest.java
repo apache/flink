@@ -210,8 +210,6 @@ public class JobManagerRunnerTest extends TestLogger {
 			heartbeatServices,
 			blobServer,
 			jobManagerSharedServices,
-			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
-			null,
-			null);
+			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE);
 	}
 }
