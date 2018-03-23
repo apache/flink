@@ -23,8 +23,9 @@
 
 # this file has variables that can be filled with content by replacing $VAR_XXX
 
-sources:
+tables:
   - name: TableNumber1
+    type: source
     schema:
       - name: IntegerField1
         type: INT

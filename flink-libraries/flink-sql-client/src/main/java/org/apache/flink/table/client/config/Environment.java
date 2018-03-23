@@ -19,6 +19,8 @@
 package org.apache.flink.table.client.config;
 
 import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.descriptors.TableDescriptor;
+import org.apache.flink.table.descriptors.TableDescriptorValidator;
 
 import java.io.IOException;
 import java.net.URL;
@@ -29,7 +31,7 @@ import java.util.Map;
 
 /**
  * Environment configuration that represents the content of an environment file. Environment files
- * define sources, execution, and deployment behavior. An environment might be defined by default or
+ * define tables, execution, and deployment behavior. An environment might be defined by default or
  * as part of a session. Environments can be merged or enriched with properties (e.g. from CLI command).
  *
  * <p>In future versions, we might restrict the merging or enrichment of deployment properties to not
@@ -37,30 +39,39 @@ import java.util.Map;
  */
 public class Environment {
 
-	private Map<String, Source> sources;
+	private Map<String, TableDescriptor> tables;
 
 	private Execution execution;
 
 	private Deployment deployment;
 
 	public Environment() {
-		this.sources = Collections.emptyMap();
+		this.tables = Collections.emptyMap();
 		this.execution = new Execution();
 		this.deployment = new Deployment();
 	}
 
-	public Map<String, Source> getSources() {
-		return sources;
+	public Map<String, TableDescriptor> getTables() {
+		return tables;
 	}
 
-	public void setSources(List<Map<String, Object>> sources) {
-		this.sources = new HashMap<>(sources.size());
-		sources.forEach(config -> {
-			final Source s = Source.create(config);
-			if (this.sources.containsKey(s.getName())) {
-				throw new SqlClientException("Duplicate source name '" + s + "'.");
+	public void setTables(List<Map<String, Object>> tables) {
+		this.tables = new HashMap<>(tables.size());
+		tables.forEach(config -> {
+			if (!config.containsKey(TableDescriptorValidator.TABLE_TYPE())) {
+				throw new SqlClientException("The 'type' attribute of a table is missing.");
 			}
-			this.sources.put(s.getName(), s);
+			if (config.get(TableDescriptorValidator.TABLE_TYPE()).equals(TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE())) {
+				config.remove(TableDescriptorValidator.TABLE_TYPE());
+				final Source s = Source.create(config);
+				if (this.tables.containsKey(s.getName())) {
+					throw new SqlClientException("Duplicate source name '" + s + "'.");
+				}
+				this.tables.put(s.getName(), s);
+			} else {
+				throw new SqlClientException(
+						"Invalid table 'type' attribute value, only 'source' is supported");
+			}
 		});
 	}
 
@@ -102,10 +113,10 @@ public class Environment {
 	public static Environment merge(Environment env1, Environment env2) {
 		final Environment mergedEnv = new Environment();
 
-		// merge sources
-		final Map<String, Source> sources = new HashMap<>(env1.getSources());
-		mergedEnv.getSources().putAll(env2.getSources());
-		mergedEnv.sources = sources;
+		// merge tables
+		final Map<String, TableDescriptor> tables = new HashMap<>(env1.getTables());
+		mergedEnv.getTables().putAll(env2.getTables());
+		mergedEnv.tables = tables;
 
 		// merge execution properties
 		mergedEnv.execution = Execution.merge(env1.getExecution(), env2.getExecution());
@@ -119,8 +130,8 @@ public class Environment {
 	public static Environment enrich(Environment env, Map<String, String> properties) {
 		final Environment enrichedEnv = new Environment();
 
-		// merge sources
-		enrichedEnv.sources = new HashMap<>(env.getSources());
+		// merge tables
+		enrichedEnv.tables = new HashMap<>(env.getTables());
 
 		// enrich execution properties
 		enrichedEnv.execution = Execution.enrich(env.execution, properties);
