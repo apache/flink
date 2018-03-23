@@ -30,8 +30,7 @@ public abstract class KeyedStateFunction<K, S extends State> {
 	/**
 	 * The actual method to be applied on each of the states.
 	 *
-	 * @param key a safe copy of the key (see {@link KeyedStateBackend#getCurrentKeySafe()})
-	 *               whose state is being processed.
+	 * @param key the key whose state is being processed.
 	 * @param state the state associated with the aforementioned key.
 	 */
 	public abstract void process(K key, S state) throws Exception;
