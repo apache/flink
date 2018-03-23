@@ -414,9 +414,7 @@ public class JobMasterTest extends TestLogger {
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
 			new NoOpOnCompletionActions(),
 			testingFatalErrorHandler,
-			JobMasterTest.class.getClassLoader(),
-			null,
-			null);
+			JobMasterTest.class.getClassLoader());
 	}
 
 	/**
