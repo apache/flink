@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.factories;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
@@ -26,8 +25,8 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import javax.annotation.Nonnull;
 
 /**
- * Implementation of {@link JobManagerJobMetricGroupFactory} which makes sure that there is always
- * at most one {@link JobManagerJobMetricGroup} for a given {@link JobID} registered.
+ * Default implementation of {@link JobManagerJobMetricGroupFactory} which creates for a given
+ * {@link JobGraph} a {@link JobManagerJobMetricGroup}.
  */
 public class DefaultJobManagerJobMetricGroupFactory implements JobManagerJobMetricGroupFactory {
 
@@ -39,8 +38,6 @@ public class DefaultJobManagerJobMetricGroupFactory implements JobManagerJobMetr
 
 	@Override
 	public JobManagerJobMetricGroup create(@Nonnull JobGraph jobGraph) {
-		jobManagerMetricGroup.removeJob(jobGraph.getJobID());
-
 		return jobManagerMetricGroup.addJob(jobGraph);
 	}
 }

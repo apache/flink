@@ -299,8 +299,6 @@ public class JobMasterTest extends TestLogger {
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build());
 
-		jobMaster.start(JobMasterId.generate(), testingTimeout).get();
-
 		try {
 			// starting the JobMaster should have read the savepoint
 			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint();
