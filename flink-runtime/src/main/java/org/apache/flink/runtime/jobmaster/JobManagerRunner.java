@@ -32,10 +32,10 @@ import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobSchedulingStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
+import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -107,7 +107,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			final HeartbeatServices heartbeatServices,
 			final BlobServer blobServer,
 			final JobManagerSharedServices jobManagerSharedServices,
-			final JobManagerJobMetricGroup jobManagerJobMetricGroup,
+			final JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
 			@Nullable final String metricQueryServicePath,
 			@Nullable final String restAddress) throws Exception {
 
@@ -153,7 +153,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 				jobManagerSharedServices,
 				heartbeatServices,
 				blobServer,
-				jobManagerJobMetricGroup,
+				jobManagerJobMetricGroupFactory,
 				this,
 				this,
 				userCodeLoader,

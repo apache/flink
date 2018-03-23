@@ -43,11 +43,11 @@ import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -480,7 +480,7 @@ public class DispatcherTest extends TestLogger {
 				HeartbeatServices heartbeatServices,
 				BlobServer blobServer,
 				JobManagerSharedServices jobManagerSharedServices,
-				JobManagerJobMetricGroup jobManagerJobMetricGroup,
+				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
 				@Nullable String metricQueryServicePath,
 				@Nullable String restAddress) throws Exception {
 			assertEquals(expectedJobId, jobGraph.getJobID());
@@ -494,7 +494,7 @@ public class DispatcherTest extends TestLogger {
 				heartbeatServices,
 				blobServer,
 				jobManagerSharedServices,
-				jobManagerJobMetricGroup,
+				jobManagerJobMetricGroupFactory,
 				metricQueryServicePath,
 				restAddress);
 		}

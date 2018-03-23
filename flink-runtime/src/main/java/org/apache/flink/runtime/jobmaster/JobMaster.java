@@ -66,6 +66,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.exceptions.JobModificationException;
+import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolGateway;
@@ -76,7 +77,6 @@ import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
-import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
@@ -165,7 +165,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	private final BlobServer blobServer;
 
 	/** The metrics for the job. */
-	private final JobManagerJobMetricGroup jobMetricGroup;
+	private final JobManagerJobMetricGroupFactory jobMetricGroupFactory;
 
 	/** The heartbeat manager with task managers. */
 	private final HeartbeatManager<AccumulatorReport, Void> taskManagerHeartbeatManager;
@@ -225,7 +225,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			JobManagerSharedServices jobManagerSharedServices,
 			HeartbeatServices heartbeatServices,
 			BlobServer blobServer,
-			JobManagerJobMetricGroup jobMetricGroup,
+			JobManagerJobMetricGroupFactory jobMetricGroupFactory,
 			OnCompletionActions jobCompletionActions,
 			FatalErrorHandler errorHandler,
 			ClassLoader userCodeLoader,
@@ -246,7 +246,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.jobCompletionActions = checkNotNull(jobCompletionActions);
 		this.errorHandler = checkNotNull(errorHandler);
 		this.userCodeLoader = checkNotNull(userCodeLoader);
-		this.jobMetricGroup = checkNotNull(jobMetricGroup);
+		this.jobMetricGroupFactory = checkNotNull(jobMetricGroupFactory);
 
 		this.taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
 			resourceId,
@@ -298,7 +298,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			highAvailabilityServices.getCheckpointRecoveryFactory(),
 			rpcTimeout,
 			restartStrategy,
-			jobMetricGroup,
+			jobMetricGroupFactory.create(jobGraph),
 			-1,
 			blobServer,
 			jobMasterConfiguration.getSlotRequestTimeout(),
@@ -488,7 +488,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				highAvailabilityServices.getCheckpointRecoveryFactory(),
 				rpcTimeout,
 				currentExecutionGraph.getRestartStrategy(),
-				jobMetricGroup,
+				jobMetricGroupFactory.create(jobGraph),
 				1,
 				blobServer,
 				jobMasterConfiguration.getSlotRequestTimeout(),
