@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.messages.json;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 
@@ -69,7 +70,7 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
 		JobID jobId = null;
 		long netRuntime = -1;
 		SerializedThrowable serializedThrowable = null;
-		Map<String, SerializedValue<Object>> accumulatorResults = null;
+		Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults = null;
 
 		while (true) {
 			final JsonToken jsonToken = p.nextToken();
@@ -117,11 +118,11 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
 	}
 
 	@SuppressWarnings("unchecked")
-	private Map<String, SerializedValue<Object>> parseAccumulatorResults(
+	private Map<String, SerializedValue<OptionalFailure<Object>>> parseAccumulatorResults(
 			final JsonParser p,
 			final DeserializationContext ctxt) throws IOException {
 
-		final Map<String, SerializedValue<Object>> accumulatorResults = new HashMap<>();
+		final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults = new HashMap<>();
 		while (true) {
 			final JsonToken jsonToken = p.nextToken();
 			assertNotEndOfInput(p, jsonToken);
@@ -132,7 +133,7 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
 			p.nextValue();
 			accumulatorResults.put(
 				accumulatorName,
-				(SerializedValue<Object>) serializedValueDeserializer.deserialize(p, ctxt));
+				(SerializedValue<OptionalFailure<Object>>) serializedValueDeserializer.deserialize(p, ctxt));
 		}
 		return accumulatorResults;
 	}

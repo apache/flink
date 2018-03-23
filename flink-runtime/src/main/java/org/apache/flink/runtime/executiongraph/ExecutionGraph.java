@@ -24,7 +24,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.api.common.accumulators.FailedAccumulatorSerialization;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
@@ -69,6 +68,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
@@ -103,6 +103,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -749,9 +750,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * Merges all accumulator results from the tasks previously executed in the Executions.
 	 * @return The accumulator map
 	 */
-	public Map<String, Accumulator<?, ?>> aggregateUserAccumulators() {
+	public Map<String, OptionalFailure<Accumulator<?, ?>>> aggregateUserAccumulators() {
 
-		Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<>();
+		Map<String, OptionalFailure<Accumulator<?, ?>>> userAccumulators = new HashMap<>();
 
 		for (ExecutionVertex vertex : getAllExecutionVertices()) {
 			Map<String, Accumulator<?, ?>> next = vertex.getCurrentExecutionAttempt().getUserAccumulators();
@@ -764,47 +765,33 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	/**
-	 * Gets the accumulator results.
-	 */
-	public Map<String, Object> getAccumulators() {
-
-		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
-
-		Map<String, Object> result = new HashMap<>();
-		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
-			result.put(entry.getKey(), entry.getValue().getLocalValue());
-		}
-
-		return result;
-	}
-
-	/**
 	 * Gets a serialized accumulator map.
 	 * @return The accumulator map with serialized accumulator values.
 	 */
 	@Override
-	public Map<String, SerializedValue<Object>> getAccumulatorsSerialized() {
+	public Map<String, SerializedValue<OptionalFailure<Object>>> getAccumulatorsSerialized() {
+		return aggregateUserAccumulators()
+			.entrySet()
+			.stream()
+			.collect(Collectors.toMap(
+				Map.Entry::getKey,
+				entry -> serializeAccumulator(entry.getKey(), entry.getValue())));
+	}
 
-		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
-
-		Map<String, SerializedValue<Object>> result = new HashMap<>(accumulatorMap.size());
-		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
-
+	private static SerializedValue<OptionalFailure<Object>> serializeAccumulator(String name, OptionalFailure<Accumulator<?, ?>> accumulator) {
+		try {
+			if (accumulator.isFailure()) {
+				return new SerializedValue<>(OptionalFailure.ofFailure(accumulator.getFailureCause()));
+			}
+			return new SerializedValue<>(OptionalFailure.of(accumulator.getUnchecked().getLocalValue()));
+		} catch (IOException ioe) {
+			LOG.error("Could not serialize accumulator " + name + '.', ioe);
 			try {
-				final SerializedValue<Object> serializedValue = new SerializedValue<>(entry.getValue().getLocalValue());
-				result.put(entry.getKey(), serializedValue);
-			} catch (IOException ioe) {
-				LOG.error("Could not serialize accumulator " + entry.getKey() + '.', ioe);
-
-				try {
-					result.put(entry.getKey(), new SerializedValue<>(new FailedAccumulatorSerialization(ioe)));
-				} catch (IOException e) {
-					throw new RuntimeException("It should never happen that we cannot serialize the accumulator serialization exception.", e);
-				}
+				return new SerializedValue<>(OptionalFailure.ofFailure(ioe));
+			} catch (IOException e) {
+				throw new RuntimeException("It should never happen that we cannot serialize the accumulator serialization exception.", e);
 			}
 		}
-
-		return result;
 	}
 
 	/**
@@ -813,7 +800,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 */
 	@Override
 	public StringifiedAccumulatorResult[] getAccumulatorResultsStringified() {
-		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
+		Map<String, OptionalFailure<Accumulator<?, ?>>> accumulatorMap = aggregateUserAccumulators();
 		return StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
 	}
 

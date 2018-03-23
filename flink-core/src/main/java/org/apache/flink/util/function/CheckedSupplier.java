@@ -18,6 +18,8 @@
 
 package org.apache.flink.util.function;
 
+import org.apache.flink.util.FlinkException;
+
 import java.util.function.Supplier;
 
 /**
@@ -36,4 +38,14 @@ public interface CheckedSupplier<R> extends SupplierWithException<R, Exception> 
 		};
 	}
 
+	static <R> CheckedSupplier<R> checked(Supplier<R> supplier) {
+		return () -> {
+			try {
+				return supplier.get();
+			}
+			catch (RuntimeException e) {
+				throw new FlinkException(e);
+			}
+		};
+	}
 }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.messages;
 import org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler;
 import org.apache.flink.runtime.rest.messages.json.SerializedValueDeserializer;
 import org.apache.flink.runtime.rest.messages.json.SerializedValueSerializer;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -50,13 +51,13 @@ public class JobAccumulatorsInfo implements ResponseBody {
 
 	@JsonProperty(FIELD_NAME_SERIALIZED_USER_TASK_ACCUMULATORS)
 	@JsonSerialize(contentUsing = SerializedValueSerializer.class)
-	private Map<String, SerializedValue<Object>> serializedUserAccumulators;
+	private Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators;
 
 	@JsonCreator
 	public JobAccumulatorsInfo(
 			@JsonProperty(FIELD_NAME_JOB_ACCUMULATORS) List<JobAccumulator> jobAccumulators,
 			@JsonProperty(FIELD_NAME_USER_TASK_ACCUMULATORS) List<UserTaskAccumulator> userAccumulators,
-			@JsonDeserialize(contentUsing = SerializedValueDeserializer.class) @JsonProperty(FIELD_NAME_SERIALIZED_USER_TASK_ACCUMULATORS) Map<String, SerializedValue<Object>> serializedUserAccumulators) {
+			@JsonDeserialize(contentUsing = SerializedValueDeserializer.class) @JsonProperty(FIELD_NAME_SERIALIZED_USER_TASK_ACCUMULATORS) Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators) {
 		this.jobAccumulators = Preconditions.checkNotNull(jobAccumulators);
 		this.userAccumulators = Preconditions.checkNotNull(userAccumulators);
 		this.serializedUserAccumulators = Preconditions.checkNotNull(serializedUserAccumulators);
@@ -73,7 +74,7 @@ public class JobAccumulatorsInfo implements ResponseBody {
 	}
 
 	@JsonIgnore
-	public Map<String, SerializedValue<Object>> getSerializedUserAccumulators() {
+	public Map<String, SerializedValue<OptionalFailure<Object>>> getSerializedUserAccumulators() {
 		return serializedUserAccumulators;
 	}
 

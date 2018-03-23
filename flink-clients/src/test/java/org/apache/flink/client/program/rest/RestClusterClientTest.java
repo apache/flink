@@ -84,6 +84,7 @@ import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -362,7 +363,7 @@ public class RestClusterClientTest extends TestLogger {
 				JobExecutionResultResponseBody.created(new JobResult.Builder()
 					.jobId(jobId)
 					.netRuntime(Long.MAX_VALUE)
-					.accumulatorResults(Collections.singletonMap("testName", new SerializedValue<>(1.0)))
+					.accumulatorResults(Collections.singletonMap("testName", new SerializedValue<>(OptionalFailure.of(1.0))))
 					.build()),
 				JobExecutionResultResponseBody.created(new JobResult.Builder()
 					.jobId(jobId)
@@ -558,12 +559,12 @@ public class RestClusterClientTest extends TestLogger {
 			JobID id = new JobID();
 
 			{
-				Map<String, Object> accumulators = restClusterClient.getAccumulators(id);
+				Map<String, OptionalFailure<Object>> accumulators = restClusterClient.getAccumulators(id);
 				assertNotNull(accumulators);
 				assertEquals(1, accumulators.size());
 
 				assertEquals(true, accumulators.containsKey("testKey"));
-				assertEquals("testValue", accumulators.get("testKey").toString());
+				assertEquals("testValue", accumulators.get("testKey").get().toString());
 			}
 		}
 	}
@@ -594,9 +595,9 @@ public class RestClusterClientTest extends TestLogger {
 			userTaskAccumulators.add(new JobAccumulatorsInfo.UserTaskAccumulator("testName", "testType", "testValue"));
 
 			if (includeSerializedValue) {
-				Map<String, SerializedValue<Object>> serializedUserTaskAccumulators = new HashMap<>(1);
+				Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserTaskAccumulators = new HashMap<>(1);
 				try {
-					serializedUserTaskAccumulators.put("testKey", new SerializedValue<>("testValue"));
+					serializedUserTaskAccumulators.put("testKey", new SerializedValue<>(OptionalFailure.of("testValue")));
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}

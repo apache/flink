@@ -41,6 +41,7 @@ import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nonnull;
@@ -132,16 +133,16 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	}
 
 	@Override
-	public Map<String, Object> getAccumulators(JobID jobID) throws Exception {
+	public Map<String, OptionalFailure<Object>> getAccumulators(JobID jobID) throws Exception {
 		return getAccumulators(jobID, ClassLoader.getSystemClassLoader());
 	}
 
 	@Override
-	public Map<String, Object> getAccumulators(JobID jobID, ClassLoader loader) throws Exception {
+	public Map<String, OptionalFailure<Object>> getAccumulators(JobID jobID, ClassLoader loader) throws Exception {
 		AccessExecutionGraph executionGraph = guardWithSingleRetry(() -> miniCluster.getExecutionGraph(jobID), scheduledExecutor).get();
-		Map<String, SerializedValue<Object>> accumulatorsSerialized = executionGraph.getAccumulatorsSerialized();
-		Map<String, Object> result = new HashMap<>(accumulatorsSerialized.size());
-		for (Map.Entry<String, SerializedValue<Object>> acc : accumulatorsSerialized.entrySet()) {
+		Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorsSerialized = executionGraph.getAccumulatorsSerialized();
+		Map<String, OptionalFailure<Object>> result = new HashMap<>(accumulatorsSerialized.size());
+		for (Map.Entry<String, SerializedValue<OptionalFailure<Object>>> acc : accumulatorsSerialized.entrySet()) {
 			result.put(acc.getKey(), acc.getValue().deserializeValue(loader));
 		}
 		return result;

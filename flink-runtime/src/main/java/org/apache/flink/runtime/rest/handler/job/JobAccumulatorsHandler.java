@@ -31,6 +31,7 @@ import org.apache.flink.runtime.rest.messages.JobAccumulatorsMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 
 import java.util.ArrayList;
@@ -87,7 +88,7 @@ public class JobAccumulatorsHandler extends AbstractExecutionGraphHandler<JobAcc
 		}
 
 		if (includeSerializedValue) {
-			Map<String, SerializedValue<Object>> serializedUserTaskAccumulators = graph.getAccumulatorsSerialized();
+			Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserTaskAccumulators = graph.getAccumulatorsSerialized();
 			accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), userTaskAccumulators, serializedUserTaskAccumulators);
 		} else {
 			accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), userTaskAccumulators, Collections.emptyMap());

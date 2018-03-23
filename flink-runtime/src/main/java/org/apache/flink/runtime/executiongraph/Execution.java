@@ -53,6 +53,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.OptionalFailure;
 
 import org.slf4j.Logger;
 
@@ -69,6 +70,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELING;
@@ -1366,7 +1368,13 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	@Override
 	public StringifiedAccumulatorResult[] getUserAccumulatorsStringified() {
-		return StringifiedAccumulatorResult.stringifyAccumulatorResults(userAccumulators);
+		Map<String, OptionalFailure<Accumulator<?, ?>>> accumulators =
+			userAccumulators == null ?
+				null :
+				userAccumulators.entrySet()
+					.stream()
+					.collect(Collectors.toMap(Map.Entry::getKey, entry -> OptionalFailure.of(entry.getValue())));
+		return StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulators);
 	}
 
 	@Override
