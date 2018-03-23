@@ -30,9 +30,9 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -210,7 +210,7 @@ public class JobManagerRunnerTest extends TestLogger {
 			heartbeatServices,
 			blobServer,
 			jobManagerSharedServices,
-			UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup(),
+			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
 			null,
 			null);
 	}
