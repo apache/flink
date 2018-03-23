@@ -263,9 +263,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 					heartbeatServices,
 					blobServer,
 					jobManagerSharedServices,
-					new DefaultJobManagerJobMetricGroupFactory(jobManagerMetricGroup),
-					metricQueryServicePath,
-					restAddress);
+					new DefaultJobManagerJobMetricGroupFactory(jobManagerMetricGroup));
 
 				jobManagerRunner.getResultFuture().whenCompleteAsync(
 					(ArchivedExecutionGraph archivedExecutionGraph, Throwable throwable) -> {
@@ -757,9 +755,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			HeartbeatServices heartbeatServices,
 			BlobServer blobServer,
 			JobManagerSharedServices jobManagerServices,
-			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-			@Nullable String metricQueryServicePath,
-			@Nullable String restAddress) throws Exception;
+			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory) throws Exception;
 	}
 
 	/**
@@ -778,9 +774,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				HeartbeatServices heartbeatServices,
 				BlobServer blobServer,
 				JobManagerSharedServices jobManagerServices,
-				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-				@Nullable String metricQueryServicePath,
-				@Nullable String restAddress) throws Exception {
+				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory) throws Exception {
 			return new JobManagerRunner(
 				resourceId,
 				jobGraph,
@@ -790,9 +784,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				heartbeatServices,
 				blobServer,
 				jobManagerServices,
-				jobManagerJobMetricGroupFactory,
-				metricQueryServicePath,
-				restAddress);
+				jobManagerJobMetricGroupFactory);
 		}
 	}
 }

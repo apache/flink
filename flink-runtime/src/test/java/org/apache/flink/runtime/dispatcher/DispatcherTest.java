@@ -480,9 +480,7 @@ public class DispatcherTest extends TestLogger {
 				HeartbeatServices heartbeatServices,
 				BlobServer blobServer,
 				JobManagerSharedServices jobManagerSharedServices,
-				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-				@Nullable String metricQueryServicePath,
-				@Nullable String restAddress) throws Exception {
+				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory) throws Exception {
 			assertEquals(expectedJobId, jobGraph.getJobID());
 
 			return Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE.createJobManagerRunner(
@@ -494,9 +492,7 @@ public class DispatcherTest extends TestLogger {
 				heartbeatServices,
 				blobServer,
 				jobManagerSharedServices,
-				jobManagerJobMetricGroupFactory,
-				metricQueryServicePath,
-				restAddress);
+				jobManagerJobMetricGroupFactory);
 		}
 	}
 }

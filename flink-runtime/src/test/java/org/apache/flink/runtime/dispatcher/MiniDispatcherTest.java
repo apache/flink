@@ -56,7 +56,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -284,9 +283,7 @@ public class MiniDispatcherTest extends TestLogger {
 				HeartbeatServices heartbeatServices,
 				BlobServer blobServer,
 				JobManagerSharedServices jobManagerSharedServices,
-				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-				@Nullable String metricQueryServicePath,
-				@Nullable String restAddress) throws Exception {
+				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory) throws Exception {
 			jobGraphFuture.complete(jobGraph);
 
 			final JobManagerRunner mock = mock(JobManagerRunner.class);

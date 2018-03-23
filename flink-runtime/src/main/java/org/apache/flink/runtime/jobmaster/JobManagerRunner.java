@@ -45,8 +45,6 @@ import org.apache.flink.util.FlinkException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -107,9 +105,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			final HeartbeatServices heartbeatServices,
 			final BlobServer blobServer,
 			final JobManagerSharedServices jobManagerSharedServices,
-			final JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-			@Nullable final String metricQueryServicePath,
-			@Nullable final String restAddress) throws Exception {
+			final JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory) throws Exception {
 
 		this.resultFuture = new CompletableFuture<>();
 		this.terminationFuture = new CompletableFuture<>();
@@ -156,9 +152,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 				jobManagerJobMetricGroupFactory,
 				this,
 				this,
-				userCodeLoader,
-				restAddress,
-				metricQueryServicePath);
+				userCodeLoader);
 		}
 		catch (Throwable t) {
 			terminationFuture.completeExceptionally(t);

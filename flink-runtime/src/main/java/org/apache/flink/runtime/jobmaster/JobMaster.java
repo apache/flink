@@ -189,10 +189,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final RestartStrategy restartStrategy;
 
-	private final CompletableFuture<String> restAddressFuture;
-
-	private final String metricQueryServicePath;
-
 	// --------- BackPressure --------
 
 	private final BackPressureStatsTracker backPressureStatsTracker;
@@ -237,9 +233,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			JobManagerJobMetricGroupFactory jobMetricGroupFactory,
 			OnCompletionActions jobCompletionActions,
 			FatalErrorHandler errorHandler,
-			ClassLoader userCodeLoader,
-			@Nullable String restAddress,
-			@Nullable String metricQueryServicePath) throws Exception {
+			ClassLoader userCodeLoader) throws Exception {
 
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(JOB_MANAGER_NAME));
 
@@ -298,11 +292,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		this.registeredTaskManagers = new HashMap<>(4);
 
-		this.restAddressFuture = Optional.ofNullable(restAddress)
-			.map(CompletableFuture::completedFuture)
-			.orElse(FutureUtils.completedExceptionally(new JobMasterException("The JobMaster has not been started with a REST endpoint.")));
-
-		this.metricQueryServicePath = metricQueryServicePath;
 		this.backPressureStatsTracker = checkNotNull(jobManagerSharedServices.getBackPressureStatsTracker());
 		this.lastInternalSavepoint = null;
 
@@ -993,7 +982,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	private Acknowledge startJobExecution(JobMasterId newJobMasterId) throws Exception {
 		validateRunsInMainThread();
 
-		Preconditions.checkNotNull(newJobMasterId, "The new JobMasterId must not be null.");
+		checkNotNull(newJobMasterId, "The new JobMasterId must not be null.");
 
 		if (Objects.equals(getFencingToken(), newJobMasterId)) {
 			log.info("Already started the job execution with JobMasterId {}.", newJobMasterId);
