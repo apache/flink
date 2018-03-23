@@ -18,14 +18,15 @@
 
 package org.apache.flink.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.flink.util.function.CheckedSupplier;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Objects;
-import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -35,10 +36,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class OptionalFailure<T> implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(OptionalFailure.class);
-
 	@Nullable
-	private T value;
+	private transient T value;
 
 	@Nullable
 	private Throwable failureCause;
@@ -58,22 +57,31 @@ public class OptionalFailure<T> implements Serializable {
 
 	/**
 	 * @return wrapped {@link OptionalFailure} returned by {@code valueSupplier} or wrapped failure if
-	 * {@code valueSupplier} has thrown a {@link RuntimeException}.
+	 * {@code valueSupplier} has thrown an {@link Exception}.
 	 */
-	public static <T> OptionalFailure<T> createFrom(Supplier<T> valueSupplier) {
+	public static <T> OptionalFailure<T> createFrom(CheckedSupplier<T> valueSupplier) {
 		try {
-			return OptionalFailure.of(valueSupplier.get());
-		}
-		catch (RuntimeException ex) {
-			LOG.error("Failed to archive accumulators", ex);
-			return OptionalFailure.ofFailure(ex);
+			return of(valueSupplier.get());
+		} catch (Exception ex) {
+			return ofFailure(ex);
 		}
 	}
 
 	/**
-	 * @return stored value or throw a {@link FlinkRuntimeException} with {@code failureCause}.
+	 * @return stored value or throw a {@link FlinkException} with {@code failureCause}.
 	 */
-	public T get() throws FlinkRuntimeException {
+	public T get() throws FlinkException {
+		if (value != null) {
+			return value;
+		}
+		checkNotNull(failureCause);
+		throw new FlinkException(failureCause);
+	}
+
+	/**
+	 * @return same as {@link #get()} but throws a {@link FlinkRuntimeException}.
+	 */
+	public T getUnchecked() throws FlinkRuntimeException {
 		if (value != null) {
 			return value;
 		}
@@ -95,18 +103,33 @@ public class OptionalFailure<T> implements Serializable {
 	}
 
 	@Override
-	public boolean equals(Object object) {
-		if (object == null) {
+	public boolean equals(Object obj) {
+		if (obj == null) {
 			return false;
 		}
-		if (object == this) {
+		if (obj == this) {
 			return true;
 		}
-		if (!(object instanceof OptionalFailure)) {
+		if (!(obj instanceof OptionalFailure<?>)) {
 			return false;
 		}
-		OptionalFailure other = (OptionalFailure) object;
+		OptionalFailure<?> other = (OptionalFailure<?>) obj;
 		return Objects.equals(value, other.value) &&
 			Objects.equals(failureCause, other.failureCause);
+	}
+
+	private void writeObject(ObjectOutputStream stream) throws IOException {
+		stream.defaultWriteObject();
+		stream.writeObject(value);
+	}
+
+	private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
+		stream.defaultReadObject();
+		value = (T) stream.readObject();
+	}
+
+	@Override
+	public String toString() {
+		return getClass().getSimpleName() + "{value=" + value + ", failureCause=" + failureCause + "}";
 	}
 }

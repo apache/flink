@@ -783,7 +783,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			if (accumulator.isFailure()) {
 				return new SerializedValue<>(OptionalFailure.ofFailure(accumulator.getFailureCause()));
 			}
-			return new SerializedValue<>(OptionalFailure.of(accumulator.get().getLocalValue()));
+			return new SerializedValue<>(OptionalFailure.of(accumulator.getUnchecked().getLocalValue()));
 		} catch (IOException ioe) {
 			LOG.error("Could not serialize accumulator " + name + '.', ioe);
 			try {

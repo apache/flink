@@ -26,6 +26,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -41,7 +42,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the SerializedJobExecutionResult
  */
-public class SerializedJobExecutionResultTest {
+public class SerializedJobExecutionResultTest extends TestLogger {
 
 	@Test
 	public void testSerialization() throws Exception {

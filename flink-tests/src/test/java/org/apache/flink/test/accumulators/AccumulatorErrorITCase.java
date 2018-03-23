@@ -23,12 +23,12 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -63,7 +63,7 @@ public class AccumulatorErrorITCase extends TestLogger {
 
 	@Test
 	public void testFaultyAccumulator() throws Exception {
-		TestEnvironment env = MINI_CLUSTER_RESOURCE.getTestEnvironment();
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 
 		// Test Exception forwarding with faulty Accumulator implementation
@@ -76,7 +76,8 @@ public class AccumulatorErrorITCase extends TestLogger {
 
 	@Test
 	public void testInvalidTypeAccumulator() throws Exception {
-		TestEnvironment env = MINI_CLUSTER_RESOURCE.getTestEnvironment();
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
 		env.getConfig().disableSysoutLogging();
 
 		// Test Exception forwarding with faulty Accumulator implementation
@@ -98,7 +99,7 @@ public class AccumulatorErrorITCase extends TestLogger {
 
 	@Test
 	public void testFaultyMergeAccumulator() throws Exception {
-		TestEnvironment env = MINI_CLUSTER_RESOURCE.getTestEnvironment();
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 
 		// Test Exception forwarding with faulty Accumulator implementation

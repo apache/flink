@@ -97,8 +97,8 @@ public class StringifiedAccumulatorResult implements java.io.Serializable{
 			Object localValue;
 			String simpleName = "null";
 			try {
-				simpleName = accumulator.get().getClass().getSimpleName();
-				localValue = accumulator.get().getLocalValue();
+				simpleName = accumulator.getUnchecked().getClass().getSimpleName();
+				localValue = accumulator.getUnchecked().getLocalValue();
 			}
 			catch (RuntimeException exception) {
 				LOG.error("Failed to stringify accumulator [" + name + "]", exception);

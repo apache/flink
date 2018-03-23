@@ -267,7 +267,8 @@ public class AccumulatorLiveITCase extends TestLogger {
 
 	private static boolean checkUserAccumulators(int expected, Map<String, OptionalFailure<Accumulator<?, ?>>> accumulatorMap) {
 		LOG.info("checking user accumulators");
-		return accumulatorMap.containsKey(ACCUMULATOR_NAME) && expected == ((IntCounter) accumulatorMap.get(ACCUMULATOR_NAME).get()).getLocalValue();
+		Integer actual = ((IntCounter) accumulatorMap.get(ACCUMULATOR_NAME).getUnchecked()).getLocalValue();
+		return accumulatorMap.containsKey(ACCUMULATOR_NAME) && expected == actual;
 	}
 
 	/**

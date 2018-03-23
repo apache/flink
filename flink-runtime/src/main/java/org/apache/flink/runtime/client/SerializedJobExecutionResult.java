@@ -49,9 +49,10 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer) in milliseconds
 	 * @param accumulators A map of all accumulator results produced by the job, in serialized form
 	 */
-	public SerializedJobExecutionResult(JobID jobID,
-										long netRuntime,
-										Map<String, SerializedValue<OptionalFailure<Object>>> accumulators) {
+	public SerializedJobExecutionResult(
+			JobID jobID,
+			long netRuntime,
+			Map<String, SerializedValue<OptionalFailure<Object>>> accumulators) {
 		this.jobId = jobID;
 		this.netRuntime = netRuntime;
 		this.accumulatorResults = accumulators;

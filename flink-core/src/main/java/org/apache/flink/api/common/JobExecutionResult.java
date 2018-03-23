@@ -87,7 +87,7 @@ public class JobExecutionResult extends JobSubmissionResult {
 	 */
 	@SuppressWarnings("unchecked")
 	public <T> T getAccumulatorResult(String accumulatorName) {
-		return (T) this.accumulatorResults.get(accumulatorName).get();
+		return (T) this.accumulatorResults.get(accumulatorName).getUnchecked();
 	}
 
 	/**
@@ -99,7 +99,7 @@ public class JobExecutionResult extends JobSubmissionResult {
 	public Map<String, Object> getAllAccumulatorResults() {
 		return accumulatorResults.entrySet()
 			.stream()
-			.collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().get()));
+			.collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().getUnchecked()));
 	}
 
 	/**
@@ -113,7 +113,7 @@ public class JobExecutionResult extends JobSubmissionResult {
 	@Deprecated
 	@PublicEvolving
 	public Integer getIntCounterResult(String accumulatorName) {
-		Object result = this.accumulatorResults.get(accumulatorName);
+		Object result = this.accumulatorResults.get(accumulatorName).getUnchecked();
 		if (result == null) {
 			return null;
 		}

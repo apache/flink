@@ -19,8 +19,12 @@
 package org.apache.flink.api.common.accumulators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -28,12 +32,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Helper functions for the interaction with {@link Accumulator}.
  */
 @Internal
 public class AccumulatorHelper {
+	private static final Logger LOG = LoggerFactory.getLogger(AccumulatorHelper.class);
 
 	/**
 	 * Merge two collections of accumulators. The second will be merged into the
@@ -52,19 +58,21 @@ public class AccumulatorHelper {
 				// Create initial counter (copy!)
 				target.put(
 					otherEntry.getKey(),
-					OptionalFailure.createFrom(() -> otherEntry.getValue().clone()));
+					wrapUnchecked(otherEntry.getKey(), () -> otherEntry.getValue().clone()));
 			}
 			else if (ownAccumulator.isFailure()) {
 				continue;
 			}
 			else {
+				Accumulator<?, ?> accumulator = ownAccumulator.getUnchecked();
 				// Both should have the same type
-				AccumulatorHelper.compareAccumulatorTypes(otherEntry.getKey(),
-						ownAccumulator.get().getClass(), otherEntry.getValue().getClass());
+				compareAccumulatorTypes(otherEntry.getKey(),
+					accumulator.getClass(), otherEntry.getValue().getClass());
 				// Merge target counter with other counter
+
 				target.put(
 					otherEntry.getKey(),
-					OptionalFailure.createFrom(() -> mergeSingle(ownAccumulator.get(), otherEntry.getValue().clone())));
+					wrapUnchecked(otherEntry.getKey(), () -> mergeSingle(accumulator, otherEntry.getValue().clone())));
 			}
 		}
 	}
@@ -119,9 +127,20 @@ public class AccumulatorHelper {
 	public static Map<String, OptionalFailure<Object>> toResultMap(Map<String, Accumulator<?, ?>> accumulators) {
 		Map<String, OptionalFailure<Object>> resultMap = new HashMap<>();
 		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulators.entrySet()) {
-			resultMap.put(entry.getKey(), OptionalFailure.createFrom(() -> entry.getValue().getLocalValue()));
+			resultMap.put(entry.getKey(), wrapUnchecked(entry.getKey(), () -> entry.getValue().getLocalValue()));
 		}
 		return resultMap;
+	}
+
+	private static <R> OptionalFailure<R> wrapUnchecked(String name, Supplier<R> supplier) {
+		return OptionalFailure.createFrom(() -> {
+			try {
+				return supplier.get();
+			} catch (RuntimeException ex) {
+				LOG.error("Unexpected error while handling accumulator [" + name + "]", ex);
+				throw new FlinkException(ex);
+			}
+		});
 	}
 
 	public static String getResultsFormatted(Map<String, Object> map) {
