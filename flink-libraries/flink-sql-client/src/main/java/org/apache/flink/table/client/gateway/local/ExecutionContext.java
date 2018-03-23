@@ -45,6 +45,7 @@ import org.apache.flink.table.client.config.Deployment;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.descriptors.TableSourceDescriptor;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceFactoryService;
 import org.apache.flink.util.FlinkException;
@@ -60,7 +61,7 @@ import java.util.Map;
 /**
  * Context for executing table programs. This class caches everything that can be cached across
  * multiple queries as long as the session context does not change. This must be thread-safe as
- * it might be reused across different query submission.
+ * it might be reused across different query submissions.
  *
  * @param <T> cluster id
  */
@@ -92,9 +93,12 @@ public class ExecutionContext<T> {
 
 		// create table sources
 		tableSources = new HashMap<>();
-		mergedEnv.getSources().forEach((name, source) -> {
-			final TableSource<?> tableSource = TableSourceFactoryService.findAndCreateTableSource(source, classLoader);
-			tableSources.put(name, tableSource);
+		mergedEnv.getTables().forEach((name, descriptor) -> {
+			if (descriptor instanceof TableSourceDescriptor) {
+				TableSource<?> tableSource = TableSourceFactoryService.findAndCreateTableSource(
+						(TableSourceDescriptor) descriptor, classLoader);
+				tableSources.put(name, tableSource);
+			}
 		});
 
 		// convert deployment options into command line options that describe a cluster

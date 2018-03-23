@@ -25,11 +25,12 @@
 # Table Sources
 #==============================================================================
 
-# Define table sources here. See the Table API & SQL documentation for details.
+# Define table sources and sinks here. See the Table API & SQL documentation for details.
 
-sources: [] # empty list
+tables: [] # empty list
 # A typical table source definition looks like:
 # - name: ...
+#   type: source
 #   connector: ...
 #   format: ...
 #   schema: ...
