@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 ################################################################################
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,89 +19,190 @@
 
 source "$(dirname "$0")"/common.sh
 
-#FLINK_DIR=/Users/kkloudas/repos/dataartisans/flink/build-target flink-end-to-end-tests/test-scripts/test_ha.sh
-TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-examples/flink-examples-streaming/target/StateMachineExample.jar\ --error-rate\ 0.0\ --sleep\ 2
+TEST_PROGRAM_JAR=$FLINK_DIR/examples/streaming/StateMachineExample.jar\ --error-rate\ 0.0\ --sleep\ 2
 
-stop_cluster_and_watchdog() {
-    kill ${watchdogPid} 2> /dev/null
-    wait ${watchdogPid} 2> /dev/null
+JM_WATCHDOG_PID=0
+TM_WATCHDOG_PID=0
 
-    stop_ha_cluster
+# flag indicating if we have already cleared up things after a test
+CLEARED=0
+
+function stop_cluster_and_watchdog() {
+    if [ ${CLEARED} -eq 0 ]; then
+
+        if ! [ ${JM_WATCHDOG_PID} -eq 0 ]; then
+            echo "Killing JM watchdog @ ${JM_WATCHDOG_PID}"
+            kill ${JM_WATCHDOG_PID} 2> /dev/null
+            wait ${JM_WATCHDOG_PID} 2> /dev/null
+        fi
+
+        if ! [ ${TM_WATCHDOG_PID} -eq 0 ]; then
+            echo "Killing TM watchdog @ ${TM_WATCHDOG_PID}"
+            kill ${TM_WATCHDOG_PID} 2> /dev/null
+            wait ${TM_WATCHDOG_PID} 2> /dev/null
+        fi
+
+        cleanup
+        CLEARED=1
+    fi
 }
 
-verify_logs() {
-    expectedRetries=$1
+function verify_logs() {
+    local OUTPUT=$1
+    local JM_FAILURES=$2
 
     # verify that we have no alerts
-    if ! [ `cat ${output} | wc -l` -eq 0 ]; then
+    if ! [ `cat ${OUTPUT} | wc -l` -eq 0 ]; then
         echo "FAILURE: Alerts found at the StateMachineExample with 0.0 error rate."
         PASS=""
     fi
 
     # checks that all apart from the first JM recover the failes jobgraph.
-    if ! [ `grep -r --include '*standalonesession*.log' Recovered SubmittedJobGraph "${FLINK_DIR}/log/" | cut -d ":" -f 1 | uniq | wc -l` -eq ${expectedRetries} ]; then
+    if ! [ `grep -r --include '*standalonesession*.log' Recovered SubmittedJobGraph "${FLINK_DIR}/log/" | cut -d ":" -f 1 | uniq | wc -l` -eq ${JM_FAILURES} ]; then
         echo "FAILURE: A JM did not take over."
         PASS=""
     fi
 
     # search the logs for JMs that log completed checkpoints
-    if ! [ `grep -r --include '*standalonesession*.log' Completed checkpoint "${FLINK_DIR}/log/" | cut -d ":" -f 1 | uniq | wc -l` -eq $((expectedRetries + 1)) ]; then
+    if ! [ `grep -r --include '*standalonesession*.log' Completed checkpoint "${FLINK_DIR}/log/" | cut -d ":" -f 1 | uniq | wc -l` -eq $((JM_FAILURES + 1)) ]; then
         echo "FAILURE: A JM did not execute the job."
         PASS=""
     fi
+
+    if [[ ! "$PASS" ]]; then
+        echo "One or more tests FAILED."
+        exit 1
+    fi
 }
 
-run_ha_test() {
-    parallelism=$1
-    backend=$2
-    async=$3
-    incremental=$4
-    maxAttempts=$5
-    rstrtInterval=$6
-    output=$7
+function jm_watchdog() {
+    local EXPECTED_JMS=$1
+    local IP_PORT=$2
 
-    jmKillAndRetries=2
-    checkpointDir="${TEST_DATA_DIR}/checkpoints/"
+    while true; do
+        local RUNNING_JMS=`jps | grep 'StandaloneSessionClusterEntrypoint' | wc -l`;
+        local MISSING_JMS=$((EXPECTED_JMS-RUNNING_JMS))
+        for (( c=0; c<MISSING_JMS; c++ )); do
+            "$FLINK_DIR"/bin/jobmanager.sh start "localhost" ${IP_PORT}
+        done
+        sleep 5;
+    done
+}
 
-    # start the cluster on HA mode and
-    # verify that all JMs are running
+function kill_jm {
+    local JM_PIDS=`jps | grep 'StandaloneSessionClusterEntrypoint' | cut -d " " -f 1`
+    local JM_PIDS=(${JM_PIDS[@]})
+    local PID=${JM_PIDS[0]}
+    kill -9 ${PID}
+
+    echo "Killed JM @ ${PID}."
+}
+
+function tm_watchdog() {
+    local JOB_ID=$1
+    local EXPECTED_TMS=$2
+
+    # the number of already seen successful checkpoints
+    local SUCCESSFUL_CHCKP=0
+
+    while true; do
+
+        # check how many successful checkpoints we have
+        # and kill a TM only if the previous one already had some
+
+        local CHECKPOINTS=`curl -s "http://localhost:8081/jobs/${JOB_ID}/checkpoints" | cut -d ":" -f 6 | sed 's/,.*//'`
+
+        if [[ ${CHECKPOINTS} =~ '^[0-9]+$' ]] || [[ ${CHECKPOINTS} == "" ]]; then
+
+            # this may be the case during leader election.
+            # in this case we retry later with a smaller interval
+            sleep 5; continue
+
+        elif [ "${CHECKPOINTS}" -ne "${SUCCESSFUL_CHCKP}" ]; then
+
+            # we are not only searching for > because when the JM goes down,
+            # the job starts with reporting 0 successful checkpoints
+
+            local RUNNING_TMS=`jps | grep 'TaskManagerRunner' | wc -l`
+            local TM_PIDS=`jps | grep 'TaskManagerRunner' | cut -d " " -f 1`
+
+            local MISSING_TMS=$((EXPECTED_TMS-RUNNING_TMS))
+            if [ ${MISSING_TMS} -eq 0 ]; then
+                # start a new TM only if we have exactly the expected number
+                "$FLINK_DIR"/bin/taskmanager.sh start > /dev/null
+            fi
+
+            # kill an existing one
+            local TM_PIDS=(${TM_PIDS[@]})
+            local PID=${TM_PIDS[0]}
+            kill -9 ${PID}
+
+            echo "Killed TM @ ${PID}"
+
+            SUCCESSFUL_CHCKP=${CHECKPOINTS}
+        fi
+
+        sleep 11;
+    done
+}
+
+function run_ha_test() {
+    PARALLELISM=$1
+    BACKEND=$2
+    ASYNC=$3
+    INCREM=$4
+    OUTPUT=$5
+
+    JM_KILLS=3
+    CLEARED=0
+    CHECKPOINT_DIR="${TEST_DATA_DIR}/checkpoints/"
+
+    # start the cluster on HA mode
     start_ha_cluster
 
-    echo "Running on HA mode: parallelism=${parallelism}, backend=${backend}, asyncSnapshots=${async}, and incremSnapshots=${incremental}."
+    echo "Running on HA mode: parallelism=${PARALLELISM}, backend=${BACKEND}, asyncSnapshots=${ASYNC}, and incremSnapshots=${INCREM}."
 
     # submit a job in detached mode and let it run
-    $FLINK_DIR/bin/flink run -d -p ${parallelism} \
+    JOB_ID=$($FLINK_DIR/bin/flink run -d -p ${PARALLELISM} \
      $TEST_PROGRAM_JAR \
-        --stateBackend ${backend} \
-        --checkpointDir "file://${checkpointDir}" \
-        --asyncCheckpoints ${async} \
-        --incrementalCheckpoints ${incremental} \
-        --restartAttempts ${maxAttempts} \
-        --restartDelay ${rstrtInterval} \
-        --output ${output} > /dev/null
+        --backend ${BACKEND} \
+        --checkpoint-dir "file://${CHECKPOINT_DIR}" \
+        --async-checkpoints ${ASYNC} \
+        --incremental-checkpoints ${INCREM} \
+        --output ${OUTPUT} | grep "Job has been submitted with JobID" | sed 's/.* //g')
+
+    wait_job_running ${JOB_ID}
 
     # start the watchdog that keeps the number of JMs stable
     jm_watchdog 1 "8081" &
-    watchdogPid=$!
+    JM_WATCHDOG_PID=$!
+    echo "Running JM watchdog @ ${JM_WATCHDOG_PID}"
+
+    sleep 5
+
+    # start the watchdog that keeps the number of TMs stable
+    tm_watchdog ${JOB_ID} 1 &
+    TM_WATCHDOG_PID=$!
+    echo "Running TM watchdog @ ${TM_WATCHDOG_PID}"
 
     # let the job run for a while to take some checkpoints
-    sleep 50
+    sleep 20
 
-    for (( c=0; c<${jmKillAndRetries}; c++ )); do
+    for (( c=0; c<${JM_KILLS}; c++ )); do
         # kill the JM and wait for watchdog to
-        # create a new JM which will take over
-        kill_jm 0
-        sleep 50
+        # create a new one which will take over
+        kill_jm
+        sleep 60
     done
 
-    verify_logs ${jmKillAndRetries}
+    verify_logs "${TEST_DATA_DIR}/output.txt}" ${JM_KILLS}
 
     # kill the cluster and zookeeper
     stop_cluster_and_watchdog
 }
 
-run_ha_test 1 "file" "false" "false" 3 100 "${TEST_DATA_DIR}/output.txt"
-run_ha_test 1 "rocks" "false" "false" 3 100 "${TEST_DATA_DIR}/output.txt"
-run_ha_test 1 "file" "true" "false" 3 100 "${TEST_DATA_DIR}/output.txt"
-run_ha_test 1 "rocks" "false" "true" 3 100 "${TEST_DATA_DIR}/output.txt"
 trap stop_cluster_and_watchdog EXIT
+run_ha_test 1 "file" "false" "false" "${TEST_DATA_DIR}/output.txt"
+run_ha_test 1 "rocks" "false" "false" "${TEST_DATA_DIR}/output.txt"
+run_ha_test 1 "file" "true" "false" "${TEST_DATA_DIR}/output.txt"
+run_ha_test 1 "rocks" "false" "true" "${TEST_DATA_DIR}/output.txt"

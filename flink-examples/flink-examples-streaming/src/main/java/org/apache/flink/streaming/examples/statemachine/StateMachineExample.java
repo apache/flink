@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.examples.statemachine;
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.utils.ParameterTool;
@@ -59,6 +58,12 @@ public class StateMachineExample {
 
 		System.out.println("Usage with built-in data generator: StateMachineExample [--error-rate <probability-of-invalid-transition>] [--sleep <sleep-per-record-in-ms>]");
 		System.out.println("Usage with Kafka: StateMachineExample --kafka-topic <topic> [--brokers <brokers>]");
+		System.out.println("Options for both the above setups: ");
+		System.out.println("\t[--backend <file|rocks>]");
+		System.out.println("\t[--checkpoint-dir <filepath>]");
+		System.out.println("\t[--async-checkpoints <true|false>]");
+		System.out.println("\t[--incremental-checkpoints <true|false>]");
+		System.out.println("\t[--output <filepath> OR null for stdout]");
 		System.out.println();
 
 		// ---- determine whether to use the built-in source, or read from Kafka ----
@@ -96,26 +101,20 @@ public class StateMachineExample {
 
 		// create the environment to create streams and configure execution
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.enableCheckpointing(2000L);
 
-		final String checkpointDir = params.getRequired("checkpointDir");
-		final String stateBackend = params.get("stateBackend", "file");
+		final String stateBackend = params.get("backend", "memory");
 		if ("file".equals(stateBackend)) {
-			boolean asyncCheckpoints = params.getBoolean("asyncCheckpoints", false);
+			final String checkpointDir = params.get("checkpoint-dir");
+			boolean asyncCheckpoints = params.getBoolean("async-checkpoints", false);
 			env.setStateBackend(new FsStateBackend(checkpointDir, asyncCheckpoints));
 		} else if ("rocks".equals(stateBackend)) {
-			boolean incrementalCheckpoints = params.getBoolean("incrementalCheckpoints", false);
+			final String checkpointDir = params.get("checkpoint-dir");
+			boolean incrementalCheckpoints = params.getBoolean("incremental-checkpoints", false);
 			env.setStateBackend(new RocksDBStateBackend(checkpointDir, incrementalCheckpoints));
-		} else {
-			throw new IllegalArgumentException("Unknown backend: " + stateBackend);
 		}
 
-		env.enableCheckpointing(2000L);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-				params.getInt("restartAttempts", Integer.MAX_VALUE),
-				params.getLong("restartDelay", 0L))
-		);
-
-		final String outputFile = params.getRequired("output");
+		final String outputFile = params.get("output");
 
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
@@ -131,7 +130,11 @@ public class StateMachineExample {
 				.flatMap(new StateMachineMapper());
 
 		// output the alerts to std-out
-		alerts.writeAsText(outputFile, FileSystem.WriteMode.OVERWRITE);
+		if (outputFile == null) {
+			alerts.print();
+		} else {
+			alerts.writeAsText(outputFile, FileSystem.WriteMode.OVERWRITE);
+		}
 
 		// trigger program execution
 		env.execute("State machine job");
