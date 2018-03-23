@@ -36,6 +36,7 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -3446,6 +3447,81 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				IOUtils.closeQuietly(backend);
 				backend.dispose();
 			}
+		}
+	}
+
+	/**
+	 * Since {@link AbstractKeyedStateBackend#getKeys(String, Object)} does't support concurrent modification
+	 * and {@link AbstractKeyedStateBackend#applyToAllKeys(Object, TypeSerializer, StateDescriptor,
+	 * KeyedStateFunction)} rely on it to get keys from backend. So we need this unit test to verify the concurrent
+	 * modification with {@link AbstractKeyedStateBackend#applyToAllKeys(Object, TypeSerializer, StateDescriptor, KeyedStateFunction)}.
+	 */
+	@Test
+	public void testConcurrentModificationWithApplyToAllKeys() throws Exception {
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		try {
+			ListStateDescriptor<String> listStateDescriptor =
+				new ListStateDescriptor<>("foo", StringSerializer.INSTANCE);
+
+			ListState<String> listState =
+				backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, listStateDescriptor);
+
+			for (int i = 0; i < 100; ++i) {
+				backend.setCurrentKey(i);
+				listState.add("Hello" + i);
+			}
+
+			// valid state value via applyToAllKeys().
+			backend.applyToAllKeys(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, listStateDescriptor,
+				new KeyedStateFunction<Integer, ListState<String>>() {
+					@Override
+					public void process(Integer key, ListState<String> state) throws Exception {
+						assertEquals("Hello" + key, state.get().iterator().next());
+					}
+				});
+
+			// clear state via applyToAllKeys().
+			backend.applyToAllKeys(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, listStateDescriptor,
+				new KeyedStateFunction<Integer, ListState<String>>() {
+					@Override
+					public void process(Integer key, ListState<String> state) throws Exception {
+						state.clear();
+					}
+				});
+
+			// valid that state has been cleared.
+			backend.applyToAllKeys(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, listStateDescriptor,
+				new KeyedStateFunction<Integer, ListState<String>>() {
+					@Override
+					public void process(Integer key, ListState<String> state) throws Exception {
+						assertFalse(state.get().iterator().hasNext());
+					}
+				});
+
+			// clear() with add() in applyToAllKeys()
+			backend.applyToAllKeys(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, listStateDescriptor,
+				new KeyedStateFunction<Integer, ListState<String>>() {
+					@Override
+					public void process(Integer key, ListState<String> state) throws Exception {
+						state.add("Hello" + key);
+						state.clear();
+						state.add("Hello" + key);
+					}
+				});
+
+			// valid state value via applyToAllKeys().
+			backend.applyToAllKeys(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, listStateDescriptor,
+				new KeyedStateFunction<Integer, ListState<String>>() {
+					@Override
+					public void process(Integer key, ListState<String> state) throws Exception {
+						assertEquals("Hello" + key, state.get().iterator().next());
+					}
+				});
+		}
+		finally {
+			IOUtils.closeQuietly(backend);
+			backend.dispose();
 		}
 	}
 

@@ -295,16 +295,16 @@ public abstract class AbstractKeyedStateBackend<K> implements
 			final KeyedStateFunction<K, S> function) throws Exception {
 
 		try (Stream<K> keyStream = getKeys(stateDescriptor.getName(), namespace)) {
+
+			final S state = getPartitionedState(
+				namespace,
+				namespaceSerializer,
+				stateDescriptor);
+
 			keyStream.forEach((K key) -> {
 				setCurrentKey(key);
 				try {
-					function.process(
-						key,
-						getPartitionedState(
-							namespace,
-							namespaceSerializer,
-							stateDescriptor)
-					);
+					function.process(key, state);
 				} catch (Throwable e) {
 					// we wrap the checked exception in an unchecked
 					// one and catch it (and re-throw it) later.
