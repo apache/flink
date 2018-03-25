@@ -534,6 +534,18 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
+	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) {
+		try {
+			return getDispatcherGateway().disposeSavepoint(savepointPath, rpcTimeout);
+		} catch (LeaderRetrievalException | InterruptedException e) {
+			ExceptionUtils.checkInterrupted(e);
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					String.format("Could not dispose savepoint %s.", savepointPath),
+					e));
+		}
+	}
+
 	public CompletableFuture<? extends AccessExecutionGraph> getExecutionGraph(JobID jobId) {
 		try {
 			return getDispatcherGateway().requestJob(jobId, rpcTimeout);

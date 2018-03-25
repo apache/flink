@@ -181,7 +181,7 @@ public class ClusterClientTest extends TestLogger {
 
 		final TestClusterClient clusterClient = new TestClusterClient(configuration, jobManagerGateway);
 
-		CompletableFuture<Acknowledge> acknowledgeCompletableFuture = clusterClient.disposeSavepoint(savepointPath, timeout);
+		CompletableFuture<Acknowledge> acknowledgeCompletableFuture = clusterClient.disposeSavepoint(savepointPath);
 
 		try {
 			acknowledgeCompletableFuture.get();
@@ -203,7 +203,7 @@ public class ClusterClientTest extends TestLogger {
 
 		final TestClusterClient clusterClient = new TestClusterClient(configuration, jobManagerGateway);
 
-		CompletableFuture<Acknowledge> acknowledgeCompletableFuture = clusterClient.disposeSavepoint(savepointPath, timeout);
+		CompletableFuture<Acknowledge> acknowledgeCompletableFuture = clusterClient.disposeSavepoint(savepointPath);
 
 		try {
 			acknowledgeCompletableFuture.get();

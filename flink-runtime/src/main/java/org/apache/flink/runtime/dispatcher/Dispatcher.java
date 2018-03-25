@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -75,6 +76,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 /**
@@ -317,6 +319,25 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		}
 		return CompletableFuture.completedFuture(
 			Collections.unmodifiableSet(new HashSet<>(jobManagerRunners.keySet())));
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath, Time timeout) {
+		final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+
+		return CompletableFuture.supplyAsync(
+			() -> {
+				log.info("Disposing savepoint {}.", savepointPath);
+
+				try {
+					Checkpoints.disposeSavepoint(savepointPath, configuration, classLoader, log);
+				} catch (IOException | FlinkException e) {
+					throw new CompletionException(new FlinkException(String.format("Could not dispose savepoint %s.", savepointPath), e));
+				}
+
+				return Acknowledge.get();
+			},
+			jobManagerSharedServices.getScheduledExecutorService());
 	}
 
 	@Override

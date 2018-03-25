@@ -27,11 +27,11 @@ import java.util.Objects;
  * Any operation key for the {@link AbstractAsynchronousOperationHandlers} must extend this class.
  * It is used to store the trigger id.
  */
-public abstract class OperationKey {
+public class OperationKey {
 
 	private final TriggerId triggerId;
 
-	protected OperationKey(TriggerId triggerId) {
+	public OperationKey(TriggerId triggerId) {
 		this.triggerId = Preconditions.checkNotNull(triggerId);
 	}
 
