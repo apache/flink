@@ -25,7 +25,9 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
@@ -54,6 +56,11 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
+import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageLocation;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -72,9 +79,18 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.mockito.Mockito;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -126,6 +142,8 @@ public class DispatcherTest extends TestLogger {
 
 	private RunningJobsRegistry runningJobsRegistry;
 
+	private Configuration configuration;
+
 	/** Instance under test. */
 	private TestingDispatcher dispatcher;
 
@@ -165,18 +183,19 @@ public class DispatcherTest extends TestLogger {
 		haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
 		runningJobsRegistry = haServices.getRunningJobsRegistry();
 
-		final Configuration blobServerConfig = new Configuration();
-		blobServerConfig.setString(
+		configuration = new Configuration();
+
+		configuration.setString(
 			BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 
 		dispatcher = new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
-			new Configuration(),
+			configuration,
 			haServices,
 			mock(ResourceManagerGateway.class),
-			new BlobServer(blobServerConfig, new VoidBlobStore()),
+			new BlobServer(configuration, new VoidBlobStore()),
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 			null,
@@ -342,6 +361,42 @@ public class DispatcherTest extends TestLogger {
 
 		assertThat(jobIds, hasSize(1));
 		assertThat(jobIds, contains(jobGraph.getJobID()));
+	}
+
+	/**
+	 * Tests that we can dispose a savepoint.
+	 */
+	@Test
+	public void testSavepointDisposal() throws Exception {
+		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		final URI externalPointer = createTestingSavepoint();
+		final Path savepointPath = Paths.get(externalPointer);
+
+		assertThat(Files.exists(savepointPath), is(true));
+
+		dispatcherGateway.disposeSavepoint(externalPointer.toString(), TIMEOUT).get();
+
+		assertThat(Files.exists(savepointPath), is(false));
+	}
+
+	@Nonnull
+	private URI createTestingSavepoint() throws IOException, URISyntaxException {
+		final StateBackend stateBackend = Checkpoints.loadStateBackend(configuration, Thread.currentThread().getContextClassLoader(), log);
+		final CheckpointStorage checkpointStorage = stateBackend.createCheckpointStorage(jobGraph.getJobID());
+		final File savepointFile = temporaryFolder.newFolder();
+		final long checkpointId = 1L;
+
+		final CheckpointStorageLocation checkpointStorageLocation = checkpointStorage.initializeLocationForSavepoint(checkpointId, savepointFile.getAbsolutePath());
+
+		final CheckpointMetadataOutputStream metadataOutputStream = checkpointStorageLocation.createMetadataOutputStream();
+		Checkpoints.storeCheckpointMetadata(new SavepointV2(checkpointId, Collections.emptyList(), Collections.emptyList()), metadataOutputStream);
+
+		final CompletedCheckpointStorageLocation completedCheckpointStorageLocation = metadataOutputStream.closeAndFinalizeCheckpoint();
+
+		return new URI(completedCheckpointStorageLocation.getExternalPointer());
 	}
 
 	private static class TestingDispatcher extends Dispatcher {

@@ -726,14 +726,14 @@ public abstract class ClusterClient<T> {
 		});
 	}
 
-	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath, Time timeout) throws FlinkException {
+	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) throws FlinkException {
 		final ActorGateway jobManager = getJobManagerGateway();
 
 		Object msg = new JobManagerMessages.DisposeSavepoint(savepointPath);
 		CompletableFuture<Object> responseFuture = FutureUtils.<Object>toJava(
 			jobManager.ask(
 				msg,
-				FutureUtils.toFiniteDuration(timeout)));
+				timeout));
 
 		return responseFuture.thenApply(
 			(Object response) -> {

@@ -123,8 +123,8 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath, Time timeout) throws FlinkException {
-		throw new UnsupportedOperationException("MiniClusterClient does not yet support this operation.");
+	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) throws FlinkException {
+		return guardWithSingleRetry(() -> miniCluster.disposeSavepoint(savepointPath), scheduledExecutor);
 	}
 
 	@Override

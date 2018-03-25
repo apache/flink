@@ -145,6 +145,19 @@ public interface RestfulGateway extends RpcGateway {
 	}
 
 	/**
+	 * Dispose the given savepoint.
+	 *
+	 * @param savepointPath identifying the savepoint to dispose
+	 * @param timeout RPC timeout
+	 * @return A future acknowledge if the disposal succeeded
+	 */
+	default CompletableFuture<Acknowledge> disposeSavepoint(
+			final String savepointPath,
+			@RpcTimeout final Time timeout) {
+		throw new UnsupportedOperationException();
+	}
+
+	/**
 	 * Request the {@link JobStatus} of the given job.
 	 *
 	 * @param jobId identifying the job for which to retrieve the JobStatus

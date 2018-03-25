@@ -72,6 +72,10 @@ import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalRequest;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalStatusHeaders;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalStatusMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointInfo;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusMessageParameters;
@@ -521,6 +525,40 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			});
 
 		return rescalingOperationFuture.thenApply(
+			(AsynchronousOperationInfo asynchronousOperationInfo) -> {
+				if (asynchronousOperationInfo.getFailureCause() == null) {
+					return Acknowledge.get();
+				} else {
+					throw new CompletionException(asynchronousOperationInfo.getFailureCause());
+				}
+			});
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath, Time timeout) {
+		final SavepointDisposalRequest savepointDisposalRequest = new SavepointDisposalRequest(savepointPath);
+
+		final CompletableFuture<TriggerResponse> savepointDisposalTriggerFuture = sendRequest(
+			SavepointDisposalTriggerHeaders.getInstance(),
+			EmptyMessageParameters.getInstance(),
+			savepointDisposalRequest);
+
+		final CompletableFuture<AsynchronousOperationInfo> savepointDisposalFuture = savepointDisposalTriggerFuture.thenCompose(
+			(TriggerResponse triggerResponse) -> {
+				final TriggerId triggerId = triggerResponse.getTriggerId();
+				final SavepointDisposalStatusHeaders savepointDisposalStatusHeaders = SavepointDisposalStatusHeaders.getInstance();
+				final SavepointDisposalStatusMessageParameters savepointDisposalStatusMessageParameters = savepointDisposalStatusHeaders.getUnresolvedMessageParameters();
+				savepointDisposalStatusMessageParameters.triggerIdPathParameter.resolve(triggerId);
+
+				return pollResourceAsync(
+					() -> sendRetryableRequest(
+						savepointDisposalStatusHeaders,
+						savepointDisposalStatusMessageParameters,
+						EmptyRequestBody.getInstance(),
+						isConnectionProblemException()));
+			});
+
+		return savepointDisposalFuture.thenApply(
 			(AsynchronousOperationInfo asynchronousOperationInfo) -> {
 				if (asynchronousOperationInfo.getFailureCause() == null) {
 					return Acknowledge.get();
