@@ -140,8 +140,8 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 				rpcEndpoint.getClass().getName(),
 				message.getClass().getName());
 
-			sendErrorIfSender(new AkkaRpcException("Discard message, because " +
-				"the rpc endpoint has not been started yet."));
+			sendErrorIfSender(new AkkaRpcException(
+				String.format("Discard message, because the rpc endpoint %s has not been started yet.", rpcEndpoint.getAddress())));
 		}
 	}
 
