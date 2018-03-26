@@ -42,7 +42,7 @@ public abstract class MessageParameter<X> {
 	private final String key;
 	private X value;
 
-	MessageParameter(String key, MessageParameterRequisiteness requisiteness) {
+	protected MessageParameter(String key, MessageParameterRequisiteness requisiteness) {
 		this.key = Preconditions.checkNotNull(key);
 		this.requisiteness = Preconditions.checkNotNull(requisiteness);
 	}
