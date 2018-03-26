@@ -40,8 +40,6 @@ import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
-
 /**
  * Program to test a large chunk of DataSet API operators and primitives:
  * <ul>
@@ -61,6 +59,7 @@ import java.io.IOException;
  */
 public class DataSetAllroundTestProgram {
 
+	@SuppressWarnings("Convert2Lambda")
 	public static void main(String[] args) throws Exception {
 
 		// get parameters
@@ -87,7 +86,7 @@ public class DataSetAllroundTestProgram {
 			.groupBy(
 				new KeySelector<Tuple2<String, Integer>, String>() {
 					@Override
-					public String getKey(Tuple2<String, Integer> value) throws Exception {
+					public String getKey(Tuple2<String, Integer> value) {
 						return value.f0;
 					}
 				}
@@ -150,7 +149,7 @@ public class DataSetAllroundTestProgram {
 				}
 			)
 				.returns(Types.BOOLEAN);
-		DataSet result = initial.closeWith(iteration, termination)
+		DataSet<Tuple2<Integer, Integer>> result = initial.closeWith(iteration, termination)
 			// group on the count field and count records
 			// result: two records: (32, cnt1) and (64, cnt2) where cnt1 = x * 15/16, cnt2 = x * 1/16
 			.groupBy(1)
@@ -178,7 +177,6 @@ public class DataSetAllroundTestProgram {
 			.writeAsText(outputPath, FileSystem.WriteMode.OVERWRITE).setParallelism(1);
 
 		env.execute();
-
 	}
 
 	/**
@@ -217,12 +215,12 @@ public class DataSetAllroundTestProgram {
 		public void configure(Configuration parameters) { }
 
 		@Override
-		public BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException {
+		public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
 			return null;
 		}
 
 		@Override
-		public GenericInputSplit[] createInputSplits(int minNumSplits) throws IOException {
+		public GenericInputSplit[] createInputSplits(int minNumSplits) {
 
 			GenericInputSplit[] splits = new GenericInputSplit[minNumSplits];
 			for (int i = 0; i < minNumSplits; i++) {
@@ -237,7 +235,7 @@ public class DataSetAllroundTestProgram {
 		}
 
 		@Override
-		public void open(GenericInputSplit split) throws IOException {
+		public void open(GenericInputSplit split) {
 			this.partitionId = split.getSplitNumber();
 			this.numPartitions = split.getTotalNumberOfSplits();
 
@@ -256,12 +254,12 @@ public class DataSetAllroundTestProgram {
 		}
 
 		@Override
-		public boolean reachedEnd() throws IOException {
+		public boolean reachedEnd() {
 			return this.recordCnt >= this.recordsPerPartition;
 		}
 
 		@Override
-		public Tuple2<String, Integer> nextRecord(Tuple2<String, Integer> reuse) throws IOException {
+		public Tuple2<String, Integer> nextRecord(Tuple2<String, Integer> reuse) {
 
 			// build key from partition id and count per partition
 			String key = String.format(
@@ -279,7 +277,7 @@ public class DataSetAllroundTestProgram {
 		}
 
 		@Override
-		public void close() throws IOException { }
+		public void close() { }
 	}
 
 }

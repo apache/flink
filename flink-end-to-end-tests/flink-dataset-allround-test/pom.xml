@@ -61,7 +61,7 @@ under the License.
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>DataSetAllroundTestProgram</classifier>
+							<finalName>DataSetAllroundTestProgram</finalName>
 
 							<archive>
 								<manifestEntries>
@@ -73,27 +73,6 @@ under the License.
 								<include>org/apache/flink/batch/tests/DataSetAllroundTestProgram.class</include>
 								<include>org/apache/flink/batch/tests/DataSetAllroundTestProgram$*.class</include>
 							</includes>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<!--simplify the name of the testing JARs for referring to them in the end-to-end test scripts-->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-antrun-plugin</artifactId>
-				<version>1.7</version>
-				<executions>
-					<execution>
-						<id>rename</id>
-						<phase>package</phase>
-						<goals>
-							<goal>run</goal>
-						</goals>
-						<configuration>
-							<target>
-								<copy file="${project.basedir}/target/flink-dataset-allround-test-${project.version}-DataSetAllroundTestProgram.jar" tofile="${project.basedir}/target/DataSetAllroundTestProgram.jar" />
-							</target>
 						</configuration>
 					</execution>
 				</executions>
