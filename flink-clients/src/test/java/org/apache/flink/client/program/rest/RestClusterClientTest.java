@@ -472,6 +472,7 @@ public class RestClusterClientTest extends TestLogger {
 
 			try {
 				restClusterClient.triggerSavepoint(new JobID(), null).get();
+				fail("Expected exception not thrown.");
 			} catch (final ExecutionException e) {
 				assertTrue(
 					"RestClientException not in causal chain",
