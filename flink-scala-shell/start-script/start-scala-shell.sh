@@ -79,7 +79,7 @@ log_setting=""
 
 if [[ $1 = "yarn" ]]
 then
-FLINK_CLASSPATH=$FLINK_CLASSPATH:$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR
+FLINK_CLASSPATH=$FLINK_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS:$HADOOP_CONF_DIR:$YARN_CONF_DIR
 log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-scala-shell-yarn-$HOSTNAME.log
 log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-yarn-session.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback-yarn.xml"
 fi
