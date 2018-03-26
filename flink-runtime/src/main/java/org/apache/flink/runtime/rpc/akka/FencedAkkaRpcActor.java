@@ -55,7 +55,10 @@ public class FencedAkkaRpcActor<F extends Serializable, T extends FencedRpcEndpo
 
 				sendErrorIfSender(
 					new FencingTokenException(
-						"Fencing token not set: Ignoring message " + message + " because the fencing token is null."));
+						String.format(
+							"Fencing token not set: Ignoring message %s sent to %s because the fencing token is null.",
+							message,
+							rpcEndpoint.getAddress())));
 			} else {
 				@SuppressWarnings("unchecked")
 				FencedMessage<F, ?> fencedMessage = ((FencedMessage<F, ?>) message);
