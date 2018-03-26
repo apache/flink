@@ -55,6 +55,14 @@ fi
 
 if [ $EXIT_CODE == 0 ]; then
     printf "\n==============================================================================\n"
+    printf "Running Resuming Savepoint end-to-end test\n"
+    printf "==============================================================================\n"
+    $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh
+    EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+    printf "\n==============================================================================\n"
     printf "Running class loading end-to-end test\n"
     printf "==============================================================================\n"
     $END_TO_END_DIR/test-scripts/test_streaming_classloader.sh
