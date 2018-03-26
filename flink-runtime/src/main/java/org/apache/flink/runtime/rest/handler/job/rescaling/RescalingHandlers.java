@@ -32,6 +32,7 @@ import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.RescalingParallelismQueryParameter;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.SerializedThrowable;
@@ -80,7 +81,7 @@ public class RescalingHandlers extends AbstractAsynchronousOperationHandlers<Asy
 				jobId,
 				newParallelism,
 				RescalingBehaviour.STRICT,
-				timeout);
+				RpcUtils.INF_TIMEOUT);
 
 			return rescalingFuture;
 		}
