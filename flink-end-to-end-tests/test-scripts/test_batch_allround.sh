@@ -21,7 +21,7 @@ source "$(dirname "$0")"/common.sh
 
 TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-dataset-allround-test/target/DataSetAllroundTestProgram.jar
 
-    echo "Run DataSet-Allround-Test Program"
+echo "Run DataSet-Allround-Test Program"
 
 start_cluster
 $FLINK_DIR/bin/taskmanager.sh start
