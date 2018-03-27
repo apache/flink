@@ -144,6 +144,8 @@ public class DispatcherTest extends TestLogger {
 
 	private RunningJobsRegistry runningJobsRegistry;
 
+	private CountDownLatch createdJobManagerRunnerLatch;
+
 	private Configuration configuration;
 
 	/** Instance under test. */
@@ -191,6 +193,7 @@ public class DispatcherTest extends TestLogger {
 			BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 
+		createdJobManagerRunnerLatch = new CountDownLatch(2);
 		dispatcher = new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
@@ -202,8 +205,8 @@ public class DispatcherTest extends TestLogger {
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 			null,
 			new MemoryArchivedExecutionGraphStore(),
-			fatalErrorHandler,
-			TEST_JOB_ID);
+			new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch),
+			fatalErrorHandler);
 
 		dispatcher.start();
 	}
@@ -251,16 +254,7 @@ public class DispatcherTest extends TestLogger {
 				return jobIds;
 			});
 
-		UUID expectedLeaderSessionId = UUID.randomUUID();
-
-		assertNull(dispatcherLeaderElectionService.getConfirmationFuture());
-
-		dispatcherLeaderElectionService.isLeader(expectedLeaderSessionId);
-
-		UUID actualLeaderSessionId = dispatcherLeaderElectionService.getConfirmationFuture()
-			.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
-
-		assertEquals(expectedLeaderSessionId, actualLeaderSessionId);
+		electDispatcher();
 
 		// wait that we asked the SubmittedJobGraphStore for the stored jobs
 		jobIdsFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
@@ -292,7 +286,7 @@ public class DispatcherTest extends TestLogger {
 		runningJobsRegistry.clearJob(TEST_JOB_ID);
 		submittedJobGraphStore.putJobGraph(submittedJobGraph);
 		dispatcher.onAddedJobGraph(TEST_JOB_ID);
-		dispatcher.submitJobLatch.await();
+		createdJobManagerRunnerLatch.await();
 		assertThat(dispatcherGateway.listJobs(TIMEOUT).get(), hasSize(1));
 	}
 
@@ -364,7 +358,7 @@ public class DispatcherTest extends TestLogger {
 		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
 		// wait until we have recovered the job
-		dispatcher.submitJobLatch.await();
+		createdJobManagerRunnerLatch.await();
 
 		// check whether the job has been recovered
 		final Collection<JobID> jobIds = dispatcherGateway.listJobs(TIMEOUT).get();
@@ -450,16 +444,7 @@ public class DispatcherTest extends TestLogger {
 				throw testException;
 			});
 
-		UUID expectedLeaderSessionId = UUID.randomUUID();
-
-		assertNull(dispatcherLeaderElectionService.getConfirmationFuture());
-
-		dispatcherLeaderElectionService.isLeader(expectedLeaderSessionId);
-
-		UUID actualLeaderSessionId = dispatcherLeaderElectionService.getConfirmationFuture()
-			.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
-
-		assertEquals(expectedLeaderSessionId, actualLeaderSessionId);
+		electDispatcher();
 
 		// we expect that a fatal error occurred
 		final Throwable error = fatalErrorHandler.getErrorFuture().get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
@@ -485,6 +470,39 @@ public class DispatcherTest extends TestLogger {
 				throw testException;
 			});
 
+		electDispatcher();
+
+		// we expect that a fatal error occurred
+		final Throwable error = fatalErrorHandler.getErrorFuture().get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+		assertThat(ExceptionUtils.findThrowableWithMessage(error, testException.getMessage()).isPresent(), is(true));
+
+		fatalErrorHandler.clearError();
+	}
+
+	/**
+	 * Tests that the {@link Dispatcher} fails fatally if the job submission of a recovered job fails.
+	 * See FLINK-9097.
+	 */
+	@Test
+	public void testJobSubmissionErrorAfterJobRecovery() throws Exception {
+		final FlinkException testException = new FlinkException("Test exception");
+
+		final JobGraph failingJobGraph = createFailingJobGraph(testException);
+
+		final SubmittedJobGraph submittedJobGraph = new SubmittedJobGraph(failingJobGraph, null);
+		submittedJobGraphStore.putJobGraph(submittedJobGraph);
+
+		electDispatcher();
+
+		final Throwable error = fatalErrorHandler.getErrorFuture().get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+		assertThat(ExceptionUtils.findThrowableWithMessage(error, testException.getMessage()).isPresent(), is(true));
+
+		fatalErrorHandler.clearError();
+	}
+
+	private void electDispatcher() throws InterruptedException, ExecutionException, java.util.concurrent.TimeoutException {
 		UUID expectedLeaderSessionId = UUID.randomUUID();
 
 		assertNull(dispatcherLeaderElectionService.getConfirmationFuture());
@@ -495,18 +513,32 @@ public class DispatcherTest extends TestLogger {
 			.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 		assertEquals(expectedLeaderSessionId, actualLeaderSessionId);
+	}
 
-		// we expect that a fatal error occurred
-		final Throwable error = fatalErrorHandler.getErrorFuture().get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+	private JobGraph createFailingJobGraph(Exception failureCause) {
+		final FailingJobVertex jobVertex = new FailingJobVertex("Failing JobVertex", failureCause);
+		jobVertex.setInvokableClass(NoOpInvokable.class);
+		return new JobGraph(jobGraph.getJobID(), "Failing JobGraph", jobVertex);
+	}
 
-		assertThat(ExceptionUtils.findThrowableWithMessage(error, testException.getMessage()).isPresent(), is(true));
+	private static class FailingJobVertex extends JobVertex {
 
-		fatalErrorHandler.clearError();
+		private static final long serialVersionUID = 3218428829168840760L;
+
+		private final Exception failure;
+
+		private FailingJobVertex(String name, Exception failure) {
+			super(name);
+			this.failure = failure;
+		}
+
+		@Override
+		public void initializeOnMaster(ClassLoader loader) throws Exception {
+			throw failure;
+		}
 	}
 
 	private static class TestingDispatcher extends Dispatcher {
-
-		private final CountDownLatch submitJobLatch = new CountDownLatch(2);
 
 		/**
 		 * Controls whether existing jobs in {@link SubmittedJobGraphStore} should be recovered
@@ -525,8 +557,8 @@ public class DispatcherTest extends TestLogger {
 				JobManagerMetricGroup jobManagerMetricGroup,
 				@Nullable String metricQueryServicePath,
 				ArchivedExecutionGraphStore archivedExecutionGraphStore,
-				FatalErrorHandler fatalErrorHandler,
-				JobID expectedJobId) throws Exception {
+				JobManagerRunnerFactory jobManagerRunnerFactory,
+				FatalErrorHandler fatalErrorHandler) throws Exception {
 			super(
 				rpcService,
 				endpointId,
@@ -539,18 +571,9 @@ public class DispatcherTest extends TestLogger {
 				jobManagerMetricGroup,
 				metricQueryServicePath,
 				archivedExecutionGraphStore,
-				new ExpectedJobIdJobManagerRunnerFactory(expectedJobId),
+				jobManagerRunnerFactory,
 				fatalErrorHandler,
 				null);
-		}
-
-		@Override
-		public CompletableFuture<Acknowledge> submitJob(final JobGraph jobGraph, final Time timeout) {
-			final CompletableFuture<Acknowledge> submitJobFuture = super.submitJob(jobGraph, timeout);
-
-			submitJobFuture.thenAccept(ignored -> submitJobLatch.countDown());
-
-			return submitJobFuture;
 		}
 
 		@Override
@@ -571,8 +594,11 @@ public class DispatcherTest extends TestLogger {
 
 		private final JobID expectedJobId;
 
-		private ExpectedJobIdJobManagerRunnerFactory(JobID expectedJobId) {
+		private final CountDownLatch createdJobManagerRunnerLatch;
+
+		private ExpectedJobIdJobManagerRunnerFactory(JobID expectedJobId, CountDownLatch createdJobManagerRunnerLatch) {
 			this.expectedJobId = expectedJobId;
+			this.createdJobManagerRunnerLatch = createdJobManagerRunnerLatch;
 		}
 
 		@Override
@@ -588,6 +614,8 @@ public class DispatcherTest extends TestLogger {
 				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
 				FatalErrorHandler fatalErrorHandler) throws Exception {
 			assertEquals(expectedJobId, jobGraph.getJobID());
+
+			createdJobManagerRunnerLatch.countDown();
 
 			return Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE.createJobManagerRunner(
 				resourceId,
