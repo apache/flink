@@ -36,6 +36,7 @@ import java.io.UTFDataFormatException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.util.Arrays;
 import java.util.Random;
 
 /**
@@ -627,10 +628,19 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 				throw new IllegalStateException("Spilling file already exists.");
 			}
 
-			String directory = tempDirs[rnd.nextInt(tempDirs.length)];
-			spillFile = new File(directory, randomString(rnd) + ".inputchannel");
+			// try to find a unique file name for the spilling channel
+			int maxAttempts = 10;
+			for (int attempt = 0; attempt < maxAttempts; attempt++) {
+				String directory = tempDirs[rnd.nextInt(tempDirs.length)];
+				spillFile = new File(directory, randomString(rnd) + ".inputchannel");
+				if (spillFile.createNewFile()) {
+					return new RandomAccessFile(spillFile, "rw").getChannel();
+				}
+			}
 
-			return new RandomAccessFile(spillFile, "rw").getChannel();
+			throw new IOException(
+				"Could not find a unique file channel name in '" + Arrays.toString(tempDirs) +
+					"' for spilling large records during deserialization.");
 		}
 
 		private static String randomString(Random random) {

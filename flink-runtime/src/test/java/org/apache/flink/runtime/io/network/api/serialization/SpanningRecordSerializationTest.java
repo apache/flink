@@ -27,9 +27,12 @@ import org.apache.flink.testutils.serialization.types.IntType;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
 import org.apache.flink.testutils.serialization.types.Util;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -43,8 +46,11 @@ import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.
 /**
  * Tests for the {@link SpillingAdaptiveSpanningRecordDeserializer}.
  */
-public class SpanningRecordSerializationTest {
+public class SpanningRecordSerializationTest extends TestLogger {
 	private static final Random RANDOM = new Random(42);
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Test
 	public void testIntRecordsSpanningMultipleSegments() throws Exception {
@@ -100,11 +106,11 @@ public class SpanningRecordSerializationTest {
 
 	// -----------------------------------------------------------------------------------------------------------------
 
-	private static void testSerializationRoundTrip(Iterable<SerializationTestType> records, int segmentSize) throws Exception {
+	private void testSerializationRoundTrip(Iterable<SerializationTestType> records, int segmentSize) throws Exception {
 		RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<>();
 		RecordDeserializer<SerializationTestType> deserializer =
 			new SpillingAdaptiveSpanningRecordDeserializer<>(
-				new String[]{System.getProperty("java.io.tmpdir")});
+				new String[]{ tempFolder.getRoot().getAbsolutePath() });
 
 		testSerializationRoundTrip(records, segmentSize, serializer, deserializer);
 	}
