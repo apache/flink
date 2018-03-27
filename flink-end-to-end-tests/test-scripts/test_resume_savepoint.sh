@@ -23,27 +23,10 @@ if [ -z $1 ] || [ -z $2 ]; then
 fi
 
 source "$(dirname "$0")"/common.sh
+source "$(dirname "$0")"/kafka-common.sh
 
-# get Kafka 0.10.0
-mkdir -p $TEST_DATA_DIR
-if [ -z "$3" ]; then
-  # need to download Kafka because no Kafka was specified on the invocation
-  KAFKA_URL="https://archive.apache.org/dist/kafka/0.10.2.0/kafka_2.11-0.10.2.0.tgz"
-  echo "Downloading Kafka from $KAFKA_URL"
-  curl "$KAFKA_URL" > $TEST_DATA_DIR/kafka.tgz
-else
-  echo "Using specified Kafka from $3"
-  cp $3 $TEST_DATA_DIR/kafka.tgz
-fi
-
-tar xzf $TEST_DATA_DIR/kafka.tgz -C $TEST_DATA_DIR/
-KAFKA_DIR=$TEST_DATA_DIR/kafka_2.11-0.10.2.0
-
-# fix kafka config
-sed -i -e "s+^\(dataDir\s*=\s*\).*$+\1$TEST_DATA_DIR/zookeeper+" $KAFKA_DIR/config/zookeeper.properties
-sed -i -e "s+^\(log\.dirs\s*=\s*\).*$+\1$TEST_DATA_DIR/kafka+" $KAFKA_DIR/config/server.properties
-$KAFKA_DIR/bin/zookeeper-server-start.sh -daemon $KAFKA_DIR/config/zookeeper.properties
-$KAFKA_DIR/bin/kafka-server-start.sh -daemon $KAFKA_DIR/config/server.properties
+setup_kafka_dist
+start_kafka_cluster
 
 ORIGINAL_DOP=$1
 NEW_DOP=$2
@@ -67,8 +50,7 @@ start_cluster
 
 # make sure to stop Kafka and ZooKeeper at the end, as well as cleaning up the Flink cluster and our moodifications
 function test_cleanup {
-  $KAFKA_DIR/bin/kafka-server-stop.sh
-  $KAFKA_DIR/bin/zookeeper-server-stop.sh
+  stop_kafka_cluster
 
   # revert our modifications to the Flink distribution
   rm $FLINK_DIR/conf/flink-conf.yaml
@@ -81,14 +63,8 @@ function test_cleanup {
 trap test_cleanup INT
 trap test_cleanup EXIT
 
-# zookeeper outputs the "Node does not exist" bit to stderr
-while [[ $($KAFKA_DIR/bin/zookeeper-shell.sh localhost:2181 get /brokers/ids/0 2>&1) =~ .*Node\ does\ not\ exist.* ]]; do
-  echo "Waiting for broker..."
-  sleep 1
-done
-
 # create the required topic
-$KAFKA_DIR/bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic test-input
+create_kafka_topic 1 1 test-input
 
 # run the state machine example job
 STATE_MACHINE_JOB=$($FLINK_DIR/bin/flink run -d -p $ORIGINAL_DOP $FLINK_DIR/examples/streaming/StateMachineExample.jar \
