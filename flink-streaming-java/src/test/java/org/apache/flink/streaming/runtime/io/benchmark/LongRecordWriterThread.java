@@ -47,7 +47,7 @@ public class LongRecordWriterThread extends CheckedThread {
 		this.recordWriter = checkNotNull(recordWriter);
 	}
 
-	public void shutdown() {
+	public synchronized void shutdown() {
 		running = false;
 		recordsToSend.complete(0L);
 	}
