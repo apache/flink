@@ -21,23 +21,25 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
@@ -45,11 +47,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Client to interact with a {@link MiniCluster}.
  */
-public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClusterId> {
+public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClusterId> implements NewClusterClient {
 
 	private final MiniCluster miniCluster;
 
@@ -66,25 +69,51 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 	@Override
 	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
+		final CompletableFuture<JobSubmissionResult> jobSubmissionResultFuture = submitJob(jobGraph);
+
 		if (isDetached()) {
 			try {
-				miniCluster.runDetached(jobGraph);
-			} catch (JobExecutionException | InterruptedException e) {
+				return jobSubmissionResultFuture.get();
+			} catch (InterruptedException | ExecutionException e) {
+				ExceptionUtils.checkInterrupted(e);
+
 				throw new ProgramInvocationException(
 					String.format("Could not run job %s in detached mode.", jobGraph.getJobID()),
 					e);
 			}
-
-			return new JobSubmissionResult(jobGraph.getJobID());
 		} else {
+			final CompletableFuture<JobResult> jobResultFuture = jobSubmissionResultFuture.thenCompose(
+				(JobSubmissionResult ignored) -> requestJobResult(jobGraph.getJobID()));
+
+			final JobResult jobResult;
 			try {
-				return miniCluster.executeJobBlocking(jobGraph);
-			} catch (JobExecutionException | InterruptedException e) {
+				jobResult = jobResultFuture.get();
+			} catch (InterruptedException | ExecutionException e) {
+				ExceptionUtils.checkInterrupted(e);
+
 				throw new ProgramInvocationException(
 					String.format("Could not run job %s.", jobGraph.getJobID()),
 					e);
 			}
+
+			try {
+				return jobResult.toJobExecutionResult(classLoader);
+			} catch (JobResult.WrappedJobException e) {
+				throw new ProgramInvocationException(e.getCause());
+			} catch (IOException | ClassNotFoundException e) {
+				throw new ProgramInvocationException(e);
+			}
 		}
+	}
+
+	@Override
+	public CompletableFuture<JobSubmissionResult> submitJob(@Nonnull JobGraph jobGraph) {
+		return miniCluster.submitJob(jobGraph);
+	}
+
+	@Override
+	public CompletableFuture<JobResult> requestJobResult(@Nonnull JobID jobId) {
+		return miniCluster.requestJobResult(jobId);
 	}
 
 	@Override
