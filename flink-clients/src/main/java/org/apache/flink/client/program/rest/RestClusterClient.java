@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.NewClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
 import org.apache.flink.client.program.rest.retry.WaitStrategy;
@@ -101,6 +102,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 
 import akka.actor.AddressFromURIString;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -126,7 +128,7 @@ import java.util.stream.Collectors;
 /**
  * A {@link ClusterClient} implementation that communicates via HTTP REST requests.
  */
-public class RestClusterClient<T> extends ClusterClient<T> {
+public class RestClusterClient<T> extends ClusterClient<T> implements NewClusterClient {
 
 	private final RestClusterClientConfiguration restClusterClientConfiguration;
 
@@ -235,16 +237,14 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
 		log.info("Submitting job {}.", jobGraph.getJobID());
 
-		final CompletableFuture<JobSubmitResponseBody> jobSubmissionFuture = submitJob(jobGraph);
+		final CompletableFuture<JobSubmissionResult> jobSubmissionFuture = submitJob(jobGraph);
 
 		if (isDetached()) {
 			try {
-				jobSubmissionFuture.get();
+				return jobSubmissionFuture.get();
 			} catch (Exception e) {
 				throw new ProgramInvocationException("Could not submit job " + jobGraph.getJobID() + '.', ExceptionUtils.stripExecutionException(e));
 			}
-
-			return new JobSubmissionResult(jobGraph.getJobID());
 		} else {
 			final CompletableFuture<JobResult> jobResultFuture = jobSubmissionFuture.thenCompose(
 				ignored -> requestJobResult(jobGraph.getJobID()));
@@ -286,7 +286,8 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	 * @return Future which is completed with the {@link JobResult} once the job has completed or
 	 * with a failure if the {@link JobResult} could not be retrieved.
 	 */
-	public CompletableFuture<JobResult> requestJobResult(JobID jobId) {
+	@Override
+	public CompletableFuture<JobResult> requestJobResult(@Nonnull JobID jobId) {
 		return pollResourceAsync(
 			() -> {
 				final JobMessageParameters messageParameters = new JobMessageParameters();
@@ -305,7 +306,8 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	 * @param jobGraph to submit
 	 * @return Future which is completed with the submission response
 	 */
-	public CompletableFuture<JobSubmitResponseBody> submitJob(JobGraph jobGraph) {
+	@Override
+	public CompletableFuture<JobSubmissionResult> submitJob(@Nonnull JobGraph jobGraph) {
 		// we have to enable queued scheduling because slot will be allocated lazily
 		jobGraph.setAllowQueuedScheduling(true);
 
@@ -346,10 +348,13 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 				}
 			});
 
-		return submissionFuture.exceptionally(
-			(Throwable throwable) -> {
-				throw new CompletionException(new JobSubmissionException(jobGraph.getJobID(), "Failed to submit JobGraph.", throwable));
-			});
+		return submissionFuture
+			.thenApply(
+				(JobSubmitResponseBody jobSubmitResponseBody) -> new JobSubmissionResult(jobGraph.getJobID()))
+			.exceptionally(
+				(Throwable throwable) -> {
+					throw new CompletionException(new JobSubmissionException(jobGraph.getJobID(), "Failed to submit JobGraph.", throwable));
+				});
 	}
 
 	@Override
