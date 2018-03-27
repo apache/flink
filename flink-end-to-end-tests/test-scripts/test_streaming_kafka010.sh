@@ -23,10 +23,18 @@ source "$(dirname "$0")"/kafka-common.sh
 setup_kafka_dist
 start_kafka_cluster
 
+# modify configuration to have enough slots
+cp $FLINK_DIR/conf/flink-conf.yaml $FLINK_DIR/conf/flink-conf.yaml.bak
+sed -i -e "s/taskmanager.numberOfTaskSlots: 1/taskmanager.numberOfTaskSlots: 3/" $FLINK_DIR/conf/flink-conf.yaml
+
 start_cluster
 
 function test_cleanup {
   stop_kafka_cluster
+
+  # revert our modifications to the Flink distribution
+  rm $FLINK_DIR/conf/flink-conf.yaml
+  mv $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
 
   # make sure to run regular cleanup as well
   cleanup
@@ -44,15 +52,25 @@ $FLINK_DIR/bin/flink run -d $FLINK_DIR/examples/streaming/Kafka010Example.jar \
   --prefix=PREFIX \
   --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --group.id myconsumer --auto.offset.reset earliest
 
-# send some data to Kafka
-send_messages_to_kafka "hello,45218\nwhats,46213\nup,51348" test-input
-DATA_FROM_KAFKA=$(read_messages_from_kafka 3 test-output)
+function verify_output {
+  local expected=$(printf $1)
 
-# make sure we have actual newlines in the string, not "\n"
-EXPECTED=$(printf "PREFIX:hello,45218\nPREFIX:whats,46213\nPREFIX:up,51348")
-if [[ "$DATA_FROM_KAFKA" != "$EXPECTED" ]]; then
-  echo "Output from Flink program does not match expected output."
-  echo -e "EXPECTED: --$EXPECTED--"
-  echo -e "ACTUAL: --$DATA_FROM_KAFKA--"
-  PASS=""
-fi
+  if [[ "$2" != "$expected" ]]; then
+    echo "Output from Flink program does not match expected output."
+    echo -e "EXPECTED FOR KEY: --$expected--"
+    echo -e "ACTUAL: --$2--"
+    PASS=""
+    exit 1
+  fi
+}
+
+# send some data to Kafka
+send_messages_to_kafka "elephant,5,45218\nsquirrel,12,46213\nbee,3,51348\nsquirrel,22,52444\nbee,10,53412\nelephant,9,54867" test-input
+KEY_1_MSGS=$(read_messages_from_kafka 6 test-output | grep elephant)
+KEY_2_MSGS=$(read_messages_from_kafka 6 test-output | grep squirrel)
+KEY_3_MSGS=$(read_messages_from_kafka 6 test-output | grep bee)
+
+# check all keys; make sure we have actual newlines in the string, not "\n"
+verify_output "elephant,5,45218\nelephant,14,54867" "$KEY_1_MSGS"
+verify_output "squirrel,12,46213\nsquirrel,34,52444" "$KEY_2_MSGS"
+verify_output "bee,3,51348\nbee,13,53412" "$KEY_3_MSGS"
