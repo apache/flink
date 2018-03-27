@@ -172,7 +172,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final OnCompletionActions jobCompletionActions;
 
-	private final FatalErrorHandler errorHandler;
+	private final FatalErrorHandler fatalErrorHandler;
 
 	private final ClassLoader userCodeLoader;
 
@@ -223,7 +223,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			BlobServer blobServer,
 			JobManagerJobMetricGroupFactory jobMetricGroupFactory,
 			OnCompletionActions jobCompletionActions,
-			FatalErrorHandler errorHandler,
+			FatalErrorHandler fatalErrorHandler,
 			ClassLoader userCodeLoader) throws Exception {
 
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(JOB_MANAGER_NAME));
@@ -238,7 +238,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.blobServer = checkNotNull(blobServer);
 		this.scheduledExecutorService = jobManagerSharedServices.getScheduledExecutorService();
 		this.jobCompletionActions = checkNotNull(jobCompletionActions);
-		this.errorHandler = checkNotNull(errorHandler);
+		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 		this.userCodeLoader = checkNotNull(userCodeLoader);
 		this.jobMetricGroupFactory = checkNotNull(jobMetricGroupFactory);
 
@@ -1202,14 +1202,14 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	//----------------------------------------------------------------------------------------------
 
-	private void handleFatalError(final Throwable cause) {
-
-		try {
+	private void handleJobMasterError(final Throwable cause) {
+		if (ExceptionUtils.isJvmFatalError(cause)) {
 			log.error("Fatal error occurred on JobManager.", cause);
-		} catch (Throwable ignore) {}
-
-		// The fatal error handler implementation should make sure that this call is non-blocking
-		errorHandler.onFatalError(cause);
+			// The fatal error handler implementation should make sure that this call is non-blocking
+			fatalErrorHandler.onFatalError(cause);
+		} else {
+			jobCompletionActions.jobMasterFailed(cause);
+		}
 	}
 
 	private void jobStatusChanged(
@@ -1452,7 +1452,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		@Override
 		public void handleError(final Exception exception) {
-			handleFatalError(new Exception("Fatal error in the ResourceManager leader service", exception));
+			handleJobMasterError(new Exception("Fatal error in the ResourceManager leader service", exception));
 		}
 	}
 
@@ -1516,7 +1516,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		@Override
 		protected void onRegistrationFailure(final Throwable failure) {
-			handleFatalError(failure);
+			handleJobMasterError(failure);
 		}
 
 		public ResourceID getResourceManagerResourceID() {
