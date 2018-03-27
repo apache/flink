@@ -38,7 +38,7 @@ public class UserCodeType {
 
 		@Override
 		public String toString() {
-			return "CustomType(" + value + ")";
+			return "CustomTypeRegister(" + value + ")";
 		}
 	}
 

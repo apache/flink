@@ -385,7 +385,7 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0> DataSource<Tuple1<T0>> types(Class<T0> type0) {
-		TupleTypeInfo<Tuple1<T0>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0);
+		TupleTypeInfo<Tuple1<T0>> types = TupleTypeInfo.getTupleTypeInfo(type0);
 		CsvInputFormat<Tuple1<T0>> inputFormat = new TupleCsvInputFormat<Tuple1<T0>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple1<T0>>(executionContext, inputFormat, types, Utils.getCallLocationName());
@@ -402,7 +402,7 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1> DataSource<Tuple2<T0, T1>> types(Class<T0> type0, Class<T1> type1) {
-		TupleTypeInfo<Tuple2<T0, T1>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1);
+		TupleTypeInfo<Tuple2<T0, T1>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1);
 		CsvInputFormat<Tuple2<T0, T1>> inputFormat = new TupleCsvInputFormat<Tuple2<T0, T1>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple2<T0, T1>>(executionContext, inputFormat, types, Utils.getCallLocationName());
@@ -420,7 +420,7 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2> DataSource<Tuple3<T0, T1, T2>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2) {
-		TupleTypeInfo<Tuple3<T0, T1, T2>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2);
+		TupleTypeInfo<Tuple3<T0, T1, T2>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2);
 		CsvInputFormat<Tuple3<T0, T1, T2>> inputFormat = new TupleCsvInputFormat<Tuple3<T0, T1, T2>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple3<T0, T1, T2>>(executionContext, inputFormat, types, Utils.getCallLocationName());

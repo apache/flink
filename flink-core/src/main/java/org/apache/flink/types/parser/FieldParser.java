@@ -20,6 +20,7 @@
 package org.apache.flink.types.parser;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.BooleanValue;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.DoubleValue;
@@ -35,6 +36,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * A FieldParser is used parse a field from a sequence of bytes. Fields occur in a byte sequence and are terminated
@@ -47,7 +49,7 @@ import java.util.Map;
  */
 @PublicEvolving
 public abstract class FieldParser<T> {
-	
+
 	/**
 	 * An enumeration of different types of errors that may occur.
 	 */
@@ -89,14 +91,14 @@ public abstract class FieldParser<T> {
 	 * the state of this parser.
 	 * The start position within the byte array and the array's valid length is given.
 	 * The content of the value is delimited by a field delimiter.
-	 * 
+	 *
 	 * @param bytes The byte array that holds the value.
 	 * @param startPos The index where the field starts
 	 * @param limit The limit unto which the byte contents is valid for the parser. The limit is the
 	 *              position one after the last valid byte.
 	 * @param delim The field delimiter character
 	 * @param reuse An optional reusable field to hold the value
-	 * 
+	 *
 	 * @return The index of the next delimiter, if the field was parsed correctly. A value less than 0 otherwise.
 	 */
 	public int resetErrorStateAndParse(byte[] bytes, int startPos, int limit, byte[] delim, T reuse) {
@@ -122,27 +124,27 @@ public abstract class FieldParser<T> {
 	 * Gets the parsed field. This method returns the value parsed by the last successful invocation of
 	 * {@link #parseField(byte[], int, int, byte[], Object)}. It objects are mutable and reused, it will return
 	 * the object instance that was passed the parse function.
-	 * 
+	 *
 	 * @return The latest parsed field.
 	 */
 	public abstract T getLastResult();
-	
+
 	/**
 	 * Returns an instance of the parsed value type.
-	 * 
+	 *
 	 * @return An instance of the parsed value type. 
 	 */
 	public abstract T createValue();
-	
+
 	/**
 	 * Checks if the delimiter starts at the given start position of the byte array.
-	 * 
+	 *
 	 * Attention: This method assumes that enough characters follow the start position for the delimiter check!
-	 * 
+	 *
 	 * @param bytes The byte array that holds the value.
 	 * @param startPos The index of the byte array where the check for the delimiter starts.
 	 * @param delim The delimiter to check for.
-	 * 
+	 *
 	 * @return true if a delimiter starts at the given start position, false otherwise.
 	 */
 	public static final boolean delimiterNext(byte[] bytes, int startPos, byte[] delim) {
@@ -154,7 +156,7 @@ public abstract class FieldParser<T> {
 			}
 		}
 		return true;
-		
+
 	}
 
 	/**
@@ -177,21 +179,21 @@ public abstract class FieldParser<T> {
 		}
 		return true;
 	}
-	
+
 	/**
 	 * Sets the error state of the parser. Called by subclasses of the parser to set the type of error
 	 * when failing a parse.
-	 * 
+	 *
 	 * @param error The error state to set.
 	 */
 	protected void setErrorState(ParseErrorState error) {
 		this.errorState = error;
 	}
-	
+
 	/**
 	 * Gets the error state of the parser, as a value of the enumeration {@link ParseErrorState}.
 	 * If no error occurred, the error state will be {@link ParseErrorState#NONE}.
-	 * 
+	 *
 	 * @return The current error state of the parser.
 	 */
 	public ParseErrorState getErrorState() {
@@ -259,19 +261,38 @@ public abstract class FieldParser<T> {
 		this.charset = charset;
 	}
 
+	@SuppressWarnings("unchecked")
+	public static <T> Optional<FieldParser<T>> getParserInstanceFor(Class<T> type) {
+		Class<FieldParser<T>> customParserClass = getCustomParserForType(type);
+		if (customParserClass != null) {
+			Tuple2<Class<? extends FieldParser<?>>, ParserFactory<?>> parserData = CUSTOM_PARSERS.get(type);
+			if (parserData != null) {
+				Class<FieldParser<T>> typedParser = (Class<FieldParser<T>>) parserData.f0;
+				return Optional.of(((ParserFactory<T>) parserData.f1).create(typedParser));
+			}
+		}
+
+		Class<FieldParser<T>> defaultParserClass = getDefaultParserForType(type);
+		if (defaultParserClass != null) {
+			return Optional.of((new DefaultParserFactory<T>()).create(defaultParserClass));
+		}
+
+		return Optional.empty();
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Mapping from types to parsers
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
-	 * Gets the parser for the type specified by the given class. Returns null, if no parser for that class
+	 * Gets the default parser for the type specified by the given class. Returns null, if no parser for that class
 	 * is known.
-	 * 
+	 *
 	 * @param type The class of the type to get the parser for.
 	 * @return The parser for the given type, or null, if no such parser exists.
 	 */
-	public static <T> Class<FieldParser<T>> getParserForType(Class<T> type) {
-		Class<? extends FieldParser<?>> parser = PARSERS.get(type);
+	public static <T> Class<FieldParser<T>> getDefaultParserForType(Class<T> type) {
+		Class<? extends FieldParser<?>> parser = DEFAULT_PARSERS.get(type);
 		if (parser == null) {
 			return null;
 		} else {
@@ -280,36 +301,64 @@ public abstract class FieldParser<T> {
 			return typedParser;
 		}
 	}
-	
-	private static final Map<Class<?>, Class<? extends FieldParser<?>>> PARSERS = 
-			new HashMap<Class<?>, Class<? extends FieldParser<?>>>();
-	
+
+	/**
+	 * Gets the custom parser for the type specified by the given class. Returns null, if no parser for that class
+	 * is known.
+	 *
+	 * @param type The class of the type to get the parser for.
+	 * @return The parser for the given type, or null, if no such parser exists.
+	 */
+	public static <T> Class<FieldParser<T>> getCustomParserForType(Class<T> type) {
+		Tuple2<Class<? extends FieldParser<?>>, ParserFactory<?>> parserData = CUSTOM_PARSERS.get(type);
+		if (parserData == null) {
+			return null;
+		} else {
+			@SuppressWarnings("unchecked")
+			Class<FieldParser<T>> typedParser = (Class<FieldParser<T>>) parserData.f0;
+			return typedParser;
+		}
+	}
+
+	private static final Map<Class<?>, Class<? extends FieldParser<?>>> DEFAULT_PARSERS = new HashMap<Class<?>, Class<? extends FieldParser<?>>>();
+
 	static {
 		// basic types
-		PARSERS.put(Byte.class, ByteParser.class);
-		PARSERS.put(Short.class, ShortParser.class);
-		PARSERS.put(Integer.class, IntParser.class);
-		PARSERS.put(Long.class, LongParser.class);
-		PARSERS.put(String.class, StringParser.class);
-		PARSERS.put(Float.class, FloatParser.class);
-		PARSERS.put(Double.class, DoubleParser.class);
-		PARSERS.put(Boolean.class, BooleanParser.class);
-		PARSERS.put(BigDecimal.class, BigDecParser.class);
-		PARSERS.put(BigInteger.class, BigIntParser.class);
+		DEFAULT_PARSERS.put(Byte.class, ByteParser.class);
+		DEFAULT_PARSERS.put(Short.class, ShortParser.class);
+		DEFAULT_PARSERS.put(Integer.class, IntParser.class);
+		DEFAULT_PARSERS.put(Long.class, LongParser.class);
+		DEFAULT_PARSERS.put(String.class, StringParser.class);
+		DEFAULT_PARSERS.put(Float.class, FloatParser.class);
+		DEFAULT_PARSERS.put(Double.class, DoubleParser.class);
+		DEFAULT_PARSERS.put(Boolean.class, BooleanParser.class);
+		DEFAULT_PARSERS.put(BigDecimal.class, BigDecParser.class);
+		DEFAULT_PARSERS.put(BigInteger.class, BigIntParser.class);
 
 		// value types
-		PARSERS.put(ByteValue.class, ByteValueParser.class);
-		PARSERS.put(ShortValue.class, ShortValueParser.class);
-		PARSERS.put(IntValue.class, IntValueParser.class);
-		PARSERS.put(LongValue.class, LongValueParser.class);
-		PARSERS.put(StringValue.class, StringValueParser.class);
-		PARSERS.put(FloatValue.class, FloatValueParser.class);
-		PARSERS.put(DoubleValue.class, DoubleValueParser.class);
-		PARSERS.put(BooleanValue.class, BooleanValueParser.class);
+		DEFAULT_PARSERS.put(ByteValue.class, ByteValueParser.class);
+		DEFAULT_PARSERS.put(ShortValue.class, ShortValueParser.class);
+		DEFAULT_PARSERS.put(IntValue.class, IntValueParser.class);
+		DEFAULT_PARSERS.put(LongValue.class, LongValueParser.class);
+		DEFAULT_PARSERS.put(StringValue.class, StringValueParser.class);
+		DEFAULT_PARSERS.put(FloatValue.class, FloatValueParser.class);
+		DEFAULT_PARSERS.put(DoubleValue.class, DoubleValueParser.class);
+		DEFAULT_PARSERS.put(BooleanValue.class, BooleanValueParser.class);
 
 		// SQL date/time types
-		PARSERS.put(java.sql.Time.class, SqlTimeParser.class);
-		PARSERS.put(java.sql.Date.class, SqlDateParser.class);
-		PARSERS.put(java.sql.Timestamp.class, SqlTimestampParser.class);
+		DEFAULT_PARSERS.put(java.sql.Time.class, SqlTimeParser.class);
+		DEFAULT_PARSERS.put(java.sql.Date.class, SqlDateParser.class);
+		DEFAULT_PARSERS.put(java.sql.Timestamp.class, SqlTimestampParser.class);
 	}
+
+	private static final Map<Class<?>, Tuple2<Class<? extends FieldParser<?>>, ParserFactory<?>>> CUSTOM_PARSERS = new HashMap<>();
+
+	public static <T> void registerCustomParser(Class<T> type, Class<FieldParser<T>> parser, ParserFactory<T> factory) {
+		CUSTOM_PARSERS.put(type, new Tuple2<>(parser, factory));
+	}
+
+	public static <T> void cleanCustomParserRegister() {
+		CUSTOM_PARSERS.clear();
+	}
+
 }

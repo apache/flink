@@ -21,9 +21,10 @@ package org.apache.flink.api.java.typeutils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -35,6 +36,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.Tuple0Serializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
+import org.apache.flink.types.CustomTypeInfoRegister;
 import org.apache.flink.types.Value;
 
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
@@ -236,6 +238,42 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 		@SuppressWarnings("unchecked")
 		TupleTypeInfo<X> tupleInfo = (TupleTypeInfo<X>) new TupleTypeInfo<Tuple>(infos);
 		return tupleInfo;
+	}
+
+	public static <X extends Tuple> TupleTypeInfo<X> getTupleTypeInfo(Class<?>... incomeTypes) {
+		if (incomeTypes == null || incomeTypes.length == 0) {
+			throw new IllegalArgumentException();
+		}
+
+		TypeInformation<?>[] infos = new TypeInformation<?>[incomeTypes.length];
+		for (int i = 0; i < infos.length; i++) {
+			Class<?> incomeType = incomeTypes[i];
+			if (incomeType == null) {
+				throw new IllegalArgumentException("Type at position " + i + " is null.");
+			}
+
+			Optional<TypeInformation> incomeTypeInfo = CustomTypeInfoRegister.getInstance().getTypeInfoFor(incomeType);
+			if (incomeTypeInfo.isPresent()) {
+				infos[i] = incomeTypeInfo.get();
+				continue;
+			}
+
+			TypeInformation<?> info = BasicTypeInfo.getInfoFor(incomeType);
+			if (info == null) {
+				try {
+					info = ValueTypeInfo.getValueTypeInfo((Class<Value>) incomeType);
+					if (!((ValueTypeInfo<?>) info).isBasicValueType()) {
+						throw new IllegalArgumentException("Type at position " + i + " is not a basic or value type.");
+					}
+				} catch (ClassCastException | InvalidTypesException e) {
+					throw new IllegalArgumentException("Type at position " + i + " is not a basic or value type.", e);
+				}
+			}
+
+			infos[i] = info;
+		}
+
+		return (TupleTypeInfo<X>) new TupleTypeInfo<>(infos);
 	}
 
 	@SuppressWarnings("unchecked")
