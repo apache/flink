@@ -265,11 +265,10 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	}
 
 	private AbstractYarnClusterDescriptor createDescriptor(
-		Configuration configuration,
-		YarnConfiguration yarnConfiguration,
-		String configurationDirectory,
-		String defaultApplicationName,
-		CommandLine cmd) {
+			Configuration configuration,
+			YarnConfiguration yarnConfiguration,
+			String configurationDirectory,
+			CommandLine cmd) {
 
 		AbstractYarnClusterDescriptor yarnClusterDescriptor = getClusterDescriptor(
 			configuration,
@@ -356,11 +355,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 		if (cmd.hasOption(name.getOpt())) {
 			yarnClusterDescriptor.setName(cmd.getOptionValue(name.getOpt()));
-		} else {
-			// set the default application name, if none is specified
-			if (defaultApplicationName != null) {
-				yarnClusterDescriptor.setName(defaultApplicationName);
-			}
 		}
 
 		if (cmd.hasOption(zookeeperNamespace.getOpt())) {
@@ -456,7 +450,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 			effectiveConfiguration,
 			yarnConfiguration,
 			configurationDirectory,
-			null,
 			commandLine);
 	}
 
