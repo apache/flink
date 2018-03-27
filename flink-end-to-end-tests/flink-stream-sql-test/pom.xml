@@ -73,6 +73,7 @@
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<finalName>StreamSQLTestProgram</finalName>
 							<artifactSet>
 								<excludes>
 									<exclude>com.google.code.findbugs:jsr305</exclude>
@@ -95,26 +96,6 @@
 									<mainClass>org.apache.flink.sql.tests.StreamSQLTestProgram</mainClass>
 								</transformer>
 							</transformers>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<!--simplify the name of the testing JARs for referring to them in the end-to-end test scripts-->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-antrun-plugin</artifactId>
-				<version>1.7</version>
-				<executions>
-					<execution>
-						<id>rename</id>
-						<phase>package</phase>
-						<goals>
-							<goal>run</goal>
-						</goals>
-						<configuration>
-							<target>
-								<copy file="${project.basedir}/target/flink-stream-sql-test_${scala.binary.version}-${project.version}.jar" tofile="${project.basedir}/target/StreamSQLTestProgram.jar" />
-							</target>
 						</configuration>
 					</execution>
 				</executions>
