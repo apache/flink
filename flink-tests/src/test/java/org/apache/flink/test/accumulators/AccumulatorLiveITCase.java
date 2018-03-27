@@ -30,6 +30,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
@@ -140,10 +141,16 @@ public class AccumulatorLiveITCase extends TestLogger {
 	private static void submitJobAndVerifyResults(JobGraph jobGraph) throws Exception {
 		Deadline deadline = Deadline.now().plus(Duration.ofSeconds(30));
 
-		ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
+		final ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
 
-		client.setDetached(true);
-		client.submitJob(jobGraph, AccumulatorLiveITCase.class.getClassLoader());
+		final CheckedThread submissionThread = new CheckedThread() {
+			@Override
+			public void go() throws Exception {
+				client.submitJob(jobGraph, AccumulatorLiveITCase.class.getClassLoader());
+			}
+		};
+
+		submissionThread.start();
 
 		try {
 			NotifyingMapper.notifyLatch.await();
@@ -167,6 +174,9 @@ public class AccumulatorLiveITCase extends TestLogger {
 			NotifyingMapper.shutdownLatch.trigger();
 		} finally {
 			NotifyingMapper.shutdownLatch.trigger();
+
+			// wait for the job to have terminated
+			submissionThread.sync();
 		}
 	}
 
