@@ -27,6 +27,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.NewClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
@@ -45,6 +46,7 @@ import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -142,8 +144,11 @@ public class AccumulatorLiveITCase extends TestLogger {
 
 		ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
 
-		client.setDetached(true);
-		client.submitJob(jobGraph, AccumulatorLiveITCase.class.getClassLoader());
+		Assume.assumeTrue(client instanceof NewClusterClient);
+
+		final NewClusterClient clusterClient = ((NewClusterClient) client);
+
+		clusterClient.submitJob(jobGraph).get();
 
 		try {
 			NotifyingMapper.notifyLatch.await();
@@ -167,6 +172,9 @@ public class AccumulatorLiveITCase extends TestLogger {
 			NotifyingMapper.shutdownLatch.trigger();
 		} finally {
 			NotifyingMapper.shutdownLatch.trigger();
+
+			// wait for the completion of the job
+			clusterClient.requestJobResult(jobGraph.getJobID()).get();
 		}
 	}
 
