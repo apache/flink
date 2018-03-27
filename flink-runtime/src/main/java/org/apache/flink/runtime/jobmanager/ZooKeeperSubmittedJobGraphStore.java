@@ -33,6 +33,8 @@ import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -158,6 +160,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	}
 
 	@Override
+	@Nullable
 	public SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception {
 		checkNotNull(jobId, "Job ID");
 		final String path = getPathForJob(jobId);
@@ -179,7 +182,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 					return null;
 				} catch (Exception e) {
 					throw new FlinkException("Could not retrieve the submitted job graph state handle " +
-						"for " + path + "from the submitted job graph store.", e);
+						"for " + path + " from the submitted job graph store.", e);
 				}
 				SubmittedJobGraph jobGraph;
 
