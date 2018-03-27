@@ -267,7 +267,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 					heartbeatServices,
 					blobServer,
 					jobManagerSharedServices,
-					new DefaultJobManagerJobMetricGroupFactory(jobManagerMetricGroup));
+					new DefaultJobManagerJobMetricGroupFactory(jobManagerMetricGroup),
+					fatalErrorHandler);
 
 				jobManagerRunner.getResultFuture().whenCompleteAsync(
 					(ArchivedExecutionGraph archivedExecutionGraph, Throwable throwable) -> {
@@ -587,8 +588,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	protected void onFatalError(Throwable throwable) {
-		log.error("Fatal error occurred in dispatcher {}.", getAddress(), throwable);
-
 		fatalErrorHandler.onFatalError(throwable);
 	}
 
@@ -790,7 +789,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			HeartbeatServices heartbeatServices,
 			BlobServer blobServer,
 			JobManagerSharedServices jobManagerServices,
-			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory) throws Exception;
+			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+			FatalErrorHandler fatalErrorHandler) throws Exception;
 	}
 
 	/**
@@ -809,7 +809,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				HeartbeatServices heartbeatServices,
 				BlobServer blobServer,
 				JobManagerSharedServices jobManagerServices,
-				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory) throws Exception {
+				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+				FatalErrorHandler fatalErrorHandler) throws Exception {
 			return new JobManagerRunner(
 				resourceId,
 				jobGraph,
@@ -819,7 +820,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				heartbeatServices,
 				blobServer,
 				jobManagerServices,
-				jobManagerJobMetricGroupFactory);
+				jobManagerJobMetricGroupFactory,
+				fatalErrorHandler);
 		}
 	}
 }

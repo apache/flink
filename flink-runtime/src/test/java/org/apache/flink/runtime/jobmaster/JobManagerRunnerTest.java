@@ -36,6 +36,7 @@ import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -81,6 +82,8 @@ public class JobManagerRunnerTest extends TestLogger {
 
 	private TestingHighAvailabilityServices haServices;
 
+	private TestingFatalErrorHandler fatalErrorHandler;
+
 	@BeforeClass
 	public static void setupClass() throws Exception {
 		configuration = new Configuration();
@@ -110,11 +113,13 @@ public class JobManagerRunnerTest extends TestLogger {
 		haServices.setJobMasterLeaderElectionService(jobGraph.getJobID(), new TestingLeaderElectionService());
 		haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
 		haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
+
+		fatalErrorHandler = new TestingFatalErrorHandler();
 	}
 
 	@After
-	public void tearDown() {
-
+	public void tearDown() throws Exception {
+		fatalErrorHandler.rethrowError();
 	}
 
 	@AfterClass
@@ -210,6 +215,7 @@ public class JobManagerRunnerTest extends TestLogger {
 			heartbeatServices,
 			blobServer,
 			jobManagerSharedServices,
-			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE);
+			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
+			fatalErrorHandler);
 	}
 }

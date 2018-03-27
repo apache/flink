@@ -431,6 +431,11 @@ public class JobMasterTest extends TestLogger {
 		public void jobFinishedByOther() {
 
 		}
+
+		@Override
+		public void jobMasterFailed(Throwable cause) {
+
+		}
 	}
 
 	private static final class DummyCheckpointStorageLocation implements CompletedCheckpointStorageLocation {
