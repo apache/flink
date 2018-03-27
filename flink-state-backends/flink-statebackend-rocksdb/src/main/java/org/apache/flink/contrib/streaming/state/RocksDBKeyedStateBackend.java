@@ -1313,10 +1313,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private static final List<Comparator<MergeIterator>> COMPARATORS;
 
 		static {
-			int maxBytes = 4;
+			int maxBytes = 2;
 			COMPARATORS = new ArrayList<>(maxBytes);
 			for (int i = 0; i < maxBytes; ++i) {
-				final int currentBytes = i;
+				final int currentBytes = i + 1;
 				COMPARATORS.add(new Comparator<MergeIterator>() {
 					@Override
 					public int compare(MergeIterator o1, MergeIterator o2) {
@@ -1330,9 +1330,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		RocksDBMergeIterator(List<Tuple2<RocksIterator, Integer>> kvStateIterators, final int keyGroupPrefixByteCount) {
 			Preconditions.checkNotNull(kvStateIterators);
+			Preconditions.checkArgument(keyGroupPrefixByteCount >= 1);
+
 			this.keyGroupPrefixByteCount = keyGroupPrefixByteCount;
 
-			Comparator<MergeIterator> iteratorComparator = COMPARATORS.get(keyGroupPrefixByteCount);
+			Comparator<MergeIterator> iteratorComparator = COMPARATORS.get(keyGroupPrefixByteCount - 1);
 
 			if (kvStateIterators.size() > 0) {
 				PriorityQueue<MergeIterator> iteratorPriorityQueue =
@@ -1837,10 +1839,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private Snapshot snapshot;
 		private ReadOptions readOptions;
 
-		/** The state meta data. */
+		/**
+		 * The state meta data.
+		 */
 		private List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots;
 
-		/** The copied column handle. */
+		/**
+		 * The copied column handle.
+		 */
 		private List<ColumnFamilyHandle> copiedColumnFamilyHandles;
 
 		private List<Tuple2<RocksIterator, Integer>> kvStateIterators;
