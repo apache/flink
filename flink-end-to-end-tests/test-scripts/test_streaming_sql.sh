@@ -31,13 +31,25 @@ $FLINK_DIR/bin/taskmanager.sh start
 
 $FLINK_DIR/bin/flink run -p 4 $TEST_PROGRAM_JAR -outputPath $TEST_DATA_DIR/out/result
 
-stop_cluster
-$FLINK_DIR/bin/taskmanager.sh stop-all
+function sql_cleanup() {
 
-# remove flink-table from lib folder
-rm $FLINK_DIR/lib/flink-table*jar
+  stop_cluster
+  $FLINK_DIR/bin/taskmanager.sh stop-all
+
+  # remove flink-table from lib folder
+  rm $FLINK_DIR/lib/flink-table*jar
+
+  # make sure to run regular cleanup as well
+  cleanup
+}
+trap sql_cleanup INT
+trap sql_cleanup EXIT
 
 # collect results from files
-cat /tmp/xxx/part-0-0 /tmp/xxx/_part-0-1.pending > $TEST_DATA_DIR/out/result-complete
-# check result
+cat $TEST_DATA_DIR/out/result/part-0-0 $TEST_DATA_DIR/out/result/_part-0-1.pending > $TEST_DATA_DIR/out/result-complete
+
+# check result:
+# 20,1970-01-01 00:00:00.0
+# 20,1970-01-01 00:00:20.0
+# 20,1970-01-01 00:00:40.0
 check_result_hash "StreamSQL" $TEST_DATA_DIR/out/result-complete "b29f14ed221a936211202ff65b51ee26"
