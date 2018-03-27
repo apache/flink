@@ -903,7 +903,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	@Override
 	public CompletableFuture<JobDetails> requestJobDetails(@RpcTimeout Time timeout) {
-		return CompletableFuture.supplyAsync(() -> WebMonitorUtils.createDetailsForJob(executionGraph), scheduledExecutorService);
+		final ExecutionGraph currentExecutionGraph = executionGraph;
+		return CompletableFuture.supplyAsync(() -> WebMonitorUtils.createDetailsForJob(currentExecutionGraph), scheduledExecutorService);
 	}
 
 	@Override
