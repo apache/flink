@@ -507,21 +507,18 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		final CompletableFuture<AsynchronousOperationInfo> rescalingOperationFuture = rescalingTriggerResponseFuture.thenCompose(
 			(TriggerResponse triggerResponse) -> {
 				final TriggerId triggerId = triggerResponse.getTriggerId();
+				final RescalingStatusHeaders rescalingStatusHeaders = RescalingStatusHeaders.getInstance();
+				final RescalingStatusMessageParameters rescalingStatusMessageParameters = rescalingStatusHeaders.getUnresolvedMessageParameters();
+
+				rescalingStatusMessageParameters.jobPathParameter.resolve(jobId);
+				rescalingStatusMessageParameters.triggerIdPathParameter.resolve(triggerId);
 
 				return pollResourceAsync(
-					() -> {
-						final RescalingStatusHeaders rescalingStatusHeaders = RescalingStatusHeaders.getInstance();
-						final RescalingStatusMessageParameters rescalingStatusMessageParameters = rescalingStatusHeaders.getUnresolvedMessageParameters();
-
-						rescalingStatusMessageParameters.jobPathParameter.resolve(jobId);
-						rescalingStatusMessageParameters.triggerIdPathParameter.resolve(triggerId);
-						return sendRetryableRequest(
-							rescalingStatusHeaders,
-							rescalingStatusMessageParameters,
-							EmptyRequestBody.getInstance(),
-							isConnectionProblemException());
-					}
-				);
+					() -> sendRetryableRequest(
+						rescalingStatusHeaders,
+						rescalingStatusMessageParameters,
+						EmptyRequestBody.getInstance(),
+						isConnectionProblemException()));
 			});
 
 		return rescalingOperationFuture.thenApply(
@@ -535,7 +532,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath, Time timeout) {
+	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) {
 		final SavepointDisposalRequest savepointDisposalRequest = new SavepointDisposalRequest(savepointPath);
 
 		final CompletableFuture<TriggerResponse> savepointDisposalTriggerFuture = sendRequest(
