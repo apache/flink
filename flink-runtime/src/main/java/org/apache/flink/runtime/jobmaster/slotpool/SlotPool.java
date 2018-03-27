@@ -69,6 +69,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -659,7 +660,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			.orTimeout(pendingRequest.getAllocatedSlotFuture(), allocationTimeout.toMilliseconds(), TimeUnit.MILLISECONDS)
 			.whenCompleteAsync(
 				(AllocatedSlot ignored, Throwable throwable) -> {
-					if (throwable != null) {
+					if (throwable instanceof TimeoutException) {
 						timeoutPendingSlotRequest(slotRequestId);
 					}
 				},
