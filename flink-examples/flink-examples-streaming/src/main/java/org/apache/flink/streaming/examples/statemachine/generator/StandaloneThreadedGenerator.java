@@ -235,7 +235,7 @@ public class StandaloneThreadedGenerator {
 					currCount += generator.currentCount();
 				}
 
-				double factor = (ts - lastTimeStamp) / 1000;
+				double factor = (ts - lastTimeStamp) / 1000.0;
 				double perSec = (currCount - lastCount) / factor;
 
 				lastTimeStamp = ts;
