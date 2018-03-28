@@ -18,33 +18,32 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.typeutils.runtime.Tuple0Serializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
-import org.apache.flink.types.CustomTypeInfoRegister;
 import org.apache.flink.types.Value;
 
-//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
-import org.apache.flink.api.java.tuple.*;
-//CHECKSTYLE.ON: AvoidStarImport
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
+
+//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
+//CHECKSTYLE.ON: AvoidStarImport
 
 /**
  * A {@link TypeInformation} for the tuple types of the Java API.
@@ -252,25 +251,20 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 				throw new IllegalArgumentException("Type at position " + i + " is null.");
 			}
 
-			Optional<TypeInformation> incomeTypeInfo = CustomTypeInfoRegister.getInstance().getTypeInfoFor(incomeType);
-			if (incomeTypeInfo.isPresent()) {
-				infos[i] = incomeTypeInfo.get();
-				continue;
-			}
-
-			TypeInformation<?> info = BasicTypeInfo.getInfoFor(incomeType);
-			if (info == null) {
-				try {
-					info = ValueTypeInfo.getValueTypeInfo((Class<Value>) incomeType);
+			TypeInformation<?> info = TypeExtractor.getForClass(incomeType);
+			if (!info.getTypeClass().equals(GenericTypeInfo.class)) {
+				if (info instanceof ValueTypeInfo) {
 					if (!((ValueTypeInfo<?>) info).isBasicValueType()) {
+						// TODO: now the type can be not only basic or value type, so need to change the message
 						throw new IllegalArgumentException("Type at position " + i + " is not a basic or value type.");
 					}
-				} catch (ClassCastException | InvalidTypesException e) {
-					throw new IllegalArgumentException("Type at position " + i + " is not a basic or value type.", e);
 				}
+				infos[i] = info;
+			} else {
+				// TODO: now the type can be not only basic or value type, so need to change the message
+				// TODO: identify why only basic value types can be used here
+				throw new IllegalArgumentException("Type at position " + i + " is not a basic or value type.");
 			}
-
-			infos[i] = info;
 		}
 
 		return (TupleTypeInfo<X>) new TupleTypeInfo<>(infos);

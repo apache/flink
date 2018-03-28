@@ -261,6 +261,10 @@ public abstract class FieldParser<T> {
 		this.charset = charset;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Mapping from types to parsers
+	// --------------------------------------------------------------------------------------------
+
 	@SuppressWarnings("unchecked")
 	public static <T> Optional<FieldParser<T>> getParserInstanceFor(Class<T> type) {
 		Class<FieldParser<T>> customParserClass = getCustomParserForType(type);
@@ -279,10 +283,6 @@ public abstract class FieldParser<T> {
 
 		return Optional.empty();
 	}
-
-	// --------------------------------------------------------------------------------------------
-	//  Mapping from types to parsers
-	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Gets the default parser for the type specified by the given class. Returns null, if no parser for that class
