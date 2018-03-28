@@ -1769,6 +1769,7 @@ class JobManager(
     val futures = for ((jobID, (eg, jobInfo)) <- currentJobs) yield {
       future {
         eg.suspend(cause)
+        jobManagerMetricGroup.removeJob(eg.getJobID)
 
         jobInfo.notifyNonDetachedClients(
           decorateMessage(
