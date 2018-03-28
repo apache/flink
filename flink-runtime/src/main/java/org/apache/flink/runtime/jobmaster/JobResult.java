@@ -189,7 +189,9 @@ public class JobResult implements Serializable {
 		builder.jobId(jobId);
 
 		final long netRuntime = accessExecutionGraph.getStatusTimestamp(jobStatus) - accessExecutionGraph.getStatusTimestamp(JobStatus.CREATED);
-		builder.netRuntime(netRuntime);
+		// guard against clock changes
+		final long guardedNetRuntime = Math.max(netRuntime, 0L);
+		builder.netRuntime(guardedNetRuntime);
 		builder.accumulatorResults(accessExecutionGraph.getAccumulatorsSerialized());
 
 		if (jobStatus != JobStatus.FINISHED) {
