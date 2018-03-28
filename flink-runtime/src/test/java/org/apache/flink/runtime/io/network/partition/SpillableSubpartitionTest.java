@@ -675,14 +675,12 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		SpillableSubpartition partition = createSubpartition();
 		BufferBuilder bufferBuilder = createBufferBuilder(BUFFER_DATA_SIZE);
 
-		try (BufferConsumer buffer = bufferBuilder.createBufferConsumer()) {
-			partition.add(buffer);
-			assertEquals(0, partition.releaseMemory());
-			// finally fill the buffer with some bytes
-			bufferBuilder.appendAndCommit(ByteBuffer.allocate(BUFFER_DATA_SIZE));
-			bufferBuilder.finish(); // so that this buffer can be removed from the queue
-			assertEquals(BUFFER_DATA_SIZE, partition.spillFinishedBufferConsumers());
-		}
+		partition.add(bufferBuilder.createBufferConsumer());
+		assertEquals(0, partition.releaseMemory());
+		// finally fill the buffer with some bytes
+		bufferBuilder.appendAndCommit(ByteBuffer.allocate(BUFFER_DATA_SIZE));
+		bufferBuilder.finish(); // so that this buffer can be removed from the queue
+		assertEquals(BUFFER_DATA_SIZE, partition.spillFinishedBufferConsumers());
 	}
 
 	/**
