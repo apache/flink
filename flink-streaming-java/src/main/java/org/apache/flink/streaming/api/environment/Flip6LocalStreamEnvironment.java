@@ -75,7 +75,7 @@ public class Flip6LocalStreamEnvironment extends LocalStreamEnvironment {
 		streamGraph.setJobName(jobName);
 
 		JobGraph jobGraph = streamGraph.getJobGraph();
-		jobGraph.setAllowQueuedScheduling(true);
+		jobGraph.setAllowQueuedScheduling(false);
 
 		Configuration configuration = new Configuration();
 		configuration.addAll(jobGraph.getJobConfiguration());
