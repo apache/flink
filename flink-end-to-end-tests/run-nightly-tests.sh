@@ -49,6 +49,30 @@ EXIT_CODE=0
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
+  printf "Running Resuming Savepoint (no parallelism change) end-to-end test\n"
+  printf "==============================================================================\n"
+  $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 2
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
+  printf "Running Resuming Savepoint (scale up) end-to-end test\n"
+  printf "==============================================================================\n"
+  $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 4
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
+  printf "Running Resuming Savepoint (scale down) end-to-end test\n"
+  printf "==============================================================================\n"
+  $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 4 2
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
   printf "Running DataSet allround nightly end-to-end test\n"
   printf "==============================================================================\n"
   $END_TO_END_DIR/test-scripts/test_batch_allround.sh
