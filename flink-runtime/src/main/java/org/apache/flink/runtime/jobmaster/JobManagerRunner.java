@@ -32,10 +32,10 @@ import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobSchedulingStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
+import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -44,8 +44,6 @@ import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -107,9 +105,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			final HeartbeatServices heartbeatServices,
 			final BlobServer blobServer,
 			final JobManagerSharedServices jobManagerSharedServices,
-			final JobManagerJobMetricGroup jobManagerJobMetricGroup,
-			@Nullable final String metricQueryServicePath,
-			@Nullable final String restAddress) throws Exception {
+			final JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory) throws Exception {
 
 		this.resultFuture = new CompletableFuture<>();
 		this.terminationFuture = new CompletableFuture<>();
@@ -153,12 +149,10 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 				jobManagerSharedServices,
 				heartbeatServices,
 				blobServer,
-				jobManagerJobMetricGroup,
+				jobManagerJobMetricGroupFactory,
 				this,
 				this,
-				userCodeLoader,
-				restAddress,
-				metricQueryServicePath);
+				userCodeLoader);
 		}
 		catch (Throwable t) {
 			terminationFuture.completeExceptionally(t);

@@ -42,6 +42,8 @@ import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.RescalingBehaviour;
+import org.apache.flink.runtime.jobmaster.factories.DefaultJobManagerJobMetricGroupFactory;
+import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -50,7 +52,6 @@ import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
-import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
@@ -262,9 +263,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 					heartbeatServices,
 					blobServer,
 					jobManagerSharedServices,
-					jobManagerMetricGroup.addJob(jobGraph),
-					metricQueryServicePath,
-					restAddress);
+					new DefaultJobManagerJobMetricGroupFactory(jobManagerMetricGroup));
 
 				jobManagerRunner.getResultFuture().whenCompleteAsync(
 					(ArchivedExecutionGraph archivedExecutionGraph, Throwable throwable) -> {
@@ -756,9 +755,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			HeartbeatServices heartbeatServices,
 			BlobServer blobServer,
 			JobManagerSharedServices jobManagerServices,
-			JobManagerJobMetricGroup jobManagerJobMetricGroup,
-			@Nullable String metricQueryServicePath,
-			@Nullable String restAddress) throws Exception;
+			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory) throws Exception;
 	}
 
 	/**
@@ -777,9 +774,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				HeartbeatServices heartbeatServices,
 				BlobServer blobServer,
 				JobManagerSharedServices jobManagerServices,
-				JobManagerJobMetricGroup jobManagerJobMetricGroup,
-				@Nullable String metricQueryServicePath,
-				@Nullable String restAddress) throws Exception {
+				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory) throws Exception {
 			return new JobManagerRunner(
 				resourceId,
 				jobGraph,
@@ -789,9 +784,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				heartbeatServices,
 				blobServer,
 				jobManagerServices,
-				jobManagerJobMetricGroup,
-				metricQueryServicePath,
-				restAddress);
+				jobManagerJobMetricGroupFactory);
 		}
 	}
 }
