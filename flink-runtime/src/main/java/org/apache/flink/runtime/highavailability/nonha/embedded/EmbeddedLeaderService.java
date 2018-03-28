@@ -212,7 +212,7 @@ public class EmbeddedLeaderService {
 	}
 
 	/**
-	 * Callback from leader contenders when they confirm a leader grant
+	 * Callback from leader contenders when they confirm a leader grant.
 	 */
 	void confirmLeader(final EmbeddedLeaderElectionService service, final UUID leaderSessionId) {
 		synchronized (lock) {
@@ -222,7 +222,7 @@ public class EmbeddedLeaderService {
 			}
 
 			try {
-				// check if the confirmation is for the same grant, or whether it is a stale grant 
+				// check if the confirmation is for the same grant, or whether it is a stale grant
 				if (service == currentLeaderProposed && currentLeaderSessionId.equals(leaderSessionId)) {
 					final String address = service.contender.getAddress();
 					LOG.info("Received confirmation of leadership for leader {} , session={}", address, leaderSessionId);
@@ -231,7 +231,6 @@ public class EmbeddedLeaderService {
 					currentLeaderConfirmed = service;
 					currentLeaderAddress = address;
 					currentLeaderProposed = null;
-					service.isLeader = true;
 
 					// notify all listeners
 					for (EmbeddedLeaderRetrievalService listener : listeners) {
@@ -275,7 +274,7 @@ public class EmbeddedLeaderService {
 						leaderService.contender, leaderService.contender.getAddress());
 
 				notificationExecutor.execute(
-						new GrantLeadershipCall(leaderService.contender, leaderSessionId, LOG));
+						new GrantLeadershipCall(leaderService, leaderSessionId, LOG));
 			}
 		}
 	}
@@ -328,7 +327,7 @@ public class EmbeddedLeaderService {
 	}
 
 	// ------------------------------------------------------------------------
-	//  election and retrieval service implementations 
+	//  election and retrieval service implementations
 	// ------------------------------------------------------------------------
 
 	private class EmbeddedLeaderElectionService implements LeaderElectionService {
@@ -440,28 +439,33 @@ public class EmbeddedLeaderService {
 
 	private static class GrantLeadershipCall implements Runnable {
 
-		private final LeaderContender contender;
+		private final EmbeddedLeaderElectionService leaderElectionService;
 		private final UUID leaderSessionId;
 		private final Logger logger;
 
 		GrantLeadershipCall(
-				LeaderContender contender,
+				EmbeddedLeaderElectionService leaderElectionService,
 				UUID leaderSessionId,
 				Logger logger) {
 
-			this.contender = checkNotNull(contender);
+			this.leaderElectionService = checkNotNull(leaderElectionService);
 			this.leaderSessionId = checkNotNull(leaderSessionId);
 			this.logger = checkNotNull(logger);
 		}
 
 		@Override
 		public void run() {
+			leaderElectionService.isLeader = true;
+
+			final LeaderContender contender = leaderElectionService.contender;
+
 			try {
 				contender.grantLeadership(leaderSessionId);
 			}
 			catch (Throwable t) {
 				logger.warn("Error granting leadership to contender", t);
 				contender.handleError(t instanceof Exception ? (Exception) t : new Exception(t));
+				leaderElectionService.isLeader = false;
 			}
 		}
 	}

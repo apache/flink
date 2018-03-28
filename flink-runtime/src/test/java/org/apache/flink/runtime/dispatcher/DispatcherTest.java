@@ -43,11 +43,11 @@ import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -96,6 +96,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.hamcrest.Matchers.contains;
@@ -103,11 +104,13 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -368,12 +371,12 @@ public class DispatcherTest extends TestLogger {
 	 */
 	@Test
 	public void testSavepointDisposal() throws Exception {
+		final URI externalPointer = createTestingSavepoint();
+		final Path savepointPath = Paths.get(externalPointer);
+
 		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
 		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
-
-		final URI externalPointer = createTestingSavepoint();
-		final Path savepointPath = Paths.get(externalPointer);
 
 		assertThat(Files.exists(savepointPath), is(true));
 
@@ -397,6 +400,35 @@ public class DispatcherTest extends TestLogger {
 		final CompletedCheckpointStorageLocation completedCheckpointStorageLocation = metadataOutputStream.closeAndFinalizeCheckpoint();
 
 		return new URI(completedCheckpointStorageLocation.getExternalPointer());
+
+	}
+
+	/**
+	 * Tests that we wait until the JobMaster has gained leader ship before sending requests
+	 * to it. See FLINK-8887.
+	 */
+	@Test
+	public void testWaitingForJobMasterLeadership() throws ExecutionException, InterruptedException {
+		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+		final CompletableFuture<JobStatus> jobStatusFuture = dispatcherGateway.requestJobStatus(jobGraph.getJobID(), TIMEOUT);
+
+		assertThat(jobStatusFuture.isDone(), is(false));
+
+		try {
+			jobStatusFuture.get(10, TimeUnit.MILLISECONDS);
+			fail("Should not complete.");
+		} catch (TimeoutException ignored) {
+			// ignored
+		}
+
+		jobMasterLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		assertThat(jobStatusFuture.get(), notNullValue());
 	}
 
 	private static class TestingDispatcher extends Dispatcher {
@@ -480,9 +512,7 @@ public class DispatcherTest extends TestLogger {
 				HeartbeatServices heartbeatServices,
 				BlobServer blobServer,
 				JobManagerSharedServices jobManagerSharedServices,
-				JobManagerJobMetricGroup jobManagerJobMetricGroup,
-				@Nullable String metricQueryServicePath,
-				@Nullable String restAddress) throws Exception {
+				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory) throws Exception {
 			assertEquals(expectedJobId, jobGraph.getJobID());
 
 			return Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE.createJobManagerRunner(
@@ -494,9 +524,7 @@ public class DispatcherTest extends TestLogger {
 				heartbeatServices,
 				blobServer,
 				jobManagerSharedServices,
-				jobManagerJobMetricGroup,
-				metricQueryServicePath,
-				restAddress);
+				jobManagerJobMetricGroupFactory);
 		}
 	}
 }
