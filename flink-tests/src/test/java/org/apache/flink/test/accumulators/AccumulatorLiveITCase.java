@@ -27,10 +27,10 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.NewClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
@@ -46,7 +46,6 @@ import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -142,13 +141,16 @@ public class AccumulatorLiveITCase extends TestLogger {
 	private static void submitJobAndVerifyResults(JobGraph jobGraph) throws Exception {
 		Deadline deadline = Deadline.now().plus(Duration.ofSeconds(30));
 
-		ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
+		final ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
 
-		Assume.assumeTrue(client instanceof NewClusterClient);
+		final CheckedThread submissionThread = new CheckedThread() {
+			@Override
+			public void go() throws Exception {
+				client.submitJob(jobGraph, AccumulatorLiveITCase.class.getClassLoader());
+			}
+		};
 
-		final NewClusterClient clusterClient = ((NewClusterClient) client);
-
-		clusterClient.submitJob(jobGraph).get();
+		submissionThread.start();
 
 		try {
 			NotifyingMapper.notifyLatch.await();
@@ -173,8 +175,8 @@ public class AccumulatorLiveITCase extends TestLogger {
 		} finally {
 			NotifyingMapper.shutdownLatch.trigger();
 
-			// wait for the completion of the job
-			clusterClient.requestJobResult(jobGraph.getJobID()).get();
+			// wait for the job to have terminated
+			submissionThread.sync();
 		}
 	}
 
