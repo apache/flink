@@ -70,5 +70,30 @@ function send_messages_to_kafka {
 }
 
 function read_messages_from_kafka {
-  $KAFKA_DIR/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic $2 --from-beginning --max-messages $1 2> /dev/null
+  $KAFKA_DIR/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --from-beginning \
+    --max-messages $1 \
+    --topic $2 \
+    --consumer-property group.id=$3 2> /dev/null
+}
+
+function modify_num_partitions {
+  $KAFKA_DIR/bin/kafka-topics.sh --alter --topic $1 --partitions $2 --zookeeper localhost:2181
+}
+
+function get_num_partitions {
+  $KAFKA_DIR/bin/kafka-topics.sh --describe --topic $1 --zookeeper localhost:2181 | grep -Eo "PartitionCount:[0-9]+" | cut -d ":" -f 2
+}
+
+function get_partition_end_offset {
+  local topic=$1
+  local partition=$2
+
+  # first, use the console consumer to produce a dummy consumer group
+  read_messages_from_kafka 0 $topic dummy-consumer
+
+  # then use the consumer offset utility to get the LOG_END_OFFSET value for the specified partition
+  $KAFKA_DIR/bin/kafka-consumer-groups.sh --describe --group dummy-consumer --bootstrap-server localhost:9092 2> /dev/null \
+    | grep "$topic \+$partition" \
+    | tr -s " " \
+    | cut -d " " -f 4
 }
