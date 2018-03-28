@@ -154,27 +154,20 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final ResourceID resourceId;
 
-	/** Logical representation of the job. */
 	private final JobGraph jobGraph;
 
 	private final Time rpcTimeout;
 
-	/** Service to contend for and retrieve the leadership of JM and RM. */
 	private final HighAvailabilityServices highAvailabilityServices;
 
-	/** Blob server used across jobs. */
 	private final BlobServer blobServer;
 
-	/** The metrics for the job. */
 	private final JobManagerJobMetricGroupFactory jobMetricGroupFactory;
 
-	/** The heartbeat manager with task managers. */
 	private final HeartbeatManager<AccumulatorReport, Void> taskManagerHeartbeatManager;
 
-	/** The heartbeat manager with resource manager. */
 	private final HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
 
-	/** The execution context which is used to execute futures. */
 	private final ScheduledExecutorService scheduledExecutorService;
 
 	private final OnCompletionActions jobCompletionActions;
@@ -195,10 +188,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	// --------- ResourceManager --------
 
-	/** Leader retriever service used to locate ResourceManager's address. */
 	private LeaderRetrievalService resourceManagerLeaderRetriever;
 
-	/** Connection with ResourceManager, null if not located address yet or we close it initiative. */
+	@Nullable
 	private ResourceManagerConnection resourceManagerConnection;
 
 	// --------- TaskManagers --------
@@ -207,7 +199,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	// -------- Mutable fields ---------
 
-	/** The execution graph of this job. */
 	private ExecutionGraph executionGraph;
 
 	@Nullable
