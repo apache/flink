@@ -270,7 +270,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 		highAvailabilityServices.setResourceManagerLeaderElectionService(resourceManagerLeaderElectionService);
 		highAvailabilityServices.setJobMasterLeaderRetriever(jobID, jobMasterLeaderRetrievalService);
 
-		HeartbeatServices heartbeatServices = new HeartbeatServices(5L, 5L);
+		HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
 
 		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
 			Time.seconds(5L),
