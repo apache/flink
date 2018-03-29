@@ -564,53 +564,32 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	 * Recovers all jobs persisted via the submitted job graph store.
 	 */
 	@VisibleForTesting
-	void recoverJobs() {
+	CompletableFuture<Collection<JobGraph>> recoverJobs() {
 		log.info("Recovering all persisted jobs.");
-
-		getRpcService().execute(
+		return FutureUtils.supplyAsync(
 			() -> {
-				final Collection<JobID> jobIds;
+				final Collection<JobID> jobIds = submittedJobGraphStore.getJobIds();
 
-				try {
-					jobIds = submittedJobGraphStore.getJobIds();
-				} catch (Exception e) {
-					onFatalError(new FlinkException("Could not recover job ids from the submitted job graph store. Aborting recovery.", e));
-					return;
-				}
+				final List<JobGraph> jobGraphs = new ArrayList<>(jobIds.size());
 
 				for (JobID jobId : jobIds) {
-					try {
-						recoverJob(jobId);
-					} catch (Exception e) {
-						onFatalError(new FlinkException("Could not recover the job graph for " + jobId + '.', e));
-					}
+					jobGraphs.add(recoverJob(jobId));
 				}
-			});
+
+				return jobGraphs;
+			},
+			getRpcService().getExecutor());
 	}
 
-	private void recoverJob(JobID jobId) throws Exception {
+	private JobGraph recoverJob(JobID jobId) throws Exception {
+		log.debug("Recover job {}.", jobId);
 		SubmittedJobGraph submittedJobGraph = submittedJobGraphStore.recoverJobGraph(jobId);
 
 		if (submittedJobGraph != null) {
-			final CompletableFuture<Void> runJobFuture = callAsync(
-				() -> {
-					runJob(submittedJobGraph.getJobGraph());
-					return null;
-				},
-				RpcUtils.INF_TIMEOUT);
-
-			runJobFuture.whenComplete(
-				(Void ignored, Throwable throwable) -> {
-					if (throwable != null) {
-						onFatalError(new FlinkException(
-							String.format("Could not run the recovered job %s.", jobId),
-							throwable));
-					}
-				});
+			return submittedJobGraph.getJobGraph();
 		} else {
-			log.warn("Could not find job {} in submitted job graph store. Ignoring recover call.", jobId);
+			throw new FlinkJobNotFoundException(jobId);
 		}
-
 	}
 
 	protected void onFatalError(Throwable throwable) {
@@ -713,27 +692,53 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	 */
 	@Override
 	public void grantLeadership(final UUID newLeaderSessionID) {
-		runAsyncWithoutFencing(
-			() -> {
-				final DispatcherId dispatcherId = new DispatcherId(newLeaderSessionID);
+		final DispatcherId dispatcherId = new DispatcherId(newLeaderSessionID);
+		log.info("Dispatcher {} was granted leadership with fencing token {}", getAddress(), dispatcherId);
 
-				log.info("Dispatcher {} was granted leadership with fencing token {}", getAddress(), dispatcherId);
+		final CompletableFuture<Collection<JobGraph>> recoveredJobsFuture = recoverJobs();
 
-				// clear the state if we've been the leader before
-				if (getFencingToken() != null) {
-					final CompletableFuture<Void> jobManagerRunnersTerminationFuture = terminateJobManagerRunners();
-					registerOrphanedJobManagerTerminationFuture(jobManagerRunnersTerminationFuture);
-					jobManagerRunners.clear();
+		final CompletableFuture<Void> fencingTokenFuture = recoveredJobsFuture.thenAcceptAsync(
+			(Collection<JobGraph> recoveredJobs) -> {
+				setNewFencingToken(dispatcherId);
+
+				for (JobGraph recoveredJob : recoveredJobs) {
+					try {
+						runJob(recoveredJob);
+					} catch (Exception e) {
+						throw new CompletionException(
+							new FlinkException(
+								String.format("Failed to recover job %s.", recoveredJob.getJobID()),
+								e));
+					}
 				}
+			},
+			getUnfencedMainThreadExecutor());
 
-				setFencingToken(dispatcherId);
+		final CompletableFuture<Void> confirmationFuture = fencingTokenFuture.thenRunAsync(
+			() -> leaderElectionService.confirmLeaderSessionID(newLeaderSessionID),
+			getRpcService().getExecutor());
 
-				// confirming the leader session ID might be blocking,
-				getRpcService().execute(
-					() -> leaderElectionService.confirmLeaderSessionID(newLeaderSessionID));
-
-				recoverJobs();
+		confirmationFuture.whenComplete(
+			(Void ignored, Throwable throwable) -> {
+				if (throwable != null) {
+					onFatalError(ExceptionUtils.stripCompletionException(throwable));
+				}
 			});
+	}
+
+	private void setNewFencingToken(@Nullable DispatcherId dispatcherId) {
+		// clear the state if we've been the leader before
+		if (getFencingToken() != null) {
+			clearDispatcherState();
+		}
+
+		setFencingToken(dispatcherId);
+	}
+
+	private void clearDispatcherState() {
+		final CompletableFuture<Void> jobManagerRunnersTerminationFuture = terminateJobManagerRunners();
+		registerOrphanedJobManagerTerminationFuture(jobManagerRunnersTerminationFuture);
+		jobManagerRunners.clear();
 	}
 
 	/**
@@ -745,12 +750,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			() -> {
 				log.info("Dispatcher {} was revoked leadership.", getAddress());
 
-				final CompletableFuture<Void> jobManagerRunnersTerminationFuture = terminateJobManagerRunners();
-				registerOrphanedJobManagerTerminationFuture(jobManagerRunnersTerminationFuture);
-				jobManagerRunners.clear();
-
-				// clear the fencing token indicating that we don't have the leadership right now
-				setFencingToken(null);
+				setNewFencingToken(null);
 			});
 	}
 
