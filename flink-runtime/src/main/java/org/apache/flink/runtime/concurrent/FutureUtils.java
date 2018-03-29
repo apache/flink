@@ -24,6 +24,7 @@ import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import akka.dispatch.OnComplete;
 
@@ -32,6 +33,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
@@ -746,6 +748,26 @@ public class FutureUtils {
 		result.completeExceptionally(cause);
 
 		return result;
+	}
+
+	/**
+	 * Returns a future which is completed with the result of the {@link SupplierWithException}.
+	 *
+	 * @param supplier to provide the future's value
+	 * @param executor to execute the supplier
+	 * @param <T> type of the result
+	 * @return Future which is completed with the value of the supplier
+	 */
+	public static <T> CompletableFuture<T> supplyAsync(SupplierWithException<T, ?> supplier, Executor executor) {
+		return CompletableFuture.supplyAsync(
+			() -> {
+				try {
+					return supplier.get();
+				} catch (Throwable e) {
+					throw new CompletionException(e);
+				}
+			},
+			executor);
 	}
 
 	/**
