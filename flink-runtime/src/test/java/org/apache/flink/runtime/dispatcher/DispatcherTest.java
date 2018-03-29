@@ -99,7 +99,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
@@ -148,6 +147,8 @@ public class DispatcherTest extends TestLogger {
 
 	private Configuration configuration;
 
+	private BlobServer blobServer;
+
 	/** Instance under test. */
 	private TestingDispatcher dispatcher;
 
@@ -194,13 +195,15 @@ public class DispatcherTest extends TestLogger {
 			temporaryFolder.newFolder().getAbsolutePath());
 
 		createdJobManagerRunnerLatch = new CountDownLatch(2);
+		blobServer = new BlobServer(configuration, new VoidBlobStore());
+
 		dispatcher = new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
 			configuration,
 			haServices,
 			new TestingResourceManagerGateway(),
-			new BlobServer(configuration, new VoidBlobStore()),
+			blobServer,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 			null,
@@ -217,6 +220,10 @@ public class DispatcherTest extends TestLogger {
 			fatalErrorHandler.rethrowError();
 		} finally {
 			RpcUtils.terminateRpcEndpoint(dispatcher, TIMEOUT);
+		}
+
+		if (blobServer != null) {
+			blobServer.close();
 		}
 	}
 
@@ -266,8 +273,6 @@ public class DispatcherTest extends TestLogger {
 	 */
 	@Test
 	public void testSubmittedJobGraphListener() throws Exception {
-		dispatcher.recoverJobsEnabled.set(false);
-
 		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
 		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
@@ -502,17 +507,12 @@ public class DispatcherTest extends TestLogger {
 		fatalErrorHandler.clearError();
 	}
 
-	private void electDispatcher() throws InterruptedException, ExecutionException, java.util.concurrent.TimeoutException {
+	private void electDispatcher() {
 		UUID expectedLeaderSessionId = UUID.randomUUID();
 
 		assertNull(dispatcherLeaderElectionService.getConfirmationFuture());
 
 		dispatcherLeaderElectionService.isLeader(expectedLeaderSessionId);
-
-		UUID actualLeaderSessionId = dispatcherLeaderElectionService.getConfirmationFuture()
-			.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
-
-		assertEquals(expectedLeaderSessionId, actualLeaderSessionId);
 	}
 
 	private JobGraph createFailingJobGraph(Exception failureCause) {
@@ -539,12 +539,6 @@ public class DispatcherTest extends TestLogger {
 	}
 
 	private static class TestingDispatcher extends Dispatcher {
-
-		/**
-		 * Controls whether existing jobs in {@link SubmittedJobGraphStore} should be recovered
-		 * when {@link TestingDispatcher} is granted leadership.
-		 * */
-		private final AtomicBoolean recoverJobsEnabled = new AtomicBoolean(true);
 
 		private TestingDispatcher(
 				RpcService rpcService,
@@ -574,13 +568,6 @@ public class DispatcherTest extends TestLogger {
 				jobManagerRunnerFactory,
 				fatalErrorHandler,
 				null);
-		}
-
-		@Override
-		void recoverJobs() {
-			if (recoverJobsEnabled.get()) {
-				super.recoverJobs();
-			}
 		}
 
 		@VisibleForTesting
