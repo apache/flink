@@ -95,7 +95,9 @@ public final class HashMapSerializer<K, V> extends TypeSerializer<HashMap<K, V>>
 		TypeSerializer<K> duplicateKeySerializer = keySerializer.duplicate();
 		TypeSerializer<V> duplicateValueSerializer = valueSerializer.duplicate();
 
-		return new HashMapSerializer<>(duplicateKeySerializer, duplicateValueSerializer);
+		return (duplicateKeySerializer == keySerializer) && (duplicateValueSerializer == valueSerializer)
+				? this
+				: new HashMapSerializer<>(duplicateKeySerializer, duplicateValueSerializer);
 	}
 
 	@Override

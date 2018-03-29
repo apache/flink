@@ -39,8 +39,8 @@ import java.io.IOException;
  * @param <V> The type of value that the state state stores.
  */
 public class RocksDBValueState<K, N, V>
-	extends AbstractRocksDBState<K, N, ValueState<V>, ValueStateDescriptor<V>, V>
-	implements InternalValueState<N, V> {
+		extends AbstractRocksDBState<K, N, V, ValueState<V>, ValueStateDescriptor<V>>
+		implements InternalValueState<K, N, V> {
 
 	/** Serializer for the values. */
 	private final TypeSerializer<V> valueSerializer;
@@ -59,6 +59,21 @@ public class RocksDBValueState<K, N, V>
 
 		super(columnFamily, namespaceSerializer, stateDesc, backend);
 		this.valueSerializer = stateDesc.getSerializer();
+	}
+
+	@Override
+	public TypeSerializer<K> getKeySerializer() {
+		return backend.getKeySerializer();
+	}
+
+	@Override
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
+	}
+
+	@Override
+	public TypeSerializer<V> getValueSerializer() {
+		return stateDesc.getSerializer();
 	}
 
 	@Override
