@@ -75,7 +75,6 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
-			-1,
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
 			TEST_LOGGER);
@@ -105,7 +104,6 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
-			-1,
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
 			TEST_LOGGER);
@@ -135,7 +133,6 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
-			-1,
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
 			TEST_LOGGER);
@@ -178,7 +175,6 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy(),
 				new UnregisteredMetricsGroup(),
-				-1,
 				VoidBlobWriter.getInstance(),
 				AkkaUtils.getDefaultTimeout(),
 				TEST_LOGGER);

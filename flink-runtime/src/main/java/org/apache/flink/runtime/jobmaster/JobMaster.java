@@ -1135,7 +1135,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			rpcTimeout,
 			restartStrategy,
 			currentJobManagerJobMetricGroup,
-			-1,
 			blobServer,
 			jobMasterConfiguration.getSlotRequestTimeout(),
 			log);
