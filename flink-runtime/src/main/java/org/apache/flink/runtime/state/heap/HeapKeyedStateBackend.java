@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
@@ -49,6 +50,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
+import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
@@ -85,6 +87,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.RunnableFuture;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -468,6 +471,44 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) {
 		//Nothing to do
+	}
+
+	/**
+	 * We need to override {@link #applyToAllKeys(Object, TypeSerializer, StateDescriptor, KeyedStateFunction)} in
+	 * {@link HeapKeyedStateBackend} because it may cause concurrency problem when user invoking {@link State#clear()}
+	 * in {@link KeyedStateFunction#process(Object, State)}.
+	 */
+	@Override
+	public <N, S extends State, T> void applyToAllKeys(
+		final N namespace,
+		final TypeSerializer<N> namespaceSerializer,
+		final StateDescriptor<S, T> stateDescriptor,
+		final KeyedStateFunction<K, S> function) throws Exception {
+
+		try (Stream<K> keyStream = getKeys(stateDescriptor.getName(), namespace)) {
+
+			// we copy the keys into list to avoid the concurrency problem
+			// when state.clear() is invoked in function.process().
+			List<K> keys = keyStream.collect(Collectors.toList());
+
+			final S state = getPartitionedState(
+				namespace,
+				namespaceSerializer,
+				stateDescriptor);
+
+			for (K key : keys) {
+				setCurrentKey(key);
+				try {
+					function.process(key, state);
+				} catch (Throwable e) {
+					// we wrap the checked exception in an unchecked
+					// one and catch it (and re-throw it) later.
+					throw new RuntimeException(e);
+				}
+			}
+		} catch (RuntimeException e) {
+			throw e;
+		}
 	}
 
 	@Override
