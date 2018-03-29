@@ -270,3 +270,37 @@ override def onTimer(timestamp: Long, ctx: OnTimerContext, out: Collector[OUT]):
 {% endhighlight %}
 </div>
 </div>
+
+## Optimisations
+
+### Timer Coalescing
+
+Every timer registered at the `TimerService` via `ctx.timerService().registerEventTimeTimer()` will
+be stored on heap and enqueued for execution. There is, however, a maximum of one timer per key and
+timestamp at a millisecond resolution and thus, in the worst case, every key may have a timer for
+each upcoming millisecond. Even if you do not do any processing for outdated timers in `onTimer`
+(as above), this may put a significant burden on the Flink runtime.
+
+Since there is only one timer per key and timestamp, however, you may coalesc timers by reducing the
+timer resolution. For a timer resolution of 1 second, for example, you could round down the target
+time to each full second and therefore allow the timer to fire at most 1 second earlier but not
+later than with millisecond accuracy. As a result, there would be at most one timer for each
+combination of key and timestamp:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+long coalescedTime = ((ctx.timestamp() + timeout) / 1000) * 1000;
+ctx.timerService().registerEventTimeTimer(coalescedTime);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+coalescedTime = ((ctx.timestamp + timeout) / 1000) * 1000
+ctx.timerService.registerEventTimeTimer(coalescedTime)
+{% endhighlight %}
+</div>
+</div>
+
+Different schemes are possible and reduce the overhead of having too many timers.
