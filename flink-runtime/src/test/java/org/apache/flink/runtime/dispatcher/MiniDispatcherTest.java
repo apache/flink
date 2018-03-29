@@ -39,6 +39,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -283,7 +284,8 @@ public class MiniDispatcherTest extends TestLogger {
 				HeartbeatServices heartbeatServices,
 				BlobServer blobServer,
 				JobManagerSharedServices jobManagerSharedServices,
-				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory) throws Exception {
+				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+				FatalErrorHandler fatalErrorHandler) throws Exception {
 			jobGraphFuture.complete(jobGraph);
 
 			final JobManagerRunner mock = mock(JobManagerRunner.class);

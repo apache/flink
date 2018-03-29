@@ -56,7 +56,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The runner for the job manager. It deals with job level leader election and make underlying job manager
  * properly reacted.
  */
-public class JobManagerRunner implements LeaderContender, OnCompletionActions, FatalErrorHandler, AutoCloseableAsync {
+public class JobManagerRunner implements LeaderContender, OnCompletionActions, AutoCloseableAsync {
 
 	private static final Logger log = LoggerFactory.getLogger(JobManagerRunner.class);
 
@@ -77,6 +77,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	private final JobManagerSharedServices jobManagerSharedServices;
 
 	private final JobMaster jobMaster;
+
+	private final FatalErrorHandler fatalErrorHandler;
 
 	private final Time rpcTimeout;
 
@@ -107,7 +109,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			final HeartbeatServices heartbeatServices,
 			final BlobServer blobServer,
 			final JobManagerSharedServices jobManagerSharedServices,
-			final JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory) throws Exception {
+			final JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+			final FatalErrorHandler fatalErrorHandler) throws Exception {
 
 		this.resultFuture = new CompletableFuture<>();
 		this.terminationFuture = new CompletableFuture<>();
@@ -116,6 +119,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 		try {
 			this.jobGraph = checkNotNull(jobGraph);
 			this.jobManagerSharedServices = checkNotNull(jobManagerSharedServices);
+			this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
 			checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
 
@@ -155,7 +159,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 				blobServer,
 				jobManagerJobMetricGroupFactory,
 				this,
-				this,
+				fatalErrorHandler,
 				userCodeLoader);
 		}
 		catch (Throwable t) {
@@ -255,19 +259,17 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 		resultFuture.completeExceptionally(new JobNotFinishedException(jobGraph.getJobID()));
 	}
 
-	/**
-	 * Job completion notification triggered by JobManager or self.
-	 */
 	@Override
-	public void onFatalError(Throwable exception) {
-		// we log first to make sure an explaining message goes into the log
-		// we even guard the log statement here to increase chances that the error handler
-		// gets the notification on hard critical situations like out-of-memory errors
-		try {
-			log.error("JobManager runner encountered a fatal error.", exception);
-		} catch (Throwable ignored) {}
+	public void jobMasterFailed(Throwable cause) {
+		handleJobManagerRunnerError(cause);
+	}
 
-		resultFuture.completeExceptionally(exception);
+	private void handleJobManagerRunnerError(Throwable cause) {
+		if (ExceptionUtils.isJvmFatalError(cause)) {
+			fatalErrorHandler.onFatalError(cause);
+		} else {
+			resultFuture.completeExceptionally(cause);
+		}
 	}
 
 	/**
@@ -302,7 +304,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			try {
 				verifyJobSchedulingStatusAndStartJobManager(leaderSessionID);
 			} catch (Exception e) {
-				onFatalError(new FlinkException("Could not start the JobMaster.", e));
+				handleJobManagerRunnerError(e);
 			}
 		}
 	}
@@ -325,7 +327,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			startFuture.whenCompleteAsync(
 				(Acknowledge ack, Throwable throwable) -> {
 					if (throwable != null) {
-						onFatalError(new FlinkException("Could not start the job manager.", throwable));
+						handleJobManagerRunnerError(new FlinkException("Could not start the job manager.", throwable));
 					} else {
 						confirmLeaderSessionIdIfStillLeader(leaderSessionId, currentLeaderGatewayFuture);
 					}
@@ -361,7 +363,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			suspendFuture.whenCompleteAsync(
 				(Acknowledge ack, Throwable throwable) -> {
 					if (throwable != null) {
-						onFatalError(new Exception("Could not start the job manager.", throwable));
+						handleJobManagerRunnerError(new FlinkException("Could not suspend the job manager.", throwable));
 					}
 				},
 				jobManagerSharedServices.getScheduledExecutorService());
@@ -393,7 +395,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	@Override
 	public void handleError(Exception exception) {
 		log.error("Leader Election Service encountered a fatal error.", exception);
-		onFatalError(exception);
+		handleJobManagerRunnerError(exception);
 	}
 
 	//----------------------------------------------------------------------------------------------

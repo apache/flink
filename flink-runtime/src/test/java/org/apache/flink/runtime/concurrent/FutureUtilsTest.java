@@ -20,6 +20,7 @@ package org.apache.flink.runtime.concurrent;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -576,5 +577,32 @@ public class FutureUtilsTest extends TestLogger {
 		for (CompletableFuture<Void> inputFuture : inputFutures) {
 			assertThat(inputFuture.isCancelled(), is(true));
 		}
+	}
+
+	@Test
+	public void testSupplyAsyncFailure() throws Exception {
+		final String exceptionMessage = "Test exception";
+		final FlinkException testException = new FlinkException(exceptionMessage);
+		final CompletableFuture<Object> future = FutureUtils.supplyAsync(
+			() -> {
+				throw testException;
+			},
+			TestingUtils.defaultExecutor());
+
+		try {
+			future.get();
+			fail("Expected an exception.");
+		} catch (ExecutionException e) {
+			assertThat(ExceptionUtils.findThrowableWithMessage(e, exceptionMessage).isPresent(), is(true));
+		}
+	}
+
+	@Test
+	public void testSupplyAsync() throws Exception {
+		final CompletableFuture<Acknowledge> future = FutureUtils.supplyAsync(
+			Acknowledge::get,
+			TestingUtils.defaultExecutor());
+
+		assertThat(future.get(), is(Acknowledge.get()));
 	}
 }

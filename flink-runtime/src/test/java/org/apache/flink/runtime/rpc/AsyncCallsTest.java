@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.rpc;
 
-import akka.actor.ActorSystem;
-
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -31,6 +29,7 @@ import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
+import akka.actor.ActorSystem;
 import akka.actor.Terminated;
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -46,7 +45,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
-import static org.junit.Assert.*;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @Category(Flip6.class)
 public class AsyncCallsTest extends TestLogger {
@@ -257,6 +261,18 @@ public class AsyncCallsTest extends TestLogger {
 			newFencingToken);
 
 		assertTrue(resultFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS));
+	}
+
+	@Test
+	public void testUnfencedMainThreadExecutor() throws Exception {
+		final UUID newFencingToken = UUID.randomUUID();
+
+		final boolean value = true;
+		final CompletableFuture<Boolean> resultFuture = testRunAsync(
+			endpoint -> CompletableFuture.supplyAsync(() -> value, endpoint.getUnfencedMainThreadExecutor()),
+			newFencingToken);
+
+		assertThat(resultFuture.get(), is(value));
 	}
 
 	private static <T> CompletableFuture<T> testRunAsync(Function<FencedTestEndpoint, CompletableFuture<T>> runAsyncCall, UUID newFencingToken) throws Exception {
