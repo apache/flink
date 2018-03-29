@@ -321,6 +321,10 @@ public class CheckpointCoordinator {
 				periodicScheduling = false;
 				triggerRequestQueued = false;
 
+				// shut down the hooks
+				MasterHooks.close(masterHooks.values(), LOG);
+				masterHooks.clear();
+
 				// shut down the thread that handles the timeouts and pending triggers
 				timer.shutdownNow();
 
@@ -1021,6 +1025,9 @@ public class CheckpointCoordinator {
 				if (errorIfNoCheckpoint) {
 					throw new IllegalStateException("No completed checkpoint available");
 				} else {
+					LOG.debug("Resetting the master hooks.");
+					MasterHooks.reset(masterHooks.values(), LOG);
+
 					return false;
 				}
 			}
