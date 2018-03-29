@@ -69,6 +69,11 @@ public class MasterHooksTest extends TestLogger {
 				return id;
 			}
 
+			@Override
+			public void initializeState(HookInitializationContext context) throws Exception {
+				assertEquals(userClassLoader, Thread.currentThread().getContextClassLoader());
+			}
+
 			@Nullable
 			@Override
 			public CompletableFuture<String> triggerCheckpoint(long checkpointId, long timestamp, Executor executor) throws Exception {

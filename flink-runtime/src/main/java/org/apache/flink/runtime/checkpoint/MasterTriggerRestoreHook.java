@@ -64,6 +64,26 @@ public interface MasterTriggerRestoreHook<T> {
 	String getIdentifier();
 
 	/**
+	 * This method is called by the checkpoint coordinator to initialize the hook when
+	 * execution is started or restarted.  Hooks typically set up their state storing data structures in this method.
+	 *
+	 * @param context the context for initializing the hook
+	 * @throws Exception Exceptions encountered when calling the hook will cause execution to fail.
+	 */
+	default void initializeState(HookInitializationContext context) throws Exception {
+
+	}
+
+	/**
+	 * Tear-down method for the hook.
+	 *
+	 * @throws Exception Exceptions encountered when calling close will be logged.
+	 */
+	default void close() throws Exception {
+
+	}
+
+	/**
 	 * This method is called by the checkpoint coordinator prior when triggering a checkpoint, prior
 	 * to sending the "trigger checkpoint" messages to the source tasks.
 	 * 
@@ -137,5 +157,12 @@ public interface MasterTriggerRestoreHook<T> {
 		 * Instantiates the {@code MasterTriggerRestoreHook}.
 		 */
 		<V> MasterTriggerRestoreHook<V> create();
+	}
+
+	/**
+	 * The hook initialization context.
+	 */
+	interface HookInitializationContext {
+
 	}
 }

@@ -1358,6 +1358,10 @@ class JobManager(
                   throw new SuppressRestartsException(e)
               }
             }
+            else {
+              // give the coordinator an opportunity to initialize master hooks
+              executionGraph.restoreLatestCheckpointedState(false, false)
+            }
 
             try {
               submittedJobGraphs.putJobGraph(new SubmittedJobGraph(jobGraph, jobInfo))

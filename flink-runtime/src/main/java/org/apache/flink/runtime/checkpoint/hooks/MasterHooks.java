@@ -25,11 +25,12 @@ import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -44,6 +45,55 @@ import java.util.concurrent.TimeoutException;
  * Collection of methods to deal with checkpoint master hooks.
  */
 public class MasterHooks {
+
+	// ------------------------------------------------------------------------
+	//  lifecycle
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Initializes the state of the master hooks.
+	 *
+	 * @param hooks The hooks to initialize
+	 *
+	 * @throws FlinkException Thrown, if the hooks throw an exception.
+	 */
+	public static void initializeState(
+		Collection<MasterTriggerRestoreHook<?>> hooks,
+		MasterTriggerRestoreHook.HookInitializationContext context,
+		final Logger log) throws FlinkException {
+
+		for (MasterTriggerRestoreHook<?> hook : hooks) {
+			final String id = hook.getIdentifier();
+			try {
+				hook.initializeState(context);
+			}
+			catch (Throwable t) {
+				ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+				throw new FlinkException("Error while initializing checkpoint master hook '" + id + '\'', t);
+			}
+		}
+	}
+
+	/**
+	 * Closes the master hooks.
+	 *
+	 * @param hooks The hooks to close
+	 *
+	 * @throws FlinkException Thrown, if the hooks throw an exception.
+	 */
+	public static void close(
+		Collection<MasterTriggerRestoreHook<?>> hooks,
+		final Logger log) throws FlinkException {
+
+		for (MasterTriggerRestoreHook<?> hook : hooks) {
+			try {
+				hook.close();
+			}
+			catch (Throwable t) {
+				log.warn("Failed to cleanly close a master hook (" + hook.getIdentifier() + ")", t);
+			}
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//  checkpoint triggering
@@ -289,6 +339,34 @@ public class MasterHooks {
 		WrappedMasterHook(MasterTriggerRestoreHook<T> hook, ClassLoader userClassLoader) {
 			this.hook = Preconditions.checkNotNull(hook);
 			this.userClassLoader = Preconditions.checkNotNull(userClassLoader);
+		}
+
+		@Override
+		public void initializeState(HookInitializationContext context) throws Exception {
+			final Thread thread = Thread.currentThread();
+			final ClassLoader originalClassLoader = thread.getContextClassLoader();
+			thread.setContextClassLoader(userClassLoader);
+
+			try {
+				hook.initializeState(context);
+			}
+			finally {
+				thread.setContextClassLoader(originalClassLoader);
+			}
+		}
+
+		@Override
+		public void close() throws Exception {
+			final Thread thread = Thread.currentThread();
+			final ClassLoader originalClassLoader = thread.getContextClassLoader();
+			thread.setContextClassLoader(userClassLoader);
+
+			try {
+				hook.close();
+			}
+			finally {
+				thread.setContextClassLoader(originalClassLoader);
+			}
 		}
 
 		@Override

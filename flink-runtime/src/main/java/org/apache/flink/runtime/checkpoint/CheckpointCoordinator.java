@@ -321,6 +321,10 @@ public class CheckpointCoordinator {
 				periodicScheduling = false;
 				triggerRequestQueued = false;
 
+				// shut down the hooks
+				MasterHooks.close(masterHooks.values(), LOG);
+				masterHooks.clear();
+
 				// shut down the thread that handles the timeouts and pending triggers
 				timer.shutdownNow();
 
@@ -1008,6 +1012,11 @@ public class CheckpointCoordinator {
 			}
 
 			LOG.debug("Status of the shared state registry after restore: {}.", sharedStateRegistry);
+
+			// Instruct the master hooks to initialize their state (unconditionally)
+			LOG.debug("Initializing the master hooks.");
+			MasterTriggerRestoreHook.HookInitializationContext context = new MasterTriggerRestoreHook.HookInitializationContext() {};
+			MasterHooks.initializeState(masterHooks.values(), context, LOG);
 
 			// Restore from the latest checkpoint
 			CompletedCheckpoint latest = completedCheckpointStore.getLatestCheckpoint();
