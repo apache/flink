@@ -129,7 +129,7 @@ public class TypeExtractor {
 	//  TypeInfoFactory registry
 	// --------------------------------------------------------------------------------------------
 
-	private static Map<Type, Class<? extends TypeInfoFactory>> registeredTypeInfoFactories = new HashMap<>();
+	public static Map<Type, Class<? extends TypeInfoFactory>> registeredTypeInfoFactories = new HashMap<>();
 
 	/**
 	 * Registers a type information factory globally for a certain type. Every following type extraction

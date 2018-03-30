@@ -267,13 +267,10 @@ public abstract class FieldParser<T> {
 
 	@SuppressWarnings("unchecked")
 	public static <T> Optional<FieldParser<T>> getParserInstanceFor(Class<T> type) {
-		Class<FieldParser<T>> customParserClass = getCustomParserForType(type);
-		if (customParserClass != null) {
-			Tuple2<Class<? extends FieldParser<?>>, ParserFactory<?>> parserData = CUSTOM_PARSERS.get(type);
-			if (parserData != null) {
-				Class<FieldParser<T>> typedParser = (Class<FieldParser<T>>) parserData.f0;
-				return Optional.of(((ParserFactory<T>) parserData.f1).create(typedParser));
-			}
+		Tuple2<Class<? extends FieldParser<?>>, ParserFactory<?>> parserData = CUSTOM_PARSERS.get(type);
+		if (parserData != null) {
+			Class<FieldParser<T>> typedParser = (Class<FieldParser<T>>) parserData.f0;
+			return Optional.of(((ParserFactory<T>) parserData.f1).create(typedParser));
 		}
 
 		Class<FieldParser<T>> defaultParserClass = getDefaultParserForType(type);
