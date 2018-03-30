@@ -37,6 +37,6 @@ if [[ -z "${FLINK_TM_MEM_MANAGED_FRACTION}" ]]; then
 fi
 
 FLINK_CONF_DIR=${bin}/../../main/resources
-. ${bin}/../../main/flink-bin/bin/config.sh
+. ${bin}/../../main/flink-bin/bin/config.sh > /dev/null
 
 calculateTaskManagerHeapSizeMB
