@@ -113,9 +113,9 @@ public class Environment {
 		final Environment mergedEnv = new Environment();
 
 		// merge tables
-		final Map<String, TableDescriptor> sources = new HashMap<>(env1.getTables());
+		final Map<String, TableDescriptor> tables = new HashMap<>(env1.getTables());
 		mergedEnv.getTables().putAll(env2.getTables());
-		mergedEnv.tables = sources;
+		mergedEnv.tables = tables;
 
 		// merge execution properties
 		mergedEnv.execution = Execution.merge(env1.getExecution(), env2.getExecution());
