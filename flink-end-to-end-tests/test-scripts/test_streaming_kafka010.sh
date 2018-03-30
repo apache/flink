@@ -18,68 +18,98 @@
 ################################################################################
 
 source "$(dirname "$0")"/common.sh
+source "$(dirname "$0")"/kafka-common.sh
+
+setup_kafka_dist
+start_kafka_cluster
+
+# modify configuration to have enough slots
+cp $FLINK_DIR/conf/flink-conf.yaml $FLINK_DIR/conf/flink-conf.yaml.bak
+sed -i -e "s/taskmanager.numberOfTaskSlots: 1/taskmanager.numberOfTaskSlots: 3/" $FLINK_DIR/conf/flink-conf.yaml
 
 start_cluster
 
-# get Kafka 0.10.0
-mkdir -p $TEST_DATA_DIR
-if [ -z "$3" ]; then
-  # need to download Kafka because no Kafka was specified on the invocation
-  KAFKA_URL="https://archive.apache.org/dist/kafka/0.10.2.0/kafka_2.11-0.10.2.0.tgz"
-  echo "Downloading Kafka from $KAFKA_URL"
-  curl "$KAFKA_URL" > $TEST_DATA_DIR/kafka.tgz
-else
-  echo "Using specified Kafka from $3"
-  cp $3 $TEST_DATA_DIR/kafka.tgz
-fi
+function test_cleanup {
+  stop_kafka_cluster
 
-tar xzf $TEST_DATA_DIR/kafka.tgz -C $TEST_DATA_DIR/
-KAFKA_DIR=$TEST_DATA_DIR/kafka_2.11-0.10.2.0
-
-# fix kafka config
-sed -i -e "s+^\(dataDir\s*=\s*\).*$+\1$TEST_DATA_DIR/zookeeper+" $KAFKA_DIR/config/zookeeper.properties
-sed -i -e "s+^\(log\.dirs\s*=\s*\).*$+\1$TEST_DATA_DIR/kafka+" $KAFKA_DIR/config/server.properties
-$KAFKA_DIR/bin/zookeeper-server-start.sh -daemon $KAFKA_DIR/config/zookeeper.properties
-$KAFKA_DIR/bin/kafka-server-start.sh -daemon $KAFKA_DIR/config/server.properties
-
-# make sure to stop Kafka and ZooKeeper at the end
-
-function kafka_cleanup {
-  $KAFKA_DIR/bin/kafka-server-stop.sh
-  $KAFKA_DIR/bin/zookeeper-server-stop.sh
+  # revert our modifications to the Flink distribution
+  rm $FLINK_DIR/conf/flink-conf.yaml
+  mv $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
 
   # make sure to run regular cleanup as well
   cleanup
 }
-trap kafka_cleanup INT
-trap kafka_cleanup EXIT
-
-# zookeeper outputs the "Node does not exist" bit to stderr
-while [[ $($KAFKA_DIR/bin/zookeeper-shell.sh localhost:2181 get /brokers/ids/0 2>&1) =~ .*Node\ does\ not\ exist.* ]]; do
-  echo "Waiting for broker..."
-  sleep 1
-done
+trap test_cleanup INT
+trap test_cleanup EXIT
 
 # create the required topics
-$KAFKA_DIR/bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic test-input
-$KAFKA_DIR/bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic test-output
+create_kafka_topic 1 1 test-input
+create_kafka_topic 1 1 test-output
 
 # run the Flink job (detached mode)
 $FLINK_DIR/bin/flink run -d $FLINK_DIR/examples/streaming/Kafka010Example.jar \
   --input-topic test-input --output-topic test-output \
   --prefix=PREFIX \
-  --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --group.id myconsumer --auto.offset.reset earliest
+  --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --group.id myconsumer --auto.offset.reset earliest \
+  --flink.partition-discovery.interval-millis 1000
 
+function verify_output {
+  local expected=$(printf $1)
+
+  if [[ "$2" != "$expected" ]]; then
+    echo "Output from Flink program does not match expected output."
+    echo -e "EXPECTED FOR KEY: --$expected--"
+    echo -e "ACTUAL: --$2--"
+    PASS=""
+    exit 1
+  fi
+}
+
+echo "Sending messages to Kafka topic [test-input] ..."
 # send some data to Kafka
-echo -e "hello,45218\nwhats,46213\nup,51348" | $KAFKA_DIR/bin/kafka-console-producer.sh --broker-list localhost:9092 --topic test-input
+send_messages_to_kafka "elephant,5,45218\nsquirrel,12,46213\nbee,3,51348\nsquirrel,22,52444\nbee,10,53412\nelephant,9,54867" test-input
 
-DATA_FROM_KAFKA=$($KAFKA_DIR/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test-output --from-beginning --max-messages 3 2> /dev/null)
+echo "Verifying messages from Kafka topic [test-output] ..."
 
-# make sure we have actual newlines in the string, not "\n"
-EXPECTED=$(printf "PREFIX:hello,45218\nPREFIX:whats,46213\nPREFIX:up,51348")
-if [[ "$DATA_FROM_KAFKA" != "$EXPECTED" ]]; then
-  echo "Output from Flink program does not match expected output."
-  echo -e "EXPECTED: --$EXPECTED--"
-  echo -e "ACTUAL: --$DATA_FROM_KAFKA--"
+KEY_1_MSGS=$(read_messages_from_kafka 6 test-output elephant_consumer | grep elephant)
+KEY_2_MSGS=$(read_messages_from_kafka 6 test-output squirrel_consumer | grep squirrel)
+KEY_3_MSGS=$(read_messages_from_kafka 6 test-output bee_consumer | grep bee)
+
+# check all keys; make sure we have actual newlines in the string, not "\n"
+verify_output "elephant,5,45218\nelephant,14,54867" "$KEY_1_MSGS"
+verify_output "squirrel,12,46213\nsquirrel,34,52444" "$KEY_2_MSGS"
+verify_output "bee,3,51348\nbee,13,53412" "$KEY_3_MSGS"
+
+# now, we add a new partition to the topic
+echo "Repartitioning Kafka topic [test-input] ..."
+modify_num_partitions test-input 2
+
+if (( $(get_num_partitions test-input) != 2 )); then
+  echo "Failed adding a partition to test-input topic."
   PASS=""
+  exit 1
 fi
+
+# send some more messages to Kafka
+echo "Sending more messages to Kafka topic [test-input] ..."
+send_messages_to_kafka "elephant,13,64213\ngiraffe,9,65555\nbee,5,65647\nsquirrel,18,66413" test-input
+
+# verify that our assumption that the new partition actually has written messages is correct
+if (( $(get_partition_end_offset test-input 1) == 0 )); then
+  echo "The newly created partition does not have any new messages, and therefore partition discovery cannot be verified."
+  PASS=""
+  exit 1
+fi
+
+# all new messages should have been consumed, and has produced correct output
+echo "Verifying messages from Kafka topic [test-output] ..."
+
+KEY_1_MSGS=$(read_messages_from_kafka 4 test-output elephant_consumer | grep elephant)
+KEY_2_MSGS=$(read_messages_from_kafka 4 test-output squirrel_consumer | grep squirrel)
+KEY_3_MSGS=$(read_messages_from_kafka 4 test-output bee_consumer | grep bee)
+KEY_4_MSGS=$(read_messages_from_kafka 10 test-output giraffe_consumer | grep giraffe)
+
+verify_output "elephant,27,64213" "$KEY_1_MSGS"
+verify_output "squirrel,52,66413" "$KEY_2_MSGS"
+verify_output "bee,18,65647" "$KEY_3_MSGS"
+verify_output "giraffe,9,65555" "$KEY_4_MSGS"
