@@ -322,7 +322,7 @@ object ScalaShellITCase {
   @BeforeClass
   def beforeAll(): Unit = {
     configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism)
-    configuration.setString(CoreOptions.MODE, CoreOptions.OLD_MODE)
+    configuration.setString(CoreOptions.MODE, CoreOptions.LEGACY_MODE)
 
     cluster = Option(new StandaloneMiniCluster(configuration))
   }

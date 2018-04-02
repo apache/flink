@@ -37,7 +37,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.TestLogger;
 
@@ -53,7 +53,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-@Category(Flip6.class)
+@Category(New.class)
 public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 
 	// The Exceptions thrown by the producer/consumer Threads

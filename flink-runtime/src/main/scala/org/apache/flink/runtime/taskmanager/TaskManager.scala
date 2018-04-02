@@ -1204,7 +1204,7 @@ class TaskManager(
 
       val jobID = jobInformation.getJobId
 
-      // Allocation ids do not work properly without flip-6, so we just fake one, based on the jid.
+      // Allocation ids do not work properly in legacy mode, so we just fake one, based on the jid.
       val fakeAllocationID = new AllocationID(jobID.getLowerPart, jobID.getUpperPart)
 
       val taskLocalStateStore = taskManagerLocalStateStoresManager.localStateStoreForSubtask(

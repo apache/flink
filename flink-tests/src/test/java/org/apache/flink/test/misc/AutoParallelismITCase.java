@@ -81,7 +81,7 @@ public class AutoParallelismITCase extends TestLogger {
 			assertEquals(PARALLELISM, resultCollection.size());
 		}
 		catch (Exception ex) {
-			if (MINI_CLUSTER_RESOURCE.getMiniClusterType().equals(MiniClusterType.OLD)) {
+			if (MINI_CLUSTER_RESOURCE.getMiniClusterType().equals(MiniClusterType.LEGACY)) {
 				throw ex;
 			}
 			assertTrue(

@@ -674,10 +674,6 @@ Response:
 {"jobid": "869a9868d49c679e7355700e0857af85"}
 ~~~
 
-## FLIP-6
-
-The following is the REST API documentation for FLIP-6.
-
 ### Dispatcher
 
 {% include generated/rest_dispatcher.html %}

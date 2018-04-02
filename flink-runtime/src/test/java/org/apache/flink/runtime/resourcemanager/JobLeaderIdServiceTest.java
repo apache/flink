@@ -24,7 +24,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -56,7 +56,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-@Category(Flip6.class)
+@Category(New.class)
 public class JobLeaderIdServiceTest extends TestLogger {
 
 	/**

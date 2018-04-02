@@ -22,7 +22,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
-import org.apache.flink.testutils.category.OldAndFlip6;
+import org.apache.flink.testutils.category.LegacyAndNew;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -35,7 +35,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests the network buffer calculation from heap size.
  */
-@Category(OldAndFlip6.class)
+@Category(LegacyAndNew.class)
 public class NetworkBufferCalculationTest extends TestLogger {
 
 	/**

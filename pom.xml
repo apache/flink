@@ -127,9 +127,9 @@ under the License.
 		<powermock.version>1.6.5</powermock.version>
 		<hamcrest.version>1.3</hamcrest.version>
 		<japicmp.skip>false</japicmp.skip>
-		<!-- run all groups except flip6 by default -->
-		<test.excludedGroups>org.apache.flink.testutils.category.Flip6</test.excludedGroups>
-		<codebase>old</codebase>
+		<!-- run all groups except new by default -->
+		<test.excludedGroups>org.apache.flink.testutils.category.New</test.excludedGroups>
+		<codebase>legacy</codebase>
 		<!--
 			Keeping the MiniKDC version fixed instead of taking hadoop version dependency
 			to support testing Kafka, ZK etc., modules that does not have Hadoop dependency
@@ -593,16 +593,16 @@ under the License.
 	<profiles>
 
 		<profile>
-			<id>flip6</id>
+			<id>new</id>
 			<activation>
 				<property>
-					<name>flip6</name>
+					<name>new</name>
 				</property>
 			</activation>
 			<properties>
 				<!-- clear the excluded groups list -->
 				<test.excludedGroups></test.excludedGroups>
-				<codebase>flip6</codebase>
+				<codebase>new</codebase>
 			</properties>
 		</profile>
 

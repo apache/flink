@@ -85,7 +85,7 @@ class ScalaShellLocalStartupITCase extends TestLogger {
     System.setOut(new PrintStream(baos))
 
     val configuration = new Configuration()
-    configuration.setString(CoreOptions.MODE, CoreOptions.OLD_MODE)
+    configuration.setString(CoreOptions.MODE, CoreOptions.LEGACY_MODE)
 
     val dir = temporaryFolder.newFolder()
     BootstrapTools.writeConfiguration(configuration, new File(dir, "flink-conf.yaml"))

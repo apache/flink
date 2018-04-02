@@ -217,7 +217,7 @@ public class KvStateRegistryTest extends TestLogger {
 	 * will be used for all notifications.
 	 */
 	@Test
-	public void testPreFlip6CodePathPreference() {
+	public void testLegacyCodePathPreference() {
 		final KvStateRegistry kvStateRegistry = new KvStateRegistry();
 		final ArrayDeque<JobID> stateRegistrationNotifications = new ArrayDeque<>(2);
 		final ArrayDeque<JobID> stateDeregistrationNotifications = new ArrayDeque<>(2);

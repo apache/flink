@@ -78,7 +78,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
 	public static void setupCluster() throws Exception {
 		configuration = new Configuration();
 
-		if (CoreOptions.FLIP6_MODE.equals(configuration.getString(CoreOptions.MODE))) {
+		if (CoreOptions.NEW_MODE.equals(configuration.getString(CoreOptions.MODE))) {
 			configuration.setInteger(WebOptions.PORT, 0);
 			final MiniCluster miniCluster = new MiniCluster(
 				new MiniClusterConfiguration.Builder()
@@ -115,7 +115,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
 	 */
 	@Test(expected = FlinkException.class)
 	public void testInvalidAkkaConfiguration() throws Throwable {
-		assumeTrue(CoreOptions.OLD_MODE.equalsIgnoreCase(configuration.getString(CoreOptions.MODE)));
+		assumeTrue(CoreOptions.LEGACY_MODE.equalsIgnoreCase(configuration.getString(CoreOptions.MODE)));
 		Configuration config = new Configuration();
 		config.setString(AkkaOptions.STARTUP_TIMEOUT, INVALID_STARTUP_TIMEOUT);
 

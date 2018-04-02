@@ -119,7 +119,7 @@ public class CliFrontend {
 
 	private final int defaultParallelism;
 
-	private final boolean flip6;
+	private final boolean isNewMode;
 
 	public CliFrontend(
 			Configuration configuration,
@@ -144,7 +144,7 @@ public class CliFrontend {
 		this.clientTimeout = AkkaUtils.getClientTimeout(this.configuration);
 		this.defaultParallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
 
-		this.flip6 = CoreOptions.FLIP6_MODE.equalsIgnoreCase(configuration.getString(CoreOptions.MODE));
+		this.isNewMode = CoreOptions.NEW_MODE.equalsIgnoreCase(configuration.getString(CoreOptions.MODE));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -225,7 +225,7 @@ public class CliFrontend {
 			final ClusterClient<T> client;
 
 			// directly deploy the job if the cluster is started in job mode and detached
-			if (flip6 && clusterId == null && runOptions.getDetachedMode()) {
+			if (isNewMode && clusterId == null && runOptions.getDetachedMode()) {
 				int parallelism = runOptions.getParallelism() == -1 ? defaultParallelism : runOptions.getParallelism();
 
 				final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(program, configuration, parallelism);
@@ -1162,10 +1162,10 @@ public class CliFrontend {
 			LOG.warn("Could not load CLI class {}.", flinkYarnSessionCLI, e);
 		}
 
-		if (configuration.getString(CoreOptions.MODE).equalsIgnoreCase(CoreOptions.FLIP6_MODE)) {
-			customCommandLines.add(new Flip6DefaultCLI(configuration));
-		} else {
+		if (configuration.getString(CoreOptions.MODE).equalsIgnoreCase(CoreOptions.NEW_MODE)) {
 			customCommandLines.add(new DefaultCLI(configuration));
+		} else {
+			customCommandLines.add(new LegacyCLI(configuration));
 		}
 
 		return customCommandLines;

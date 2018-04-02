@@ -99,7 +99,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		runner.join();
 		checkForLogString("The Flink YARN client has been started in detached mode");
 
-		if (!flip6) {
+		if (!isNewMode) {
 			LOG.info("Waiting until two containers are running");
 			// wait until two containers are running
 			while (getRunningContainers() < 2) {
@@ -241,7 +241,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 		Configuration configuration = GlobalConfiguration.loadConfiguration();
 
-		try (final AbstractYarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
+		try (final AbstractYarnClusterDescriptor clusterDescriptor = new LegacyYarnClusterDescriptor(
 			configuration,
 			getYarnConfiguration(),
 			confDirPath,

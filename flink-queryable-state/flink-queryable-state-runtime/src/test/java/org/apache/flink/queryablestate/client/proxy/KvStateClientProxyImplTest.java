@@ -85,7 +85,7 @@ public class KvStateClientProxyImplTest extends TestLogger {
 	 * will be used for all requests.
 	 */
 	@Test
-	public void testPreFlip6CodePathPreference() {
+	public void testLegacyCodePathPreference() {
 		final TestingKvStateLocationOracle kvStateLocationOracle = new TestingKvStateLocationOracle();
 		kvStateClientProxy.updateKvStateLocationOracle(HighAvailabilityServices.DEFAULT_JOB_ID, kvStateLocationOracle);
 		final JobID jobId = new JobID();

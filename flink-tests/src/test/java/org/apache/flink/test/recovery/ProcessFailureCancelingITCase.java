@@ -149,7 +149,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			final Throwable[] errorRef = new Throwable[1];
 
 			final Configuration configuration = new Configuration();
-			configuration.setString(CoreOptions.MODE, CoreOptions.OLD_MODE);
+			configuration.setString(CoreOptions.MODE, CoreOptions.LEGACY_MODE);
 
 			// start the test program, which infinitely blocks
 			Runnable programRunner = new Runnable() {

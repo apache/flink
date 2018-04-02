@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.client.gateway.local;
 
-import org.apache.flink.client.cli.Flip6DefaultCLI;
+import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
@@ -59,7 +59,7 @@ public class DependencyTest {
 			env,
 			Collections.singletonList(dependency),
 			new Configuration(),
-			new Flip6DefaultCLI(new Configuration()));
+			new DefaultCLI(new Configuration()));
 
 		final SessionContext session = new SessionContext("test-session", new Environment());
 

@@ -46,7 +46,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.runtime.util.clock.SystemClock;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -72,7 +72,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the SlotPool using a proper RPC setup.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class SlotPoolRpcTest extends TestLogger {
 
 	private static RpcService rpcService;

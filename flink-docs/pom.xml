@@ -92,7 +92,7 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<!-- Required because the surefire plugin tries to load the Flip6 category annotation -->
+			<!-- Required because the surefire plugin tries to load the New category annotation -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
 			<version>${project.version}</version>

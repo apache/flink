@@ -167,7 +167,7 @@ public class KvStateRegistry {
 	// ------------------------------------------------------------------------
 
 	private KvStateRegistryListener getKvStateRegistryListener(JobID jobId) {
-		// first check whether we are running the pre-Flip-6 code which registers
+		// first check whether we are running the legacy code which registers
 		// a single listener under HighAvailabilityServices.DEFAULT_JOB_ID
 		KvStateRegistryListener listener = listeners.get(HighAvailabilityServices.DEFAULT_JOB_ID);
 

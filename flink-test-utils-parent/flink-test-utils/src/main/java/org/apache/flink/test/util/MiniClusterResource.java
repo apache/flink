@@ -55,7 +55,7 @@ public class MiniClusterResource extends ExternalResource {
 
 	private static final String CODEBASE_KEY = "codebase";
 
-	private static final String FLIP6_CODEBASE = "flip6";
+	private static final String NEW_CODEBASE = "new";
 
 	private final MiniClusterResourceConfiguration miniClusterResourceConfiguration;
 
@@ -80,7 +80,7 @@ public class MiniClusterResource extends ExternalResource {
 			final boolean enableClusterClient) {
 		this(
 			miniClusterResourceConfiguration,
-			Objects.equals(FLIP6_CODEBASE, System.getProperty(CODEBASE_KEY)) ? MiniClusterType.FLIP6 : MiniClusterType.OLD,
+			Objects.equals(NEW_CODEBASE, System.getProperty(CODEBASE_KEY)) ? MiniClusterType.NEW : MiniClusterType.LEGACY,
 			enableClusterClient);
 	}
 
@@ -104,7 +104,7 @@ public class MiniClusterResource extends ExternalResource {
 	public ClusterClient<?> getClusterClient() {
 		if (!enableClusterClient) {
 			// this check is technically only necessary for legacy clusters
-			// we still fail here for flip6 to keep the behaviors in sync
+			// we still fail here to keep the behaviors in sync
 			throw new IllegalStateException("To use the client you must enable it with the constructor.");
 		}
 
@@ -164,18 +164,18 @@ public class MiniClusterResource extends ExternalResource {
 
 	private void startJobExecutorService(MiniClusterType miniClusterType) throws Exception {
 		switch (miniClusterType) {
-			case OLD:
-				startOldMiniCluster();
+			case LEGACY:
+				startLegacyMiniCluster();
 				break;
-			case FLIP6:
-				startFlip6MiniCluster();
+			case NEW:
+				startMiniCluster();
 				break;
 			default:
 				throw new FlinkRuntimeException("Unknown MiniClusterType "  + miniClusterType + '.');
 		}
 	}
 
-	private void startOldMiniCluster() throws Exception {
+	private void startLegacyMiniCluster() throws Exception {
 		final Configuration configuration = new Configuration(miniClusterResourceConfiguration.getConfiguration());
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, miniClusterResourceConfiguration.getNumberTaskManagers());
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, miniClusterResourceConfiguration.getNumberSlotsPerTaskManager());
@@ -190,7 +190,7 @@ public class MiniClusterResource extends ExternalResource {
 		}
 	}
 
-	private void startFlip6MiniCluster() throws Exception {
+	private void startMiniCluster() throws Exception {
 		final Configuration configuration = miniClusterResourceConfiguration.getConfiguration();
 
 		// we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
@@ -284,7 +284,7 @@ public class MiniClusterResource extends ExternalResource {
 	 * Type of the mini cluster to start.
 	 */
 	public enum MiniClusterType {
-		OLD,
-		FLIP6
+		LEGACY,
+		NEW
 	}
 }

@@ -95,7 +95,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Flip-6 based MiniCluster.
+ * MiniCluster to execute Flink jobs locally.
  */
 public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
@@ -580,7 +580,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			throw new JobExecutionException(job.getJobID(), e);
 		}
 
-		// we have to allow queued scheduling in Flip-6 mode because we need to request slots
+		// we have to allow queued scheduling in the new mode because we need to request slots
 		// from the ResourceManager
 		job.setAllowQueuedScheduling(true);
 
@@ -614,7 +614,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			throw new JobExecutionException(job.getJobID(), e);
 		}
 
-		// we have to allow queued scheduling in Flip-6 mode because we need to request slots
+		// we have to allow queued scheduling in the new mode because we need to request slots
 		// from the ResourceManager
 		job.setAllowQueuedScheduling(true);
 

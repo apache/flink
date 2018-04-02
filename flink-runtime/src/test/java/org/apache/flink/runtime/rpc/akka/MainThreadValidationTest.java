@@ -25,7 +25,7 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -34,7 +34,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertTrue;
 
-@Category(Flip6.class)
+@Category(New.class)
 public class MainThreadValidationTest extends TestLogger {
 
 	@Test

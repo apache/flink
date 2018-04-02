@@ -102,7 +102,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 */
 	@Test
 	public void testClientStartup() throws IOException {
-		assumeTrue("Flip-6 does not start TMs upfront.", !flip6);
+		assumeTrue("The new mode does not start TMs upfront.", !isNewMode);
 		LOG.info("Starting testClientStartup()");
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 						"-n", "1",
@@ -192,7 +192,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 */
 	@Test(timeout = 100000) // timeout after 100 seconds
 	public void testTaskManagerFailure() throws Exception {
-		assumeTrue("Flip-6 does not start TMs upfront.", !flip6);
+		assumeTrue("The new mode does not start TMs upfront.", !isNewMode);
 		LOG.info("Starting testTaskManagerFailure()");
 		Runner runner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 				"-n", "1",

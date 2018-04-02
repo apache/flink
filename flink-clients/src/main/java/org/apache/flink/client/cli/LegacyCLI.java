@@ -19,46 +19,41 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.client.deployment.Flip6StandaloneClusterDescriptor;
+import org.apache.flink.client.deployment.LegacyStandaloneClusterDescriptor;
 import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
 
 import javax.annotation.Nullable;
 
 /**
- * The default CLI which is used for interaction with standalone clusters.
+ * The CLI which is used for interaction with the legacy standalone clusters.
  */
-public class Flip6DefaultCLI extends AbstractCustomCommandLine<StandaloneClusterId> {
+public class LegacyCLI extends AbstractCustomCommandLine<StandaloneClusterId> {
 
-	public Flip6DefaultCLI(Configuration configuration) {
+	public LegacyCLI(Configuration configuration) {
 		super(configuration);
 	}
 
 	@Override
 	public boolean isActive(CommandLine commandLine) {
+		// always active because we can try to read a JobManager address from the config
 		return true;
 	}
 
 	@Override
 	public String getId() {
-		return "flip6";
+		return "legacy";
 	}
 
 	@Override
-	public void addGeneralOptions(Options baseOptions) {
-		super.addGeneralOptions(baseOptions);
-	}
-
-	@Override
-	public Flip6StandaloneClusterDescriptor createClusterDescriptor(
+	public LegacyStandaloneClusterDescriptor createClusterDescriptor(
 			CommandLine commandLine) throws FlinkException {
 		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(commandLine);
 
-		return new Flip6StandaloneClusterDescriptor(effectiveConfiguration);
+		return new LegacyStandaloneClusterDescriptor(effectiveConfiguration);
 	}
 
 	@Override
