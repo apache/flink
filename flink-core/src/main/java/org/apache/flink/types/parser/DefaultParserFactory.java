@@ -19,11 +19,24 @@
 package org.apache.flink.types.parser;
 
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
 
 public class DefaultParserFactory<T> implements ParserFactory<T> {
 
+	private final Class<? extends FieldParser<T>> parserType;
+
+	public DefaultParserFactory(Class<? extends FieldParser<T>> parserType) {
+		Preconditions.checkNotNull(parserType, "Parser class must be not null.");
+		this.parserType = parserType;
+	}
+
 	@Override
-	public FieldParser<T> create(Class<? extends FieldParser<T>> parserType) {
+	public Class<? extends FieldParser<T>> getParserType() {
+		return parserType;
+	}
+
+	@Override
+	public FieldParser<T> create() {
 		return InstantiationUtil.instantiate(parserType, FieldParser.class);
 	}
 }

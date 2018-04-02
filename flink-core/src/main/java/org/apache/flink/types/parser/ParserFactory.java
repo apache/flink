@@ -18,8 +18,22 @@
 
 package org.apache.flink.types.parser;
 
+/**
+ * Supertype for factories that supply instances of {@link FieldParser} class.
+ * @param <T> target type meant to be produced by the {@link FieldParser} instance.
+ */
 public interface ParserFactory<T> {
 
-	public FieldParser<T> create(Class<? extends FieldParser<T>> parserType);
+	/**
+	 * Gives an insight of a {@link FieldParser} instance's type to be created by this factory.
+	 * @return a class of {@link FieldParser} instances provided by this factory.
+	 */
+	Class<? extends FieldParser<T>> getParserType();
+
+	/**
+	 * Creates a dedicated instance of {@link FieldParser}.
+	 * @return an instance of {@link FieldParser} covered by this factory.
+	 */
+	FieldParser<T> create();
 
 }

@@ -25,7 +25,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
 
 import java.io.IOException;
-import java.util.Optional;
 
 /**
  * An input format that reads single field primitive data from a given file. The difference between this and
@@ -59,11 +58,11 @@ public class PrimitiveInputFormat<OT> extends DelimitedInputFormat<OT> {
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
 
-		Optional<FieldParser<OT>> parserInstance = FieldParser.getParserInstanceFor(primitiveClass);
-		if (!parserInstance.isPresent()) {
+		FieldParser<OT> parserInstance = FieldParser.getParserInstanceFor(primitiveClass);
+		if (parserInstance != null) {
 			throw new IllegalArgumentException("The type '" + primitiveClass.getName() + "' is not supported for the primitive input format.");
 		}
-		parser = parserInstance.get();
+		parser = parserInstance;
 	}
 
 	@Override

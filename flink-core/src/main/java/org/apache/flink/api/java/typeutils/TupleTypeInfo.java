@@ -239,6 +239,14 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 		return tupleInfo;
 	}
 
+	/**
+	 * Resolves a type information for each specified income type and forms an instance of a resulting {@link TupleTypeInfo} type.
+	 * @param incomeTypes tuple fields' types
+	 * @param <X> a resulting type of a tuple, e.g. Tuple1, Tuple2...
+	 * @return A tuple information type, built from the specified income types.
+	 */
+	@SuppressWarnings("unchecked")
+	@PublicEvolving
 	public static <X extends Tuple> TupleTypeInfo<X> getTupleTypeInfo(Class<?>... incomeTypes) {
 		if (incomeTypes == null || incomeTypes.length == 0) {
 			throw new IllegalArgumentException();
@@ -253,17 +261,9 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 
 			TypeInformation<?> info = TypeExtractor.getForClass(incomeType);
 			if (!info.getTypeClass().equals(GenericTypeInfo.class)) {
-				if (info instanceof ValueTypeInfo) {
-					if (!((ValueTypeInfo<?>) info).isBasicValueType()) {
-						// TODO: now the type can be not only basic or value type, so need to change the message
-						throw new IllegalArgumentException("Type at position " + i + " is not a basic or value type.");
-					}
-				}
 				infos[i] = info;
 			} else {
-				// TODO: now the type can be not only basic or value type, so need to change the message
-				// TODO: identify why only basic value types can be used here
-				throw new IllegalArgumentException("Type at position " + i + " is not a basic or value type.");
+				throw new IllegalArgumentException("Either a concrete type cannot be identified or this is a recursive type.");
 			}
 		}
 

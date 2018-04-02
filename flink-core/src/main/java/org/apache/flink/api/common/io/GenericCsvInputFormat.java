@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -310,13 +309,10 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		
 		for (int i = 0; i < fieldTypes.length; i++) {
 			if (fieldTypes[i] != null) {
-				Optional<? extends FieldParser<?>> parserInstance = FieldParser.getParserInstanceFor(fieldTypes[i]);
-				if ( ! parserInstance.isPresent() ) {
-					throw new RuntimeException("No parser available for type '" + fieldTypes[i].getName() + "'.");
+				FieldParser<?> p = FieldParser.getParserInstanceFor(fieldTypes[i]);
+				if ( p == null ) {
+					throw new IllegalArgumentException("No parser available for type '" + fieldTypes[i].getName() + "'.");
 				}
-
-				FieldParser<?> p = parserInstance.get();
-
 				p.setCharset(getCharset());
 				if (this.quotedStringParsing) {
 					if (p instanceof StringParser) {
