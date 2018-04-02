@@ -36,7 +36,7 @@ bin=`cd "$bin"; pwd`
 
 JOBMANAGER_TYPE=jobmanager
 
-if [[ "${FLINK_MODE}" == "flip6" ]]; then
+if [[ "${FLINK_MODE}" == "new" ]]; then
     JOBMANAGER_TYPE=standalonesession
 fi
 

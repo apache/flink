@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -31,7 +31,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link JobManagerMetricsHeaders}.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class JobManagerMetricsHeadersTest extends TestLogger {
 
 	private final JobManagerMetricsHeaders jobManagerMetricsHeaders =

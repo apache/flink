@@ -38,7 +38,7 @@ export FLINK_LIB_DIR
 
 ENTRY_POINT=org.apache.flink.mesos.runtime.clusterframework.MesosApplicationMasterRunner
 
-if [[ "${FLINK_MODE}" == "flip6" ]]; then
+if [[ "${FLINK_MODE}" == "new" ]]; then
     ENTRY_POINT=org.apache.flink.mesos.entrypoint.MesosSessionClusterEntrypoint
 fi
 

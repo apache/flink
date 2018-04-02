@@ -29,7 +29,7 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.Metric;
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricCollectionResponseBody;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -51,7 +51,7 @@ import static org.mockito.Mockito.when;
 /**
  * Unit test base class for subclasses of {@link AbstractMetricsHandler}.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public abstract class MetricsHandlerTestBase<T extends AbstractMetricsHandler> extends TestLogger {
 
 	private static final String TEST_METRIC_NAME = "test_counter";

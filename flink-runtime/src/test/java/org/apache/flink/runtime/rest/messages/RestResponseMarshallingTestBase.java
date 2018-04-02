@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JavaType;
@@ -35,7 +35,7 @@ import java.util.Collections;
 /**
  * Test base for verifying that marshalling / unmarshalling REST {@link ResponseBody}s work properly.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public abstract class RestResponseMarshallingTestBase<R extends ResponseBody> extends TestLogger {
 
 	/**

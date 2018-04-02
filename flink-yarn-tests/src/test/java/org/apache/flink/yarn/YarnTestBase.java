@@ -81,7 +81,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 
-import static org.apache.flink.configuration.CoreOptions.OLD_MODE;
+import static org.apache.flink.configuration.CoreOptions.LEGACY_MODE;
 
 /**
  * This base class allows to use the MiniYARNCluster.
@@ -153,7 +153,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 	protected org.apache.flink.configuration.Configuration flinkConfiguration;
 
-	protected boolean flip6;
+	protected boolean isNewMode;
 
 	static {
 		YARN_CONFIGURATION = new YarnConfiguration();
@@ -220,7 +220,7 @@ public abstract class YarnTestBase extends TestLogger {
 		}
 
 		flinkConfiguration = new org.apache.flink.configuration.Configuration(globalConfiguration);
-		flip6 = CoreOptions.FLIP6_MODE.equalsIgnoreCase(flinkConfiguration.getString(CoreOptions.MODE));
+		isNewMode = CoreOptions.NEW_MODE.equalsIgnoreCase(flinkConfiguration.getString(CoreOptions.MODE));
 	}
 
 	@Nullable
@@ -528,7 +528,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 				globalConfiguration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB.key(), keytab);
 				globalConfiguration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(), principal);
-				globalConfiguration.setString(CoreOptions.MODE.key(), OLD_MODE);
+				globalConfiguration.setString(CoreOptions.MODE.key(), LEGACY_MODE);
 
 				BootstrapTools.writeConfiguration(
 					globalConfiguration,

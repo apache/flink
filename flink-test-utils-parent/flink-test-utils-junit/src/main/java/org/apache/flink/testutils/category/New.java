@@ -19,7 +19,7 @@
 package org.apache.flink.testutils.category;
 
 /**
- * Category marker interface for old and Flip-6 tests.
+ * Category marker interface for tests based on the new architecture.
  */
-public interface OldAndFlip6 {
+public interface New {
 }

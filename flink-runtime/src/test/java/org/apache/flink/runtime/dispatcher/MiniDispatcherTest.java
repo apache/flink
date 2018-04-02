@@ -44,7 +44,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -72,7 +72,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the {@link MiniDispatcher}.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class MiniDispatcherTest extends TestLogger {
 
 	private static final Time timeout = Time.seconds(10L);

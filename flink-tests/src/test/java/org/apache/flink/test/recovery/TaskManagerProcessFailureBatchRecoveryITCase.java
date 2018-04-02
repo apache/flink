@@ -68,7 +68,7 @@ public class TaskManagerProcessFailureBatchRecoveryITCase extends AbstractTaskMa
 	public void testTaskManagerFailure(int jobManagerPort, final File coordinateDir) throws Exception {
 
 		final Configuration configuration = new Configuration();
-		configuration.setString(CoreOptions.MODE, CoreOptions.OLD_MODE);
+		configuration.setString(CoreOptions.MODE, CoreOptions.LEGACY_MODE);
 		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", jobManagerPort, configuration);
 		env.setParallelism(PARALLELISM);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 10000));

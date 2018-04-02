@@ -119,7 +119,7 @@ public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, K
 		final KvStateLocationOracle legacyKvStateLocationOracle = kvStateLocationOracles.get(HighAvailabilityServices.DEFAULT_JOB_ID);
 
 		// we give preference to the oracle registered under the default job id
-		// to make it work with the pre Flip-6 code paths
+		// to make it work with the legacy code paths
 		if (legacyKvStateLocationOracle != null) {
 			return legacyKvStateLocationOracle;
 		} else {
