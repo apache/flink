@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple8;
@@ -283,14 +282,11 @@ public class CSVReaderTest {
 		Assert.assertEquals(Tuple8.class, info.getTypeClass());
 	}
 
-	@Test
+	@Test(expected = IllegalArgumentException.class)
 	public void testWithInvalidValueType1() throws Exception {
 		CsvReader reader = getCsvReader();
-		DataSource<Tuple1<CharValue>> item = reader.types(CharValue.class);
-		TypeInformation<?> actualType = item.getType();
-
-		Assert.assertEquals(true, actualType.isTupleType());
-		Assert.assertEquals(Tuple1.class, actualType.getTypeClass());
+		// CsvReader doesn't support CharValue
+		reader.types(CharValue.class);
 	}
 
 	@Test(expected = IllegalArgumentException.class)

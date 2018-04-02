@@ -59,7 +59,7 @@ public class PrimitiveInputFormat<OT> extends DelimitedInputFormat<OT> {
 		super.open(split);
 
 		FieldParser<OT> parserInstance = FieldParser.getParserInstanceFor(primitiveClass);
-		if (parserInstance != null) {
+		if (parserInstance == null) {
 			throw new IllegalArgumentException("The type '" + primitiveClass.getName() + "' is not supported for the primitive input format.");
 		}
 		parser = parserInstance;
