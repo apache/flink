@@ -20,7 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.testutils.category.OldAndFlip6;
+import org.apache.flink.testutils.category.LegacyAndNew;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -35,7 +35,7 @@ import static org.junit.Assert.fail;
 /**
  * Unit test for {@link TaskManagerServices}.
  */
-@Category(OldAndFlip6.class)
+@Category(LegacyAndNew.class)
 public class TaskManagerServicesTest extends TestLogger {
 
 	/**

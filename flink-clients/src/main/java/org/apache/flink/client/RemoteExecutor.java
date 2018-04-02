@@ -151,7 +151,7 @@ public class RemoteExecutor extends PlanExecutor {
 	public void start() throws Exception {
 		synchronized (lock) {
 			if (client == null) {
-				if (CoreOptions.OLD_MODE.equals(clientConfiguration.getString(CoreOptions.MODE))) {
+				if (CoreOptions.LEGACY_MODE.equals(clientConfiguration.getString(CoreOptions.MODE))) {
 					client = new StandaloneClusterClient(clientConfiguration);
 				} else {
 					client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor");

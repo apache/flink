@@ -124,7 +124,7 @@ public class LocalExecutor extends PlanExecutor {
 
 	private JobExecutorService createJobExecutorService(Configuration configuration) throws Exception {
 		final JobExecutorService newJobExecutorService;
-		if (CoreOptions.FLIP6_MODE.equals(configuration.getString(CoreOptions.MODE))) {
+		if (CoreOptions.NEW_MODE.equals(configuration.getString(CoreOptions.MODE))) {
 
 			configuration.setInteger(RestOptions.REST_PORT, 0);
 

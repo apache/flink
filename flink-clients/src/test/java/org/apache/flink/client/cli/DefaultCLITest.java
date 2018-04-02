@@ -34,7 +34,7 @@ import org.junit.rules.TemporaryFolder;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for the {@link DefaultCLI}.
+ * Tests for the {@link LegacyCLI}.
  */
 public class DefaultCLITest extends CliFrontendTestBase {
 

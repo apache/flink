@@ -90,7 +90,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
 		configuration.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, (4L << 20));
 
 		final YarnConfiguration yarnConfiguration = getYarnConfiguration();
-		final Flip6YarnClusterDescriptor clusterDescriptor = new Flip6YarnClusterDescriptor(
+		final YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
 			configuration,
 			yarnConfiguration,
 			CliFrontend.getConfigurationDirectoryFromEnv(),

@@ -378,15 +378,15 @@ You have to configure `jobmanager.archive.fs.dir` in order to archive terminated
 
 {% include generated/history_server_configuration.html %}
 
-## Flip-6
+### Slot Manager
 
-- `mode`: Execution mode of Flink. Possible values are `old` and `flip6`. In order to start the Flip-6 components, you have to specify `flip6` (DEFAULT: `old`).
-
-### Slot Manager (Flip-6)
-
-The configuration keys in this section are relevant for the SlotManager running in the Flip-6 ResourceManager
+The configuration keys in this section are relevant for the SlotManager running in the ResourceManager
 
 {% include generated/slot_manager_configuration.html %}
+
+## Legacy
+
+- `mode`: Execution mode of Flink. Possible values are `legacy` and `new`. In order to start the legacy components, you have to specify `legacy` (DEFAULT: `new`).
 
 ## Background
 

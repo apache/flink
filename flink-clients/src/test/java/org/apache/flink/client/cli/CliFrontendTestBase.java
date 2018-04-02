@@ -30,7 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Base test class for {@link CliFrontend} tests that wraps the Flip-6 vs. non-Flip-6 modes.
+ * Base test class for {@link CliFrontend} tests that wraps the new vs. legacy mode.
  */
 @RunWith(Parameterized.class)
 public abstract class CliFrontendTestBase extends TestLogger {
@@ -39,7 +39,7 @@ public abstract class CliFrontendTestBase extends TestLogger {
 
 	@Parameterized.Parameters(name = "Mode = {0}")
 	public static List<String> parameters() {
-		return Arrays.asList(CoreOptions.OLD_MODE, CoreOptions.FLIP6_MODE);
+		return Arrays.asList(CoreOptions.LEGACY_MODE, CoreOptions.NEW_MODE);
 	}
 
 	protected Configuration getConfiguration() {
@@ -51,10 +51,10 @@ public abstract class CliFrontendTestBase extends TestLogger {
 
 	static AbstractCustomCommandLine<?> getCli(Configuration configuration) {
 		switch (configuration.getString(CoreOptions.MODE)) {
-			case CoreOptions.OLD_MODE:
+			case CoreOptions.LEGACY_MODE:
+				return new LegacyCLI(configuration);
+			case CoreOptions.NEW_MODE:
 				return new DefaultCLI(configuration);
-			case CoreOptions.FLIP6_MODE:
-				return new Flip6DefaultCLI(configuration);
 		}
 		throw new IllegalStateException();
 	}

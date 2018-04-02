@@ -203,7 +203,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 		final ClusterClient<?> client;
 		try {
-			if (CoreOptions.OLD_MODE.equals(configuration.getString(CoreOptions.MODE))) {
+			if (CoreOptions.LEGACY_MODE.equals(configuration.getString(CoreOptions.MODE))) {
 				client = new StandaloneClusterClient(configuration);
 			} else {
 				client = new RestClusterClient<>(configuration, "RemoteStreamEnvironment");

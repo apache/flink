@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -32,7 +32,7 @@ import java.util.Collections;
 /**
  * Tests for {@link MessageParameters}.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class MessageParametersTest extends TestLogger {
 	@Test
 	public void testResolveUrl() {

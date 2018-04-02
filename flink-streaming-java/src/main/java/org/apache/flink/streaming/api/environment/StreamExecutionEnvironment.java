@@ -1652,10 +1652,10 @@ public abstract class StreamExecutionEnvironment {
 	public static LocalStreamEnvironment createLocalEnvironment(int parallelism, Configuration configuration) {
 		final LocalStreamEnvironment currentEnvironment;
 
-		if (CoreOptions.FLIP6_MODE.equals(configuration.getString(CoreOptions.MODE))) {
-			currentEnvironment = new Flip6LocalStreamEnvironment(configuration);
-		} else {
+		if (CoreOptions.NEW_MODE.equals(configuration.getString(CoreOptions.MODE))) {
 			currentEnvironment = new LocalStreamEnvironment(configuration);
+		} else {
+			currentEnvironment = new LegacyLocalStreamEnvironment(configuration);
 		}
 
 		currentEnvironment.setParallelism(parallelism);

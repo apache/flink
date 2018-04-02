@@ -65,7 +65,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -116,7 +116,7 @@ import static org.junit.Assert.fail;
 /**
  * Test for the {@link Dispatcher} component.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class DispatcherTest extends TestLogger {
 
 	private static RpcService rpcService;

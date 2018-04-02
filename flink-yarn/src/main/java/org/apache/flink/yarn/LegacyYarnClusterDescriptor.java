@@ -18,14 +18,10 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
-import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
@@ -33,12 +29,11 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 /**
- * Implementation of {@link org.apache.flink.yarn.AbstractYarnClusterDescriptor} which is used to start the
- * new application master for a job under flip-6.
+ * Legacy implementation of {@link AbstractYarnClusterDescriptor} which starts an {@link YarnApplicationMasterRunner}.
  */
-public class Flip6YarnClusterDescriptor extends AbstractYarnClusterDescriptor {
+public class LegacyYarnClusterDescriptor extends AbstractYarnClusterDescriptor {
 
-	public Flip6YarnClusterDescriptor(
+	public LegacyYarnClusterDescriptor(
 			Configuration flinkConfiguration,
 			YarnConfiguration yarnConfiguration,
 			String configurationDirectory,
@@ -54,46 +49,30 @@ public class Flip6YarnClusterDescriptor extends AbstractYarnClusterDescriptor {
 
 	@Override
 	protected String getYarnSessionClusterEntrypoint() {
-		return YarnSessionClusterEntrypoint.class.getName();
+		return YarnApplicationMasterRunner.class.getName();
 	}
 
 	@Override
 	protected String getYarnJobClusterEntrypoint() {
-		return YarnJobClusterEntrypoint.class.getName();
+		throw new UnsupportedOperationException("The old Yarn descriptor does not support proper per-job mode.");
 	}
 
 	@Override
-	public ClusterClient<ApplicationId> deployJobCluster(
-		ClusterSpecification clusterSpecification,
-		JobGraph jobGraph,
-		boolean detached) throws ClusterDeploymentException {
-
-		// this is required to work with Flip-6 because the slots are allocated
-		// lazily
-		jobGraph.setAllowQueuedScheduling(true);
-
-		try {
-			return deployInternal(
-				clusterSpecification,
-				"Flink per-job cluster",
-				getYarnJobClusterEntrypoint(),
-				jobGraph,
-				detached);
-		} catch (Exception e) {
-			throw new ClusterDeploymentException("Could not deploy Yarn job cluster.", e);
-		}
+	public YarnClusterClient deployJobCluster(
+			ClusterSpecification clusterSpecification,
+			JobGraph jobGraph,
+			boolean detached) {
+		throw new UnsupportedOperationException("Cannot deploy a per-job yarn cluster yet.");
 	}
 
 	@Override
-	protected ClusterClient<ApplicationId> createYarnClusterClient(
-			AbstractYarnClusterDescriptor descriptor,
-			int numberTaskManagers,
-			int slotsPerTaskManager,
-			ApplicationReport report,
-			Configuration flinkConfiguration,
-			boolean perJobCluster) throws Exception {
-		return new RestClusterClient<>(
+	protected ClusterClient<ApplicationId> createYarnClusterClient(AbstractYarnClusterDescriptor descriptor, int numberTaskManagers, int slotsPerTaskManager, ApplicationReport report, Configuration flinkConfiguration, boolean perJobCluster) throws Exception {
+		return new YarnClusterClient(
+			descriptor,
+			numberTaskManagers,
+			slotsPerTaskManager,
+			report,
 			flinkConfiguration,
-			report.getApplicationId());
+			perJobCluster);
 	}
 }

@@ -19,7 +19,8 @@
 package org.apache.flink.testutils.category;
 
 /**
- * Category marker interface for Flip-6 tests.
+ * Category marker interface for tests relevant for the legacy and
+ * new architecture.
  */
-public interface Flip6 {
+public interface LegacyAndNew {
 }

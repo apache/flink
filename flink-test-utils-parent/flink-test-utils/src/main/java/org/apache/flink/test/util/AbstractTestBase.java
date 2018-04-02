@@ -19,7 +19,7 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.testutils.category.OldAndFlip6;
+import org.apache.flink.testutils.category.LegacyAndNew;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.ClassRule;
@@ -56,7 +56,7 @@ import java.io.IOException;
  *
  * </pre>
  */
-@Category(OldAndFlip6.class)
+@Category(LegacyAndNew.class)
 public abstract class AbstractTestBase extends TestBaseUtils {
 
 	private static final int DEFAULT_PARALLELISM = 4;
