@@ -127,9 +127,7 @@ under the License.
 		<powermock.version>1.6.5</powermock.version>
 		<hamcrest.version>1.3</hamcrest.version>
 		<japicmp.skip>false</japicmp.skip>
-		<!-- run all groups except new by default -->
-		<test.excludedGroups>org.apache.flink.testutils.category.New</test.excludedGroups>
-		<codebase>legacy</codebase>
+		<codebase>new</codebase>
 		<!--
 			Keeping the MiniKDC version fixed instead of taking hadoop version dependency
 			to support testing Kafka, ZK etc., modules that does not have Hadoop dependency
@@ -593,16 +591,14 @@ under the License.
 	<profiles>
 
 		<profile>
-			<id>new</id>
+			<id>legacyCode</id>
 			<activation>
 				<property>
-					<name>new</name>
+					<name>legacyCode</name>
 				</property>
 			</activation>
 			<properties>
-				<!-- clear the excluded groups list -->
-				<test.excludedGroups></test.excludedGroups>
-				<codebase>new</codebase>
+				<codebase>legacy</codebase>
 			</properties>
 		</profile>
 
@@ -1118,8 +1114,6 @@ under the License.
 				<!-- Do NOT use a version >=2.19.X, as test cases may get stuck before execution. See SUREFIRE-1255 -->
 				<version>2.18.1</version>
 				<configuration>
-					<groups>${test.groups}</groups>
-					<excludedGroups>${test.excludedGroups}</excludedGroups>
 					<forkCount>${flink.forkCount}</forkCount>
 					<reuseForks>${flink.reuseForks}</reuseForks>
 					<systemPropertyVariables>
