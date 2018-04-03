@@ -362,7 +362,7 @@ In either case the event time timestamp field will hold the value of the `DataSt
 // Option 1:
 
 // extract timestamp and assign watermarks based on knowledge of the stream
-DataStream<Tuple3<String, String>> stream = inputStream.assignTimestampsAndWatermarks(...);
+DataStream<Tuple2<String, String>> stream = inputStream.assignTimestampsAndWatermarks(...);
 
 // declare an additional logical field as an event time attribute
 Table table = tEnv.fromDataStream(stream, "Username, Data, UserActionTime.rowtime");
