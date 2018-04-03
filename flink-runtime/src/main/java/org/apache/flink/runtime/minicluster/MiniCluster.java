@@ -24,9 +24,12 @@ import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
@@ -85,8 +88,10 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -584,7 +589,10 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		// from the ResourceManager
 		job.setAllowQueuedScheduling(true);
 
-		final CompletableFuture<Acknowledge> submissionFuture = currentDispatcherGateway.submitJob(job, rpcTimeout);
+		final CompletableFuture<Void> jarUploadFuture = uploadAndSetJarFiles(currentDispatcherGateway, job);
+
+		final CompletableFuture<Acknowledge> submissionFuture = jarUploadFuture.thenCompose(
+			(Void ack) -> currentDispatcherGateway.submitJob(job, rpcTimeout));
 
 		try {
 			submissionFuture.get();
@@ -618,7 +626,10 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		// from the ResourceManager
 		job.setAllowQueuedScheduling(true);
 
-		final CompletableFuture<Acknowledge> submissionFuture = currentDispatcherGateway.submitJob(job, rpcTimeout);
+		final CompletableFuture<Void> jarUploadFuture = uploadAndSetJarFiles(currentDispatcherGateway, job);
+
+		final CompletableFuture<Acknowledge> submissionFuture = jarUploadFuture.thenCompose(
+			(Void ack) -> currentDispatcherGateway.submitJob(job, rpcTimeout));
 
 		final CompletableFuture<JobResult> jobResultFuture = submissionFuture.thenCompose(
 			(Acknowledge ack) -> currentDispatcherGateway.requestJobResult(job.getJobID(), RpcUtils.INF_TIMEOUT));
@@ -649,6 +660,34 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				throw new LeaderRetrievalException("Could not retrieve the leading dispatcher.", ExceptionUtils.stripExecutionException(e));
 			}
 		}
+	}
+
+	private CompletableFuture<Void> uploadAndSetJarFiles(final DispatcherGateway currentDispatcherGateway, final JobGraph job) {
+		List<Path> userJars = job.getUserJars();
+		if (!userJars.isEmpty()) {
+			CompletableFuture<List<PermanentBlobKey>> jarUploadFuture = uploadJarFiles(currentDispatcherGateway, job.getJobID(), job.getUserJars());
+			return jarUploadFuture.thenAccept(blobKeys -> {
+					for (PermanentBlobKey blobKey : blobKeys) {
+						job.addBlob(blobKey);
+					}
+				});
+		} else {
+			LOG.debug("No jars to upload for job {}.", job.getJobID());
+			return CompletableFuture.completedFuture(null);
+		}
+	}
+
+	private CompletableFuture<List<PermanentBlobKey>> uploadJarFiles(final DispatcherGateway currentDispatcherGateway, final JobID jobId, final List<Path> jars) {
+		return currentDispatcherGateway.getBlobServerPort(rpcTimeout)
+			.thenApply(blobServerPort -> {
+				InetSocketAddress blobServerAddress = new InetSocketAddress(currentDispatcherGateway.getHostname(), blobServerPort);
+
+				try {
+					return BlobClient.uploadJarFiles(blobServerAddress, miniClusterConfiguration.getConfiguration(), jobId, jars);
+				} catch (IOException ioe) {
+					throw new CompletionException(new FlinkException("Could not upload job jar files.", ioe));
+				}
+			});
 	}
 
 	// ------------------------------------------------------------------------
