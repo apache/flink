@@ -31,7 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -49,7 +49,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests retrieval of a job from a running Flink cluster.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class JobRetrievalITCase extends TestLogger {
 
 	private static final Semaphore lock = new Semaphore(1);
@@ -67,7 +67,8 @@ public class JobRetrievalITCase extends TestLogger {
 		CLUSTER.start();
 
 		final Configuration clientConfig = new Configuration();
-		clientConfig.setString(JobManagerOptions.ADDRESS, "localhost");
+		clientConfig.setString(JobManagerOptions.ADDRESS, CLUSTER.getRestAddress().getHost());
+		clientConfig.setInteger(RestOptions.REST_PORT, CLUSTER.getRestAddress().getPort());
 		clientConfig.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 0);
 		clientConfig.setLong(RestOptions.RETRY_DELAY, 0);
 
