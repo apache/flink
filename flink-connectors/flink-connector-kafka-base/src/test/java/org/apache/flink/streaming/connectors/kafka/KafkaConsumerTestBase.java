@@ -44,7 +44,6 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.state.CheckpointListener;
@@ -78,6 +77,8 @@ import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
@@ -100,7 +101,6 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -111,8 +111,10 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
+import static org.apache.flink.streaming.connectors.kafka.testutils.ClusterCommunicationUtils.getRunningJobs;
+import static org.apache.flink.streaming.connectors.kafka.testutils.ClusterCommunicationUtils.waitUntilJobIsRunning;
+import static org.apache.flink.streaming.connectors.kafka.testutils.ClusterCommunicationUtils.waitUntilNoJobIsRunning;
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -142,9 +144,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	@Before
 	public void setClientAndEnsureNoJobIsLingering() throws Exception {
 		client = flink.getClusterClient();
-		while (!getRunningJobs(client).isEmpty()){
-			Thread.sleep(50);
-		}
+		waitUntilNoJobIsRunning(client);
 	}
 
 	// ------------------------------------------------------------------------
@@ -255,7 +255,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		while (System.nanoTime() < deadline);
 
 		// cancel the job & wait for the job to finish
-		client.cancel(getRunningJobs(client).get(0));
+		client.cancel(Iterables.getOnlyElement(getRunningJobs(client)));
 		runner.join();
 
 		final Throwable t = errorRef.get();
@@ -341,7 +341,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		while (System.nanoTime() < deadline);
 
 		// cancel the job & wait for the job to finish
-		client.cancel(getRunningJobs(client).get(0));
+		client.cancel(Iterables.getOnlyElement(getRunningJobs(client)));
 		runner.join();
 
 		final Throwable t = errorRef.get();
@@ -474,9 +474,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		consumeThread.start();
 
 		// wait until the consuming job has started, to be extra safe
-		while (getRunningJobs(client).isEmpty()) {
-			Thread.sleep(50);
-		}
+		waitUntilJobIsRunning(client);
 
 		// setup the extra records writing job
 		final StreamExecutionEnvironment env2 = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -1919,9 +1917,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			catch (Exception e) {
 				LOG.error("Write attempt failed, trying again", e);
 				deleteTestTopic(topicName);
-				while (!getRunningJobs(client).isEmpty()) {
-					Thread.sleep(50);
-				}
+				waitUntilNoJobIsRunning(client);
 				continue;
 			}
 
@@ -1932,9 +1928,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			// we need to validate the sequence, because kafka's producers are not exactly once
 			LOG.info("Validating sequence");
 
-			while (!getRunningJobs(client).isEmpty()) {
-				Thread.sleep(50);
-			}
+			waitUntilNoJobIsRunning(client);
 
 			if (validateSequence(topicName, parallelism, deserSchema, numElements)) {
 				// everything is good!
@@ -2106,9 +2100,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			}
 		}
 
-		while (!getRunningJobs(client).isEmpty()){
-			Thread.sleep(50);
-		}
+		waitUntilNoJobIsRunning(client);
 
 		return success;
 	}
@@ -2307,13 +2299,5 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		public String getTargetTopic(Tuple3<Integer, Integer, String> element) {
 			return element.f2;
 		}
-	}
-
-	private static List<JobID> getRunningJobs(ClusterClient<?> client) throws Exception {
-		Collection<JobStatusMessage> statusMessages = client.listJobs().get();
-		return statusMessages.stream()
-			.filter(status -> !status.getJobState().isGloballyTerminalState())
-			.map(JobStatusMessage::getJobId)
-			.collect(Collectors.toList());
 	}
 }
