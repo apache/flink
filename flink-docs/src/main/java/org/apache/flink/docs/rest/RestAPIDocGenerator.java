@@ -268,7 +268,7 @@ public class RestAPIDocGenerator {
 	/**
 	 * Create character escapes for HTML when generating JSON request/response string.
 	 *
-	 * This is to avoid exception when generating JSON with Field schema contains generic types.
+	 * <p>This is to avoid exception when generating JSON with Field schema contains generic types.
 	 */
 	private static class HTMLCharacterEscapes extends CharacterEscapes {
 		private final int[] asciiEscapes;
