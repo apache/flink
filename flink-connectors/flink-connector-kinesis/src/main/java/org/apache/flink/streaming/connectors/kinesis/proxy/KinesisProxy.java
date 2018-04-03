@@ -22,7 +22,10 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 
 import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.kinesis.AmazonKinesisClient;
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.ClientConfigurationFactory;
+import com.amazonaws.SdkClientException;
+import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.model.GetRecordsRequest;
@@ -65,7 +68,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 	private static final Logger LOG = LoggerFactory.getLogger(KinesisProxy.class);
 
 	/** The actual Kinesis client from the AWS SDK that we will be using to make calls. */
-	private final AmazonKinesisClient kinesisClient;
+	private final AmazonKinesis kinesisClient;
 
 	/** Random seed used to calculate backoff jitter for Kinesis operations. */
 	private static final Random seed = new Random();
@@ -123,7 +126,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 	protected KinesisProxy(Properties configProps) {
 		checkNotNull(configProps);
 
-		this.kinesisClient = AWSUtil.createKinesisClient(configProps);
+		this.kinesisClient = createKinesisClient(configProps);
 
 		this.describeStreamBaseBackoffMillis = Long.valueOf(
 			configProps.getProperty(
@@ -175,6 +178,16 @@ public class KinesisProxy implements KinesisProxyInterface {
 	}
 
 	/**
+	 * Create the Kinesis client, using the provided configuration properties and default {@link ClientConfiguration}.
+	 * Derived classes can override this method to customize the client configuration.
+	 * @param configProps
+	 * @return
+	 */
+	protected AmazonKinesis createKinesisClient(Properties configProps) {
+		return AWSUtil.createKinesisClient(configProps, new ClientConfigurationFactory().getConfig());
+	}
+
+	/**
 	 * Creates a Kinesis proxy.
 	 *
 	 * @param configProps configuration properties
@@ -199,12 +212,12 @@ public class KinesisProxy implements KinesisProxyInterface {
 		while (attempt <= getRecordsMaxAttempts && getRecordsResult == null) {
 			try {
 				getRecordsResult = kinesisClient.getRecords(getRecordsRequest);
-			} catch (AmazonServiceException ex) {
-				if (isRecoverableException(ex)) {
+			} catch (SdkClientException ex) {
+				if (isRecoverableSdkClientException(ex)) {
 					long backoffMillis = fullJitterBackoff(
 						getRecordsBaseBackoffMillis, getRecordsMaxBackoffMillis, getRecordsExpConstant, attempt++);
-					LOG.warn("Got recoverable AmazonServiceException. Backing off for "
-						+ backoffMillis + " millis (" + ex.getErrorMessage() + ")");
+					LOG.warn("Got recoverable SdkClientException. Backing off for "
+						+ backoffMillis + " millis (" + ex.getMessage() + ")");
 					Thread.sleep(backoffMillis);
 				} else {
 					throw ex;
@@ -292,6 +305,21 @@ public class KinesisProxy implements KinesisProxyInterface {
 				" retry attempts returned ProvisionedThroughputExceededException.");
 		}
 		return getShardIteratorResult.getShardIterator();
+	}
+
+	/**
+	 * Determines whether the exception is recoverable using exponential-backoff.
+	 *
+	 * @param ex Exception to inspect
+	 * @return <code>true</code> if the exception can be recovered from, else
+	 *         <code>false</code>
+	 */
+	protected boolean isRecoverableSdkClientException(SdkClientException ex) {
+		if (ex instanceof AmazonServiceException) {
+			return KinesisProxy.isRecoverableException((AmazonServiceException) ex);
+		}
+		// customizations may decide to retry other errors, such as read timeouts
+		return false;
 	}
 
 	/**
@@ -395,7 +423,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 		return describeStreamResult;
 	}
 
-	private static long fullJitterBackoff(long base, long max, double power, int attempt) {
+	protected static long fullJitterBackoff(long base, long max, double power, int attempt) {
 		long exponentialBackoff = (long) Math.min(max, base * Math.pow(power, attempt));
 		return (long) (seed.nextDouble() * exponentialBackoff); // random jitter between 0 and the exponential backoff
 	}
