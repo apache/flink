@@ -23,6 +23,7 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaUnknownMessageException;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.rpc.messages.FencedMessage;
+import org.apache.flink.runtime.rpc.messages.LocalFencedMessage;
 import org.apache.flink.runtime.rpc.messages.UnfencedMessage;
 
 import java.io.Serializable;
@@ -91,5 +92,12 @@ public class FencedAkkaRpcActor<F extends Serializable, T extends FencedRpcEndpo
 				" of type " + message.getClass().getSimpleName() + " because it is neither of type " +
 				FencedMessage.class.getSimpleName() + " nor " + UnfencedMessage.class.getSimpleName() + '.'));
 		}
+	}
+
+	@Override
+	protected Object envelopeSelfMessage(Object message) {
+		final F fencingToken = rpcEndpoint.getFencingToken();
+
+		return new LocalFencedMessage<>(fencingToken, message);
 	}
 }
