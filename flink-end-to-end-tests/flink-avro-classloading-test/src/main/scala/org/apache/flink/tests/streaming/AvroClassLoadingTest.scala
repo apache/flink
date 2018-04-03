@@ -19,12 +19,14 @@
 package org.apache.flink.tests.streaming
 
 import java.io.{ByteArrayOutputStream, File}
+import java.nio.ByteBuffer
 
 import org.apache.avro.io.{DecoderFactory, EncoderFactory}
 import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
+import collection.JavaConversions._
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 
@@ -32,11 +34,6 @@ import scala.util.Random
 
 object AvroClassLoadingTest {
   def main(args: Array[String]) {
-    val entries = Array(
-      Tuple2("Foo", "Bar"),
-      Tuple2("Patrick", "Lucas"),
-      Tuple2("Flink", "Squirrel")
-    )
 
     def serialize(user: User): Array[Byte] = {
       val out = new ByteArrayOutputStream()
@@ -64,9 +61,74 @@ object AvroClassLoadingTest {
 
       override def run(ctx: SourceFunction.SourceContext[Array[Byte]]): Unit = {
         val rand = new Random()
+        val entries = Array(
+          Tuple14(
+            null,
+            true,
+            24,
+            1,
+            0.1f,
+            0.001,
+            randomByteArray(),
+            "Jon",
+            "Snow",
+            possible_option.male,
+            seqAsJavaList(Seq[CharSequence]("Facebook", "Twitter")),
+            mapAsJavaMap(Map[CharSequence, java.lang.Long]("John" -> 100l, "John1" -> 101l)),
+            "lala",
+            randomByteArray()
+          ),
+          Tuple14(
+            null,
+            false,
+            -10394,
+            -1,
+            0.1f,
+            0.001,
+            randomByteArray(),
+            "God",
+            "Almighty",
+            possible_option.other,
+            seqAsJavaList(Seq[CharSequence]("Instagram", "Snapchat")),
+            mapAsJavaMap(Map[CharSequence, java.lang.Long]("BestScore" -> 100l, "WorstScore" -> -100l)),
+            "something",
+            randomByteArray()
+          ),
+          Tuple14(
+            null,
+            true,
+            0,
+            0,
+            0.0f,
+            0.0,
+            randomByteArray(),
+            "Flink",
+            "Squirrel",
+            possible_option.female,
+            seqAsJavaList(Seq[CharSequence]()),
+            mapAsJavaMap(Map[CharSequence, java.lang.Long]()),
+            null,
+            randomByteArray()
+          )
+        )
         while (running) {
           val entry = entries(rand.nextInt(entries.length))
-          val user = new User(entry._1, entry._2)
+          val user = new User(
+            entry._1,
+            entry._2,
+            entry._3,
+            entry._4,
+            entry._5,
+            entry._6,
+            ByteBuffer.wrap(entry._7),
+            entry._8,
+            entry._9,
+            entry._10,
+            entry._11,
+            entry._12,
+            entry._13,
+            new hash(entry._14)
+          )
           ctx.collect(serialize(user))
           Thread.sleep(1000)
         }
@@ -85,11 +147,17 @@ object AvroClassLoadingTest {
       }
       .map { bytes =>
         val user = deserialize(bytes)
-        s"Hello, ${user.getFirst} ${user.getLast}!"
+        s"Hello, ${user.getFirstname} ${user.getLastname}!"
       }
       .print()
 
     env.execute()
+  }
+
+  def randomByteArray(): Array[Byte] = {
+    val array = new Array[Byte](100)
+    new Random().nextBytes(array)
+    return array
   }
 }
 

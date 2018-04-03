@@ -1,9 +1,87 @@
 {
-     "type": "record",
-     "namespace": "org.apache.flink.tests.streaming",
-     "name": "User",
-     "fields": [
-       { "name": "first", "type": "string" },
-       { "name": "last", "type": "string" }
-     ]
+  "type": "record",
+  "namespace": "org.apache.flink.tests.streaming",
+  "name": "User",
+  "doc": "This is some optional documentation about this avro type",
+  "fields": [
+    {
+      "name": "no_value",
+      "type": "null"
+    },
+    {
+      "name": "registered",
+      "type": "boolean"
+    },
+    {
+      "name": "age",
+      "type": "int"
+    },
+    {
+      "name": "counter",
+      "type": "long"
+    },
+    {
+      "name": "single_precision",
+      "type": "float"
+    },
+    {
+      "name": "double_precision",
+      "type": "double"
+    },
+    {
+      "name": "some_bytes",
+      "type": "bytes"
+    },
+    {
+      "name": "firstname",
+      "type": "string"
+    },
+    {
+      "name": "lastname",
+      "type": "string"
+    },
+    {
+      "name": "gender",
+      "type": {
+        "name": "possible_option",
+        "type": "enum",
+        "symbols": [
+          "male",
+          "female",
+          "other"
+        ]
+      }
+    },
+    {
+      "name": "social_media_accounts",
+      "type": {
+        "type": "array",
+        "name": "account_name",
+        "items": "string"
+      }
+    },
+    {
+      "name": "highscore",
+      "type": {
+        "type" : "map",
+        "values": "long",
+        "name": "highscore_entry"
+      }
+    },
+    {
+      "type": [
+        "null",
+        "string"
+      ],
+      "name": "null_or_string_union"
+    },
+    {
+      "name": "md5",
+      "type": {
+        "name": "hash",
+        "type": "fixed",
+        "size": 16
+      }
+    }
+  ]
 }

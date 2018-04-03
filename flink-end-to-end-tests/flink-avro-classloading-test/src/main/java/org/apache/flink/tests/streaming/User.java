@@ -11,10 +11,11 @@ import org.apache.avro.message.BinaryMessageDecoder;
 import org.apache.avro.message.SchemaStore;
 
 @SuppressWarnings("all")
+/** This is some optional documentation about this avro type */
 @org.apache.avro.specific.AvroGenerated
 public class User extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  private static final long serialVersionUID = 1713506464236173011L;
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"org.apache.flink.tests.streaming\",\"fields\":[{\"name\":\"first\",\"type\":\"string\"},{\"name\":\"last\",\"type\":\"string\"}]}");
+  private static final long serialVersionUID = -3887131261798627383L;
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"org.apache.flink.tests.streaming\",\"doc\":\"This is some optional documentation about this avro type\",\"fields\":[{\"name\":\"no_value\",\"type\":\"null\"},{\"name\":\"registered\",\"type\":\"boolean\"},{\"name\":\"age\",\"type\":\"int\"},{\"name\":\"counter\",\"type\":\"long\"},{\"name\":\"single_precision\",\"type\":\"float\"},{\"name\":\"double_precision\",\"type\":\"double\"},{\"name\":\"some_bytes\",\"type\":\"bytes\"},{\"name\":\"firstname\",\"type\":\"string\"},{\"name\":\"lastname\",\"type\":\"string\"},{\"name\":\"gender\",\"type\":{\"type\":\"enum\",\"name\":\"possible_option\",\"symbols\":[\"male\",\"female\",\"other\"]}},{\"name\":\"social_media_accounts\",\"type\":{\"type\":\"array\",\"items\":\"string\"}},{\"name\":\"highscore\",\"type\":{\"type\":\"map\",\"values\":\"long\"}},{\"name\":\"null_or_string_union\",\"type\":[\"null\",\"string\"]},{\"name\":\"md5\",\"type\":{\"type\":\"fixed\",\"name\":\"hash\",\"size\":16}}]}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
 
   private static SpecificData MODEL$ = new SpecificData();
@@ -51,8 +52,20 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     return DECODER.decode(b);
   }
 
-  @Deprecated public java.lang.CharSequence first;
-  @Deprecated public java.lang.CharSequence last;
+  @Deprecated public Void no_value;
+  @Deprecated public boolean registered;
+  @Deprecated public int age;
+  @Deprecated public long counter;
+  @Deprecated public float single_precision;
+  @Deprecated public double double_precision;
+  @Deprecated public java.nio.ByteBuffer some_bytes;
+  @Deprecated public CharSequence firstname;
+  @Deprecated public CharSequence lastname;
+  @Deprecated public possible_option gender;
+  @Deprecated public java.util.List<CharSequence> social_media_accounts;
+  @Deprecated public java.util.Map<CharSequence,Long> highscore;
+  @Deprecated public CharSequence null_or_string_union;
+  @Deprecated public hash md5;
 
   /**
    * Default constructor.  Note that this does not initialize fields
@@ -63,72 +76,312 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
 
   /**
    * All-args constructor.
-   * @param first The new value for first
-   * @param last The new value for last
+   * @param no_value The new value for no_value
+   * @param registered The new value for registered
+   * @param age The new value for age
+   * @param counter The new value for counter
+   * @param single_precision The new value for single_precision
+   * @param double_precision The new value for double_precision
+   * @param some_bytes The new value for some_bytes
+   * @param firstname The new value for firstname
+   * @param lastname The new value for lastname
+   * @param gender The new value for gender
+   * @param social_media_accounts The new value for social_media_accounts
+   * @param highscore The new value for highscore
+   * @param null_or_string_union The new value for null_or_string_union
+   * @param md5 The new value for md5
    */
-  public User(java.lang.CharSequence first, java.lang.CharSequence last) {
-    this.first = first;
-    this.last = last;
+  public User(Void no_value, Boolean registered, Integer age, Long counter, Float single_precision, Double double_precision, java.nio.ByteBuffer some_bytes, CharSequence firstname, CharSequence lastname, possible_option gender, java.util.List<CharSequence> social_media_accounts, java.util.Map<CharSequence,Long> highscore, CharSequence null_or_string_union, hash md5) {
+    this.no_value = no_value;
+    this.registered = registered;
+    this.age = age;
+    this.counter = counter;
+    this.single_precision = single_precision;
+    this.double_precision = double_precision;
+    this.some_bytes = some_bytes;
+    this.firstname = firstname;
+    this.lastname = lastname;
+    this.gender = gender;
+    this.social_media_accounts = social_media_accounts;
+    this.highscore = highscore;
+    this.null_or_string_union = null_or_string_union;
+    this.md5 = md5;
   }
 
   public org.apache.avro.Schema getSchema() { return SCHEMA$; }
   // Used by DatumWriter.  Applications should not call.
-  public java.lang.Object get(int field$) {
+  public Object get(int field$) {
     switch (field$) {
-    case 0: return first;
-    case 1: return last;
+    case 0: return no_value;
+    case 1: return registered;
+    case 2: return age;
+    case 3: return counter;
+    case 4: return single_precision;
+    case 5: return double_precision;
+    case 6: return some_bytes;
+    case 7: return firstname;
+    case 8: return lastname;
+    case 9: return gender;
+    case 10: return social_media_accounts;
+    case 11: return highscore;
+    case 12: return null_or_string_union;
+    case 13: return md5;
     default: throw new org.apache.avro.AvroRuntimeException("Bad index");
     }
   }
 
   // Used by DatumReader.  Applications should not call.
   @SuppressWarnings(value="unchecked")
-  public void put(int field$, java.lang.Object value$) {
+  public void put(int field$, Object value$) {
     switch (field$) {
-    case 0: first = (java.lang.CharSequence)value$; break;
-    case 1: last = (java.lang.CharSequence)value$; break;
+    case 0: no_value = (Void)value$; break;
+    case 1: registered = (Boolean)value$; break;
+    case 2: age = (Integer)value$; break;
+    case 3: counter = (Long)value$; break;
+    case 4: single_precision = (Float)value$; break;
+    case 5: double_precision = (Double)value$; break;
+    case 6: some_bytes = (java.nio.ByteBuffer)value$; break;
+    case 7: firstname = (CharSequence)value$; break;
+    case 8: lastname = (CharSequence)value$; break;
+    case 9: gender = (possible_option)value$; break;
+    case 10: social_media_accounts = (java.util.List<CharSequence>)value$; break;
+    case 11: highscore = (java.util.Map<CharSequence,Long>)value$; break;
+    case 12: null_or_string_union = (CharSequence)value$; break;
+    case 13: md5 = (hash)value$; break;
     default: throw new org.apache.avro.AvroRuntimeException("Bad index");
     }
   }
 
   /**
-   * Gets the value of the 'first' field.
-   * @return The value of the 'first' field.
+   * Gets the value of the 'no_value' field.
+   * @return The value of the 'no_value' field.
    */
-  public java.lang.CharSequence getFirst() {
-    return first;
+  public Void getNoValue() {
+    return no_value;
   }
 
   /**
-   * Sets the value of the 'first' field.
+   * Sets the value of the 'no_value' field.
    * @param value the value to set.
    */
-  public void setFirst(java.lang.CharSequence value) {
-    this.first = value;
+  public void setNoValue(Void value) {
+    this.no_value = value;
   }
 
   /**
-   * Gets the value of the 'last' field.
-   * @return The value of the 'last' field.
+   * Gets the value of the 'registered' field.
+   * @return The value of the 'registered' field.
    */
-  public java.lang.CharSequence getLast() {
-    return last;
+  public Boolean getRegistered() {
+    return registered;
   }
 
   /**
-   * Sets the value of the 'last' field.
+   * Sets the value of the 'registered' field.
    * @param value the value to set.
    */
-  public void setLast(java.lang.CharSequence value) {
-    this.last = value;
+  public void setRegistered(Boolean value) {
+    this.registered = value;
+  }
+
+  /**
+   * Gets the value of the 'age' field.
+   * @return The value of the 'age' field.
+   */
+  public Integer getAge() {
+    return age;
+  }
+
+  /**
+   * Sets the value of the 'age' field.
+   * @param value the value to set.
+   */
+  public void setAge(Integer value) {
+    this.age = value;
+  }
+
+  /**
+   * Gets the value of the 'counter' field.
+   * @return The value of the 'counter' field.
+   */
+  public Long getCounter() {
+    return counter;
+  }
+
+  /**
+   * Sets the value of the 'counter' field.
+   * @param value the value to set.
+   */
+  public void setCounter(Long value) {
+    this.counter = value;
+  }
+
+  /**
+   * Gets the value of the 'single_precision' field.
+   * @return The value of the 'single_precision' field.
+   */
+  public Float getSinglePrecision() {
+    return single_precision;
+  }
+
+  /**
+   * Sets the value of the 'single_precision' field.
+   * @param value the value to set.
+   */
+  public void setSinglePrecision(Float value) {
+    this.single_precision = value;
+  }
+
+  /**
+   * Gets the value of the 'double_precision' field.
+   * @return The value of the 'double_precision' field.
+   */
+  public Double getDoublePrecision() {
+    return double_precision;
+  }
+
+  /**
+   * Sets the value of the 'double_precision' field.
+   * @param value the value to set.
+   */
+  public void setDoublePrecision(Double value) {
+    this.double_precision = value;
+  }
+
+  /**
+   * Gets the value of the 'some_bytes' field.
+   * @return The value of the 'some_bytes' field.
+   */
+  public java.nio.ByteBuffer getSomeBytes() {
+    return some_bytes;
+  }
+
+  /**
+   * Sets the value of the 'some_bytes' field.
+   * @param value the value to set.
+   */
+  public void setSomeBytes(java.nio.ByteBuffer value) {
+    this.some_bytes = value;
+  }
+
+  /**
+   * Gets the value of the 'firstname' field.
+   * @return The value of the 'firstname' field.
+   */
+  public CharSequence getFirstname() {
+    return firstname;
+  }
+
+  /**
+   * Sets the value of the 'firstname' field.
+   * @param value the value to set.
+   */
+  public void setFirstname(CharSequence value) {
+    this.firstname = value;
+  }
+
+  /**
+   * Gets the value of the 'lastname' field.
+   * @return The value of the 'lastname' field.
+   */
+  public CharSequence getLastname() {
+    return lastname;
+  }
+
+  /**
+   * Sets the value of the 'lastname' field.
+   * @param value the value to set.
+   */
+  public void setLastname(CharSequence value) {
+    this.lastname = value;
+  }
+
+  /**
+   * Gets the value of the 'gender' field.
+   * @return The value of the 'gender' field.
+   */
+  public possible_option getGender() {
+    return gender;
+  }
+
+  /**
+   * Sets the value of the 'gender' field.
+   * @param value the value to set.
+   */
+  public void setGender(possible_option value) {
+    this.gender = value;
+  }
+
+  /**
+   * Gets the value of the 'social_media_accounts' field.
+   * @return The value of the 'social_media_accounts' field.
+   */
+  public java.util.List<CharSequence> getSocialMediaAccounts() {
+    return social_media_accounts;
+  }
+
+  /**
+   * Sets the value of the 'social_media_accounts' field.
+   * @param value the value to set.
+   */
+  public void setSocialMediaAccounts(java.util.List<CharSequence> value) {
+    this.social_media_accounts = value;
+  }
+
+  /**
+   * Gets the value of the 'highscore' field.
+   * @return The value of the 'highscore' field.
+   */
+  public java.util.Map<CharSequence,Long> getHighscore() {
+    return highscore;
+  }
+
+  /**
+   * Sets the value of the 'highscore' field.
+   * @param value the value to set.
+   */
+  public void setHighscore(java.util.Map<CharSequence,Long> value) {
+    this.highscore = value;
+  }
+
+  /**
+   * Gets the value of the 'null_or_string_union' field.
+   * @return The value of the 'null_or_string_union' field.
+   */
+  public CharSequence getNullOrStringUnion() {
+    return null_or_string_union;
+  }
+
+  /**
+   * Sets the value of the 'null_or_string_union' field.
+   * @param value the value to set.
+   */
+  public void setNullOrStringUnion(CharSequence value) {
+    this.null_or_string_union = value;
+  }
+
+  /**
+   * Gets the value of the 'md5' field.
+   * @return The value of the 'md5' field.
+   */
+  public hash getMd5() {
+    return md5;
+  }
+
+  /**
+   * Sets the value of the 'md5' field.
+   * @param value the value to set.
+   */
+  public void setMd5(hash value) {
+    this.md5 = value;
   }
 
   /**
    * Creates a new User RecordBuilder.
    * @return A new User RecordBuilder
    */
-  public static org.apache.flink.tests.streaming.User.Builder newBuilder() {
-    return new org.apache.flink.tests.streaming.User.Builder();
+  public static Builder newBuilder() {
+    return new Builder();
   }
 
   /**
@@ -136,8 +389,8 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
    * @param other The existing builder to copy.
    * @return A new User RecordBuilder
    */
-  public static org.apache.flink.tests.streaming.User.Builder newBuilder(org.apache.flink.tests.streaming.User.Builder other) {
-    return new org.apache.flink.tests.streaming.User.Builder(other);
+  public static Builder newBuilder(Builder other) {
+    return new Builder(other);
   }
 
   /**
@@ -145,8 +398,8 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
    * @param other The existing instance to copy.
    * @return A new User RecordBuilder
    */
-  public static org.apache.flink.tests.streaming.User.Builder newBuilder(org.apache.flink.tests.streaming.User other) {
-    return new org.apache.flink.tests.streaming.User.Builder(other);
+  public static Builder newBuilder(User other) {
+    return new Builder(other);
   }
 
   /**
@@ -155,8 +408,20 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
   public static class Builder extends org.apache.avro.specific.SpecificRecordBuilderBase<User>
     implements org.apache.avro.data.RecordBuilder<User> {
 
-    private java.lang.CharSequence first;
-    private java.lang.CharSequence last;
+    private Void no_value;
+    private boolean registered;
+    private int age;
+    private long counter;
+    private float single_precision;
+    private double double_precision;
+    private java.nio.ByteBuffer some_bytes;
+    private CharSequence firstname;
+    private CharSequence lastname;
+    private possible_option gender;
+    private java.util.List<CharSequence> social_media_accounts;
+    private java.util.Map<CharSequence,Long> highscore;
+    private CharSequence null_or_string_union;
+    private hash md5;
 
     /** Creates a new Builder */
     private Builder() {
@@ -167,15 +432,63 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
      * Creates a Builder by copying an existing Builder.
      * @param other The existing Builder to copy.
      */
-    private Builder(org.apache.flink.tests.streaming.User.Builder other) {
+    private Builder(Builder other) {
       super(other);
-      if (isValidValue(fields()[0], other.first)) {
-        this.first = data().deepCopy(fields()[0].schema(), other.first);
+      if (isValidValue(fields()[0], other.no_value)) {
+        this.no_value = data().deepCopy(fields()[0].schema(), other.no_value);
         fieldSetFlags()[0] = true;
       }
-      if (isValidValue(fields()[1], other.last)) {
-        this.last = data().deepCopy(fields()[1].schema(), other.last);
+      if (isValidValue(fields()[1], other.registered)) {
+        this.registered = data().deepCopy(fields()[1].schema(), other.registered);
         fieldSetFlags()[1] = true;
+      }
+      if (isValidValue(fields()[2], other.age)) {
+        this.age = data().deepCopy(fields()[2].schema(), other.age);
+        fieldSetFlags()[2] = true;
+      }
+      if (isValidValue(fields()[3], other.counter)) {
+        this.counter = data().deepCopy(fields()[3].schema(), other.counter);
+        fieldSetFlags()[3] = true;
+      }
+      if (isValidValue(fields()[4], other.single_precision)) {
+        this.single_precision = data().deepCopy(fields()[4].schema(), other.single_precision);
+        fieldSetFlags()[4] = true;
+      }
+      if (isValidValue(fields()[5], other.double_precision)) {
+        this.double_precision = data().deepCopy(fields()[5].schema(), other.double_precision);
+        fieldSetFlags()[5] = true;
+      }
+      if (isValidValue(fields()[6], other.some_bytes)) {
+        this.some_bytes = data().deepCopy(fields()[6].schema(), other.some_bytes);
+        fieldSetFlags()[6] = true;
+      }
+      if (isValidValue(fields()[7], other.firstname)) {
+        this.firstname = data().deepCopy(fields()[7].schema(), other.firstname);
+        fieldSetFlags()[7] = true;
+      }
+      if (isValidValue(fields()[8], other.lastname)) {
+        this.lastname = data().deepCopy(fields()[8].schema(), other.lastname);
+        fieldSetFlags()[8] = true;
+      }
+      if (isValidValue(fields()[9], other.gender)) {
+        this.gender = data().deepCopy(fields()[9].schema(), other.gender);
+        fieldSetFlags()[9] = true;
+      }
+      if (isValidValue(fields()[10], other.social_media_accounts)) {
+        this.social_media_accounts = data().deepCopy(fields()[10].schema(), other.social_media_accounts);
+        fieldSetFlags()[10] = true;
+      }
+      if (isValidValue(fields()[11], other.highscore)) {
+        this.highscore = data().deepCopy(fields()[11].schema(), other.highscore);
+        fieldSetFlags()[11] = true;
+      }
+      if (isValidValue(fields()[12], other.null_or_string_union)) {
+        this.null_or_string_union = data().deepCopy(fields()[12].schema(), other.null_or_string_union);
+        fieldSetFlags()[12] = true;
+      }
+      if (isValidValue(fields()[13], other.md5)) {
+        this.md5 = data().deepCopy(fields()[13].schema(), other.md5);
+        fieldSetFlags()[13] = true;
       }
     }
 
@@ -183,93 +496,604 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
      * Creates a Builder by copying an existing User instance
      * @param other The existing instance to copy.
      */
-    private Builder(org.apache.flink.tests.streaming.User other) {
+    private Builder(User other) {
             super(SCHEMA$);
-      if (isValidValue(fields()[0], other.first)) {
-        this.first = data().deepCopy(fields()[0].schema(), other.first);
+      if (isValidValue(fields()[0], other.no_value)) {
+        this.no_value = data().deepCopy(fields()[0].schema(), other.no_value);
         fieldSetFlags()[0] = true;
       }
-      if (isValidValue(fields()[1], other.last)) {
-        this.last = data().deepCopy(fields()[1].schema(), other.last);
+      if (isValidValue(fields()[1], other.registered)) {
+        this.registered = data().deepCopy(fields()[1].schema(), other.registered);
         fieldSetFlags()[1] = true;
+      }
+      if (isValidValue(fields()[2], other.age)) {
+        this.age = data().deepCopy(fields()[2].schema(), other.age);
+        fieldSetFlags()[2] = true;
+      }
+      if (isValidValue(fields()[3], other.counter)) {
+        this.counter = data().deepCopy(fields()[3].schema(), other.counter);
+        fieldSetFlags()[3] = true;
+      }
+      if (isValidValue(fields()[4], other.single_precision)) {
+        this.single_precision = data().deepCopy(fields()[4].schema(), other.single_precision);
+        fieldSetFlags()[4] = true;
+      }
+      if (isValidValue(fields()[5], other.double_precision)) {
+        this.double_precision = data().deepCopy(fields()[5].schema(), other.double_precision);
+        fieldSetFlags()[5] = true;
+      }
+      if (isValidValue(fields()[6], other.some_bytes)) {
+        this.some_bytes = data().deepCopy(fields()[6].schema(), other.some_bytes);
+        fieldSetFlags()[6] = true;
+      }
+      if (isValidValue(fields()[7], other.firstname)) {
+        this.firstname = data().deepCopy(fields()[7].schema(), other.firstname);
+        fieldSetFlags()[7] = true;
+      }
+      if (isValidValue(fields()[8], other.lastname)) {
+        this.lastname = data().deepCopy(fields()[8].schema(), other.lastname);
+        fieldSetFlags()[8] = true;
+      }
+      if (isValidValue(fields()[9], other.gender)) {
+        this.gender = data().deepCopy(fields()[9].schema(), other.gender);
+        fieldSetFlags()[9] = true;
+      }
+      if (isValidValue(fields()[10], other.social_media_accounts)) {
+        this.social_media_accounts = data().deepCopy(fields()[10].schema(), other.social_media_accounts);
+        fieldSetFlags()[10] = true;
+      }
+      if (isValidValue(fields()[11], other.highscore)) {
+        this.highscore = data().deepCopy(fields()[11].schema(), other.highscore);
+        fieldSetFlags()[11] = true;
+      }
+      if (isValidValue(fields()[12], other.null_or_string_union)) {
+        this.null_or_string_union = data().deepCopy(fields()[12].schema(), other.null_or_string_union);
+        fieldSetFlags()[12] = true;
+      }
+      if (isValidValue(fields()[13], other.md5)) {
+        this.md5 = data().deepCopy(fields()[13].schema(), other.md5);
+        fieldSetFlags()[13] = true;
       }
     }
 
     /**
-      * Gets the value of the 'first' field.
+      * Gets the value of the 'no_value' field.
       * @return The value.
       */
-    public java.lang.CharSequence getFirst() {
-      return first;
+    public Void getNoValue() {
+      return no_value;
     }
 
     /**
-      * Sets the value of the 'first' field.
-      * @param value The value of 'first'.
+      * Sets the value of the 'no_value' field.
+      * @param value The value of 'no_value'.
       * @return This builder.
       */
-    public org.apache.flink.tests.streaming.User.Builder setFirst(java.lang.CharSequence value) {
+    public Builder setNoValue(Void value) {
       validate(fields()[0], value);
-      this.first = value;
+      this.no_value = value;
       fieldSetFlags()[0] = true;
       return this;
     }
 
     /**
-      * Checks whether the 'first' field has been set.
-      * @return True if the 'first' field has been set, false otherwise.
+      * Checks whether the 'no_value' field has been set.
+      * @return True if the 'no_value' field has been set, false otherwise.
       */
-    public boolean hasFirst() {
+    public boolean hasNoValue() {
       return fieldSetFlags()[0];
     }
 
 
     /**
-      * Clears the value of the 'first' field.
+      * Clears the value of the 'no_value' field.
       * @return This builder.
       */
-    public org.apache.flink.tests.streaming.User.Builder clearFirst() {
-      first = null;
+    public Builder clearNoValue() {
+      no_value = null;
       fieldSetFlags()[0] = false;
       return this;
     }
 
     /**
-      * Gets the value of the 'last' field.
+      * Gets the value of the 'registered' field.
       * @return The value.
       */
-    public java.lang.CharSequence getLast() {
-      return last;
+    public Boolean getRegistered() {
+      return registered;
     }
 
     /**
-      * Sets the value of the 'last' field.
-      * @param value The value of 'last'.
+      * Sets the value of the 'registered' field.
+      * @param value The value of 'registered'.
       * @return This builder.
       */
-    public org.apache.flink.tests.streaming.User.Builder setLast(java.lang.CharSequence value) {
+    public Builder setRegistered(boolean value) {
       validate(fields()[1], value);
-      this.last = value;
+      this.registered = value;
       fieldSetFlags()[1] = true;
       return this;
     }
 
     /**
-      * Checks whether the 'last' field has been set.
-      * @return True if the 'last' field has been set, false otherwise.
+      * Checks whether the 'registered' field has been set.
+      * @return True if the 'registered' field has been set, false otherwise.
       */
-    public boolean hasLast() {
+    public boolean hasRegistered() {
       return fieldSetFlags()[1];
     }
 
 
     /**
-      * Clears the value of the 'last' field.
+      * Clears the value of the 'registered' field.
       * @return This builder.
       */
-    public org.apache.flink.tests.streaming.User.Builder clearLast() {
-      last = null;
+    public Builder clearRegistered() {
       fieldSetFlags()[1] = false;
+      return this;
+    }
+
+    /**
+      * Gets the value of the 'age' field.
+      * @return The value.
+      */
+    public Integer getAge() {
+      return age;
+    }
+
+    /**
+      * Sets the value of the 'age' field.
+      * @param value The value of 'age'.
+      * @return This builder.
+      */
+    public Builder setAge(int value) {
+      validate(fields()[2], value);
+      this.age = value;
+      fieldSetFlags()[2] = true;
+      return this;
+    }
+
+    /**
+      * Checks whether the 'age' field has been set.
+      * @return True if the 'age' field has been set, false otherwise.
+      */
+    public boolean hasAge() {
+      return fieldSetFlags()[2];
+    }
+
+
+    /**
+      * Clears the value of the 'age' field.
+      * @return This builder.
+      */
+    public Builder clearAge() {
+      fieldSetFlags()[2] = false;
+      return this;
+    }
+
+    /**
+      * Gets the value of the 'counter' field.
+      * @return The value.
+      */
+    public Long getCounter() {
+      return counter;
+    }
+
+    /**
+      * Sets the value of the 'counter' field.
+      * @param value The value of 'counter'.
+      * @return This builder.
+      */
+    public Builder setCounter(long value) {
+      validate(fields()[3], value);
+      this.counter = value;
+      fieldSetFlags()[3] = true;
+      return this;
+    }
+
+    /**
+      * Checks whether the 'counter' field has been set.
+      * @return True if the 'counter' field has been set, false otherwise.
+      */
+    public boolean hasCounter() {
+      return fieldSetFlags()[3];
+    }
+
+
+    /**
+      * Clears the value of the 'counter' field.
+      * @return This builder.
+      */
+    public Builder clearCounter() {
+      fieldSetFlags()[3] = false;
+      return this;
+    }
+
+    /**
+      * Gets the value of the 'single_precision' field.
+      * @return The value.
+      */
+    public Float getSinglePrecision() {
+      return single_precision;
+    }
+
+    /**
+      * Sets the value of the 'single_precision' field.
+      * @param value The value of 'single_precision'.
+      * @return This builder.
+      */
+    public Builder setSinglePrecision(float value) {
+      validate(fields()[4], value);
+      this.single_precision = value;
+      fieldSetFlags()[4] = true;
+      return this;
+    }
+
+    /**
+      * Checks whether the 'single_precision' field has been set.
+      * @return True if the 'single_precision' field has been set, false otherwise.
+      */
+    public boolean hasSinglePrecision() {
+      return fieldSetFlags()[4];
+    }
+
+
+    /**
+      * Clears the value of the 'single_precision' field.
+      * @return This builder.
+      */
+    public Builder clearSinglePrecision() {
+      fieldSetFlags()[4] = false;
+      return this;
+    }
+
+    /**
+      * Gets the value of the 'double_precision' field.
+      * @return The value.
+      */
+    public Double getDoublePrecision() {
+      return double_precision;
+    }
+
+    /**
+      * Sets the value of the 'double_precision' field.
+      * @param value The value of 'double_precision'.
+      * @return This builder.
+      */
+    public Builder setDoublePrecision(double value) {
+      validate(fields()[5], value);
+      this.double_precision = value;
+      fieldSetFlags()[5] = true;
+      return this;
+    }
+
+    /**
+      * Checks whether the 'double_precision' field has been set.
+      * @return True if the 'double_precision' field has been set, false otherwise.
+      */
+    public boolean hasDoublePrecision() {
+      return fieldSetFlags()[5];
+    }
+
+
+    /**
+      * Clears the value of the 'double_precision' field.
+      * @return This builder.
+      */
+    public Builder clearDoublePrecision() {
+      fieldSetFlags()[5] = false;
+      return this;
+    }
+
+    /**
+      * Gets the value of the 'some_bytes' field.
+      * @return The value.
+      */
+    public java.nio.ByteBuffer getSomeBytes() {
+      return some_bytes;
+    }
+
+    /**
+      * Sets the value of the 'some_bytes' field.
+      * @param value The value of 'some_bytes'.
+      * @return This builder.
+      */
+    public Builder setSomeBytes(java.nio.ByteBuffer value) {
+      validate(fields()[6], value);
+      this.some_bytes = value;
+      fieldSetFlags()[6] = true;
+      return this;
+    }
+
+    /**
+      * Checks whether the 'some_bytes' field has been set.
+      * @return True if the 'some_bytes' field has been set, false otherwise.
+      */
+    public boolean hasSomeBytes() {
+      return fieldSetFlags()[6];
+    }
+
+
+    /**
+      * Clears the value of the 'some_bytes' field.
+      * @return This builder.
+      */
+    public Builder clearSomeBytes() {
+      some_bytes = null;
+      fieldSetFlags()[6] = false;
+      return this;
+    }
+
+    /**
+      * Gets the value of the 'firstname' field.
+      * @return The value.
+      */
+    public CharSequence getFirstname() {
+      return firstname;
+    }
+
+    /**
+      * Sets the value of the 'firstname' field.
+      * @param value The value of 'firstname'.
+      * @return This builder.
+      */
+    public Builder setFirstname(CharSequence value) {
+      validate(fields()[7], value);
+      this.firstname = value;
+      fieldSetFlags()[7] = true;
+      return this;
+    }
+
+    /**
+      * Checks whether the 'firstname' field has been set.
+      * @return True if the 'firstname' field has been set, false otherwise.
+      */
+    public boolean hasFirstname() {
+      return fieldSetFlags()[7];
+    }
+
+
+    /**
+      * Clears the value of the 'firstname' field.
+      * @return This builder.
+      */
+    public Builder clearFirstname() {
+      firstname = null;
+      fieldSetFlags()[7] = false;
+      return this;
+    }
+
+    /**
+      * Gets the value of the 'lastname' field.
+      * @return The value.
+      */
+    public CharSequence getLastname() {
+      return lastname;
+    }
+
+    /**
+      * Sets the value of the 'lastname' field.
+      * @param value The value of 'lastname'.
+      * @return This builder.
+      */
+    public Builder setLastname(CharSequence value) {
+      validate(fields()[8], value);
+      this.lastname = value;
+      fieldSetFlags()[8] = true;
+      return this;
+    }
+
+    /**
+      * Checks whether the 'lastname' field has been set.
+      * @return True if the 'lastname' field has been set, false otherwise.
+      */
+    public boolean hasLastname() {
+      return fieldSetFlags()[8];
+    }
+
+
+    /**
+      * Clears the value of the 'lastname' field.
+      * @return This builder.
+      */
+    public Builder clearLastname() {
+      lastname = null;
+      fieldSetFlags()[8] = false;
+      return this;
+    }
+
+    /**
+      * Gets the value of the 'gender' field.
+      * @return The value.
+      */
+    public possible_option getGender() {
+      return gender;
+    }
+
+    /**
+      * Sets the value of the 'gender' field.
+      * @param value The value of 'gender'.
+      * @return This builder.
+      */
+    public Builder setGender(possible_option value) {
+      validate(fields()[9], value);
+      this.gender = value;
+      fieldSetFlags()[9] = true;
+      return this;
+    }
+
+    /**
+      * Checks whether the 'gender' field has been set.
+      * @return True if the 'gender' field has been set, false otherwise.
+      */
+    public boolean hasGender() {
+      return fieldSetFlags()[9];
+    }
+
+
+    /**
+      * Clears the value of the 'gender' field.
+      * @return This builder.
+      */
+    public Builder clearGender() {
+      gender = null;
+      fieldSetFlags()[9] = false;
+      return this;
+    }
+
+    /**
+      * Gets the value of the 'social_media_accounts' field.
+      * @return The value.
+      */
+    public java.util.List<CharSequence> getSocialMediaAccounts() {
+      return social_media_accounts;
+    }
+
+    /**
+      * Sets the value of the 'social_media_accounts' field.
+      * @param value The value of 'social_media_accounts'.
+      * @return This builder.
+      */
+    public Builder setSocialMediaAccounts(java.util.List<CharSequence> value) {
+      validate(fields()[10], value);
+      this.social_media_accounts = value;
+      fieldSetFlags()[10] = true;
+      return this;
+    }
+
+    /**
+      * Checks whether the 'social_media_accounts' field has been set.
+      * @return True if the 'social_media_accounts' field has been set, false otherwise.
+      */
+    public boolean hasSocialMediaAccounts() {
+      return fieldSetFlags()[10];
+    }
+
+
+    /**
+      * Clears the value of the 'social_media_accounts' field.
+      * @return This builder.
+      */
+    public Builder clearSocialMediaAccounts() {
+      social_media_accounts = null;
+      fieldSetFlags()[10] = false;
+      return this;
+    }
+
+    /**
+      * Gets the value of the 'highscore' field.
+      * @return The value.
+      */
+    public java.util.Map<CharSequence,Long> getHighscore() {
+      return highscore;
+    }
+
+    /**
+      * Sets the value of the 'highscore' field.
+      * @param value The value of 'highscore'.
+      * @return This builder.
+      */
+    public Builder setHighscore(java.util.Map<CharSequence,Long> value) {
+      validate(fields()[11], value);
+      this.highscore = value;
+      fieldSetFlags()[11] = true;
+      return this;
+    }
+
+    /**
+      * Checks whether the 'highscore' field has been set.
+      * @return True if the 'highscore' field has been set, false otherwise.
+      */
+    public boolean hasHighscore() {
+      return fieldSetFlags()[11];
+    }
+
+
+    /**
+      * Clears the value of the 'highscore' field.
+      * @return This builder.
+      */
+    public Builder clearHighscore() {
+      highscore = null;
+      fieldSetFlags()[11] = false;
+      return this;
+    }
+
+    /**
+      * Gets the value of the 'null_or_string_union' field.
+      * @return The value.
+      */
+    public CharSequence getNullOrStringUnion() {
+      return null_or_string_union;
+    }
+
+    /**
+      * Sets the value of the 'null_or_string_union' field.
+      * @param value The value of 'null_or_string_union'.
+      * @return This builder.
+      */
+    public Builder setNullOrStringUnion(CharSequence value) {
+      validate(fields()[12], value);
+      this.null_or_string_union = value;
+      fieldSetFlags()[12] = true;
+      return this;
+    }
+
+    /**
+      * Checks whether the 'null_or_string_union' field has been set.
+      * @return True if the 'null_or_string_union' field has been set, false otherwise.
+      */
+    public boolean hasNullOrStringUnion() {
+      return fieldSetFlags()[12];
+    }
+
+
+    /**
+      * Clears the value of the 'null_or_string_union' field.
+      * @return This builder.
+      */
+    public Builder clearNullOrStringUnion() {
+      null_or_string_union = null;
+      fieldSetFlags()[12] = false;
+      return this;
+    }
+
+    /**
+      * Gets the value of the 'md5' field.
+      * @return The value.
+      */
+    public hash getMd5() {
+      return md5;
+    }
+
+    /**
+      * Sets the value of the 'md5' field.
+      * @param value The value of 'md5'.
+      * @return This builder.
+      */
+    public Builder setMd5(hash value) {
+      validate(fields()[13], value);
+      this.md5 = value;
+      fieldSetFlags()[13] = true;
+      return this;
+    }
+
+    /**
+      * Checks whether the 'md5' field has been set.
+      * @return True if the 'md5' field has been set, false otherwise.
+      */
+    public boolean hasMd5() {
+      return fieldSetFlags()[13];
+    }
+
+
+    /**
+      * Clears the value of the 'md5' field.
+      * @return This builder.
+      */
+    public Builder clearMd5() {
+      md5 = null;
+      fieldSetFlags()[13] = false;
       return this;
     }
 
@@ -278,10 +1102,22 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     public User build() {
       try {
         User record = new User();
-        record.first = fieldSetFlags()[0] ? this.first : (java.lang.CharSequence) defaultValue(fields()[0]);
-        record.last = fieldSetFlags()[1] ? this.last : (java.lang.CharSequence) defaultValue(fields()[1]);
+        record.no_value = fieldSetFlags()[0] ? this.no_value : (Void) defaultValue(fields()[0]);
+        record.registered = fieldSetFlags()[1] ? this.registered : (Boolean) defaultValue(fields()[1]);
+        record.age = fieldSetFlags()[2] ? this.age : (Integer) defaultValue(fields()[2]);
+        record.counter = fieldSetFlags()[3] ? this.counter : (Long) defaultValue(fields()[3]);
+        record.single_precision = fieldSetFlags()[4] ? this.single_precision : (Float) defaultValue(fields()[4]);
+        record.double_precision = fieldSetFlags()[5] ? this.double_precision : (Double) defaultValue(fields()[5]);
+        record.some_bytes = fieldSetFlags()[6] ? this.some_bytes : (java.nio.ByteBuffer) defaultValue(fields()[6]);
+        record.firstname = fieldSetFlags()[7] ? this.firstname : (CharSequence) defaultValue(fields()[7]);
+        record.lastname = fieldSetFlags()[8] ? this.lastname : (CharSequence) defaultValue(fields()[8]);
+        record.gender = fieldSetFlags()[9] ? this.gender : (possible_option) defaultValue(fields()[9]);
+        record.social_media_accounts = fieldSetFlags()[10] ? this.social_media_accounts : (java.util.List<CharSequence>) defaultValue(fields()[10]);
+        record.highscore = fieldSetFlags()[11] ? this.highscore : (java.util.Map<CharSequence,Long>) defaultValue(fields()[11]);
+        record.null_or_string_union = fieldSetFlags()[12] ? this.null_or_string_union : (CharSequence) defaultValue(fields()[12]);
+        record.md5 = fieldSetFlags()[13] ? this.md5 : (hash) defaultValue(fields()[13]);
         return record;
-      } catch (java.lang.Exception e) {
+      } catch (Exception e) {
         throw new org.apache.avro.AvroRuntimeException(e);
       }
     }
