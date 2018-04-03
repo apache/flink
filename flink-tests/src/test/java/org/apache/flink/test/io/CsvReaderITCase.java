@@ -28,6 +28,7 @@ import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.FloatValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
+import org.apache.flink.types.Row;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.FileUtils;
@@ -123,6 +124,18 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 
 		expected = inputData;
 		compareResultAsTuples(result, expected);
+	}
+
+	@Test
+	public void testRowType() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Row> data = env.readCsvFile(dataPath).rowType(StringValue.class, BooleanValue.class, ByteValue.class, ShortValue.class, IntValue.class, LongValue.class, FloatValue.class, DoubleValue.class);
+		List<Row> result = data.collect();
+
+		expected = inputData;
+		compareResultAsText(result, expected);
 	}
 
 	/**

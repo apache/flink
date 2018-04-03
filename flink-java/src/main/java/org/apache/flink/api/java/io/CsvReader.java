@@ -20,6 +20,7 @@ package org.apache.flink.api.java.io;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.operators.DataSource;
@@ -50,9 +51,11 @@ import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.tuple.Tuple9;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -376,6 +379,41 @@ public class CsvReader {
 
 		configureInputFormat(inputFormat);
 		return new DataSource<T>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Configures the reader to read the CSV data and parse it to the given type.
+	 * The type information for the fields is obtained from the type class.
+	 *
+	 * @param rowFields The fields which are mapped to CSV fields.
+	 * @return The DataSet representing the parsed CSV data.
+	 */
+	public DataSource<Row> rowType(Class<?>... rowFields) {
+		Preconditions.checkNotNull(rowFields, "Row rowFields must be specified (not null)");
+
+		final TypeInformation<?>[] fieldTypes = new TypeInformation[rowFields.length];
+		for (int i = 0; i < rowFields.length; i++) {
+			fieldTypes[i] = TypeExtractor.createTypeInfo(rowFields[i]);
+		}
+
+		final RowCsvInputFormat inputFormat;
+		if (this.includedMask != null) {
+			final int[] selectedFields = new int[rowFields.length];
+			int pos = 0;
+			for (int i = 0; i < this.includedMask.length; i++) {
+				if (this.includedMask[i]) {
+					selectedFields[pos] = i;
+					pos++;
+				}
+			}
+			inputFormat = new RowCsvInputFormat(path, fieldTypes, this.lineDelimiter, this.fieldDelimiter, selectedFields);
+		} else {
+			inputFormat = new RowCsvInputFormat(path, fieldTypes, this.lineDelimiter, this.fieldDelimiter);
+		}
+
+		final RowTypeInfo typeInfo = new RowTypeInfo(fieldTypes);
+		configureInputFormat(inputFormat);
+		return new DataSource<Row>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
 	}
 
 	// --------------------------------------------------------------------------------------------
