@@ -39,6 +39,101 @@ cd $TEST_ROOT
 export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
 echo "TEST_DATA_DIR: $TEST_DATA_DIR"
 
+function revert_default_config() {
+
+    # revert our modifications to the masters file
+    if [ -f $FLINK_DIR/conf/masters.bak ]; then
+        rm $FLINK_DIR/conf/masters
+        mv $FLINK_DIR/conf/masters.bak $FLINK_DIR/conf/masters
+    fi
+
+    # revert our modifications to the Flink conf yaml
+    if [ -f $FLINK_DIR/conf/flink-conf.yaml.bak ]; then
+        rm $FLINK_DIR/conf/flink-conf.yaml
+        mv $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
+    fi
+}
+
+function create_ha_config() {
+
+    # back up the masters and flink-conf.yaml
+    cp $FLINK_DIR/conf/masters $FLINK_DIR/conf/masters.bak
+    cp $FLINK_DIR/conf/flink-conf.yaml $FLINK_DIR/conf/flink-conf.yaml.bak
+
+    # clean up the dir that will be used for zookeeper storage
+    # (see high-availability.zookeeper.storageDir below)
+    if [ -e $TEST_DATA_DIR/recovery ]; then
+       echo "File ${TEST_DATA_DIR}/recovery exists. Deleting it..."
+       rm -rf $TEST_DATA_DIR/recovery
+    fi
+
+    # create the masters file (only one currently).
+    # This must have all the masters to be used in HA.
+    echo "localhost:8081" > ${FLINK_DIR}/conf/masters
+
+    # then move on to create the flink-conf.yaml
+    sed 's/^    //g' > ${FLINK_DIR}/conf/flink-conf.yaml << EOL
+    #==============================================================================
+    # Common
+    #==============================================================================
+
+    jobmanager.rpc.address: localhost
+    jobmanager.rpc.port: 6123
+    jobmanager.heap.mb: 1024
+    taskmanager.heap.mb: 1024
+    taskmanager.numberOfTaskSlots: 4
+    parallelism.default: 1
+
+    #==============================================================================
+    # High Availability
+    #==============================================================================
+
+    high-availability: zookeeper
+    high-availability.zookeeper.storageDir: file://${TEST_DATA_DIR}/recovery/
+    high-availability.zookeeper.quorum: localhost:2181
+    high-availability.zookeeper.path.root: /flink
+    high-availability.cluster-id: /test_cluster_one
+
+    #==============================================================================
+    # Web Frontend
+    #==============================================================================
+
+    web.port: 8081
+EOL
+}
+
+function start_ha_cluster {
+    create_ha_config
+    start_local_zk
+    start_cluster
+}
+
+function start_local_zk {
+    # Parses the zoo.cfg and starts locally zk.
+
+    # This is almost the same code as the
+    # /bin/start-zookeeper-quorum.sh without the SSH part and only running for localhost.
+
+    while read server ; do
+        server=$(echo -e "${server}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//') # trim
+
+        # match server.id=address[:port[:port]]
+        if [[ $server =~ ^server\.([0-9]+)[[:space:]]*\=[[:space:]]*([^: \#]+) ]]; then
+            id=${BASH_REMATCH[1]}
+            address=${BASH_REMATCH[2]}
+
+            if [ "${address}" != "localhost" ]; then
+                echo "[ERROR] Parse error. Only available for localhost."
+                PASS=""
+                exit 1
+            fi
+            ${FLINK_DIR}/bin/zookeeper.sh start $id
+        else
+            echo "[WARN] Parse error. Skipping config entry '$server'."
+        fi
+    done < <(grep "^server\." "${FLINK_DIR}/conf/zoo.cfg")
+}
+
 function start_cluster {
   "$FLINK_DIR"/bin/start-cluster.sh
 
@@ -61,6 +156,11 @@ function start_cluster {
 
 function stop_cluster {
   "$FLINK_DIR"/bin/stop-cluster.sh
+
+  # stop zookeeper only if there are processes running
+  if ! [ `jps | grep 'FlinkZooKeeperQuorumPeer' | wc -l` -eq 0 ]; then
+    "$FLINK_DIR"/bin/zookeeper.sh stop
+  fi
 
   if grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
       | grep -v "RetriableCommitFailedException" \
@@ -107,8 +207,6 @@ function stop_cluster {
     cat $FLINK_DIR/log/*.out
     PASS=""
   fi
-
-  rm $FLINK_DIR/log/*
 }
 
 function wait_job_running {
@@ -201,7 +299,9 @@ function s3_delete {
 # make sure to clean up even in case of failures
 function cleanup {
   stop_cluster
-  rm -r $TEST_DATA_DIR
   check_all_pass
+  rm -rf $TEST_DATA_DIR
+  rm $FLINK_DIR/log/*
+  revert_default_config
 }
 trap cleanup EXIT
