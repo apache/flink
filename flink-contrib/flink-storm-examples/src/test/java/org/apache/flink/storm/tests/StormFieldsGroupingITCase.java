@@ -24,13 +24,14 @@ import org.apache.flink.storm.tests.operators.FiniteRandomSpout;
 import org.apache.flink.storm.tests.operators.TaskIdBolt;
 import org.apache.flink.storm.util.BoltFileSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.MathUtils;
 
 import org.apache.storm.Config;
 import org.apache.storm.topology.TopologyBuilder;
 import org.apache.storm.tuple.Fields;
 import org.junit.Assert;
+import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,24 +42,36 @@ import java.util.List;
  * This test relies on the hash function used by the {@link DataStream#keyBy}, which is
  * assumed to be {@link MathUtils#murmurHash}.
  */
-public class StormFieldsGroupingITCase extends StreamingProgramTestBase {
+public class StormFieldsGroupingITCase extends AbstractTestBase {
 
 	private static final String topologyId = "FieldsGrouping Test";
 	private static final String spoutId = "spout";
 	private static final String boltId = "bolt";
 	private static final String sinkId = "sink";
-	private String resultPath;
 
-	@Override
-	protected void preSubmit() throws Exception {
-		this.resultPath = this.getTempDirPath("result");
-	}
+	@Test
+	public void testProgram() throws Exception {
+		String resultPath = this.getTempDirPath("result");
 
-	@Override
-	protected void postSubmit() throws Exception {
+		final String[] tokens = resultPath.split(":");
+		final String outputFile = tokens[tokens.length - 1];
+
+		final TopologyBuilder builder = new TopologyBuilder();
+
+		builder.setSpout(spoutId, new FiniteRandomSpout(0, 10, 2));
+		builder.setBolt(boltId, new TaskIdBolt(), 2).fieldsGrouping(
+				spoutId, FiniteRandomSpout.STREAM_PREFIX + 0, new Fields("number"));
+		builder.setBolt(sinkId, new BoltFileSink(outputFile)).shuffleGrouping(boltId);
+
+		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
+		Config conf = new Config();
+		conf.put(FlinkLocalCluster.SUBMIT_BLOCKING, true); // only required to stabilize integration test
+		cluster.submitTopology(topologyId, conf, FlinkTopology.createTopology(builder));
+		cluster.shutdown();
+
 		List<String> expectedResults = Arrays.asList(
-				"-1155484576", "1033096058", "-1930858313", "1431162155", "-1557280266", "-1728529858", "1654374947",
-				"-65105105", "-518907128", "-252332814");
+			"-1155484576", "1033096058", "-1930858313", "1431162155", "-1557280266", "-1728529858", "1654374947",
+			"-65105105", "-518907128", "-252332814");
 
 		List<String> actualResults = new ArrayList<>();
 		readAllResultLines(actualResults, resultPath, new String[0], false);
@@ -80,25 +93,6 @@ public class StormFieldsGroupingITCase extends StreamingProgramTestBase {
 			//compare against actual results with removed prefix (as it depends e.g. on the hash function used)
 			Assert.assertEquals(expectedResults.get(i), actualResults.get(i));
 		}
-	}
-
-	@Override
-	protected void testProgram() throws Exception {
-		final String[] tokens = this.resultPath.split(":");
-		final String outputFile = tokens[tokens.length - 1];
-
-		final TopologyBuilder builder = new TopologyBuilder();
-
-		builder.setSpout(spoutId, new FiniteRandomSpout(0, 10, 2));
-		builder.setBolt(boltId, new TaskIdBolt(), 2).fieldsGrouping(
-				spoutId, FiniteRandomSpout.STREAM_PREFIX + 0, new Fields("number"));
-		builder.setBolt(sinkId, new BoltFileSink(outputFile)).shuffleGrouping(boltId);
-
-		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
-		Config conf = new Config();
-		conf.put(FlinkLocalCluster.SUBMIT_BLOCKING, true); // only required to stabilize integration test
-		cluster.submitTopology(topologyId, conf, FlinkTopology.createTopology(builder));
-		cluster.shutdown();
 	}
 
 }
