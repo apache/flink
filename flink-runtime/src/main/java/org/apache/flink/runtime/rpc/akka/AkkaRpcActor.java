@@ -303,7 +303,9 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 				FiniteDuration delay = new FiniteDuration(delayNanos, TimeUnit.NANOSECONDS);
 				RunAsync message = new RunAsync(runAsync.getRunnable(), timeToRun);
 
-				getContext().system().scheduler().scheduleOnce(delay, getSelf(), message,
+				final Object envelopedSelfMessage = envelopeSelfMessage(message);
+
+				getContext().system().scheduler().scheduleOnce(delay, getSelf(), envelopedSelfMessage,
 						getContext().dispatcher(), ActorRef.noSender());
 			}
 		}
@@ -331,5 +333,15 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 		if (!getSender().equals(ActorRef.noSender())) {
 			getSender().tell(new Status.Failure(throwable), getSelf());
 		}
+	}
+
+	/**
+	 * Hook to envelope self messages.
+	 *
+	 * @param message to envelope
+	 * @return enveloped message
+	 */
+	protected Object envelopeSelfMessage(Object message) {
+		return message;
 	}
 }
