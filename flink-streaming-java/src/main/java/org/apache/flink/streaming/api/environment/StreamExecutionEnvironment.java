@@ -48,6 +48,7 @@ import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -1678,6 +1679,11 @@ public abstract class StreamExecutionEnvironment {
 		checkNotNull(conf, "conf");
 
 		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
+
+		if (!conf.contains(RestOptions.REST_PORT)) {
+			// explicitly set this option so that it's not set to 0 later
+			conf.setInteger(RestOptions.REST_PORT, RestOptions.REST_PORT.defaultValue());
+		}
 
 		return createLocalEnvironment(defaultLocalParallelism, conf);
 	}
