@@ -162,6 +162,13 @@ class CompositeAccessTest extends CompositeTypeTestBase {
       "f12[1].arrayField[1].stringField",
       "Alice"
     )
+
+    testAllApis(
+      'f13.at(1).get("objectField").get("stringField"),
+      "f13.at(1).get('objectField').get('stringField')",
+      "f13[1].objectField.stringField",
+      "Bob"
+    )
   }
 }
 
