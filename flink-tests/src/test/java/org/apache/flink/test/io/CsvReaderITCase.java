@@ -18,9 +18,17 @@
 
 package org.apache.flink.test.io;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.CsvReader;
+import org.apache.flink.api.java.operators.DataSource;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple8;
+import org.apache.flink.test.io.csv.custom.type.simple.SimpleCustomJsonType;
+import org.apache.flink.test.io.csv.custom.type.simple.SimpleCustomJsonTypeStringParser;
+import org.apache.flink.test.io.csv.custom.type.simple.Tuple3ContainerType;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.BooleanValue;
 import org.apache.flink.types.ByteValue;
@@ -30,6 +38,8 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.types.parser.FieldParser;
+import org.apache.flink.types.parser.ParserFactory;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.Rule;
@@ -41,6 +51,10 @@ import org.junit.runners.Parameterized;
 import java.io.File;
 import java.util.List;
 import java.util.Locale;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link ExecutionEnvironment#readCsvFile}.
@@ -123,6 +137,55 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 
 		expected = inputData;
 		compareResultAsTuples(result, expected);
+	}
+
+	@Test
+	public void testSimpleCustomJsonType() throws Exception {
+		final String inputData = "1,'column2','{\"f1\":5, \"f2\":\"some_string\", \"f3\": {\"f21\":\"nested_level1_f31\"}}'\n";
+		final String dataPath = createInputData(inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		CsvReader reader = env.readCsvFile(dataPath);
+		reader.fieldDelimiter(",");
+		reader.parseQuotedStrings('\'');
+
+		ParserFactory<SimpleCustomJsonType> factory = new ParserFactory<SimpleCustomJsonType>() {
+			@Override
+			public Class<? extends FieldParser<SimpleCustomJsonType>> getParserType() {
+				return SimpleCustomJsonTypeStringParser.class;
+			}
+
+			@Override
+			public FieldParser<SimpleCustomJsonType> create() {
+				return new SimpleCustomJsonTypeStringParser();
+			}
+		};
+
+		FieldParser.registerCustomParser(SimpleCustomJsonType.class, factory);
+
+		DataSource<Tuple3<Integer, String, SimpleCustomJsonType>> dataSource = reader.preciseTypes(
+			BasicTypeInfo.INT_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			TypeInformation.of(SimpleCustomJsonType.class)
+		);
+		List<Tuple3<Integer, String, SimpleCustomJsonType>> result = dataSource.collect();
+		verifyCollectedItems(result);
+
+		DataSource<Tuple3ContainerType> dataSource1 = reader.tupleType(Tuple3ContainerType.class);
+		List<Tuple3ContainerType> result1 = dataSource1.collect();
+		verifyCollectedItems(result1);
+
+	}
+
+	private void verifyCollectedItems(List<? extends Tuple3<Integer, String, SimpleCustomJsonType>> result) {
+		assertTrue(result.size() == 1);
+		Tuple3<Integer, String, SimpleCustomJsonType> tuple = result.get(0);
+		assertEquals(1, tuple.f0.intValue());
+		assertEquals("column2", tuple.f1);
+		assertNotNull(tuple.f2);
+		assertEquals(5, tuple.f2.getF1());
+		assertEquals("some_string", tuple.f2.getF2());
+		assertNotNull(tuple.f2.getF3());
+		assertEquals("nested_level1_f31", tuple.f2.getF3().getF21());
 	}
 
 	/**

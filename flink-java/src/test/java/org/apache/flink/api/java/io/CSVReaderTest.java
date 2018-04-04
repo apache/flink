@@ -331,29 +331,12 @@ public class CSVReaderTest {
 
 		CsvReader reader = getCsvReader();
 		DataSource<?> simpleType = reader.preciseTypes(TypeInformation.of(SimpleCustomJsonType.class));
-		DataSource<?> simpleType2 = reader.tupleType(Tuple1ContainerType.class);
-
 		assertEquals(true, simpleType.getType().isTupleType());
 		assertEquals(Tuple1.class, simpleType.getType().getTypeClass());
+
+		DataSource<?> simpleType2 = reader.tupleType(Tuple1ContainerType.class);
 		assertEquals(true, simpleType2.getType().isTupleType());
 		assertTrue(Tuple1.class.isAssignableFrom(simpleType2.getType().getTypeClass()));
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void testDoubleCustomTypeRegisteringShouldFail() {
-		ParserFactory<SimpleCustomJsonType> factory = new ParserFactory<SimpleCustomJsonType>() {
-			@Override
-			public Class<? extends FieldParser<SimpleCustomJsonType>> getParserType() {
-				return SimpleCustomJsonTypeStringParser.class;
-			}
-
-			@Override
-			public FieldParser<SimpleCustomJsonType> create() {
-				return new SimpleCustomJsonTypeStringParser();
-			}
-		};
-		FieldParser.registerCustomParser(SimpleCustomJsonType.class, factory);
-		FieldParser.registerCustomParser(SimpleCustomJsonType.class, factory);
 	}
 
 	@Test
@@ -381,9 +364,15 @@ public class CSVReaderTest {
 			BasicTypeInfo.STRING_TYPE_INFO,
 			typeInfo
 		);
+		verifyDataSource(dataSource, Tuple3.class);
 
+		DataSource<Tuple3ContainerType> dataSource1 = reader.tupleType(Tuple3ContainerType.class);
+		verifyDataSource(dataSource1, Tuple3ContainerType.class);
+	}
+
+	private void verifyDataSource(DataSource<?> dataSource, Class targetType) {
 		assertEquals(true, dataSource.getType().isTupleType());
-		assertEquals(Tuple3.class, dataSource.getType().getTypeClass());
+		assertEquals(targetType, dataSource.getType().getTypeClass());
 
 		Map<String, TypeInformation<?>> genericParameters = dataSource.getType().getGenericParameters();
 		assertEquals(BasicTypeInfo.INT_TYPE_INFO, genericParameters.get("T0"));
@@ -395,8 +384,6 @@ public class CSVReaderTest {
 		assertTrue(String.class.isAssignableFrom(pojoType.getTypeAt(0).getTypeClass()));
 		assertTrue(NestedCustomJsonType.class.isAssignableFrom(pojoType.getTypeAt(1).getTypeClass()));
 		assertTrue(NestedCustomJsonType.class.isAssignableFrom(pojoType.getTypeAt(2).getTypeClass()));
-
-		reader.tupleType(Tuple3ContainerType.class);
 	}
 
 	private static CsvReader getCsvReader() {
