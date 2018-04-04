@@ -19,31 +19,24 @@ package org.apache.flink.streaming.test.scala.examples.windowing;
 
 import org.apache.flink.streaming.examples.windowing.util.TopSpeedWindowingExampleData;
 import org.apache.flink.streaming.scala.examples.windowing.TopSpeedWindowing;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
+
+import org.junit.Test;
 
 /**
  * Tests for {@link TopSpeedWindowing}.
  */
-public class TopSpeedWindowingExampleITCase extends StreamingProgramTestBase {
-	protected String textPath;
-	protected String resultPath;
+public class TopSpeedWindowingExampleITCase extends AbstractTestBase {
 
-	@Override
-	protected void preSubmit() throws Exception {
-		textPath = createTempFile("text.txt", TopSpeedWindowingExampleData.CAR_DATA);
-		resultPath = getTempDirPath("result");
-	}
+	@Test
+	public void testProgram() throws Exception {
+		String textPath = createTempFile("text.txt", TopSpeedWindowingExampleData.CAR_DATA);
+		String resultPath = getTempDirPath("result");
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(TopSpeedWindowingExampleData.TOP_CASE_CLASS_SPEEDS, resultPath);
-	}
-
-	@Override
-	protected void testProgram() throws Exception {
 		TopSpeedWindowing.main(new String[]{
 				"--input", textPath,
 				"--output", resultPath});
 
+		compareResultsByLinesInMemory(TopSpeedWindowingExampleData.TOP_CASE_CLASS_SPEEDS, resultPath);
 	}
 }

@@ -19,33 +19,25 @@
 package org.apache.flink.storm.exclamation;
 
 import org.apache.flink.storm.exclamation.util.ExclamationData;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.AbstractTestBase;
+
+import org.junit.Test;
 
 /**
  * Test for the ExclamationWithBolt example.
  */
-public class ExclamationWithBoltITCase extends StreamingProgramTestBase {
+public class ExclamationWithBoltITCase extends AbstractTestBase {
 
-	protected String textPath;
-	protected String resultPath;
-	protected String exclamationNum;
+	@Test
+	public void testProgram() throws Exception {
+		String textPath = createTempFile("text.txt", WordCountData.TEXT);
+		String resultPath = getTempDirPath("result");
+		String exclamationNum = "3";
 
-	@Override
-	protected void preSubmit() throws Exception {
-		this.textPath = this.createTempFile("text.txt", WordCountData.TEXT);
-		this.resultPath = this.getTempDirPath("result");
-		this.exclamationNum = "3";
-	}
+		ExclamationWithBolt.main(new String[]{textPath, resultPath, exclamationNum});
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(ExclamationData.TEXT_WITH_EXCLAMATIONS, this.resultPath);
-	}
-
-	@Override
-	protected void testProgram() throws Exception {
-		ExclamationWithBolt.main(new String[]{this.textPath, this.resultPath, this.exclamationNum});
+		compareResultsByLinesInMemory(ExclamationData.TEXT_WITH_EXCLAMATIONS, resultPath);
 	}
 
 }
