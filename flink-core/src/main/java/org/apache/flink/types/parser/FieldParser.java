@@ -28,6 +28,7 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.util.Preconditions;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -309,11 +310,13 @@ public abstract class FieldParser<T> {
 	 * @return The parser for the given type, or null, if no such parser exists.
 	 */
 	public static <T> Class<? extends FieldParser<T>> getCustomParserForType(Class<T> type) {
-		ParserFactory<T> parserFactory = (ParserFactory<T>) CUSTOM_PARSERS.get(type);
-		if (parserFactory == null) {
-			return null;
-		} else {
-			return parserFactory.getParserType();
+		synchronized (CUSTOM_PARSERS) {
+			ParserFactory<T> parserFactory = (ParserFactory<T>) CUSTOM_PARSERS.get(type);
+			if (parserFactory == null) {
+				return null;
+			} else {
+				return parserFactory.getParserType();
+			}
 		}
 	}
 
@@ -351,11 +354,15 @@ public abstract class FieldParser<T> {
 	private static final Map<Class<?>, ParserFactory<?>> CUSTOM_PARSERS = new HashMap<>();
 
 	public static <T> void registerCustomParser(Class<T> type, ParserFactory<T> factory) {
-		CUSTOM_PARSERS.put(type, factory);
-	}
+		Preconditions.checkNotNull(type, "The type must be not null.");
+		Preconditions.checkNotNull(factory, "The factory must be not null.");
 
-	public static <T> void cleanCustomParserRegister() {
-		CUSTOM_PARSERS.clear();
+		synchronized (CUSTOM_PARSERS) {
+			if (CUSTOM_PARSERS.containsKey(type)) {
+				throw new IllegalArgumentException("The '" + type + "' class is already registered. This can happen due to Java Type Erasure.");
+			}
+			CUSTOM_PARSERS.put(type, factory);
+		}
 	}
 
 }
