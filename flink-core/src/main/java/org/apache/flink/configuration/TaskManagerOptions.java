@@ -104,40 +104,44 @@ public class TaskManagerOptions {
 				" global ssl flag " + SecurityOptions.SSL_ENABLED.key() + " is set to true");
 
 	/**
-	 * The initial registration pause between two consecutive registration attempts. The pause
-	 * is doubled for each new registration attempt until it reaches the maximum registration pause.
+	 * The initial registration backoff between two consecutive registration attempts. The backoff
+	 * is doubled for each new registration attempt until it reaches the maximum registration backoff.
 	 */
-	public static final ConfigOption<String> INITIAL_REGISTRATION_PAUSE =
-		key("taskmanager.initial-registration-pause")
+	public static final ConfigOption<String> INITIAL_REGISTRATION_BACKOFF =
+		key("taskmanager.registration.initial-backoff")
 			.defaultValue("500 ms")
-			.withDescription("The initial registration pause between two consecutive registration attempts. The pause" +
-				" is doubled for each new registration attempt until it reaches the maximum registration pause.");
+			.withDeprecatedKeys("taskmanager.initial-registration-pause")
+			.withDescription("The initial registration backoff between two consecutive registration attempts. The backoff" +
+				" is doubled for each new registration attempt until it reaches the maximum registration backoff.");
 
 	/**
-	 * The maximum registration pause between two consecutive registration attempts.
+	 * The maximum registration backoff between two consecutive registration attempts.
 	 */
-	public static final ConfigOption<String> MAX_REGISTRATION_PAUSE =
-		key("taskmanager.max-registration-pause")
+	public static final ConfigOption<String> REGISTRATION_MAX_BACKOFF =
+		key("taskmanager.registration.max-backoff")
 			.defaultValue("30 s")
-			.withDescription("The maximum registration pause between two consecutive registration attempts. The max" +
-				" registration pause requires a time unit specifier (ms/s/min/h/d).");
+			.withDeprecatedKeys("taskmanager.max-registration-pause")
+			.withDescription("The maximum registration backoff between two consecutive registration attempts. The max" +
+				" registration backoff requires a time unit specifier (ms/s/min/h/d).");
 
 	/**
-	 * The pause after a registration has been refused by the job manager before retrying to connect.
+	 * The backoff after a registration has been refused by the job manager before retrying to connect.
 	 */
-	public static final ConfigOption<String> REFUSED_REGISTRATION_PAUSE =
-		key("taskmanager.refused-registration-pause")
+	public static final ConfigOption<String> REFUSED_REGISTRATION_BACKOFF =
+		key("taskmanager.registration.refused-backoff")
 			.defaultValue("10 s")
-			.withDescription("The pause after a registration has been refused by the job manager before retrying to connect.");
+			.withDeprecatedKeys("taskmanager.refused-registration-pause")
+			.withDescription("The backoff after a registration has been refused by the job manager before retrying to connect.");
 
 	/**
-	 * Defines the maximum time it can take for the TaskManager registration. If the duration is
+	 * Defines the timeout it can take for the TaskManager registration. If the duration is
 	 * exceeded without a successful registration, then the TaskManager terminates.
 	 */
-	public static final ConfigOption<String> MAX_REGISTRATION_DURATION =
-		key("taskmanager.maxRegistrationDuration")
+	public static final ConfigOption<String> REGISTRATION_TIMEOUT =
+		key("taskmanager.registration.timeout")
 			.defaultValue("Inf")
-			.withDescription("Defines the maximum time it can take for the TaskManager registration. If the duration is" +
+			.withDeprecatedKeys("taskmanager.maxRegistrationDuration")
+			.withDescription("Defines the timeout for the TaskManager registration. If the duration is" +
 				" exceeded without a successful registration, then the TaskManager terminates.");
 
 	/**
@@ -153,14 +157,16 @@ public class TaskManagerOptions {
 				" is typically proportional to the number of physical CPU cores that the TaskManager's machine has" +
 				" (e.g., equal to the number of cores, or half the number of cores).");
 
-	public static final ConfigOption<Boolean> DEBUG_MEMORY_USAGE_START_LOG_THREAD =
-		key("taskmanager.debug.memory.startLogThread")
+	public static final ConfigOption<Boolean> DEBUG_MEMORY_LOG =
+		key("taskmanager.debug.memory.log")
 			.defaultValue(false)
+			.withDeprecatedKeys("taskmanager.debug.memory.startLogThread")
 			.withDescription("Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.");
 
 	public static final ConfigOption<Long> DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS =
-		key("taskmanager.debug.memory.logIntervalMs")
+		key("taskmanager.debug.memory.log-interval")
 			.defaultValue(5000L)
+			.withDeprecatedKeys("taskmanager.debug.memory.logIntervalMs")
 			.withDescription("The interval (in ms) for the log thread to log the current memory usage.");
 
 	// ------------------------------------------------------------------------
@@ -321,9 +327,10 @@ public class TaskManagerOptions {
 	 * credit-based flow control.
 	 */
 	@Deprecated
-	public static final ConfigOption<Boolean> NETWORK_CREDIT_BASED_FLOW_CONTROL_ENABLED =
-			key("taskmanager.network.credit-based-flow-control.enabled")
+	public static final ConfigOption<Boolean> NETWORK_CREDIT_MODEL =
+			key("taskmanager.network.credit-model")
 			.defaultValue(true)
+			.withDeprecatedKeys("taskmanager.network.credit-based-flow-control.enabled")
 			.withDescription("Boolean flag to enable/disable network credit-based flow control.");
 
 	// ------------------------------------------------------------------------

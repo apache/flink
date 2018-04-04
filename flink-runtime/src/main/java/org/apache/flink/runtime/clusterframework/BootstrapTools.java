@@ -245,7 +245,7 @@ public class BootstrapTools {
 			cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
 		}
 
-		cfg.setString(TaskManagerOptions.MAX_REGISTRATION_DURATION, registrationTimeout.toString());
+		cfg.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, registrationTimeout.toString());
 		if (numSlots != -1){
 			cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots);
 		}

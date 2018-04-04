@@ -185,7 +185,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		final Time finiteRegistrationDuration;
 
 		try {
-			Duration maxRegistrationDuration = Duration.create(configuration.getString(TaskManagerOptions.MAX_REGISTRATION_DURATION));
+			Duration maxRegistrationDuration = Duration.create(configuration.getString(TaskManagerOptions.REGISTRATION_TIMEOUT));
 			if (maxRegistrationDuration.isFinite()) {
 				finiteRegistrationDuration = Time.milliseconds(maxRegistrationDuration.toMillis());
 			} else {
@@ -193,12 +193,12 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			}
 		} catch (NumberFormatException e) {
 			throw new IllegalArgumentException("Invalid format for parameter " +
-				TaskManagerOptions.MAX_REGISTRATION_DURATION.key(), e);
+				TaskManagerOptions.REGISTRATION_TIMEOUT.key(), e);
 		}
 
 		final Time initialRegistrationPause;
 		try {
-			Duration pause = Duration.create(configuration.getString(TaskManagerOptions.INITIAL_REGISTRATION_PAUSE));
+			Duration pause = Duration.create(configuration.getString(TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF));
 			if (pause.isFinite()) {
 				initialRegistrationPause = Time.milliseconds(pause.toMillis());
 			} else {
@@ -206,13 +206,13 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			}
 		} catch (NumberFormatException e) {
 			throw new IllegalArgumentException("Invalid format for parameter " +
-				TaskManagerOptions.INITIAL_REGISTRATION_PAUSE.key(), e);
+				TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF.key(), e);
 		}
 
 		final Time maxRegistrationPause;
 		try {
 			Duration pause = Duration.create(configuration.getString(
-				TaskManagerOptions.MAX_REGISTRATION_PAUSE));
+				TaskManagerOptions.REGISTRATION_MAX_BACKOFF));
 			if (pause.isFinite()) {
 				maxRegistrationPause = Time.milliseconds(pause.toMillis());
 			} else {
@@ -220,12 +220,12 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			}
 		} catch (NumberFormatException e) {
 			throw new IllegalArgumentException("Invalid format for parameter " +
-				TaskManagerOptions.INITIAL_REGISTRATION_PAUSE.key(), e);
+				TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF.key(), e);
 		}
 
 		final Time refusedRegistrationPause;
 		try {
-			Duration pause = Duration.create(configuration.getString(TaskManagerOptions.REFUSED_REGISTRATION_PAUSE));
+			Duration pause = Duration.create(configuration.getString(TaskManagerOptions.REFUSED_REGISTRATION_BACKOFF));
 			if (pause.isFinite()) {
 				refusedRegistrationPause = Time.milliseconds(pause.toMillis());
 			} else {
@@ -233,7 +233,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			}
 		} catch (NumberFormatException e) {
 			throw new IllegalArgumentException("Invalid format for parameter " +
-				TaskManagerOptions.INITIAL_REGISTRATION_PAUSE.key(), e);
+				TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF.key(), e);
 		}
 
 		final boolean exitOnOom = configuration.getBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY);
