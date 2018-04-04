@@ -390,77 +390,138 @@ class TupleGenerator {
 		// generate code
 		StringBuilder sb = new StringBuilder(1000);
 		for (int numFields = FIRST; numFields <= LAST; numFields++) {
-
-			// method begin
-			sb.append("\n");
-
-			// java doc
-			sb.append("\t/**\n");
-			sb.append("\t * Specifies the types for the CSV fields. This method parses the CSV data to a ").append(numFields).append("-tuple\n");
-			sb.append("\t * which has fields of the specified types.\n");
-			sb.append("\t * This method is overloaded for each possible length of the tuples to support type safe\n");
-			sb.append("\t * creation of data sets through CSV parsing.\n");
-			sb.append("\t *\n");
-
-			for (int pos = 0; pos < numFields; pos++) {
-				sb.append("\t * @param type").append(pos);
-				sb.append(" The type of CSV field ").append(pos).append(" and the type of field ");
-				sb.append(pos).append(" in the returned tuple type.\n");
-			}
-			sb.append("\t * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.\n");
-			sb.append("\t */\n");
-
-			// method signature
-			sb.append("\tpublic <");
-			appendTupleTypeGenerics(sb, numFields);
-			sb.append("> DataSource<Tuple" + numFields + "<");
-			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">> types(");
-			for (int i = 0; i < numFields; i++) {
-				if (i > 0) {
-					sb.append(", ");
-				}
-				sb.append("Class<");
-				sb.append(GEN_TYPE_PREFIX + i);
-				sb.append("> type" + i);
-			}
-			sb.append(") {\n");
-
-			// get TupleTypeInfo
-			sb.append("\t\tTupleTypeInfo<Tuple" + numFields + "<");
-			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(");
-			for (int i = 0; i < numFields; i++) {
-				if (i > 0) {
-					sb.append(", ");
-				}
-				sb.append("type" + i);
-			}
-			sb.append(");\n");
-
-			// create csv input format
-			sb.append("\t\tCsvInputFormat<Tuple" + numFields + "<");
-			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">> inputFormat = new TupleCsvInputFormat<Tuple" + numFields + "<");
-			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">>(path, types, this.includedMask);\n");
-
-			// configure input format
-			sb.append("\t\tconfigureInputFormat(inputFormat);\n");
-
-			// return
-			sb.append("\t\treturn new DataSource<Tuple" + numFields + "<");
-			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">>(executionContext, inputFormat, types, Utils.getCallLocationName());\n");
-
-			// end of method
-			sb.append("\t}\n");
+			generateTypesMethod(sb, numFields);
+			generatePreciseTypesMethod(sb, numFields);
 		}
 
 		// insert code into file
 		File dir = getPackage(root, CSV_READER_PACKAGE);
 		File csvReaderClass = new File(dir, CSV_READER_CLASSNAME + ".java");
 		insertCodeIntoFile(sb.toString(), csvReaderClass);
+	}
+
+	private static void generateTypesMethod(StringBuilder sb, int numFields) {
+		// method begin
+		sb.append("\n");
+
+		// java doc
+		sb.append("\t/**\n");
+		sb.append("\t * Specifies the types for the CSV fields. This method parses the CSV data to a ").append(numFields).append("-tuple\n");
+		sb.append("\t * which has fields of the specified types.\n");
+		sb.append("\t * This method is overloaded for each possible length of the tuples to support type safe\n");
+		sb.append("\t * creation of data sets through CSV parsing.\n");
+		sb.append("\t *\n");
+
+		for (int pos = 0; pos < numFields; pos++) {
+			sb.append("\t * @param type").append(pos);
+			sb.append(" The type of CSV field ").append(pos).append(" and the type of field ");
+			sb.append(pos).append(" in the returned tuple type.\n");
+		}
+		sb.append("\t * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.\n");
+		sb.append("\t */\n");
+
+		// method signature
+		sb.append("\tpublic <");
+		appendTupleTypeGenerics(sb, numFields);
+		sb.append("> DataSource<Tuple" + numFields + "<");
+		appendTupleTypeGenerics(sb, numFields);
+		sb.append(">> types(");
+		for (int i = 0; i < numFields; i++) {
+			if (i > 0) {
+				sb.append(", ");
+			}
+			sb.append("Class<");
+			sb.append(GEN_TYPE_PREFIX + i);
+			sb.append("> type" + i);
+		}
+		sb.append(") {\n");
+
+		// get TupleTypeInfo
+		sb.append("\t\tTupleTypeInfo<Tuple" + numFields + "<");
+		appendTupleTypeGenerics(sb, numFields);
+		sb.append(">> types = TupleTypeInfo.getTupleTypeInfo(");
+		for (int i = 0; i < numFields; i++) {
+			if (i > 0) {
+				sb.append(", ");
+			}
+			sb.append("type" + i);
+		}
+		sb.append(");\n");
+
+		// create csv input format
+		sb.append("\t\tCsvInputFormat<Tuple" + numFields + "<");
+		appendTupleTypeGenerics(sb, numFields);
+		sb.append(">> inputFormat = new TupleCsvInputFormat<Tuple" + numFields + "<");
+		appendTupleTypeGenerics(sb, numFields);
+		sb.append(">>(path, types, this.includedMask);\n");
+
+		// configure input format
+		sb.append("\t\tconfigureInputFormat(inputFormat);\n");
+
+		// return
+		sb.append("\t\treturn new DataSource<Tuple" + numFields + "<");
+		appendTupleTypeGenerics(sb, numFields);
+		sb.append(">>(executionContext, inputFormat, types, Utils.getCallLocationName());\n");
+
+		// end of method
+		sb.append("\t}\n");
+	}
+
+	private static void generatePreciseTypesMethod(StringBuilder sb, int numFields) {
+		// method begin
+		sb.append("\n");
+
+		// java doc
+		sb.append("\t/**\n");
+		sb.append("\t * Specifies the types for the CSV fields. This method parses the CSV data to a ").append(numFields).append("-tuple\n");
+		sb.append("\t * which has fields of the specified types.\n");
+		sb.append("\t * This method is created to overcome limitations of the types() method, which loose Generics information\n");
+		sb.append("\t * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete\n");
+		sb.append("\t * field types.\n");
+		sb.append("\t * This method is overloaded for each possible length of the tuples to support type safe\n");
+		sb.append("\t * creation of data sets through CSV parsing.\n");
+		sb.append("\t *\n");
+
+		for (int pos = 0; pos < numFields; pos++) {
+			sb.append("\t * @param typeInfo").append(pos);
+			sb.append(" The type of CSV field ").append(pos).append(" and the type of field ");
+			sb.append(pos).append(" in the returned tuple type.\n");
+		}
+		sb.append("\t * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.\n");
+		sb.append("\t */\n");
+
+		// method signature
+		sb.append("\tpublic <");
+		appendTupleTypeGenerics(sb, numFields);
+		sb.append("> DataSource<Tuple" + numFields + "<");
+		appendTupleTypeGenerics(sb, numFields);
+		sb.append(">> preciseTypes(");
+		for (int i = 0; i < numFields; i++) {
+			if (i > 0) {
+				sb.append(", ");
+			}
+			sb.append("TypeInformation<");
+			sb.append(GEN_TYPE_PREFIX + i);
+			sb.append("> typeInfo" + i);
+		}
+		sb.append(") {\n");
+
+		// create DataSource
+		sb.append("\t\tDataSource<Tuple" + numFields + "<");
+		appendTupleTypeGenerics(sb, numFields);
+		sb.append(">> dataSource = commonPreciseTypes(");
+		for (int i = 0; i < numFields; i++) {
+			if (i > 0) {
+				sb.append(", ");
+			}
+			sb.append("typeInfo" + i);
+		}
+		sb.append(");\n");
+
+		sb.append("\t\treturn dataSource;\n");
+
+		// end of method
+		sb.append("\t}\n");
 	}
 
 	private static void appendTupleTypeGenerics(StringBuilder sb, int numFields) {
@@ -473,7 +534,7 @@ class TupleGenerator {
 	}
 
 	private static final String HEADER =
-			"/*\n"
+		"/*\n"
 			+ " * Licensed to the Apache Software Foundation (ASF) under one\n"
 			+ " * or more contributor license agreements.  See the NOTICE file\n"
 			+ " * distributed with this work for additional information\n"
