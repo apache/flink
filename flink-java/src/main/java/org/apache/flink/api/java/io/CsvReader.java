@@ -389,7 +389,9 @@ public class CsvReader {
 	 * @return The DataSet representing the parsed CSV data.
 	 */
 	public DataSource<Row> rowType(Class<?>... rowFields) {
-		Preconditions.checkNotNull(rowFields, "Row rowFields must be specified (not null)");
+		if (rowFields == null || rowFields.length == 0) {
+			throw new IllegalArgumentException("Row rowFields must not be null or empty.");
+		}
 
 		final TypeInformation<?>[] fieldTypes = new TypeInformation[rowFields.length];
 		for (int i = 0; i < rowFields.length; i++) {
@@ -398,14 +400,7 @@ public class CsvReader {
 
 		final RowCsvInputFormat inputFormat;
 		if (this.includedMask != null) {
-			final int[] selectedFields = new int[rowFields.length];
-			int pos = 0;
-			for (int i = 0; i < this.includedMask.length; i++) {
-				if (this.includedMask[i]) {
-					selectedFields[pos] = i;
-					pos++;
-				}
-			}
+			final int[] selectedFields = prepareSelectedFields(rowFields.length);
 			inputFormat = new RowCsvInputFormat(path, fieldTypes, this.lineDelimiter, this.fieldDelimiter, selectedFields);
 		} else {
 			inputFormat = new RowCsvInputFormat(path, fieldTypes, this.lineDelimiter, this.fieldDelimiter);
@@ -419,6 +414,23 @@ public class CsvReader {
 	// --------------------------------------------------------------------------------------------
 	// Miscellaneous
 	// --------------------------------------------------------------------------------------------
+
+	private int[] prepareSelectedFields(int rowLength) {
+		final int[] selectedFields = new int[rowLength];
+		int pos = 0;
+		for (int i = 0; i < this.includedMask.length; i++) {
+			if (this.includedMask[i]) {
+				selectedFields[pos] = i;
+				pos++;
+			}
+		}
+
+		if (pos != rowLength) {
+			throw new IllegalArgumentException("Number of included fields must be equal row arity");
+		}
+
+		return selectedFields;
+	}
 
 	private void configureInputFormat(CsvInputFormat<?> format) {
 		format.setCharset(this.charset);

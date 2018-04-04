@@ -131,11 +131,55 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
 		final String dataPath = createInputData(inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Row> data = env.readCsvFile(dataPath).rowType(StringValue.class, BooleanValue.class, ByteValue.class, ShortValue.class, IntValue.class, LongValue.class, FloatValue.class, DoubleValue.class);
+		DataSet<Row> data = env.readCsvFile(dataPath)
+			.rowType(StringValue.class, BooleanValue.class, ByteValue.class, ShortValue.class, IntValue.class, LongValue.class, FloatValue.class, DoubleValue.class);
 		List<Row> result = data.collect();
 
 		expected = inputData;
 		compareResultAsText(result, expected);
+	}
+
+	@Test
+	public void testRowTypeWithFieldsSelection() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Row> data = env.readCsvFile(dataPath)
+			.includeFields(true, true, false, false, true, false, true) //last value will omitted because not present in included fields
+			.rowType(StringValue.class, BooleanValue.class, IntValue.class, DoubleValue.class);
+		List<Row> result = data.collect();
+
+		expected = "ABC,true,3,5.0\nBCD,false,3,5.0";
+		compareResultAsText(result, expected);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testRowTypeWithFieldsSelectionWrongArity() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		env.readCsvFile(dataPath)
+			.includeFields(false, true, false)
+			.rowType(StringValue.class, StringValue.class);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testRowTypeWithNullFieldTypes() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		env.readCsvFile(dataPath).rowType(null);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testRowTypeWithEmptyFieldType() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		env.readCsvFile(dataPath).rowType();
 	}
 
 	/**
