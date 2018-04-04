@@ -146,7 +146,7 @@ case $TEST in
 		# compile everything since dist needs it anyway
 		MVN_COMPILE_MODULES=""
 		MVN_TEST_MODULES="-pl $NEGATED_CORE,$NEGATED_LIBRARIES,$NEGATED_CONNECTORS,$NEGATED_TESTS"
-		MVN_COMPILE_OPTIONS="-Dspotbugs"
+		MVN_COMPILE_OPTIONS=""
 		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
 	;;
 esac
