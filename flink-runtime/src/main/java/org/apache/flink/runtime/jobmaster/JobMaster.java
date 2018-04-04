@@ -41,6 +41,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -508,7 +509,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			(Acknowledge ignored, Throwable throwable) -> {
 				if (throwable != null) {
 					// fail the newly created execution graph
-					newExecutionGraph.failGlobal(new FlinkException("Failed to rescale the job " + jobGraph.getJobID() + '.', throwable));
+					newExecutionGraph.failGlobal(
+						new SuppressRestartsException(
+							new FlinkException(
+								String.format("Failed to rescale the job %s.", jobGraph.getJobID()),
+								throwable)));
 				}
 			});
 
