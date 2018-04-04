@@ -120,7 +120,7 @@ public class StateBackendLoader {
 			case FS_STATE_BACKEND_NAME:
 				FsStateBackend fsBackend = new FsStateBackendFactory().createFromConfig(config);
 				if (logger != null) {
-					logger.info("State backend is set to heap memory (checkpoints to filesystem \"{}\")",
+					logger.info("State backend is set to filesystem (checkpoints to filesystem \"{}\")",
 							fsBackend.getCheckpointPath());
 				}
 				return fsBackend;
