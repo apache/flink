@@ -24,6 +24,7 @@ import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -41,7 +42,6 @@ import org.junit.experimental.categories.Category;
 
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
@@ -102,18 +102,12 @@ public class JobRetrievalITCase extends TestLogger {
 		client.setDetached(true);
 		client.submitJob(jobGraph, JobRetrievalITCase.class.getClassLoader());
 
-		final AtomicReference<Throwable> error = new AtomicReference<>();
-
-		final Thread resumingThread = new Thread(new Runnable() {
+		final CheckedThread resumingThread = new CheckedThread("Flink-Job-Retriever") {
 			@Override
-			public void run() {
-				try {
-					assertNotNull(client.requestJobResult(jobID).get());
-				} catch (Throwable e) {
-					error.set(e);
-				}
+			public void go() throws Exception {
+				assertNotNull(client.requestJobResult(jobID).get());
 			}
-		}, "Flink-Job-Retriever");
+		};
 
 		// wait until the job is running
 		while (client.listJobs().get().isEmpty()) {
@@ -131,12 +125,7 @@ public class JobRetrievalITCase extends TestLogger {
 		// client has connected, we can release the lock
 		lock.release();
 
-		resumingThread.join();
-
-		Throwable exception = error.get();
-		if (exception != null) {
-			throw new AssertionError(exception);
-		}
+		resumingThread.sync();
 	}
 
 	@Test
