@@ -383,31 +383,46 @@ public class CsvReader {
 	}
 
 	/**
-	 * Configures the reader to read the CSV data and parse it to the given type.
+	 * Configures the reader to read the CSV data and parse it to the {@link Row} type.
 	 * The type information for the fields is obtained from the type class.
 	 *
-	 * @param rowFields The fields which are mapped to CSV fields.
+	 * @param rowFieldsType The fields types which are mapped to CSV fields.
 	 * @return The DataSet representing the parsed CSV data.
 	 */
-	public DataSource<Row> rowType(Class<?>... rowFields) {
-		if (rowFields == null || rowFields.length == 0) {
-			throw new IllegalArgumentException("Row rowFields must not be null or empty.");
+	public DataSource<Row> rowType(Class<?>... rowFieldsType) {
+		if (rowFieldsType == null || rowFieldsType.length == 0) {
+			throw new IllegalArgumentException("Row row fields type must not be null or empty.");
 		}
 
-		final TypeInformation<?>[] fieldTypes = new TypeInformation[rowFields.length];
-		for (int i = 0; i < rowFields.length; i++) {
-			fieldTypes[i] = TypeExtractor.createTypeInfo(rowFields[i]);
+		final TypeInformation<?>[] fieldTypes = new TypeInformation[rowFieldsType.length];
+		for (int i = 0; i < rowFieldsType.length; i++) {
+			fieldTypes[i] = TypeExtractor.createTypeInfo(rowFieldsType[i]);
+		}
+
+		return preciseRowType(fieldTypes);
+	}
+
+	/**
+	 * Configures the reader to read the CSV data and parse it to the {@link Row} type.
+	 * The type information for the fields is obtained from the type information.
+	 *
+	 * @param rowFieldsTypeInformation The fields types information which are mapped to CSV fields.
+	 * @return The DataSet representing the parsed CSV data.
+	 */
+	public DataSource<Row> preciseRowType(TypeInformation<?>... rowFieldsTypeInformation) {
+		if (rowFieldsTypeInformation == null || rowFieldsTypeInformation.length == 0) {
+			throw new IllegalArgumentException("Row fields type information must not be null or empty.");
 		}
 
 		final RowCsvInputFormat inputFormat;
 		if (this.includedMask != null) {
-			final int[] selectedFields = prepareSelectedFields(rowFields.length);
-			inputFormat = new RowCsvInputFormat(path, fieldTypes, this.lineDelimiter, this.fieldDelimiter, selectedFields);
+			final int[] selectedFields = prepareSelectedFields(rowFieldsTypeInformation.length);
+			inputFormat = new RowCsvInputFormat(path, rowFieldsTypeInformation, this.lineDelimiter, this.fieldDelimiter, selectedFields);
 		} else {
-			inputFormat = new RowCsvInputFormat(path, fieldTypes, this.lineDelimiter, this.fieldDelimiter);
+			inputFormat = new RowCsvInputFormat(path, rowFieldsTypeInformation, this.lineDelimiter, this.fieldDelimiter);
 		}
 
-		final RowTypeInfo typeInfo = new RowTypeInfo(fieldTypes);
+		final RowTypeInfo typeInfo = new RowTypeInfo(rowFieldsTypeInformation);
 		configureInputFormat(inputFormat);
 		return new DataSource<Row>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
 	}
