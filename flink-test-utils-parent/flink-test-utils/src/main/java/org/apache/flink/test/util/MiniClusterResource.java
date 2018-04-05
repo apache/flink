@@ -25,8 +25,10 @@ import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.minicluster.JobExecutorService;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
@@ -66,6 +68,8 @@ public class MiniClusterResource extends ExternalResource {
 	private final boolean enableClusterClient;
 
 	private ClusterClient<?> clusterClient;
+
+	private Configuration restClusterClientConfig;
 
 	private int numberSlots = -1;
 
@@ -115,6 +119,10 @@ public class MiniClusterResource extends ExternalResource {
 		}
 
 		return clusterClient;
+	}
+
+	public Configuration getClientConfiguration() {
+		return restClusterClientConfig;
 	}
 
 	public TestEnvironment getTestEnvironment() {
@@ -194,6 +202,9 @@ public class MiniClusterResource extends ExternalResource {
 		if (enableClusterClient) {
 			clusterClient = new StandaloneClusterClient(configuration, flinkMiniCluster.highAvailabilityServices(), true);
 		}
+		Configuration restClientConfig = new Configuration();
+		restClientConfig.setInteger(JobManagerOptions.PORT, flinkMiniCluster.getLeaderRPCPort());
+		this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
 	}
 
 	private void startMiniCluster() throws Exception {
@@ -229,6 +240,10 @@ public class MiniClusterResource extends ExternalResource {
 		if (enableClusterClient) {
 			clusterClient = new MiniClusterClient(configuration, miniCluster);
 		}
+		Configuration restClientConfig = new Configuration();
+		restClientConfig.setString(JobManagerOptions.ADDRESS, miniCluster.getRestAddress().getHost());
+		restClientConfig.setInteger(RestOptions.REST_PORT, miniCluster.getRestAddress().getPort());
+		this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
 	}
 
 	/**
