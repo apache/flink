@@ -540,52 +540,53 @@ public class RocksDBMapState<K, N, UK, UV>
 				return;
 			}
 
-			RocksIterator iterator = db.newIterator(columnFamily);
+			// use try-with-resources to ensure RocksIterator can be release even some runtime exception
+			// occurred in the below code block.
+			try (RocksIterator iterator = db.newIterator(columnFamily)) {
 
-			/*
-			 * The iteration starts from the prefix bytes at the first loading. The cache then is
-			 * reloaded when the next entry to return is the last one in the cache. At that time,
-			 * we will start the iterating from the last returned entry.
- 			 */
-			RocksDBMapEntry lastEntry = cacheEntries.size() == 0 ? null : cacheEntries.get(cacheEntries.size() - 1);
-			byte[] startBytes = (lastEntry == null ? keyPrefixBytes : lastEntry.rawKeyBytes);
+				/*
+				 * The iteration starts from the prefix bytes at the first loading. The cache then is
+				 * reloaded when the next entry to return is the last one in the cache. At that time,
+				 * we will start the iterating from the last returned entry.
+ 				 */
+				RocksDBMapEntry lastEntry = cacheEntries.size() == 0 ? null : cacheEntries.get(cacheEntries.size() - 1);
+				byte[] startBytes = (lastEntry == null ? keyPrefixBytes : lastEntry.rawKeyBytes);
 
-			cacheEntries.clear();
-			cacheIndex = 0;
+				cacheEntries.clear();
+				cacheIndex = 0;
 
-			iterator.seek(startBytes);
+				iterator.seek(startBytes);
 
-			/*
-			 * If the last returned entry is not deleted, it will be the first entry in the
-			 * iterating. Skip it to avoid redundant access in such cases.
-			 */
-			if (lastEntry != null && !lastEntry.deleted) {
-				iterator.next();
-			}
-
-			while (true) {
-				if (!iterator.isValid() || !underSameKey(iterator.key())) {
-					expired = true;
-					break;
+				/*
+				 * If the last returned entry is not deleted, it will be the first entry in the
+				 * iterating. Skip it to avoid redundant access in such cases.
+				 */
+				if (lastEntry != null && !lastEntry.deleted) {
+					iterator.next();
 				}
 
-				if (cacheEntries.size() >= CACHE_SIZE_LIMIT) {
-					break;
-				}
+				while (true) {
+					if (!iterator.isValid() || !underSameKey(iterator.key())) {
+						expired = true;
+						break;
+					}
 
-				RocksDBMapEntry entry = new RocksDBMapEntry(
+					if (cacheEntries.size() >= CACHE_SIZE_LIMIT) {
+						break;
+					}
+
+					RocksDBMapEntry entry = new RocksDBMapEntry(
 						db,
 						iterator.key(),
 						iterator.value(),
 						keySerializer,
 						valueSerializer);
 
-				cacheEntries.add(entry);
+					cacheEntries.add(entry);
 
-				iterator.next();
+					iterator.next();
+				}
 			}
-
-			iterator.close();
 		}
 
 		private boolean underSameKey(byte[] rawKeyBytes) {
