@@ -28,6 +28,9 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -47,6 +50,8 @@ import java.util.Map;
  */
 @PublicEvolving
 public abstract class FieldParser<T> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(FieldParser.class);
 
 	/**
 	 * An enumeration of different types of errors that may occur.
@@ -309,11 +314,13 @@ public abstract class FieldParser<T> {
 	 * @return The parser for the given type, or null, if no such parser exists.
 	 */
 	public static <T> Class<? extends FieldParser<T>> getCustomParserForType(Class<T> type) {
-		ParserFactory<T> parserFactory = (ParserFactory<T>) CUSTOM_PARSERS.get(type);
-		if (parserFactory == null) {
-			return null;
-		} else {
-			return parserFactory.getParserType();
+		synchronized (CUSTOM_PARSERS) {
+			ParserFactory<T> parserFactory = (ParserFactory<T>) CUSTOM_PARSERS.get(type);
+			if (parserFactory == null) {
+				return null;
+			} else {
+				return parserFactory.getParserType();
+			}
 		}
 	}
 
@@ -350,12 +357,25 @@ public abstract class FieldParser<T> {
 
 	private static final Map<Class<?>, ParserFactory<?>> CUSTOM_PARSERS = new HashMap<>();
 
-	public static <T> void registerCustomParser(Class<T> type, ParserFactory<T> factory) {
-		CUSTOM_PARSERS.put(type, factory);
-	}
+	/**
+	 * Registers a user-defined (custom) type with a parser factory for it.
+	 * Custom type parsing precedes default one.
+	 * @param type a user-defined type
+	 * @param factory the type's parser factory.
+	 * @return the registration status: 1 - registration is successful, -1 - otherwise.
+	 */
+	public static <T> int registerCustomParser(Class<T> type, ParserFactory<T> factory) {
+		Preconditions.checkNotNull(type, "The type must be not null.");
+		Preconditions.checkNotNull(factory, "The factory must be not null.");
 
-	public static <T> void cleanCustomParserRegister() {
-		CUSTOM_PARSERS.clear();
+		synchronized (CUSTOM_PARSERS) {
+			if (CUSTOM_PARSERS.containsKey(type)) {
+				LOG.warn("'{}' type is already registered with '{}' parser. Skipping.");
+				return -1;
+			}
+			CUSTOM_PARSERS.put(type, factory);
+			return 1;
+		}
 	}
 
 }
