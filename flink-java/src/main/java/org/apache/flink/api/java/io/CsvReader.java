@@ -409,7 +409,7 @@ public class CsvReader {
 	 * @param rowFieldsTypeInformation The fields types information which are mapped to CSV fields.
 	 * @return The DataSet representing the parsed CSV data.
 	 */
-	public DataSource<Row> preciseRowType(TypeInformation<?>... rowFieldsTypeInformation) {
+	private DataSource<Row> preciseRowType(TypeInformation<?>... rowFieldsTypeInformation) {
 		if (rowFieldsTypeInformation == null || rowFieldsTypeInformation.length == 0) {
 			throw new IllegalArgumentException("Row fields type information must not be null or empty.");
 		}
