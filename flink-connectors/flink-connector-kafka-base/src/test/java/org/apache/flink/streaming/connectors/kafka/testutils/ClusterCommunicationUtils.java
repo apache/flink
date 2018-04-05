@@ -50,7 +50,7 @@ public class ClusterCommunicationUtils {
 			.map(JobStatusMessage::getJobId)
 			.collect(Collectors.toList());
 	}
-	
+
 	private ClusterCommunicationUtils() {
 	}
 }
