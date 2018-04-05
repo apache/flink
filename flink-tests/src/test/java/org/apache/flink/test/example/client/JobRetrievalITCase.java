@@ -23,19 +23,19 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -54,37 +54,36 @@ public class JobRetrievalITCase extends TestLogger {
 
 	private static final Semaphore lock = new Semaphore(1);
 
-	private static final MiniCluster CLUSTER;
-	private static final RestClusterClient<StandaloneClusterId> CLIENT;
+	@ClassRule
+	public static final MiniClusterResource CLUSTER = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			new Configuration(),
+			1,
+			4
+		),
+		MiniClusterResource.MiniClusterType.NEW
+	);
 
-	static {
-		try {
-		MiniClusterConfiguration clusterConfiguration = new MiniClusterConfiguration.Builder()
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(4)
-			.build();
-		CLUSTER = new MiniCluster(clusterConfiguration);
-		CLUSTER.start();
+	private RestClusterClient<StandaloneClusterId> client;
 
+	@Before
+	public void setUp() throws Exception {
 		final Configuration clientConfig = new Configuration();
-		clientConfig.setString(JobManagerOptions.ADDRESS, CLUSTER.getRestAddress().getHost());
-		clientConfig.setInteger(RestOptions.REST_PORT, CLUSTER.getRestAddress().getPort());
 		clientConfig.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 0);
 		clientConfig.setLong(RestOptions.RETRY_DELAY, 0);
+		clientConfig.addAll(CLUSTER.getClientConfiguration());
 
-		CLIENT = new RestClusterClient<>(
+		client = new RestClusterClient<>(
 			clientConfig,
-			StandaloneClusterId.getInstance());
-
-		} catch (Exception e) {
-			throw new AssertionError("Could not setup cluster.", e);
-		}
+			StandaloneClusterId.getInstance()
+		);
 	}
 
-	@AfterClass
-	public static void shutdownCluster() throws Exception {
-		CLIENT.shutdown();
-		CLUSTER.close();
+	@After
+	public void tearDown() {
+		if (client != null) {
+			client.shutdown();
+		}
 	}
 
 	@Test
@@ -100,8 +99,8 @@ public class JobRetrievalITCase extends TestLogger {
 		// has been attached in resumingThread
 		lock.acquire();
 
-		CLIENT.setDetached(true);
-		CLIENT.submitJob(jobGraph, JobRetrievalITCase.class.getClassLoader());
+		client.setDetached(true);
+		client.submitJob(jobGraph, JobRetrievalITCase.class.getClassLoader());
 
 		final AtomicReference<Throwable> error = new AtomicReference<>();
 
@@ -109,7 +108,7 @@ public class JobRetrievalITCase extends TestLogger {
 			@Override
 			public void run() {
 				try {
-					assertNotNull(CLIENT.requestJobResult(jobID).get());
+					assertNotNull(client.requestJobResult(jobID).get());
 				} catch (Throwable e) {
 					error.set(e);
 				}
@@ -117,7 +116,7 @@ public class JobRetrievalITCase extends TestLogger {
 		}, "Flink-Job-Retriever");
 
 		// wait until the job is running
-		while (CLIENT.listJobs().get().isEmpty()) {
+		while (client.listJobs().get().isEmpty()) {
 			Thread.sleep(50);
 		}
 
@@ -145,7 +144,7 @@ public class JobRetrievalITCase extends TestLogger {
 		final JobID jobID = new JobID();
 
 		try {
-			CLIENT.requestJobResult(jobID).get();
+			client.requestJobResult(jobID).get();
 			fail();
 		} catch (Exception exception) {
 			Optional<Throwable> expectedCause = ExceptionUtils.findThrowable(exception,
