@@ -18,9 +18,9 @@
 
 package org.apache.flink.docs.configuration;
 
+import org.apache.flink.annotation.docs.ConfigGroup;
+import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigGroup;
-import org.apache.flink.configuration.ConfigGroups;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
