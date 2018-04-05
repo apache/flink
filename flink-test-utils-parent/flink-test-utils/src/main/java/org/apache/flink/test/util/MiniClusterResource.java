@@ -77,6 +77,12 @@ public class MiniClusterResource extends ExternalResource {
 
 	public MiniClusterResource(
 			final MiniClusterResourceConfiguration miniClusterResourceConfiguration,
+			final MiniClusterType miniClusterType) {
+		this(miniClusterResourceConfiguration, miniClusterType, false);
+	}
+
+	public MiniClusterResource(
+			final MiniClusterResourceConfiguration miniClusterResourceConfiguration,
 			final boolean enableClusterClient) {
 		this(
 			miniClusterResourceConfiguration,
