@@ -275,7 +275,7 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
 			key("taskmanager.network.memory.buffers-per-channel")
 			.defaultValue(2)
-			.withDescription("Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel)." +
+			.withDescription("Maximum number of network buffers to use for each outgoing/incoming channel (subpartition/input channel)." +
 				"In credit-based flow control mode, this indicates how many credits are exclusive in each input channel. It should be" +
 				" configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is" +
 				" for parallel serialization.");

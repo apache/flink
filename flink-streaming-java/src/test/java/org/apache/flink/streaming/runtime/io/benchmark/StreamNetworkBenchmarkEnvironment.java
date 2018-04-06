@@ -93,21 +93,45 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
 	protected ResultPartitionID[] partitionIds;
 
-	public void setUp(int writers, int channels, boolean localMode) throws Exception {
+	/**
+	 * Sets up the environment including buffer pools and netty threads.
+	 *
+	 * @param writers
+	 * 		number of writers
+	 * @param channels
+	 * 		outgoing channels per writer
+	 * @param localMode
+	 * 		only local channels?
+	 * @param senderBufferPoolSize
+	 * 		buffer pool size for the sender (set to <tt>-1</tt> for default)
+	 * @param receiverBufferPoolSize
+	 * 		buffer pool size for the receiver (set to <tt>-1</tt> for default)
+	 */
+	public void setUp(
+			int writers,
+			int channels,
+			boolean localMode,
+			int senderBufferPoolSize,
+			int receiverBufferPoolSize) throws Exception {
 		this.localMode = localMode;
 		this.channels = channels;
 		this.partitionIds = new ResultPartitionID[writers];
+		if (senderBufferPoolSize == -1) {
+			senderBufferPoolSize = Math.max(2048, writers * channels * 4);
+		}
+		if (receiverBufferPoolSize == -1) {
+			receiverBufferPoolSize = Math.max(2048, writers * channels * 4);
+		}
 
 		ioManager = new IOManagerAsync();
 
-		int bufferPoolSize = Math.max(2048, writers * channels * 4);
-		senderEnv = createNettyNetworkEnvironment(bufferPoolSize);
+		senderEnv = createNettyNetworkEnvironment(senderBufferPoolSize);
 		senderEnv.start();
-		if (localMode) {
+		if (localMode && senderBufferPoolSize == receiverBufferPoolSize) {
 			receiverEnv = senderEnv;
 		}
 		else {
-			receiverEnv = createNettyNetworkEnvironment(bufferPoolSize);
+			receiverEnv = createNettyNetworkEnvironment(receiverBufferPoolSize);
 			receiverEnv.start();
 		}
 
