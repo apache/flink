@@ -135,7 +135,7 @@ keyedStream.reduce(new ReduceFunction<Integer>() {
     }
 });
             {% endhighlight %}
-            </p>
+            
           </td>
         </tr>
         <tr>
