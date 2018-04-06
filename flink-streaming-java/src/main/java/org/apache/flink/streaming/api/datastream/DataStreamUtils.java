@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -39,11 +39,8 @@ import java.util.Iterator;
 
 /**
  * A collection of utilities for {@link DataStream DataStreams}.
- *
- * <p>This experimental class is relocated from flink-streaming-contrib. Please see package-info.java
- * for more information.
  */
-@PublicEvolving
+@Experimental
 public final class DataStreamUtils {
 
 	/**
