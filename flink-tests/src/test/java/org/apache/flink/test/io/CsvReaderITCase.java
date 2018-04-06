@@ -25,13 +25,11 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvReader;
 import org.apache.flink.api.java.operators.DataSource;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.test.io.csv.custom.type.NestedCustomJsonType;
 import org.apache.flink.test.io.csv.custom.type.NestedCustomJsonTypeStringParser;
 import org.apache.flink.test.io.csv.custom.type.complex.GenericsAwareCustomJsonType;
-import org.apache.flink.test.io.csv.custom.type.complex.GenericsAwareCustomJsonTypeStringParser;
 import org.apache.flink.test.io.csv.custom.type.simple.SimpleCustomJsonType;
 import org.apache.flink.test.io.csv.custom.type.simple.SimpleCustomJsonTypeStringParser;
 import org.apache.flink.test.io.csv.custom.type.simple.Tuple3ContainerType;
@@ -48,7 +46,6 @@ import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.ParserFactory;
 import org.apache.flink.util.FileUtils;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -56,6 +53,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Locale;
 
@@ -212,7 +210,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testGenericsAwareCustomJsonTypePojoType() throws Exception{
-		final String inputData = "some_string,'{\"f1\":\"some_string\",\"f2\":{\"f21\":\"nested_level1_f31\"},\"f3\":5}'\n";
+		final String inputData = "some_string,{\"f21\":\"nested_level1_f31\"},5\n";
 		final String dataPath = createInputData(inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		CsvReader reader = env.readCsvFile(dataPath);
@@ -223,22 +221,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 		TypeInformation<GenericsAwareCustomJsonType<Integer>> typeInfo = TypeInformation.of(typeHint);
 		Class<GenericsAwareCustomJsonType<Integer>> type = typeInfo.getTypeClass();
 
-		TypeReference<GenericsAwareCustomJsonType<Integer>> typeReference = new TypeReference<GenericsAwareCustomJsonType<Integer>>() {};
-		ParserFactory<GenericsAwareCustomJsonType<Integer>> factory = new ParserFactory<GenericsAwareCustomJsonType<Integer>>() {
-			@Override
-			public Class<? extends FieldParser<GenericsAwareCustomJsonType<Integer>>> getParserType() {
-				return (Class<? extends FieldParser<GenericsAwareCustomJsonType<Integer>>>) (Class<?>) GenericsAwareCustomJsonTypeStringParser.class;
-			}
-
-			@Override
-			public FieldParser<GenericsAwareCustomJsonType<Integer>> create() {
-				return new GenericsAwareCustomJsonTypeStringParser<>(typeReference);
-			}
-		};
-
-		FieldParser.registerCustomParser(type, factory);
-
-		ParserFactory<NestedCustomJsonType> factory1 = new ParserFactory<NestedCustomJsonType>() {
+		ParserFactory<NestedCustomJsonType> factory = new ParserFactory<NestedCustomJsonType>() {
 			@Override
 			public Class<? extends FieldParser<NestedCustomJsonType>> getParserType() {
 				return NestedCustomJsonTypeStringParser.class;
@@ -249,12 +232,25 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 				return new NestedCustomJsonTypeStringParser();
 			}
 		};
+		FieldParser.registerCustomParser(NestedCustomJsonType.class, factory);
 
-		FieldParser.registerCustomParser(NestedCustomJsonType.class, factory1);
+		DataSource<GenericsAwareCustomJsonType<Integer>> dataSource = reader.precisePojoType(type,
+			new String[]{"f1", "f2", "f3"},
+			new TypeInformation[]{TypeInformation.of(String.class),
+				TypeInformation.of(NestedCustomJsonType.class),
+				TypeInformation.of(Integer.class)});
+		List<GenericsAwareCustomJsonType<Integer>> result = dataSource.collect();
 
-		DataSource<Tuple2<String, GenericsAwareCustomJsonType>> dataSource1 = reader.types(String.class, GenericsAwareCustomJsonType.class);
-		List<Tuple2<String, GenericsAwareCustomJsonType>> result1 = dataSource1.collect();
-		verifyGenericsAwareCustomJsonTypeItems(result1);
+		verifyGenericsAwareCustomJsonTypeItems(result);
+	}
+
+	private void verifyGenericsAwareCustomJsonTypeItems(List<GenericsAwareCustomJsonType<Integer>> result) {
+		assertEquals(1, result.size());
+		GenericsAwareCustomJsonType<Integer> genericsAwareCustomJsonType = result.get(0);
+		assertEquals("some_string", genericsAwareCustomJsonType.getF1());
+		assertEquals("nested_level1_f31", genericsAwareCustomJsonType.getF2().getF21());
+		assertEquals(Integer.valueOf(5), genericsAwareCustomJsonType.getF3());
+		assertTrue(Integer.class.isAssignableFrom(genericsAwareCustomJsonType.getF3().getClass()));
 	}
 
 	private void verifySimpleCustomJsonTypeItems(List<SimpleCustomJsonType> result) {
@@ -263,16 +259,6 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 		assertEquals(5, simpleCustomJsonType.getF1());
 		assertEquals("some_string", simpleCustomJsonType.getF2());
 		assertEquals("nested_level1_f31", simpleCustomJsonType.getF3().getF21());
-	}
-
-	private void verifyGenericsAwareCustomJsonTypeItems(List<Tuple2<String, GenericsAwareCustomJsonType>> result) {
-		assertEquals(1, result.size());
-		GenericsAwareCustomJsonType simpleCustomJsonType = result.get(0).f1;
-		String someString = result.get(0).f0;
-		assertEquals("some_string", someString);
-		assertEquals("some_string", simpleCustomJsonType.getF1());
-		assertEquals("nested_level1_f31", simpleCustomJsonType.getF2().getF21());
-		assertEquals(5, simpleCustomJsonType.getF3());
 	}
 
 	private void verifyCollectedItems(List<? extends Tuple3<Integer, String, SimpleCustomJsonType>> result) {

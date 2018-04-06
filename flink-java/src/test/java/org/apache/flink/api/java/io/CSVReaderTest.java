@@ -357,7 +357,7 @@ public class CSVReaderTest {
 	}
 
 	@Test
-	public void testWorkingWithComplexCustomType() {
+	public void testWorkingWithComplexCustomType() throws NoSuchFieldException {
 		ParserFactory<GenericsAwareCustomJsonType<NestedCustomJsonType>> factory = new ParserFactory<GenericsAwareCustomJsonType<NestedCustomJsonType>>() {
 			@Override
 			public Class<? extends FieldParser<GenericsAwareCustomJsonType<NestedCustomJsonType>>> getParserType() {
@@ -386,7 +386,7 @@ public class CSVReaderTest {
 		DataSource<Tuple3ContainerType> dataSource1 = reader.tupleType(Tuple3ContainerType.class);
 		verifyDataSource(dataSource1, Tuple3ContainerType.class);
 
-		DataSource<GenericsAwareCustomJsonType> dataSource2 = reader.pojoType(GenericsAwareCustomJsonType.class);
+		DataSource<GenericsAwareCustomJsonType<NestedCustomJsonType>> dataSource2 = reader.precisePojoType(typeInfo.getTypeClass(), new String[]{}, new TypeInformation[]{});
 		assertTrue(GenericsAwareCustomJsonType.class.isAssignableFrom(dataSource2.getType().getTypeClass()));
 	}
 
