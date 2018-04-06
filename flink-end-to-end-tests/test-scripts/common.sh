@@ -43,14 +43,12 @@ function revert_default_config() {
 
     # revert our modifications to the masters file
     if [ -f $FLINK_DIR/conf/masters.bak ]; then
-        rm $FLINK_DIR/conf/masters
-        mv $FLINK_DIR/conf/masters.bak $FLINK_DIR/conf/masters
+        mv -f $FLINK_DIR/conf/masters.bak $FLINK_DIR/conf/masters
     fi
 
     # revert our modifications to the Flink conf yaml
     if [ -f $FLINK_DIR/conf/flink-conf.yaml.bak ]; then
-        rm $FLINK_DIR/conf/flink-conf.yaml
-        mv $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
+        mv -f $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
     fi
 }
 
@@ -158,7 +156,7 @@ function stop_cluster {
   "$FLINK_DIR"/bin/stop-cluster.sh
 
   # stop zookeeper only if there are processes running
-  if ! [ `jps | grep 'FlinkZooKeeperQuorumPeer' | wc -l` -eq 0 ]; then
+  if ! [ "`jps | grep 'FlinkZooKeeperQuorumPeer' | wc -l`" = "0" ]; then
     "$FLINK_DIR"/bin/zookeeper.sh stop
   fi
 
@@ -236,8 +234,15 @@ function check_result_hash {
   local outfile_prefix=$2
   local expected=$3
 
-  local actual=$(LC_ALL=C sort $outfile_prefix* | md5sum | awk '{print $1}' \
-    || LC_ALL=C sort $outfile_prefix* | md5 -q) || exit 2  # OSX
+  local actual
+  if [ "`command -v md5`" != "" ]; then
+    actual=$(LC_ALL=C sort $outfile_prefix* | md5 -q)
+  elif [ "`command -v md5sum`" != "" ]; then
+    actual=$(LC_ALL=C sort $outfile_prefix* | md5sum | awk '{print $1}')
+  else
+    echo "Neither 'md5' nor 'md5sum' binary available."
+    exit 2
+  fi
   if [[ "$actual" != "$expected" ]]
   then
     echo "FAIL $name: Output hash mismatch.  Got $actual, expected $expected."
@@ -301,7 +306,7 @@ function cleanup {
   stop_cluster
   check_all_pass
   rm -rf $TEST_DATA_DIR
-  rm $FLINK_DIR/log/*
+  rm -f $FLINK_DIR/log/*
   revert_default_config
 }
 trap cleanup EXIT
