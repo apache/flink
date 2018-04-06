@@ -228,9 +228,7 @@ class LocalBufferPool implements BufferPool {
 
 					if (segment != null) {
 						numberOfRequestedMemorySegments++;
-						availableMemorySegments.add(segment);
-
-						continue;
+						return segment;
 					}
 				}
 
