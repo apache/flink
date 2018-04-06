@@ -50,11 +50,15 @@ start_cluster
 
 # make sure to stop Kafka and ZooKeeper at the end, as well as cleaning up the Flink cluster and our moodifications
 function test_cleanup {
+  # don't call ourselves again for another signal interruption
+  trap "exit -1" INT
+  # don't call ourselves again for normal exit
+  trap "" EXIT
+
   stop_kafka_cluster
 
   # revert our modifications to the Flink distribution
-  rm $FLINK_DIR/conf/flink-conf.yaml
-  mv $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
+  mv -f $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
   rm $FLINK_DIR/lib/flink-metrics-slf4j-*.jar
 
   # make sure to run regular cleanup as well

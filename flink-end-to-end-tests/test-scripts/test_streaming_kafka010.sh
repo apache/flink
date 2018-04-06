@@ -30,11 +30,15 @@ sed -i -e "s/taskmanager.numberOfTaskSlots: 1/taskmanager.numberOfTaskSlots: 3/"
 start_cluster
 
 function test_cleanup {
+  # don't call ourselves again for another signal interruption
+  trap "exit -1" INT
+  # don't call ourselves again for normal exit
+  trap "" EXIT
+
   stop_kafka_cluster
 
   # revert our modifications to the Flink distribution
-  rm $FLINK_DIR/conf/flink-conf.yaml
-  mv $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
+  mv -f $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
 
   # make sure to run regular cleanup as well
   cleanup
