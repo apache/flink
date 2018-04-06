@@ -383,8 +383,15 @@ public class CsvReader {
 	}
 
 	/**
-	 * Configures the reader to read the CSV data and parse it to the {@link Row} type.
-	 * The type information for the fields is obtained from the type class.
+	 * <p>Configures the reader to read the CSV data and parse it to the {@link org.apache.flink.types.Row} type.
+	 * The type information for the fields is obtained from the type class.</p>
+	 * <p>To use custom types you need to implement custom parser factory and register it for custom type
+	 * <pre>{@code
+	 * ParserFactory<CustomType> factory = new CustomParser();
+	 * FieldParser.registerCustomParser(CustomType.class, factory);
+	 * DataSet<Row> data = env.readCsvFile(dataPath).rowType(CustomType.class);
+	 * }</pre>
+	 * </p>
 	 *
 	 * @param rowFieldsType The fields types which are mapped to CSV fields.
 	 * @return The DataSet representing the parsed CSV data.
@@ -403,7 +410,7 @@ public class CsvReader {
 	}
 
 	/**
-	 * Configures the reader to read the CSV data and parse it to the {@link Row} type.
+	 * Configures the reader to read the CSV data and parse it to the {@link org.apache.flink.types.Row} type.
 	 * The type information for the fields is obtained from the type information.
 	 *
 	 * @param rowFieldsTypeInformation The fields types information which are mapped to CSV fields.

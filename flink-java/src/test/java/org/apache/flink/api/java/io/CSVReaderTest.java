@@ -47,6 +47,7 @@ import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.FloatValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
+import org.apache.flink.types.Row;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
@@ -384,6 +385,31 @@ public class CSVReaderTest {
 		assertTrue(String.class.isAssignableFrom(pojoType.getTypeAt(0).getTypeClass()));
 		assertTrue(NestedCustomJsonType.class.isAssignableFrom(pojoType.getTypeAt(1).getTypeClass()));
 		assertTrue(NestedCustomJsonType.class.isAssignableFrom(pojoType.getTypeAt(2).getTypeClass()));
+	}
+
+	@Test
+	public void testWithRowType() throws Exception {
+		CsvReader reader = getCsvReader();
+		DataSource<Row> items =
+			reader.rowType(StringValue.class);
+		TypeInformation<?> info = items.getType();
+
+		assertTrue(info.isTupleType());
+		assertEquals(Row.class, info.getTypeClass());
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testWithInvalidRowType() throws Exception {
+		CsvReader reader = getCsvReader();
+		// CsvReader doesn't support CharValue
+		reader.rowType(CharValue.class);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testWithInvalidRowType2() throws Exception {
+		CsvReader reader = getCsvReader();
+		// CsvReader doesn't support custom Value type
+		reader.rowType(ValueItem.class);
 	}
 
 	private static CsvReader getCsvReader() {
