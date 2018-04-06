@@ -229,10 +229,12 @@ class SpillableSubpartition extends ResultSubpartition {
 
 				int numberOfBuffers = buffers.size();
 				long spilledBytes = spillFinishedBufferConsumers();
+				int spilledBuffers = numberOfBuffers - buffers.size();
 
-				LOG.debug("Spilling {} bytes for sub partition {} of {}.", spilledBytes, index, parent.getPartitionId());
+				LOG.debug("Spilling {} bytes ({} buffers} for sub partition {} of {}.",
+					spilledBytes, spilledBuffers, index, parent.getPartitionId());
 
-				return numberOfBuffers - buffers.size();
+				return spilledBuffers;
 			}
 		}
 
