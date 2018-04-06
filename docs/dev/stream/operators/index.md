@@ -123,9 +123,9 @@ dataStream.keyBy(0) // Key by the first element of a Tuple
           <td>
             <p>A "rolling" reduce on a keyed data stream. Combines the current element with the last reduced value and
             emits the new value.
-                    <br/>
+              <br/>
             	<br/>
-            A reduce function that creates a stream of partial sums:</p>
+            <p>A reduce function that creates a stream of partial sums:</p>
             {% highlight java %}
 keyedStream.reduce(new ReduceFunction<Integer>() {
     @Override
