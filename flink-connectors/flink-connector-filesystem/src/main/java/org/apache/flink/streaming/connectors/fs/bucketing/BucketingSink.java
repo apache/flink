@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.fs.Clock;
 import org.apache.flink.streaming.connectors.fs.RollingSink;
 import org.apache.flink.streaming.connectors.fs.SequenceFileWriter;
+import org.apache.flink.streaming.connectors.fs.StreamWriterBase;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.connectors.fs.Writer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
@@ -44,6 +45,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.slf4j.Logger;
@@ -254,6 +256,12 @@ public class BucketingSink<T>
 	 */
 	private Writer<T> writerTemplate;
 
+	/**
+	 * Writing to the local filesystem abstraction requires to sync {@link FSDataOutputStream} on
+	 * flush for avoiding data loss. By default we set this behavior automatically on writer templates.
+	 */
+	private boolean localSyncOnFlush = true;
+
 	private long batchSize = DEFAULT_BATCH_SIZE;
 	private long inactiveBucketCheckInterval = DEFAULT_INACTIVE_BUCKET_CHECK_INTERVAL_MS;
 	private long inactiveBucketThreshold = DEFAULT_INACTIVE_BUCKET_THRESHOLD_MS;
@@ -280,7 +288,7 @@ public class BucketingSink<T>
 
 	// --------------------------------------------------------------------------------------------
 	//  Internal fields (not configurable by user)
-	// -------------------------------------------§-------------------------------------------------
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * We use reflection to get the .truncate() method, this is only available starting with Hadoop 2.7 .
@@ -347,6 +355,16 @@ public class BucketingSink<T>
 		return this;
 	}
 
+	/**
+	 * Writing to the local filesystem abstraction requires to sync {@link FSDataOutputStream} on
+	 * flush for avoiding data loss. By default we set this behavior, if this is
+	 * not desired it can be disabled with this method.
+	 */
+	public BucketingSink<T> setLocalSyncOnFlush(boolean localSyncOnFlush) {
+		this.localSyncOnFlush = localSyncOnFlush;
+		return this;
+	}
+
 	@Override
 	@SuppressWarnings("unchecked")
 	public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
@@ -364,6 +382,11 @@ public class BucketingSink<T>
 		} catch (IOException e) {
 			LOG.error("Error while creating FileSystem when initializing the state of the BucketingSink.", e);
 			throw new RuntimeException("Error while creating FileSystem when initializing the state of the BucketingSink.", e);
+		}
+
+		// sync on flush for local file systems
+		if (localSyncOnFlush && (fs instanceof LocalFileSystem) && (writerTemplate instanceof StreamWriterBase)) {
+			((StreamWriterBase) writerTemplate).setSyncOnFlush(true);
 		}
 
 		if (this.refTruncate == null) {
@@ -843,9 +866,13 @@ public class BucketingSink<T>
 						}
 					}
 				} else {
-					LOG.debug("Writing valid-length file for {} to specify valid length {}", partPath, validLength);
 					Path validLengthFilePath = getValidLengthPathFor(partPath);
 					if (!fs.exists(validLengthFilePath) && fs.exists(partPath)) {
+						LOG.debug("Writing valid-length file for {} to specify valid length {}", partPath, validLength);
+						final long partLen = fs.getFileStatus(partPath).getLen();
+						if (partLen < validLength) {
+							throw new RuntimeException("Invalid file length. Length " + validLength + " should not be smaller than part length " + partLen + ".");
+						}
 						FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath);
 						lengthFileOut.writeUTF(Long.toString(validLength));
 						lengthFileOut.close();

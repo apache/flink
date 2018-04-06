@@ -54,50 +54,23 @@ import java.util.regex.Pattern;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for {@link BucketingSink}.
- *
+ * Fault tolerance test base for {@link BucketingSink}.
  *
  * <p>This test only verifies the exactly once behaviour of the sink. Another test tests the
  * rolling behaviour.
  */
-public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestBase {
+public class BucketingSinkFaultToleranceBase extends StreamFaultToleranceTestBase {
 
 	static final long NUM_STRINGS = 16_000;
 
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
-	private static MiniDFSCluster hdfsCluster;
-	private static org.apache.hadoop.fs.FileSystem dfs;
-
-	private static String outPath;
-
 	private static final String PENDING_SUFFIX = ".pending";
 	private static final String IN_PROGRESS_SUFFIX = ".in-progress";
 
-	@BeforeClass
-	public static void createHDFS() throws IOException {
-		Configuration conf = new Configuration();
-
-		File dataDir = tempFolder.newFolder();
-
-		conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, dataDir.getAbsolutePath());
-		MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
-		hdfsCluster = builder.build();
-
-		dfs = hdfsCluster.getFileSystem();
-
-		outPath = "hdfs://"
-				+ NetUtils.hostAndPortToUrlString(hdfsCluster.getURI().getHost(), hdfsCluster.getNameNodePort())
-				+ "/string-non-rolling-out";
-	}
-
-	@AfterClass
-	public static void destroyHDFS() {
-		if (hdfsCluster != null) {
-			hdfsCluster.shutdown();
-		}
-	}
+	protected static org.apache.hadoop.fs.FileSystem dfs;
+	protected static String outPath;
 
 	@Override
 	public void testProgram(StreamExecutionEnvironment env) {
@@ -152,7 +125,6 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 					FSDataInputStream inStream = dfs.open(file.getPath().suffix(".valid-length"));
 					String validLengthString = inStream.readUTF();
 					validLength = Integer.parseInt(validLengthString);
-					System.out.println("VALID LENGTH: " + validLength);
 				}
 				FSDataInputStream inStream = dfs.open(file.getPath());
 				byte[] buffer = new byte[validLength];
