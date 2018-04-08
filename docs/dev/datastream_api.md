@@ -192,7 +192,7 @@ Collection-based:
 
 Custom:
 
-- `addSource` - Attache a new source function. For example, to read from Apache Kafka you can use
+- `addSource` - Attach a new source function. For example, to read from Apache Kafka you can use
     `addSource(new FlinkKafkaConsumer08<>(...))`. See [connectors]({{ site.baseurl }}/dev/connectors/index.html) for more details.
 
 </div>
