@@ -28,8 +28,6 @@ import org.apache.flink.types.parser.ParserFactory;
 
 import org.junit.Test;
 
-import static org.apache.flink.test.io.CsvReaderITUtils.createInputData;
-
 /**
  * A collection of tests for checking different approaches of operating over user-defined Row types,
  * utilizing newly introduced CsvReader methods.
