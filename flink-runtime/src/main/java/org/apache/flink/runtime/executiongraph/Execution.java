@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -409,7 +410,13 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			// IMPORTANT: We have to use the synchronous handle operation (direct executor) here so
 			// that we directly deploy the tasks if the slot allocation future is completed. This is
 			// necessary for immediate deployment.
-			final CompletableFuture<Void> deploymentFuture = allocationFuture.handle(
+			final CompletableFuture<Void> deploymentFuture = allocationFuture.exceptionally((Throwable t) -> {
+				if (t.getCause() instanceof TimeoutException) {
+					throw new CompletionException(new NoResourceAvailableException("Can't allocated resource for "
+						+ this.vertex + ", possibly there is no more slot available..."));
+				}
+				throw new CompletionException(t.getCause());
+			}).handle(
 				(Execution ignored, Throwable throwable) -> {
 					if (throwable != null) {
 						markFailed(ExceptionUtils.stripCompletionException(throwable));
