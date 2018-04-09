@@ -18,21 +18,9 @@
 
 package org.apache.flink.test.io;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeHint;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.CsvReader;
-import org.apache.flink.api.java.operators.DataSource;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple8;
-import org.apache.flink.test.io.csv.custom.type.NestedCustomJsonType;
-import org.apache.flink.test.io.csv.custom.type.NestedCustomJsonTypeStringParser;
-import org.apache.flink.test.io.csv.custom.type.complex.GenericsAwareCustomJsonType;
-import org.apache.flink.test.io.csv.custom.type.simple.SimpleCustomJsonType;
-import org.apache.flink.test.io.csv.custom.type.simple.SimpleCustomJsonTypeStringParser;
-import org.apache.flink.test.io.csv.custom.type.simple.Tuple3ContainerType;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.BooleanValue;
 import org.apache.flink.types.ByteValue;
@@ -43,24 +31,16 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.types.parser.FieldParser;
-import org.apache.flink.types.parser.ParserFactory;
-import org.apache.flink.util.FileUtils;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.io.File;
-import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Locale;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.test.io.CsvReaderITUtils.createInputData;
 
 /**
  * Tests for {@link ExecutionEnvironment#readCsvFile}.
@@ -76,17 +56,10 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	private String createInputData(String data) throws Exception {
-		File file = tempFolder.newFile("input");
-		FileUtils.writeFileUtf8(file, data);
-
-		return file.toURI().toString();
-	}
-
 	@Test
 	public void testPOJOType() throws Exception {
 		final String inputData = "ABC,2.20,3\nDEF,5.1,5\nDEF,3.30,1\nGHI,3.30,10";
-		final String dataPath = createInputData(inputData);
+		final String dataPath = createInputData(tempFolder, inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<POJOItem> data = env.readCsvFile(dataPath).pojoType(POJOItem.class, new String[]{"f1", "f3", "f2"});
@@ -99,7 +72,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testPOJOTypeWithFieldsOrder() throws Exception {
 		final String inputData = "2.20,ABC,3\n5.1,DEF,5\n3.30,DEF,1\n3.30,GHI,10";
-		final String dataPath = createInputData(inputData);
+		final String dataPath = createInputData(tempFolder, inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<POJOItem> data = env.readCsvFile(dataPath).pojoType(POJOItem.class, new String[]{"f3", "f1", "f2"});
@@ -112,7 +85,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 	@Test(expected = NullPointerException.class)
 	public void testPOJOTypeWithoutFieldsOrder() throws Exception {
 		final String inputData = "";
-		final String dataPath = createInputData(inputData);
+		final String dataPath = createInputData(tempFolder, inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		env.readCsvFile(dataPath).pojoType(POJOItem.class, null);
@@ -121,7 +94,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testPOJOTypeWithFieldsOrderAndFieldsSelection() throws Exception {
 		final String inputData = "3,2.20,ABC\n5,5.1,DEF\n1,3.30,DEF\n10,3.30,GHI";
-		final String dataPath = createInputData(inputData);
+		final String dataPath = createInputData(tempFolder, inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<POJOItem> data = env.readCsvFile(dataPath).includeFields(true, false, true).pojoType(POJOItem.class, new String[]{"f2", "f1"});
@@ -134,7 +107,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testValueTypes() throws Exception {
 		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
-		final String dataPath = createInputData(inputData);
+		final String dataPath = createInputData(tempFolder, inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple8<StringValue, BooleanValue, ByteValue, ShortValue, IntValue, LongValue, FloatValue, DoubleValue>> data =
@@ -146,127 +119,9 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testSimpleCustomJsonType() throws Exception {
-		final String inputData = "1,'column2','{\"f1\":5, \"f2\":\"some_string\", \"f3\": {\"f21\":\"nested_level1_f31\"}}'\n";
-		final String dataPath = createInputData(inputData);
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		CsvReader reader = env.readCsvFile(dataPath);
-		reader.fieldDelimiter(",");
-		reader.parseQuotedStrings('\'');
-
-		ParserFactory<SimpleCustomJsonType> factory = new SimpleCustomJsonParser();
-		FieldParser.registerCustomParser(SimpleCustomJsonType.class, factory);
-
-		DataSource<Tuple3<Integer, String, SimpleCustomJsonType>> dataSource = reader.preciseTypes(
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO,
-			TypeInformation.of(SimpleCustomJsonType.class)
-		);
-		List<Tuple3<Integer, String, SimpleCustomJsonType>> result = dataSource.collect();
-		verifyCollectedItems(result);
-
-		DataSource<Tuple3ContainerType> dataSource1 = reader.tupleType(Tuple3ContainerType.class);
-		List<Tuple3ContainerType> result1 = dataSource1.collect();
-		verifyCollectedItems(result1);
-	}
-
-	@Test
-	public void testSimpleCustomJsonTypePojoType() throws Exception{
-		final String inputData = "5,some_string,{\"f21\":\"nested_level1_f31\"}\n";
-		final String dataPath = createInputData(inputData);
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		CsvReader reader = env.readCsvFile(dataPath);
-		reader.fieldDelimiter(",");
-		reader.parseQuotedStrings('\'');
-
-		ParserFactory<NestedCustomJsonType> factory = new ParserFactory<NestedCustomJsonType>() {
-			@Override
-			public Class<? extends FieldParser<NestedCustomJsonType>> getParserType() {
-				return NestedCustomJsonTypeStringParser.class;
-			}
-
-			@Override
-			public FieldParser<NestedCustomJsonType> create() {
-				return new NestedCustomJsonTypeStringParser();
-			}
-		};
-
-		FieldParser.registerCustomParser(NestedCustomJsonType.class, factory);
-
-		DataSource<SimpleCustomJsonType> dataSource = reader.pojoType(SimpleCustomJsonType.class, "f1", "f2", "f3");
-		List<SimpleCustomJsonType> result = dataSource.collect();
-		verifySimpleCustomJsonTypeItems(result);
-	}
-
-	@Test
-	public void testGenericsAwareCustomJsonTypePojoType() throws Exception{
-		final String inputData = "some_string,{\"f21\":\"nested_level1_f31\"},5\n";
-		final String dataPath = createInputData(inputData);
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		CsvReader reader = env.readCsvFile(dataPath);
-		reader.fieldDelimiter(",");
-		reader.parseQuotedStrings('\'');
-
-		TypeHint<GenericsAwareCustomJsonType<Integer>> typeHint = new TypeHint<GenericsAwareCustomJsonType<Integer>>() {};
-		TypeInformation<GenericsAwareCustomJsonType<Integer>> typeInfo = TypeInformation.of(typeHint);
-		Class<GenericsAwareCustomJsonType<Integer>> type = typeInfo.getTypeClass();
-
-		ParserFactory<NestedCustomJsonType> factory = new ParserFactory<NestedCustomJsonType>() {
-			@Override
-			public Class<? extends FieldParser<NestedCustomJsonType>> getParserType() {
-				return NestedCustomJsonTypeStringParser.class;
-			}
-
-			@Override
-			public FieldParser<NestedCustomJsonType> create() {
-				return new NestedCustomJsonTypeStringParser();
-			}
-		};
-		FieldParser.registerCustomParser(NestedCustomJsonType.class, factory);
-
-		DataSource<GenericsAwareCustomJsonType<Integer>> dataSource = reader.precisePojoType(type,
-			new String[]{"f1", "f2", "f3"},
-			new TypeInformation[]{TypeInformation.of(String.class),
-				TypeInformation.of(NestedCustomJsonType.class),
-				TypeInformation.of(Integer.class)});
-		List<GenericsAwareCustomJsonType<Integer>> result = dataSource.collect();
-
-		verifyGenericsAwareCustomJsonTypeItems(result);
-	}
-
-	private void verifyGenericsAwareCustomJsonTypeItems(List<GenericsAwareCustomJsonType<Integer>> result) {
-		assertEquals(1, result.size());
-		GenericsAwareCustomJsonType<Integer> genericsAwareCustomJsonType = result.get(0);
-		assertEquals("some_string", genericsAwareCustomJsonType.getF1());
-		assertEquals("nested_level1_f31", genericsAwareCustomJsonType.getF2().getF21());
-		assertEquals(Integer.valueOf(5), genericsAwareCustomJsonType.getF3());
-		assertTrue(Integer.class.isAssignableFrom(genericsAwareCustomJsonType.getF3().getClass()));
-	}
-
-	private void verifySimpleCustomJsonTypeItems(List<SimpleCustomJsonType> result) {
-		assertEquals(1, result.size());
-		SimpleCustomJsonType simpleCustomJsonType = result.get(0);
-		assertEquals(5, simpleCustomJsonType.getF1());
-		assertEquals("some_string", simpleCustomJsonType.getF2());
-		assertEquals("nested_level1_f31", simpleCustomJsonType.getF3().getF21());
-	}
-
-	private void verifyCollectedItems(List<? extends Tuple3<Integer, String, SimpleCustomJsonType>> result) {
-		assertTrue(result.size() == 1);
-		Tuple3<Integer, String, SimpleCustomJsonType> tuple = result.get(0);
-		assertEquals(1, tuple.f0.intValue());
-		assertEquals("column2", tuple.f1);
-		assertNotNull(tuple.f2);
-		assertEquals(5, tuple.f2.getF1());
-		assertEquals("some_string", tuple.f2.getF2());
-		assertNotNull(tuple.f2.getF3());
-		assertEquals("nested_level1_f31", tuple.f2.getF3().getF21());
-	}
-
-	@Test
 	public void testRowType() throws Exception {
 		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
-		final String dataPath = createInputData(inputData);
+		final String dataPath = createInputData(tempFolder, inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Row> data = env.readCsvFile(dataPath)
 			.rowType(StringValue.class, BooleanValue.class, ByteValue.class, ShortValue.class, IntValue.class, LongValue.class, FloatValue.class, DoubleValue.class);
@@ -277,26 +132,9 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testRowTypeWithCustomType() throws Exception {
-		final String inputData = "1,'column2','{\"f1\":5, \"f2\":\"some_string\", \"f3\": {\"f21\":\"nested_simple_f31\"}}'\n";
-		final String dataPath = createInputData(inputData);
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		ParserFactory<SimpleCustomJsonType> factory = new SimpleCustomJsonParser();
-		FieldParser.registerCustomParser(SimpleCustomJsonType.class, factory);
-
-		DataSet<Row> data = env.readCsvFile(dataPath)
-			.rowType(IntValue.class, StringValue.class, SimpleCustomJsonType.class);
-		final List<Row> result = data.collect();
-
-		expected = "1,'column2',SimpleCustomJsonType{f1=5,f2='some_string',f3=NestedCustomJsonType{f21='nested_simple_f31'}}";
-		compareResultAsText(result, expected);
-	}
-
-	@Test
 	public void testRowTypeWithFieldsSelection() throws Exception {
 		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
-		final String dataPath = createInputData(inputData);
+		final String dataPath = createInputData(tempFolder, inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Row> data = env.readCsvFile(dataPath)
 			.includeFields(true, true, false, false, true, false, true) //last value will omitted because not present in included fields
@@ -310,7 +148,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testRowTypeWithFieldsSelectionWrongArity() throws Exception {
 		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
-		final String dataPath = createInputData(inputData);
+		final String dataPath = createInputData(tempFolder, inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		env.readCsvFile(dataPath)
@@ -321,7 +159,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testRowTypeWithNullFieldTypes() throws Exception {
 		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
-		final String dataPath = createInputData(inputData);
+		final String dataPath = createInputData(tempFolder, inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		env.readCsvFile(dataPath).rowType(null);
@@ -330,7 +168,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testRowTypeWithEmptyFieldType() throws Exception {
 		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
-		final String dataPath = createInputData(inputData);
+		final String dataPath = createInputData(tempFolder, inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		env.readCsvFile(dataPath).rowType();
@@ -358,19 +196,4 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 		}
 	}
 
-	/**
-	 * Custom Parsers
-	 */
-	static final class SimpleCustomJsonParser implements ParserFactory<SimpleCustomJsonType> {
-
-		@Override
-		public Class<? extends FieldParser<SimpleCustomJsonType>> getParserType() {
-			return SimpleCustomJsonTypeStringParser.class;
-		}
-
-		@Override
-		public FieldParser<SimpleCustomJsonType> create() {
-			return new SimpleCustomJsonTypeStringParser();
-		}
-	}
 }

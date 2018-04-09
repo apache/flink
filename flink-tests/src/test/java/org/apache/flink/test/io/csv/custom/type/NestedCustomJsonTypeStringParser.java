@@ -18,10 +18,9 @@
 
 package org.apache.flink.test.io.csv.custom.type;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.StringParser;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 

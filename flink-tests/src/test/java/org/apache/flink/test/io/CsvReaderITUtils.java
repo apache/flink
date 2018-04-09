@@ -16,49 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.io.csv.custom.type.simple;
+package org.apache.flink.test.io;
 
-import org.apache.flink.test.io.csv.custom.type.NestedCustomJsonType;
+import org.apache.flink.util.FileUtils;
+import org.junit.rules.TemporaryFolder;
 
-/**
- * A user-defined type (without any Java Generics) that is represented in one or several csv fields.
- */
-public class SimpleCustomJsonType {
+import java.io.File;
 
-	private int f1;
-	private String f2;
-	private NestedCustomJsonType f3;
+public class CsvReaderITUtils {
 
-	public int getF1() {
-		return f1;
-	}
+	static String createInputData(TemporaryFolder tempFolder, String data) throws Exception {
+		File file = tempFolder.newFile("input");
+		FileUtils.writeFileUtf8(file, data);
 
-	public void setF1(int f1) {
-		this.f1 = f1;
-	}
-
-	public String getF2() {
-		return f2;
-	}
-
-	public void setF2(String f2) {
-		this.f2 = f2;
-	}
-
-	public NestedCustomJsonType getF3() {
-		return f3;
-	}
-
-	public void setF3(NestedCustomJsonType f3) {
-		this.f3 = f3;
-	}
-
-	@Override
-	public String toString() {
-		return "SimpleCustomJsonType{" +
-			"f1=" + f1 +
-			",f2='" + f2 + "'" +
-			",f3=" + f3 +
-			'}';
+		return file.toURI().toString();
 	}
 }
