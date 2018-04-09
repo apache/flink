@@ -52,9 +52,11 @@ import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.tuple.Tuple9;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -380,9 +382,78 @@ public class CsvReader {
 		return new DataSource<T>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
 	}
 
+	/**
+	 * <p>Configures the reader to read the CSV data and parse it to the {@link org.apache.flink.types.Row} type.
+	 * The type information for the fields is obtained from the type class.</p>
+	 * <p>To use custom types you need to implement custom parser factory and register it for custom type
+	 * <pre>{@code
+	 * ParserFactory<CustomType> factory = new CustomParser();
+	 * FieldParser.registerCustomParser(CustomType.class, factory);
+	 * DataSet<Row> data = env.readCsvFile(dataPath).rowType(CustomType.class);
+	 * }</pre>
+	 * </p>
+	 *
+	 * @param rowFieldsType The fields types which are mapped to CSV fields.
+	 * @return The DataSet representing the parsed CSV data.
+	 */
+	public DataSource<Row> rowType(Class<?>... rowFieldsType) {
+		if (rowFieldsType == null || rowFieldsType.length == 0) {
+			throw new IllegalArgumentException("Row row fields type must not be null or empty.");
+		}
+
+		final TypeInformation<?>[] fieldTypes = new TypeInformation[rowFieldsType.length];
+		for (int i = 0; i < rowFieldsType.length; i++) {
+			fieldTypes[i] = TypeExtractor.createTypeInfo(rowFieldsType[i]);
+		}
+
+		return preciseRowType(fieldTypes);
+	}
+
+	/**
+	 * Configures the reader to read the CSV data and parse it to the {@link org.apache.flink.types.Row} type.
+	 * The type information for the fields is obtained from the type information.
+	 *
+	 * @param rowFieldsTypeInformation The fields types information which are mapped to CSV fields.
+	 * @return The DataSet representing the parsed CSV data.
+	 */
+	private DataSource<Row> preciseRowType(TypeInformation<?>... rowFieldsTypeInformation) {
+		if (rowFieldsTypeInformation == null || rowFieldsTypeInformation.length == 0) {
+			throw new IllegalArgumentException("Row fields type information must not be null or empty.");
+		}
+
+		final RowCsvInputFormat inputFormat;
+		if (this.includedMask != null) {
+			final int[] selectedFields = prepareSelectedFields(rowFieldsTypeInformation.length);
+			inputFormat = new RowCsvInputFormat(path, rowFieldsTypeInformation, this.lineDelimiter, this.fieldDelimiter, selectedFields);
+		} else {
+			inputFormat = new RowCsvInputFormat(path, rowFieldsTypeInformation, this.lineDelimiter, this.fieldDelimiter);
+		}
+
+		final RowTypeInfo typeInfo = new RowTypeInfo(rowFieldsTypeInformation);
+		configureInputFormat(inputFormat);
+		return new DataSource<Row>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Miscellaneous
 	// --------------------------------------------------------------------------------------------
+
+	private int[] prepareSelectedFields(int rowLength) {
+		final int[] selectedFields = new int[rowLength];
+		int pos = 0;
+		for (int i = 0; i < this.includedMask.length; i++) {
+			if (this.includedMask[i]) {
+				selectedFields[pos] = i;
+				pos++;
+			}
+		}
+
+		if (pos != rowLength) {
+			throw new IllegalArgumentException("Number of included fields must be equal row arity");
+		}
+
+		return selectedFields;
+	}
 
 	private void configureInputFormat(CsvInputFormat<?> format) {
 		format.setCharset(this.charset);

@@ -36,6 +36,7 @@ import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.FloatValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
+import org.apache.flink.types.Row;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.parser.FieldParser;
@@ -148,18 +149,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 		reader.fieldDelimiter(",");
 		reader.parseQuotedStrings('\'');
 
-		ParserFactory<SimpleCustomJsonType> factory = new ParserFactory<SimpleCustomJsonType>() {
-			@Override
-			public Class<? extends FieldParser<SimpleCustomJsonType>> getParserType() {
-				return SimpleCustomJsonTypeStringParser.class;
-			}
-
-			@Override
-			public FieldParser<SimpleCustomJsonType> create() {
-				return new SimpleCustomJsonTypeStringParser();
-			}
-		};
-
+		ParserFactory<SimpleCustomJsonType> factory = new SimpleCustomJsonParser();
 		FieldParser.registerCustomParser(SimpleCustomJsonType.class, factory);
 
 		DataSource<Tuple3<Integer, String, SimpleCustomJsonType>> dataSource = reader.preciseTypes(
@@ -188,6 +178,79 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 		assertEquals("nested_level1_f31", tuple.f2.getF3().getF21());
 	}
 
+	@Test
+	public void testRowType() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Row> data = env.readCsvFile(dataPath)
+			.rowType(StringValue.class, BooleanValue.class, ByteValue.class, ShortValue.class, IntValue.class, LongValue.class, FloatValue.class, DoubleValue.class);
+		List<Row> result = data.collect();
+
+		expected = inputData;
+		compareResultAsText(result, expected);
+	}
+
+	@Test
+	public void testRowTypeWithCustomType() throws Exception {
+		final String inputData = "1,'column2','{\"f1\":5, \"f2\":\"some_string\", \"f3\": {\"f21\":\"nested_simple_f31\"}}'\n";
+		final String dataPath = createInputData(inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		ParserFactory<SimpleCustomJsonType> factory = new SimpleCustomJsonParser();
+		FieldParser.registerCustomParser(SimpleCustomJsonType.class, factory);
+
+		DataSet<Row> data = env.readCsvFile(dataPath)
+			.rowType(IntValue.class, StringValue.class, SimpleCustomJsonType.class);
+		final List<Row> result = data.collect();
+
+		expected = "1,'column2',SimpleCustomJsonType{f1=5,f2='some_string',f3=NestedCustomJsonType{f21='nested_simple_f31'}}";
+		compareResultAsText(result, expected);
+	}
+
+	@Test
+	public void testRowTypeWithFieldsSelection() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Row> data = env.readCsvFile(dataPath)
+			.includeFields(true, true, false, false, true, false, true) //last value will omitted because not present in included fields
+			.rowType(StringValue.class, BooleanValue.class, IntValue.class, DoubleValue.class);
+		List<Row> result = data.collect();
+
+		expected = "ABC,true,3,5.0\nBCD,false,3,5.0";
+		compareResultAsText(result, expected);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testRowTypeWithFieldsSelectionWrongArity() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		env.readCsvFile(dataPath)
+			.includeFields(false, true, false)
+			.rowType(StringValue.class, StringValue.class);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testRowTypeWithNullFieldTypes() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		env.readCsvFile(dataPath).rowType(null);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testRowTypeWithEmptyFieldType() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		env.readCsvFile(dataPath).rowType();
+	}
+
 	/**
 	 * POJO.
 	 */
@@ -207,6 +270,22 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 		@Override
 		public String toString() {
 			return String.format(Locale.US, "%s,%d,%.02f", f1, f2, f3);
+		}
+	}
+
+	/**
+	 * Custom Parsers
+	 */
+	static final class SimpleCustomJsonParser implements ParserFactory<SimpleCustomJsonType> {
+
+		@Override
+		public Class<? extends FieldParser<SimpleCustomJsonType>> getParserType() {
+			return SimpleCustomJsonTypeStringParser.class;
+		}
+
+		@Override
+		public FieldParser<SimpleCustomJsonType> create() {
+			return new SimpleCustomJsonTypeStringParser();
 		}
 	}
 }
