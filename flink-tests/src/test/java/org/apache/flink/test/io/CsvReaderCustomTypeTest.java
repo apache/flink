@@ -4,12 +4,16 @@ import org.apache.flink.api.java.io.CsvReader;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.test.io.csv.custom.type.NestedCustomJsonType;
 import org.apache.flink.test.io.csv.custom.type.NestedCustomJsonTypeStringParser;
+import org.apache.flink.test.io.csv.custom.type.complex.GenericsAwareCustomJsonType;
+import org.apache.flink.test.io.csv.custom.type.complex.GenericsAwareCustomJsonTypeStringParser;
 import org.apache.flink.test.io.csv.custom.type.simple.SimpleCustomJsonType;
 import org.apache.flink.test.io.csv.custom.type.simple.SimpleCustomJsonTypeStringParser;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.ParserFactory;
+import org.apache.flink.util.Preconditions;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -79,6 +83,26 @@ public abstract class CsvReaderCustomTypeTest extends MultipleProgramsTestBase {
 		@Override
 		public FieldParser<SimpleCustomJsonType> create() {
 			return new SimpleCustomJsonTypeStringParser();
+		}
+	}
+
+	static final class GenericsAwareCustomJsonParserFactory<T> implements ParserFactory<GenericsAwareCustomJsonType<T>> {
+
+		private TypeReference<GenericsAwareCustomJsonType<T>> typeReference;
+
+		public GenericsAwareCustomJsonParserFactory(TypeReference<GenericsAwareCustomJsonType<T>> typeReference) {
+			Preconditions.checkNotNull(typeReference);
+			this.typeReference = typeReference;
+		}
+
+		@Override
+		public Class<? extends FieldParser<GenericsAwareCustomJsonType<T>>> getParserType() {
+			return (Class<FieldParser<GenericsAwareCustomJsonType<T>>>) (Class<?>) GenericsAwareCustomJsonTypeStringParser.class;
+		}
+
+		@Override
+		public FieldParser<GenericsAwareCustomJsonType<T>> create() {
+			return new GenericsAwareCustomJsonTypeStringParser<T>(typeReference);
 		}
 	}
 }
