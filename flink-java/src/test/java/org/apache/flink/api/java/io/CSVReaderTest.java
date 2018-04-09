@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.csv.custom.type.NestedCustomJsonType;
+import org.apache.flink.api.java.io.csv.custom.type.NestedCustomJsonTypeStringParser;
 import org.apache.flink.api.java.io.csv.custom.type.complex.GenericsAwareCustomJsonType;
 import org.apache.flink.api.java.io.csv.custom.type.complex.GenericsAwareCustomJsonTypeStringParser;
 import org.apache.flink.api.java.io.csv.custom.type.complex.Tuple3ContainerType;
@@ -330,6 +331,19 @@ public class CSVReaderTest {
 		};
 		FieldParser.registerCustomParser(SimpleCustomJsonType.class, factory);
 
+		ParserFactory<NestedCustomJsonType> factory1 = new ParserFactory<NestedCustomJsonType>() {
+			@Override
+			public Class<? extends FieldParser<NestedCustomJsonType>> getParserType() {
+				return NestedCustomJsonTypeStringParser.class;
+			}
+
+			@Override
+			public FieldParser<NestedCustomJsonType> create() {
+				return new NestedCustomJsonTypeStringParser();
+			}
+		};
+		FieldParser.registerCustomParser(NestedCustomJsonType.class, factory1);
+
 		CsvReader reader = getCsvReader();
 		DataSource<?> simpleType = reader.preciseTypes(TypeInformation.of(SimpleCustomJsonType.class));
 		assertEquals(true, simpleType.getType().isTupleType());
@@ -338,10 +352,13 @@ public class CSVReaderTest {
 		DataSource<?> simpleType2 = reader.tupleType(Tuple1ContainerType.class);
 		assertEquals(true, simpleType2.getType().isTupleType());
 		assertTrue(Tuple1.class.isAssignableFrom(simpleType2.getType().getTypeClass()));
+
+		DataSource<?> simpleType3 = reader.pojoType(SimpleCustomJsonType.class);
+		assertTrue(SimpleCustomJsonType.class.isAssignableFrom(simpleType3.getType().getTypeClass()));
 	}
 
 	@Test
-	public void testWorkingWithComplexCustomType() {
+	public void testWorkingWithComplexCustomType() throws NoSuchFieldException {
 		ParserFactory<GenericsAwareCustomJsonType<NestedCustomJsonType>> factory = new ParserFactory<GenericsAwareCustomJsonType<NestedCustomJsonType>>() {
 			@Override
 			public Class<? extends FieldParser<GenericsAwareCustomJsonType<NestedCustomJsonType>>> getParserType() {
@@ -369,6 +386,9 @@ public class CSVReaderTest {
 
 		DataSource<Tuple3ContainerType> dataSource1 = reader.tupleType(Tuple3ContainerType.class);
 		verifyDataSource(dataSource1, Tuple3ContainerType.class);
+
+		DataSource<GenericsAwareCustomJsonType<NestedCustomJsonType>> dataSource2 = reader.precisePojoType(typeInfo.getTypeClass(), new String[]{}, new TypeInformation[]{});
+		assertTrue(GenericsAwareCustomJsonType.class.isAssignableFrom(dataSource2.getType().getTypeClass()));
 	}
 
 	private void verifyDataSource(DataSource<?> dataSource, Class targetType) {

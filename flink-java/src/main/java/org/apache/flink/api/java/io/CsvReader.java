@@ -51,6 +51,7 @@ import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.tuple.Tuple9;
+import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -59,6 +60,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -347,6 +349,66 @@ public class CsvReader {
 
 		@SuppressWarnings("unchecked")
 		PojoTypeInfo<T> typeInfo = (PojoTypeInfo<T>) TypeExtractor.createTypeInfo(pojoType);
+
+		CsvInputFormat<T> inputFormat = new PojoCsvInputFormat<T>(path, this.lineDelimiter, this.fieldDelimiter, typeInfo, pojoFields, this.includedMask);
+
+		configureInputFormat(inputFormat);
+
+		return new DataSource<T>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Configures the reader to read the CSV data and parse it to the given type.The all fields of the type
+	 * must be public or able to set value. The type information for the fields is obtained from the type class.
+	 * This method created to specify types of fields of provided POJO and may be useful in case of generified class.
+	 * With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types, e.g.
+	 * <pre>
+	 * {@code
+	 *
+	 *  TypeHint<GenericPojo<Integer>> typeHint = new TypeHint<GenericPojo<Integer>>() {};
+	 *  TypeInformation<GenericPojo<Integer>> typeInfo = TypeInformation.of(typeHint);
+	 *  Class<GenericPojo<Integer>> type = typeInfo.getTypeClass();
+	 *
+	 *  DataSource<GenericPojo<Integer>> genericPojoDataSource = genericPojoReader.precisePojoType(
+	 *  	type,
+	 *  	new String[]{"string", "number"},
+	 *  	new TypeInformation[]{
+	 *  		TypeInformation.of(String.class),
+	 * 			TypeInformation.of(Integer.class)});}
+	 * </pre>
+	 * 	where "string" and "number" are fields of GenericPojo class and second field parametrized:
+	 * 	<pre>
+	 * 	{@code
+	 *
+	 *  public class GenericPojo<T> {
+	 *  	private String string;
+	 *  	private T number;
+	 *  	...
+	 *  }}
+	 * </pre>
+	 * @param pojoType The class of the target POJO.
+	 * @param pojoFields The fields of the POJO which are mapped to CSV fields.
+	 * @param fieldTypes The field types that will be set to readed fields.
+	 * @return The DataSet representing the parsed CSV data.
+	 * @throws NoSuchFieldException thrown in case of no field with given name was found.
+	 */
+	public <T> DataSource<T> precisePojoType(Class<T> pojoType, String[] pojoFields, TypeInformation[] fieldTypes) throws NoSuchFieldException {
+		Preconditions.checkNotNull(pojoType, "The POJO type class must not be null.");
+		Preconditions.checkNotNull(pojoFields, "POJO fields must be specified (not null) if output type is a POJO.");
+		Preconditions.checkNotNull(fieldTypes, "Types of POJO fields must be specified (not null) if output type is a POJO.");
+		if (pojoFields.length != fieldTypes.length) {
+			throw new ArrayIndexOutOfBoundsException("Number of fields and field types are not equal");
+		}
+		ArrayList<PojoField> fields = new ArrayList<>();
+
+		for (int i = 0; i < pojoFields.length; i++) {
+			Field declaredField = pojoType.getDeclaredField(pojoFields[i]);
+			TypeInformation<?> typeInfo = fieldTypes[i];
+			fields.add(new PojoField(declaredField, typeInfo));
+		}
+
+		PojoTypeInfo<T> typeInfo = new PojoTypeInfo<>(pojoType, fields);
 
 		CsvInputFormat<T> inputFormat = new PojoCsvInputFormat<T>(path, this.lineDelimiter, this.fieldDelimiter, typeInfo, pojoFields, this.includedMask);
 
