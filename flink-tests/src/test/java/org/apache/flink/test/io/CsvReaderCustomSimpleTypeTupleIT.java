@@ -22,21 +22,13 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvReader;
-import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.test.io.csv.custom.type.simple.SimpleCustomJsonType;
-import org.apache.flink.test.io.csv.custom.type.simple.SimpleCustomJsonTypeStringParser;
 import org.apache.flink.test.io.csv.custom.type.simple.Tuple3ContainerType;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.ParserFactory;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
+
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.List;
 
@@ -45,26 +37,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-@RunWith(Parameterized.class)
-public class CsvReaderCustomSimpleTypeTupleIT extends MultipleProgramsTestBase {
-
-	private CsvReaderContext context;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+/**
+ * A collection of tests for checking different approaches of operating over user-defined Tuple types,
+ * utilizing newly introduced CsvReader methods.
+ */
+public class CsvReaderCustomSimpleTypeTupleIT extends CsvReaderCustomTypeTest {
 
 	public CsvReaderCustomSimpleTypeTupleIT(TestExecutionMode mode) {
 		super(mode);
-	}
-
-	@Before
-	public void setUp() {
-		context = new CsvReaderContext();
-	}
-
-	@After
-	public void tearDown() {
-		context = null;
 	}
 
 	@Test
@@ -137,31 +117,6 @@ public class CsvReaderCustomSimpleTypeTupleIT extends MultipleProgramsTestBase {
 		assertEquals("some_string", tuple.f2.getF2());
 		assertNotNull(tuple.f2.getF3());
 		assertEquals("nested_level1_f31", tuple.f2.getF3().getF21());
-	}
-
-	/**
-	 * Custom Parsers
-	 */
-	private static final class SimpleCustomJsonParserFactory implements ParserFactory<SimpleCustomJsonType> {
-
-		@Override
-		public Class<? extends FieldParser<SimpleCustomJsonType>> getParserType() {
-			return SimpleCustomJsonTypeStringParser.class;
-		}
-
-		@Override
-		public FieldParser<SimpleCustomJsonType> create() {
-			return new SimpleCustomJsonTypeStringParser();
-		}
-	}
-
-	private static class CsvReaderContext {
-
-		private String sourceData;
-		private CsvReader reader;
-		private DataSource<?> dataSource;
-		private List<?> result;
-
 	}
 
 }

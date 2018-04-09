@@ -20,46 +20,24 @@ package org.apache.flink.test.io;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvReader;
-import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.test.io.csv.custom.type.simple.SimpleCustomJsonType;
-import org.apache.flink.test.io.csv.custom.type.simple.SimpleCustomJsonTypeStringParser;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.ParserFactory;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.util.List;
+import org.junit.Test;
 
 import static org.apache.flink.test.io.CsvReaderITUtils.createInputData;
 
-@RunWith(Parameterized.class)
-public class CsvReaderCustomSimpleRowTupleIT extends MultipleProgramsTestBase {
-
-	private CsvReaderContext context;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+/**
+ * A collection of tests for checking different approaches of operating over user-defined Row types,
+ * utilizing newly introduced CsvReader methods.
+ */
+public class CsvReaderCustomSimpleRowTupleIT extends CsvReaderCustomTypeTest {
 
 	public CsvReaderCustomSimpleRowTupleIT(TestExecutionMode mode) {
 		super(mode);
-	}
-
-	@Before
-	public void setUp() {
-		context = new CsvReaderContext();
-	}
-
-	@After
-	public void tearDown() {
-		context = null;
 	}
 
 	@Test
@@ -105,31 +83,6 @@ public class CsvReaderCustomSimpleRowTupleIT extends MultipleProgramsTestBase {
 			context.result,
 			"1,column2,SimpleCustomJsonType{f1=5,f2='some_string',f3=NestedCustomJsonType{f21='nested_level1_f31'}}"
 		);
-	}
-
-	/**
-	 * Custom Parsers
-	 */
-	private static final class SimpleCustomJsonParserFactory implements ParserFactory<SimpleCustomJsonType> {
-
-		@Override
-		public Class<? extends FieldParser<SimpleCustomJsonType>> getParserType() {
-			return SimpleCustomJsonTypeStringParser.class;
-		}
-
-		@Override
-		public FieldParser<SimpleCustomJsonType> create() {
-			return new SimpleCustomJsonTypeStringParser();
-		}
-	}
-
-	private static class CsvReaderContext {
-
-		private String sourceData;
-		private CsvReader reader;
-		private DataSource<?> dataSource;
-		private List<?> result;
-
 	}
 
 }

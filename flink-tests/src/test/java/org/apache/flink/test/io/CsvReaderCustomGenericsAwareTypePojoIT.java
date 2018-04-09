@@ -22,48 +22,27 @@ import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvReader;
-import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.test.io.csv.custom.type.NestedCustomJsonType;
-import org.apache.flink.test.io.csv.custom.type.NestedCustomJsonTypeStringParser;
 import org.apache.flink.test.io.csv.custom.type.complex.GenericsAwareCustomJsonType;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.ParserFactory;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.util.List;
+import org.junit.Test;
 
 import static org.apache.flink.test.io.CsvReaderITUtils.createInputData;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-@RunWith(Parameterized.class)
-public class CsvReaderCustomGenericsAwareTypePojoIT extends MultipleProgramsTestBase {
-
-	private CsvReaderContext context;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+/**
+ * A collection of tests for checking different approaches of operating over user-defined POJO types,
+ * utilizing newly introduced CsvReader methods.
+ * This class is aimed to verify use cases of classes with Java Generics.
+ */
+public class CsvReaderCustomGenericsAwareTypePojoIT extends CsvReaderCustomTypeTest {
 
 	public CsvReaderCustomGenericsAwareTypePojoIT(TestExecutionMode mode) {
 		super(mode);
-	}
-
-	@Before
-	public void setUp() {
-		context = new CsvReaderContext();
-	}
-
-	@After
-	public void tearDown() {
-		context = null;
 	}
 
 	@Test
@@ -121,28 +100,6 @@ public class CsvReaderCustomGenericsAwareTypePojoIT extends MultipleProgramsTest
 		assertEquals("nested_level1_f31", genericsAwareCustomJsonType.getF2().getF21());
 		assertEquals(Integer.valueOf(5), genericsAwareCustomJsonType.getF3());
 		assertTrue(Integer.class.isAssignableFrom(genericsAwareCustomJsonType.getF3().getClass()));
-	}
-
-	private static final class NestedCustomJsonParserFactory implements ParserFactory<NestedCustomJsonType> {
-
-		@Override
-		public Class<? extends FieldParser<NestedCustomJsonType>> getParserType() {
-			return NestedCustomJsonTypeStringParser.class;
-		}
-
-		@Override
-		public FieldParser<NestedCustomJsonType> create() {
-			return new NestedCustomJsonTypeStringParser();
-		}
-	}
-
-	private static class CsvReaderContext {
-
-		private String sourceData;
-		private CsvReader reader;
-		private DataSource<?> dataSource;
-		private List<?> result;
-
 	}
 
 }

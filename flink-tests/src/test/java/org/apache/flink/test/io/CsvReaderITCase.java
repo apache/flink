@@ -31,6 +31,7 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -39,8 +40,6 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 import java.util.Locale;
-
-import static org.apache.flink.test.io.CsvReaderITUtils.createInputData;
 
 /**
  * Tests for {@link ExecutionEnvironment#readCsvFile}.

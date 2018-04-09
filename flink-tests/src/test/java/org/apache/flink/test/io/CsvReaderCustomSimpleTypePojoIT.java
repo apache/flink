@@ -20,47 +20,25 @@ package org.apache.flink.test.io;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvReader;
-import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.test.io.csv.custom.type.NestedCustomJsonType;
-import org.apache.flink.test.io.csv.custom.type.NestedCustomJsonTypeStringParser;
 import org.apache.flink.test.io.csv.custom.type.simple.SimpleCustomJsonType;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.ParserFactory;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.util.List;
+import org.junit.Test;
 
 import static org.apache.flink.test.io.CsvReaderITUtils.createInputData;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-@RunWith(Parameterized.class)
-public class CsvReaderCustomSimpleTypePojoIT extends MultipleProgramsTestBase {
-
-	private CsvReaderContext context;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+/**
+ * A collection of tests for checking different approaches of operating over user-defined POJO types,
+ * utilizing newly introduced CsvReader methods.
+ */
+public class CsvReaderCustomSimpleTypePojoIT extends CsvReaderCustomTypeTest {
 
 	public CsvReaderCustomSimpleTypePojoIT(TestExecutionMode mode) {
 		super(mode);
-	}
-
-	@Before
-	public void setUp() {
-		context = new CsvReaderContext();
-	}
-
-	@After
-	public void tearDown() {
-		context = null;
 	}
 
 	@Test
@@ -108,28 +86,6 @@ public class CsvReaderCustomSimpleTypePojoIT extends MultipleProgramsTestBase {
 		assertEquals(5, simpleCustomJsonType.getF1());
 		assertEquals("some_string", simpleCustomJsonType.getF2());
 		assertEquals("nested_level1_f31", simpleCustomJsonType.getF3().getF21());
-	}
-
-	private static final class NestedCustomJsonParserFactory implements ParserFactory<NestedCustomJsonType> {
-
-		@Override
-		public Class<? extends FieldParser<NestedCustomJsonType>> getParserType() {
-			return NestedCustomJsonTypeStringParser.class;
-		}
-
-		@Override
-		public FieldParser<NestedCustomJsonType> create() {
-			return new NestedCustomJsonTypeStringParser();
-		}
-	}
-
-	private static class CsvReaderContext {
-
-		private String sourceData;
-		private CsvReader reader;
-		private DataSource<?> dataSource;
-		private List<?> result;
-
 	}
 
 }
