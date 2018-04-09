@@ -358,7 +358,7 @@ public class CSVReaderTest {
 	}
 
 	@Test
-	public void testWorkingWithComplexCustomType() throws NoSuchFieldException {
+	public void testWorkingWithComplexCustomType() {
 		ParserFactory<GenericsAwareCustomJsonType<NestedCustomJsonType>> factory = new ParserFactory<GenericsAwareCustomJsonType<NestedCustomJsonType>>() {
 			@Override
 			public Class<? extends FieldParser<GenericsAwareCustomJsonType<NestedCustomJsonType>>> getParserType() {

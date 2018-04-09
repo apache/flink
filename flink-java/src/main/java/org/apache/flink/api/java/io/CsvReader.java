@@ -139,7 +139,6 @@ public class CsvReader {
 	 *
 	 * @param delimiter The delimiter that separates the fields in one row.
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
-	 *
 	 * @deprecated Please use {@link #fieldDelimiter(String)}.
 	 */
 	@Deprecated
@@ -224,7 +223,7 @@ public class CsvReader {
 	 * @param fields The array of flags that describes which fields are to be included and which not.
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
-	public CsvReader includeFields(boolean ... fields) {
+	public CsvReader includeFields(boolean... fields) {
 		if (fields == null || fields.length == 0) {
 			throw new IllegalArgumentException("The set of included fields must not be null or empty.");
 		}
@@ -286,9 +285,9 @@ public class CsvReader {
 	 *
 	 * <p>Examples:
 	 * <ul>
-	 *   <li>A mask of {@code 0x7} would include the first three fields.</li>
-	 *   <li>A mask of {@code 0x26} (binary {@code 100110} would skip the first fields, include fields
-	 *       two and three, skip fields four and five, and include field six.</li>
+	 * <li>A mask of {@code 0x7} would include the first three fields.</li>
+	 * <li>A mask of {@code 0x26} (binary {@code 100110} would skip the first fields, include fields
+	 * two and three, skip fields four and five, and include field six.</li>
 	 * </ul>
 	 *
 	 * @param mask The bit mask defining which fields to include and which to skip.
@@ -330,7 +329,7 @@ public class CsvReader {
 	 *
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
-	public CsvReader ignoreInvalidLines(){
+	public CsvReader ignoreInvalidLines() {
 		ignoreInvalidLines = true;
 		return this;
 	}
@@ -339,7 +338,7 @@ public class CsvReader {
 	 * Configures the reader to read the CSV data and parse it to the given type. The all fields of the type
 	 * must be public or able to set value. The type information for the fields is obtained from the type class.
 	 *
-	 * @param pojoType The class of the target POJO.
+	 * @param pojoType   The class of the target POJO.
 	 * @param pojoFields The fields of the POJO which are mapped to CSV fields.
 	 * @return The DataSet representing the parsed CSV data.
 	 */
@@ -377,9 +376,9 @@ public class CsvReader {
 	 *  		TypeInformation.of(String.class),
 	 * 			TypeInformation.of(Integer.class)});}
 	 * </pre>
-	 * 	where "string" and "number" are fields of GenericPojo class and second field parametrized:
-	 * 	<pre>
-	 * 	{@code
+	 * where "string" and "number" are fields of GenericPojo class and second field parametrized:
+	 * <pre>
+	 *    {@code
 	 *
 	 *  public class GenericPojo<T> {
 	 *  	private String string;
@@ -387,13 +386,13 @@ public class CsvReader {
 	 *  	...
 	 *  }}
 	 * </pre>
-	 * @param pojoType The class of the target POJO.
+	 *
+	 * @param pojoType   The class of the target POJO.
 	 * @param pojoFields The fields of the POJO which are mapped to CSV fields.
 	 * @param fieldTypes The field types that will be set to readed fields.
 	 * @return The DataSet representing the parsed CSV data.
-	 * @throws NoSuchFieldException thrown in case of no field with given name was found.
 	 */
-	public <T> DataSource<T> precisePojoType(Class<T> pojoType, String[] pojoFields, TypeInformation[] fieldTypes) throws NoSuchFieldException {
+	public <T> DataSource<T> precisePojoType(Class<T> pojoType, String[] pojoFields, TypeInformation[] fieldTypes) {
 		Preconditions.checkNotNull(pojoType, "The POJO type class must not be null.");
 		Preconditions.checkNotNull(pojoFields, "POJO fields must be specified (not null) if output type is a POJO.");
 		Preconditions.checkNotNull(fieldTypes, "Types of POJO fields must be specified (not null) if output type is a POJO.");
@@ -403,7 +402,12 @@ public class CsvReader {
 		ArrayList<PojoField> fields = new ArrayList<>();
 
 		for (int i = 0; i < pojoFields.length; i++) {
-			Field declaredField = pojoType.getDeclaredField(pojoFields[i]);
+			Field declaredField;
+			try {
+				declaredField = pojoType.getDeclaredField(pojoFields[i]);
+			} catch (NoSuchFieldException e) {
+				throw new IllegalArgumentException(e);
+			}
 			TypeInformation<?> typeInfo = fieldTypes[i];
 			fields.add(new PojoField(declaredField, typeInfo));
 		}
@@ -549,6 +553,7 @@ public class CsvReader {
 	 * csvDataSource.print();
 	 * }
 	 * </pre>
+	 *
 	 * @param typeInfos The types of CSV fields in the returned tuple type.
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
@@ -991,16 +996,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
@@ -1020,16 +1025,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
@@ -1044,16 +1049,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
@@ -1074,16 +1079,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
@@ -1099,16 +1104,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1130,16 +1135,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1156,16 +1161,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1188,16 +1193,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1215,16 +1220,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1248,16 +1253,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1276,16 +1281,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1310,16 +1315,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1339,16 +1344,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1374,16 +1379,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1404,16 +1409,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1440,16 +1445,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1471,16 +1476,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1508,16 +1513,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1540,16 +1545,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1578,16 +1583,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1611,16 +1616,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1650,16 +1655,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1684,16 +1689,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1724,16 +1729,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1759,16 +1764,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1800,16 +1805,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1836,16 +1841,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1878,16 +1883,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1915,16 +1920,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1958,16 +1963,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
