@@ -167,7 +167,7 @@ public class BroadcastStateITCase {
 		}
 
 		@Override
-		public void processElement(Long value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+		public void processElement(Long value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
 			long currentTime = nextTimerTimestamp;
 			nextTimerTimestamp++;
 			ctx.timerService().registerEventTimeTimer(currentTime);
@@ -175,7 +175,7 @@ public class BroadcastStateITCase {
 		}
 
 		@Override
-		public void processBroadcastElement(String value, KeyedContext ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(String value, Context ctx, Collector<String> out) throws Exception {
 			long key = Long.parseLong(value.split(":")[1]);
 			ctx.getBroadcastState(descriptor).put(key, value);
 		}

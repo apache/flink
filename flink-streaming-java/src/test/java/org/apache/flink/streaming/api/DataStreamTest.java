@@ -879,12 +879,12 @@ public class DataStreamTest extends TestLogger {
 		bcStream.process(
 				new KeyedBroadcastProcessFunction<String, Long, String, String>() {
 					@Override
-					public void processBroadcastElement(String value, KeyedContext ctx, Collector<String> out) throws Exception {
+					public void processBroadcastElement(String value, Context ctx, Collector<String> out) throws Exception {
 						// do nothing
 					}
 
 					@Override
-					public void processElement(Long value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+					public void processElement(Long value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
 						// do nothing
 					}
 				});
