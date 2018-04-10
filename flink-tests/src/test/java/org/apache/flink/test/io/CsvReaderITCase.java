@@ -173,6 +173,24 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 		env.readCsvFile(dataPath).rowType();
 	}
 
+	@Test(expected = IllegalArgumentException.class)
+	public void testPreciseRowTypeWithNullFieldTypes() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(tempFolder, inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		env.readCsvFile(dataPath).preciseRowType(null);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testPreciseRowTypeWithEmptyFieldType() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(tempFolder, inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		env.readCsvFile(dataPath).preciseRowType();
+	}
+
 	/**
 	 * POJO.
 	 */

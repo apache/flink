@@ -478,11 +478,31 @@ public class CsvReader {
 	/**
 	 * Configures the reader to read the CSV data and parse it to the {@link org.apache.flink.types.Row} type.
 	 * The type information for the fields is obtained from the type information.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types, e.g.
+	 * <pre>
+	 * {@code
+	 *
+	 * ParserFactory<CustomType<NestedCustomType>> factory = new ParserFactory<CustomType<NestedCustomType>>{...}
+	 * TypeHint<CustomType<NestedCustomType>> typeHint = new TypeHint<CustomType<NestedCustomType>>() {};
+	 * TypeInformation<CustomType<NestedCustomType>> typeInfo = TypeInformation.of(customTypeInstruction);
+	 *
+	 * FieldParser.registerCustomParser(typeInfo.getTypeClass(), factory);
+	 *
+	 * DataSource<Row> csvDataSource = csvReader.preciseRowType(
+	 *   BasicTypeInfo.INT_TYPE_INFO,
+	 *   BasicTypeInfo.STRING_TYPE_INFO,
+	 *   typeInfo
+	 * );
+	 * csvDataSource.print();
+	 * }
+	 * </pre>
 	 *
 	 * @param rowFieldsTypeInformation The fields types information which are mapped to CSV fields.
 	 * @return The DataSet representing the parsed CSV data.
 	 */
-	private DataSource<Row> preciseRowType(TypeInformation<?>... rowFieldsTypeInformation) {
+	public DataSource<Row> preciseRowType(TypeInformation<?>... rowFieldsTypeInformation) {
 		if (rowFieldsTypeInformation == null || rowFieldsTypeInformation.length == 0) {
 			throw new IllegalArgumentException("Row fields type information must not be null or empty.");
 		}
