@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.io;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -30,6 +29,8 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.ParserFactory;
+
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.junit.Test;
 
 /**
@@ -42,7 +43,6 @@ public class CsvReaderCustomGenericsAwareRowTupleIT extends CsvReaderCustomTypeT
 	public CsvReaderCustomGenericsAwareRowTupleIT(TestExecutionMode mode) {
 		super(mode);
 	}
-
 
 	@Test
 	public void testCustomGenericsAwareRowTypeViaRowTypeMethod() throws Exception {
