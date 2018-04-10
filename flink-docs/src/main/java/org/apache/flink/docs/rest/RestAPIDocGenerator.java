@@ -20,6 +20,7 @@ package org.apache.flink.docs.rest;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -314,6 +315,8 @@ public class RestAPIDocGenerator {
 		static {
 			config = new Configuration();
 			config.setString(RestOptions.ADDRESS, "localhost");
+			// necessary for loading the web-submission extension
+			config.setString(JobManagerOptions.ADDRESS, "localhost");
 			try {
 				restConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 			} catch (ConfigurationException e) {
