@@ -76,7 +76,7 @@ public class JoinOperatorTest {
 					BasicTypeInfo.INT_TYPE_INFO
 			);
 
-	// TUPLE DATA with nested CustomTypeRegister
+	// TUPLE DATA with nested CustomType
 	private static final List<Tuple5<CustomType, Long, String, Long, Integer>> emptyNestedCustomTupleData =
 			new ArrayList<Tuple5<CustomType, Long, String, Long, Integer>>();
 

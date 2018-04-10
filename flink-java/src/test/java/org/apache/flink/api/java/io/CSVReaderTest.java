@@ -382,16 +382,16 @@ public class CSVReaderTest {
 			BasicTypeInfo.STRING_TYPE_INFO,
 			typeInfo
 		);
-		verifyDataSource(dataSource, Tuple3.class);
+		verifyComplexCustomTypeDataSource(dataSource, Tuple3.class);
 
 		DataSource<Tuple3ContainerType> dataSource1 = reader.tupleType(Tuple3ContainerType.class);
-		verifyDataSource(dataSource1, Tuple3ContainerType.class);
+		verifyComplexCustomTypeDataSource(dataSource1, Tuple3ContainerType.class);
 
 		DataSource<GenericsAwareCustomJsonType<NestedCustomJsonType>> dataSource2 = reader.precisePojoType(typeInfo.getTypeClass(), new String[]{}, new TypeInformation[]{});
 		assertTrue(GenericsAwareCustomJsonType.class.isAssignableFrom(dataSource2.getType().getTypeClass()));
 	}
 
-	private void verifyDataSource(DataSource<?> dataSource, Class targetType) {
+	private void verifyComplexCustomTypeDataSource(DataSource<?> dataSource, Class targetType) {
 		assertEquals(true, dataSource.getType().isTupleType());
 		assertEquals(targetType, dataSource.getType().getTypeClass());
 
