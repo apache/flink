@@ -27,7 +27,8 @@ import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.examples.iteration.util.IterateExampleData
 import org.apache.flink.streaming.examples.ml.util.IncrementalLearningSkeletonData
 import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData
-import org.apache.flink.streaming.examples.windowing.util.SessionWindowingData
+import org.apache.flink.streaming.scala.examples.windowing.TopSpeedWindowing
+import org.apache.flink.streaming.examples.windowing.util.{SessionWindowingData, TopSpeedWindowingExampleData}
 import org.apache.flink.streaming.scala.examples.iteration.IterateExample
 import org.apache.flink.streaming.scala.examples.join.WindowJoin
 import org.apache.flink.streaming.scala.examples.join.WindowJoin.{Grade, Salary}
@@ -150,6 +151,20 @@ class StreamingExamplesITCase extends AbstractTestBase {
 
     TestBaseUtils.compareResultsByLinesInMemory(
       WordCountData.STREAMING_COUNTS_AS_TUPLES,
+      resultPath)
+  }
+
+  @Test
+  def testTopSpeedWindowingExampleITCase(): Unit = {
+    val inputFile = createTempFile("text.txt", TopSpeedWindowingExampleData.CAR_DATA)
+    val resultPath = getTempDirPath("result")
+
+    TopSpeedWindowing.main(Array[String](
+      "--input", inputFile,
+      "--output", resultPath))
+
+    TestBaseUtils.compareResultsByLinesInMemory(
+      TopSpeedWindowingExampleData.TOP_CASE_CLASS_SPEEDS,
       resultPath)
   }
 }

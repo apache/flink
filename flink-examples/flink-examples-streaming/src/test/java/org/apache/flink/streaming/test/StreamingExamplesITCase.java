@@ -27,7 +27,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.examples.iteration.util.IterateExampleData;
 import org.apache.flink.streaming.examples.ml.util.IncrementalLearningSkeletonData;
 import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData;
+import org.apache.flink.streaming.examples.windowing.TopSpeedWindowing;
 import org.apache.flink.streaming.examples.windowing.util.SessionWindowingData;
+import org.apache.flink.streaming.examples.windowing.util.TopSpeedWindowingExampleData;
 import org.apache.flink.streaming.test.examples.join.WindowJoinData;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -151,4 +153,16 @@ public class StreamingExamplesITCase extends AbstractTestBase {
 		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
 	}
 
+	@Test
+	public void testTopSpeedWindowingExampleITCase() throws Exception {
+		final String inputFile = createTempFile("text.txt", TopSpeedWindowingExampleData.CAR_DATA);
+
+		final String resultPath = getTempDirPath("result");
+
+		TopSpeedWindowing.main(new String[] {
+			"--input", inputFile,
+			"--output", resultPath});
+
+		compareResultsByLinesInMemory(TopSpeedWindowingExampleData.TOP_SPEEDS, resultPath);
+	}
 }
