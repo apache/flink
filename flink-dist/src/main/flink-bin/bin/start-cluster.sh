@@ -40,7 +40,7 @@ if [[ $HIGH_AVAILABILITY == "zookeeper" ]]; then
     for ((i=0;i<${#MASTERS[@]};++i)); do
         master=${MASTERS[i]}
         webuiport=${WEBUIPORTS[i]}
-        ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/jobmanager.sh\" start $CLUSTER_TYPE ${master} ${webuiport} &"
+        ssh -n $FLINK_SSH_OPTS $master -- "export FLINK_CONF_DIR=\"${FLINK_CONF_DIR}\"; nohup /bin/bash -l \"${FLINK_BIN_DIR}/jobmanager.sh\" start $CLUSTER_TYPE ${master} ${webuiport} &"
     done
 
 else
