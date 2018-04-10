@@ -74,7 +74,7 @@ public class CsvReaderCustomGenericsAwareTypePojoIT extends CsvReaderCustomTypeT
 		FieldParser.registerCustomParser(NestedCustomJsonType.class, factoryForNestedCustomType);
 	}
 
-	private void whenDataSourceCreatedViaPrecisePojoTypeMethod() throws NoSuchFieldException {
+	private void whenDataSourceCreatedViaPrecisePojoTypeMethod() {
 		TypeHint<GenericsAwareCustomJsonType<Integer>> typeHint = new TypeHint<GenericsAwareCustomJsonType<Integer>>() {};
 		TypeInformation<GenericsAwareCustomJsonType<Integer>> typeInfo = TypeInformation.of(typeHint);
 		Class<GenericsAwareCustomJsonType<Integer>> type = typeInfo.getTypeClass();
