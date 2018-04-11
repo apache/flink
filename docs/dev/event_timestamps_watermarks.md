@@ -190,7 +190,7 @@ Two simple examples of timestamp assigners with periodic watermark generation ar
  * but only to a certain degree. The latest elements for a certain timestamp t will arrive
  * at most n milliseconds after the earliest elements for timestamp t.
  */
-public class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermarks<MyEvent> {
+public class BoundedOutOfOrdernessGenerator implements AssignerWithPeriodicWatermarks<MyEvent> {
 
     private final long maxOutOfOrderness = 3500; // 3.5 seconds
 
@@ -214,7 +214,7 @@ public class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermar
  * This generator generates watermarks that are lagging behind processing time by a fixed amount.
  * It assumes that elements arrive in Flink after a bounded delay.
  */
-public class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks<MyEvent> {
+public class TimeLagWatermarkGenerator implements AssignerWithPeriodicWatermarks<MyEvent> {
 
 	private final long maxTimeLag = 5000; // 5 seconds
 
@@ -292,7 +292,7 @@ new watermark will be emitted.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-public class PunctuatedAssigner extends AssignerWithPunctuatedWatermarks<MyEvent> {
+public class PunctuatedAssigner implements AssignerWithPunctuatedWatermarks<MyEvent> {
 
 	@Override
 	public long extractTimestamp(MyEvent element, long previousElementTimestamp) {
