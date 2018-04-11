@@ -719,7 +719,8 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 				.orElse(false);
 	}
 
-	private CompletableFuture<URL> getWebMonitorBaseUrl() {
+	@VisibleForTesting
+	CompletableFuture<URL> getWebMonitorBaseUrl() {
 		return FutureUtils.orTimeout(
 				webMonitorLeaderRetriever.getLeaderFuture(),
 				restClusterClientConfiguration.getAwaitLeaderTimeout(),
