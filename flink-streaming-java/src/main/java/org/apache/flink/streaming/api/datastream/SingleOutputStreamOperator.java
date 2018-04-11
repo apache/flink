@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
@@ -53,6 +54,8 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 * type because this would lead to problems at runtime.
 	 */
 	private Map<OutputTag<?>, TypeInformation> requestedSideOutputs = new HashMap<>();
+
+	private boolean wasSplitApplied = false;
 
 	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment, StreamTransformation<T> transformation) {
 		super(environment, transformation);
@@ -376,6 +379,17 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 		return this;
 	}
 
+	@Override
+	public SplitStream<T> split(OutputSelector<T> outputSelector) {
+		if (requestedSideOutputs.isEmpty()) {
+			wasSplitApplied = true;
+			return super.split(outputSelector);
+		} else {
+			throw new UnsupportedOperationException("getSideOutput() and split() may not be called on the same DataStream. " +
+				"As a work-around, please add a no-op map function before the split() call.");
+		}
+	}
+
 	/**
 	 * Gets the {@link DataStream} that contains the elements that are emitted from an operation
 	 * into the side output with the given {@link OutputTag}.
@@ -383,6 +397,11 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 * @see org.apache.flink.streaming.api.functions.ProcessFunction.Context#output(OutputTag, Object)
 	 */
 	public <X> DataStream<X> getSideOutput(OutputTag<X> sideOutputTag) {
+		if (wasSplitApplied) {
+			throw new UnsupportedOperationException("getSideOutput() and split() may not be called on the same DataStream. " +
+				"As a work-around, please add a no-op map function before the split() call.");
+		}
+
 		sideOutputTag = clean(requireNonNull(sideOutputTag));
 
 		// make a defensive copy
