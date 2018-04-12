@@ -34,6 +34,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Mockito.mock;
@@ -57,6 +58,11 @@ public class CassandraSinkBaseTest {
 		}) {
 			@Override
 			public ListenableFuture send(Object value) {
+				return null;
+			}
+
+			@Override
+			public ListenableFuture send(Collection collectionValue) {
 				return null;
 			}
 		};
@@ -242,6 +248,11 @@ public class CassandraSinkBaseTest {
 
 		@Override
 		public ListenableFuture<ResultSet> send(String value) {
+			return result;
+		}
+
+		@Override
+		public ListenableFuture<ResultSet> send(Collection<String> collectionValue) {
 			return result;
 		}
 	}

@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -97,6 +98,8 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 	}
 
 	public abstract ListenableFuture<V> send(IN value);
+
+	public abstract ListenableFuture<V> send(Collection<IN> collectionValue);
 
 	@Override
 	public void close() throws Exception {

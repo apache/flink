@@ -19,12 +19,16 @@ package org.apache.flink.streaming.connectors.cassandra;
 
 import org.apache.flink.configuration.Configuration;
 
+import com.datastax.driver.core.BatchStatement;
 import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Statement;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import javax.annotation.Nullable;
+
+import java.util.Collection;
 
 /**
  * Flink Sink to save data into a Cassandra cluster using
@@ -78,6 +82,19 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 
 	@Override
 	public ListenableFuture<ResultSet> send(IN value) {
-		return session.executeAsync(mapper.saveQuery(value));
+		return session.executeAsync(prepareStatement(value));
+	}
+
+	@Override
+	public ListenableFuture<ResultSet> send(Collection<IN> collectionValue) {
+		BatchStatement statement = new BatchStatement();
+		collectionValue.stream()
+				.map(this::prepareStatement)
+				.forEach(statement::add);
+		return session.executeAsync(statement);
+	}
+
+	private Statement prepareStatement(IN value) {
+		return mapper.saveQuery(value);
 	}
 }
