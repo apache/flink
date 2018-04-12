@@ -40,6 +40,15 @@ public final class Documentation {
 		String value();
 	}
 
+	/**
+	 * Annotation used on config option fields to include them in the "Common Options" section.
+	 */
+	@Target(ElementType.FIELD)
+	@Retention(RetentionPolicy.RUNTIME)
+	@Internal
+	public @interface CommonOption {
+	}
+
 	private Documentation(){
 	}
 }
