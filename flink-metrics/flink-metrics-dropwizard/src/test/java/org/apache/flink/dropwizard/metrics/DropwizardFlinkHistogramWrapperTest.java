@@ -150,7 +150,7 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 			assertEquals(0, testingReporter.getMetrics().size());
 		} finally {
 			if (registry != null) {
-				registry.shutdown();
+				registry.shutdown().get();
 			}
 		}
 	}

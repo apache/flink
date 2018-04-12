@@ -22,23 +22,26 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.queryablestate.KvStateID;
+import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.StoppingException;
+import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointDeclineReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointTriggerException;
+import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -58,9 +61,13 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
+import org.apache.flink.runtime.jobmaster.exceptions.JobModificationException;
+import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolGateway;
@@ -70,12 +77,8 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
-import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
-import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
@@ -84,7 +87,6 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
@@ -94,6 +96,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -111,8 +114,9 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -121,12 +125,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -148,47 +151,37 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	// ------------------------------------------------------------------------
 
+	private final JobMasterConfiguration jobMasterConfiguration;
+
 	private final ResourceID resourceId;
 
-	/** Logical representation of the job. */
 	private final JobGraph jobGraph;
 
 	private final Time rpcTimeout;
 
-	/** Service to contend for and retrieve the leadership of JM and RM. */
 	private final HighAvailabilityServices highAvailabilityServices;
 
-	/** Blob server used across jobs. */
 	private final BlobServer blobServer;
 
-	/** The metrics for the job. */
-	private final MetricGroup jobMetricGroup;
+	private final JobManagerJobMetricGroupFactory jobMetricGroupFactory;
 
-	/** The heartbeat manager with task managers. */
-	private final HeartbeatManager<Void, Void> taskManagerHeartbeatManager;
+	private final HeartbeatManager<AccumulatorReport, Void> taskManagerHeartbeatManager;
 
-	/** The heartbeat manager with resource manager. */
 	private final HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
 
-	/** The execution context which is used to execute futures. */
 	private final ScheduledExecutorService scheduledExecutorService;
 
 	private final OnCompletionActions jobCompletionActions;
 
-	private final FatalErrorHandler errorHandler;
+	private final FatalErrorHandler fatalErrorHandler;
 
 	private final ClassLoader userCodeLoader;
-
-	/** The execution graph of this job. */
-	private final ExecutionGraph executionGraph;
 
 	private final SlotPool slotPool;
 
 	private final SlotPoolGateway slotPoolGateway;
 
-	private final CompletableFuture<String> restAddressFuture;
-
-	private final String metricQueryServicePath;
+	private final RestartStrategy restartStrategy;
 
 	// --------- BackPressure --------
 
@@ -196,47 +189,59 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	// --------- ResourceManager --------
 
-	/** Leader retriever service used to locate ResourceManager's address. */
 	private LeaderRetrievalService resourceManagerLeaderRetriever;
 
-	/** Connection with ResourceManager, null if not located address yet or we close it initiative. */
+	@Nullable
 	private ResourceManagerConnection resourceManagerConnection;
 
 	// --------- TaskManagers --------
 
 	private final Map<ResourceID, Tuple2<TaskManagerLocation, TaskExecutorGateway>> registeredTaskManagers;
 
+	// -------- Mutable fields ---------
+
+	private ExecutionGraph executionGraph;
+
+	@Nullable
+	private JobManagerJobStatusListener jobStatusListener;
+
+	@Nullable
+	private JobManagerJobMetricGroup jobManagerJobMetricGroup;
+
+	@Nullable
+	private String lastInternalSavepoint;
+
 	// ------------------------------------------------------------------------
 
 	public JobMaster(
 			RpcService rpcService,
+			JobMasterConfiguration jobMasterConfiguration,
 			ResourceID resourceId,
 			JobGraph jobGraph,
-			Configuration configuration,
 			HighAvailabilityServices highAvailabilityService,
 			JobManagerSharedServices jobManagerSharedServices,
 			HeartbeatServices heartbeatServices,
 			BlobServer blobServer,
-			@Nullable JobManagerMetricGroup jobManagerMetricGroup,
+			JobManagerJobMetricGroupFactory jobMetricGroupFactory,
 			OnCompletionActions jobCompletionActions,
-			FatalErrorHandler errorHandler,
-			ClassLoader userCodeLoader,
-			@Nullable String restAddress,
-			@Nullable String metricQueryServicePath) throws Exception {
+			FatalErrorHandler fatalErrorHandler,
+			ClassLoader userCodeLoader) throws Exception {
 
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(JOB_MANAGER_NAME));
 
 		final JobMasterGateway selfGateway = getSelfGateway(JobMasterGateway.class);
 
+		this.jobMasterConfiguration = checkNotNull(jobMasterConfiguration);
 		this.resourceId = checkNotNull(resourceId);
 		this.jobGraph = checkNotNull(jobGraph);
-		this.rpcTimeout = jobManagerSharedServices.getTimeout();
+		this.rpcTimeout = jobMasterConfiguration.getRpcTimeout();
 		this.highAvailabilityServices = checkNotNull(highAvailabilityService);
 		this.blobServer = checkNotNull(blobServer);
 		this.scheduledExecutorService = jobManagerSharedServices.getScheduledExecutorService();
 		this.jobCompletionActions = checkNotNull(jobCompletionActions);
-		this.errorHandler = checkNotNull(errorHandler);
+		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 		this.userCodeLoader = checkNotNull(userCodeLoader);
+		this.jobMetricGroupFactory = checkNotNull(jobMetricGroupFactory);
 
 		this.taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
 			resourceId,
@@ -253,12 +258,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		final String jobName = jobGraph.getName();
 		final JobID jid = jobGraph.getJobID();
 
-		if (jobManagerMetricGroup != null) {
-			this.jobMetricGroup = jobManagerMetricGroup.addJob(jobGraph);
-		} else {
-			this.jobMetricGroup = UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
-		}
-
 		log.info("Initializing job {} ({}).", jobName, jid);
 
 		final RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
@@ -266,13 +265,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 						.deserializeValue(userCodeLoader)
 						.getRestartStrategy();
 
-		final RestartStrategy restartStrategy = (restartStrategyConfiguration != null) ?
+		this.restartStrategy = (restartStrategyConfiguration != null) ?
 				RestartStrategyFactory.createRestartStrategy(restartStrategyConfiguration) :
 				jobManagerSharedServices.getRestartStrategyFactory().createRestartStrategy();
 
 		log.info("Using restart strategy {} for {} ({}).", restartStrategy, jobName, jid);
-
-		CheckpointRecoveryFactory checkpointRecoveryFactory = highAvailabilityServices.getCheckpointRecoveryFactory();
 
 		resourceManagerLeaderRetriever = highAvailabilityServices.getResourceManagerLeaderRetriever();
 
@@ -280,41 +277,19 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			rpcService,
 			jobGraph.getJobID(),
 			SystemClock.getInstance(),
-			rpcTimeout, Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT)),
-			Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_IDLE_TIMEOUT)));
+			rpcTimeout,
+			jobMasterConfiguration.getSlotIdleTimeout());
 
 		this.slotPoolGateway = slotPool.getSelfGateway(SlotPoolGateway.class);
 
-		final Time allocationTimeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
-
-		this.executionGraph = ExecutionGraphBuilder.buildGraph(
-			null,
-			jobGraph,
-			configuration,
-			scheduledExecutorService,
-			scheduledExecutorService,
-			slotPool.getSlotProvider(),
-			userCodeLoader,
-			checkpointRecoveryFactory,
-			rpcTimeout,
-			restartStrategy,
-			jobMetricGroup,
-			-1,
-			blobServer,
-			allocationTimeout,
-			log);
-
-		// register self as job status change listener
-		executionGraph.registerJobStatusListener(new JobManagerJobStatusListener());
-
 		this.registeredTaskManagers = new HashMap<>(4);
 
-		this.restAddressFuture = Optional.ofNullable(restAddress)
-			.map(CompletableFuture::completedFuture)
-			.orElse(FutureUtils.completedExceptionally(new JobMasterException("The JobMaster has not been started with a REST endpoint.")));
-
-		this.metricQueryServicePath = metricQueryServicePath;
 		this.backPressureStatsTracker = checkNotNull(jobManagerSharedServices.getBackPressureStatsTracker());
+		this.lastInternalSavepoint = null;
+
+		this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
+		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup);
+		this.jobStatusListener = null;
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -353,7 +328,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	 * @param timeout for this operation
 	 * @return Future acknowledge indicating that the job has been suspended. Otherwise the future contains an exception
 	 */
-	public CompletableFuture<Acknowledge> suspend(final Throwable cause, final Time timeout) {
+	public CompletableFuture<Acknowledge> suspend(final Exception cause, final Time timeout) {
 		CompletableFuture<Acknowledge> suspendFuture = callAsyncWithoutFencing(() -> suspendExecution(cause), timeout);
 
 		stop();
@@ -365,8 +340,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	 * Suspend the job and shutdown all other services including rpc.
 	 */
 	@Override
-	public void postStop() throws Exception {
-		log.info("Stopping the JobMaster for job " + jobGraph.getName() + '(' + jobGraph.getJobID() + ").");
+	public CompletableFuture<Void> postStop() {
+		log.info("Stopping the JobMaster for job {}({}).", jobGraph.getName(), jobGraph.getJobID());
 
 		// disconnect from all registered TaskExecutors
 		final Set<ResourceID> taskManagerResourceIds = new HashSet<>(registeredTaskManagers.keySet());
@@ -381,32 +356,22 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		resourceManagerHeartbeatManager.stop();
 
 		// make sure there is a graceful exit
-		suspendExecution(new Exception("JobManager is shutting down."));
+		suspendExecution(new FlinkException("JobManager is shutting down."));
 
 		// shut down will internally release all registered slots
 		slotPool.shutDown();
-		CompletableFuture<Boolean> terminationFuture = slotPool.getTerminationFuture();
 
-		Exception exception = null;
+		final CompletableFuture<Void> disposeInternalSavepointFuture;
 
-		// wait for the slot pool shut down
-		try {
-			terminationFuture.get(rpcTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-		} catch (Exception e) {
-			exception = e;
+		if (lastInternalSavepoint != null) {
+			disposeInternalSavepointFuture = CompletableFuture.runAsync(() -> disposeSavepoint(lastInternalSavepoint));
+		} else {
+			disposeInternalSavepointFuture = CompletableFuture.completedFuture(null);
 		}
 
-		try {
-			super.postStop();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
+		final CompletableFuture<Void> slotPoolTerminationFuture = slotPool.getTerminationFuture();
 
-		if (exception != null) {
-			throw exception;
-		}
-
-		log.info("Stopped the JobMaster for job " + jobGraph.getName() + '(' + jobGraph.getJobID() + ").");
+		return FutureUtils.completeAll(Arrays.asList(disposeInternalSavepointFuture, slotPoolTerminationFuture));
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -429,6 +394,130 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		}
 
 		return CompletableFuture.completedFuture(Acknowledge.get());
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> rescaleJob(
+			int newParallelism,
+			RescalingBehaviour rescalingBehaviour,
+			Time timeout) {
+		final ArrayList<JobVertexID> allOperators = new ArrayList<>(jobGraph.getNumberOfVertices());
+
+		for (JobVertex jobVertex : jobGraph.getVertices()) {
+			allOperators.add(jobVertex.getID());
+		}
+
+		return rescaleOperators(allOperators, newParallelism, rescalingBehaviour, timeout);
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> rescaleOperators(
+			Collection<JobVertexID> operators,
+			int newParallelism,
+			RescalingBehaviour rescalingBehaviour,
+			Time timeout) {
+
+		if (newParallelism <= 0) {
+			return FutureUtils.completedExceptionally(
+				new JobModificationException("The target parallelism of a rescaling operation must be larger than 0."));
+		}
+
+		// 1. Check whether we can rescale the job & rescale the respective vertices
+		try {
+			rescaleJobGraph(operators, newParallelism, rescalingBehaviour);
+		} catch (FlinkException e) {
+			final String msg = String.format("Cannot rescale job %s.", jobGraph.getName());
+
+			log.info(msg, e);
+			return FutureUtils.completedExceptionally(new JobModificationException(msg, e));
+		}
+
+		final ExecutionGraph currentExecutionGraph = executionGraph;
+
+		final JobManagerJobMetricGroup newJobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
+		final ExecutionGraph newExecutionGraph;
+
+		try {
+			newExecutionGraph = createExecutionGraph(newJobManagerJobMetricGroup);
+		} catch (JobExecutionException | JobException e) {
+			return FutureUtils.completedExceptionally(
+				new JobModificationException("Could not create rescaled ExecutionGraph.", e));
+		}
+
+		// 3. disable checkpoint coordinator to suppress subsequent checkpoints
+		final CheckpointCoordinator checkpointCoordinator = currentExecutionGraph.getCheckpointCoordinator();
+		checkpointCoordinator.stopCheckpointScheduler();
+
+		// 4. take a savepoint
+		final CompletableFuture<String> savepointFuture = getJobModificationSavepoint(timeout);
+
+		final CompletableFuture<ExecutionGraph> executionGraphFuture = restoreExecutionGraphFromRescalingSavepoint(
+			newExecutionGraph,
+			savepointFuture)
+			.handleAsync(
+				(ExecutionGraph executionGraph, Throwable failure) -> {
+					if (failure != null) {
+						// in case that we couldn't take a savepoint or restore from it, let's restart the checkpoint
+						// coordinator and abort the rescaling operation
+						if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
+							checkpointCoordinator.startCheckpointScheduler();
+						}
+
+						throw new CompletionException(ExceptionUtils.stripCompletionException(failure));
+					} else {
+						return executionGraph;
+					}
+				},
+				getMainThreadExecutor());
+
+		// 5. suspend the current job
+		final CompletableFuture<JobStatus> terminationFuture = executionGraphFuture.thenComposeAsync(
+			(ExecutionGraph ignored) -> {
+				suspendExecutionGraph(new FlinkException("Job is being rescaled."));
+				return currentExecutionGraph.getTerminationFuture();
+			},
+			getMainThreadExecutor());
+
+		final CompletableFuture<Void> suspendedFuture = terminationFuture.thenAccept(
+			(JobStatus jobStatus) -> {
+				if (jobStatus != JobStatus.SUSPENDED) {
+					final String msg = String.format("Job %s rescaling failed because we could not suspend the execution graph.", jobGraph.getName());
+					log.info(msg);
+					throw new CompletionException(new JobModificationException(msg));
+				}
+			});
+
+		// 6. resume the new execution graph from the taken savepoint
+		final CompletableFuture<Acknowledge> rescalingFuture = suspendedFuture.thenCombineAsync(
+			executionGraphFuture,
+			(Void ignored, ExecutionGraph restoredExecutionGraph) -> {
+				// check if the ExecutionGraph is still the same
+				if (executionGraph == currentExecutionGraph) {
+					clearExecutionGraphFields();
+					assignExecutionGraph(restoredExecutionGraph, newJobManagerJobMetricGroup);
+					scheduleExecutionGraph();
+
+					return Acknowledge.get();
+				} else {
+					throw new CompletionException(new JobModificationException("Detected concurrent modification of ExecutionGraph. Aborting the rescaling."));
+				}
+
+			},
+			getMainThreadExecutor());
+
+		rescalingFuture.whenComplete(
+			(Acknowledge ignored, Throwable throwable) -> {
+				if (throwable != null) {
+					// fail the newly created execution graph
+					newExecutionGraph.failGlobal(
+						new SuppressRestartsException(
+							new FlinkException(
+								String.format("Failed to rescale the job %s.", jobGraph.getJobID()),
+								throwable)));
+				}
+			});
+
+		return rescalingFuture;
 	}
 
 	/**
@@ -546,6 +635,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	@Override
 	public CompletableFuture<Acknowledge> disconnectTaskManager(final ResourceID resourceID, final Exception cause) {
+		log.debug("Disconnect TaskExecutor {} because: {}", resourceID, cause.getMessage());
+
 		taskManagerHeartbeatManager.unmonitorTarget(resourceID);
 		CompletableFuture<Acknowledge> releaseFuture = slotPoolGateway.releaseTaskManager(resourceID);
 
@@ -601,14 +692,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
 
 		if (checkpointCoordinator != null) {
-			getRpcService().execute(new Runnable() {
-				@Override
-				public void run() {
-					try {
-						checkpointCoordinator.receiveDeclineMessage(decline);
-					} catch (Exception e) {
-						log.error("Error in CheckpointCoordinator while processing {}", decline, e);
-					}
+			getRpcService().execute(() -> {
+				try {
+					checkpointCoordinator.receiveDeclineMessage(decline);
+				} catch (Exception e) {
+					log.error("Error in CheckpointCoordinator while processing {}", decline, e);
 				}
 			});
 		} else {
@@ -800,8 +888,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	@Override
-	public void heartbeatFromTaskManager(final ResourceID resourceID) {
-		taskManagerHeartbeatManager.receiveHeartbeat(resourceID, null);
+	public void heartbeatFromTaskManager(final ResourceID resourceID, AccumulatorReport accumulatorReport) {
+		taskManagerHeartbeatManager.receiveHeartbeat(resourceID, accumulatorReport);
 	}
 
 	@Override
@@ -811,7 +899,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	@Override
 	public CompletableFuture<JobDetails> requestJobDetails(@RpcTimeout Time timeout) {
-		return CompletableFuture.supplyAsync(() -> WebMonitorUtils.createDetailsForJob(executionGraph), scheduledExecutorService);
+		final ExecutionGraph currentExecutionGraph = executionGraph;
+		return CompletableFuture.supplyAsync(() -> WebMonitorUtils.createDetailsForJob(currentExecutionGraph), scheduledExecutorService);
 	}
 
 	@Override
@@ -819,106 +908,56 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		return CompletableFuture.completedFuture(executionGraph.getState());
 	}
 
-	//----------------------------------------------------------------------------------------------
-	// RestfulGateway RPC methods
-	//----------------------------------------------------------------------------------------------
-
 	@Override
-	public CompletableFuture<Acknowledge> cancelJob(JobID jobId, Time timeout) {
-		if (jobGraph.getJobID().equals(jobId)) {
-			return cancel(timeout);
-		} else {
-			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
-		}
-	}
-
-	@Override
-	public CompletableFuture<Acknowledge> stopJob(JobID jobId, Time timeout) {
-		if (jobGraph.getJobID().equals(jobId)) {
-			return stop(timeout);
-		} else {
-			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
-		}
-	}
-
-	@Override
-	public CompletableFuture<String> requestRestAddress(Time timeout) {
-		return restAddressFuture;
-	}
-
-	@Override
-	public CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, Time timeout) {
-		if (jobGraph.getJobID().equals(jobId)) {
-			return CompletableFuture.completedFuture(ArchivedExecutionGraph.createFrom(executionGraph));
-		} else {
-			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
-		}
-	}
-
-	@Override
-	public CompletableFuture<MultipleJobsDetails> requestMultipleJobDetails(Time timeout) {
-		return requestJobDetails(timeout)
-			.thenApply(
-				jobDetails -> new MultipleJobsDetails(Collections.singleton(jobDetails)));
-	}
-
-	@Override
-	public CompletableFuture<ClusterOverview> requestClusterOverview(Time timeout) {
-		final CompletableFuture<ResourceOverview> resourceOverviewFuture;
-		if (resourceManagerConnection != null) {
-			resourceOverviewFuture = resourceManagerConnection.getTargetGateway().requestResourceOverview(timeout);
-		} else {
-			resourceOverviewFuture = CompletableFuture.completedFuture(ResourceOverview.empty());
-		}
-
-		Collection<JobStatus> jobStatuses = Collections.singleton(executionGraph.getState());
-
-		return resourceOverviewFuture.thenApply(
-			(ResourceOverview resourceOverview) -> new ClusterOverview(
-				resourceOverview,
-				JobsOverview.create(jobStatuses)));
-	}
-
-	@Override
-	public CompletableFuture<Collection<String>> requestMetricQueryServicePaths(Time timeout) {
-		if (metricQueryServicePath != null) {
-			return CompletableFuture.completedFuture(Collections.singleton(metricQueryServicePath));
-		} else {
-			return CompletableFuture.completedFuture(Collections.emptyList());
-		}
-	}
-
-	@Override
-	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(Time timeout) {
-		if (resourceManagerConnection != null) {
-			return resourceManagerConnection.getTargetGateway().requestTaskManagerMetricQueryServicePaths(timeout);
-		} else {
-			return CompletableFuture.completedFuture(Collections.emptyList());
-		}
+	public CompletableFuture<ArchivedExecutionGraph> requestJob(Time timeout) {
+		return CompletableFuture.completedFuture(ArchivedExecutionGraph.createFrom(executionGraph));
 	}
 
 	@Override
 	public CompletableFuture<String> triggerSavepoint(
-			final JobID jobId,
-			final String targetDirectory,
+			@Nullable final String targetDirectory,
+			final boolean cancelJob,
 			final Time timeout) {
-		checkArgument(
-			jobGraph.getJobID().equals(jobId),
-			"Expected job id %s, was %s",
-			jobGraph.getJobID(),
-			jobId);
-		try {
-			return executionGraph.getCheckpointCoordinator()
-				.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
-				.thenApply(CompletedCheckpoint::getExternalPointer);
-		} catch (Exception e) {
-			return FutureUtils.completedExceptionally(e);
+
+		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+		if (checkpointCoordinator == null) {
+			return FutureUtils.completedExceptionally(new IllegalStateException(
+				String.format("Job %s is not a streaming job.", jobGraph.getJobID())));
+		}
+
+		if (cancelJob) {
+			checkpointCoordinator.stopCheckpointScheduler();
+		}
+		return checkpointCoordinator
+			.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
+			.thenApply(CompletedCheckpoint::getExternalPointer)
+			.thenApplyAsync(path -> {
+				if (cancelJob) {
+					log.info("Savepoint stored in {}. Now cancelling {}.", path, jobGraph.getJobID());
+					cancel(timeout);
+				}
+				return path;
+			}, getMainThreadExecutor())
+			.exceptionally(throwable -> {
+				if (cancelJob) {
+					startCheckpointScheduler(checkpointCoordinator);
+				}
+				throw new CompletionException(throwable);
+			});
+	}
+
+	private void startCheckpointScheduler(final CheckpointCoordinator checkpointCoordinator) {
+		if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
+			try {
+				checkpointCoordinator.startCheckpointScheduler();
+			} catch (IllegalStateException ignored) {
+				// Concurrent shut down of the coordinator
+			}
 		}
 	}
 
 	@Override
-	public CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
-			final JobID jobId, final JobVertexID jobVertexId) {
+	public CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(final JobVertexID jobVertexId) {
 		final ExecutionJobVertex jobVertex = executionGraph.getJobVertex(jobVertexId);
 		if (jobVertex == null) {
 			return FutureUtils.completedExceptionally(new FlinkException("JobVertexID not found " +
@@ -940,7 +979,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	private Acknowledge startJobExecution(JobMasterId newJobMasterId) throws Exception {
 		validateRunsInMainThread();
 
-		Preconditions.checkNotNull(newJobMasterId, "The new JobMasterId must not be null.");
+		checkNotNull(newJobMasterId, "The new JobMasterId must not be null.");
 
 		if (Objects.equals(getFencingToken(), newJobMasterId)) {
 			log.info("Already started the job execution with JobMasterId {}.", newJobMasterId);
@@ -948,6 +987,28 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			return Acknowledge.get();
 		}
 
+		setNewFencingToken(newJobMasterId);
+
+		log.info("Starting execution of job {} ({})", jobGraph.getName(), jobGraph.getJobID());
+
+		startJobMasterServices();
+		resetAndScheduleExecutionGraph();
+
+		return Acknowledge.get();
+	}
+
+	private void startJobMasterServices() throws Exception {
+		// start the slot pool make sure the slot pool now accepts messages for this leader
+		slotPool.start(getFencingToken(), getAddress());
+
+		// job is ready to go, try to establish connection with resource manager
+		//   - activate leader retrieval for the resource manager
+		//   - on notification of the leader, the connection will be established and
+		//     the slot pool will start requesting slots
+		resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
+	}
+
+	private void setNewFencingToken(JobMasterId newJobMasterId) {
 		if (getFencingToken() != null) {
 			log.info("Restarting old job with JobMasterId {}. The new JobMasterId is {}.", getFencingToken(), newJobMasterId);
 
@@ -958,38 +1019,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		// set new leader id
 		setFencingToken(newJobMasterId);
-
-		log.info("Starting execution of job {} ({})", jobGraph.getName(), jobGraph.getJobID());
-
-		try {
-			// start the slot pool make sure the slot pool now accepts messages for this leader
-			log.debug("Staring SlotPool component");
-			slotPool.start(getFencingToken(), getAddress());
-
-			// job is ready to go, try to establish connection with resource manager
-			//   - activate leader retrieval for the resource manager
-			//   - on notification of the leader, the connection will be established and
-			//     the slot pool will start requesting slots
-			resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
-		}
-		catch (Throwable t) {
-			log.error("Failed to start job {} ({})", jobGraph.getName(), jobGraph.getJobID(), t);
-
-			throw new Exception("Could not start job execution: Failed to start JobMaster services.", t);
-		}
-
-		// start scheduling job in another thread
-		scheduledExecutorService.execute(
-			() -> {
-				try {
-					executionGraph.scheduleForExecution();
-				}
-				catch (Throwable t) {
-					executionGraph.failGlobal(t);
-				}
-			});
-
-		return Acknowledge.get();
 	}
 
 	/**
@@ -1001,7 +1030,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	 *
 	 * @param cause The reason of why this job been suspended.
 	 */
-	private Acknowledge suspendExecution(final Throwable cause) {
+	private Acknowledge suspendExecution(final Exception cause) {
 		validateRunsInMainThread();
 
 		if (getFencingToken() == null) {
@@ -1018,28 +1047,174 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			log.warn("Failed to stop resource manager leader retriever when suspending.", t);
 		}
 
-		// tell the execution graph (JobManager is still processing messages here)
-		executionGraph.suspend(cause);
+		suspendAndClearExecutionGraphFields(cause);
 
 		// the slot pool stops receiving messages and clears its pooled slots
 		slotPoolGateway.suspend();
 
 		// disconnect from resource manager:
-		closeResourceManagerConnection(new Exception("Execution was suspended.", cause));
+		closeResourceManagerConnection(cause);
 
 		return Acknowledge.get();
 	}
 
-	//----------------------------------------------------------------------------------------------
+	private void assignExecutionGraph(
+			ExecutionGraph newExecutionGraph,
+			JobManagerJobMetricGroup newJobManagerJobMetricGroup) {
+		validateRunsInMainThread();
+		Preconditions.checkState(executionGraph.getState().isTerminalState());
+		Preconditions.checkState(jobManagerJobMetricGroup == null);
 
-	private void handleFatalError(final Throwable cause) {
+		executionGraph = newExecutionGraph;
+		jobManagerJobMetricGroup = newJobManagerJobMetricGroup;
+	}
+
+	private void resetAndScheduleExecutionGraph() throws Exception {
+		validateRunsInMainThread();
+
+		final CompletableFuture<Void> executionGraphAssignedFuture;
+
+		if (executionGraph.getState() == JobStatus.CREATED) {
+			executionGraphAssignedFuture = CompletableFuture.completedFuture(null);
+		} else {
+			suspendAndClearExecutionGraphFields(new FlinkException("ExecutionGraph is being reset in order to be rescheduled."));
+			final JobManagerJobMetricGroup newJobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
+			final ExecutionGraph newExecutionGraph = createAndRestoreExecutionGraph(newJobManagerJobMetricGroup);
+
+			executionGraphAssignedFuture = executionGraph.getTerminationFuture().handleAsync(
+				(JobStatus ignored, Throwable throwable) -> {
+					assignExecutionGraph(newExecutionGraph, newJobManagerJobMetricGroup);
+					return null;
+				},
+				getMainThreadExecutor());
+		}
+
+		executionGraphAssignedFuture.thenRun(this::scheduleExecutionGraph);
+	}
+
+	private void scheduleExecutionGraph() {
+		Preconditions.checkState(jobStatusListener == null);
+		// register self as job status change listener
+		jobStatusListener = new JobManagerJobStatusListener();
+		executionGraph.registerJobStatusListener(jobStatusListener);
 
 		try {
-			log.error("Fatal error occurred on JobManager.", cause);
-		} catch (Throwable ignore) {}
+			executionGraph.scheduleForExecution();
+		}
+		catch (Throwable t) {
+			executionGraph.failGlobal(t);
+		}
+	}
 
-		// The fatal error handler implementation should make sure that this call is non-blocking
-		errorHandler.onFatalError(cause);
+	private ExecutionGraph createAndRestoreExecutionGraph(JobManagerJobMetricGroup currentJobManagerJobMetricGroup) throws Exception {
+
+		ExecutionGraph newExecutionGraph = createExecutionGraph(currentJobManagerJobMetricGroup);
+
+		final CheckpointCoordinator checkpointCoordinator = newExecutionGraph.getCheckpointCoordinator();
+
+		if (checkpointCoordinator != null) {
+			// check whether we find a valid checkpoint
+			if (!checkpointCoordinator.restoreLatestCheckpointedState(
+				newExecutionGraph.getAllVertices(),
+				false,
+				false)) {
+
+				// check whether we can restore from a savepoint
+				tryRestoreExecutionGraphFromSavepoint(newExecutionGraph, jobGraph.getSavepointRestoreSettings());
+			}
+		}
+
+		return newExecutionGraph;
+	}
+
+	private ExecutionGraph createExecutionGraph(JobManagerJobMetricGroup currentJobManagerJobMetricGroup) throws JobExecutionException, JobException {
+		return ExecutionGraphBuilder.buildGraph(
+			null,
+			jobGraph,
+			jobMasterConfiguration.getConfiguration(),
+			scheduledExecutorService,
+			scheduledExecutorService,
+			slotPool.getSlotProvider(),
+			userCodeLoader,
+			highAvailabilityServices.getCheckpointRecoveryFactory(),
+			rpcTimeout,
+			restartStrategy,
+			currentJobManagerJobMetricGroup,
+			blobServer,
+			jobMasterConfiguration.getSlotRequestTimeout(),
+			log);
+	}
+
+	private void suspendAndClearExecutionGraphFields(Exception cause) {
+		suspendExecutionGraph(cause);
+		clearExecutionGraphFields();
+	}
+
+	private void suspendExecutionGraph(Exception cause) {
+		executionGraph.suspend(cause);
+
+		if (jobManagerJobMetricGroup != null) {
+			jobManagerJobMetricGroup.close();
+		}
+
+		if (jobStatusListener != null) {
+			jobStatusListener.stop();
+		}
+	}
+
+	private void clearExecutionGraphFields() {
+		jobManagerJobMetricGroup = null;
+		jobStatusListener = null;
+	}
+
+	/**
+	 * Dispose the savepoint stored under the given path.
+	 *
+	 * @param savepointPath path where the savepoint is stored
+	 */
+	private void disposeSavepoint(String savepointPath) {
+		try {
+			// delete the temporary savepoint
+			Checkpoints.disposeSavepoint(
+				savepointPath,
+				jobMasterConfiguration.getConfiguration(),
+				userCodeLoader,
+				log);
+		} catch (FlinkException | IOException e) {
+			log.info("Could not dispose temporary rescaling savepoint under {}.", savepointPath, e);
+		}
+	}
+
+	/**
+	 * Tries to restore the given {@link ExecutionGraph} from the provided {@link SavepointRestoreSettings}.
+	 *
+	 * @param executionGraphToRestore {@link ExecutionGraph} which is supposed to be restored
+	 * @param savepointRestoreSettings {@link SavepointRestoreSettings} containing information about the savepoint to restore from
+	 * @throws Exception if the {@link ExecutionGraph} could not be restored
+	 */
+	private void tryRestoreExecutionGraphFromSavepoint(ExecutionGraph executionGraphToRestore, SavepointRestoreSettings savepointRestoreSettings) throws Exception {
+		if (savepointRestoreSettings.restoreSavepoint()) {
+			final CheckpointCoordinator checkpointCoordinator = executionGraphToRestore.getCheckpointCoordinator();
+			if (checkpointCoordinator != null) {
+				checkpointCoordinator.restoreSavepoint(
+					savepointRestoreSettings.getRestorePath(),
+					savepointRestoreSettings.allowNonRestoredState(),
+					executionGraphToRestore.getAllVertices(),
+					userCodeLoader);
+			}
+		}
+	}
+
+	//----------------------------------------------------------------------------------------------
+
+	private void handleJobMasterError(final Throwable cause) {
+		if (ExceptionUtils.isJvmFatalError(cause)) {
+			log.error("Fatal error occurred on JobManager.", cause);
+			// The fatal error handler implementation should make sure that this call is non-blocking
+			fatalErrorHandler.onFatalError(cause);
+		} else {
+			jobCompletionActions.jobMasterFailed(cause);
+		}
 	}
 
 	private void jobStatusChanged(
@@ -1123,7 +1298,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private void closeResourceManagerConnection(Exception cause) {
 		if (resourceManagerConnection != null) {
-			log.info("Close ResourceManager connection {}.", resourceManagerConnection.getResourceManagerResourceID(), cause);
+			if (log.isDebugEnabled()) {
+				log.debug("Close ResourceManager connection {}.", resourceManagerConnection.getResourceManagerResourceID(), cause);
+			} else {
+				log.info("Close ResourceManager connection {}: {}.", resourceManagerConnection.getResourceManagerResourceID(), cause.getMessage());
+			}
 
 			resourceManagerHeartbeatManager.unmonitorTarget(resourceManagerConnection.getResourceManagerResourceID());
 
@@ -1135,6 +1314,131 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		}
 
 		slotPoolGateway.disconnectResourceManager();
+	}
+
+	/**
+	 * Restore the given {@link ExecutionGraph} from the rescaling savepoint. If the {@link ExecutionGraph} could
+	 * be restored, then this savepoint will be recorded as the latest successful modification savepoint. A previous
+	 * savepoint will be disposed. If the rescaling savepoint is empty, the job will be restored from the initially
+	 * provided savepoint.
+	 *
+	 * @param newExecutionGraph to restore
+	 * @param savepointFuture containing the path to the internal modification savepoint
+	 * @return Future which is completed with the restored {@link ExecutionGraph}
+	 */
+	private CompletableFuture<ExecutionGraph> restoreExecutionGraphFromRescalingSavepoint(ExecutionGraph newExecutionGraph, CompletableFuture<String> savepointFuture) {
+		return savepointFuture
+			.thenApplyAsync(
+				(@Nullable String savepointPath) -> {
+					if (savepointPath != null) {
+						try {
+							tryRestoreExecutionGraphFromSavepoint(newExecutionGraph, SavepointRestoreSettings.forPath(savepointPath, false));
+						} catch (Exception e) {
+							final String message = String.format("Could not restore from temporary rescaling savepoint. This might indicate " +
+									"that the savepoint %s got corrupted. Deleting this savepoint as a precaution.",
+								savepointPath);
+
+							log.info(message);
+
+							CompletableFuture
+								.runAsync(
+									() -> {
+										if (savepointPath.equals(lastInternalSavepoint)) {
+											lastInternalSavepoint = null;
+										}
+									},
+									getMainThreadExecutor())
+								.thenRunAsync(
+									() -> disposeSavepoint(savepointPath),
+									scheduledExecutorService);
+
+							throw new CompletionException(new JobModificationException(message, e));
+						}
+					} else {
+						// No rescaling savepoint, restart from the initial savepoint or none
+						try {
+							tryRestoreExecutionGraphFromSavepoint(newExecutionGraph, jobGraph.getSavepointRestoreSettings());
+						} catch (Exception e) {
+							final String message = String.format("Could not restore from initial savepoint. This might indicate " +
+								"that the savepoint %s got corrupted.", jobGraph.getSavepointRestoreSettings().getRestorePath());
+
+							log.info(message);
+
+							throw new CompletionException(new JobModificationException(message, e));
+						}
+					}
+
+					return newExecutionGraph;
+				}, scheduledExecutorService);
+	}
+
+	/**
+	 * Takes an internal savepoint for job modification purposes. If the savepoint was not successful because
+	 * not all tasks were running, it returns the last successful modification savepoint.
+	 *
+	 * @param timeout for the operation
+	 * @return Future which is completed with the savepoint path or the last successful modification savepoint if the
+	 * former was not successful
+	 */
+	private CompletableFuture<String> getJobModificationSavepoint(Time timeout) {
+		return triggerSavepoint(
+			null,
+			false,
+			timeout)
+			.handleAsync(
+				(String savepointPath, Throwable throwable) -> {
+					if (throwable != null) {
+						final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+						if (strippedThrowable instanceof CheckpointTriggerException) {
+							final CheckpointTriggerException checkpointTriggerException = (CheckpointTriggerException) strippedThrowable;
+
+							if (checkpointTriggerException.getCheckpointDeclineReason() == CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING) {
+								return lastInternalSavepoint;
+							} else {
+								throw new CompletionException(checkpointTriggerException);
+							}
+						} else {
+							throw new CompletionException(strippedThrowable);
+						}
+					} else {
+						final String savepointToDispose = lastInternalSavepoint;
+						lastInternalSavepoint = savepointPath;
+
+						if (savepointToDispose != null) {
+							// dispose the old savepoint asynchronously
+							CompletableFuture.runAsync(
+								() -> disposeSavepoint(savepointToDispose),
+								scheduledExecutorService);
+						}
+
+						return lastInternalSavepoint;
+					}
+				},
+				getMainThreadExecutor());
+	}
+
+	/**
+	 * Rescales the given operators of the {@link JobGraph} of this {@link JobMaster} with respect to given
+	 * parallelism and {@link RescalingBehaviour}.
+	 *
+	 * @param operators to rescale
+	 * @param newParallelism new parallelism for these operators
+	 * @param rescalingBehaviour of the rescaling operation
+	 * @throws FlinkException if the {@link JobGraph} could not be rescaled
+	 */
+	private void rescaleJobGraph(Collection<JobVertexID> operators, int newParallelism, RescalingBehaviour rescalingBehaviour) throws FlinkException {
+		for (JobVertexID jobVertexId : operators) {
+			final JobVertex jobVertex = jobGraph.findVertexByID(jobVertexId);
+
+			// update max parallelism in case that it has not been configured
+			final ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
+
+			if (executionJobVertex != null) {
+				jobVertex.setMaxParallelism(executionJobVertex.getMaxParallelism());
+			}
+
+			rescalingBehaviour.acceptWithException(jobVertex, newParallelism);
+		}
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -1153,7 +1457,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		@Override
 		public void handleError(final Exception exception) {
-			handleFatalError(new Exception("Fatal error in the ResourceManager leader service", exception));
+			handleJobMasterError(new Exception("Fatal error in the ResourceManager leader service", exception));
 		}
 	}
 
@@ -1217,7 +1521,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		@Override
 		protected void onRegistrationFailure(final Throwable failure) {
-			handleFatalError(failure);
+			handleJobMasterError(failure);
 		}
 
 		public ResourceID getResourceManagerResourceID() {
@@ -1233,6 +1537,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private class JobManagerJobStatusListener implements JobStatusListener {
 
+		private volatile boolean running = true;
+
 		@Override
 		public void jobStatusChanges(
 				final JobID jobId,
@@ -1240,12 +1546,18 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				final long timestamp,
 				final Throwable error) {
 
-			// run in rpc thread to avoid concurrency
-			runAsync(() -> jobStatusChanged(newJobStatus, timestamp, error));
+			if (running) {
+				// run in rpc thread to avoid concurrency
+				runAsync(() -> jobStatusChanged(newJobStatus, timestamp, error));
+			}
+		}
+
+		private void stop() {
+			running = false;
 		}
 	}
 
-	private class TaskManagerHeartbeatListener implements HeartbeatListener<Void, Void> {
+	private class TaskManagerHeartbeatListener implements HeartbeatListener<AccumulatorReport, Void> {
 
 		private final JobMasterGateway jobMasterGateway;
 
@@ -1255,20 +1567,20 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		@Override
 		public void notifyHeartbeatTimeout(ResourceID resourceID) {
-			log.info("Heartbeat of TaskManager with id {} timed out.", resourceID);
-
 			jobMasterGateway.disconnectTaskManager(
 				resourceID,
 				new TimeoutException("Heartbeat of TaskManager with id " + resourceID + " timed out."));
 		}
 
 		@Override
-		public void reportPayload(ResourceID resourceID, Void payload) {
-			// nothing to do since there is no payload
+		public void reportPayload(ResourceID resourceID, AccumulatorReport payload) {
+			for (AccumulatorSnapshot snapshot : payload.getAccumulatorSnapshots()) {
+				executionGraph.updateAccumulators(snapshot);
+			}
 		}
 
 		@Override
-		public CompletableFuture<Void> retrievePayload() {
+		public CompletableFuture<Void> retrievePayload(ResourceID resourceID) {
 			return CompletableFuture.completedFuture(null);
 		}
 	}
@@ -1292,7 +1604,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		}
 
 		@Override
-		public CompletableFuture<Void> retrievePayload() {
+		public CompletableFuture<Void> retrievePayload(ResourceID resourceID) {
 			return CompletableFuture.completedFuture(null);
 		}
 	}

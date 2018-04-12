@@ -47,8 +47,8 @@ public class StandaloneClusterClient extends ClusterClient<StandaloneClusterId> 
 		super(config);
 	}
 
-	public StandaloneClusterClient(Configuration config, HighAvailabilityServices highAvailabilityServices) {
-		super(config, highAvailabilityServices);
+	public StandaloneClusterClient(Configuration config, HighAvailabilityServices highAvailabilityServices, boolean sharedHaServices) {
+		super(config, highAvailabilityServices, sharedHaServices);
 	}
 
 	@Override
@@ -98,7 +98,7 @@ public class StandaloneClusterClient extends ClusterClient<StandaloneClusterId> 
 
 	@Override
 	public int getMaxSlots() {
-		return -1;
+		return MAX_SLOTS_UNKNOWN;
 	}
 
 	@Override
@@ -107,7 +107,7 @@ public class StandaloneClusterClient extends ClusterClient<StandaloneClusterId> 
 	}
 
 	@Override
-	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
+	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
 			throws ProgramInvocationException {
 		if (isDetached()) {
 			return super.runDetached(jobGraph, classLoader);

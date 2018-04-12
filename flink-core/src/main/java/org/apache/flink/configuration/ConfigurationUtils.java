@@ -18,12 +18,16 @@
 
 package org.apache.flink.configuration;
 
+import javax.annotation.Nonnull;
+
 import java.io.File;
 
 /**
  * Utility class for {@link Configuration} related helper functions.
  */
 public class ConfigurationUtils {
+
+	private static final String[] EMPTY = new String[0];
 
 	/**
 	 * Extracts the task manager directories for temporary files as defined by
@@ -32,10 +36,30 @@ public class ConfigurationUtils {
 	 * @param configuration configuration object
 	 * @return array of configured directories (in order)
 	 */
+	@Nonnull
 	public static String[] parseTempDirectories(Configuration configuration) {
-		return configuration.getString(CoreOptions.TMP_DIRS).split(",|" + File.pathSeparator);
+		return splitPaths(configuration.getString(CoreOptions.TMP_DIRS));
+	}
+
+	/**
+	 * Extracts the local state directories  as defined by
+	 * {@link CheckpointingOptions#LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS}.
+	 *
+	 * @param configuration configuration object
+	 * @return array of configured directories (in order)
+	 */
+	@Nonnull
+	public static String[] parseLocalStateDirectories(Configuration configuration) {
+		String configValue = configuration.getString(CheckpointingOptions.LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS, "");
+		return splitPaths(configValue);
+	}
+
+	@Nonnull
+	private static String[] splitPaths(@Nonnull String separatedPaths) {
+		return separatedPaths.length() > 0 ? separatedPaths.split(",|" + File.pathSeparator) : EMPTY;
 	}
 
 	// Make sure that we cannot instantiate this class
-	private ConfigurationUtils() {}
+	private ConfigurationUtils() {
+	}
 }

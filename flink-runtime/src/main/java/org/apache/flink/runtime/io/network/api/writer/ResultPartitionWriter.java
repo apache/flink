@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
@@ -38,32 +38,26 @@ public interface ResultPartitionWriter {
 	int getNumTargetKeyGroups();
 
 	/**
-	 * Adds a buffer to the subpartition with the given index.
+	 * Adds the bufferConsumer to the subpartition with the given index.
 	 *
 	 * <p>For PIPELINED {@link org.apache.flink.runtime.io.network.partition.ResultPartitionType}s,
 	 * this will trigger the deployment of consuming tasks after the first buffer has been added.
+	 *
+	 * <p>This method takes the ownership of the passed {@code bufferConsumer} and thus is responsible for releasing
+	 * it's resources.
+	 *
+	 * <p>To avoid problems with data re-ordering, before adding new {@link BufferConsumer} the previously added one
+	 * the given {@code subpartitionIndex} must be marked as {@link BufferConsumer#isFinished()}.
 	 */
-	void writeBuffer(Buffer buffer, int subpartitionIndex) throws IOException;
+	void addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException;
 
 	/**
-	 * Writes the given buffer to all available target subpartitions.
-	 *
-	 * <p>The buffer is taken over and used for each of the channels.
-	 * It will be recycled afterwards.
-	 *
-	 * @param buffer the buffer to write
+	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in all subpartitions.
 	 */
-	default void writeBufferToAllSubpartitions(final Buffer buffer) throws IOException {
-		try {
-			for (int subpartition = 0; subpartition < getNumberOfSubpartitions(); subpartition++) {
-				// retain the buffer so that it can be recycled by each channel of targetPartition
-				buffer.retainBuffer();
-				writeBuffer(buffer, subpartition);
-			}
-		} finally {
-			// we do not need to further retain the eventBuffer
-			// (it will be recycled after the last channel stops using it)
-			buffer.recycleBuffer();
-		}
-	}
+	void flushAll();
+
+	/**
+	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in one specified subpartition.
+	 */
+	void flush(int subpartitionIndex);
 }

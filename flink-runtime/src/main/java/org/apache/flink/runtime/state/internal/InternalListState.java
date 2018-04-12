@@ -26,11 +26,13 @@ import java.util.List;
  * The peer to the {@link ListState} in the internal state type hierarchy.
  * 
  * <p>See {@link InternalKvState} for a description of the internal state hierarchy.
- * 
+ *
+ * @param <K> The type of key the state is associated to
  * @param <N> The type of the namespace
  * @param <T> The type of elements in the list
  */
-public interface InternalListState<N, T> extends InternalMergingState<N, T, Iterable<T>>, ListState<T> {
+public interface InternalListState<K, N, T> extends InternalMergingState<K, N, T, List<T>, Iterable<T>>, ListState<T> {
+
 	/**
 	 * Updates the operator state accessible by {@link #get()} by updating existing values to
 	 * to the given list of values. The next time {@link #get()} is called (for the same state

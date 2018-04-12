@@ -26,13 +26,16 @@ import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.UUID;
+import java.util.Collections;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
@@ -40,6 +43,8 @@ import static java.util.Objects.requireNonNull;
  * A configuration object for {@link RestServerEndpoint}s.
  */
 public final class RestServerEndpointConfiguration {
+
+	private final String restAddress;
 
 	@Nullable
 	private final String restBindAddress;
@@ -51,18 +56,35 @@ public final class RestServerEndpointConfiguration {
 
 	private final Path uploadDir;
 
+	private final int maxContentLength;
+
+	private final Map<String, String> responseHeaders;
+
 	private RestServerEndpointConfiguration(
+			final String restAddress,
 			@Nullable String restBindAddress,
 			int restBindPort,
 			@Nullable SSLEngine sslEngine,
-			final Path uploadDir) {
+			final Path uploadDir,
+			final int maxContentLength, final Map<String, String> responseHeaders) {
 
 		Preconditions.checkArgument(0 <= restBindPort && restBindPort < 65536, "The bing rest port " + restBindPort + " is out of range (0, 65536[");
+		Preconditions.checkArgument(maxContentLength > 0, "maxContentLength must be positive, was: %d", maxContentLength);
 
+		this.restAddress = requireNonNull(restAddress);
 		this.restBindAddress = restBindAddress;
 		this.restBindPort = restBindPort;
 		this.sslEngine = sslEngine;
 		this.uploadDir = requireNonNull(uploadDir);
+		this.maxContentLength = maxContentLength;
+		this.responseHeaders = Collections.unmodifiableMap(requireNonNull(responseHeaders));
+	}
+
+	/**
+	 * @see RestOptions#REST_ADDRESS
+	 */
+	public String getRestAddress() {
+		return restAddress;
 	}
 
 	/**
@@ -70,7 +92,7 @@ public final class RestServerEndpointConfiguration {
 	 *
 	 * @return address that the REST server endpoint should bind itself to
 	 */
-	public String getEndpointBindAddress() {
+	public String getRestBindAddress() {
 		return restBindAddress;
 	}
 
@@ -79,7 +101,7 @@ public final class RestServerEndpointConfiguration {
 	 *
 	 * @return port that the REST server endpoint should listen on
 	 */
-	public int getEndpointBindPort() {
+	public int getRestBindPort() {
 		return restBindPort;
 	}
 
@@ -100,6 +122,22 @@ public final class RestServerEndpointConfiguration {
 	}
 
 	/**
+	 * Returns the max content length that the REST server endpoint could handle.
+	 *
+	 * @return max content length that the REST server endpoint could handle
+	 */
+	public int getMaxContentLength() {
+		return maxContentLength;
+	}
+
+	/**
+	 * Response headers that should be added to every HTTP response.
+	 */
+	public Map<String, String> getResponseHeaders() {
+		return responseHeaders;
+	}
+
+	/**
 	 * Creates and returns a new {@link RestServerEndpointConfiguration} from the given {@link Configuration}.
 	 *
 	 * @param config configuration from which the REST server endpoint configuration should be created from
@@ -108,12 +146,16 @@ public final class RestServerEndpointConfiguration {
 	 */
 	public static RestServerEndpointConfiguration fromConfiguration(Configuration config) throws ConfigurationException {
 		Preconditions.checkNotNull(config);
-		String address = config.getString(RestOptions.REST_ADDRESS);
 
-		int port = config.getInteger(RestOptions.REST_PORT);
+		final String restAddress = Preconditions.checkNotNull(config.getString(RestOptions.REST_ADDRESS),
+			"%s must be set",
+			RestOptions.REST_ADDRESS.key());
+
+		final String restBindAddress = config.getString(RestOptions.REST_BIND_ADDRESS);
+		final int port = config.getInteger(RestOptions.REST_PORT);
 
 		SSLEngine sslEngine = null;
-		boolean enableSSL = config.getBoolean(SecurityOptions.SSL_ENABLED);
+		final boolean enableSSL = config.getBoolean(SecurityOptions.SSL_ENABLED);
 		if (enableSSL) {
 			try {
 				SSLContext sslContext = SSLUtils.createSSLServerContext(config);
@@ -129,8 +171,21 @@ public final class RestServerEndpointConfiguration {
 
 		final Path uploadDir = Paths.get(
 			config.getString(WebOptions.UPLOAD_DIR,	config.getString(WebOptions.TMP_DIR)),
-			"flink-web-upload-" + UUID.randomUUID());
+			"flink-web-upload");
 
-		return new RestServerEndpointConfiguration(address, port, sslEngine, uploadDir);
+		final int maxContentLength = config.getInteger(RestOptions.REST_SERVER_MAX_CONTENT_LENGTH);
+
+		final Map<String, String> responseHeaders = Collections.singletonMap(
+			HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN,
+			config.getString(WebOptions.ACCESS_CONTROL_ALLOW_ORIGIN));
+
+		return new RestServerEndpointConfiguration(
+			restAddress,
+			restBindAddress,
+			port,
+			sslEngine,
+			uploadDir,
+			maxContentLength,
+			responseHeaders);
 	}
 }

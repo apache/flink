@@ -24,7 +24,7 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -39,7 +39,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * Test base for {@link SlotPool} related scheduling test cases.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class SlotPoolSchedulingTestBase extends TestLogger {
 
 	private static final JobID jobId = new JobID();
@@ -64,9 +64,9 @@ public class SlotPoolSchedulingTestBase extends TestLogger {
 	}
 
 	@AfterClass
-	public static void teardown() {
+	public static void teardown() throws ExecutionException, InterruptedException {
 		if (testingRpcService != null) {
-			testingRpcService.stopService();
+			testingRpcService.stopService().get();
 			testingRpcService = null;
 		}
 	}

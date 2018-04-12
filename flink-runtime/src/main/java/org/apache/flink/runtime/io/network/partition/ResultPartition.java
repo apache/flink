@@ -23,6 +23,7 @@ import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
@@ -238,24 +239,34 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void writeBuffer(Buffer buffer, int subpartitionIndex) throws IOException {
-		checkNotNull(buffer);
-		boolean success = false;
+	public void addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
+		checkNotNull(bufferConsumer);
 
+		ResultSubpartition subpartition;
 		try {
 			checkInProduceState();
-
-			final ResultSubpartition subpartition = subpartitions[subpartitionIndex];
-
-			// retain for buffer use after add() but also to have a simple path for recycle()
-			buffer.retainBuffer();
-			success = subpartition.add(buffer);
-		} finally {
-			if (success) {
-				notifyPipelinedConsumers();
-			}
-			buffer.recycleBuffer();
+			subpartition = subpartitions[subpartitionIndex];
 		}
+		catch (Exception ex) {
+			bufferConsumer.close();
+			throw ex;
+		}
+
+		if (subpartition.add(bufferConsumer)) {
+			notifyPipelinedConsumers();
+		}
+	}
+
+	@Override
+	public void flushAll() {
+		for (ResultSubpartition subpartition : subpartitions) {
+			subpartition.flush();
+		}
+	}
+
+	@Override
+	public void flush(int subpartitionIndex) {
+		subpartitions[subpartitionIndex].flush();
 	}
 
 	/**

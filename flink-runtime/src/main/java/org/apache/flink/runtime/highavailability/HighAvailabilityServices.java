@@ -58,8 +58,8 @@ public interface HighAvailabilityServices extends AutoCloseable {
 
 	/**
 	 * This JobID should be used to identify the old JobManager when using the
-	 * {@link HighAvailabilityServices}. With Flip-6 every JobManager will have a distinct
-	 * JobID assigned.
+	 * {@link HighAvailabilityServices}. With the new mode every JobMaster will have a
+	 * distinct JobID assigned.
 	 */
 	JobID DEFAULT_JOB_ID = new JobID(0L, 0L);
 
@@ -83,7 +83,7 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	 *
 	 * @param jobID The identifier of the job.
 	 * @return Leader retrieval service to retrieve the job manager for the given job
-	 * @deprecated This method should only be used by non Flip-6 code where the JobManager acts as the master.
+	 * @deprecated This method should only be used by the legacy code where the JobManager acts as the master.
 	 */
 	@Deprecated
 	LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID);

@@ -83,8 +83,7 @@ env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/");
 ### Difference to Savepoints
 
 Externalized checkpoints have a few differences from [savepoints](savepoints.html). They
-- use a state backend specific (low-level) data format,
-- may be incremental,
+- use a state backend specific (low-level) data format, may be incremental.
 - do not support Flink specific features like rescaling.
 
 ### Resuming from an externalized checkpoint

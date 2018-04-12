@@ -19,6 +19,8 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.ConfigGroup;
+import org.apache.flink.annotation.docs.ConfigGroups;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -116,7 +118,7 @@ public class HighAvailabilityOptions {
 			key("high-availability.zookeeper.path.latch")
 			.defaultValue("/leaderlatch")
 			.withDeprecatedKeys("recovery.zookeeper.path.latch")
-			.withDescription(" Defines the znode of the leader latch which is used to elect the leader.");
+			.withDescription("Defines the znode of the leader latch which is used to elect the leader.");
 
 	/** ZooKeeper root path (ZNode) for job graphs. */
 	public static final ConfigOption<String> HA_ZOOKEEPER_JOBGRAPHS_PATH =

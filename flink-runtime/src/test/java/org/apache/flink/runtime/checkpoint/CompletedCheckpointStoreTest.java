@@ -328,7 +328,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		}
 	}
 
-	static class TestOperatorSubtaskState extends OperatorSubtaskState {
+	public static class TestOperatorSubtaskState extends OperatorSubtaskState {
 		private static final long serialVersionUID = 522580433699164230L;
 
 		boolean registered;
@@ -358,6 +358,14 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		public void reset() {
 			registered = false;
 			discarded = false;
+		}
+
+		public boolean isRegistered() {
+			return registered;
+		}
+
+		public boolean isDiscarded() {
+			return discarded;
 		}
 	}
 

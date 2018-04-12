@@ -293,6 +293,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	public Stream<K> getKeys(N namespace) {
 		Iterable<StateEntry<K, N, S>> iterable = () -> iterator();
 		return StreamSupport.stream(iterable.spliterator(), false)
+			.filter(entry -> entry.getNamespace().equals(namespace))
 			.map(entry -> entry.getKey());
 	}
 

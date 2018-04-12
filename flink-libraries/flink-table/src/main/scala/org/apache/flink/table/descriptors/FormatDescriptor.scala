@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_TYPE, FORMAT_VERSION}
+import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_TYPE, FORMAT_PROPERTY_VERSION}
 
 /**
   * Describes the format of data.
@@ -37,7 +37,7 @@ abstract class FormatDescriptor(
     */
   final private[flink] def addProperties(properties: DescriptorProperties): Unit = {
     properties.putString(FORMAT_TYPE, tpe)
-    properties.putInt(FORMAT_VERSION, version)
+    properties.putInt(FORMAT_PROPERTY_VERSION, version)
     addFormatProperties(properties)
   }
 

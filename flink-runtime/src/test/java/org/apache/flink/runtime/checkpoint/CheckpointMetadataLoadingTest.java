@@ -24,7 +24,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
-import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
@@ -69,7 +69,7 @@ public class CheckpointMetadataLoadingTest {
 		OperatorID operatorID = OperatorID.fromJobVertexID(jobVertexID);
 
 		OperatorSubtaskState subtaskState = new OperatorSubtaskState(
-				new OperatorStateHandle(
+				new OperatorStreamStateHandle(
 				Collections.emptyMap(),
 				new ByteStreamStateHandle("testHandler", new byte[0])),
 				null,

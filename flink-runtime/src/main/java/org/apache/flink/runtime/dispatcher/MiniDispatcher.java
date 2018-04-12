@@ -28,8 +28,9 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -59,7 +60,8 @@ public class MiniDispatcher extends Dispatcher {
 			ResourceManagerGateway resourceManagerGateway,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry,
+			JobManagerMetricGroup jobManagerMetricGroup,
+			@Nullable String metricQueryServicePath,
 			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			JobManagerRunnerFactory jobManagerRunnerFactory,
 			FatalErrorHandler fatalErrorHandler,
@@ -75,7 +77,8 @@ public class MiniDispatcher extends Dispatcher {
 			resourceManagerGateway,
 			blobServer,
 			heartbeatServices,
-			metricRegistry,
+			jobManagerMetricGroup,
+			metricQueryServicePath,
 			archivedExecutionGraphStore,
 			jobManagerRunnerFactory,
 			fatalErrorHandler,
@@ -101,6 +104,18 @@ public class MiniDispatcher extends Dispatcher {
 	}
 
 	@Override
+	public CompletableFuture<JobResult> requestJobResult(JobID jobId, Time timeout) {
+		final CompletableFuture<JobResult> jobResultFuture = super.requestJobResult(jobId, timeout);
+
+		if (executionMode == ClusterEntrypoint.ExecutionMode.NORMAL) {
+			// terminate the MiniDispatcher once we served the first JobResult successfully
+			jobResultFuture.whenComplete((JobResult ignored, Throwable throwable) -> shutDown());
+		}
+
+		return jobResultFuture;
+	}
+
+	@Override
 	protected void jobReachedGloballyTerminalState(ArchivedExecutionGraph archivedExecutionGraph) {
 		super.jobReachedGloballyTerminalState(archivedExecutionGraph);
 
@@ -111,8 +126,8 @@ public class MiniDispatcher extends Dispatcher {
 	}
 
 	@Override
-	protected void jobFinishedByOther(JobID jobId) {
-		super.jobFinishedByOther(jobId);
+	protected void jobNotFinished(JobID jobId) {
+		super.jobNotFinished(jobId);
 
 		// shut down since we have done our job
 		shutDown();

@@ -132,6 +132,11 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	}
 
 	@Override
+	public int getMemorySegmentOffset() {
+		return 0;
+	}
+
+	@Override
 	public BufferRecycler getRecycler(){
 		return recycler;
 	}

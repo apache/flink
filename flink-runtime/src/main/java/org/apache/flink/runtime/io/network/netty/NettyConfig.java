@@ -62,7 +62,7 @@ public class NettyConfig {
 			.key("taskmanager.network.netty.server.backlog")
 			.defaultValue(0) // default: 0 => Netty's default
 			.withDeprecatedKeys("taskmanager.net.server.backlog")
-			.withDescription(" The netty server connection backlog.");
+			.withDescription("The netty server connection backlog.");
 
 	public static final ConfigOption<Integer> CLIENT_CONNECT_TIMEOUT_SECONDS = ConfigOptions
 			.key("taskmanager.network.netty.client.connectTimeoutSec")
@@ -222,6 +222,10 @@ public class NettyConfig {
 
 	public void setSSLVerifyHostname(SSLParameters sslParams) {
 		SSLUtils.setSSLVerifyHostname(config, sslParams);
+	}
+
+	public boolean isCreditBasedEnabled() {
+		return config.getBoolean(TaskManagerOptions.NETWORK_CREDIT_MODEL);
 	}
 
 	@Override

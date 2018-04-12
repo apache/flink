@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager.scheduler;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -32,7 +33,6 @@ import org.apache.flink.util.TestLogger;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -123,7 +123,7 @@ public class SchedulerTest extends TestLogger {
 			new ScheduledUnit(
 				execution),
 			true,
-			Collections.emptyList(),
+			SlotProfile.noRequirements(),
 			Time.milliseconds(1L));
 
 		try {

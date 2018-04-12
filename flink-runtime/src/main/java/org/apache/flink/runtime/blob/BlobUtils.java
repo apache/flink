@@ -33,7 +33,6 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
-import java.io.Closeable;
 import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
@@ -47,7 +46,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Random;
 import java.util.UUID;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
 
 /**
@@ -300,40 +298,6 @@ public class BlobUtils {
 			return MessageDigest.getInstance(HASHING_ALGORITHM);
 		} catch (NoSuchAlgorithmException e) {
 			throw new RuntimeException("Cannot instantiate the message digest algorithm " + HASHING_ALGORITHM, e);
-		}
-	}
-
-	/**
-	 * Adds a shutdown hook to the JVM and returns the Thread, which has been registered.
-	 */
-	public static Thread addShutdownHook(final Closeable service, final Logger logger) {
-		checkNotNull(service);
-		checkNotNull(logger);
-
-		final Thread shutdownHook = new Thread(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					service.close();
-				}
-				catch (Throwable t) {
-					logger.error("Error during shutdown of blob service via JVM shutdown hook.", t);
-				}
-			}
-		});
-
-		try {
-			// Add JVM shutdown hook to call shutdown of service
-			Runtime.getRuntime().addShutdownHook(shutdownHook);
-			return shutdownHook;
-		}
-		catch (IllegalStateException e) {
-			// JVM is already shutting down. no need to do our work
-			return null;
-		}
-		catch (Throwable t) {
-			logger.error("Cannot register shutdown hook that cleanly terminates the BLOB service.");
-			return null;
 		}
 	}
 

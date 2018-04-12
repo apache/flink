@@ -41,8 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class KvStateRegistry {
 
 	/** All registered KvState instances. */
-	private final ConcurrentHashMap<KvStateID, InternalKvState<?>> registeredKvStates =
-			new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<KvStateID, KvStateEntry<?, ?, ?>> registeredKvStates = new ConcurrentHashMap<>(4);
 
 	/** Registry listeners to be notified on registration/unregistration. */
 	private final ConcurrentHashMap<JobID, KvStateRegistryListener> listeners = new ConcurrentHashMap<>(4);
@@ -86,11 +85,11 @@ public class KvStateRegistry {
 			JobVertexID jobVertexId,
 			KeyGroupRange keyGroupRange,
 			String registrationName,
-			InternalKvState<?> kvState) {
+			InternalKvState<?, ?, ?> kvState) {
 
 		KvStateID kvStateId = new KvStateID();
 
-		if (registeredKvStates.putIfAbsent(kvStateId, kvState) == null) {
+		if (registeredKvStates.putIfAbsent(kvStateId, new KvStateEntry<>(kvState)) == null) {
 			final KvStateRegistryListener listener = getKvStateRegistryListener(jobId);
 
 			if (listener != null) {
@@ -123,7 +122,10 @@ public class KvStateRegistry {
 			String registrationName,
 			KvStateID kvStateId) {
 
-		if (registeredKvStates.remove(kvStateId) != null) {
+		KvStateEntry<?, ?, ?> entry = registeredKvStates.remove(kvStateId);
+		if (entry != null) {
+			entry.clear();
+
 			final KvStateRegistryListener listener = getKvStateRegistryListener(jobId);
 			if (listener != null) {
 				listener.notifyKvStateUnregistered(
@@ -136,13 +138,13 @@ public class KvStateRegistry {
 	}
 
 	/**
-	 * Returns the KvState instance identified by the given KvStateID or
-	 * <code>null</code> if none is registered.
+	 * Returns the {@link KvStateEntry} containing the requested instance as identified by the
+	 * given KvStateID, along with its {@link KvStateInfo} or <code>null</code> if none is registered.
 	 *
 	 * @param kvStateId KvStateID to identify the KvState instance
-	 * @return KvState instance identified by the KvStateID or <code>null</code>
+	 * @return The {@link KvStateEntry} instance identified by the KvStateID or <code>null</code> if there is none
 	 */
-	public InternalKvState<?> getKvState(KvStateID kvStateId) {
+	public KvStateEntry<?, ?, ?> getKvState(KvStateID kvStateId) {
 		return registeredKvStates.get(kvStateId);
 	}
 
@@ -165,7 +167,7 @@ public class KvStateRegistry {
 	// ------------------------------------------------------------------------
 
 	private KvStateRegistryListener getKvStateRegistryListener(JobID jobId) {
-		// first check whether we are running the pre-Flip-6 code which registers
+		// first check whether we are running the legacy code which registers
 		// a single listener under HighAvailabilityServices.DEFAULT_JOB_ID
 		KvStateRegistryListener listener = listeners.get(HighAvailabilityServices.DEFAULT_JOB_ID);
 
@@ -174,5 +176,4 @@ public class KvStateRegistry {
 		}
 		return listener;
 	}
-
 }

@@ -22,11 +22,11 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeDomain;
-import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
@@ -111,8 +111,10 @@ public class KeyedProcessOperatorTest extends TestLogger {
 	@Test
 	public void testEventTimeTimers() throws Exception {
 
+		final int expectedKey = 17;
+
 		KeyedProcessOperator<Integer, Integer, Integer> operator =
-				new KeyedProcessOperator<>(new TriggeringFlatMapFunction(TimeDomain.EVENT_TIME));
+				new KeyedProcessOperator<>(new TriggeringFlatMapFunction(TimeDomain.EVENT_TIME, expectedKey));
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -122,14 +124,14 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
 		testHarness.processWatermark(new Watermark(0));
 
-		testHarness.processElement(new StreamRecord<>(17, 42L));
+		testHarness.processElement(new StreamRecord<>(expectedKey, 42L));
 
 		testHarness.processWatermark(new Watermark(5));
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		expectedOutput.add(new Watermark(0L));
-		expectedOutput.add(new StreamRecord<>(17, 42L));
+		expectedOutput.add(new StreamRecord<>(expectedKey, 42L));
 		expectedOutput.add(new StreamRecord<>(1777, 5L));
 		expectedOutput.add(new Watermark(5L));
 
@@ -141,8 +143,10 @@ public class KeyedProcessOperatorTest extends TestLogger {
 	@Test
 	public void testProcessingTimeTimers() throws Exception {
 
+		final int expectedKey = 17;
+
 		KeyedProcessOperator<Integer, Integer, Integer> operator =
-				new KeyedProcessOperator<>(new TriggeringFlatMapFunction(TimeDomain.PROCESSING_TIME));
+				new KeyedProcessOperator<>(new TriggeringFlatMapFunction(TimeDomain.PROCESSING_TIME, expectedKey));
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -150,13 +154,13 @@ public class KeyedProcessOperatorTest extends TestLogger {
 		testHarness.setup();
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(17));
+		testHarness.processElement(new StreamRecord<>(expectedKey));
 
 		testHarness.setProcessingTime(5);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		expectedOutput.add(new StreamRecord<>(17));
+		expectedOutput.add(new StreamRecord<>(expectedKey));
 		expectedOutput.add(new StreamRecord<>(1777));
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -243,8 +247,10 @@ public class KeyedProcessOperatorTest extends TestLogger {
 	@Test
 	public void testSnapshotAndRestore() throws Exception {
 
+		final int expectedKey = 5;
+
 		KeyedProcessOperator<Integer, Integer, String> operator =
-				new KeyedProcessOperator<>(new BothTriggeringFlatMapFunction());
+				new KeyedProcessOperator<>(new BothTriggeringFlatMapFunction(expectedKey));
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -252,14 +258,14 @@ public class KeyedProcessOperatorTest extends TestLogger {
 		testHarness.setup();
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(5, 12L));
+		testHarness.processElement(new StreamRecord<>(expectedKey, 12L));
 
 		// snapshot and restore from scratch
-		OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+		OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
 		testHarness.close();
 
-		operator = new KeyedProcessOperator<>(new BothTriggeringFlatMapFunction());
+		operator = new KeyedProcessOperator<>(new BothTriggeringFlatMapFunction(expectedKey));
 
 		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
 
@@ -283,8 +289,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
 	@Test
 	public void testNullOutputTagRefusal() throws Exception {
-		KeyedProcessOperator<Integer, Integer, String> operator =
-			new KeyedProcessOperator<>(new NullOutputTagEmittingProcessFunction());
+		KeyedProcessOperator<Integer, Integer, String> operator = new KeyedProcessOperator<>(new NullOutputTagEmittingProcessFunction());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(
@@ -307,8 +312,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
 	 */
 	@Test
 	public void testSideOutput() throws Exception {
-		KeyedProcessOperator<Integer, Integer, String> operator =
-			new KeyedProcessOperator<>(new SideOutputProcessFunction());
+		KeyedProcessOperator<Integer, Integer, String> operator = new KeyedProcessOperator<>(new SideOutputProcessFunction());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(
@@ -346,7 +350,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
 		testHarness.close();
 	}
 
-	private static class NullOutputTagEmittingProcessFunction extends ProcessFunction<Integer, String> {
+	private static class NullOutputTagEmittingProcessFunction extends KeyedProcessFunction<Integer, Integer, String> {
 
 		@Override
 		public void processElement(Integer value, Context ctx, Collector<String> out) throws Exception {
@@ -354,7 +358,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class SideOutputProcessFunction extends ProcessFunction<Integer, String> {
+	private static class SideOutputProcessFunction extends KeyedProcessFunction<Integer, Integer, String> {
 
 		static final OutputTag<Integer> INTEGER_OUTPUT_TAG = new OutputTag<Integer>("int-out") {};
 		static final OutputTag<Long> LONG_OUTPUT_TAG = new OutputTag<Long>("long-out") {};
@@ -377,19 +381,19 @@ public class KeyedProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class QueryingFlatMapFunction extends ProcessFunction<Integer, String> {
+	private static class QueryingFlatMapFunction extends KeyedProcessFunction<Integer, Integer, String> {
 
 		private static final long serialVersionUID = 1L;
 
-		private final TimeDomain timeDomain;
+		private final TimeDomain expectedTimeDomain;
 
 		public QueryingFlatMapFunction(TimeDomain timeDomain) {
-			this.timeDomain = timeDomain;
+			this.expectedTimeDomain = timeDomain;
 		}
 
 		@Override
 		public void processElement(Integer value, Context ctx, Collector<String> out) throws Exception {
-			if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
+			if (expectedTimeDomain.equals(TimeDomain.EVENT_TIME)) {
 				out.collect(value + "TIME:" + ctx.timerService().currentWatermark() + " TS:" + ctx.timestamp());
 			} else {
 				out.collect(value + "TIME:" + ctx.timerService().currentProcessingTime() + " TS:" + ctx.timestamp());
@@ -401,23 +405,26 @@ public class KeyedProcessOperatorTest extends TestLogger {
 				long timestamp,
 				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
+			// Do nothing
 		}
 	}
 
-	private static class TriggeringFlatMapFunction extends ProcessFunction<Integer, Integer> {
+	private static class TriggeringFlatMapFunction extends KeyedProcessFunction<Integer, Integer, Integer> {
 
 		private static final long serialVersionUID = 1L;
 
-		private final TimeDomain timeDomain;
+		private final TimeDomain expectedTimeDomain;
+		private final Integer expectedKey;
 
-		public TriggeringFlatMapFunction(TimeDomain timeDomain) {
-			this.timeDomain = timeDomain;
+		public TriggeringFlatMapFunction(TimeDomain timeDomain, Integer expectedKey) {
+			this.expectedTimeDomain = timeDomain;
+			this.expectedKey = expectedKey;
 		}
 
 		@Override
 		public void processElement(Integer value, Context ctx, Collector<Integer> out) throws Exception {
 			out.collect(value);
-			if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
+			if (expectedTimeDomain.equals(TimeDomain.EVENT_TIME)) {
 				ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
 			} else {
 				ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5);
@@ -429,30 +436,30 @@ public class KeyedProcessOperatorTest extends TestLogger {
 				long timestamp,
 				OnTimerContext ctx,
 				Collector<Integer> out) throws Exception {
-
-			assertEquals(this.timeDomain, ctx.timeDomain());
+			assertEquals(expectedKey, ctx.getCurrentKey());
+			assertEquals(expectedTimeDomain, ctx.timeDomain());
 			out.collect(1777);
 		}
 	}
 
-	private static class TriggeringStatefulFlatMapFunction extends ProcessFunction<Integer, String> {
+	private static class TriggeringStatefulFlatMapFunction extends KeyedProcessFunction<Integer, Integer, String> {
 
 		private static final long serialVersionUID = 1L;
 
 		private final ValueStateDescriptor<Integer> state =
 				new ValueStateDescriptor<>("seen-element", IntSerializer.INSTANCE);
 
-		private final TimeDomain timeDomain;
+		private final TimeDomain expectedTimeDomain;
 
 		public TriggeringStatefulFlatMapFunction(TimeDomain timeDomain) {
-			this.timeDomain = timeDomain;
+			this.expectedTimeDomain = timeDomain;
 		}
 
 		@Override
 		public void processElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT:" + value);
 			getRuntimeContext().getState(state).update(value);
-			if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
+			if (expectedTimeDomain.equals(TimeDomain.EVENT_TIME)) {
 				ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
 			} else {
 				ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5);
@@ -464,14 +471,20 @@ public class KeyedProcessOperatorTest extends TestLogger {
 				long timestamp,
 				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
-			assertEquals(this.timeDomain, ctx.timeDomain());
+			assertEquals(expectedTimeDomain, ctx.timeDomain());
 			out.collect("STATE:" + getRuntimeContext().getState(state).value());
 		}
 	}
 
-	private static class BothTriggeringFlatMapFunction extends ProcessFunction<Integer, String> {
+	private static class BothTriggeringFlatMapFunction extends KeyedProcessFunction<Integer, Integer, String> {
 
 		private static final long serialVersionUID = 1L;
+
+		private final Integer expectedKey;
+
+		public BothTriggeringFlatMapFunction(Integer expectedKey) {
+			this.expectedKey = expectedKey;
+		}
 
 		@Override
 		public void processElement(Integer value, Context ctx, Collector<String> out) throws Exception {
@@ -484,6 +497,8 @@ public class KeyedProcessOperatorTest extends TestLogger {
 				long timestamp,
 				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
+			assertEquals(expectedKey, ctx.getCurrentKey());
+
 			if (TimeDomain.EVENT_TIME.equals(ctx.timeDomain())) {
 				out.collect("EVENT:1777");
 			} else {
@@ -491,5 +506,4 @@ public class KeyedProcessOperatorTest extends TestLogger {
 			}
 		}
 	}
-
 }

@@ -38,6 +38,7 @@ import org.apache.flink.util.FlinkException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.DataInputStream;
@@ -246,7 +247,7 @@ public class Checkpoints {
 		try (InputStream in = metadataHandle.openInputStream();
 			DataInputStream dis = new DataInputStream(in)) {
 
-				savepoint = loadCheckpointMetadata(dis, classLoader);
+			savepoint = loadCheckpointMetadata(dis, classLoader);
 		}
 
 		Exception exception = null;
@@ -292,6 +293,13 @@ public class Checkpoints {
 		checkNotNull(configuration, "configuration");
 		checkNotNull(classLoader, "classLoader");
 
+		StateBackend backend = loadStateBackend(configuration, classLoader, logger);
+
+		disposeSavepoint(pointer, backend, classLoader);
+	}
+
+	@Nonnull
+	public static StateBackend loadStateBackend(Configuration configuration, ClassLoader classLoader, @Nullable Logger logger) {
 		if (logger != null) {
 			logger.info("Attempting to load configured state backend for savepoint disposal");
 		}
@@ -318,8 +326,7 @@ public class Checkpoints {
 			// FileSystem-based for metadata
 			backend = new MemoryStateBackend();
 		}
-
-		disposeSavepoint(pointer, backend, classLoader);
+		return backend;
 	}
 
 	// ------------------------------------------------------------------------

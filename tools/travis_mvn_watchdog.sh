@@ -45,7 +45,7 @@ LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
 MODULES_CORE="\
 flink-test-utils-parent/flink-test-utils,\
-flink-contrib/flink-statebackend-rocksdb,\
+flink-state-backends/flink-statebackend-rocksdb,\
 flink-clients,\
 flink-core,\
 flink-java,\
@@ -67,6 +67,7 @@ flink-libraries/flink-gelly-scala,\
 flink-libraries/flink-gelly-examples,\
 flink-libraries/flink-ml,\
 flink-libraries/flink-python,\
+flink-libraries/flink-streaming-python,\
 flink-libraries/flink-table,\
 flink-queryable-state/flink-queryable-state-runtime,\
 flink-queryable-state/flink-queryable-state-client-java"
@@ -145,7 +146,7 @@ case $TEST in
 		# compile everything since dist needs it anyway
 		MVN_COMPILE_MODULES=""
 		MVN_TEST_MODULES="-pl $NEGATED_CORE,$NEGATED_LIBRARIES,$NEGATED_CONNECTORS,$NEGATED_TESTS"
-		MVN_COMPILE_OPTIONS="-Dspotbugs"
+		MVN_COMPILE_OPTIONS=""
 		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
 	;;
 esac
@@ -575,45 +576,9 @@ case $TEST in
 			printf "Running end-to-end tests\n"
 			printf "==============================================================================\n"
 
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running Wordcount end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_batch_wordcount.sh
-				EXIT_CODE=$?
-			fi
+			FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
 
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running Kafka end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_streaming_kafka010.sh
-				EXIT_CODE=$?
-			fi
-
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running class loading end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_streaming_classloader.sh
-				EXIT_CODE=$?
-			fi
-
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running Shaded Hadoop S3A end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_shaded_hadoop_s3a.sh
-				EXIT_CODE=$?
-			fi
-
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running Shaded Presto S3 end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_shaded_presto_s3.sh
-				EXIT_CODE=$?
-			fi			
+			EXIT_CODE=$?
 		else
 			printf "\n==============================================================================\n"
 			printf "Previous build failure detected, skipping end-to-end tests.\n"

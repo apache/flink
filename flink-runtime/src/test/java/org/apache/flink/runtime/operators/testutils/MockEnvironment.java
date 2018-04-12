@@ -44,6 +44,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
@@ -55,8 +56,11 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.fail;
 
@@ -73,7 +77,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final IOManager ioManager;
 
-	private final TestTaskStateManager taskStateManager;
+	private final TaskStateManager taskStateManager;
 
 	private final InputSplitProvider inputSplitProvider;
 
@@ -85,7 +89,9 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final List<ResultPartitionWriter> outputs;
 
-	private final JobID jobID = new JobID();
+	private final JobID jobID;
+
+	private final JobVertexID jobVertexID;
 
 	private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
 
@@ -99,14 +105,25 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
-	private Throwable failExternallyCause;
+	private Optional<Class<Throwable>> expectedExternalFailureCause = Optional.empty();
+
+	private Optional<Throwable> actualExternalFailureCause = Optional.empty();
+
+	public MockEnvironment() {
+		this(
+			"mock-task",
+			1024 * MemoryManager.DEFAULT_PAGE_SIZE,
+			null,
+			16,
+			new TestTaskStateManager());
+	}
 
 	public MockEnvironment(
 		String taskName,
 		long memorySize,
 		MockInputSplitProvider inputSplitProvider,
 		int bufferSize,
-		TestTaskStateManager taskStateManager) {
+		TaskStateManager taskStateManager) {
 		this(
 			taskName,
 			memorySize,
@@ -123,7 +140,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		MockInputSplitProvider inputSplitProvider,
 		int bufferSize, Configuration taskConfiguration,
 		ExecutionConfig executionConfig,
-		TestTaskStateManager taskStateManager) {
+		TaskStateManager taskStateManager) {
 		this(
 			taskName,
 			memorySize,
@@ -144,7 +161,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 			int bufferSize,
 			Configuration taskConfiguration,
 			ExecutionConfig executionConfig,
-			TestTaskStateManager taskStateManager,
+			TaskStateManager taskStateManager,
 			int maxParallelism,
 			int parallelism,
 			int subtaskIndex) {
@@ -155,11 +172,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
 			bufferSize,
 			taskConfiguration,
 			executionConfig,
+			taskStateManager,
 			maxParallelism,
 			parallelism,
 			subtaskIndex,
-			Thread.currentThread().getContextClassLoader(),
-			taskStateManager);
+			Thread.currentThread().getContextClassLoader());
 
 	}
 
@@ -170,11 +187,45 @@ public class MockEnvironment implements Environment, AutoCloseable {
 			int bufferSize,
 			Configuration taskConfiguration,
 			ExecutionConfig executionConfig,
+			TaskStateManager taskStateManager,
 			int maxParallelism,
 			int parallelism,
 			int subtaskIndex,
-			ClassLoader userCodeClassLoader,
-			TestTaskStateManager taskStateManager) {
+			ClassLoader userCodeClassLoader) {
+		this(
+			new JobID(),
+			new JobVertexID(),
+			taskName,
+			memorySize,
+			inputSplitProvider,
+			bufferSize,
+			taskConfiguration,
+			executionConfig,
+			taskStateManager,
+			maxParallelism,
+			parallelism,
+			subtaskIndex,
+			userCodeClassLoader);
+	}
+
+	public MockEnvironment(
+		JobID jobID,
+		JobVertexID jobVertexID,
+		String taskName,
+		long memorySize,
+		MockInputSplitProvider inputSplitProvider,
+		int bufferSize,
+		Configuration taskConfiguration,
+		ExecutionConfig executionConfig,
+		TaskStateManager taskStateManager,
+		int maxParallelism,
+		int parallelism,
+		int subtaskIndex,
+		ClassLoader userCodeClassLoader) {
+
+		this.jobID = jobID;
+		this.jobVertexID = jobVertexID;
+
 		this.taskInfo = new TaskInfo(taskName, maxParallelism, subtaskIndex, parallelism, 0);
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = taskConfiguration;
@@ -310,7 +361,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	@Override
 	public JobVertexID getJobVertexId() {
-		return new JobVertexID(new byte[16]);
+		return jobVertexID;
 	}
 
 	@Override
@@ -324,7 +375,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 	}
 
 	@Override
-	public TestTaskStateManager getTaskStateManager() {
+	public TaskStateManager getTaskStateManager() {
 		return taskStateManager;
 	}
 
@@ -355,7 +406,12 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	@Override
 	public void failExternally(Throwable cause) {
-		this.failExternallyCause = Preconditions.checkNotNull(cause, "Must give a cause fail fail.");
+		if (!expectedExternalFailureCause.isPresent()) {
+			throw new UnsupportedOperationException("MockEnvironment does not support external task failure.");
+		}
+		checkArgument(expectedExternalFailureCause.get().isInstance(checkNotNull(cause)));
+		checkState(!actualExternalFailureCause.isPresent());
+		actualExternalFailureCause = Optional.of(cause);
 	}
 
 	@Override
@@ -371,7 +427,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		checkState(ioManager.isProperlyShutDown(), "IO Manager has not properly shut down.");
 	}
 
-	public Throwable getFailExternallyCause() {
-		return failExternallyCause;
+	public void setExpectedExternalFailureCause(Class<Throwable> expectedThrowableClass) {
+		this.expectedExternalFailureCause = Optional.of(expectedThrowableClass);
+	}
+
+	public Optional<Throwable> getActualExternalFailureCause() {
+		return actualExternalFailureCause;
 	}
 }

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -32,7 +32,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link MetricsFilterParameter}.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class MetricsFilterParameterTest extends TestLogger {
 
 	private MetricsFilterParameter metricsFilterParameter;
@@ -49,8 +49,8 @@ public class MetricsFilterParameterTest extends TestLogger {
 
 	@Test
 	public void testConversions() {
+		assertThat(metricsFilterParameter.convertValueToString("test"), equalTo("test"));
 		assertThat(metricsFilterParameter.convertStringToValue("test"), equalTo("test"));
-		assertThat(metricsFilterParameter.convertValueFromString("test"), equalTo("test"));
 	}
 
 }

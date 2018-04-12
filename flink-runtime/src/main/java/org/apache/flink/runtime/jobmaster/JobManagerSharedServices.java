@@ -60,29 +60,18 @@ public class JobManagerSharedServices {
 
 	private final BackPressureStatsTracker backPressureStatsTracker;
 
-	private final Time timeout;
-
 	public JobManagerSharedServices(
 			ScheduledExecutorService scheduledExecutorService,
 			LibraryCacheManager libraryCacheManager,
 			RestartStrategyFactory restartStrategyFactory,
 			StackTraceSampleCoordinator stackTraceSampleCoordinator,
-			BackPressureStatsTracker backPressureStatsTracker,
-			Time backPressureStatsTrackerCleanupInterval,
-			Time timeout) {
+			BackPressureStatsTracker backPressureStatsTracker) {
 
 		this.scheduledExecutorService = checkNotNull(scheduledExecutorService);
 		this.libraryCacheManager = checkNotNull(libraryCacheManager);
 		this.restartStrategyFactory = checkNotNull(restartStrategyFactory);
 		this.stackTraceSampleCoordinator = checkNotNull(stackTraceSampleCoordinator);
 		this.backPressureStatsTracker = checkNotNull(backPressureStatsTracker);
-		this.timeout = checkNotNull(timeout);
-
-		scheduledExecutorService.scheduleWithFixedDelay(
-			backPressureStatsTracker::cleanUpOperatorStatsCache,
-			backPressureStatsTrackerCleanupInterval.toMilliseconds(),
-			backPressureStatsTrackerCleanupInterval.toMilliseconds(),
-			TimeUnit.MILLISECONDS);
 	}
 
 	public ScheduledExecutorService getScheduledExecutorService() {
@@ -99,10 +88,6 @@ public class JobManagerSharedServices {
 
 	public BackPressureStatsTracker getBackPressureStatsTracker() {
 		return backPressureStatsTracker;
-	}
-
-	public Time getTimeout() {
-		return timeout;
 	}
 
 	/**
@@ -146,9 +131,7 @@ public class JobManagerSharedServices {
 		final String classLoaderResolveOrder =
 			config.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
 
-		final String alwaysParentFirstLoaderString =
-			config.getString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER);
-		final String[] alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderString.split(";");
+		final String[] alwaysParentFirstLoaderPatterns = CoreOptions.getParentFirstLoaderPatterns(config);
 
 		final BlobLibraryCacheManager libraryCacheManager =
 			new BlobLibraryCacheManager(
@@ -160,7 +143,7 @@ public class JobManagerSharedServices {
 		try {
 			timeout = AkkaUtils.getTimeout(config);
 		} catch (NumberFormatException e) {
-			throw new IllegalConfigurationException(AkkaUtils.formatDurationParingErrorMessage());
+			throw new IllegalConfigurationException(AkkaUtils.formatDurationParsingErrorMessage());
 		}
 
 		final ScheduledExecutorService futureExecutor = Executors.newScheduledThreadPool(
@@ -177,13 +160,17 @@ public class JobManagerSharedServices {
 			config.getInteger(WebOptions.BACKPRESSURE_REFRESH_INTERVAL),
 			Time.milliseconds(config.getInteger(WebOptions.BACKPRESSURE_DELAY)));
 
+		futureExecutor.scheduleWithFixedDelay(
+			backPressureStatsTracker::cleanUpOperatorStatsCache,
+			cleanUpInterval,
+			cleanUpInterval,
+			TimeUnit.MILLISECONDS);
+
 		return new JobManagerSharedServices(
 			futureExecutor,
 			libraryCacheManager,
 			RestartStrategyFactory.createRestartStrategyFactory(config),
 			stackTraceSampleCoordinator,
-			backPressureStatsTracker,
-			Time.milliseconds(cleanUpInterval),
-			Time.milliseconds(timeout.toMillis()));
+			backPressureStatsTracker);
 	}
 }

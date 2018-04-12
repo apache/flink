@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
@@ -33,7 +33,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link JobResult}.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class JobResultTest extends TestLogger {
 
 	@Test

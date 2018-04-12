@@ -111,7 +111,8 @@ public class ClientTest {
 	@After
 	public void tearDown() throws Exception {
 		if (nioGroup != null) {
-			nioGroup.shutdownGracefully();
+			// note: no "quiet period" to not trigger Netty#4357
+			nioGroup.shutdownGracefully(0, 10, TimeUnit.SECONDS);
 		}
 	}
 
@@ -684,8 +685,8 @@ public class ClientTest {
 
 				state.update(201 + i);
 
-				// we know it must be a KvStat but this is not exposed to the user via State
-				InternalKvState<?> kvState = (InternalKvState<?>) state;
+				// we know it must be a KvState but this is not exposed to the user via State
+				InternalKvState<Integer, ?, Integer> kvState = (InternalKvState<Integer, ?, Integer>) state;
 
 				// Register KvState (one state instance for all server)
 				ids[i] = registry[i].registerKvState(new JobID(), new JobVertexID(), new KeyGroupRange(0, 0), "any", kvState);

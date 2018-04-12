@@ -18,10 +18,11 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
@@ -43,7 +44,9 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -91,32 +94,6 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		assertEquals(2, dynProperties.size());
 		assertEquals("5 min", dynProperties.get("akka.ask.timeout"));
 		assertEquals("-DappName=foobar", dynProperties.get("env.java.opts"));
-	}
-
-	@Test
-	public void testNotEnoughTaskSlots() throws Exception {
-		String[] params =
-			new String[] {"-yn", "2", "-ys", "3", "-p", "7"};
-
-		FlinkYarnSessionCli yarnCLI = new FlinkYarnSessionCli(
-			new Configuration(),
-			tmp.getRoot().getAbsolutePath(),
-			"y",
-			"yarn");
-
-		Options options = new Options();
-		// TODO: Nasty workaround: We should get rid of the YarnCLI and run options coupling
-		options.addOption(CliFrontendParser.PARALLELISM_OPTION);
-		yarnCLI.addGeneralOptions(options);
-		yarnCLI.addRunOptions(options);
-
-		final CommandLine commandLine = CliFrontendParser.parse(options, params, true);
-
-		ClusterSpecification clusterSpecification = yarnCLI.getClusterSpecification(commandLine);
-
-		// each task manager has 3 slots but the parallelism is 7. Thus the slots should be increased.
-		assertEquals(4, clusterSpecification.getSlotsPerTaskManager());
-		assertEquals(2, clusterSpecification.getNumberTaskManagers());
 	}
 
 	@Test
@@ -274,6 +251,67 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[] {"-yid", TEST_YARN_APPLICATION_ID_2.toString() }, true);
 		final ApplicationId clusterId = flinkYarnSessionCli.getClusterId(commandLine);
 		assertEquals(TEST_YARN_APPLICATION_ID_2, clusterId);
+	}
+
+	/**
+	 * Tests that the command line arguments override the configuration settings
+	 * when the {@link ClusterSpecification} is created.
+	 */
+	@Test
+	public void testCommandLineClusterSpecification() throws Exception {
+		final Configuration configuration = new Configuration();
+		final int jobManagerMemory = 1337;
+		final int taskManagerMemory = 7331;
+		final int slotsPerTaskManager = 30;
+
+		configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, jobManagerMemory);
+		configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, taskManagerMemory);
+		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
+
+		final String[] args = {"-yjm", String.valueOf(jobManagerMemory), "-ytm", String.valueOf(taskManagerMemory), "-ys", String.valueOf(slotsPerTaskManager)};
+		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
+			configuration,
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+
+		CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
+
+		final ClusterSpecification clusterSpecification = flinkYarnSessionCli.getClusterSpecification(commandLine);
+
+		assertThat(clusterSpecification.getMasterMemoryMB(), is(jobManagerMemory));
+		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(taskManagerMemory));
+		assertThat(clusterSpecification.getSlotsPerTaskManager(), is(slotsPerTaskManager));
+	}
+
+	/**
+	 * Tests that the configuration settings are used to create the
+	 * {@link ClusterSpecification}.
+	 */
+	@Test
+	public void testConfigurationClusterSpecification() throws Exception {
+		final Configuration configuration = new Configuration();
+		final int jobManagerMemory = 1337;
+		configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, jobManagerMemory);
+		final int taskManagerMemory = 7331;
+		configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, taskManagerMemory);
+		final int slotsPerTaskManager = 42;
+		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
+
+		final String[] args = {};
+		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
+			configuration,
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+
+		CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
+
+		final ClusterSpecification clusterSpecification = flinkYarnSessionCli.getClusterSpecification(commandLine);
+
+		assertThat(clusterSpecification.getMasterMemoryMB(), is(jobManagerMemory));
+		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(taskManagerMemory));
+		assertThat(clusterSpecification.getSlotsPerTaskManager(), is(slotsPerTaskManager));
 	}
 
 	///////////

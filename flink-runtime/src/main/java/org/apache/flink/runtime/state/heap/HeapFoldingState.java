@@ -29,8 +29,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * Heap-backed partitioned {@link FoldingState} that is
- * snapshotted into files.
+ * Heap-backed partitioned {@link FoldingState} that is snapshotted into files.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
@@ -42,7 +41,7 @@ import java.io.IOException;
 @Deprecated
 public class HeapFoldingState<K, N, T, ACC>
 		extends AbstractHeapState<K, N, ACC, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>>
-		implements InternalFoldingState<N, T, ACC> {
+		implements InternalFoldingState<K, N, T, ACC> {
 
 	/** The function used to fold the state */
 	private final FoldTransformation<T, ACC> foldTransformation;
@@ -61,6 +60,21 @@ public class HeapFoldingState<K, N, T, ACC>
 			TypeSerializer<N> namespaceSerializer) {
 		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
 		this.foldTransformation = new FoldTransformation<>(stateDesc);
+	}
+
+	@Override
+	public TypeSerializer<K> getKeySerializer() {
+		return keySerializer;
+	}
+
+	@Override
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
+	}
+
+	@Override
+	public TypeSerializer<ACC> getValueSerializer() {
+		return stateDesc.getSerializer();
 	}
 
 	// ------------------------------------------------------------------------

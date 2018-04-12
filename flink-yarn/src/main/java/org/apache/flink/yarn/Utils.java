@@ -141,7 +141,8 @@ public final class Utils {
 		Path homedir,
 		String relativeTargetPath) throws IOException {
 
-		if (new File(localSrcPath.toUri().getPath()).isDirectory()) {
+		File localFile = new File(localSrcPath.toUri().getPath());
+		if (localFile.isDirectory()) {
 			throw new IllegalArgumentException("File to copy must not be a directory: " +
 				localSrcPath);
 		}
@@ -159,9 +160,38 @@ public final class Utils {
 
 		fs.copyFromLocalFile(false, true, localSrcPath, dst);
 
+		// Note: If we used registerLocalResource(FileSystem, Path) here, we would access the remote
+		//       file once again which has problems with eventually consistent read-after-write file
+		//       systems. Instead, we decide to preserve the modification time at the remote
+		//       location because this and the size of the resource will be checked by YARN based on
+		//       the values we provide to #registerLocalResource() below.
+		fs.setTimes(dst, localFile.lastModified(), -1);
 		// now create the resource instance
-		LocalResource resource = registerLocalResource(fs, dst);
+		LocalResource resource = registerLocalResource(dst, localFile.length(), localFile.lastModified());
+
 		return Tuple2.of(dst, resource);
+	}
+
+	/**
+	 * Creates a YARN resource for the remote object at the given location.
+	 *
+	 * @param remoteRsrcPath	remote location of the resource
+	 * @param resourceSize		size of the resource
+	 * @param resourceModificationTime last modification time of the resource
+	 *
+	 * @return YARN resource
+	 */
+	private static LocalResource registerLocalResource(
+			Path remoteRsrcPath,
+			long resourceSize,
+			long resourceModificationTime) {
+		LocalResource localResource = Records.newRecord(LocalResource.class);
+		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
+		localResource.setSize(resourceSize);
+		localResource.setTimestamp(resourceModificationTime);
+		localResource.setType(LocalResourceType.FILE);
+		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
+		return localResource;
 	}
 
 	private static LocalResource registerLocalResource(FileSystem fs, Path remoteRsrcPath) throws IOException {
@@ -320,7 +350,7 @@ public final class Utils {
 	 *
 	 * @return The launch context for the TaskManager processes.
 	 *
-	 * @throws Exception Thrown if teh launch context could not be created, for example if
+	 * @throws Exception Thrown if the launch context could not be created, for example if
 	 *				   the resources could not be copied.
 	 */
 	static ContainerLaunchContext createTaskExecutorContext(
@@ -489,28 +519,32 @@ public final class Utils {
 
 		ctx.setEnvironment(containerEnv);
 
-		try (DataOutputBuffer dob = new DataOutputBuffer()) {
-			log.debug("Adding security tokens to Task Executor Container launch Context....");
+		// For TaskManager YARN container context, read the tokens from the jobmanager yarn container local file.
+		// NOTE: must read the tokens from the local file, not from the UGI context, because if UGI is login
+		// using Kerberos keytabs, there is no HDFS delegation token in the UGI context.
+		final String fileLocation = System.getenv(UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION);
 
-			// For TaskManager YARN container context, read the tokens from the jobmanager yarn container local flie.
-			// NOTE: must read the tokens from the local file, not from the UGI context, because if UGI is login
-			// using Kerberos keytabs, there is no HDFS delegation token in the UGI context.
-			String fileLocation = System.getenv(UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION);
-			Method readTokenStorageFileMethod = Credentials.class.getMethod(
-				"readTokenStorageFile", File.class, org.apache.hadoop.conf.Configuration.class);
+		if (fileLocation != null) {
+			log.debug("Adding security tokens to TaskExecutor's container launch context.");
 
-			Credentials cred =
-				(Credentials) readTokenStorageFileMethod.invoke(
-					null,
-					new File(fileLocation),
-					HadoopUtils.getHadoopConfiguration(flinkConfig));
+			try (DataOutputBuffer dob = new DataOutputBuffer()) {
+				Method readTokenStorageFileMethod = Credentials.class.getMethod(
+					"readTokenStorageFile", File.class, org.apache.hadoop.conf.Configuration.class);
 
-			cred.writeTokenStorageToStream(dob);
-			ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
-			ctx.setTokens(securityTokens);
-		}
-		catch (Throwable t) {
-			log.error("Getting current user info failed when trying to launch the container", t);
+				Credentials cred =
+					(Credentials) readTokenStorageFileMethod.invoke(
+						null,
+						new File(fileLocation),
+						HadoopUtils.getHadoopConfiguration(flinkConfig));
+
+				cred.writeTokenStorageToStream(dob);
+				ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
+				ctx.setTokens(securityTokens);
+			} catch (Throwable t) {
+				log.error("Failed to add Hadoop's security tokens.", t);
+			}
+		} else {
+			log.info("Could not set security tokens because Hadoop's token file location is unknown.");
 		}
 
 		return ctx;

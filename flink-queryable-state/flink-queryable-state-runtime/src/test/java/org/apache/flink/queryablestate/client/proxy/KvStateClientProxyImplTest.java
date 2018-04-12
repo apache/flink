@@ -25,6 +25,7 @@ import org.apache.flink.runtime.jobmaster.KvStateLocationOracle;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -53,6 +54,11 @@ public class KvStateClientProxyImplTest extends TestLogger {
 			new DisabledKvStateRequestStats());
 	}
 
+	@After
+	public void shutdown() {
+		kvStateClientProxy.shutdown();
+	}
+
 	/**
 	 * Tests that we can set and retrieve the {@link KvStateLocationOracle}.
 	 */
@@ -79,7 +85,7 @@ public class KvStateClientProxyImplTest extends TestLogger {
 	 * will be used for all requests.
 	 */
 	@Test
-	public void testPreFlip6CodePathPreference() {
+	public void testLegacyCodePathPreference() {
 		final TestingKvStateLocationOracle kvStateLocationOracle = new TestingKvStateLocationOracle();
 		kvStateClientProxy.updateKvStateLocationOracle(HighAvailabilityServices.DEFAULT_JOB_ID, kvStateLocationOracle);
 		final JobID jobId = new JobID();

@@ -21,6 +21,7 @@ import org.apache.flink.python.api.streaming.util.SerializationUtils.IntSerializ
 import org.apache.flink.python.api.streaming.util.SerializationUtils.StringSerializer;
 import org.apache.flink.python.api.streaming.util.StreamPrinter;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -124,18 +125,10 @@ public class PythonStreamer<S extends PythonSender, OUT> implements Serializable
 		errorPrinter = new Thread(new StreamPrinter(process.getErrorStream(), msg));
 		errorPrinter.start();
 
-		shutdownThread = new Thread() {
-			@Override
-			public void run() {
-				try {
-					destroyProcess(process);
-				} catch (IOException ioException) {
-					LOG.warn("Could not destroy python process.", ioException);
-				}
-			}
-		};
-
-		Runtime.getRuntime().addShutdownHook(shutdownThread);
+		shutdownThread = ShutdownHookUtil.addShutdownHook(
+			() -> destroyProcess(process),
+			getClass().getSimpleName(),
+			LOG);
 
 		OutputStream processOutput = process.getOutputStream();
 		processOutput.write("operator\n".getBytes(ConfigConstants.DEFAULT_CHARSET));
@@ -207,9 +200,7 @@ public class PythonStreamer<S extends PythonSender, OUT> implements Serializable
 			throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
 		}
 
-		if (shutdownThread != null) {
-			Runtime.getRuntime().removeShutdownHook(shutdownThread);
-		}
+		ShutdownHookUtil.removeShutdownHook(shutdownThread, getClass().getSimpleName(), LOG);
 
 		ExceptionUtils.tryRethrowIOException(throwable);
 	}

@@ -29,6 +29,8 @@ import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * A configuration object for {@link RestClient}s.
  */
@@ -39,9 +41,16 @@ public final class RestClientConfiguration {
 
 	private final long connectionTimeout;
 
-	private RestClientConfiguration(@Nullable SSLEngine sslEngine, final long connectionTimeout) {
+	private final int maxContentLength;
+
+	private RestClientConfiguration(
+			@Nullable final SSLEngine sslEngine,
+			final long connectionTimeout,
+			final int maxContentLength) {
+		checkArgument(maxContentLength > 0, "maxContentLength must be positive, was: %d", maxContentLength);
 		this.sslEngine = sslEngine;
 		this.connectionTimeout = connectionTimeout;
+		this.maxContentLength = maxContentLength;
 	}
 
 	/**
@@ -59,6 +68,15 @@ public final class RestClientConfiguration {
 	 */
 	public long getConnectionTimeout() {
 		return connectionTimeout;
+	}
+
+	/**
+	 * Returns the max content length that the REST client endpoint could handle.
+	 *
+	 * @return max content length that the REST client endpoint could handle
+	 */
+	public int getMaxContentLength() {
+		return maxContentLength;
 	}
 
 	/**
@@ -89,6 +107,8 @@ public final class RestClientConfiguration {
 
 		final long connectionTimeout = config.getLong(RestOptions.CONNECTION_TIMEOUT);
 
-		return new RestClientConfiguration(sslEngine, connectionTimeout);
+		int maxContentLength = config.getInteger(RestOptions.REST_CLIENT_MAX_CONTENT_LENGTH);
+
+		return new RestClientConfiguration(sslEngine, connectionTimeout, maxContentLength);
 	}
 }

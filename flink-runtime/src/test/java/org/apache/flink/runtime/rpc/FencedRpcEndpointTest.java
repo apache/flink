@@ -23,7 +23,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.rpc.exceptions.RpcException;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -46,7 +46,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-@Category(Flip6.class)
+@Category(New.class)
 public class FencedRpcEndpointTest extends TestLogger {
 
 	private static final Time timeout = Time.seconds(10L);
@@ -60,8 +60,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 	@AfterClass
 	public static void teardown() throws ExecutionException, InterruptedException, TimeoutException {
 		if (rpcService != null) {
-			rpcService.stopService();
-			rpcService.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcService(rpcService, timeout);
 		}
 	}
 
@@ -299,6 +298,11 @@ public class FencedRpcEndpointTest extends TestLogger {
 
 		protected FencedTestingEndpoint(RpcService rpcService, String value) {
 			this(rpcService, value, null);
+		}
+
+		@Override
+		public CompletableFuture<Void> postStop() {
+			return CompletableFuture.completedFuture(null);
 		}
 
 		protected FencedTestingEndpoint(RpcService rpcService, String value, UUID initialFencingToken) {

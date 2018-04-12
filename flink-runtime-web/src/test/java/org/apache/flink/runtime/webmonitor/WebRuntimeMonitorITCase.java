@@ -334,7 +334,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				HttpTestClient.SimpleHttpResponse response = client.getNextResponse();
 
 				assertEquals(HttpResponseStatus.SERVICE_UNAVAILABLE, response.getStatus());
-				assertEquals(MimeTypes.getMimeTypeForExtension("json"), response.getType());
+				assertEquals("application/json; charset=UTF-8", response.getType());
 				assertTrue(response.getContent().contains("refresh"));
 			}
 		}

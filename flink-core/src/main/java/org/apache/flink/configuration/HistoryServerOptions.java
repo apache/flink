@@ -34,7 +34,7 @@ public class HistoryServerOptions {
 	public static final ConfigOption<Long> HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL =
 		key("historyserver.archive.fs.refresh-interval")
 			.defaultValue(10000L)
-			.withDescription("Interval in milliseconds for refreshing the archived job directories.");;
+			.withDescription("Interval in milliseconds for refreshing the archived job directories.");
 
 	/**
 	 * Comma-separated list of directories which the HistoryServer polls for new archives.

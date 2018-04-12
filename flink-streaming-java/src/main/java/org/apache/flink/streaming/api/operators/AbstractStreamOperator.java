@@ -248,8 +248,8 @@ public abstract class AbstractStreamOperator<OUT>
 				context.isRestored(), // information whether we restore or start for the first time
 				operatorStateBackend, // access to operator state backend
 				keyedStateStore, // access to keyed state backend
-				keyedStateInputs, // access to operator state stream
-				operatorStateInputs); // access to keyed state stream
+				keyedStateInputs, // access to keyed state stream
+				operatorStateInputs); // access to operator state stream
 
 			initializeState(initializationContext);
 		} finally {
@@ -347,16 +347,13 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
-	public final OperatorSnapshotResult snapshotState(
-			long checkpointId,
-			long timestamp,
-			CheckpointOptions checkpointOptions,
+	public final OperatorSnapshotFutures snapshotState(long checkpointId, long timestamp, CheckpointOptions checkpointOptions,
 			CheckpointStreamFactory factory) throws Exception {
 
 		KeyGroupRange keyGroupRange = null != keyedStateBackend ?
 				keyedStateBackend.getKeyGroupRange() : KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
 
-		OperatorSnapshotResult snapshotInProgress = new OperatorSnapshotResult();
+		OperatorSnapshotFutures snapshotInProgress = new OperatorSnapshotFutures();
 
 		try (StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
 				checkpointId,

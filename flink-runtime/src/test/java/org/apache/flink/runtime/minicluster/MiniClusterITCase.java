@@ -21,13 +21,16 @@ package org.apache.flink.runtime.minicluster;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -36,19 +39,26 @@ import java.io.IOException;
 /**
  * Integration test cases for the {@link MiniCluster}.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class MiniClusterITCase extends TestLogger {
+
+	private static Configuration configuration;
+
+	@BeforeClass
+	public static void setup() {
+		configuration = new Configuration();
+		configuration.setInteger(WebOptions.PORT, 0);
+	}
 
 	// ------------------------------------------------------------------------
 	//  Simple Job Running Tests
 	// ------------------------------------------------------------------------
 
-	private static final MiniClusterConfiguration defaultConfiguration = null;
-
 	@Test
 	public void runJobWithSingleRpcService() throws Exception {
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setRpcServiceSharing(MiniClusterConfiguration.RpcServiceSharing.SHARED)
+			.setConfiguration(configuration)
 			.build();
 
 		MiniCluster miniCluster = new MiniCluster(cfg);
@@ -57,7 +67,7 @@ public class MiniClusterITCase extends TestLogger {
 			executeJob(miniCluster);
 		}
 		finally {
-			miniCluster.shutdown();
+			miniCluster.close();
 		}
 	}
 
@@ -65,6 +75,7 @@ public class MiniClusterITCase extends TestLogger {
 	public void runJobWithMultipleRpcServices() throws Exception {
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setRpcServiceSharing(MiniClusterConfiguration.RpcServiceSharing.DEDICATED)
+			.setConfiguration(configuration)
 			.build();
 
 		MiniCluster miniCluster = new MiniCluster(cfg);
@@ -73,23 +84,7 @@ public class MiniClusterITCase extends TestLogger {
 			executeJob(miniCluster);
 		}
 		finally {
-			miniCluster.shutdown();
-		}
-	}
-
-	@Test
-	public void runJobWithMultipleJobManagers() throws Exception {
-		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-		.setNumJobManagers(3)
-		.build();
-
-		MiniCluster miniCluster = new MiniCluster(cfg);
-		try {
-			miniCluster.start();
-			executeJob(miniCluster);
-		}
-		finally {
-			miniCluster.shutdown();
+			miniCluster.close();
 		}
 	}
 

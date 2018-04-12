@@ -42,6 +42,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -183,7 +184,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	}
 
 	@Override
-	BufferAndAvailability getNextBuffer() throws IOException {
+	Optional<BufferAndAvailability> getNextBuffer() throws IOException {
 		checkState(!isReleased.get(), "Queried for a buffer after channel has been closed.");
 		checkState(partitionRequestClient != null, "Queried for a buffer before requesting a queue.");
 
@@ -198,7 +199,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		}
 
 		numBytesIn.inc(next.getSizeUnsafe());
-		return new BufferAndAvailability(next, remaining > 0, getSenderBacklog());
+		return Optional.of(new BufferAndAvailability(next, remaining > 0, getSenderBacklog()));
 	}
 
 	// ------------------------------------------------------------------------
@@ -284,7 +285,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	/**
 	 * Enqueue this input channel in the pipeline for notifying the producer of unannounced credit.
 	 */
-	void notifyCreditAvailable() {
+	private void notifyCreditAvailable() {
 		checkState(partitionRequestClient != null, "Tried to send task event to producer before requesting a queue.");
 
 		// We should skip the notification if this channel is already released.
@@ -336,6 +337,11 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		return numRequiredBuffers - initialCredit;
 	}
 
+	@VisibleForTesting
+	boolean isWaitingForFloatingBuffers() {
+		return isWaitingForFloatingBuffers;
+	}
+
 	/**
 	 * The Buffer pool notifies this channel of an available floating buffer. If the channel is released or
 	 * currently does not need extra buffers, the buffer should be recycled to the buffer pool. Otherwise,
@@ -361,6 +367,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			// Important: double check the isReleased state inside synchronized block, so there is no
 			// race condition when notifyBufferAvailable and releaseAllResources running in parallel.
 			if (isReleased.get() || bufferQueue.getAvailableBufferSize() >= numRequiredBuffers) {
+				isWaitingForFloatingBuffers = false;
 				buffer.recycleBuffer();
 				return false;
 			}

@@ -75,7 +75,7 @@ public class JarUploadHandlerTest extends TestLogger {
 			() -> CompletableFuture.completedFuture(mockDispatcherGateway),
 			Time.seconds(10),
 			Collections.emptyMap(),
-			new JarUploadMessageHeaders(),
+			JarUploadHeaders.getInstance(),
 			jarDir,
 			Executors.directExecutor());
 	}

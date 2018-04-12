@@ -29,19 +29,28 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 public class RestOptions {
 
 	/**
-	 * The address that the server binds itself to / the client connects to.
+	 * The address that the server binds itself to.
+	 */
+	public static final ConfigOption<String> REST_BIND_ADDRESS =
+		key("rest.bind-address")
+			.noDefaultValue()
+			.withDescription("The address that the server binds itself.");
+
+	/**
+	 * The address that should be used by clients to connect to the server.
 	 */
 	public static final ConfigOption<String> REST_ADDRESS =
 		key("rest.address")
-			.defaultValue("localhost")
-			.withDescription("The address that the server binds itself to / the client connects to.");
+			.noDefaultValue()
+			.withDeprecatedKeys(JobManagerOptions.ADDRESS.key())
+			.withDescription("The address that should be used by clients to connect to the server.");
 
 	/**
 	 * The port that the server listens on / the client connects to.
 	 */
 	public static final ConfigOption<Integer> REST_PORT =
 		key("rest.port")
-			.defaultValue(9065)
+			.defaultValue(8081)
 			.withDescription("The port that the server listens on / the client connects to.");
 
 	/**
@@ -81,4 +90,21 @@ public class RestOptions {
 		key("rest.connection-timeout")
 			.defaultValue(15_000L)
 			.withDescription("The maximum time in ms for the client to establish a TCP connection.");
+
+	/**
+	 * The maximum content length that the server will handle.
+	 */
+	public static final ConfigOption<Integer> REST_SERVER_MAX_CONTENT_LENGTH =
+		key("rest.server.max-content-length")
+			.defaultValue(104_857_600)
+			.withDescription("The maximum content length in bytes that the server will handle.");
+
+	/**
+	 * The maximum content length that the client will handle.
+	 */
+	public static final ConfigOption<Integer> REST_CLIENT_MAX_CONTENT_LENGTH =
+		key("rest.client.max-content-length")
+			.defaultValue(104_857_600)
+			.withDescription("The maximum content length in bytes that the client will handle.");
+
 }

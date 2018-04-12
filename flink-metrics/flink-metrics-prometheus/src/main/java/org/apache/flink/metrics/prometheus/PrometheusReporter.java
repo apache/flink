@@ -98,6 +98,7 @@ public class PrometheusReporter implements MetricReporter {
 		while (ports.hasNext()) {
 			int port = ports.next();
 			try {
+				// internally accesses CollectorRegistry.defaultRegistry
 				httpServer = new HTTPServer(port);
 				this.port = port;
 				LOG.info("Started PrometheusReporter HTTP server on port {}.", port);

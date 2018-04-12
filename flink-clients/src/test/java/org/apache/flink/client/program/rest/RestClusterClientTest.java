@@ -35,6 +35,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.RestClient;
@@ -45,11 +46,18 @@ import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationInfo;
+import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationResult;
+import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
+import org.apache.flink.runtime.rest.messages.AccumulatorsIncludeSerializedValueQueryParameter;
 import org.apache.flink.runtime.rest.messages.BlobServerPortHeaders;
 import org.apache.flink.runtime.rest.messages.BlobServerPortResponseBody;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsHeaders;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsInfo;
+import org.apache.flink.runtime.rest.messages.JobAccumulatorsMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
 import org.apache.flink.runtime.rest.messages.JobTerminationMessageParameters;
@@ -58,29 +66,33 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-import org.apache.flink.runtime.rest.messages.SavepointTriggerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
+import org.apache.flink.runtime.rest.messages.TriggerId;
+import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultResponseBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalRequest;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalStatusHeaders;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalStatusMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointInfo;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointResponseBody;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerId;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerResponseBody;
-import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.OptionalFailure;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -99,13 +111,17 @@ import org.mockito.MockitoAnnotations;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -119,6 +135,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -131,7 +148,7 @@ import static org.mockito.Mockito.when;
  * <p>These tests verify that the client uses the appropriate headers for each
  * request, properly constructs the request bodies/parameters and processes the responses correctly.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class RestClusterClientTest extends TestLogger {
 
 	private static final String REST_ADDRESS = "http://localhost:1234";
@@ -183,7 +200,12 @@ public class RestClusterClientTest extends TestLogger {
 				}
 			}
 		};
-		restClusterClient = new RestClusterClient<>(config, restClient, StandaloneClusterId.getInstance(), (attempt) -> 0);
+		restClusterClient = new RestClusterClient<>(
+			config,
+			restClient,
+			StandaloneClusterId.getInstance(),
+			(attempt) -> 0,
+			null);
 
 		jobGraph = new JobGraph("testjob");
 		jobId = jobGraph.getJobID();
@@ -351,7 +373,7 @@ public class RestClusterClientTest extends TestLogger {
 				JobExecutionResultResponseBody.created(new JobResult.Builder()
 					.jobId(jobId)
 					.netRuntime(Long.MAX_VALUE)
-					.accumulatorResults(Collections.singletonMap("testName", new SerializedValue<>(1.0)))
+					.accumulatorResults(Collections.singletonMap("testName", new SerializedValue<>(OptionalFailure.of(1.0))))
 					.build()),
 				JobExecutionResultResponseBody.created(new JobResult.Builder()
 					.jobId(jobId)
@@ -399,21 +421,18 @@ public class RestClusterClientTest extends TestLogger {
 		final TestSavepointHandlers testSavepointHandlers = new TestSavepointHandlers();
 		final TestSavepointHandlers.TestSavepointTriggerHandler triggerHandler =
 			testSavepointHandlers.new TestSavepointTriggerHandler(
-				null, targetSavepointDirectory, null);
+				null, targetSavepointDirectory, null, null);
 		final TestSavepointHandlers.TestSavepointHandler savepointHandler =
 			testSavepointHandlers.new TestSavepointHandler(
-				new SavepointResponseBody(QueueStatus.completed(), new SavepointInfo(
-					testSavepointHandlers.testSavepointTriggerId,
+				new SavepointInfo(
 					savepointLocationDefaultDir,
-					null)),
-				new SavepointResponseBody(QueueStatus.completed(), new SavepointInfo(
-					testSavepointHandlers.testSavepointTriggerId,
+					null),
+				new SavepointInfo(
 					savepointLocationRequestedDir,
-					null)),
-				new SavepointResponseBody(QueueStatus.completed(), new SavepointInfo(
-					testSavepointHandlers.testSavepointTriggerId,
+					null),
+				new SavepointInfo(
 					null,
-					new SerializedThrowable(new RuntimeException("expected")))),
+					new SerializedThrowable(new RuntimeException("expected"))),
 				new RestHandlerException("not found", HttpResponseStatus.NOT_FOUND));
 
 		// fail first HTTP polling attempt, which should not be a problem because of the retries
@@ -453,6 +472,7 @@ public class RestClusterClientTest extends TestLogger {
 
 			try {
 				restClusterClient.triggerSavepoint(new JobID(), null).get();
+				fail("Expected exception not thrown.");
 			} catch (final ExecutionException e) {
 				assertTrue(
 					"RestClientException not in causal chain",
@@ -463,9 +483,9 @@ public class RestClusterClientTest extends TestLogger {
 
 	private class TestSavepointHandlers {
 
-		private final SavepointTriggerId testSavepointTriggerId = new SavepointTriggerId();
+		private final TriggerId testTriggerId = new TriggerId();
 
-		private class TestSavepointTriggerHandler extends TestHandler<SavepointTriggerRequestBody, SavepointTriggerResponseBody, SavepointTriggerMessageParameters> {
+		private class TestSavepointTriggerHandler extends TestHandler<SavepointTriggerRequestBody, TriggerResponse, SavepointTriggerMessageParameters> {
 
 			private final Iterator<String> expectedTargetDirectories;
 
@@ -475,43 +495,43 @@ public class RestClusterClientTest extends TestLogger {
 			}
 
 			@Override
-			protected CompletableFuture<SavepointTriggerResponseBody> handleRequest(
+			protected CompletableFuture<TriggerResponse> handleRequest(
 					@Nonnull HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters> request,
 					@Nonnull DispatcherGateway gateway) throws RestHandlerException {
 				final String targetDirectory = request.getRequestBody().getTargetDirectory();
 				if (Objects.equals(expectedTargetDirectories.next(), targetDirectory)) {
 					return CompletableFuture.completedFuture(
-						new SavepointTriggerResponseBody(testSavepointTriggerId));
+						new TriggerResponse(testTriggerId));
 				} else {
 					// return new random savepoint trigger id so that test can fail
 					return CompletableFuture.completedFuture(
-						new SavepointTriggerResponseBody(new SavepointTriggerId()));
+						new TriggerResponse(new TriggerId()));
 				}
 			}
 		}
 
 		private class TestSavepointHandler
-				extends TestHandler<EmptyRequestBody, SavepointResponseBody, SavepointStatusMessageParameters> {
+				extends TestHandler<EmptyRequestBody, AsynchronousOperationResult<SavepointInfo>, SavepointStatusMessageParameters> {
 
 			private final Iterator<Object> expectedSavepointResponseBodies;
 
 			TestSavepointHandler(final Object... expectedSavepointResponseBodies) {
 				super(SavepointStatusHeaders.getInstance());
 				checkArgument(Arrays.stream(expectedSavepointResponseBodies)
-					.allMatch(response -> response instanceof SavepointResponseBody ||
+					.allMatch(response -> response instanceof SavepointInfo ||
 						response instanceof RestHandlerException));
 				this.expectedSavepointResponseBodies = Arrays.asList(expectedSavepointResponseBodies).iterator();
 			}
 
 			@Override
-			protected CompletableFuture<SavepointResponseBody> handleRequest(
+			protected CompletableFuture<AsynchronousOperationResult<SavepointInfo>> handleRequest(
 					@Nonnull HandlerRequest<EmptyRequestBody, SavepointStatusMessageParameters> request,
 					@Nonnull DispatcherGateway gateway) throws RestHandlerException {
-				final SavepointTriggerId savepointTriggerId = request.getPathParameter(SavepointTriggerIdPathParameter.class);
-				if (testSavepointTriggerId.equals(savepointTriggerId)) {
+				final TriggerId triggerId = request.getPathParameter(TriggerIdPathParameter.class);
+				if (testTriggerId.equals(triggerId)) {
 					final Object response = expectedSavepointResponseBodies.next();
-					if (response instanceof SavepointResponseBody) {
-						return CompletableFuture.completedFuture((SavepointResponseBody) response);
+					if (response instanceof SavepointInfo) {
+						return CompletableFuture.completedFuture(AsynchronousOperationResult.completed(((SavepointInfo) response)));
 					} else if (response instanceof RestHandlerException) {
 						return FutureUtils.completedExceptionally((RestHandlerException) response);
 					} else {
@@ -520,8 +540,105 @@ public class RestClusterClientTest extends TestLogger {
 				} else {
 					return FutureUtils.completedExceptionally(
 						new RestHandlerException(
-							"Unexpected savepoint trigger id: " + savepointTriggerId,
+							"Unexpected savepoint trigger id: " + triggerId,
 							HttpResponseStatus.BAD_REQUEST));
+				}
+			}
+		}
+	}
+
+	@Test
+	public void testDisposeSavepoint() throws Exception {
+		final String savepointPath = "foobar";
+		final String exceptionMessage = "Test exception.";
+		final FlinkException testException = new FlinkException(exceptionMessage);
+
+		final TestSavepointDisposalHandlers testSavepointDisposalHandlers = new TestSavepointDisposalHandlers(savepointPath);
+		final TestSavepointDisposalHandlers.TestSavepointDisposalTriggerHandler testSavepointDisposalTriggerHandler = testSavepointDisposalHandlers.new TestSavepointDisposalTriggerHandler();
+		final TestSavepointDisposalHandlers.TestSavepointDisposalStatusHandler testSavepointDisposalStatusHandler = testSavepointDisposalHandlers.new TestSavepointDisposalStatusHandler(
+			OptionalFailure.of(AsynchronousOperationInfo.complete()),
+			OptionalFailure.of(AsynchronousOperationInfo.completeExceptional(new SerializedThrowable(testException))),
+			OptionalFailure.ofFailure(testException));
+
+		try (TestRestServerEndpoint ignored = createRestServerEndpoint(
+			testSavepointDisposalStatusHandler,
+			testSavepointDisposalTriggerHandler)) {
+			{
+				final CompletableFuture<Acknowledge> disposeSavepointFuture = restClusterClient.disposeSavepoint(savepointPath);
+				assertThat(disposeSavepointFuture.get(), is(Acknowledge.get()));
+			}
+
+			{
+				final CompletableFuture<Acknowledge> disposeSavepointFuture = restClusterClient.disposeSavepoint(savepointPath);
+
+				try {
+					disposeSavepointFuture.get();
+					fail("Expected an exception");
+				} catch (ExecutionException ee) {
+					assertThat(ExceptionUtils.findThrowableWithMessage(ee, exceptionMessage).isPresent(), is(true));
+				}
+			}
+
+			{
+				try {
+					restClusterClient.disposeSavepoint(savepointPath).get();
+					fail("Expected an exception.");
+				} catch (ExecutionException ee) {
+					assertThat(ExceptionUtils.findThrowable(ee, RestClientException.class).isPresent(), is(true));
+				}
+			}
+		}
+	}
+
+	private class TestSavepointDisposalHandlers {
+
+		private final TriggerId triggerId = new TriggerId();
+
+		private final String savepointPath;
+
+		private TestSavepointDisposalHandlers(String savepointPath) {
+			this.savepointPath = Preconditions.checkNotNull(savepointPath);
+		}
+
+		private class TestSavepointDisposalTriggerHandler extends TestHandler<SavepointDisposalRequest, TriggerResponse, EmptyMessageParameters> {
+			private TestSavepointDisposalTriggerHandler() {
+				super(SavepointDisposalTriggerHeaders.getInstance());
+			}
+
+			@Override
+			protected CompletableFuture<TriggerResponse> handleRequest(@Nonnull HandlerRequest<SavepointDisposalRequest, EmptyMessageParameters> request, @Nonnull DispatcherGateway gateway) {
+				assertThat(request.getRequestBody().getSavepointPath(), is(savepointPath));
+				return CompletableFuture.completedFuture(new TriggerResponse(triggerId));
+			}
+		}
+
+		private class TestSavepointDisposalStatusHandler extends TestHandler<EmptyRequestBody, AsynchronousOperationResult<AsynchronousOperationInfo>, SavepointDisposalStatusMessageParameters> {
+
+			private final Queue<OptionalFailure<AsynchronousOperationInfo>> responses;
+
+			private TestSavepointDisposalStatusHandler(OptionalFailure<AsynchronousOperationInfo>... responses) {
+				super(SavepointDisposalStatusHeaders.getInstance());
+				this.responses = new ArrayDeque<>(Arrays.asList(responses));
+			}
+
+			@Override
+			protected CompletableFuture<AsynchronousOperationResult<AsynchronousOperationInfo>> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, SavepointDisposalStatusMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
+				final TriggerId actualTriggerId = request.getPathParameter(TriggerIdPathParameter.class);
+
+				if (actualTriggerId.equals(triggerId)) {
+					final OptionalFailure<AsynchronousOperationInfo> nextResponse = responses.poll();
+
+					if (nextResponse != null) {
+						if (nextResponse.isFailure()) {
+							throw new RestHandlerException("Failure", HttpResponseStatus.BAD_REQUEST, nextResponse.getFailureCause());
+						} else {
+							return CompletableFuture.completedFuture(AsynchronousOperationResult.completed(nextResponse.getUnchecked()));
+						}
+					} else {
+						throw new AssertionError();
+					}
+				} else {
+					throw new AssertionError();
 				}
 			}
 		}
@@ -538,6 +655,67 @@ public class RestClusterClientTest extends TestLogger {
 				JobStatusMessage job2 = jobDetailsIterator.next();
 				Assert.assertNotEquals("The job status should not be equal.", job1.getJobState(), job2.getJobState());
 			}
+		}
+	}
+
+	@Test
+	public void testGetAccumulators() throws Exception {
+		TestAccumulatorHandler accumulatorHandler = new TestAccumulatorHandler();
+
+		try (TestRestServerEndpoint ignored = createRestServerEndpoint(accumulatorHandler)){
+
+			JobID id = new JobID();
+
+			{
+				Map<String, OptionalFailure<Object>> accumulators = restClusterClient.getAccumulators(id);
+				assertNotNull(accumulators);
+				assertEquals(1, accumulators.size());
+
+				assertEquals(true, accumulators.containsKey("testKey"));
+				assertEquals("testValue", accumulators.get("testKey").get().toString());
+			}
+		}
+	}
+
+	private class TestAccumulatorHandler extends TestHandler<EmptyRequestBody, JobAccumulatorsInfo, JobAccumulatorsMessageParameters> {
+
+		public TestAccumulatorHandler() {
+			super(JobAccumulatorsHeaders.getInstance());
+		}
+
+		@Override
+		protected CompletableFuture<JobAccumulatorsInfo> handleRequest(
+			@Nonnull HandlerRequest<EmptyRequestBody,
+				JobAccumulatorsMessageParameters> request,
+			@Nonnull DispatcherGateway gateway) throws RestHandlerException {
+			JobAccumulatorsInfo accumulatorsInfo;
+			List<Boolean> queryParams = request.getQueryParameter(AccumulatorsIncludeSerializedValueQueryParameter.class);
+
+			final boolean includeSerializedValue;
+			if (!queryParams.isEmpty()) {
+				includeSerializedValue = queryParams.get(0);
+			} else {
+				includeSerializedValue = false;
+			}
+
+			List<JobAccumulatorsInfo.UserTaskAccumulator> userTaskAccumulators = new ArrayList<>(1);
+
+			userTaskAccumulators.add(new JobAccumulatorsInfo.UserTaskAccumulator("testName", "testType", "testValue"));
+
+			if (includeSerializedValue) {
+				Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserTaskAccumulators = new HashMap<>(1);
+				try {
+					serializedUserTaskAccumulators.put("testKey", new SerializedValue<>(OptionalFailure.of("testValue")));
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+
+				accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), userTaskAccumulators, serializedUserTaskAccumulators);
+			} else {
+				accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), userTaskAccumulators, Collections.emptyMap());
+			}
+
+			return CompletableFuture.completedFuture(accumulatorsInfo);
 		}
 	}
 
@@ -578,7 +756,7 @@ public class RestClusterClientTest extends TestLogger {
 
 		private final AbstractRestHandler<?, ?, ?, ?>[] abstractRestHandlers;
 
-		TestRestServerEndpoint(final AbstractRestHandler<?, ?, ?, ?>... abstractRestHandlers) {
+		TestRestServerEndpoint(final AbstractRestHandler<?, ?, ?, ?>... abstractRestHandlers) throws IOException {
 			super(restServerEndpointConfiguration);
 			this.abstractRestHandlers = abstractRestHandlers;
 		}
@@ -596,9 +774,7 @@ public class RestClusterClientTest extends TestLogger {
 		}
 
 		@Override
-		public void close() throws Exception {
-			shutdown(Time.seconds(5));
-		}
+		protected void startInternal() throws Exception {}
 	}
 
 	@FunctionalInterface

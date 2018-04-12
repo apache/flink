@@ -40,10 +40,10 @@ import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.{BlobServer, BlobStore}
 import org.apache.flink.runtime.checkpoint._
 import org.apache.flink.runtime.client._
-import org.apache.flink.runtime.clusterframework.{BootstrapTools, FlinkResourceManager}
 import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
+import org.apache.flink.runtime.clusterframework.{BootstrapTools, FlinkResourceManager}
 import org.apache.flink.runtime.concurrent.{FutureUtils, ScheduledExecutorServiceAdapter}
 import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders.ResolveOrder
@@ -501,7 +501,11 @@ class JobManager(
             }
           }
         } catch {
-          case t: Throwable => log.warn(s"Failed to recover job $jobId.", t)
+          case t: Throwable => {
+            log.error(s"Failed to recover job $jobId.", t)
+            // stop one self in order to be restarted and trying to recover the jobs again
+            context.stop(self)
+          }
         }
       }(context.dispatcher)
 
@@ -523,9 +527,12 @@ class JobManager(
             }
           }
         } catch {
-          case e: Exception =>
-            log.warn("Failed to recover job ids from submitted job graph store. Aborting " +
-                       "recovery.", e)
+          case e: Exception => {
+            log.error("Failed to recover job ids from submitted job graph store. Aborting " +
+              "recovery.", e)
+            // stop one self in order to be restarted and trying to recover the jobs again
+            context.stop(self)
+          }
         }
       }(context.dispatcher)
 
@@ -1769,6 +1776,7 @@ class JobManager(
     val futures = for ((jobID, (eg, jobInfo)) <- currentJobs) yield {
       future {
         eg.suspend(cause)
+        jobManagerMetricGroup.removeJob(eg.getJobID)
 
         jobInfo.notifyNonDetachedClients(
           decorateMessage(
@@ -2054,7 +2062,7 @@ object JobManager {
     }
 
     try {
-      metricRegistry.shutdown()
+      metricRegistry.shutdown().get()
     } catch {
       case t: Throwable =>
         LOG.warn("Could not properly shut down the metric registry.", t)
@@ -2430,9 +2438,8 @@ object JobManager {
     val timeout: FiniteDuration = AkkaUtils.getTimeout(configuration)
 
     val classLoaderResolveOrder = configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER)
-    val alwaysParentFirstLoaderString =
-      configuration.getString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER)
-    val alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderString.split(';')
+
+    val alwaysParentFirstLoaderPatterns = CoreOptions.getParentFirstLoaderPatterns(configuration)
 
     val restartStrategy = RestartStrategyFactory.createRestartStrategyFactory(configuration)
 

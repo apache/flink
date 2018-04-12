@@ -23,13 +23,13 @@ import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.testutils.MultiShotLatch;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.fs.AvroKeyValueSinkWriter.AvroKeyValue;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.test.util.MiniClusterResource;
@@ -673,7 +673,7 @@ public class RollingSinkITCase extends TestLogger {
 		testHarness.notifyOfCompletedCheckpoint(0);
 		checkFs(outDir, 1, 0, 2, 0);
 
-		OperatorStateHandles snapshot = testHarness.snapshot(1, 0);
+		OperatorSubtaskState snapshot = testHarness.snapshot(1, 0);
 
 		testHarness.close();
 		checkFs(outDir, 0, 1, 2, 0);
@@ -735,7 +735,7 @@ public class RollingSinkITCase extends TestLogger {
 		checkFs(outDir, 3, 5, 0, 0);
 
 		// intentionally we snapshot them in a not ascending order so that the states are shuffled
-		OperatorStateHandles mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
+		OperatorSubtaskState mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
 			testHarness3.snapshot(0, 0),
 			testHarness1.snapshot(0, 0),
 			testHarness2.snapshot(0, 0)
@@ -786,7 +786,7 @@ public class RollingSinkITCase extends TestLogger {
 		checkFs(outDir, 2, 3, 0, 0);
 
 		// intentionally we snapshot them in the reverse order so that the states are shuffled
-		OperatorStateHandles mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
+		OperatorSubtaskState mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
 			testHarness2.snapshot(0, 0),
 			testHarness1.snapshot(0, 0)
 		);

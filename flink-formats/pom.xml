@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.5-SNAPSHOT</version>
+		<version>1.6-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -37,6 +37,24 @@ under the License.
 
 	<modules>
 		<module>flink-avro</module>
+		<module>flink-json</module>
 	</modules>
+
+	<!-- override these root dependencies as 'provided', so they don't end up
+		in the jars-with-dependencies (uber jars) of formats and
+		user programs that depend on the formats -->
+
+	<dependencies>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
+		</dependency>
+	</dependencies>
 
 </project>

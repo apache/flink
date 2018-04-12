@@ -53,65 +53,54 @@ public class ChainedAllReduceDriverTest extends TaskTestBase {
 	private final RecordSerializerFactory serFact = RecordSerializerFactory.get();
 
 	@Test
-	public void testMapTask() {
+	public void testMapTask() throws Exception {
 		final int keyCnt = 100;
 		final int valCnt = 20;
 
 		final double memoryFraction = 1.0;
 
-		try {
-			// environment
-			initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
-			mockEnv.getExecutionConfig().enableObjectReuse();
-			addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
-			addOutput(this.outList);
+		// environment
+		initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
+		mockEnv.getExecutionConfig().enableObjectReuse();
+		addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
+		addOutput(this.outList);
 
-			// chained reduce config
-			{
-				final TaskConfig reduceConfig = new TaskConfig(new Configuration());
+		// chained reduce config
+		{
+			final TaskConfig reduceConfig = new TaskConfig(new Configuration());
 
-				// input
-				reduceConfig.addInputToGroup(0);
-				reduceConfig.setInputSerializer(serFact, 0);
+			// input
+			reduceConfig.addInputToGroup(0);
+			reduceConfig.setInputSerializer(serFact, 0);
 
-				// output
-				reduceConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-				reduceConfig.setOutputSerializer(serFact);
+			// output
+			reduceConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+			reduceConfig.setOutputSerializer(serFact);
 
-				// driver
-				reduceConfig.setDriverStrategy(DriverStrategy.ALL_REDUCE);
-				reduceConfig.setDriverComparator(compFact, 0);
-				reduceConfig.setDriverComparator(compFact, 1);
-				reduceConfig.setRelativeMemoryDriver(memoryFraction);
+			// driver
+			reduceConfig.setDriverStrategy(DriverStrategy.ALL_REDUCE);
+			reduceConfig.setDriverComparator(compFact, 0);
+			reduceConfig.setDriverComparator(compFact, 1);
+			reduceConfig.setRelativeMemoryDriver(memoryFraction);
 
-				// udf
-				reduceConfig.setStubWrapper(new UserCodeClassWrapper<>(MockReduceStub.class));
+			// udf
+			reduceConfig.setStubWrapper(new UserCodeClassWrapper<>(MockReduceStub.class));
 
-				getTaskConfig().addChainedTask(ChainedAllReduceDriver.class, reduceConfig, "reduce");
-			}
-
-			// chained map+reduce
-			{
-				registerTask(FlatMapDriver.class, MockMapStub.class);
-				BatchTask<FlatMapFunction<Record, Record>, Record> testTask = new BatchTask<>(mockEnv);
-
-				try {
-					testTask.invoke();
-				} catch (Exception e) {
-					e.printStackTrace();
-					Assert.fail("Invoke method caused exception.");
-				}
-			}
-
-			int sumTotal = valCnt * keyCnt * (keyCnt - 1) / 2;
-
-			Assert.assertEquals(1, this.outList.size());
-			Assert.assertEquals(sumTotal, this.outList.get(0).getField(0, IntValue.class).getValue());
+			getTaskConfig().addChainedTask(ChainedAllReduceDriver.class, reduceConfig, "reduce");
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail(e.getMessage());
+
+		// chained map+reduce
+		{
+			registerTask(FlatMapDriver.class, MockMapStub.class);
+			BatchTask<FlatMapFunction<Record, Record>, Record> testTask = new BatchTask<>(mockEnv);
+
+			testTask.invoke();
 		}
+
+		int sumTotal = valCnt * keyCnt * (keyCnt - 1) / 2;
+
+		Assert.assertEquals(1, this.outList.size());
+		Assert.assertEquals(sumTotal, this.outList.get(0).getField(0, IntValue.class).getValue());
 	}
 
 	public static class MockReduceStub implements ReduceFunction<Record> {

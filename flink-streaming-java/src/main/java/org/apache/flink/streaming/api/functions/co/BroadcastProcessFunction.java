@@ -90,4 +90,16 @@ public abstract class BroadcastProcessFunction<IN1, IN2, OUT> extends BaseBroadc
 	 *                   to fail and go into recovery.
 	 */
 	public abstract void processBroadcastElement(IN2 value, Context ctx, Collector<OUT> out) throws Exception;
+
+	/**
+	 * A {@link BaseBroadcastProcessFunction.Context context} available to the broadcast side of
+	 * a {@link org.apache.flink.streaming.api.datastream.BroadcastConnectedStream}.
+	 */
+	public abstract class Context extends BaseBroadcastProcessFunction.Context {}
+
+	/**
+	 * A {@link BaseBroadcastProcessFunction.Context context} available to the non-keyed side of
+	 * a {@link org.apache.flink.streaming.api.datastream.BroadcastConnectedStream} (if any).
+	 */
+	public abstract class ReadOnlyContext extends BaseBroadcastProcessFunction.ReadOnlyContext {}
 }

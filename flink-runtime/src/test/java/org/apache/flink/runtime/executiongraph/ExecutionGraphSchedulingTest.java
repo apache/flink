@@ -27,28 +27,39 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobmanager.slots.DummySlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.TestingSlotOwner;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Test;
 import org.mockito.verification.Timeout;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.net.InetAddress;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -412,6 +423,87 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		verify(taskManager, times(0)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 	}
 
+	/**
+	 * Tests that an ongoing scheduling operation does not fail the {@link ExecutionGraph}
+	 * if it gets concurrently cancelled
+	 */
+	@Test
+	public void testSchedulingOperationCancellationWhenCancel() throws Exception {
+		final JobVertex jobVertex = new JobVertex("NoOp JobVertex");
+		jobVertex.setInvokableClass(NoOpInvokable.class);
+		jobVertex.setParallelism(2);
+		final JobGraph jobGraph = new JobGraph(jobVertex);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+		jobGraph.setAllowQueuedScheduling(true);
+
+		final CompletableFuture<LogicalSlot> slotFuture1 = new CompletableFuture<>();
+		final CompletableFuture<LogicalSlot> slotFuture2 = new CompletableFuture<>();
+		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(2);
+		slotProvider.addSlots(jobVertex.getID(), new CompletableFuture[]{slotFuture1, slotFuture2});
+		final ExecutionGraph executionGraph = createExecutionGraph(jobGraph, slotProvider);
+
+		executionGraph.scheduleForExecution();
+
+		final CompletableFuture<?> releaseFuture = new CompletableFuture<>();
+
+		final TestingLogicalSlot slot = createTestingSlot(releaseFuture);
+		slotFuture1.complete(slot);
+
+		// cancel should change the state of all executions to CANCELLED
+		executionGraph.cancel();
+
+		// complete the now CANCELLED execution --> this should cause a failure
+		slotFuture2.complete(new TestingLogicalSlot());
+
+		Thread.sleep(1L);
+		// release the first slot to finish the cancellation
+		releaseFuture.complete(null);
+
+		// NOTE: This test will only occasionally fail without the fix since there is
+		// a race between the releaseFuture and the slotFuture2
+		assertThat(executionGraph.getTerminationFuture().get(), is(JobStatus.CANCELED));
+	}
+
+	/**
+	 * Tests that a partially completed eager scheduling operation fails if a
+	 * completed slot is released. See FLINK-9099.
+	 */
+	@Test
+	public void testSlotReleasingFailsSchedulingOperation() throws Exception {
+		final int parallelism = 2;
+
+		final JobVertex jobVertex = new JobVertex("Testing job vertex");
+		jobVertex.setInvokableClass(NoOpInvokable.class);
+		jobVertex.setParallelism(parallelism);
+		final JobGraph jobGraph = new JobGraph(jobVertex);
+		jobGraph.setAllowQueuedScheduling(true);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+
+		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(parallelism);
+
+		final SimpleSlot slot = createSlot(new SimpleAckingTaskManagerGateway(), jobGraph.getJobID(), new DummySlotOwner());
+		slotProvider.addSlot(jobVertex.getID(), 0, CompletableFuture.completedFuture(slot));
+
+		final CompletableFuture<LogicalSlot> slotFuture = new CompletableFuture<>();
+		slotProvider.addSlot(jobVertex.getID(), 1, slotFuture);
+
+		final ExecutionGraph executionGraph = createExecutionGraph(jobGraph, slotProvider);
+
+		executionGraph.scheduleForExecution();
+
+		assertThat(executionGraph.getState(), is(JobStatus.RUNNING));
+
+		final ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertex.getID());
+		final ExecutionVertex[] taskVertices = executionJobVertex.getTaskVertices();
+		assertThat(taskVertices[0].getExecutionState(), is(ExecutionState.SCHEDULED));
+		assertThat(taskVertices[1].getExecutionState(), is(ExecutionState.SCHEDULED));
+
+		// fail the single allocated slot --> this should fail the scheduling operation
+		slot.releaseSlot(new FlinkException("Test failure"));
+
+		assertThat(executionGraph.getTerminationFuture().get(), is(JobStatus.FAILED));
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -476,5 +568,17 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 	private static class TestRuntimeException extends RuntimeException {
 		private static final long serialVersionUID = 1L;
+	}
+
+	@Nonnull
+	private static TestingLogicalSlot createTestingSlot(@Nullable CompletableFuture<?> releaseFuture) {
+		return new TestingLogicalSlot(
+			new LocalTaskManagerLocation(),
+			new SimpleAckingTaskManagerGateway(),
+			0,
+			new AllocationID(),
+			new SlotRequestId(),
+			new SlotSharingGroupId(),
+			releaseFuture);
 	}
 }

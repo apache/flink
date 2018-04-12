@@ -23,6 +23,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -53,6 +54,7 @@ import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -171,7 +173,15 @@ public class TaskManagerRunner implements FatalErrorHandler {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
-			rpcService.stopService();
+			try {
+				rpcService.stopService().get();
+			} catch (InterruptedException ie) {
+				exception = ExceptionUtils.firstOrSuppressed(ie, exception);
+
+				Thread.currentThread().interrupt();
+			} catch (Exception e) {
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			}
 
 			try {
 				highAvailabilityServices.close();
@@ -188,7 +198,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 	}
 
 	// export the termination future for caller to know it is terminated
-	public CompletableFuture<Boolean> getTerminationFuture() {
+	public CompletableFuture<Void> getTerminationFuture() {
 		return taskManager.getTerminationFuture();
 	}
 
@@ -232,6 +242,13 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		final String configDir = parameterTool.get("configDir");
 
 		final Configuration configuration = GlobalConfiguration.loadConfiguration(configDir);
+
+		try {
+			FileSystem.initialize(configuration);
+		} catch (IOException e) {
+			throw new IOException("Error while setting the default " +
+				"filesystem scheme from configuration.", e);
+		}
 
 		SecurityUtils.install(new SecurityConfiguration(configuration));
 
@@ -286,6 +303,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
 			taskManagerServicesConfiguration,
 			resourceID,
+			rpcService.getExecutor(), // TODO replace this later with some dedicated executor for io.
 			EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag(),
 			EnvironmentInformation.getMaxJvmHeapMemory());
 

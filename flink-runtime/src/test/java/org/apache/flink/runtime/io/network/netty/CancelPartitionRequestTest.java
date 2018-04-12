@@ -87,20 +87,20 @@ public class CancelPartitionRequestTest {
 					@Override
 					public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
 						BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[2];
-						listener.notifyBuffersAvailable(Long.MAX_VALUE);
+						listener.notifyDataAvailable();
 						return view;
 					}
 				});
 
 			NettyProtocol protocol = new NettyProtocol(
-					partitions, mock(TaskEventDispatcher.class));
+					partitions, mock(TaskEventDispatcher.class), true);
 
 			serverAndClient = initServerAndClient(protocol);
 
 			Channel ch = connect(serverAndClient);
 
 			// Request for non-existing input channel => results in cancel request
-			ch.writeAndFlush(new PartitionRequest(pid, 0, new InputChannelID(), 2)).await();
+			ch.writeAndFlush(new PartitionRequest(pid, 0, new InputChannelID(), Integer.MAX_VALUE)).await();
 
 			// Wait for the notification
 			if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
@@ -138,13 +138,13 @@ public class CancelPartitionRequestTest {
 						@Override
 						public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
 							BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[2];
-							listener.notifyBuffersAvailable(Long.MAX_VALUE);
+							listener.notifyDataAvailable();
 							return view;
 						}
 					});
 
 			NettyProtocol protocol = new NettyProtocol(
-					partitions, mock(TaskEventDispatcher.class));
+					partitions, mock(TaskEventDispatcher.class), true);
 
 			serverAndClient = initServerAndClient(protocol);
 
@@ -153,7 +153,7 @@ public class CancelPartitionRequestTest {
 			// Request for non-existing input channel => results in cancel request
 			InputChannelID inputChannelId = new InputChannelID();
 
-			ch.writeAndFlush(new PartitionRequest(pid, 0, inputChannelId, 2)).await();
+			ch.writeAndFlush(new PartitionRequest(pid, 0, inputChannelId, Integer.MAX_VALUE)).await();
 
 			// Wait for the notification
 			if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
@@ -193,11 +193,11 @@ public class CancelPartitionRequestTest {
 		public BufferAndBacklog getNextBuffer() throws IOException, InterruptedException {
 			Buffer buffer = bufferProvider.requestBufferBlocking();
 			buffer.setSize(buffer.getMaxCapacity()); // fake some data
-			return new BufferAndBacklog(buffer, 0);
+			return new BufferAndBacklog(buffer, true, 0, false);
 		}
 
 		@Override
-		public void notifyBuffersAvailable(long buffers) throws IOException {
+		public void notifyDataAvailable() {
 		}
 
 		@Override
@@ -212,6 +212,16 @@ public class CancelPartitionRequestTest {
 		@Override
 		public boolean isReleased() {
 			return false;
+		}
+
+		@Override
+		public boolean nextBufferIsEvent() {
+			return false;
+		}
+
+		@Override
+		public boolean isAvailable() {
+			return true;
 		}
 
 		@Override

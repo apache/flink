@@ -31,12 +31,12 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
+import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -44,7 +44,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -56,31 +56,33 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link MiniDispatcher}.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class MiniDispatcherTest extends TestLogger {
-
-	private static final JobGraph jobGraph = new JobGraph();
 
 	private static final Time timeout = Time.seconds(10L);
 
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	private static JobGraph jobGraph;
+
+	private static ArchivedExecutionGraph archivedExecutionGraph;
 
 	private static TestingRpcService rpcService;
 
@@ -88,14 +90,33 @@ public class MiniDispatcherTest extends TestLogger {
 
 	private static BlobServer blobServer;
 
-	private MiniDispatcher miniDispatcher;
+	private final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+
+	private final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
+
+	private final ArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
 
 	private CompletableFuture<JobGraph> jobGraphFuture;
 
+	private CompletableFuture<ArchivedExecutionGraph> resultFuture;
+
 	private TestingLeaderElectionService dispatcherLeaderElectionService;
+
+	private TestingHighAvailabilityServices highAvailabilityServices;
+
+	private TestingFatalErrorHandler testingFatalErrorHandler;
+
+	private TestingJobManagerRunnerFactory testingJobManagerRunnerFactory;
 
 	@BeforeClass
 	public static void setupClass() throws IOException {
+		jobGraph = new JobGraph();
+
+		archivedExecutionGraph = new ArchivedExecutionGraphBuilder()
+			.setJobID(jobGraph.getJobID())
+			.setState(JobStatus.FINISHED)
+			.build();
+
 		rpcService = new TestingRpcService();
 		configuration = new Configuration();
 
@@ -107,48 +128,31 @@ public class MiniDispatcherTest extends TestLogger {
 	@Before
 	public void setup() throws Exception {
 		dispatcherLeaderElectionService = new TestingLeaderElectionService();
-		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
-		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-		final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
-		final ArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
-		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
+		highAvailabilityServices = new TestingHighAvailabilityServices();
+		testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		highAvailabilityServices.setDispatcherLeaderElectionService(dispatcherLeaderElectionService);
 
 		jobGraphFuture = new CompletableFuture<>();
-		final TestingJobManagerRunnerFactory testingJobManagerRunnerFactory = new TestingJobManagerRunnerFactory(jobGraphFuture);
+		resultFuture = new CompletableFuture<>();
 
-		miniDispatcher = new MiniDispatcher(
-			rpcService,
-			UUID.randomUUID().toString(),
-			configuration,
-			highAvailabilityServices,
-			resourceManagerGateway,
-			blobServer,
-			heartbeatServices,
-			NoOpMetricRegistry.INSTANCE,
-			archivedExecutionGraphStore,
-			testingJobManagerRunnerFactory,
-			testingFatalErrorHandler,
-			null,
-			jobGraph,
-			ClusterEntrypoint.ExecutionMode.DETACHED);
-
-		miniDispatcher.start();
+		testingJobManagerRunnerFactory = new TestingJobManagerRunnerFactory(jobGraphFuture, resultFuture);
 	}
 
 	@After
-	public void teardown() throws InterruptedException, ExecutionException, TimeoutException {
-		if (miniDispatcher != null) {
-			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
-			miniDispatcher = null;
-		}
+	public void teardown() throws Exception {
+		testingFatalErrorHandler.rethrowError();
 	}
 
 	@AfterClass
-	public static void teardownClass() throws IOException {
-		blobServer.close();
-		rpcService.stopService();
+	public static void teardownClass() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+		if (blobServer != null) {
+			blobServer.close();
+		}
+
+		if (rpcService != null) {
+			RpcUtils.terminateRpcService(rpcService, timeout);
+		}
 	}
 
 	/**
@@ -157,12 +161,20 @@ public class MiniDispatcherTest extends TestLogger {
 	 */
 	@Test
 	public void testSingleJobRecovery() throws Exception {
-		// wait until the Dispatcher is the leader
-		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+		final MiniDispatcher miniDispatcher = createMiniDispatcher(ClusterEntrypoint.ExecutionMode.DETACHED);
 
-		final JobGraph actualJobGraph = jobGraphFuture.get();
+		miniDispatcher.start();
 
-		assertThat(actualJobGraph.getJobID(), is(jobGraph.getJobID()));
+		try {
+			// wait until the Dispatcher is the leader
+			dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+			final JobGraph actualJobGraph = jobGraphFuture.get();
+
+			assertThat(actualJobGraph.getJobID(), is(jobGraph.getJobID()));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
+		}
 	}
 
 	/**
@@ -171,40 +183,116 @@ public class MiniDispatcherTest extends TestLogger {
 	 */
 	@Test
 	public void testTerminationAfterJobCompletion() throws Exception {
-		final Dispatcher.DispatcherOnCompleteActions completeActions = miniDispatcher.new DispatcherOnCompleteActions(jobGraph.getJobID());
+		final MiniDispatcher miniDispatcher = createMiniDispatcher(ClusterEntrypoint.ExecutionMode.DETACHED);
 
-		final ArchivedExecutionGraph archivedExecutionGraph = new ArchivedExecutionGraphBuilder()
-			.setJobID(jobGraph.getJobID())
-			.setState(JobStatus.FINISHED)
-			.build();
+		miniDispatcher.start();
 
-		// wait until the Dispatcher is the leader
-		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+		try {
+			// wait until the Dispatcher is the leader
+			dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
-		// wait until we have submitted the job
-		jobGraphFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			// wait until we have submitted the job
+			jobGraphFuture.get();
 
-		completeActions.jobReachedGloballyTerminalState(archivedExecutionGraph);
+			resultFuture.complete(archivedExecutionGraph);
 
-		final CompletableFuture<Boolean> terminationFuture = miniDispatcher.getTerminationFuture();
+			// wait until we terminate
+			miniDispatcher.getTerminationFuture().get();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
+		}
+	}
 
-		// wait until we terminate
-		terminationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+	/**
+	 * Tests that the {@link MiniDispatcher} only terminates in {@link ClusterEntrypoint.ExecutionMode#NORMAL}
+	 * after it has served the {@link org.apache.flink.runtime.jobmaster.JobResult} once.
+	 */
+	@Test
+	public void testJobResultRetrieval() throws Exception {
+		final MiniDispatcher miniDispatcher = createMiniDispatcher(ClusterEntrypoint.ExecutionMode.NORMAL);
+
+		miniDispatcher.start();
+
+		try {
+			// wait until the Dispatcher is the leader
+			dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+			// wait until we have submitted the job
+			jobGraphFuture.get();
+
+			resultFuture.complete(archivedExecutionGraph);
+
+			final CompletableFuture<Void> terminationFuture = miniDispatcher.getTerminationFuture();
+
+			assertThat(terminationFuture.isDone(), is(false));
+
+			final DispatcherGateway dispatcherGateway = miniDispatcher.getSelfGateway(DispatcherGateway.class);
+
+			final CompletableFuture<JobResult> jobResultFuture = dispatcherGateway.requestJobResult(jobGraph.getJobID(), timeout);
+
+			final JobResult jobResult = jobResultFuture.get();
+
+			assertThat(jobResult.getJobId(), is(jobGraph.getJobID()));
+
+			terminationFuture.get();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
+		}
+	}
+
+	// --------------------------------------------------------
+	// Utilities
+	// --------------------------------------------------------
+
+	@Nonnull
+	private MiniDispatcher createMiniDispatcher(ClusterEntrypoint.ExecutionMode executionMode) throws Exception {
+		return new MiniDispatcher(
+			rpcService,
+			UUID.randomUUID().toString(),
+			configuration,
+			highAvailabilityServices,
+			resourceManagerGateway,
+			blobServer,
+			heartbeatServices,
+			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+			null,
+			archivedExecutionGraphStore,
+			testingJobManagerRunnerFactory,
+			testingFatalErrorHandler,
+			null,
+			jobGraph,
+			executionMode);
 	}
 
 	private static final class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFactory {
 
 		private final CompletableFuture<JobGraph> jobGraphFuture;
+		private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
 
-		private TestingJobManagerRunnerFactory(CompletableFuture<JobGraph> jobGraphFuture) {
+		private TestingJobManagerRunnerFactory(CompletableFuture<JobGraph> jobGraphFuture, CompletableFuture<ArchivedExecutionGraph> resultFuture) {
 			this.jobGraphFuture = jobGraphFuture;
+			this.resultFuture = resultFuture;
 		}
 
 		@Override
-		public JobManagerRunner createJobManagerRunner(ResourceID resourceId, JobGraph jobGraph, Configuration configuration, RpcService rpcService, HighAvailabilityServices highAvailabilityServices, HeartbeatServices heartbeatServices, BlobServer blobServer, JobManagerSharedServices jobManagerSharedServices, MetricRegistry metricRegistry, OnCompletionActions onCompleteActions, FatalErrorHandler fatalErrorHandler, @Nullable String restAddress) throws Exception {
+		public JobManagerRunner createJobManagerRunner(
+				ResourceID resourceId,
+				JobGraph jobGraph,
+				Configuration configuration,
+				RpcService rpcService,
+				HighAvailabilityServices highAvailabilityServices,
+				HeartbeatServices heartbeatServices,
+				BlobServer blobServer,
+				JobManagerSharedServices jobManagerSharedServices,
+				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+				FatalErrorHandler fatalErrorHandler) throws Exception {
 			jobGraphFuture.complete(jobGraph);
 
-			return mock(JobManagerRunner.class);
+			final JobManagerRunner mock = mock(JobManagerRunner.class);
+			when(mock.getResultFuture()).thenReturn(resultFuture);
+			when(mock.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+
+			return mock;
 		}
 	}
 

@@ -98,7 +98,7 @@ public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public FoldingState<T, ACC> bind(StateBinder stateBinder) throws Exception {
 		return stateBinder.createFoldingState(this);
@@ -109,37 +109,6 @@ public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState
 	 */
 	public FoldFunction<T, ACC> getFoldFunction() {
 		return foldFunction;
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-
-		FoldingStateDescriptor<?, ?> that = (FoldingStateDescriptor<?, ?>) o;
-
-		return serializer.equals(that.serializer) && name.equals(that.name);
-
-	}
-
-	@Override
-	public int hashCode() {
-		int result = serializer.hashCode();
-		result = 31 * result + name.hashCode();
-		return result;
-	}
-
-	@Override
-	public String toString() {
-		return "FoldingStateDescriptor{" +
-				"serializer=" + serializer +
-				", initialValue=" + defaultValue +
-				", foldFunction=" + foldFunction +
-				'}';
 	}
 
 	@Override

@@ -139,7 +139,7 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 	public int getMaxSlots() {
 		// TODO: this should be retrieved from the running Flink cluster
 		int maxSlots = numberTaskManagers * slotsPerTaskManager;
-		return maxSlots > 0 ? maxSlots : -1;
+		return maxSlots > 0 ? maxSlots : MAX_SLOTS_UNKNOWN;
 	}
 
 	@Override
@@ -148,7 +148,7 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 	}
 
 	@Override
-	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
+	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
 		if (isDetached()) {
 			if (newlyCreatedCluster) {
 				stopAfterJob(jobGraph.getJobID());
@@ -244,7 +244,7 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 	public void waitForClusterToBeReady() {
 		logAndSysout("Waiting until all TaskManagers have connected");
 
-		for (GetClusterStatusResponse currentStatus, lastStatus = null;; lastStatus = currentStatus) {
+		for (GetClusterStatusResponse currentStatus, lastStatus = null; true; lastStatus = currentStatus) {
 			currentStatus = getClusterStatus();
 			if (currentStatus != null && !currentStatus.equals(lastStatus)) {
 				logAndSysout("TaskManager status (" + currentStatus.numRegisteredTaskManagers() + "/"

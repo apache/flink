@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.5-SNAPSHOT</version>
+		<version>1.6-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -33,6 +33,11 @@ under the License.
 	<name>flink-docs</name>
 
 	<dependencies>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-annotations</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
@@ -63,23 +68,9 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-netty</artifactId>
 		</dependency>
-
 		<dependency>
-			<!-- We use standard jackson since jackson-module-jsonSchema isn't part of flink-shaded-jackson -->
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-core</artifactId>
-			<version>${jackson.version}</version>
-		</dependency>
-		<dependency>
-			<!-- We use standard jackson since jackson-module-jsonSchema isn't part of flink-shaded-jackson -->
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>${jackson.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.fasterxml.jackson.module</groupId>
-			<artifactId>jackson-module-jsonSchema</artifactId>
-			<version>${jackson.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-jackson-module-jsonSchema</artifactId>
 		</dependency>
 
 		<dependency>
@@ -92,7 +83,7 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<!-- Required because the surefire plugin tries to load the Flip6 category annotation -->
+			<!-- Required because the surefire plugin tries to load the New category annotation -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
 			<version>${project.version}</version>
@@ -127,6 +118,15 @@ under the License.
 				</executions>
 			</plugin>
 		</plugins>
+
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<artifactId>maven-antrun-plugin</artifactId>
+					<version>1.7</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 	</build>
 
 	<profiles>
@@ -141,24 +141,24 @@ under the License.
 				<plugins>
 					<plugin>
 						<artifactId>maven-antrun-plugin</artifactId>
-						<version>1.7</version>
 						<executions>
 							<execution>
+								<id>generate-rest-docs</id>
 								<phase>package</phase>
 								<goals>
 									<goal>run</goal>
 								</goals>
+								<configuration>
+									<target>
+										<mkdir dir="${rootDir}/${generated.docs.dir}"/>
+										<java classname="org.apache.flink.docs.rest.RestAPIDocGenerator" fork="true" failonerror="true">
+											<classpath refid="maven.compile.classpath"/>
+											<arg value="${rootDir}/${generated.docs.dir}/"/>
+										</java>
+									</target>
+								</configuration>
 							</execution>
 						</executions>
-						<configuration>
-							<target>
-								<mkdir dir="${rootDir}/${generated.docs.dir}"/>
-								<java classname="org.apache.flink.docs.rest.RestAPIDocGenerator" fork="true">
-									<classpath refid="maven.compile.classpath"/>
-									<arg value="${rootDir}/${generated.docs.dir}/"/>
-								</java>
-							</target>
-						</configuration>
 					</plugin>
 				</plugins>
 			</build>
@@ -174,36 +174,25 @@ under the License.
 				<plugins>
 					<plugin>
 						<artifactId>maven-antrun-plugin</artifactId>
-						<version>1.7</version>
 						<executions>
 							<execution>
+								<id>generate-config-docs</id>
 								<phase>package</phase>
 								<goals>
 									<goal>run</goal>
 								</goals>
+								<configuration>
+									<target>
+										<mkdir dir="${rootDir}/${generated.docs.dir}"/>
+										<java classname="org.apache.flink.docs.configuration.ConfigOptionsDocGenerator" fork="true" failonerror="true">
+											<classpath refid="maven.compile.classpath" />
+											<arg value="${rootDir}/${generated.docs.dir}/" />
+											<arg value="${rootDir}" />
+										</java>
+									</target>
+								</configuration>
 							</execution>
 						</executions>
-						<configuration>
-							<target>
-								<mkdir dir="${rootDir}/${generated.docs.dir}"/>
-								<java classname="org.apache.flink.docs.configuration.ConfigOptionsDocGenerator" fork="true">
-									<classpath refid="maven.compile.classpath" />
-									<arg value="${rootDir}/${generated.docs.dir}/" />
-									<arg value="${rootDir}" />
-									<!--packages with configuration classes-->
-									<arg value="flink-core" />
-									<arg value="org.apache.flink.configuration" />
-									<arg value="flink-runtime" />
-									<arg value="org.apache.flink.runtime.io.network.netty" />
-									<arg value="flink-yarn" />
-									<arg value="org.apache.flink.yarn.configuration" />
-									<arg value="flink-mesos" />
-									<arg value="org.apache.flink.mesos.configuration" />
-									<arg value="flink-mesos" />
-									<arg value="org.apache.flink.mesos.runtime.clusterframework" />
-								</java>
-							</target>
-						</configuration>
 					</plugin>
 				</plugins>
 			</build>

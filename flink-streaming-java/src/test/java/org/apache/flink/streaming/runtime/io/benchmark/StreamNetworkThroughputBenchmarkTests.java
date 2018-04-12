@@ -37,6 +37,30 @@ public class StreamNetworkThroughputBenchmarkTests {
 	}
 
 	@Test
+	public void largeLocalMode() throws Exception {
+		StreamNetworkThroughputBenchmark env = new StreamNetworkThroughputBenchmark();
+		env.setUp(4, 10, 100, true);
+		env.executeBenchmark(10_000_000);
+		env.tearDown();
+	}
+
+	@Test
+	public void largeRemoteMode() throws Exception {
+		StreamNetworkThroughputBenchmark env = new StreamNetworkThroughputBenchmark();
+		env.setUp(4, 10, 100, false);
+		env.executeBenchmark(10_000_000);
+		env.tearDown();
+	}
+
+	@Test
+	public void largeRemoteAlwaysFlush() throws Exception {
+		StreamNetworkThroughputBenchmark env = new StreamNetworkThroughputBenchmark();
+		env.setUp(1, 1, 0, false);
+		env.executeBenchmark(1_000_000);
+		env.tearDown();
+	}
+
+	@Test
 	public void pointToMultiPointBenchmark() throws Exception {
 		StreamNetworkThroughputBenchmark benchmark = new StreamNetworkThroughputBenchmark();
 		benchmark.setUp(1, 100, 100);

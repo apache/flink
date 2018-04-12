@@ -207,7 +207,22 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 			resourceManagerAcceptFuture.whenCompleteAsync(
 				(Void v, Throwable failure) -> {
 					if (failure != null && !canceled) {
-						log.warn("Could not resolve {} address {}, retrying in {} ms", targetName, targetAddress, delayOnError, failure);
+						final Throwable strippedFailure = ExceptionUtils.stripCompletionException(failure);
+						if (log.isDebugEnabled()) {
+							log.debug(
+								"Could not resolve {} address {}, retrying in {} ms.",
+								targetName,
+								targetAddress,
+								delayOnError,
+								strippedFailure);
+						} else {
+							log.info(
+								"Could not resolve {} address {}, retrying in {} ms: {}.",
+								targetName,
+								targetAddress,
+								delayOnError,
+								strippedFailure.getMessage());
+						}
 
 						startRegistrationLater(delayOnError);
 					}

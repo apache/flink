@@ -113,7 +113,7 @@ public class StandaloneHaServicesTest extends TestLogger {
 	 * fixed leader session id.
 	 */
 	@Test
-	public void testJobManagerLeaderRetrievalFlip6() throws Exception {
+	public void testJobMasterLeaderRetrieval() throws Exception {
 		JobID jobId1 = new JobID();
 		JobID jobId2 = new JobID();
 		final String jobManagerAddress1 = "foobar";

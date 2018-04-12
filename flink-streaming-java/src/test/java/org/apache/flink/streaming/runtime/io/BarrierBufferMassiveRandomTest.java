@@ -32,6 +32,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGateListener;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.Random;
 
 import static org.junit.Assert.fail;
@@ -62,7 +63,7 @@ public class BarrierBufferMassiveRandomTest {
 					new BufferPool[] { pool1, pool2 },
 					new BarrierGenerator[] { new CountBarrier(100000), new RandomBarrier(100000) });
 
-			BarrierBuffer barrierBuffer = new BarrierBuffer(myIG, ioMan);
+			BarrierBuffer barrierBuffer = new BarrierBuffer(myIG, new BufferSpiller(ioMan, myIG.getPageSize()));
 
 			for (int i = 0; i < 2000000; i++) {
 				BufferOrEvent boe = barrierBuffer.getNextNonBlocked();
@@ -159,18 +160,27 @@ public class BarrierBufferMassiveRandomTest {
 		public void requestPartitions() {}
 
 		@Override
-		public BufferOrEvent getNextBufferOrEvent() throws IOException, InterruptedException {
+		public Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException {
 			currentChannel = (currentChannel + 1) % numChannels;
 
 			if (barrierGens[currentChannel].isNextBarrier()) {
-				return new BufferOrEvent(
-						new CheckpointBarrier(++currentBarriers[currentChannel], System.currentTimeMillis(), CheckpointOptions.forCheckpointWithDefaultLocation()),
-							currentChannel);
+				return Optional.of(
+					new BufferOrEvent(
+						new CheckpointBarrier(
+							++currentBarriers[currentChannel],
+							System.currentTimeMillis(),
+							CheckpointOptions.forCheckpointWithDefaultLocation()),
+						currentChannel));
 			} else {
 				Buffer buffer = bufferPools[currentChannel].requestBuffer();
 				buffer.getMemorySegment().putLong(0, c++);
-				return new BufferOrEvent(buffer, currentChannel);
+				return Optional.of(new BufferOrEvent(buffer, currentChannel));
 			}
+		}
+
+		@Override
+		public Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException {
+			return getNextBufferOrEvent();
 		}
 
 		@Override

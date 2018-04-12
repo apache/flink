@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.Path;
@@ -33,18 +32,16 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
-import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,9 +52,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -211,46 +205,55 @@ public final class WebMonitorUtils {
 		}
 	}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public static <T extends RestfulGateway> Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> tryLoadJarHandlers(
-			GatewayRetriever<T> leaderRetriever,
+	/**
+	 * Loads the {@link WebMonitorExtension} which enables web submission.
+	 *
+	 * @param leaderRetriever to retrieve the leader
+	 * @param restAddressFuture of the underlying REST server endpoint
+	 * @param timeout for asynchronous requests
+	 * @param responseHeaders for the web submission handlers
+	 * @param uploadDir where the web submission handler store uploaded jars
+	 * @param executor to run asynchronous operations
+	 * @param configuration used to instantiate the web submission extension
+	 * @return Web submission extension
+	 * @throws FlinkException if the web submission extension could not be loaded
+	 */
+	public static WebMonitorExtension loadWebSubmissionExtension(
+			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			CompletableFuture<String> restAddressFuture,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			java.nio.file.Path uploadDir,
-			Executor executor) {
+			Executor executor,
+			Configuration configuration) throws FlinkException {
 
-		if (!isFlinkRuntimeWebInClassPath()) {
-			return Collections.emptyList();
-		}
+		if (isFlinkRuntimeWebInClassPath()) {
+			try {
+				final Constructor<?> webSubmissionExtensionConstructor = Class
+					.forName("org.apache.flink.runtime.webmonitor.WebSubmissionExtension")
+					.getConstructor(
+						Configuration.class,
+						CompletableFuture.class,
+						GatewayRetriever.class,
+						Map.class,
+						java.nio.file.Path.class,
+						Executor.class,
+						Time.class);
 
-		try {
-			final String classname = "org.apache.flink.runtime.webmonitor.handlers.JarUploadHandler";
-			final Class<?> clazz = Class.forName(classname);
-			final Constructor<?> constructor = clazz.getConstructor(
-				CompletableFuture.class,
-				GatewayRetriever.class,
-				Time.class,
-				Map.class,
-				MessageHeaders.class,
-				java.nio.file.Path.class,
-				Executor.class);
-
-			final MessageHeaders jarUploadMessageHeaders =
-				(MessageHeaders) Class
-					.forName("org.apache.flink.runtime.webmonitor.handlers.JarUploadMessageHeaders")
-					.newInstance();
-
-			return Arrays.asList(Tuple2.of(jarUploadMessageHeaders, (ChannelInboundHandler) constructor.newInstance(
-				restAddressFuture,
-				leaderRetriever,
-				timeout,
-				responseHeaders,
-				jarUploadMessageHeaders,
-				uploadDir,
-				executor)));
-		} catch (ClassNotFoundException | InvocationTargetException | InstantiationException | NoSuchMethodException | IllegalAccessException e) {
-			throw new RuntimeException(e);
+				return (WebMonitorExtension) webSubmissionExtensionConstructor.newInstance(
+					configuration,
+					restAddressFuture,
+					leaderRetriever,
+					responseHeaders,
+					uploadDir,
+					executor,
+					timeout);
+			} catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | InvocationTargetException | IllegalAccessException e) {
+				throw new FlinkException("Could not load web submission extension.", e);
+			}
+		} else {
+			throw new FlinkException("The module flink-runtime-web could not be found in the class path. Please add " +
+				"this jar in order to enable web based job submission.");
 		}
 	}
 

@@ -45,7 +45,10 @@ public class TestingLogicalSlot implements LogicalSlot {
 
 	private final int slotNumber;
 
-	private final CompletableFuture<?> releaseFuture = new CompletableFuture<>();
+	private final CompletableFuture<?> releaseFuture;
+
+	@Nullable
+	private final CompletableFuture<?> customReleaseFuture;
 	
 	private final AllocationID allocationId;
 
@@ -60,7 +63,8 @@ public class TestingLogicalSlot implements LogicalSlot {
 			0,
 			new AllocationID(),
 			new SlotRequestId(),
-			new SlotSharingGroupId());
+			new SlotSharingGroupId(),
+			null);
 	}
 
 	public TestingLogicalSlot(
@@ -69,7 +73,8 @@ public class TestingLogicalSlot implements LogicalSlot {
 			int slotNumber,
 			AllocationID allocationId,
 			SlotRequestId slotRequestId,
-			SlotSharingGroupId slotSharingGroupId) {
+			SlotSharingGroupId slotSharingGroupId,
+			@Nullable CompletableFuture<?> customReleaseFuture) {
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.taskManagerGateway = Preconditions.checkNotNull(taskManagerGateway);
 		this.payloadReference = new AtomicReference<>();
@@ -77,6 +82,8 @@ public class TestingLogicalSlot implements LogicalSlot {
 		this.allocationId = Preconditions.checkNotNull(allocationId);
 		this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
 		this.slotSharingGroupId = Preconditions.checkNotNull(slotSharingGroupId);
+		this.releaseFuture = new CompletableFuture<>();
+		this.customReleaseFuture = customReleaseFuture;
 	}
 
 	@Override
@@ -96,7 +103,11 @@ public class TestingLogicalSlot implements LogicalSlot {
 
 	@Override
 	public boolean isAlive() {
-		return !releaseFuture.isDone();
+		if (customReleaseFuture != null) {
+			return !customReleaseFuture.isDone();
+		} else {
+			return !releaseFuture.isDone();
+		}
 	}
 
 	@Override
@@ -112,9 +123,12 @@ public class TestingLogicalSlot implements LogicalSlot {
 
 	@Override
 	public CompletableFuture<?> releaseSlot(@Nullable Throwable cause) {
-		releaseFuture.complete(null);
-
-		return releaseFuture;
+		if (customReleaseFuture != null) {
+			return customReleaseFuture;
+		} else {
+			releaseFuture.complete(null);
+			return releaseFuture;
+		}
 	}
 
 	@Override

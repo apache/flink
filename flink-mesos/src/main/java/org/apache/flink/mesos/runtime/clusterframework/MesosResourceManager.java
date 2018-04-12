@@ -333,8 +333,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	}
 
 	@Override
-	public void postStop() throws Exception {
-		Exception exception = null;
+	public CompletableFuture<Void> postStop() {
 		FiniteDuration stopTimeout = new FiniteDuration(5L, TimeUnit.SECONDS);
 
 		CompletableFuture<Boolean> stopTaskMonitorFuture = stopActor(taskMonitor, stopTimeout);
@@ -355,28 +354,17 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			stopLaunchCoordinatorFuture,
 			stopReconciliationCoordinatorFuture);
 
-		// wait for the future to complete or to time out
-		try {
-			stopFuture.get();
-		} catch (Exception e) {
-			exception = e;
-		}
+		final CompletableFuture<Void> terminationFuture = super.postStop();
 
-		try {
-			super.postStop();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
-
-		if (exception != null) {
-			throw new ResourceManagerException("Could not properly shut down the ResourceManager.", exception);
-		}
+		return stopFuture.thenCombine(
+			terminationFuture,
+			(Void voidA, Void voidB) -> null);
 	}
 
 	@Override
-	protected void shutDownApplication(
+	protected void internalDeregisterApplication(
 			ApplicationStatus finalStatus,
-			@Nullable String optionalDiagnostics) throws ResourceManagerException {
+			@Nullable String diagnostics) throws ResourceManagerException {
 		LOG.info("Shutting down and unregistering as a Mesos framework.");
 
 		Exception exception = null;

@@ -38,10 +38,13 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
+import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImplTest;
+import org.apache.flink.runtime.state.TestTaskLocalStateStore;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -56,8 +59,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Random;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -91,19 +92,6 @@ public class StreamTaskStateInitializerImplTest {
 			typeSerializer,
 			closeableRegistry);
 
-		verify(stateBackend).createKeyedStateBackend(
-			any(Environment.class),
-			any(JobID.class),
-			any(String.class),
-			eq(typeSerializer),
-			anyInt(),
-			any(KeyGroupRange.class),
-			any(TaskKvStateRegistry.class));
-
-		verify(stateBackend).createOperatorStateBackend(
-			any(Environment.class),
-			any(String.class));
-
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
 		InternalTimeServiceManager<?, ?> timeServiceManager = stateContext.internalTimerServiceManager();
@@ -124,13 +112,8 @@ public class StreamTaskStateInitializerImplTest {
 			keyedStateInputs,
 			operatorStateInputs);
 
-		for (KeyGroupStatePartitionStreamProvider keyedStateInput : keyedStateInputs) {
-			Assert.fail();
-		}
-
-		for (StatePartitionStreamProvider operatorStateInput : operatorStateInputs) {
-			Assert.fail();
-		}
+		Assert.assertFalse(keyedStateInputs.iterator().hasNext());
+		Assert.assertFalse(operatorStateInputs.iterator().hasNext());
 	}
 
 	@SuppressWarnings("unchecked")
@@ -172,14 +155,14 @@ public class StreamTaskStateInitializerImplTest {
 		Random random = new Random(0x42);
 
 		OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-			new OperatorStateHandle(
+			new OperatorStreamStateHandle(
 				Collections.singletonMap(
 					"a",
 					new OperatorStateHandle.StateMetaInfo(
 						new long[]{0, 10},
 						OperatorStateHandle.Mode.SPLIT_DISTRIBUTE)),
 				CheckpointTestUtils.createDummyStreamStateHandle(random)),
-			new OperatorStateHandle(
+			new OperatorStreamStateHandle(
 				Collections.singletonMap(
 					"_default_",
 					new OperatorStateHandle.StateMetaInfo(
@@ -208,19 +191,6 @@ public class StreamTaskStateInitializerImplTest {
 			streamOperator,
 			typeSerializer,
 			closeableRegistry);
-
-		verify(mockingBackend).createKeyedStateBackend(
-			any(Environment.class),
-			any(JobID.class),
-			any(String.class),
-			eq(typeSerializer),
-			anyInt(),
-			any(KeyGroupRange.class),
-			any(TaskKvStateRegistry.class));
-
-		verify(mockingBackend).createOperatorStateBackend(
-			any(Environment.class),
-			any(String.class));
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
@@ -276,11 +246,14 @@ public class StreamTaskStateInitializerImplTest {
 		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID(23L, 24L);
 		TestCheckpointResponder checkpointResponderMock = new TestCheckpointResponder();
 
+		TaskLocalStateStore taskLocalStateStore = new TestTaskLocalStateStore();
+
 		TaskStateManager taskStateManager = TaskStateManagerImplTest.taskStateManager(
 			jobID,
 			executionAttemptID,
 			checkpointResponderMock,
-			jobManagerTaskRestore);
+			jobManagerTaskRestore,
+			taskLocalStateStore);
 
 		DummyEnvironment dummyEnvironment = new DummyEnvironment("test-task", 1, 0);
 		dummyEnvironment.setTaskStateManager(taskStateManager);

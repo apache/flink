@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -35,7 +36,6 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.junit.Test;
 
-import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -79,7 +79,7 @@ public class SlotPoolCoLocationTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				coLocationConstraint1),
 			true,
-			Collections.emptyList(),
+			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture22 = slotProvider.allocateSlot(
@@ -88,7 +88,7 @@ public class SlotPoolCoLocationTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				coLocationConstraint2),
 			true,
-			Collections.emptyList(),
+			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture12 = slotProvider.allocateSlot(
@@ -97,7 +97,7 @@ public class SlotPoolCoLocationTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				coLocationConstraint1),
 			true,
-			Collections.emptyList(),
+			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture21 = slotProvider.allocateSlot(
@@ -106,7 +106,7 @@ public class SlotPoolCoLocationTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				coLocationConstraint2),
 			true,
-			Collections.emptyList(),
+			SlotProfile.noRequirements(),
 			TestingUtils.infiniteTime());
 
 		final AllocationID allocationId1 = allocationIds.take();

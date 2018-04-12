@@ -25,12 +25,12 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Preconditions;
@@ -89,7 +89,7 @@ public class ContinuousFileProcessingRescalingTest {
 
 		// 2) and take the snapshots from the previous instances and merge them
 		// into a new one which will be then used to initialize a third instance
-		OperatorStateHandles mergedState = AbstractStreamOperatorTestHarness.
+		OperatorSubtaskState mergedState = AbstractStreamOperatorTestHarness.
 			repackageState(
 				testHarness2.snapshot(0, 0),
 				testHarness1.snapshot(0, 0)
@@ -157,7 +157,7 @@ public class ContinuousFileProcessingRescalingTest {
 		}
 
 		// this will be the state shared by the 2 new instances.
-		OperatorStateHandles snapshot = testHarness1.snapshot(0, 0);
+		OperatorSubtaskState snapshot = testHarness1.snapshot(0, 0);
 
 		// 1) clear the output of instance so that we can compare it with one created by the new instances, and
 		// 2) let the operator process the rest of its state
@@ -274,7 +274,7 @@ public class ContinuousFileProcessingRescalingTest {
 		public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException {
 			FileInputSplit[] splits = new FileInputSplit[minNumSplits];
 			for (int i = 0; i < minNumSplits; i++) {
-				splits[i] = new FileInputSplit(i, getFilePath(), i * linesPerSplit + 1, linesPerSplit, null);
+				splits[i] = new FileInputSplit(i, getFilePaths()[0], i * linesPerSplit + 1, linesPerSplit, null);
 			}
 			return splits;
 		}

@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -127,8 +128,8 @@ public class InputChannelTest {
 		}
 
 		@Override
-		BufferAndAvailability getNextBuffer() throws IOException, InterruptedException {
-			return null;
+		Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {
+			return Optional.empty();
 		}
 
 		@Override

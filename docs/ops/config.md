@@ -75,12 +75,16 @@ without explicit scheme definition, such as `/user/USERNAME/in.txt`, is going to
 - `classloader.resolve-order`: Whether Flink should use a child-first `ClassLoader` when loading
 user-code classes or a parent-first `ClassLoader`. Can be one of `parent-first` or `child-first`. (default: `child-first`)
 
-- `classloader.parent-first-patterns`: A (semicolon-separated) list of patterns that specifies which
+- `classloader.parent-first-patterns.default`: A (semicolon-separated) list of patterns that specifies which
 classes should always be resolved through the parent `ClassLoader` first. A pattern is a simple
 prefix that is checked against the fully qualified class name. By default, this is set to
-`java.;org.apache.flink.;javax.annotation;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback`.
-If you want to change this setting you have to make sure to also include the default patterns in
-your list of patterns if you want to keep that default behaviour.
+`"java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback"`.
+To extend this list beyond the default it is recommended to configure `classloader.parent-first-patterns.additional` instead of modifying this setting directly.
+
+- `classloader.parent-first-patterns.additional`: A (semicolon-separated) list of patterns that specifies which
+classes should always be resolved through the parent `ClassLoader` first. A pattern is a simple
+prefix that is checked against the fully qualified class name.
+This list is appended to `classloader.parent-first-patterns.default`.
 
 ## Advanced Options
 
@@ -286,6 +290,10 @@ These parameters configure the default HDFS used by Flink. Setups that do not sp
 
 {% include generated/blob_server_configuration.html %}
 
+### Heartbeat Manager
+
+{% include generated/heartbeat_manager_configuration.html %}
+
 ### SSL Settings
 
 {% include generated/security_configuration.html %}
@@ -370,15 +378,15 @@ You have to configure `jobmanager.archive.fs.dir` in order to archive terminated
 
 {% include generated/history_server_configuration.html %}
 
-## Flip-6
+### Slot Manager
 
-- `mode`: Execution mode of Flink. Possible values are `old` and `flip6`. In order to start the Flip-6 components, you have to specify `flip6` (DEFAULT: `old`).
-
-### Slot Manager (Flip-6)
-
-The configuration keys in this section are relevant for the SlotManager running in the Flip-6 ResourceManager
+The configuration keys in this section are relevant for the SlotManager running in the ResourceManager
 
 {% include generated/slot_manager_configuration.html %}
+
+## Legacy
+
+- `mode`: Execution mode of Flink. Possible values are `legacy` and `new`. In order to start the legacy components, you have to specify `legacy` (DEFAULT: `new`).
 
 ## Background
 
