@@ -103,6 +103,9 @@
 		<profile>
 			<id>windows</id>
 			<activation>
+				<property>
+					<name>windows</name>
+				</property>
 				<os>
 					<family>windows</family>
 				</os>
@@ -116,6 +119,9 @@
 			<id>default</id>
 			<activation>
 				<activeByDefault>true</activeByDefault>
+				<property>
+					<name>default</name>
+				</property>
 			</activation>
 			<properties>
 				<suffix.test>(?&lt;!(IT|Integration))(Test|Suite|Case)</suffix.test>
