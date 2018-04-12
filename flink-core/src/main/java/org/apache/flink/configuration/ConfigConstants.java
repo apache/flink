@@ -72,7 +72,7 @@ public final class ConfigConstants {
 	 */
 	@PublicEvolving
 	public static final ConfigOption<String> RESTART_STRATEGY_FIXED_DELAY_DELAY =
-		key("restart-strategy.fixed-delay.delay").defaultValue("1 s");
+		key("restart-strategy.fixed-delay.delay").defaultValue("0 s");
 
 	/**
 	 * Maximum number of restarts in given time interval {@link #RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL} before failing a job
