@@ -19,9 +19,13 @@ package org.apache.flink.streaming.connectors.cassandra;
 
 import org.apache.flink.configuration.Configuration;
 
+import com.datastax.driver.core.BatchStatement;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Statement;
 import com.google.common.util.concurrent.ListenableFuture;
+
+import java.util.Collection;
 
 /**
  * Abstract sink to write tuple-like values into a Cassandra cluster.
@@ -45,9 +49,22 @@ public abstract class AbstractCassandraTupleSink<IN> extends CassandraSinkBase<I
 
 	@Override
 	public ListenableFuture<ResultSet> send(IN value) {
-		Object[] fields = extract(value);
-		return session.executeAsync(ps.bind(fields));
+		return session.executeAsync(prepareStatement(value));
+	}
+
+	@Override
+	public ListenableFuture<ResultSet> send(Collection<IN> collectionValue) {
+		BatchStatement statement = new BatchStatement();
+		collectionValue.stream()
+				.map(this::prepareStatement)
+				.forEach(statement::add);
+		return session.executeAsync(statement);
 	}
 
 	protected abstract Object[] extract(IN record);
+
+	private Statement prepareStatement(IN value) {
+		Object[] fileds = extract(value);
+		return ps.bind(fileds);
+	}
 }
