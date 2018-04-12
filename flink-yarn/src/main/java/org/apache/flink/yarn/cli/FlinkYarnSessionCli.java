@@ -214,6 +214,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		allOptions.addOption(shipPath);
 		allOptions.addOption(slots);
 		allOptions.addOption(dynamicproperties);
+		allOptions.addOption(DETACHED_OPTION);
 		allOptions.addOption(YARN_DETACHED_OPTION);
 		allOptions.addOption(streaming);
 		allOptions.addOption(name);
