@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -35,6 +36,7 @@ public class TaskManagerOptions {
 	/**
 	 * JVM heap size (in megabytes) for the TaskManagers.
 	 */
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
 	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY =
 			key("taskmanager.heap.mb")
 			.defaultValue(1024)
@@ -147,6 +149,7 @@ public class TaskManagerOptions {
 	/**
 	 * The config parameter defining the number of task slots of a task manager.
 	 */
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_PARALLELISM_SLOTS)
 	public static final ConfigOption<Integer> NUM_TASK_SLOTS =
 		key("taskmanager.numberOfTaskSlots")
 			.defaultValue(1)

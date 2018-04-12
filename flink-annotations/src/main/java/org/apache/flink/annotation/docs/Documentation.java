@@ -40,6 +40,25 @@ public final class Documentation {
 		String value();
 	}
 
+	/**
+	 * Annotation used on config option fields to include them in the "Common Options" section.
+	 *
+	 * <p>The {@link CommonOption#position()} argument controls the position in the generated table, with lower values
+	 * being placed at the top. Fields with the same position are sorted alphabetically by key.
+	 */
+	@Target(ElementType.FIELD)
+	@Retention(RetentionPolicy.RUNTIME)
+	@Internal
+	public @interface CommonOption {
+		int POSITION_MEMORY = 10;
+		int POSITION_PARALLELISM_SLOTS = 20;
+		int POSITION_FAULT_TOLERANCE = 30;
+		int POSITION_HIGH_AVAILABILITY = 40;
+		int POSITION_SECURITY = 50;
+
+		int position() default Integer.MAX_VALUE;
+	}
+
 	private Documentation(){
 	}
 }
