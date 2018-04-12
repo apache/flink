@@ -235,7 +235,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 
 	@Override
 	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-		log.info("Submitting job {}.", jobGraph.getJobID());
+		log.info("Submitting job {} (detached: {}).", jobGraph.getJobID(), isDetached());
 
 		final CompletableFuture<JobSubmissionResult> jobSubmissionFuture = submitJob(jobGraph);
 

@@ -64,7 +64,7 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 	@Override
 	public ExecutionEnvironment createExecutionEnvironment() {
 		if (isDetached && lastEnvCreated != null) {
-			throw new InvalidProgramException("Multiple enviornments cannot be created in detached mode");
+			throw new InvalidProgramException("Multiple environments cannot be created in detached mode");
 		}
 
 		lastEnvCreated = isDetached

@@ -385,7 +385,7 @@ public abstract class ClusterClient<T> {
 			return run(jobWithJars, parallelism, prog.getSavepointSettings());
 		}
 		else if (prog.isUsingInteractiveMode()) {
-			log.info("Starting program in interactive mode");
+			log.info("Starting program in interactive mode (detached: {})", isDetached());
 
 			final List<URL> libraries;
 			if (hasUserJarsInClassPath(prog.getAllLibraries())) {
