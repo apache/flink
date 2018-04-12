@@ -37,7 +37,7 @@ if [[ $HIGH_AVAILABILITY == "zookeeper" ]]; then
         if [ ${MASTERS_ALL_LOCALHOST} = true ] ; then
             "${FLINK_BIN_DIR}"/jobmanager.sh start "${master}" "${webuiport}"
         else
-            ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/jobmanager.sh\" start ${master} ${webuiport} &"
+            ssh -n $FLINK_SSH_OPTS $master -- "export FLINK_CONF_DIR=\"${FLINK_CONF_DIR}\"; nohup /bin/bash -l \"${FLINK_BIN_DIR}/jobmanager.sh\" start ${master} ${webuiport} &"
         fi
     done
 
