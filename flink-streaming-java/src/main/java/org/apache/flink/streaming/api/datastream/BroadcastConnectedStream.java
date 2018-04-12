@@ -158,7 +158,7 @@ public class BroadcastConnectedStream<IN1, IN2> {
 
 		Preconditions.checkNotNull(function);
 		Preconditions.checkArgument(inputStream1 instanceof KeyedStream,
-				"A KeyedBroadcastProcessFunction can only be used with a keyed stream as the second input.");
+				"A KeyedBroadcastProcessFunction can only be used on a keyed stream.");
 
 		TwoInputStreamOperator<IN1, IN2, OUT> operator =
 				new CoBroadcastWithKeyedOperator<>(clean(function), broadcastStateDescriptors);
@@ -209,7 +209,7 @@ public class BroadcastConnectedStream<IN1, IN2> {
 
 		Preconditions.checkNotNull(function);
 		Preconditions.checkArgument(!(inputStream1 instanceof KeyedStream),
-				"A BroadcastProcessFunction can only be used with a non-keyed stream as the second input.");
+				"A BroadcastProcessFunction can only be used on a non-keyed stream.");
 
 		TwoInputStreamOperator<IN1, IN2, OUT> operator =
 				new CoBroadcastWithNonKeyedOperator<>(clean(function), broadcastStateDescriptors);
