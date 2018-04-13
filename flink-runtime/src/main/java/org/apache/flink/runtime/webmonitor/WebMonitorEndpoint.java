@@ -130,7 +130,6 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -516,7 +515,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			timeout,
 			responseHeaders);
 
-		final Path webUiDir = restConfiguration.getWebUiDir();
+		final File webUiDir = restConfiguration.getWebUiDir();
 
 		Optional<StaticFileServerHandler<T>> optWebContent;
 
@@ -525,7 +524,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 				leaderRetriever,
 				restAddressFuture,
 				timeout,
-				webUiDir.toFile());
+				webUiDir);
 		} catch (IOException e) {
 			log.warn("Could not load web content handler.", e);
 			optWebContent = Optional.empty();
@@ -655,7 +654,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 		final CompletableFuture<Void> shutdownFuture = super.shutDownInternal();
 
-		final Path webUiDir = restConfiguration.getWebUiDir();
+		final File webUiDir = restConfiguration.getWebUiDir();
 
 		return FutureUtils.runAfterwardsAsync(
 			shutdownFuture,
@@ -663,7 +662,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 				Exception exception = null;
 				try {
 					log.info("Removing cache directory {}", webUiDir);
-					FileUtils.deleteDirectory(webUiDir.toFile());
+					FileUtils.deleteDirectory(webUiDir);
 				} catch (Exception e) {
 					exception = e;
 				}

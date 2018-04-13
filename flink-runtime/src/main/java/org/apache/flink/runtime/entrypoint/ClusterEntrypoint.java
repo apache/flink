@@ -83,8 +83,6 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
@@ -539,9 +537,9 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		final Configuration resultConfiguration = new Configuration(Preconditions.checkNotNull(configuration));
 
 		final String webTmpDir = configuration.getString(WebOptions.TMP_DIR);
-		final Path uniqueWebTmpDir = Paths.get(webTmpDir, "flink-web-" + UUID.randomUUID());
+		final File uniqueWebTmpDir = new File(webTmpDir, "flink-web-" + UUID.randomUUID());
 
-		resultConfiguration.setString(WebOptions.TMP_DIR, uniqueWebTmpDir.toAbsolutePath().toString());
+		resultConfiguration.setString(WebOptions.TMP_DIR, uniqueWebTmpDir.getAbsolutePath());
 
 		return resultConfiguration;
 	}
