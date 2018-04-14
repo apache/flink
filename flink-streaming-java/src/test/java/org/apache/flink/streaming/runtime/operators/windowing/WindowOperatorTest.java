@@ -19,16 +19,22 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -2612,6 +2618,81 @@ public class WindowOperatorTest extends TestLogger {
 		testHarness.close();
 	}
 
+	@Test
+	public void testStateTypeIsConsistencyCreatedFromWindowStateAndGlobalState() throws Exception {
+
+		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
+			new SumReducer(),
+			new TupleTypeInfo(TypeInformation.of(String.class), TypeInformation.of(Integer.class)).createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator =
+			new WindowOperator<>(
+				SlidingEventTimeWindows.of(Time.seconds(1), Time.seconds(1)),
+				new TimeWindow.Serializer(),
+				new TupleKeySelector(),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+				stateDesc,
+				new InternalSingleValueWindowFunction<>(new PassThroughFunction()),
+				EventTimeTrigger.create(),
+				10,
+				null /* late data output tag */);
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			createTestHarness(operator);
+
+		testHarness.setup();
+		testHarness.open();
+
+		testHarness.processElement(new StreamRecord<Tuple2<String, Integer>>(new Tuple2<>("1", 1), System.currentTimeMillis()));
+
+		operator.processContext.window = new TimeWindow(10, 20);
+
+		KeyedStateStore windowKeyedStateStore = operator.processContext.windowState();
+		KeyedStateStore globalKeyedStateStore = operator.processContext.globalState();
+
+		ListStateDescriptor<String> windowListStateDescriptor = new ListStateDescriptor<String>("windowListState", String.class);
+		ListStateDescriptor<String> globalListStateDescriptor = new ListStateDescriptor<String>("globalListState", String.class);
+		assertEquals(
+			windowKeyedStateStore.getListState(windowListStateDescriptor).getClass(),
+			globalKeyedStateStore.getListState(globalListStateDescriptor).getClass());
+
+		ValueStateDescriptor<String> windowValueStateDescriptor = new ValueStateDescriptor<String>("windowValueState", String.class);
+		ValueStateDescriptor<String> globalValueStateDescriptor = new ValueStateDescriptor<String>("globalValueState", String.class);
+		assertEquals(
+			windowKeyedStateStore.getState(windowValueStateDescriptor).getClass(),
+			globalKeyedStateStore.getState(globalValueStateDescriptor).getClass());
+
+		AggregatingStateDescriptor<String, String, String> windowAggStateDesc = new AggregatingStateDescriptor<String, String, String>(
+			"windowAgg",
+			new NoOpAggregateFunction(),
+			String.class);
+
+		AggregatingStateDescriptor<String, String, String> globalAggStateDesc = new AggregatingStateDescriptor<String, String, String>(
+			"globalAgg",
+			new NoOpAggregateFunction(),
+			String.class);
+		assertEquals(
+			windowKeyedStateStore.getAggregatingState(windowAggStateDesc).getClass(),
+			globalKeyedStateStore.getAggregatingState(globalAggStateDesc).getClass());
+
+		ReducingStateDescriptor<String> windowReducingStateDesc = new ReducingStateDescriptor<String>("windowReducing", (a, b) -> a, String.class);
+		ReducingStateDescriptor<String> globalReducingStateDesc = new ReducingStateDescriptor<String>("globalReducing", (a, b) -> a, String.class);
+		assertEquals(
+			windowKeyedStateStore.getReducingState(windowReducingStateDesc).getClass(),
+			globalKeyedStateStore.getReducingState(globalReducingStateDesc).getClass());
+
+		FoldingStateDescriptor<String, String> windowFoldingStateDescriptor = new FoldingStateDescriptor<String, String>("windowFolding", "", (a, b) -> a, String.class);
+		FoldingStateDescriptor<String, String> globalFoldingStateDescriptor = new FoldingStateDescriptor<String, String>("globalFolding", "", (a, b) -> a, String.class);
+		assertEquals(
+			windowKeyedStateStore.getFoldingState(windowFoldingStateDescriptor).getClass(),
+			globalKeyedStateStore.getFoldingState(globalFoldingStateDescriptor).getClass());
+
+		MapStateDescriptor<String, String> windowMapStateDescriptor = new MapStateDescriptor<String, String>("windowMapState", String.class, String.class);
+		MapStateDescriptor<String, String> globalMapStateDescriptor = new MapStateDescriptor<String, String>("globalMapState", String.class, String.class);
+		assertEquals(windowKeyedStateStore.getMapState(windowMapStateDescriptor).getClass(),
+			globalKeyedStateStore.getMapState(globalMapStateDescriptor).getClass());
+	}
+
 	// ------------------------------------------------------------------------
 	//  UDFs
 	// ------------------------------------------------------------------------
@@ -2869,6 +2950,32 @@ public class WindowOperatorTest extends TestLogger {
 		@Override
 		public String toString() {
 			return "EventTimeTrigger()";
+		}
+	}
+
+	/**
+	 * A No Operation {@link AggregateFunction} to guard state type consistency.
+	 */
+	private static class NoOpAggregateFunction implements AggregateFunction<String, String, String> {
+
+		@Override
+		public String createAccumulator() {
+			return null;
+		}
+
+		@Override
+		public String add(String value, String accumulator) {
+			return null;
+		}
+
+		@Override
+		public String getResult(String accumulator) {
+			return null;
+		}
+
+		@Override
+		public String merge(String a, String b) {
+			return null;
 		}
 	}
 }
