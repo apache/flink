@@ -18,16 +18,22 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.configuration.ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS;
+import static org.apache.flink.configuration.ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -88,5 +94,30 @@ public class FixedDelayRestartStrategyTest {
 		}
 
 		assertFalse(strategy.canRestart());
+	}
+
+	@Test
+	public void testFixedRestartStrategyConf() {
+		Configuration configuration = new Configuration();
+
+		configuration.setString(ConfigConstants.RESTART_STRATEGY, "fixed-delay");
+		configuration.setInteger(RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 10);
+		configuration.setString(RESTART_STRATEGY_FIXED_DELAY_DELAY.key(), "1 s");
+
+		RestartStrategies.RestartStrategyConfiguration fixDalay = null;
+		try {
+			fixDalay = RestartStrategyFactory.createRestartStrategyConfiguration(configuration);
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("Get restart strategy from flink conf failed for: " + e);
+		}
+
+		Assert.assertTrue(fixDalay != null);
+		Assert.assertTrue(fixDalay instanceof RestartStrategies.FixedDelayRestartStrategyConfiguration);
+
+		RestartStrategies.FixedDelayRestartStrategyConfiguration fix =
+			(RestartStrategies.FixedDelayRestartStrategyConfiguration) fixDalay;
+		Assert.assertEquals(10, fix.getRestartAttempts());
+		Assert.assertEquals(1000, fix.getDelayBetweenAttemptsInterval().toMilliseconds());
 	}
 }

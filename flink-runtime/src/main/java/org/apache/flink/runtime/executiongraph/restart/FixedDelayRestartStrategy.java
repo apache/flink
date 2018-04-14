@@ -110,6 +110,14 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 		private final int maxAttempts;
 		private final long delay;
 
+		public int getMaxAttempts() {
+			return maxAttempts;
+		}
+
+		public long getDelay() {
+			return delay;
+		}
+
 		public FixedDelayRestartStrategyFactory(int maxAttempts, long delay) {
 			this.maxAttempts = maxAttempts;
 			this.delay = delay;

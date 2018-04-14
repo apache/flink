@@ -19,15 +19,20 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.DummyActorGateway;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -42,6 +47,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -50,11 +56,15 @@ import scala.concurrent.Future;
 import scala.concurrent.Future$;
 import scala.concurrent.duration.FiniteDuration;
 
+import static org.apache.flink.configuration.ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_DELAY;
+import static org.apache.flink.configuration.ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL;
+import static org.apache.flink.configuration.ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link ClusterClient}.
@@ -218,6 +228,47 @@ public class ClusterClientTest extends TestLogger {
 				"the savepoint via -j <JAR> for disposal.").isPresent());
 		} finally {
 			clusterClient.shutdown();
+		}
+	}
+
+	@Test
+	public void testgetJobGraph() {
+
+		SavepointRestoreSettings savepoint = SavepointRestoreSettings.forPath("/tmp", false);
+
+		Configuration configuration1 = new Configuration();
+
+		StreamingPlan plan1 = mock(StreamingPlan.class);
+		when(plan1.getJobGraph()).thenReturn(new JobGraph());
+
+		JobGraph jobGraph1 = ClusterClient.getJobGraph(configuration1, plan1,
+			Collections.EMPTY_LIST, Collections.EMPTY_LIST, savepoint);
+		try {
+			Assert.assertTrue(jobGraph1.getSerializedExecutionConfig()
+				.deserializeValue(this.getClass().getClassLoader())
+				.getRestartStrategy() instanceof RestartStrategies.NoRestartStrategyConfiguration);
+		} catch (Exception e) {
+			Assert.fail("deserializedValue get error: " + e);
+		}
+
+		Configuration configuration2 = new Configuration();
+		configuration2.setString(ConfigConstants.RESTART_STRATEGY, "failure-rate");
+		configuration2.setString(RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL, "30 s");
+		configuration2.setString(RESTART_STRATEGY_FAILURE_RATE_DELAY, "10 s");
+		configuration2.setInteger(RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL, 5);
+
+		StreamingPlan plan2 = mock(StreamingPlan.class);
+		when(plan2.getJobGraph()).thenReturn(new JobGraph());
+
+		JobGraph jobGraph2 = ClusterClient.getJobGraph(configuration2, plan2,
+			Collections.EMPTY_LIST, Collections.EMPTY_LIST, savepoint);
+
+		try {
+			Assert.assertTrue(jobGraph2.getSerializedExecutionConfig()
+				.deserializeValue(this.getClass().getClassLoader())
+				.getRestartStrategy() instanceof RestartStrategies.FailureRateRestartStrategyConfiguration);
+		} catch (Exception e) {
+			Assert.fail("deserializedValue get error: " + e);
 		}
 	}
 

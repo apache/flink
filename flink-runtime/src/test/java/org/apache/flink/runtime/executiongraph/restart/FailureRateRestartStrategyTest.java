@@ -18,17 +18,22 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.configuration.ConfigConstants.*;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -103,6 +108,33 @@ public class FailureRateRestartStrategyTest {
 			final long elapsed = System.nanoTime() - time;
 			assertTrue("Not enough delay", elapsed >= restartDelay * 1_000_000);
 		}
+	}
+
+	@Test
+	public void testFailureRateRestartStrategyConf() {
+		Configuration configuration = new Configuration();
+
+		configuration.setString(ConfigConstants.RESTART_STRATEGY, "failure-rate");
+		configuration.setString(RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL, "30 s");
+		configuration.setString(RESTART_STRATEGY_FAILURE_RATE_DELAY, "10 s");
+		configuration.setInteger(RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL, 5);
+
+		RestartStrategies.RestartStrategyConfiguration fixDalay = null;
+		try {
+			fixDalay = RestartStrategyFactory.createRestartStrategyConfiguration(configuration);
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("Get restart strategy from flink conf failed for: " + e);
+		}
+
+		Assert.assertTrue(fixDalay != null);
+		Assert.assertTrue(fixDalay instanceof RestartStrategies.FailureRateRestartStrategyConfiguration);
+
+		RestartStrategies.FailureRateRestartStrategyConfiguration failureRestart =
+			(RestartStrategies.FailureRateRestartStrategyConfiguration) fixDalay;
+		Assert.assertEquals(5, failureRestart.getMaxFailureRate());
+		Assert.assertEquals(10000L, failureRestart.getDelayBetweenAttemptsInterval().toMilliseconds());
+		Assert.assertEquals(30000L, failureRestart.getFailureInterval().toMilliseconds());
 	}
 
 	// ------------------------------------------------------------------------

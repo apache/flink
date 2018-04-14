@@ -76,6 +76,39 @@ public abstract class RestartStrategyFactory implements Serializable {
 	}
 
 	/**
+	 * Creates a {@link RestartStrategies.RestartStrategyConfiguration} instance from the give {@link Configuration}
+	 * @param flinkConf flink conf that reads from flink-conf.yaml
+	 * @return RestartStrategies.RestartStrategyConfiguration instance
+	 */
+	public static RestartStrategies.RestartStrategyConfiguration createRestartStrategyConfiguration (
+		Configuration flinkConf) throws Exception {
+
+		RestartStrategyFactory restartStrategyFactory = createRestartStrategyFactory(flinkConf);
+		if (restartStrategyFactory instanceof NoRestartStrategy.NoRestartStrategyFactory) {
+			return RestartStrategies.noRestart();
+
+		} else if (restartStrategyFactory instanceof FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory) {
+			long interval = ((FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory) restartStrategyFactory).getDelay();
+			int maxAttempt = ((FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory) restartStrategyFactory).getMaxAttempts();
+			return RestartStrategies.fixedDelayRestart(maxAttempt, interval);
+
+		} else if (restartStrategyFactory instanceof FailureRateRestartStrategy.FailureRateRestartStrategyFactory) {
+			FailureRateRestartStrategy.FailureRateRestartStrategyFactory failureStrategy =
+				(FailureRateRestartStrategy.FailureRateRestartStrategyFactory) restartStrategyFactory;
+
+			return RestartStrategies.failureRateRestart(
+				failureStrategy.getMaxFailuresPerInterval(),
+				failureStrategy.getFailuresInterval(),
+				failureStrategy.getDelayInterval()
+			);
+		} else if (restartStrategyFactory == null) {
+			return RestartStrategies.fallBackRestart();
+		} else {
+			throw new IllegalArgumentException("Unsupported RestartStrategyFactory " + restartStrategyFactory.toString());
+		}
+	}
+
+	/**
 	 * Creates a {@link RestartStrategy} instance from the given {@link Configuration}.
 	 *
 	 * @return RestartStrategy instance

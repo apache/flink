@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.program;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
@@ -45,6 +46,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -894,6 +896,21 @@ public abstract class ClusterClient<T> {
 		} else {
 			JobGraphGenerator gen = new JobGraphGenerator(flinkConfig);
 			job = gen.compileJobGraph((OptimizedPlan) optPlan);
+		}
+
+		//  if we disable checkpoint and do not set restart strategy, Restart strategy will be set as in flink-conf.yaml
+		//  in flip6, jobmaster do not set this conf, so we have set this conf here.
+
+		try {
+			ExecutionConfig config = job.getSerializedExecutionConfig().deserializeValue(
+				ClusterClient.class.getClassLoader());
+
+			if (config.getRestartStrategy() == null) {
+				config.setRestartStrategy(RestartStrategyFactory.createRestartStrategyConfiguration(flinkConfig));
+			}
+			job.setExecutionConfig(config);
+		} catch (Exception e) {
+			throw new RuntimeException("Can't get job Restart strategy from flink conf.", e);
 		}
 
 		for (URL jar : jarFiles) {

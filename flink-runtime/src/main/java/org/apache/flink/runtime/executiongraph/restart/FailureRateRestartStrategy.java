@@ -117,6 +117,18 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 		private final Time failuresInterval;
 		private final Time delayInterval;
 
+		public int getMaxFailuresPerInterval() {
+			return maxFailuresPerInterval;
+		}
+
+		public Time getFailuresInterval() {
+			return failuresInterval;
+		}
+
+		public Time getDelayInterval() {
+			return delayInterval;
+		}
+
 		public FailureRateRestartStrategyFactory(int maxFailuresPerInterval, Time failuresInterval, Time delayInterval) {
 			this.maxFailuresPerInterval = maxFailuresPerInterval;
 			this.failuresInterval = Preconditions.checkNotNull(failuresInterval);
