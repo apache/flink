@@ -344,7 +344,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 	}
 
 	private static void waitUntilCanceled(JobID jobId, ClusterClient<?> client) throws ExecutionException, InterruptedException {
-		while (client.getJobStatus(jobId).get() != JobStatus.CANCELLING) {
+		while (client.getJobStatus(jobId).get() != JobStatus.CANCELED) {
 			Thread.sleep(50);
 		}
 	}

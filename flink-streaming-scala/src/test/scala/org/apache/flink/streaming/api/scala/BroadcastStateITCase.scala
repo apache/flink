@@ -109,7 +109,7 @@ class TestBroadcastProcessFunction(
   @throws[Exception]
   override def processElement(
       value: Long,
-      ctx: KeyedBroadcastProcessFunction[Long, Long, String, String]#KeyedReadOnlyContext,
+      ctx: KeyedBroadcastProcessFunction[Long, Long, String, String]#ReadOnlyContext,
       out: Collector[String]): Unit = {
 
     val currentTime = nextTimerTimestamp
@@ -121,7 +121,7 @@ class TestBroadcastProcessFunction(
   @throws[Exception]
   override def processBroadcastElement(
       value: String,
-      ctx: KeyedBroadcastProcessFunction[Long, Long, String, String]#KeyedContext,
+      ctx: KeyedBroadcastProcessFunction[Long, Long, String, String]#Context,
       out: Collector[String]): Unit = {
 
     val key = value.split(":")(1).toLong
