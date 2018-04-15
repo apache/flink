@@ -39,9 +39,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.stream.IntStream;
 
 /**
  * Request handler that returns, aggregated across subtasks, a list of all available metrics or the values
@@ -103,28 +103,7 @@ public class AggregatingSubtasksMetricsHandler extends AbstractAggregatingMetric
 					// evaluate range
 					final int start = Integer.valueOf(range.substring(0, dashIdx));
 					final int end = Integer.valueOf(range.substring(dashIdx + 1, range.length()));
-					rangeIterator = new Iterator<Integer>() {
-						int i = start;
-
-						@Override
-						public boolean hasNext() {
-							return i <= end;
-						}
-
-						@Override
-						public Integer next() {
-							if (hasNext()) {
-								return i++;
-							} else {
-								throw new NoSuchElementException();
-							}
-						}
-
-						@Override
-						public void remove() {
-							throw new UnsupportedOperationException("Remove not supported");
-						}
-					};
+					rangeIterator = IntStream.rangeClosed(start, end).iterator();
 				}
 				iterators.add(rangeIterator);
 			} catch (NumberFormatException nfe) {
