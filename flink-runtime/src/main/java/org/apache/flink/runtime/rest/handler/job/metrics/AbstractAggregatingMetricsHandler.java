@@ -83,7 +83,7 @@ public abstract class AbstractAggregatingMetricsHandler<P extends AbstractAggreg
 			Map<String, String> responseHeaders,
 			AbstractAggregatedMetricsHeaders<P> messageHeaders,
 			Executor executor,
-			MetricFetcher fetcher) {
+			MetricFetcher<?> fetcher) {
 		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
 		this.executor = executor;
 		this.fetcher = fetcher;
