@@ -103,7 +103,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.apache.commons.cli.CommandLine;
-import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -687,14 +686,14 @@ public class RestClusterClientTest extends TestLogger {
 	 */
 	@Test
 	public void testRESTManualConfigurationOverride() throws Exception {
-		final String localhost = "localhost";
-		final int port = 1234;
+		final String configuredHostname = "localhost";
+		final int configuredPort = 1234;
 		final Configuration configuration = new Configuration();
 
-		configuration.setString(JobManagerOptions.ADDRESS, localhost);
-		configuration.setInteger(JobManagerOptions.PORT, port);
-		configuration.setString(RestOptions.REST_ADDRESS, localhost);
-		configuration.setInteger(RestOptions.REST_PORT, port);
+		configuration.setString(JobManagerOptions.ADDRESS, configuredHostname);
+		configuration.setInteger(JobManagerOptions.PORT, configuredPort);
+		configuration.setString(RestOptions.REST_ADDRESS, configuredHostname);
+		configuration.setInteger(RestOptions.REST_PORT, configuredPort);
 
 		final DefaultCLI defaultCLI = new DefaultCLI(configuration);
 
@@ -709,8 +708,8 @@ public class RestClusterClientTest extends TestLogger {
 		final RestClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
 
 		URL webMonitorBaseUrl = clusterClient.getWebMonitorBaseUrl().get();
-		assertThat(webMonitorBaseUrl.getHost(), Matchers.equalTo(manualHostname));
-		assertThat(webMonitorBaseUrl.getPort(), Matchers.equalTo(manualPort));
+		assertThat(webMonitorBaseUrl.getHost(), equalTo(manualHostname));
+		assertThat(webMonitorBaseUrl.getPort(), equalTo(manualPort));
 	}
 
 	private class TestAccumulatorHandler extends TestHandler<EmptyRequestBody, JobAccumulatorsInfo, JobAccumulatorsMessageParameters> {
