@@ -69,12 +69,20 @@ public class AggregatingSubtasksMetricsHandler extends AbstractAggregatingMetric
 
 		Collection<String> subtaskRanges = request.getQueryParameter(SubtasksFilterQueryParameter.class);
 		if (subtaskRanges.isEmpty()) {
-			return store.getTaskMetricStore(jobID.toString(), taskID.toString()).getAllSubtaskMetricStores();
+			MetricStore.TaskMetricStore taskMetricStore = store.getTaskMetricStore(jobID.toString(), taskID.toString());
+			if (taskMetricStore != null) {
+				return taskMetricStore.getAllSubtaskMetricStores();
+			} else {
+				return Collections.emptyList();
+			}
 		} else {
 			Iterable<Integer> subtasks = getIntegerRangeFromString(subtaskRanges);
 			Collection<MetricStore.ComponentMetricStore> subtaskStores = new ArrayList<>(8);
 			for (int subtask : subtasks) {
-				subtaskStores.add(store.getSubtaskMetricStore(jobID.toString(), taskID.toString(), subtask));
+				MetricStore.ComponentMetricStore subtaskMetricStore = store.getSubtaskMetricStore(jobID.toString(), taskID.toString(), subtask);
+				if (subtaskMetricStore != null) {
+					subtaskStores.add(subtaskMetricStore);
+				}
 			}
 			return subtaskStores;
 		}

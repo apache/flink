@@ -63,7 +63,10 @@ public class AggregatingTaskManagersMetricsHandler extends AbstractAggregatingMe
 		} else {
 			Collection<MetricStore.TaskManagerMetricStore> taskmanagerStores = new ArrayList<>(taskmanagers.size());
 			for (ResourceID taskmanager : taskmanagers) {
-				taskmanagerStores.add(store.getTaskManagerMetricStore(taskmanager.getResourceIdString()));
+				MetricStore.TaskManagerMetricStore taskManagerMetricStore = store.getTaskManagerMetricStore(taskmanager.getResourceIdString());
+				if (taskManagerMetricStore != null) {
+					taskmanagerStores.add(taskManagerMetricStore);
+				}
 			}
 			return taskmanagerStores;
 		}

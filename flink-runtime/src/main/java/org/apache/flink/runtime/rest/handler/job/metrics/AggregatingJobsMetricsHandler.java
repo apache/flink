@@ -63,7 +63,10 @@ public class AggregatingJobsMetricsHandler extends AbstractAggregatingMetricsHan
 		} else {
 			Collection<MetricStore.ComponentMetricStore> jobStores = new ArrayList<>(jobs.size());
 			for (JobID job : jobs) {
-				jobStores.add(store.getJobMetricStore(job.toString()));
+				MetricStore.ComponentMetricStore jobMetricStore = store.getJobMetricStore(job.toString());
+				if (jobMetricStore != null) {
+					jobStores.add(jobMetricStore);
+				}
 			}
 			return jobStores;
 		}
