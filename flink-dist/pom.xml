@@ -393,9 +393,6 @@ under the License.
 			<!-- Creates/Removes the 'build-target' symlink in the root directory (only Unix systems) -->
 			<id>symlink-build-target</id>
 			<activation>
-				<property>
-					<name>symlink-build-target</name>
-				</property>
 				<os>
 					<family>unix</family>
 				</os>
