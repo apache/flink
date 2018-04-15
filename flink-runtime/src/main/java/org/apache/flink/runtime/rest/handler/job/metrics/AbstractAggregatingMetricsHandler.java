@@ -85,8 +85,8 @@ public abstract class AbstractAggregatingMetricsHandler<P extends AbstractAggreg
 			Executor executor,
 			MetricFetcher<?> fetcher) {
 		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
-		this.executor = executor;
-		this.fetcher = fetcher;
+		this.executor = Preconditions.checkNotNull(executor);
+		this.fetcher = Preconditions.checkNotNull(fetcher);
 	}
 
 	abstract Collection<? extends MetricStore.ComponentMetricStore> getStores(MetricStore store, HandlerRequest<EmptyRequestBody, P> request);
