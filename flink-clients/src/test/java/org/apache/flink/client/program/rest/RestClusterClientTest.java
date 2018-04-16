@@ -23,6 +23,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.cli.DefaultCLI;
+import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
 import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
@@ -100,6 +102,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import org.apache.commons.cli.CommandLine;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -111,6 +114,7 @@ import org.mockito.MockitoAnnotations;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -675,6 +679,37 @@ public class RestClusterClientTest extends TestLogger {
 				assertEquals("testValue", accumulators.get("testKey").get().toString());
 			}
 		}
+	}
+
+	/**
+	 * Tests that command line options override the configuration settings.
+	 */
+	@Test
+	public void testRESTManualConfigurationOverride() throws Exception {
+		final String configuredHostname = "localhost";
+		final int configuredPort = 1234;
+		final Configuration configuration = new Configuration();
+
+		configuration.setString(JobManagerOptions.ADDRESS, configuredHostname);
+		configuration.setInteger(JobManagerOptions.PORT, configuredPort);
+		configuration.setString(RestOptions.REST_ADDRESS, configuredHostname);
+		configuration.setInteger(RestOptions.REST_PORT, configuredPort);
+
+		final DefaultCLI defaultCLI = new DefaultCLI(configuration);
+
+		final String manualHostname = "123.123.123.123";
+		final int manualPort = 4321;
+		final String[] args = {"-m", manualHostname + ':' + manualPort};
+
+		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+
+		final StandaloneClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
+
+		final RestClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
+
+		URL webMonitorBaseUrl = clusterClient.getWebMonitorBaseUrl().get();
+		assertThat(webMonitorBaseUrl.getHost(), equalTo(manualHostname));
+		assertThat(webMonitorBaseUrl.getPort(), equalTo(manualPort));
 	}
 
 	private class TestAccumulatorHandler extends TestHandler<EmptyRequestBody, JobAccumulatorsInfo, JobAccumulatorsMessageParameters> {
