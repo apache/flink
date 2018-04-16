@@ -27,7 +27,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * Based {@link MessageHeaders} class for aggregating metrics.
  */
-public abstract class AbstractAggregatedMetricsHeaders<P extends AbstractAggregatedMetricsParameters> implements MessageHeaders<EmptyRequestBody, AggregatedMetricsResponseBody, P> {
+public abstract class AbstractAggregatedMetricsHeaders<P extends AbstractAggregatedMetricsParameters<?>> implements MessageHeaders<EmptyRequestBody, AggregatedMetricsResponseBody, P> {
 	@Override
 	public Class<AggregatedMetricsResponseBody> getResponseClass() {
 		return AggregatedMetricsResponseBody.class;
