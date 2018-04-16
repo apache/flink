@@ -451,6 +451,15 @@ the `Watermark getCurrentWatermark()` (for periodic) or the
 `Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp)` (for punctuated) is called to determine
 if a new watermark should be emitted and with which timestamp.
 
+If the watermark assigner depends on records read from Kafka, all topics and partitions need to
+have a continuous stream of records. Otherwise a windowed stream gets stalled, because watermark is
+not advancing. For example an idle kafka partition would cause this. A Flink improvement is planned
+to prevent this from happening
+([FLINK-5479: Per-partition watermarks in FlinkKafkaConsumer should consider idle partitions](
+https://issues.apache.org/jira/browse/FLINK-5479)).
+In the meanwhile, workaround is to send "heartbeat messages" to all consumed partitions, so that
+the watermark assigner can extract new timestamps normally also on partitions that would otherwise
+remain idle.
 
 ## Kafka Producer
 
