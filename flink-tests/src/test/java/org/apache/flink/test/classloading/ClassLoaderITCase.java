@@ -210,14 +210,19 @@ public class ClassLoaderITCase extends TestLogger {
 			// Program should terminate with a 'SuccessException':
 			// the exception class is contained in the user-jar, but is not present on the maven classpath
 			// the deserialization of the exception should thus fail here
-			Optional<Throwable> exception = ExceptionUtils.findThrowable(e,
-				candidate -> candidate.getClass().getCanonicalName().equals("org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram.SuccessException"));
-			// if we reach this point we either failed due to another exception,
-			// or the deserialization of the user-exception did not fail
-			if (!exception.isPresent()) {
-				throw e;
-			} else {
-				Assert.fail("Deserialization of user exception should have failed.");
+			try {
+				Optional<Throwable> exception = ExceptionUtils.findThrowable(e,
+					candidate -> candidate.getClass().getCanonicalName().equals("org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram.SuccessException"));
+
+				// if we reach this point we either failed due to another exception,
+				// or the deserialization of the user-exception did not fail
+				if (!exception.isPresent()) {
+					throw e;
+				} else {
+					Assert.fail("Deserialization of user exception should have failed.");
+				}
+			} catch (NoClassDefFoundError expected) {
+				// expected
 			}
 		}
 	}
