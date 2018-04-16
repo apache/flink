@@ -217,7 +217,7 @@ public class RestClient {
 		try {
 			P response = objectMapper.readValue(jsonParser, responseType);
 			responseFuture.complete(response);
-		} catch (IOException ioe) {
+		} catch (IOException originalException) {
 			// the received response did not matched the expected response type
 
 			// lets see if it is an ErrorResponse instead
@@ -231,7 +231,7 @@ public class RestClient {
 				responseFuture.completeExceptionally(
 					new RestClientException(
 						"Response was neither of the expected type(" + responseType + ") nor an error.",
-						jpe2,
+						originalException,
 						rawResponse.getHttpResponseStatus()));
 			}
 		}
@@ -327,6 +327,14 @@ public class RestClient {
 
 		public HttpResponseStatus getHttpResponseStatus() {
 			return httpResponseStatus;
+		}
+
+		@Override
+		public String toString() {
+			return "JsonResponse{" +
+				"json=" + json +
+				", httpResponseStatus=" + httpResponseStatus +
+				'}';
 		}
 	}
 }
