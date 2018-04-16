@@ -46,6 +46,8 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.cli.Options;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -63,6 +65,8 @@ import java.util.Map;
  * response time to the Flink cluster. Flink jobs are not blocking.
  */
 public class LocalExecutor implements Executor {
+
+	private static final Logger LOG = LoggerFactory.getLogger(LocalExecutor.class);
 
 	private static final String DEFAULT_ENV_FILE = "sql-client-defaults.yaml";
 
@@ -125,6 +129,7 @@ public class LocalExecutor implements Executor {
 				} catch (MalformedURLException e) {
 					throw new SqlClientException(e);
 				}
+				LOG.info("Using default environment file: {}", defaultEnv);
 			} else {
 				System.out.println("not found.");
 			}
@@ -284,6 +289,7 @@ public class LocalExecutor implements Executor {
 		}
 
 		// stop retrieval and remove the result
+		LOG.info("Cancelling job {} and result retrieval.", resultId);
 		result.close();
 		resultStore.removeResult(resultId);
 
@@ -347,7 +353,14 @@ public class LocalExecutor implements Executor {
 		resultStore.storeResult(resultId, result);
 
 		// create execution
-		final Runnable program = () -> deployJob(context, jobGraph, result);
+		final Runnable program = () -> {
+			LOG.info("Submitting job {} for query {}`", jobGraph.getJobID(), jobName);
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Submitting job {} with the following environment: \n{}",
+					jobGraph.getJobID(), context.getMergedEnvironment());
+			}
+			deployJob(context, jobGraph, result);
+		};
 
 		// start result retrieval
 		result.startRetrieval(program);
@@ -468,6 +481,11 @@ public class LocalExecutor implements Executor {
 		} catch (Exception e) {
 			throw new SqlClientException("Could not load all required JAR files.", e);
 		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Using the following dependencies: {}", dependencies);
+		}
+
 		return dependencies;
 	}
 

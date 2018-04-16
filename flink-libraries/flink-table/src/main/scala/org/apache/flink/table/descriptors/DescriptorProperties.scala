@@ -1098,6 +1098,13 @@ object DescriptorProperties {
     toString(key) + "=" + toString(value)
   }
 
+  def toString(kv: Map[String, String]): String = {
+    kv.map(e => DescriptorProperties.toString(e._1, e._2))
+      .toSeq
+      .sorted
+      .mkString("\n")
+  }
+
   // the following methods help for Scala <-> Java interfaces
   // most of these methods are not necessary once we upgraded to Scala 2.12
 
