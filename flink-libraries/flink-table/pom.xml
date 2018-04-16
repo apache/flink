@@ -32,6 +32,41 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<dependencyManagement>
+		<dependencies>
+			<!-- Common dependency of calcite-core and flink-test-utils -->
+			<dependency>
+				<groupId>com.google.guava</groupId>
+				<artifactId>guava</artifactId>
+				<version>19.0</version>
+			</dependency>
+			<!-- Common dependency among commons-configuration -->
+			<dependency>
+				<groupId>commons-beanutils</groupId>
+				<artifactId>commons-beanutils</artifactId>
+				<version>1.8.3</version>
+			</dependency>
+			<!-- Common dependency of calcite-core and janino -->
+			<dependency>
+				<groupId>org.codehaus.janino</groupId>
+				<artifactId>commons-compiler</artifactId>
+				<version>3.0.7</version>
+			</dependency>
+			<!-- Common dependency of aggdesigner-algorithm and commons-configuration -->
+			<dependency>
+				<groupId>commons-lang</groupId>
+				<artifactId>commons-lang</artifactId>
+				<version>2.6</version>
+			</dependency>
+			<!-- Common dependency of calcite-core and flink-table -->
+			<dependency>
+				<groupId>org.codehaus.janino</groupId>
+				<artifactId>janino</artifactId>
+				<version>3.0.7</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
 
 		<!-- core dependencies -->
@@ -49,27 +84,38 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- Used for TableType configuration -->
 		<dependency>
 			<groupId>commons-configuration</groupId>
 			<artifactId>commons-configuration</artifactId>
 		</dependency>
 
+		<!-- Used for base64 encoding of UDFs -->
 		<dependency>
 			<groupId>commons-codec</groupId>
 			<artifactId>commons-codec</artifactId>
 		</dependency>
 
+		<!-- Used for code generation -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+		</dependency>
+
+		<!-- Used for code generation -->
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>janino</artifactId>
-			<version>3.0.7</version>
 		</dependency>
 
+		<!-- Used for translation of table programs -->
 		<dependency>
 			<groupId>org.apache.calcite</groupId>
 			<artifactId>calcite-core</artifactId>
+			<!-- When updating the Calcite version, make sure to update the dependency exclusions -->
 			<version>1.16.0</version>
 			<exclusions>
+				<!-- Dependencies that are not needed for how we use Calcite right now -->
 				<exclusion>
 					<groupId>org.apache.calcite.avatica</groupId>
 					<artifactId>avatica-metrics</artifactId>
@@ -105,6 +151,7 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Used for TableType classpath discovery -->
 		<dependency>
 			<groupId>org.reflections</groupId>
 			<artifactId>reflections</artifactId>
@@ -122,6 +169,7 @@ under the License.
 			<scope>compile</scope>
 		</dependency>
 
+		<!-- Used for date/time formatting -->
 		<dependency>
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
@@ -336,6 +384,23 @@ under the License.
 				<configuration>
 					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
 				</configuration>
+			</plugin>
+
+			<!-- Enable enforcer plugin for checking dependency convergence -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>dependency-convergence</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<skip>false</skip>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
