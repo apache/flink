@@ -26,6 +26,9 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.Arrays;
@@ -48,6 +51,8 @@ import java.util.List;
  * <p>Make sure that the FLINK_CONF_DIR environment variable is set.
  */
 public class SqlClient {
+
+	private static final Logger LOG = LoggerFactory.getLogger(SqlClient.class);
 
 	private final boolean isEmbedded;
 	private final CliOptions options;
@@ -117,6 +122,7 @@ public class SqlClient {
 		}
 
 		System.out.println("Reading session environment from: " + envUrl);
+		LOG.info("Using session environment file: {}", envUrl);
 		try {
 			return Environment.parse(envUrl);
 		} catch (IOException e) {
@@ -148,11 +154,13 @@ public class SqlClient {
 						// make space in terminal
 						System.out.println();
 						System.out.println();
+						LOG.error("SQL Client must stop.", e);
 						throw e;
 					} catch (Throwable t) {
 						// make space in terminal
 						System.out.println();
 						System.out.println();
+						LOG.error("SQL Client must stop. Unexpected exception. This is a bug. Please consider filing an issue.", t);
 						throw new SqlClientException("Unexpected exception. This is a bug. Please consider filing an issue.", t);
 					}
 				}
