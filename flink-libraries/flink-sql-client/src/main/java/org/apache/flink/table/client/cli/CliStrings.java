@@ -49,7 +49,7 @@ public final class CliStrings {
 		.append(formatCommand(SqlCommand.SELECT, "Executes a SQL SELECT query on the Flink cluster."))
 		.append(formatCommand(SqlCommand.SOURCE, "Reads a SQL SELECT query from a file and executes it on the Flink cluster."))
 		.append(formatCommand(SqlCommand.SET, "Sets a session configuration property. Syntax: 'SET <key>=<value>'. Use 'SET' for listing all properties."))
-		.append(formatCommand(SqlCommand.RESET, "Resets all session configuration properties."))
+		.append(formatCommand(SqlCommand.RESET, "Resets all session configuration properties and reloads environment files."))
 		.style(AttributedStyle.DEFAULT.underline())
 		.append("\nHint")
 		.style(AttributedStyle.DEFAULT)
