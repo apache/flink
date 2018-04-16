@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
+import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
+import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
+
 /**
  * Headers for aggregating subtask metrics.
  */
@@ -35,7 +38,7 @@ public class AggregatedSubtaskMetricsHeaders extends AbstractAggregatedMetricsHe
 
 	@Override
 	public String getTargetRestEndpointURL() {
-		return "/jobs/:jobid/vertices/:vertexid/subtasks/metrics";
+		return "/jobs/" + JobIDPathParameter.KEY + "/vertices/" + JobVertexIdPathParameter.KEY + "/subtasks/metrics";
 	}
 
 	public static AggregatedSubtaskMetricsHeaders getInstance() {
