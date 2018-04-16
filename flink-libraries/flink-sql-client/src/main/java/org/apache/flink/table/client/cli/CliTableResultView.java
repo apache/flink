@@ -301,7 +301,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 	private void gotoPage() {
 		final CliInputView view = new CliInputView(
 			client,
-			CliStrings.INPUT_ENTER_PAGE,
+			CliStrings.INPUT_ENTER_PAGE + " [1 to " + pageCount + "]",
 			(s) -> {
 				// validate input
 				final int newPage;
