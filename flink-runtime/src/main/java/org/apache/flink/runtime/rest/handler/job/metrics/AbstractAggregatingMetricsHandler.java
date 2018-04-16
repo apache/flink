@@ -89,6 +89,7 @@ public abstract class AbstractAggregatingMetricsHandler<P extends AbstractAggreg
 		this.fetcher = Preconditions.checkNotNull(fetcher);
 	}
 
+	@Nonnull
 	abstract Collection<? extends MetricStore.ComponentMetricStore> getStores(MetricStore store, HandlerRequest<EmptyRequestBody, P> request);
 
 	@Override
@@ -102,9 +103,6 @@ public abstract class AbstractAggregatingMetricsHandler<P extends AbstractAggreg
 					MetricStore store = fetcher.getMetricStore();
 
 					Collection<? extends MetricStore.ComponentMetricStore> stores = getStores(store, request);
-					if (stores == null) {
-						return new AggregatedMetricsResponseBody(Collections.emptyList());
-					}
 
 					if (requestedMetrics.isEmpty()) {
 						Collection<String> list = getAvailableMetrics(stores);

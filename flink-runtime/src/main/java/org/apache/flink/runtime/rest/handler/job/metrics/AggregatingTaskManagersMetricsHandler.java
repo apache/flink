@@ -30,6 +30,8 @@ import org.apache.flink.runtime.rest.messages.job.metrics.TaskManagersFilterQuer
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
+import javax.annotation.Nonnull;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -55,6 +57,7 @@ public class AggregatingTaskManagersMetricsHandler extends AbstractAggregatingMe
 		super(localRestAddress, leaderRetriever, timeout, responseHeaders, AggregatedTaskManagerMetricsHeaders.getInstance(), executor, fetcher);
 	}
 
+	@Nonnull
 	@Override
 	Collection<? extends MetricStore.ComponentMetricStore> getStores(MetricStore store, HandlerRequest<EmptyRequestBody, AggregateTaskManagerMetricsParameters> request) {
 		List<ResourceID> taskmanagers = request.getQueryParameter(TaskManagersFilterQueryParameter.class);

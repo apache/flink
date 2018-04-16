@@ -30,6 +30,8 @@ import org.apache.flink.runtime.rest.messages.job.metrics.JobsFilterQueryParamet
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
+import javax.annotation.Nonnull;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -55,6 +57,7 @@ public class AggregatingJobsMetricsHandler extends AbstractAggregatingMetricsHan
 		super(localRestAddress, leaderRetriever, timeout, responseHeaders, AggregatedJobMetricsHeaders.getInstance(), executor, fetcher);
 	}
 
+	@Nonnull
 	@Override
 	Collection<? extends MetricStore.ComponentMetricStore> getStores(MetricStore store, HandlerRequest<EmptyRequestBody, AggregatedJobMetricsParameters> request) {
 		List<JobID> jobs = request.getQueryParameter(JobsFilterQueryParameter.class);
