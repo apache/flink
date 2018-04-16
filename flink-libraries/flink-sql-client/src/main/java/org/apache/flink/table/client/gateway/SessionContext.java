@@ -56,6 +56,12 @@ public class SessionContext {
 		return Environment.enrich(defaultEnvironment, sessionProperties);
 	}
 
+	public SessionContext copy() {
+		final SessionContext session = new SessionContext(name, defaultEnvironment);
+		session.sessionProperties.putAll(sessionProperties);
+		return session;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
