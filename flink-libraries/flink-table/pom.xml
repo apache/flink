@@ -32,6 +32,41 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<dependencyManagement>
+		<dependencies>
+			<!-- Common dependency of calcite-core and flink-test-utils -->
+			<dependency>
+				<groupId>com.google.guava</groupId>
+				<artifactId>guava</artifactId>
+				<version>19.0</version>
+			</dependency>
+			<!-- Common dependency among commons-configuration -->
+			<dependency>
+				<groupId>commons-beanutils</groupId>
+				<artifactId>commons-beanutils</artifactId>
+				<version>1.8.3</version>
+			</dependency>
+			<!-- Common dependency of calcite-core and janino -->
+			<dependency>
+				<groupId>org.codehaus.janino</groupId>
+				<artifactId>commons-compiler</artifactId>
+				<version>3.0.7</version>
+			</dependency>
+			<!-- Common dependency of aggdesigner-algorithm and commons-configuration -->
+			<dependency>
+				<groupId>commons-lang</groupId>
+				<artifactId>commons-lang</artifactId>
+				<version>2.6</version>
+			</dependency>
+			<!-- Common dependency of calcite-core and flink-table -->
+			<dependency>
+				<groupId>org.codehaus.janino</groupId>
+				<artifactId>janino</artifactId>
+				<version>3.0.7</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
 
 		<!-- core dependencies -->
@@ -71,7 +106,6 @@ under the License.
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>janino</artifactId>
-			<version>3.0.7</version>
 		</dependency>
 
 		<!-- Used for translation of table programs -->
@@ -113,20 +147,6 @@ under the License.
 				<exclusion>
 					<groupId>commons-dbcp</groupId>
 					<artifactId>commons-dbcp</artifactId>
-				</exclusion>
-				<!-- Use Flink specific commons-lang version instead -->
-				<exclusion>
-					<groupId>org.apache.commons</groupId>
-					<artifactId>commons-lang3</artifactId>
-				</exclusion>
-				<!-- Use Flink specific Janino version instead -->
-				<exclusion>
-					<groupId>org.codehaus.janino</groupId>
-					<artifactId>janino</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.codehaus.janino</groupId>
-					<artifactId>commons-compiler</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -364,6 +384,23 @@ under the License.
 				<configuration>
 					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
 				</configuration>
+			</plugin>
+
+			<!-- Enable enforcer plugin for checking dependency convergence -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>dependency-convergence</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<skip>false</skip>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
