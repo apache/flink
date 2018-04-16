@@ -88,9 +88,11 @@ import java.util.UUID;
  * and a rolling counter. For example the file {@code "part-1-17"} contains the data from
  * {@code subtask 1} of the sink and is the {@code 17th} bucket created by that subtask. Per default
  * the part prefix is {@code "part"} but this can be configured using {@link #setPartPrefix(String)}.
- * When a part file becomes bigger than the user-specified batch size the current part file is closed,
- * the part counter is increased and a new part file is created. The batch size defaults to {@code 384MB},
- * this can be configured using {@link #setBatchSize(long)}.
+ * When a part file becomes bigger than the user-specified batch size or when the part file becomes older
+ * than the user-specified roll over interval the current part file is closed, the part counter is increased
+ * and a new part file is created. The batch size defaults to {@code 384MB}, this can be configured
+ * using {@link #setBatchSize(long)}. The roll over interval defaults to {@code Long.MAX_VALUE} and
+ * this can be configured using {@link #setBatchRolloverInterval(long)}.
  *
  *
  * <p>In some scenarios, the open buckets are required to change based on time. In these cases, the sink
@@ -136,6 +138,10 @@ import java.util.UUID;
  *         every element, separated by newlines. You can configure the writer using the
  *         {@link #setWriter(Writer)}. For example, {@link SequenceFileWriter}
  *         can be used to write Hadoop {@code SequenceFiles}.
+ *     </li>
+ *     <li>
+ *       	{@link #closePartFilesByTime(long)} closes buckets that have not been written to for
+ *       	{@code inactiveBucketThreshold} or if they are older than {@code batchRolloverInterval}.
  *     </li>
  * </ol>
  *
@@ -240,6 +246,11 @@ public class BucketingSink<T>
 	private static final long DEFAULT_ASYNC_TIMEOUT_MS = 60 * 1000;
 
 	/**
+	 * The default time interval at which part files are written to the filesystem.
+	 */
+	private static final long DEFAULT_BATCH_ROLLOVER_INTERVAL = Long.MAX_VALUE;
+
+	/**
 	 * The base {@code Path} that stores all bucket directories.
 	 */
 	private final String basePath;
@@ -258,6 +269,7 @@ public class BucketingSink<T>
 	private long batchSize = DEFAULT_BATCH_SIZE;
 	private long inactiveBucketCheckInterval = DEFAULT_INACTIVE_BUCKET_CHECK_INTERVAL_MS;
 	private long inactiveBucketThreshold = DEFAULT_INACTIVE_BUCKET_THRESHOLD_MS;
+	private long batchRolloverInterval = DEFAULT_BATCH_ROLLOVER_INTERVAL;
 
 	// These are the actually configured prefixes/suffixes
 	private String inProgressSuffix = DEFAULT_IN_PROGRESS_SUFFIX;
@@ -442,7 +454,7 @@ public class BucketingSink<T>
 			state.addBucketState(bucketPath, bucketState);
 		}
 
-		if (shouldRoll(bucketState)) {
+		if (shouldRoll(bucketState, currentProcessingTime)) {
 			openNewPartFile(bucketPath, bucketState);
 		}
 
@@ -456,9 +468,10 @@ public class BucketingSink<T>
 	 * <ol>
 	 *     <li>no file is created yet for the task to write to, or</li>
 	 *     <li>the current file has reached the maximum bucket size.</li>
+	 *     <li>the current file is older than roll over interval</li>
 	 * </ol>
 	 */
-	private boolean shouldRoll(BucketState<T> bucketState) throws IOException {
+	private boolean shouldRoll(BucketState<T> bucketState, long currentProcessingTime) throws IOException {
 		boolean shouldRoll = false;
 		int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 		if (!bucketState.isWriterOpen) {
@@ -473,6 +486,14 @@ public class BucketingSink<T>
 					subtaskIndex,
 					writePosition,
 					batchSize);
+			} else {
+				if (currentProcessingTime - bucketState.creationTime > batchRolloverInterval) {
+					shouldRoll = true;
+					LOG.debug(
+						"BucketingSink {} starting new bucket because file is older than roll over interval {}.",
+						subtaskIndex,
+						batchRolloverInterval);
+				}
 			}
 		}
 		return shouldRoll;
@@ -482,21 +503,23 @@ public class BucketingSink<T>
 	public void onProcessingTime(long timestamp) throws Exception {
 		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 
-		checkForInactiveBuckets(currentProcessingTime);
+		closePartFilesByTime(currentProcessingTime);
 
 		processingTimeService.registerTimer(currentProcessingTime + inactiveBucketCheckInterval, this);
 	}
 
 	/**
 	 * Checks for inactive buckets, and closes them. Buckets are considered inactive if they have not been
-	 * written to for a period greater than {@code inactiveBucketThreshold} ms. This enables in-progress
-	 * files to be moved to the pending state and be finalised on the next checkpoint.
+	 * written to for a period greater than {@code inactiveBucketThreshold} ms. Buckets are also closed if they are
+	 * older than {@code batchRolloverInterval} ms. This enables in-progress files to be moved to the pending state
+	 * and be finalised on the next checkpoint.
 	 */
-	private void checkForInactiveBuckets(long currentProcessingTime) throws Exception {
+	private void closePartFilesByTime(long currentProcessingTime) throws Exception {
 
 		synchronized (state.bucketStates) {
 			for (Map.Entry<String, BucketState<T>> entry : state.bucketStates.entrySet()) {
-				if (entry.getValue().lastWrittenToTime < currentProcessingTime - inactiveBucketThreshold) {
+				if ((entry.getValue().lastWrittenToTime < currentProcessingTime - inactiveBucketThreshold)
+						|| (entry.getValue().creationTime < currentProcessingTime - batchRolloverInterval)) {
 					LOG.debug("BucketingSink {} closing bucket due to inactivity of over {} ms.",
 						getRuntimeContext().getIndexOfThisSubtask(), inactiveBucketThreshold);
 					closeCurrentPartFile(entry.getValue());
@@ -536,6 +559,9 @@ public class BucketingSink<T>
 			bucketState.partCounter++;
 			partPath = assemblePartPath(bucketPath, subtaskIndex, bucketState.partCounter);
 		}
+
+		// Record the creation time of the bucket
+		bucketState.creationTime = processingTimeService.getCurrentProcessingTime();
 
 		// increase, so we don't have to check for this name next time
 		bucketState.partCounter++;
@@ -913,6 +939,25 @@ public class BucketingSink<T>
 	}
 
 	/**
+	 * Sets the roll over interval in milliseconds.
+	 *
+	 *
+	 * <p>When a bucket part file is older than the roll over interval, a new bucket part file is
+	 * started and the old one is closed. The name of the bucket file depends on the {@link Bucketer}.
+	 * Additionally, the old part file is also closed if the bucket is not written to for a minimum of
+	 * {@code inactiveBucketThreshold} ms.
+	 *
+	 * @param batchRolloverInterval The roll over interval in milliseconds
+	 */
+	public BucketingSink<T> setBatchRolloverInterval(long batchRolloverInterval) {
+		if (batchRolloverInterval > 0) {
+			this.batchRolloverInterval = batchRolloverInterval;
+		}
+
+		return this;
+	}
+
+	/**
 	 * Sets the default time between checks for inactive buckets.
 	 *
 	 * @param interval The timeout, in milliseconds.
@@ -925,6 +970,8 @@ public class BucketingSink<T>
 	/**
 	 * Sets the default threshold for marking a bucket as inactive and closing its part files.
 	 * Buckets which haven't been written to for at least this period of time become inactive.
+	 * Additionally, part files for the bucket are also closed if the bucket is older than
+	 * {@code batchRolloverInterval} ms.
 	 *
 	 * @param threshold The timeout, in milliseconds.
 	 */
@@ -1113,6 +1160,11 @@ public class BucketingSink<T>
 		 * The time this bucket was last written to.
 		 */
 		long lastWrittenToTime;
+
+		/**
+		 * The time this bucket was created.
+		 */
+		long creationTime;
 
 		/**
 		 * Pending files that accumulated since the last checkpoint.

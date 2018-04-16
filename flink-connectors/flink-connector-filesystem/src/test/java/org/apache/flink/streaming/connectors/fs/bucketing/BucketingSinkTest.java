@@ -141,6 +141,33 @@ public class BucketingSinkTest extends TestLogger {
 		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), 10, totalParallelism, taskIdx);
 	}
 
+	private OneInputStreamOperatorTestHarness<String, Object> createRescalingTestSinkWithRollover(
+		File outDir, int totalParallelism, int taskIdx, long inactivityInterval, long rolloverInterval) throws Exception {
+
+		BucketingSink<String> sink = new BucketingSink<String>(outDir.getAbsolutePath())
+			.setBucketer(new Bucketer<String>() {
+				private static final long serialVersionUID = 1L;
+
+				@Override
+				public Path getBucketPath(Clock clock, Path basePath, String element) {
+					return new Path(basePath, element);
+				}
+			})
+			.setWriter(new StringWriter<String>())
+			.setInactiveBucketCheckInterval(inactivityInterval)
+			.setInactiveBucketThreshold(inactivityInterval)
+			.setPartPrefix(PART_PREFIX)
+			.setInProgressPrefix("")
+			.setPendingPrefix("")
+			.setValidLengthPrefix("")
+			.setInProgressSuffix(IN_PROGRESS_SUFFIX)
+			.setPendingSuffix(PENDING_SUFFIX)
+			.setValidLengthSuffix(VALID_LENGTH_SUFFIX)
+			.setBatchRolloverInterval(rolloverInterval);
+
+		return createTestSink(sink, totalParallelism, taskIdx);
+	}
+
 	@BeforeClass
 	public static void createHDFS() throws IOException {
 		Assume.assumeTrue("HDFS cluster cannot be started on Windows without extensions.", !OperatingSystem.isWindows());
@@ -439,6 +466,40 @@ public class BucketingSinkTest extends TestLogger {
 		testHarness3.close();
 
 		checkLocalFs(outDir, 0, 3, 5, 5);
+	}
+
+	@Test
+	public void testRolloverInterval() throws Exception {
+		final File outDir = tempFolder.newFolder();
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createRescalingTestSinkWithRollover(outDir, 1, 0, 1000L, 100L);
+		testHarness.setup();
+		testHarness.open();
+
+		testHarness.setProcessingTime(0L);
+
+		testHarness.processElement(new StreamRecord<>("test1", 1L));
+		checkLocalFs(outDir, 1, 0, 0, 0);
+
+		// invoke rollover based on rollover interval
+		testHarness.setProcessingTime(101L);
+		testHarness.processElement(new StreamRecord<>("test1", 2L));
+		checkLocalFs(outDir, 1, 1, 0, 0);
+
+		testHarness.snapshot(0, 0);
+		testHarness.notifyOfCompletedCheckpoint(0);
+		checkLocalFs(outDir, 1, 0, 1, 0);
+
+		// move the in-progress file to pending
+		testHarness.setProcessingTime(3000L);
+		testHarness.snapshot(1, 1);
+		checkLocalFs(outDir, 0, 1, 1, 0);
+
+		// move the pending file to "committed"
+		testHarness.notifyOfCompletedCheckpoint(1);
+		testHarness.close();
+
+		checkLocalFs(outDir, 0, 0, 2, 0);
 	}
 
 	/**
