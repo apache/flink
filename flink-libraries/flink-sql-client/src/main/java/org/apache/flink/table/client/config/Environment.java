@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.config;
 
 import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.TableDescriptor;
 import org.apache.flink.table.descriptors.TableDescriptorValidator;
 
@@ -89,6 +90,23 @@ public class Environment {
 
 	public Deployment getDeployment() {
 		return deployment;
+	}
+
+	@Override
+	public String toString() {
+		final StringBuilder sb = new StringBuilder();
+		sb.append("===================== Tables =====================\n");
+		tables.forEach((name, table) -> {
+			sb.append("- name: ").append(name).append("\n");
+			final DescriptorProperties props = new DescriptorProperties(true);
+			table.addProperties(props);
+			props.asMap().forEach((k, v) -> sb.append("  ").append(k).append(": ").append(v).append('\n'));
+		});
+		sb.append("=================== Execution ====================\n");
+		execution.toProperties().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
+		sb.append("=================== Deployment ===================\n");
+		deployment.toProperties().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
+		return sb.toString();
 	}
 
 	// --------------------------------------------------------------------------------------------
