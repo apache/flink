@@ -49,27 +49,39 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- Used for TableType configuration -->
 		<dependency>
 			<groupId>commons-configuration</groupId>
 			<artifactId>commons-configuration</artifactId>
 		</dependency>
 
+		<!-- Used for base64 encoding of UDFs -->
 		<dependency>
 			<groupId>commons-codec</groupId>
 			<artifactId>commons-codec</artifactId>
 		</dependency>
 
+		<!-- Used for code generation -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+		</dependency>
+
+		<!-- Used for code generation -->
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>janino</artifactId>
 			<version>3.0.7</version>
 		</dependency>
 
+		<!-- Used for translation of table programs -->
 		<dependency>
 			<groupId>org.apache.calcite</groupId>
 			<artifactId>calcite-core</artifactId>
+			<!-- When updating the Calcite version, make sure to update the dependency exclusions -->
 			<version>1.16.0</version>
 			<exclusions>
+				<!-- Dependencies that are not needed for how we use Calcite right now -->
 				<exclusion>
 					<groupId>org.apache.calcite.avatica</groupId>
 					<artifactId>avatica-metrics</artifactId>
@@ -102,9 +114,24 @@ under the License.
 					<groupId>commons-dbcp</groupId>
 					<artifactId>commons-dbcp</artifactId>
 				</exclusion>
+				<!-- Use Flink specific commons-lang version instead -->
+				<exclusion>
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-lang3</artifactId>
+				</exclusion>
+				<!-- Use Flink specific Janino version instead -->
+				<exclusion>
+					<groupId>org.codehaus.janino</groupId>
+					<artifactId>janino</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.janino</groupId>
+					<artifactId>commons-compiler</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
+		<!-- Used for TableType classpath discovery -->
 		<dependency>
 			<groupId>org.reflections</groupId>
 			<artifactId>reflections</artifactId>
@@ -122,6 +149,7 @@ under the License.
 			<scope>compile</scope>
 		</dependency>
 
+		<!-- Used for date/time formatting -->
 		<dependency>
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
