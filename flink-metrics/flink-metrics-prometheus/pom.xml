@@ -73,6 +73,12 @@ under the License.
 			<version>${prometheus.version}</version>
 		</dependency>
 
+		<dependency>
+			<groupId>io.prometheus</groupId>
+			<artifactId>simpleclient_pushgateway</artifactId>
+			<version>${prometheus.version}</version>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>
