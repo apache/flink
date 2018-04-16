@@ -88,9 +88,11 @@ import java.util.UUID;
  * and a rolling counter. For example the file {@code "part-1-17"} contains the data from
  * {@code subtask 1} of the sink and is the {@code 17th} bucket created by that subtask. Per default
  * the part prefix is {@code "part"} but this can be configured using {@link #setPartPrefix(String)}.
- * When a part file becomes bigger than the user-specified batch size the current part file is closed,
- * the part counter is increased and a new part file is created. The batch size defaults to {@code 384MB},
- * this can be configured using {@link #setBatchSize(long)}.
+ * When a part file becomes bigger than the user-specified batch size or when the part file becomes older
+ * than the user-specified roll over interval the current part file is closed,the part counter is increased
+ * and a new part file is created. The batch size defaults to {@code 384MB},this can be configured
+ * using {@link #setBatchSize(long)}. The roll over interval defaults to {@code Long.MAX_VALUE} and
+ * this can be configured using {@link #setBatchRolloverInterval(long)}.
  *
  *
  * <p>In some scenarios, the open buckets are required to change based on time. In these cases, the sink
@@ -240,6 +242,11 @@ public class BucketingSink<T>
 	private static final long DEFAULT_ASYNC_TIMEOUT_MS = 60 * 1000;
 
 	/**
+	 * The default time interval at which part files are written to the filesystem.
+	 */
+	private static final long DEFAULT_BATCH_ROLLOVER_INTERVAL = Long.MAX_VALUE;
+
+	/**
 	 * The base {@code Path} that stores all bucket directories.
 	 */
 	private final String basePath;
@@ -258,6 +265,7 @@ public class BucketingSink<T>
 	private long batchSize = DEFAULT_BATCH_SIZE;
 	private long inactiveBucketCheckInterval = DEFAULT_INACTIVE_BUCKET_CHECK_INTERVAL_MS;
 	private long inactiveBucketThreshold = DEFAULT_INACTIVE_BUCKET_THRESHOLD_MS;
+	private long batchRolloverInterval = DEFAULT_BATCH_ROLLOVER_INTERVAL;
 
 	// These are the actually configured prefixes/suffixes
 	private String inProgressSuffix = DEFAULT_IN_PROGRESS_SUFFIX;
@@ -473,6 +481,15 @@ public class BucketingSink<T>
 					subtaskIndex,
 					writePosition,
 					batchSize);
+			} else {
+				long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
+				if (currentProcessingTime - bucketState.firstWrittenToTime > batchRolloverInterval) {
+					shouldRoll = true;
+					LOG.debug(
+						"BucketingSink {} starting new bucket because file is older than roll over interval {}.",
+						subtaskIndex,
+						batchRolloverInterval);
+				}
 			}
 		}
 		return shouldRoll;
@@ -536,6 +553,9 @@ public class BucketingSink<T>
 			bucketState.partCounter++;
 			partPath = new Path(bucketPath, partPrefix + "-" + subtaskIndex + "-" + bucketState.partCounter);
 		}
+
+		// Record the creation time of the bucket
+		bucketState.firstWrittenToTime = processingTimeService.getCurrentProcessingTime();
 
 		if (partSuffix != null) {
 			partPath = partPath.suffix(partSuffix);
@@ -909,6 +929,20 @@ public class BucketingSink<T>
 	}
 
 	/**
+	 * Sets the roll over interval in milliseconds.
+	 *
+	 *
+	 * <p>When a bucket part file is older than the roll over interval, a new bucket part file is
+	 * started and the old one is closed. The name of the bucket file depends on the {@link Bucketer}.
+	 *
+	 * @param batchRolloverInterval The roll over interval in milliseconds
+	 */
+	public BucketingSink<T> setBatchRolloverInterval(long batchRolloverInterval) {
+		this.batchRolloverInterval = batchRolloverInterval;
+		return this;
+	}
+
+	/**
 	 * Sets the default time between checks for inactive buckets.
 	 *
 	 * @param interval The timeout, in milliseconds.
@@ -1109,6 +1143,11 @@ public class BucketingSink<T>
 		 * The time this bucket was last written to.
 		 */
 		long lastWrittenToTime;
+
+		/**
+		 * The time this bucket was first written to.
+		 */
+		long firstWrittenToTime;
 
 		/**
 		 * Pending files that accumulated since the last checkpoint.
