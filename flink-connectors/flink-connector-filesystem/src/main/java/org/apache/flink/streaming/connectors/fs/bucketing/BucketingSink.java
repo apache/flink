@@ -44,6 +44,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.slf4j.Logger;
@@ -843,9 +844,9 @@ public class BucketingSink<T>
 						}
 					}
 				} else {
-					LOG.debug("Writing valid-length file for {} to specify valid length {}", partPath, validLength);
 					Path validLengthFilePath = getValidLengthPathFor(partPath);
 					if (!fs.exists(validLengthFilePath) && fs.exists(partPath)) {
+						LOG.debug("Writing valid-length file for {} to specify valid length {}", partPath, validLength);
 						FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath);
 						lengthFileOut.writeUTF(Long.toString(validLength));
 						lengthFileOut.close();
@@ -1245,6 +1246,12 @@ public class BucketingSink<T>
 			}
 
 			fs.initialize(fsUri, finalConf);
+
+			// We don't perform checksums on Hadoop's local filesystem and use the raw filesystem.
+			// Otherwise buffers are not flushed entirely during checkpointing which results in data loss.
+			if (fs instanceof LocalFileSystem) {
+				return ((LocalFileSystem) fs).getRaw();
+			}
 			return fs;
 		}
 	}
