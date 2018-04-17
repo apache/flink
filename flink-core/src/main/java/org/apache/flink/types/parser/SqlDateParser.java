@@ -19,10 +19,9 @@
 
 package org.apache.flink.types.parser;
 
+import java.sql.Date;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigConstants;
-
-import java.sql.Date;
 
 /**
  * Parses a text field into a {@link java.sql.Date}.

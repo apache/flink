@@ -19,9 +19,8 @@
 
 package org.apache.flink.types.parser;
 
-import org.apache.flink.annotation.PublicEvolving;
-
 import java.math.BigDecimal;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * Parses a text field into a {@link java.math.BigDecimal}.
