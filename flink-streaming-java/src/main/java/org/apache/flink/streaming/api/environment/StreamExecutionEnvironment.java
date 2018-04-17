@@ -1680,9 +1680,9 @@ public abstract class StreamExecutionEnvironment {
 
 		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
 
-		if (!conf.contains(RestOptions.REST_PORT)) {
+		if (!conf.contains(RestOptions.PORT)) {
 			// explicitly set this option so that it's not set to 0 later
-			conf.setInteger(RestOptions.REST_PORT, RestOptions.REST_PORT.defaultValue());
+			conf.setInteger(RestOptions.PORT, RestOptions.PORT.defaultValue());
 		}
 
 		return createLocalEnvironment(defaultLocalParallelism, conf);

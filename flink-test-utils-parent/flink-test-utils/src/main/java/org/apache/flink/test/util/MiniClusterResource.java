@@ -221,7 +221,7 @@ public class MiniClusterResource extends ExternalResource {
 		}
 
 		// set rest port to 0 to avoid clashes with concurrent MiniClusters
-		configuration.setInteger(RestOptions.REST_PORT, 0);
+		configuration.setInteger(RestOptions.PORT, 0);
 
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
 			.setConfiguration(configuration)
@@ -234,7 +234,7 @@ public class MiniClusterResource extends ExternalResource {
 		miniCluster.start();
 
 		// update the port of the rest endpoint
-		configuration.setInteger(RestOptions.REST_PORT, miniCluster.getRestAddress().getPort());
+		configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
 
 		jobExecutorService = miniCluster;
 		if (enableClusterClient) {
@@ -242,7 +242,7 @@ public class MiniClusterResource extends ExternalResource {
 		}
 		Configuration restClientConfig = new Configuration();
 		restClientConfig.setString(JobManagerOptions.ADDRESS, miniCluster.getRestAddress().getHost());
-		restClientConfig.setInteger(RestOptions.REST_PORT, miniCluster.getRestAddress().getPort());
+		restClientConfig.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
 		this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
 	}
 

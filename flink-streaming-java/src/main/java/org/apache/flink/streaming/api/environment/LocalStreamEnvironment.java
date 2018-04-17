@@ -99,8 +99,8 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 		// add (and override) the settings with what the user defined
 		configuration.addAll(this.configuration);
 
-		if (!configuration.contains(RestOptions.REST_PORT)) {
-			configuration.setInteger(RestOptions.REST_PORT, 0);
+		if (!configuration.contains(RestOptions.PORT)) {
+			configuration.setInteger(RestOptions.PORT, 0);
 		}
 
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
@@ -116,7 +116,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 		try {
 			miniCluster.start();
-			configuration.setInteger(RestOptions.REST_PORT, miniCluster.getRestAddress().getPort());
+			configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
 
 			return miniCluster.executeJobBlocking(jobGraph);
 		}

@@ -81,7 +81,7 @@ public final class RestServerEndpointConfiguration {
 	}
 
 	/**
-	 * @see RestOptions#REST_ADDRESS
+	 * @see RestOptions#ADDRESS
 	 */
 	public String getRestAddress() {
 		return restAddress;
@@ -147,12 +147,12 @@ public final class RestServerEndpointConfiguration {
 	public static RestServerEndpointConfiguration fromConfiguration(Configuration config) throws ConfigurationException {
 		Preconditions.checkNotNull(config);
 
-		final String restAddress = Preconditions.checkNotNull(config.getString(RestOptions.REST_ADDRESS),
+		final String restAddress = Preconditions.checkNotNull(config.getString(RestOptions.ADDRESS),
 			"%s must be set",
-			RestOptions.REST_ADDRESS.key());
+			RestOptions.ADDRESS.key());
 
-		final String restBindAddress = config.getString(RestOptions.REST_BIND_ADDRESS);
-		final int port = config.getInteger(RestOptions.REST_PORT);
+		final String restBindAddress = config.getString(RestOptions.BIND_ADDRESS);
+		final int port = config.getInteger(RestOptions.PORT);
 
 		SSLEngine sslEngine = null;
 		final boolean enableSSL = config.getBoolean(SecurityOptions.SSL_ENABLED);
@@ -173,7 +173,7 @@ public final class RestServerEndpointConfiguration {
 			config.getString(WebOptions.UPLOAD_DIR,	config.getString(WebOptions.TMP_DIR)),
 			"flink-web-upload");
 
-		final int maxContentLength = config.getInteger(RestOptions.REST_SERVER_MAX_CONTENT_LENGTH);
+		final int maxContentLength = config.getInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH);
 
 		final Map<String, String> responseHeaders = Collections.singletonMap(
 			HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN,

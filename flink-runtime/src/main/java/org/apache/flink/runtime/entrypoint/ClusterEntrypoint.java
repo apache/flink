@@ -704,7 +704,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		final int restPort = clusterConfiguration.getRestPort();
 
 		if (restPort >= 0) {
-			configuration.setInteger(RestOptions.REST_PORT, restPort);
+			configuration.setInteger(RestOptions.PORT, restPort);
 		}
 
 		return configuration;
