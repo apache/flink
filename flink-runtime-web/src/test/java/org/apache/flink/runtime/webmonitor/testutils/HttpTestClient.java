@@ -186,10 +186,10 @@ public class HttpTestClient implements AutoCloseable {
 	}
 
 	/**
-	 * Sends a simple PATH request to the given path. You only specify the $path part of
+	 * Sends a simple PATCH request to the given path. You only specify the $path part of
 	 * http://$host:$host/$path.
 	 *
-	 * @param path The $path to DELETE (http://$host:$host/$path)
+	 * @param path The $path to PATCH (http://$host:$host/$path)
 	 */
 	public void sendPatchRequest(String path, FiniteDuration timeout) throws TimeoutException, InterruptedException {
 		if (!path.startsWith("/")) {

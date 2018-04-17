@@ -144,7 +144,7 @@ public class WebFrontendITCase extends TestLogger {
 		if (notFoundJobConnection.getResponseCode() >= 400) {
 			// we don't set the content-encoding header
 			Assert.assertNull(notFoundJobConnection.getContentEncoding());
-			if (Objects.equals("flip6", System.getProperty("codebase"))) {
+			if (Objects.equals(MiniClusterResource.NEW_CODEBASE, System.getProperty(MiniClusterResource.CODEBASE_KEY))) {
 				Assert.assertEquals("application/json; charset=UTF-8", notFoundJobConnection.getContentType());
 			} else {
 				Assert.assertEquals("text/plain; charset=UTF-8", notFoundJobConnection.getContentType());
@@ -271,7 +271,7 @@ public class WebFrontendITCase extends TestLogger {
 		while (!getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
 			try (HttpTestClient client = new HttpTestClient("localhost", CLUSTER.getWebUIPort())) {
 				if (Objects.equals(MiniClusterResource.NEW_CODEBASE, System.getProperty(MiniClusterResource.CODEBASE_KEY))) {
-					// Request the file from the web server
+					// stop the job
 					client.sendPatchRequest("/jobs/" + jid + "/?mode=stop", deadline.timeLeft());
 					HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
 
@@ -279,7 +279,7 @@ public class WebFrontendITCase extends TestLogger {
 					assertEquals("application/json; charset=UTF-8", response.getType());
 					assertEquals("{}", response.getContent());
 				} else {
-					// Request the file from the web server
+					// stop the job
 					client.sendDeleteRequest("/jobs/" + jid + "/stop", deadline.timeLeft());
 					HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
 
