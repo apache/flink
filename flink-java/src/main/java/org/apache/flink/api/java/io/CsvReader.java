@@ -20,21 +20,52 @@ package org.apache.flink.api.java.io;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.operators.DataSource;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple10;
+import org.apache.flink.api.java.tuple.Tuple11;
+import org.apache.flink.api.java.tuple.Tuple12;
+import org.apache.flink.api.java.tuple.Tuple13;
+import org.apache.flink.api.java.tuple.Tuple14;
+import org.apache.flink.api.java.tuple.Tuple15;
+import org.apache.flink.api.java.tuple.Tuple16;
+import org.apache.flink.api.java.tuple.Tuple17;
+import org.apache.flink.api.java.tuple.Tuple18;
+import org.apache.flink.api.java.tuple.Tuple19;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple20;
+import org.apache.flink.api.java.tuple.Tuple21;
+import org.apache.flink.api.java.tuple.Tuple22;
+import org.apache.flink.api.java.tuple.Tuple23;
+import org.apache.flink.api.java.tuple.Tuple24;
+import org.apache.flink.api.java.tuple.Tuple25;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.api.java.tuple.Tuple7;
+import org.apache.flink.api.java.tuple.Tuple8;
+import org.apache.flink.api.java.tuple.Tuple9;
+import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-//CHECKSTYLE.OFF: AvoidStarImport|ImportOrder
-import org.apache.flink.api.java.tuple.*;
-//CHECKSTYLE.ON: AvoidStarImport|ImportOrder
-
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+
+//CHECKSTYLE.OFF: AvoidStarImport|ImportOrder
+//CHECKSTYLE.ON: AvoidStarImport|ImportOrder
 
 /**
  * A builder class to instantiate a CSV parsing data source. The CSV reader configures the field types,
@@ -108,7 +139,6 @@ public class CsvReader {
 	 *
 	 * @param delimiter The delimiter that separates the fields in one row.
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
-	 *
 	 * @deprecated Please use {@link #fieldDelimiter(String)}.
 	 */
 	@Deprecated
@@ -193,7 +223,7 @@ public class CsvReader {
 	 * @param fields The array of flags that describes which fields are to be included and which not.
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
-	public CsvReader includeFields(boolean ... fields) {
+	public CsvReader includeFields(boolean... fields) {
 		if (fields == null || fields.length == 0) {
 			throw new IllegalArgumentException("The set of included fields must not be null or empty.");
 		}
@@ -255,9 +285,9 @@ public class CsvReader {
 	 *
 	 * <p>Examples:
 	 * <ul>
-	 *   <li>A mask of {@code 0x7} would include the first three fields.</li>
-	 *   <li>A mask of {@code 0x26} (binary {@code 100110} would skip the first fields, include fields
-	 *       two and three, skip fields four and five, and include field six.</li>
+	 * <li>A mask of {@code 0x7} would include the first three fields.</li>
+	 * <li>A mask of {@code 0x26} (binary {@code 100110} would skip the first fields, include fields
+	 * two and three, skip fields four and five, and include field six.</li>
 	 * </ul>
 	 *
 	 * @param mask The bit mask defining which fields to include and which to skip.
@@ -299,7 +329,7 @@ public class CsvReader {
 	 *
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
-	public CsvReader ignoreInvalidLines(){
+	public CsvReader ignoreInvalidLines() {
 		ignoreInvalidLines = true;
 		return this;
 	}
@@ -308,7 +338,7 @@ public class CsvReader {
 	 * Configures the reader to read the CSV data and parse it to the given type. The all fields of the type
 	 * must be public or able to set value. The type information for the fields is obtained from the type class.
 	 *
-	 * @param pojoType The class of the target POJO.
+	 * @param pojoType   The class of the target POJO.
 	 * @param pojoFields The fields of the POJO which are mapped to CSV fields.
 	 * @return The DataSet representing the parsed CSV data.
 	 */
@@ -318,6 +348,71 @@ public class CsvReader {
 
 		@SuppressWarnings("unchecked")
 		PojoTypeInfo<T> typeInfo = (PojoTypeInfo<T>) TypeExtractor.createTypeInfo(pojoType);
+
+		CsvInputFormat<T> inputFormat = new PojoCsvInputFormat<T>(path, this.lineDelimiter, this.fieldDelimiter, typeInfo, pojoFields, this.includedMask);
+
+		configureInputFormat(inputFormat);
+
+		return new DataSource<T>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Configures the reader to read the CSV data and parse it to the given type.The all fields of the type
+	 * must be public or able to set value. The type information for the fields is obtained from the type class.
+	 * This method created to specify types of fields of provided POJO and may be useful in case of generified class.
+	 * With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types, e.g.
+	 * <pre>
+	 * {@code
+	 *
+	 *  TypeHint<GenericPojo<Integer>> typeHint = new TypeHint<GenericPojo<Integer>>() {};
+	 *  TypeInformation<GenericPojo<Integer>> typeInfo = TypeInformation.of(typeHint);
+	 *  Class<GenericPojo<Integer>> type = typeInfo.getTypeClass();
+	 *
+	 *  DataSource<GenericPojo<Integer>> genericPojoDataSource = genericPojoReader.precisePojoType(
+	 *  	type,
+	 *  	new String[]{"string", "number"},
+	 *  	new TypeInformation[]{
+	 *  		TypeInformation.of(String.class),
+	 * 			TypeInformation.of(Integer.class)});}
+	 * </pre>
+	 * where "string" and "number" are fields of GenericPojo class and second field parametrized:
+	 * <pre>
+	 *    {@code
+	 *
+	 *  public class GenericPojo<T> {
+	 *  	private String string;
+	 *  	private T number;
+	 *  	...
+	 *  }}
+	 * </pre>
+	 *
+	 * @param pojoType   The class of the target POJO.
+	 * @param pojoFields The fields of the POJO which are mapped to CSV fields.
+	 * @param fieldTypes The field types that will be set to readed fields.
+	 * @return The DataSet representing the parsed CSV data.
+	 */
+	public <T> DataSource<T> precisePojoType(Class<T> pojoType, String[] pojoFields, TypeInformation[] fieldTypes) {
+		Preconditions.checkNotNull(pojoType, "The POJO type class must not be null.");
+		Preconditions.checkNotNull(pojoFields, "POJO fields must be specified (not null) if output type is a POJO.");
+		Preconditions.checkNotNull(fieldTypes, "Types of POJO fields must be specified (not null) if output type is a POJO.");
+		if (pojoFields.length != fieldTypes.length) {
+			throw new ArrayIndexOutOfBoundsException("Number of fields and field types are not equal");
+		}
+		ArrayList<PojoField> fields = new ArrayList<>();
+
+		for (int i = 0; i < pojoFields.length; i++) {
+			Field declaredField;
+			try {
+				declaredField = pojoType.getDeclaredField(pojoFields[i]);
+			} catch (NoSuchFieldException e) {
+				throw new IllegalArgumentException(e);
+			}
+			TypeInformation<?> typeInfo = fieldTypes[i];
+			fields.add(new PojoField(declaredField, typeInfo));
+		}
+
+		PojoTypeInfo<T> typeInfo = new PojoTypeInfo<>(pojoType, fields);
 
 		CsvInputFormat<T> inputFormat = new PojoCsvInputFormat<T>(path, this.lineDelimiter, this.fieldDelimiter, typeInfo, pojoFields, this.includedMask);
 
@@ -353,9 +448,98 @@ public class CsvReader {
 		return new DataSource<T>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
 	}
 
+	/**
+	 * <p>Configures the reader to read the CSV data and parse it to the {@link org.apache.flink.types.Row} type.
+	 * The type information for the fields is obtained from the type class.</p>
+	 * <p>To use custom types you need to implement custom parser factory and register it for custom type
+	 * <pre>{@code
+	 * ParserFactory<CustomType> factory = new CustomParser();
+	 * FieldParser.registerCustomParser(CustomType.class, factory);
+	 * DataSet<Row> data = env.readCsvFile(dataPath).rowType(CustomType.class);
+	 * }</pre>
+	 * </p>
+	 *
+	 * @param rowFieldsType The fields types which are mapped to CSV fields.
+	 * @return The DataSet representing the parsed CSV data.
+	 */
+	public DataSource<Row> rowType(Class<?>... rowFieldsType) {
+		if (rowFieldsType == null || rowFieldsType.length == 0) {
+			throw new IllegalArgumentException("Row row fields type must not be null or empty.");
+		}
+
+		final TypeInformation<?>[] fieldTypes = new TypeInformation[rowFieldsType.length];
+		for (int i = 0; i < rowFieldsType.length; i++) {
+			fieldTypes[i] = TypeExtractor.createTypeInfo(rowFieldsType[i]);
+		}
+
+		return preciseRowType(fieldTypes);
+	}
+
+	/**
+	 * Configures the reader to read the CSV data and parse it to the {@link org.apache.flink.types.Row} type.
+	 * The type information for the fields is obtained from the type information.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types, e.g.
+	 * <pre>
+	 * {@code
+	 *
+	 * ParserFactory<CustomType<NestedCustomType>> factory = new ParserFactory<CustomType<NestedCustomType>>{...}
+	 * TypeHint<CustomType<NestedCustomType>> typeHint = new TypeHint<CustomType<NestedCustomType>>() {};
+	 * TypeInformation<CustomType<NestedCustomType>> typeInfo = TypeInformation.of(customTypeInstruction);
+	 *
+	 * FieldParser.registerCustomParser(typeInfo.getTypeClass(), factory);
+	 *
+	 * DataSource<Row> csvDataSource = csvReader.preciseRowType(
+	 *   BasicTypeInfo.INT_TYPE_INFO,
+	 *   BasicTypeInfo.STRING_TYPE_INFO,
+	 *   typeInfo
+	 * );
+	 * csvDataSource.print();
+	 * }
+	 * </pre>
+	 *
+	 * @param rowFieldsTypeInformation The fields types information which are mapped to CSV fields.
+	 * @return The DataSet representing the parsed CSV data.
+	 */
+	public DataSource<Row> preciseRowType(TypeInformation<?>... rowFieldsTypeInformation) {
+		if (rowFieldsTypeInformation == null || rowFieldsTypeInformation.length == 0) {
+			throw new IllegalArgumentException("Row fields type information must not be null or empty.");
+		}
+
+		final RowCsvInputFormat inputFormat;
+		if (this.includedMask != null) {
+			final int[] selectedFields = prepareSelectedFields(rowFieldsTypeInformation.length);
+			inputFormat = new RowCsvInputFormat(path, rowFieldsTypeInformation, this.lineDelimiter, this.fieldDelimiter, selectedFields);
+		} else {
+			inputFormat = new RowCsvInputFormat(path, rowFieldsTypeInformation, this.lineDelimiter, this.fieldDelimiter);
+		}
+
+		final RowTypeInfo typeInfo = new RowTypeInfo(rowFieldsTypeInformation);
+		configureInputFormat(inputFormat);
+		return new DataSource<Row>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Miscellaneous
 	// --------------------------------------------------------------------------------------------
+
+	private int[] prepareSelectedFields(int rowLength) {
+		final int[] selectedFields = new int[rowLength];
+		int pos = 0;
+		for (int i = 0; i < this.includedMask.length; i++) {
+			if (this.includedMask[i]) {
+				selectedFields[pos] = i;
+				pos++;
+			}
+		}
+
+		if (pos != rowLength) {
+			throw new IllegalArgumentException("Number of included fields must be equal row arity");
+		}
+
+		return selectedFields;
+	}
 
 	private void configureInputFormat(CsvInputFormat<?> format) {
 		format.setCharset(this.charset);
@@ -367,6 +551,37 @@ public class CsvReader {
 		if (this.parseQuotedStrings) {
 			format.enableQuotedStringParsing(this.quoteCharacter);
 		}
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a n-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types, e.g.
+	 * <pre>
+	 * {@code
+	 *
+	 * TypeHint<CustomType<NestedCustomType>> customTypeInstruction = new TypeHint<CustomType<NestedCustomType>>() {};
+	 * TypeInformation<CustomType<NestedCustomType>> customTypeInfo = TypeInformation.of(customTypeInstruction);
+	 *
+	 * DataSource<Tuple3> csvDataSource = csvReader.preciseTypes(
+	 *   BasicTypeInfo.INT_TYPE_INFO.getTypeClass(),
+	 *   BasicTypeInfo.STRING_TYPE_INFO.getTypeClass(),
+	 *   typeInfo.getTypeClass()
+	 * );
+	 * csvDataSource.print();
+	 * }
+	 * </pre>
+	 *
+	 * @param typeInfos The types of CSV fields in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	private <T extends Tuple> DataSource<T> commonPreciseTypes(TypeInformation... typeInfos) {
+		TupleTypeInfo<T> types = new TupleTypeInfo<>(typeInfos);
+		CsvInputFormat<T> inputFormat = new TupleCsvInputFormat<T>(path, types, this.includedMask);
+		configureInputFormat(inputFormat);
+		return new DataSource<T>(executionContext, inputFormat, types, Utils.getCallLocationName());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -385,10 +600,27 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0> DataSource<Tuple1<T0>> types(Class<T0> type0) {
-		TupleTypeInfo<Tuple1<T0>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0);
+		TupleTypeInfo<Tuple1<T0>> types = TupleTypeInfo.getTupleTypeInfo(type0);
 		CsvInputFormat<Tuple1<T0>> inputFormat = new TupleCsvInputFormat<Tuple1<T0>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple1<T0>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 1-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0> DataSource<Tuple1<T0>> preciseTypes(TypeInformation<T0> typeInfo0) {
+		DataSource<Tuple1<T0>> dataSource = commonPreciseTypes(typeInfo0);
+		return dataSource;
 	}
 
 	/**
@@ -402,10 +634,28 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1> DataSource<Tuple2<T0, T1>> types(Class<T0> type0, Class<T1> type1) {
-		TupleTypeInfo<Tuple2<T0, T1>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1);
+		TupleTypeInfo<Tuple2<T0, T1>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1);
 		CsvInputFormat<Tuple2<T0, T1>> inputFormat = new TupleCsvInputFormat<Tuple2<T0, T1>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple2<T0, T1>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 2-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1> DataSource<Tuple2<T0, T1>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1) {
+		DataSource<Tuple2<T0, T1>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1);
+		return dataSource;
 	}
 
 	/**
@@ -420,10 +670,29 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2> DataSource<Tuple3<T0, T1, T2>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2) {
-		TupleTypeInfo<Tuple3<T0, T1, T2>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2);
+		TupleTypeInfo<Tuple3<T0, T1, T2>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2);
 		CsvInputFormat<Tuple3<T0, T1, T2>> inputFormat = new TupleCsvInputFormat<Tuple3<T0, T1, T2>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple3<T0, T1, T2>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 3-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2> DataSource<Tuple3<T0, T1, T2>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2) {
+		DataSource<Tuple3<T0, T1, T2>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2);
+		return dataSource;
 	}
 
 	/**
@@ -439,10 +708,30 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3> DataSource<Tuple4<T0, T1, T2, T3>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3) {
-		TupleTypeInfo<Tuple4<T0, T1, T2, T3>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3);
+		TupleTypeInfo<Tuple4<T0, T1, T2, T3>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3);
 		CsvInputFormat<Tuple4<T0, T1, T2, T3>> inputFormat = new TupleCsvInputFormat<Tuple4<T0, T1, T2, T3>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple4<T0, T1, T2, T3>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 4-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3> DataSource<Tuple4<T0, T1, T2, T3>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3) {
+		DataSource<Tuple4<T0, T1, T2, T3>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3);
+		return dataSource;
 	}
 
 	/**
@@ -459,10 +748,31 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4> DataSource<Tuple5<T0, T1, T2, T3, T4>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4) {
-		TupleTypeInfo<Tuple5<T0, T1, T2, T3, T4>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4);
+		TupleTypeInfo<Tuple5<T0, T1, T2, T3, T4>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4);
 		CsvInputFormat<Tuple5<T0, T1, T2, T3, T4>> inputFormat = new TupleCsvInputFormat<Tuple5<T0, T1, T2, T3, T4>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple5<T0, T1, T2, T3, T4>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 5-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4> DataSource<Tuple5<T0, T1, T2, T3, T4>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4) {
+		DataSource<Tuple5<T0, T1, T2, T3, T4>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4);
+		return dataSource;
 	}
 
 	/**
@@ -480,10 +790,32 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5> DataSource<Tuple6<T0, T1, T2, T3, T4, T5>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5) {
-		TupleTypeInfo<Tuple6<T0, T1, T2, T3, T4, T5>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5);
+		TupleTypeInfo<Tuple6<T0, T1, T2, T3, T4, T5>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5);
 		CsvInputFormat<Tuple6<T0, T1, T2, T3, T4, T5>> inputFormat = new TupleCsvInputFormat<Tuple6<T0, T1, T2, T3, T4, T5>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple6<T0, T1, T2, T3, T4, T5>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 6-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5> DataSource<Tuple6<T0, T1, T2, T3, T4, T5>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5) {
+		DataSource<Tuple6<T0, T1, T2, T3, T4, T5>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5);
+		return dataSource;
 	}
 
 	/**
@@ -502,10 +834,33 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6> DataSource<Tuple7<T0, T1, T2, T3, T4, T5, T6>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6) {
-		TupleTypeInfo<Tuple7<T0, T1, T2, T3, T4, T5, T6>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6);
+		TupleTypeInfo<Tuple7<T0, T1, T2, T3, T4, T5, T6>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6);
 		CsvInputFormat<Tuple7<T0, T1, T2, T3, T4, T5, T6>> inputFormat = new TupleCsvInputFormat<Tuple7<T0, T1, T2, T3, T4, T5, T6>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple7<T0, T1, T2, T3, T4, T5, T6>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 7-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6> DataSource<Tuple7<T0, T1, T2, T3, T4, T5, T6>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6) {
+		DataSource<Tuple7<T0, T1, T2, T3, T4, T5, T6>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6);
+		return dataSource;
 	}
 
 	/**
@@ -525,10 +880,34 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7> DataSource<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7) {
-		TupleTypeInfo<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7);
+		TupleTypeInfo<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7);
 		CsvInputFormat<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> inputFormat = new TupleCsvInputFormat<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 8-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7> DataSource<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7) {
+		DataSource<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7);
+		return dataSource;
 	}
 
 	/**
@@ -549,10 +928,35 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8> DataSource<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8) {
-		TupleTypeInfo<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8);
+		TupleTypeInfo<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8);
 		CsvInputFormat<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> inputFormat = new TupleCsvInputFormat<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 9-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8> DataSource<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8) {
+		DataSource<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8);
+		return dataSource;
 	}
 
 	/**
@@ -574,10 +978,36 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> DataSource<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9) {
-		TupleTypeInfo<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9);
+		TupleTypeInfo<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9);
 		CsvInputFormat<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> inputFormat = new TupleCsvInputFormat<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 10-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> DataSource<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9) {
+		DataSource<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9);
+		return dataSource;
 	}
 
 	/**
@@ -586,24 +1016,51 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> DataSource<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10) {
-		TupleTypeInfo<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10);
+		TupleTypeInfo<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10);
 		CsvInputFormat<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> inputFormat = new TupleCsvInputFormat<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 11-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> DataSource<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9, TypeInformation<T10> typeInfo10) {
+		DataSource<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9, typeInfo10);
+		return dataSource;
 	}
 
 	/**
@@ -612,25 +1069,53 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11> DataSource<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11) {
-		TupleTypeInfo<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11);
+		TupleTypeInfo<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11);
 		CsvInputFormat<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> inputFormat = new TupleCsvInputFormat<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 12-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11> DataSource<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9, TypeInformation<T10> typeInfo10, TypeInformation<T11> typeInfo11) {
+		DataSource<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9, typeInfo10, typeInfo11);
+		return dataSource;
 	}
 
 	/**
@@ -639,26 +1124,55 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> DataSource<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12) {
-		TupleTypeInfo<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12);
+		TupleTypeInfo<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12);
 		CsvInputFormat<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> inputFormat = new TupleCsvInputFormat<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 13-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> DataSource<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9, TypeInformation<T10> typeInfo10, TypeInformation<T11> typeInfo11, TypeInformation<T12> typeInfo12) {
+		DataSource<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9, typeInfo10, typeInfo11, typeInfo12);
+		return dataSource;
 	}
 
 	/**
@@ -667,16 +1181,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -684,10 +1198,40 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13> DataSource<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13) {
-		TupleTypeInfo<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13);
+		TupleTypeInfo<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13);
 		CsvInputFormat<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> inputFormat = new TupleCsvInputFormat<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 14-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param typeInfo13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13> DataSource<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9, TypeInformation<T10> typeInfo10, TypeInformation<T11> typeInfo11, TypeInformation<T12> typeInfo12, TypeInformation<T13> typeInfo13) {
+		DataSource<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9, typeInfo10, typeInfo11, typeInfo12, typeInfo13);
+		return dataSource;
 	}
 
 	/**
@@ -696,16 +1240,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -714,10 +1258,41 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14> DataSource<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14) {
-		TupleTypeInfo<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14);
+		TupleTypeInfo<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14);
 		CsvInputFormat<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> inputFormat = new TupleCsvInputFormat<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 15-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param typeInfo13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param typeInfo14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14> DataSource<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9, TypeInformation<T10> typeInfo10, TypeInformation<T11> typeInfo11, TypeInformation<T12> typeInfo12, TypeInformation<T13> typeInfo13, TypeInformation<T14> typeInfo14) {
+		DataSource<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9, typeInfo10, typeInfo11, typeInfo12, typeInfo13, typeInfo14);
+		return dataSource;
 	}
 
 	/**
@@ -726,16 +1301,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -745,10 +1320,42 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15> DataSource<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15) {
-		TupleTypeInfo<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15);
+		TupleTypeInfo<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15);
 		CsvInputFormat<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> inputFormat = new TupleCsvInputFormat<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 16-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param typeInfo13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param typeInfo14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param typeInfo15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15> DataSource<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9, TypeInformation<T10> typeInfo10, TypeInformation<T11> typeInfo11, TypeInformation<T12> typeInfo12, TypeInformation<T13> typeInfo13, TypeInformation<T14> typeInfo14, TypeInformation<T15> typeInfo15) {
+		DataSource<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9, typeInfo10, typeInfo11, typeInfo12, typeInfo13, typeInfo14, typeInfo15);
+		return dataSource;
 	}
 
 	/**
@@ -757,16 +1364,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -777,10 +1384,43 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> DataSource<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16) {
-		TupleTypeInfo<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16);
+		TupleTypeInfo<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16);
 		CsvInputFormat<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> inputFormat = new TupleCsvInputFormat<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 17-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param typeInfo13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param typeInfo14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param typeInfo15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @param typeInfo16 The type of CSV field 16 and the type of field 16 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> DataSource<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9, TypeInformation<T10> typeInfo10, TypeInformation<T11> typeInfo11, TypeInformation<T12> typeInfo12, TypeInformation<T13> typeInfo13, TypeInformation<T14> typeInfo14, TypeInformation<T15> typeInfo15, TypeInformation<T16> typeInfo16) {
+		DataSource<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9, typeInfo10, typeInfo11, typeInfo12, typeInfo13, typeInfo14, typeInfo15, typeInfo16);
+		return dataSource;
 	}
 
 	/**
@@ -789,16 +1429,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -810,10 +1450,44 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17> DataSource<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17) {
-		TupleTypeInfo<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17);
+		TupleTypeInfo<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17);
 		CsvInputFormat<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> inputFormat = new TupleCsvInputFormat<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 18-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param typeInfo13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param typeInfo14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param typeInfo15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @param typeInfo16 The type of CSV field 16 and the type of field 16 in the returned tuple type.
+	 * @param typeInfo17 The type of CSV field 17 and the type of field 17 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17> DataSource<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9, TypeInformation<T10> typeInfo10, TypeInformation<T11> typeInfo11, TypeInformation<T12> typeInfo12, TypeInformation<T13> typeInfo13, TypeInformation<T14> typeInfo14, TypeInformation<T15> typeInfo15, TypeInformation<T16> typeInfo16, TypeInformation<T17> typeInfo17) {
+		DataSource<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9, typeInfo10, typeInfo11, typeInfo12, typeInfo13, typeInfo14, typeInfo15, typeInfo16, typeInfo17);
+		return dataSource;
 	}
 
 	/**
@@ -822,16 +1496,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -844,10 +1518,45 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18> DataSource<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18) {
-		TupleTypeInfo<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18);
+		TupleTypeInfo<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18);
 		CsvInputFormat<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> inputFormat = new TupleCsvInputFormat<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 19-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param typeInfo13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param typeInfo14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param typeInfo15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @param typeInfo16 The type of CSV field 16 and the type of field 16 in the returned tuple type.
+	 * @param typeInfo17 The type of CSV field 17 and the type of field 17 in the returned tuple type.
+	 * @param typeInfo18 The type of CSV field 18 and the type of field 18 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18> DataSource<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9, TypeInformation<T10> typeInfo10, TypeInformation<T11> typeInfo11, TypeInformation<T12> typeInfo12, TypeInformation<T13> typeInfo13, TypeInformation<T14> typeInfo14, TypeInformation<T15> typeInfo15, TypeInformation<T16> typeInfo16, TypeInformation<T17> typeInfo17, TypeInformation<T18> typeInfo18) {
+		DataSource<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9, typeInfo10, typeInfo11, typeInfo12, typeInfo13, typeInfo14, typeInfo15, typeInfo16, typeInfo17, typeInfo18);
+		return dataSource;
 	}
 
 	/**
@@ -856,16 +1565,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -879,10 +1588,46 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19> DataSource<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19) {
-		TupleTypeInfo<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19);
+		TupleTypeInfo<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19);
 		CsvInputFormat<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> inputFormat = new TupleCsvInputFormat<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 20-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param typeInfo13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param typeInfo14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param typeInfo15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @param typeInfo16 The type of CSV field 16 and the type of field 16 in the returned tuple type.
+	 * @param typeInfo17 The type of CSV field 17 and the type of field 17 in the returned tuple type.
+	 * @param typeInfo18 The type of CSV field 18 and the type of field 18 in the returned tuple type.
+	 * @param typeInfo19 The type of CSV field 19 and the type of field 19 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19> DataSource<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9, TypeInformation<T10> typeInfo10, TypeInformation<T11> typeInfo11, TypeInformation<T12> typeInfo12, TypeInformation<T13> typeInfo13, TypeInformation<T14> typeInfo14, TypeInformation<T15> typeInfo15, TypeInformation<T16> typeInfo16, TypeInformation<T17> typeInfo17, TypeInformation<T18> typeInfo18, TypeInformation<T19> typeInfo19) {
+		DataSource<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9, typeInfo10, typeInfo11, typeInfo12, typeInfo13, typeInfo14, typeInfo15, typeInfo16, typeInfo17, typeInfo18, typeInfo19);
+		return dataSource;
 	}
 
 	/**
@@ -891,16 +1636,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -915,10 +1660,47 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20> DataSource<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19, Class<T20> type20) {
-		TupleTypeInfo<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20);
+		TupleTypeInfo<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20);
 		CsvInputFormat<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> inputFormat = new TupleCsvInputFormat<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 21-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param typeInfo13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param typeInfo14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param typeInfo15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @param typeInfo16 The type of CSV field 16 and the type of field 16 in the returned tuple type.
+	 * @param typeInfo17 The type of CSV field 17 and the type of field 17 in the returned tuple type.
+	 * @param typeInfo18 The type of CSV field 18 and the type of field 18 in the returned tuple type.
+	 * @param typeInfo19 The type of CSV field 19 and the type of field 19 in the returned tuple type.
+	 * @param typeInfo20 The type of CSV field 20 and the type of field 20 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20> DataSource<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9, TypeInformation<T10> typeInfo10, TypeInformation<T11> typeInfo11, TypeInformation<T12> typeInfo12, TypeInformation<T13> typeInfo13, TypeInformation<T14> typeInfo14, TypeInformation<T15> typeInfo15, TypeInformation<T16> typeInfo16, TypeInformation<T17> typeInfo17, TypeInformation<T18> typeInfo18, TypeInformation<T19> typeInfo19, TypeInformation<T20> typeInfo20) {
+		DataSource<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9, typeInfo10, typeInfo11, typeInfo12, typeInfo13, typeInfo14, typeInfo15, typeInfo16, typeInfo17, typeInfo18, typeInfo19, typeInfo20);
+		return dataSource;
 	}
 
 	/**
@@ -927,16 +1709,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -952,10 +1734,48 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21> DataSource<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19, Class<T20> type20, Class<T21> type21) {
-		TupleTypeInfo<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20, type21);
+		TupleTypeInfo<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20, type21);
 		CsvInputFormat<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> inputFormat = new TupleCsvInputFormat<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 22-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param typeInfo13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param typeInfo14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param typeInfo15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @param typeInfo16 The type of CSV field 16 and the type of field 16 in the returned tuple type.
+	 * @param typeInfo17 The type of CSV field 17 and the type of field 17 in the returned tuple type.
+	 * @param typeInfo18 The type of CSV field 18 and the type of field 18 in the returned tuple type.
+	 * @param typeInfo19 The type of CSV field 19 and the type of field 19 in the returned tuple type.
+	 * @param typeInfo20 The type of CSV field 20 and the type of field 20 in the returned tuple type.
+	 * @param typeInfo21 The type of CSV field 21 and the type of field 21 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21> DataSource<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9, TypeInformation<T10> typeInfo10, TypeInformation<T11> typeInfo11, TypeInformation<T12> typeInfo12, TypeInformation<T13> typeInfo13, TypeInformation<T14> typeInfo14, TypeInformation<T15> typeInfo15, TypeInformation<T16> typeInfo16, TypeInformation<T17> typeInfo17, TypeInformation<T18> typeInfo18, TypeInformation<T19> typeInfo19, TypeInformation<T20> typeInfo20, TypeInformation<T21> typeInfo21) {
+		DataSource<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9, typeInfo10, typeInfo11, typeInfo12, typeInfo13, typeInfo14, typeInfo15, typeInfo16, typeInfo17, typeInfo18, typeInfo19, typeInfo20, typeInfo21);
+		return dataSource;
 	}
 
 	/**
@@ -964,16 +1784,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -990,10 +1810,49 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22> DataSource<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19, Class<T20> type20, Class<T21> type21, Class<T22> type22) {
-		TupleTypeInfo<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20, type21, type22);
+		TupleTypeInfo<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20, type21, type22);
 		CsvInputFormat<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>> inputFormat = new TupleCsvInputFormat<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 23-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param typeInfo13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param typeInfo14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param typeInfo15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @param typeInfo16 The type of CSV field 16 and the type of field 16 in the returned tuple type.
+	 * @param typeInfo17 The type of CSV field 17 and the type of field 17 in the returned tuple type.
+	 * @param typeInfo18 The type of CSV field 18 and the type of field 18 in the returned tuple type.
+	 * @param typeInfo19 The type of CSV field 19 and the type of field 19 in the returned tuple type.
+	 * @param typeInfo20 The type of CSV field 20 and the type of field 20 in the returned tuple type.
+	 * @param typeInfo21 The type of CSV field 21 and the type of field 21 in the returned tuple type.
+	 * @param typeInfo22 The type of CSV field 22 and the type of field 22 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22> DataSource<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9, TypeInformation<T10> typeInfo10, TypeInformation<T11> typeInfo11, TypeInformation<T12> typeInfo12, TypeInformation<T13> typeInfo13, TypeInformation<T14> typeInfo14, TypeInformation<T15> typeInfo15, TypeInformation<T16> typeInfo16, TypeInformation<T17> typeInfo17, TypeInformation<T18> typeInfo18, TypeInformation<T19> typeInfo19, TypeInformation<T20> typeInfo20, TypeInformation<T21> typeInfo21, TypeInformation<T22> typeInfo22) {
+		DataSource<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9, typeInfo10, typeInfo11, typeInfo12, typeInfo13, typeInfo14, typeInfo15, typeInfo16, typeInfo17, typeInfo18, typeInfo19, typeInfo20, typeInfo21, typeInfo22);
+		return dataSource;
 	}
 
 	/**
@@ -1002,16 +1861,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1029,10 +1888,50 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23> DataSource<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19, Class<T20> type20, Class<T21> type21, Class<T22> type22, Class<T23> type23) {
-		TupleTypeInfo<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20, type21, type22, type23);
+		TupleTypeInfo<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20, type21, type22, type23);
 		CsvInputFormat<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>> inputFormat = new TupleCsvInputFormat<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 24-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param typeInfo13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param typeInfo14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param typeInfo15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @param typeInfo16 The type of CSV field 16 and the type of field 16 in the returned tuple type.
+	 * @param typeInfo17 The type of CSV field 17 and the type of field 17 in the returned tuple type.
+	 * @param typeInfo18 The type of CSV field 18 and the type of field 18 in the returned tuple type.
+	 * @param typeInfo19 The type of CSV field 19 and the type of field 19 in the returned tuple type.
+	 * @param typeInfo20 The type of CSV field 20 and the type of field 20 in the returned tuple type.
+	 * @param typeInfo21 The type of CSV field 21 and the type of field 21 in the returned tuple type.
+	 * @param typeInfo22 The type of CSV field 22 and the type of field 22 in the returned tuple type.
+	 * @param typeInfo23 The type of CSV field 23 and the type of field 23 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23> DataSource<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9, TypeInformation<T10> typeInfo10, TypeInformation<T11> typeInfo11, TypeInformation<T12> typeInfo12, TypeInformation<T13> typeInfo13, TypeInformation<T14> typeInfo14, TypeInformation<T15> typeInfo15, TypeInformation<T16> typeInfo16, TypeInformation<T17> typeInfo17, TypeInformation<T18> typeInfo18, TypeInformation<T19> typeInfo19, TypeInformation<T20> typeInfo20, TypeInformation<T21> typeInfo21, TypeInformation<T22> typeInfo22, TypeInformation<T23> typeInfo23) {
+		DataSource<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9, typeInfo10, typeInfo11, typeInfo12, typeInfo13, typeInfo14, typeInfo15, typeInfo16, typeInfo17, typeInfo18, typeInfo19, typeInfo20, typeInfo21, typeInfo22, typeInfo23);
+		return dataSource;
 	}
 
 	/**
@@ -1041,16 +1940,16 @@ public class CsvReader {
 	 * This method is overloaded for each possible length of the tuples to support type safe
 	 * creation of data sets through CSV parsing.
 	 *
-	 * @param type0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
-	 * @param type1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
-	 * @param type2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
-	 * @param type3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
-	 * @param type4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
-	 * @param type5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
-	 * @param type6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
-	 * @param type7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
-	 * @param type8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
-	 * @param type9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param type0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param type1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param type2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param type3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param type4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param type5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param type6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param type7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param type8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param type9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
 	 * @param type10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
 	 * @param type11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
 	 * @param type12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
@@ -1069,10 +1968,51 @@ public class CsvReader {
 	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
 	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24> DataSource<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19, Class<T20> type20, Class<T21> type21, Class<T22> type22, Class<T23> type23, Class<T24> type24) {
-		TupleTypeInfo<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20, type21, type22, type23, type24);
+		TupleTypeInfo<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>> types = TupleTypeInfo.getTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20, type21, type22, type23, type24);
 		CsvInputFormat<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>> inputFormat = new TupleCsvInputFormat<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>>(path, types, this.includedMask);
 		configureInputFormat(inputFormat);
 		return new DataSource<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>>(executionContext, inputFormat, types, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 25-tuple
+	 * which has fields of the specified types.
+	 * This method is created to overcome limitations of the types() method, which loose Generics information
+	 * during runtime. With this method it is possible to use {@link TypeHint} power to instruct the engine about concrete
+	 * field types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param typeInfo0  The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param typeInfo1  The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param typeInfo2  The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param typeInfo3  The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param typeInfo4  The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param typeInfo5  The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param typeInfo6  The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param typeInfo7  The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param typeInfo8  The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param typeInfo9  The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param typeInfo10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param typeInfo11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param typeInfo12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param typeInfo13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param typeInfo14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param typeInfo15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @param typeInfo16 The type of CSV field 16 and the type of field 16 in the returned tuple type.
+	 * @param typeInfo17 The type of CSV field 17 and the type of field 17 in the returned tuple type.
+	 * @param typeInfo18 The type of CSV field 18 and the type of field 18 in the returned tuple type.
+	 * @param typeInfo19 The type of CSV field 19 and the type of field 19 in the returned tuple type.
+	 * @param typeInfo20 The type of CSV field 20 and the type of field 20 in the returned tuple type.
+	 * @param typeInfo21 The type of CSV field 21 and the type of field 21 in the returned tuple type.
+	 * @param typeInfo22 The type of CSV field 22 and the type of field 22 in the returned tuple type.
+	 * @param typeInfo23 The type of CSV field 23 and the type of field 23 in the returned tuple type.
+	 * @param typeInfo24 The type of CSV field 24 and the type of field 24 in the returned tuple type.
+	 * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.
+	 */
+	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24> DataSource<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>> preciseTypes(TypeInformation<T0> typeInfo0, TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2, TypeInformation<T3> typeInfo3, TypeInformation<T4> typeInfo4, TypeInformation<T5> typeInfo5, TypeInformation<T6> typeInfo6, TypeInformation<T7> typeInfo7, TypeInformation<T8> typeInfo8, TypeInformation<T9> typeInfo9, TypeInformation<T10> typeInfo10, TypeInformation<T11> typeInfo11, TypeInformation<T12> typeInfo12, TypeInformation<T13> typeInfo13, TypeInformation<T14> typeInfo14, TypeInformation<T15> typeInfo15, TypeInformation<T16> typeInfo16, TypeInformation<T17> typeInfo17, TypeInformation<T18> typeInfo18, TypeInformation<T19> typeInfo19, TypeInformation<T20> typeInfo20, TypeInformation<T21> typeInfo21, TypeInformation<T22> typeInfo22, TypeInformation<T23> typeInfo23, TypeInformation<T24> typeInfo24) {
+		DataSource<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>> dataSource = commonPreciseTypes(typeInfo0, typeInfo1, typeInfo2, typeInfo3, typeInfo4, typeInfo5, typeInfo6, typeInfo7, typeInfo8, typeInfo9, typeInfo10, typeInfo11, typeInfo12, typeInfo13, typeInfo14, typeInfo15, typeInfo16, typeInfo17, typeInfo18, typeInfo19, typeInfo20, typeInfo21, typeInfo22, typeInfo23, typeInfo24);
+		return dataSource;
 	}
 
 	// END_OF_TUPLE_DEPENDENT_CODE

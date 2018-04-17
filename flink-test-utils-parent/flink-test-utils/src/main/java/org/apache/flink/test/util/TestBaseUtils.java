@@ -41,6 +41,7 @@ import akka.util.Timeout;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -248,6 +249,13 @@ public class TestBaseUtils extends TestLogger {
 			Assert.assertEquals("Not all TCP connections were released.", 0, numActiveConnections);
 		}
 
+	}
+
+	public static String createInputData(TemporaryFolder tempFolder, String data) throws Exception {
+		File file = tempFolder.newFile("input");
+		org.apache.flink.util.FileUtils.writeFileUtf8(file, data);
+
+		return file.toURI().toString();
 	}
 
 	// --------------------------------------------------------------------------------------------

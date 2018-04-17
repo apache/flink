@@ -24,7 +24,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.StringParser;
 import org.apache.flink.types.parser.StringValueParser;
-import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -221,7 +220,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 			Class<?> type = fieldTypes[i];
 			
 			if (type != null) {
-				if (FieldParser.getParserForType(type) == null) {
+				if (FieldParser.getDefaultParserForType(type) == null  && FieldParser.getCustomParserForType(type) == null) {
 					throw new IllegalArgumentException("The type '" + type.getName() + "' is not supported for the CSV input format.");
 				}
 				types.add(type);
@@ -253,7 +252,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 			Class<?> type = fieldTypes[i];
 
 			if (type != null) {
-				if (FieldParser.getParserForType(type) == null) {
+				if (FieldParser.getDefaultParserForType(type) == null && FieldParser.getCustomParserForType(type) == null) {
 					throw new IllegalArgumentException("The type '" + type.getName()
 						+ "' is not supported for the CSV input format.");
 				}
@@ -285,7 +284,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 					throw new IllegalArgumentException("Type for included field " + i + " should not be null.");
 				} else {
 					// check if we support parsers for this type
-					if (FieldParser.getParserForType(type) == null) {
+					if (FieldParser.getDefaultParserForType(type) == null  && FieldParser.getCustomParserForType(type) == null) {
 						throw new IllegalArgumentException("The type '" + type.getName() + "' is not supported for the CSV input format.");
 					}
 					types.add(type);
@@ -310,13 +309,10 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		
 		for (int i = 0; i < fieldTypes.length; i++) {
 			if (fieldTypes[i] != null) {
-				Class<? extends FieldParser<?>> parserType = FieldParser.getParserForType(fieldTypes[i]);
-				if (parserType == null) {
-					throw new RuntimeException("No parser available for type '" + fieldTypes[i].getName() + "'.");
+				FieldParser<?> p = FieldParser.getParserInstanceFor(fieldTypes[i]);
+				if ( p == null ) {
+					throw new IllegalArgumentException("No parser available for type '" + fieldTypes[i].getName() + "'.");
 				}
-
-				FieldParser<?> p = InstantiationUtil.instantiate(parserType, FieldParser.class);
-
 				p.setCharset(getCharset());
 				if (this.quotedStringParsing) {
 					if (p instanceof StringParser) {
