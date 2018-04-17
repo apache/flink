@@ -23,8 +23,6 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.Serializable;
 
 /**
@@ -44,11 +42,11 @@ import java.io.Serializable;
 @PublicEvolving
 public class OutputTag<T> implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 2L;
 
 	private final String id;
 
-	private transient TypeInformation<T> typeInfo;
+	private final TypeInformation<T> typeInfo;
 
 	/**
 	 * Creates a new named {@code OutputTag} with the given id.
@@ -83,10 +81,7 @@ public class OutputTag<T> implements Serializable {
 		this.typeInfo = Preconditions.checkNotNull(typeInfo, "TypeInformation cannot be null.");
 	}
 
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
-		typeInfo = null;
-	}
+	// ------------------------------------------------------------------------
 
 	public String getId() {
 		return id;
@@ -95,6 +90,8 @@ public class OutputTag<T> implements Serializable {
 	public TypeInformation<T> getTypeInfo() {
 		return typeInfo;
 	}
+
+	// ------------------------------------------------------------------------
 
 	@Override
 	public boolean equals(Object obj) {
