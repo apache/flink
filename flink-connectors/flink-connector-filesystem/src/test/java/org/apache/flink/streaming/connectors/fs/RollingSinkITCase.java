@@ -66,7 +66,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.HashMap;
@@ -868,6 +870,13 @@ public class RollingSinkITCase extends TestLogger {
 			} else if (path.endsWith(PENDING_SUFFIX)) {
 				pend++;
 			} else if (path.endsWith(VALID_LENGTH_SUFFIX)) {
+				// check that content of length file is valid
+				try (FileInputStream fis = new FileInputStream(file)) {
+					final long validLength = Long.valueOf(new DataInputStream(fis).readUTF());
+					final String truncated = path.substring(0, path.length() - VALID_LENGTH_SUFFIX.length());
+					Assert.assertTrue("Mismatch between valid length and file size.",
+						FileUtils.sizeOf(new File(truncated)) >= validLength);
+				}
 				val++;
 			} else if (path.contains(PART_PREFIX)) {
 				compl++;
