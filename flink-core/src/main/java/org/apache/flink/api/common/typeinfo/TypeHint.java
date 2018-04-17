@@ -56,13 +56,6 @@ public abstract class TypeHint<T> {
 		}
 	}
 
-	/**
-	 * Creates a hint for the generic type in the class signature.
-	 */
-	public TypeHint(Class<?> baseClass, Object instance, int genericParameterPos) {
-		this.typeInfo = TypeExtractor.createTypeInfo(instance, baseClass, instance.getClass(), genericParameterPos);
-	}
-
 	// ------------------------------------------------------------------------
 
 	/**
