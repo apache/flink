@@ -126,8 +126,8 @@ public class LocalExecutor extends PlanExecutor {
 		final JobExecutorService newJobExecutorService;
 		if (CoreOptions.NEW_MODE.equals(configuration.getString(CoreOptions.MODE))) {
 
-			if (!configuration.contains(RestOptions.REST_PORT)) {
-				configuration.setInteger(RestOptions.REST_PORT, 0);
+			if (!configuration.contains(RestOptions.PORT)) {
+				configuration.setInteger(RestOptions.PORT, 0);
 			}
 
 			final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
@@ -145,7 +145,7 @@ public class LocalExecutor extends PlanExecutor {
 			final MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration);
 			miniCluster.start();
 
-			configuration.setInteger(RestOptions.REST_PORT, miniCluster.getRestAddress().getPort());
+			configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
 
 			newJobExecutorService = miniCluster;
 		} else {

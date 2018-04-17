@@ -73,7 +73,7 @@ public class BigUserProgramJobSubmitITCase extends TestLogger {
 
 			final Configuration clientConfig = new Configuration();
 			clientConfig.setString(JobManagerOptions.ADDRESS, restAddress.getHost());
-			clientConfig.setInteger(RestOptions.REST_PORT, restAddress.getPort());
+			clientConfig.setInteger(RestOptions.PORT, restAddress.getPort());
 
 			CLIENT = new RestClusterClient<>(
 				clientConfig,

@@ -273,7 +273,7 @@ public class RestClient {
 			if (cause instanceof TooLongFrameException) {
 				jsonFuture.completeExceptionally(new TooLongFrameException(String.format(
 					cause.getMessage() + " Try to raise [%s]",
-					RestOptions.REST_CLIENT_MAX_CONTENT_LENGTH.key())));
+					RestOptions.CLIENT_MAX_CONTENT_LENGTH.key())));
 			} else {
 				jsonFuture.completeExceptionally(cause);
 			}

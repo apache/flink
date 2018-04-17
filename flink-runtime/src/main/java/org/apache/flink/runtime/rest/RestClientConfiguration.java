@@ -107,7 +107,7 @@ public final class RestClientConfiguration {
 
 		final long connectionTimeout = config.getLong(RestOptions.CONNECTION_TIMEOUT);
 
-		int maxContentLength = config.getInteger(RestOptions.REST_CLIENT_MAX_CONTENT_LENGTH);
+		int maxContentLength = config.getInteger(RestOptions.CLIENT_MAX_CONTENT_LENGTH);
 
 		return new RestClientConfiguration(sslEngine, connectionTimeout, maxContentLength);
 	}
