@@ -195,6 +195,9 @@ under the License.
 								its new, and not conflicting/breaking -->
 							<exclude>org.apache.flink.api.common.serialization.DeserializationSchema</exclude>
 							<exclude>org.apache.flink.api.common.serialization.SerializationSchema</exclude>
+
+							<!-- leaked constructor in TypeHint -->
+							<exclude>org.apache.flink.api.common.typeinfo.TypeHint</exclude>
 						</excludes>
 					</parameter>
 				</configuration>

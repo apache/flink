@@ -20,8 +20,8 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.InvalidTypesException;
-import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -61,11 +61,12 @@ public class OutputTag<T> implements Serializable {
 		this.id = id;
 
 		try {
-			TypeHint<T> typeHint = new TypeHint<T>(OutputTag.class, this, 0) {};
-			this.typeInfo = typeHint.getTypeInfo();
-		} catch (InvalidTypesException e) {
-			throw new InvalidTypesException("Could not determine TypeInformation for generic " +
-					"OutputTag type. Did you forget to make your OutputTag an anonymous inner class?", e);
+			this.typeInfo = TypeExtractor.createTypeInfo(this, OutputTag.class, getClass(), 0);
+		}
+		catch (InvalidTypesException e) {
+			throw new InvalidTypesException("Could not determine TypeInformation for the OutputTag type. " +
+					"The most common reason is forgetting to make the OutputTag an anonymous inner class. " +
+					"It is also not possible to use generic type variables with OutputTags, such as 'Tuple2<A, B>'.", e);
 		}
 	}
 
