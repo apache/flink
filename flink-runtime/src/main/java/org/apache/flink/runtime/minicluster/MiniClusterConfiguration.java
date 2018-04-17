@@ -169,8 +169,8 @@ public class MiniClusterConfiguration {
 			final Configuration modifiedConfiguration = new Configuration(configuration);
 			modifiedConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
 			modifiedConfiguration.setString(
-				RestOptions.REST_ADDRESS,
-				modifiedConfiguration.getString(RestOptions.REST_ADDRESS, "localhost"));
+				RestOptions.ADDRESS,
+				modifiedConfiguration.getString(RestOptions.ADDRESS, "localhost"));
 
 			return new MiniClusterConfiguration(
 				modifiedConfiguration,

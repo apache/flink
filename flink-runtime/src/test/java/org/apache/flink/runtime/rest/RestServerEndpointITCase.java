@@ -114,11 +114,11 @@ public class RestServerEndpointITCase extends TestLogger {
 	@Before
 	public void setup() throws Exception {
 		Configuration config = new Configuration();
-		config.setInteger(RestOptions.REST_PORT, 0);
-		config.setString(RestOptions.REST_ADDRESS, "localhost");
+		config.setInteger(RestOptions.PORT, 0);
+		config.setString(RestOptions.ADDRESS, "localhost");
 		config.setString(WebOptions.UPLOAD_DIR, temporaryFolder.newFolder().getCanonicalPath());
-		config.setInteger(RestOptions.REST_SERVER_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
-		config.setInteger(RestOptions.REST_CLIENT_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
+		config.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
+		config.setInteger(RestOptions.CLIENT_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
 
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 		RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);

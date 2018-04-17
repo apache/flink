@@ -1142,8 +1142,8 @@ public class CliFrontend {
 	public static void setJobManagerAddressInConfig(Configuration config, InetSocketAddress address) {
 		config.setString(JobManagerOptions.ADDRESS, address.getHostString());
 		config.setInteger(JobManagerOptions.PORT, address.getPort());
-		config.setString(RestOptions.REST_ADDRESS, address.getHostString());
-		config.setInteger(RestOptions.REST_PORT, address.getPort());
+		config.setString(RestOptions.ADDRESS, address.getHostString());
+		config.setInteger(RestOptions.PORT, address.getPort());
 	}
 
 	public static List<CustomCommandLine<?>> loadCustomCommandLines(Configuration configuration, String configurationDirectory) {

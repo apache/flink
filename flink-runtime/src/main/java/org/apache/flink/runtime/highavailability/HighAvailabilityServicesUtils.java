@@ -99,10 +99,10 @@ public class HighAvailabilityServicesUtils {
 					addressResolution,
 					configuration);
 
-				final String address = checkNotNull(configuration.getString(RestOptions.REST_ADDRESS),
+				final String address = checkNotNull(configuration.getString(RestOptions.ADDRESS),
 					"%s must be set",
-					RestOptions.REST_ADDRESS.key());
-				final int port = configuration.getInteger(RestOptions.REST_PORT);
+					RestOptions.ADDRESS.key());
+				final int port = configuration.getInteger(RestOptions.PORT);
 				final boolean enableSSL = configuration.getBoolean(SecurityOptions.SSL_ENABLED);
 				final String protocol = enableSSL ? "https://" : "http://";
 

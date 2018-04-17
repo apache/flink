@@ -313,7 +313,7 @@ public class RestAPIDocGenerator {
 
 		static {
 			config = new Configuration();
-			config.setString(RestOptions.REST_ADDRESS, "localhost");
+			config.setString(RestOptions.ADDRESS, "localhost");
 			try {
 				restConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 			} catch (ConfigurationException e) {
