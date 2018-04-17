@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -27,46 +28,44 @@ import org.junit.Test;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link TypeHint}.
+ * Tests for the {@link TypeInformation} class.
  */
-public class TypeHintTest {
+public class TypeInformationTest {
 
 	@Test
-	public void testTypeInfoDirect() {
+	public void testOfClass() {
+		assertEquals(BasicTypeInfo.STRING_TYPE_INFO, TypeInformation.of(String.class));
+	}
 
-		// simple (non-generic case)
-		TypeHint<String> stringInfo1 = new TypeHint<String>(){};
-		TypeHint<String> stringInfo2 = new TypeHint<String>(){};
+	@Test
+	public void testOfGenericClassForFlink() {
+		try {
+			TypeInformation.of(Tuple3.class);
+			fail("should fail with an exception");
+		}
+		catch (FlinkRuntimeException e) {
+			// check that the error message mentions the TypeHint
+			assertNotEquals(-1, e.getMessage().indexOf("TypeHint"));
+		}
+	}
 
-		assertEquals(BasicTypeInfo.STRING_TYPE_INFO, stringInfo1.getTypeInfo());
+	@Test
+	public void testOfGenericClassForGenericType() {
+		assertEquals(new GenericTypeInfo<>(List.class), TypeInformation.of(List.class));
+	}
 
-		assertTrue(stringInfo1.hashCode() == stringInfo2.hashCode());
-		assertTrue(stringInfo1.equals(stringInfo2));
-		assertTrue(stringInfo1.toString().equals(stringInfo2.toString()));
-
-		// generic case
-		TypeHint<Tuple3<String, Double, Boolean>> generic = new TypeHint<Tuple3<String, Double, Boolean>>(){};
+	@Test
+	public void testOfTypeHint() {
+		assertEquals(BasicTypeInfo.STRING_TYPE_INFO, TypeInformation.of(String.class));
+		assertEquals(BasicTypeInfo.STRING_TYPE_INFO, TypeInformation.of(new TypeHint<String>(){}));
 
 		TypeInformation<Tuple3<String, Double, Boolean>> tupleInfo =
 				new TupleTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO);
 
-		assertEquals(tupleInfo, generic.getTypeInfo());
-	}
-
-	@Test
-	public <T> void testWithGenericParameter() {
-		try {
-			new TypeHint<T>(){};
-			fail();
-		}
-		catch (FlinkRuntimeException ignored) {}
-
-		// this works, because "List" goes to the GenericType (blackbox) which does
-		// not care about generic parametrization
-		new TypeHint<List<T>>(){};
+		assertEquals(tupleInfo, TypeInformation.of(new TypeHint<Tuple3<String, Double, Boolean>>(){}));
 	}
 }
