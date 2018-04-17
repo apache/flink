@@ -186,7 +186,10 @@ public class KinesisProxy implements KinesisProxyInterface {
 	 * @return
 	 */
 	protected AmazonKinesis createKinesisClient(Properties configProps) {
-		return AWSUtil.createKinesisClient(configProps, new ClientConfigurationFactory().getConfig());
+
+		ClientConfiguration awsClientConfig = new ClientConfigurationFactory().getConfig();
+		AWSUtil.setAwsClientConfigProperties(awsClientConfig, configProps);
+		return AWSUtil.createKinesisClient(configProps, awsClientConfig);
 	}
 
 	/**
