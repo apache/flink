@@ -28,9 +28,9 @@ import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.FloatValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
+import org.apache.flink.types.Row;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.util.FileUtils;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -38,7 +38,6 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.io.File;
 import java.util.List;
 import java.util.Locale;
 
@@ -56,17 +55,10 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	private String createInputData(String data) throws Exception {
-		File file = tempFolder.newFile("input");
-		FileUtils.writeFileUtf8(file, data);
-
-		return file.toURI().toString();
-	}
-
 	@Test
 	public void testPOJOType() throws Exception {
 		final String inputData = "ABC,2.20,3\nDEF,5.1,5\nDEF,3.30,1\nGHI,3.30,10";
-		final String dataPath = createInputData(inputData);
+		final String dataPath = createInputData(tempFolder, inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<POJOItem> data = env.readCsvFile(dataPath).pojoType(POJOItem.class, new String[]{"f1", "f3", "f2"});
@@ -79,7 +71,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testPOJOTypeWithFieldsOrder() throws Exception {
 		final String inputData = "2.20,ABC,3\n5.1,DEF,5\n3.30,DEF,1\n3.30,GHI,10";
-		final String dataPath = createInputData(inputData);
+		final String dataPath = createInputData(tempFolder, inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<POJOItem> data = env.readCsvFile(dataPath).pojoType(POJOItem.class, new String[]{"f3", "f1", "f2"});
@@ -92,7 +84,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 	@Test(expected = NullPointerException.class)
 	public void testPOJOTypeWithoutFieldsOrder() throws Exception {
 		final String inputData = "";
-		final String dataPath = createInputData(inputData);
+		final String dataPath = createInputData(tempFolder, inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		env.readCsvFile(dataPath).pojoType(POJOItem.class, null);
@@ -101,7 +93,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testPOJOTypeWithFieldsOrderAndFieldsSelection() throws Exception {
 		final String inputData = "3,2.20,ABC\n5,5.1,DEF\n1,3.30,DEF\n10,3.30,GHI";
-		final String dataPath = createInputData(inputData);
+		final String dataPath = createInputData(tempFolder, inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<POJOItem> data = env.readCsvFile(dataPath).includeFields(true, false, true).pojoType(POJOItem.class, new String[]{"f2", "f1"});
@@ -114,7 +106,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testValueTypes() throws Exception {
 		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
-		final String dataPath = createInputData(inputData);
+		final String dataPath = createInputData(tempFolder, inputData);
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple8<StringValue, BooleanValue, ByteValue, ShortValue, IntValue, LongValue, FloatValue, DoubleValue>> data =
@@ -123,6 +115,80 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 
 		expected = inputData;
 		compareResultAsTuples(result, expected);
+	}
+
+	@Test
+	public void testRowType() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(tempFolder, inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Row> data = env.readCsvFile(dataPath)
+			.rowType(StringValue.class, BooleanValue.class, ByteValue.class, ShortValue.class, IntValue.class, LongValue.class, FloatValue.class, DoubleValue.class);
+		List<Row> result = data.collect();
+
+		expected = inputData;
+		compareResultAsText(result, expected);
+	}
+
+	@Test
+	public void testRowTypeWithFieldsSelection() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(tempFolder, inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Row> data = env.readCsvFile(dataPath)
+			.includeFields(true, true, false, false, true, false, true) //last value will omitted because not present in included fields
+			.rowType(StringValue.class, BooleanValue.class, IntValue.class, DoubleValue.class);
+		List<Row> result = data.collect();
+
+		expected = "ABC,true,3,5.0\nBCD,false,3,5.0";
+		compareResultAsText(result, expected);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testRowTypeWithFieldsSelectionWrongArity() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(tempFolder, inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		env.readCsvFile(dataPath)
+			.includeFields(false, true, false)
+			.rowType(StringValue.class, StringValue.class);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testRowTypeWithNullFieldTypes() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(tempFolder, inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		env.readCsvFile(dataPath).rowType(null);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testRowTypeWithEmptyFieldType() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(tempFolder, inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		env.readCsvFile(dataPath).rowType();
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testPreciseRowTypeWithNullFieldTypes() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(tempFolder, inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		env.readCsvFile(dataPath).preciseRowType(null);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testPreciseRowTypeWithEmptyFieldType() throws Exception {
+		final String inputData = "ABC,true,1,2,3,4,5.0,6.0\nBCD,false,1,2,3,4,5.0,6.0";
+		final String dataPath = createInputData(tempFolder, inputData);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		env.readCsvFile(dataPath).preciseRowType();
 	}
 
 	/**
@@ -146,4 +212,5 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 			return String.format(Locale.US, "%s,%d,%.02f", f1, f2, f3);
 		}
 	}
+
 }

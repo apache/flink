@@ -23,7 +23,6 @@ import org.apache.flink.api.common.io.DelimitedInputFormat;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
-import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 
@@ -58,11 +57,12 @@ public class PrimitiveInputFormat<OT> extends DelimitedInputFormat<OT> {
 	@Override
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
-		Class<? extends FieldParser<OT>> parserType = FieldParser.getParserForType(primitiveClass);
-		if (parserType == null) {
+
+		FieldParser<OT> parserInstance = FieldParser.getParserInstanceFor(primitiveClass);
+		if (parserInstance == null) {
 			throw new IllegalArgumentException("The type '" + primitiveClass.getName() + "' is not supported for the primitive input format.");
 		}
-		parser = InstantiationUtil.instantiate(parserType, FieldParser.class);
+		parser = parserInstance;
 	}
 
 	@Override
