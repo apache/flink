@@ -150,6 +150,8 @@ public class Types {
 	 */
 	public static final TypeInformation<Timestamp> SQL_TIMESTAMP = SqlTimeTypeInfo.TIMESTAMP;
 
+	//CHECKSTYLE.OFF: MethodName
+
 	/**
 	 * Returns type information for {@link org.apache.flink.types.Row} with fields of the given types.
 	 * A row itself must not be null.
@@ -161,7 +163,7 @@ public class Types {
 	 *
 	 * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row instances
 	 * must strictly adhere to the schema defined by the type info.
-	 * 
+	 *
 	 * <p>This method generates type information with fields of the given types; the fields have
 	 * the default names (f0, f1, f2 ..).
 	 *
@@ -446,4 +448,6 @@ public class Types {
 	public static <L, R> TypeInformation<Either<L, R>> EITHER(TypeInformation<L> leftType, TypeInformation<R> rightType) {
 		return new EitherTypeInfo<>(leftType, rightType);
 	}
+
+	//CHECKSTYLE.ON: MethodName
 }

@@ -23,7 +23,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 /**
  * A utility class for describing generic types. It can be used to obtain a type information via:
- * 
+ *
  * <pre>{@code
  * TypeInformation<Tuple2<String, Long>> info = TypeInformation.of(new TypeHint<Tuple2<String, Long>>(){});
  * }</pre>
@@ -31,13 +31,13 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
  * <pre>{@code
  * TypeInformation<Tuple2<String, Long>> info = new TypeHint<Tuple2<String, Long>>(){}.getTypeInfo();
  * }</pre>
- * 
+ *
  * @param <T> The type information to hint.
  */
 @Public
 public abstract class TypeHint<T> {
-	
-	/** The type information described by the hint */
+
+	/** The type information described by the hint. */
 	private final TypeInformation<T> typeInfo;
 
 	/**
@@ -73,7 +73,7 @@ public abstract class TypeHint<T> {
 
 	@Override
 	public boolean equals(Object obj) {
-		return obj == this || 
+		return obj == this ||
 			obj instanceof TypeHint && this.typeInfo.equals(((TypeHint<?>) obj).typeInfo);
 	}
 

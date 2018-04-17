@@ -20,31 +20,36 @@ package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the {@link TypeHint}.
+ */
 public class TypeHintTest {
-	
+
 	@Test
 	public void testTypeInfoDirect() {
-		
+
 		// simple (non-generic case)
 		TypeHint<String> stringInfo1 = new TypeHint<String>(){};
 		TypeHint<String> stringInfo2 = new TypeHint<String>(){};
-		
+
 		assertEquals(BasicTypeInfo.STRING_TYPE_INFO, stringInfo1.getTypeInfo());
-		
+
 		assertTrue(stringInfo1.hashCode() == stringInfo2.hashCode());
 		assertTrue(stringInfo1.equals(stringInfo2));
 		assertTrue(stringInfo1.toString().equals(stringInfo2.toString()));
 
 		// generic case
 		TypeHint<Tuple3<String, Double, Boolean>> generic = new TypeHint<Tuple3<String, Double, Boolean>>(){};
-		
-		TypeInformation<Tuple3<String, Double, Boolean>> tupleInfo = 
+
+		TypeInformation<Tuple3<String, Double, Boolean>> tupleInfo =
 				new TupleTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO);
-		
+
 		assertEquals(tupleInfo, generic.getTypeInfo());
 	}
 
@@ -52,7 +57,6 @@ public class TypeHintTest {
 	public void testTypeInfoOf() {
 		assertEquals(BasicTypeInfo.STRING_TYPE_INFO, TypeInformation.of(String.class));
 		assertEquals(BasicTypeInfo.STRING_TYPE_INFO, TypeInformation.of(new TypeHint<String>(){}));
-		
 
 		TypeInformation<Tuple3<String, Double, Boolean>> tupleInfo =
 				new TupleTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO);
