@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.common.time;
 
 import org.apache.flink.annotation.Internal;
@@ -26,6 +27,8 @@ import java.time.Duration;
  */
 @Internal
 public class Deadline {
+
+	/** The deadline, relative to {@link System#nanoTime()}. */
 	private final long timeNanos;
 
 	private Deadline(Duration time) {
