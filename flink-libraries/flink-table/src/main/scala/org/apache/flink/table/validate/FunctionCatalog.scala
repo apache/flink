@@ -212,6 +212,7 @@ object FunctionCatalog {
     "floor" -> classOf[Floor],
     "log10" -> classOf[Log10],
     "ln" -> classOf[Ln],
+    "log" -> classOf[Log],
     "power" -> classOf[Power],
     "mod" -> classOf[Mod],
     "sqrt" -> classOf[Sqrt],
