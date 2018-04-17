@@ -25,6 +25,7 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobStatusMessage;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.test.util.SuccessException;
+import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
@@ -115,6 +117,9 @@ public class ClassLoaderITCase extends TestLogger {
 		// Savepoint path
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY,
 				FOLDER.newFolder().getAbsoluteFile().toURI().toString());
+
+		// required as we otherwise run out of memory
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 80);
 
 		testCluster = new MiniCluster(
 			new MiniClusterConfiguration.Builder()
