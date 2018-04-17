@@ -932,6 +932,9 @@ public class DataStream<T> {
 	 *
 	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
 	 *
+	 * <p>NOTE: This will print to stdout on the machine where the code is executed, i.e. the Flink
+	 * worker.
+	 *
 	 * @return The closed DataStream.
 	 */
 	@PublicEvolving
@@ -944,6 +947,9 @@ public class DataStream<T> {
 	 * Writes a DataStream to the standard output stream (stderr).
 	 *
 	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
+	 *
+	 * <p>NOTE: This will print to stderr on the machine where the code is executed, i.e. the Flink
+	 * worker.
 	 *
 	 * @return The closed DataStream.
 	 */
