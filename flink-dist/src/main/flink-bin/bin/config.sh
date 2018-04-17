@@ -95,6 +95,8 @@ DEFAULT_ENV_LOG_MAX=5                               # Maximum number of old log 
 DEFAULT_ENV_JAVA_OPTS=""                            # Optional JVM args
 DEFAULT_ENV_JAVA_OPTS_JM=""                         # Optional JVM args (JobManager)
 DEFAULT_ENV_JAVA_OPTS_TM=""                         # Optional JVM args (TaskManager)
+DEFAULT_ENV_JAVA_OPTS_SCC=""                        # Optional JVM args (SQL Client CLI)
+DEFAULT_ENV_JAVA_OPTS_SCG=""                        # Optional JVM args (SQL Client Gateway)
 DEFAULT_ENV_SSH_OPTS=""                             # Optional SSH parameters running in cluster mode
 
 ########################################################################################################################
@@ -107,6 +109,8 @@ KEY_TASKM_MEM_MANAGED_SIZE="taskmanager.memory.size"
 KEY_TASKM_MEM_MANAGED_FRACTION="taskmanager.memory.fraction"
 KEY_TASKM_OFFHEAP="taskmanager.memory.off-heap"
 KEY_TASKM_MEM_PRE_ALLOCATE="taskmanager.memory.preallocate"
+KEY_SCC_MEM_SIZE="sqlclient.cli.heap.mb"
+KEY_SCG_MEM_SIZE="sqlclient.gateway.heap.mb"
 
 KEY_TASKM_NET_BUF_FRACTION="taskmanager.network.memory.fraction"
 KEY_TASKM_NET_BUF_MIN="taskmanager.network.memory.min"
@@ -122,6 +126,8 @@ KEY_ENV_JAVA_HOME="env.java.home"
 KEY_ENV_JAVA_OPTS="env.java.opts"
 KEY_ENV_JAVA_OPTS_JM="env.java.opts.jobmanager"
 KEY_ENV_JAVA_OPTS_TM="env.java.opts.taskmanager"
+KEY_ENV_JAVA_OPTS_SCC="env.java.opts.sqlclient.cli"
+KEY_ENV_JAVA_OPTS_SCG="env.java.opts.sqlclient.gateway"
 KEY_ENV_SSH_OPTS="env.ssh.opts"
 KEY_HIGH_AVAILABILITY="high-availability"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
@@ -221,6 +227,16 @@ if [ -z "${FLINK_TM_HEAP}" ]; then
     FLINK_TM_HEAP=$(readFromConfig ${KEY_TASKM_MEM_SIZE} 0 "${YAML_CONF}")
 fi
 
+# Define FLINK_SCC_HEAP if it is not already set
+if [ -z "${FLINK_SCC_HEAP}" ]; then
+    FLINK_SCC_HEAP=$(readFromConfig ${KEY_SCC_MEM_SIZE} 0 "${YAML_CONF}")
+fi
+
+# Define FLINK_SCG_HEAP if it is not already set
+if [ -z "${FLINK_SCG_HEAP}" ]; then
+    FLINK_SCG_HEAP=$(readFromConfig ${KEY_SCG_MEM_SIZE} 0 "${YAML_CONF}")
+fi
+
 # Define FLINK_TM_MEM_MANAGED_SIZE if it is not already set
 if [ -z "${FLINK_TM_MEM_MANAGED_SIZE}" ]; then
     FLINK_TM_MEM_MANAGED_SIZE=$(readFromConfig ${KEY_TASKM_MEM_MANAGED_SIZE} 0 "${YAML_CONF}")
@@ -311,6 +327,18 @@ if [ -z "${FLINK_ENV_JAVA_OPTS_TM}" ]; then
     FLINK_ENV_JAVA_OPTS_TM=$(readFromConfig ${KEY_ENV_JAVA_OPTS_TM} "${DEFAULT_ENV_JAVA_OPTS_TM}" "${YAML_CONF}")
     # Remove leading and ending double quotes (if present) of value
     FLINK_ENV_JAVA_OPTS_TM="$( echo "${FLINK_ENV_JAVA_OPTS_TM}" | sed -e 's/^"//'  -e 's/"$//' )"
+fi
+
+if [ -z "${FLINK_ENV_JAVA_OPTS_SCC}" ]; then
+    FLINK_ENV_JAVA_OPTS_SCC=$(readFromConfig ${KEY_ENV_JAVA_OPTS_SCC} "${DEFAULT_ENV_JAVA_OPTS_SCC}" "${YAML_CONF}")
+    # Remove leading and ending double quotes (if present) of value
+    FLINK_ENV_JAVA_OPTS_SCC="$( echo "${FLINK_ENV_JAVA_OPTS_SCC}" | sed -e 's/^"//'  -e 's/"$//' )"
+fi
+
+if [ -z "${FLINK_ENV_JAVA_OPTS_SCG}" ]; then
+    FLINK_ENV_JAVA_OPTS_SCG=$(readFromConfig ${KEY_ENV_JAVA_OPTS_SCG} "${DEFAULT_ENV_JAVA_OPTS_SCG}" "${YAML_CONF}")
+    # Remove leading and ending double quotes (if present) of value
+    FLINK_ENV_JAVA_OPTS_SCG="$( echo "${FLINK_ENV_JAVA_OPTS_SCG}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
 if [ -z "${FLINK_SSH_OPTS}" ]; then

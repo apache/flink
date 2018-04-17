@@ -44,20 +44,32 @@ bin=`dirname "$target"`
 . "$bin"/config.sh
 
 if [ "$FLINK_IDENT_STRING" = "" ]; then
-        FLINK_IDENT_STRING="$USER"
+    FLINK_IDENT_STRING="$USER"
 fi
 
 CC_CLASSPATH=`constructFlinkClassPath`
 
-################################################################################
-# SQL client specific logic
-################################################################################
-
-log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-sql-client-$HOSTNAME.log
-log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-cli.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml)
-
 export FLINK_ROOT_DIR
 export FLINK_CONF_DIR
+
+################################################################################
+# SQL Client CLI specific logic
+################################################################################
+
+log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-sql-client-cli-$HOSTNAME.log
+log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-cli.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml)
+
+if [[ ! ${FLINK_SCC_HEAP} =~ ${IS_NUMBER} ]] || [[ "${FLINK_SCC_HEAP}" -lt "0" ]]; then
+    echo "[ERROR] Configured SQL Client CLI JVM heap size is not a number. Please set '${KEY_SCC_MEM_SIZE}' in ${FLINK_CONF_FILE}."
+    exit 1
+fi
+
+if [ "${FLINK_SCC_HEAP}" -gt "0" ]; then
+    export JVM_ARGS="$JVM_ARGS -Xms"$FLINK_SCC_HEAP"m -Xmx"$FLINK_SCC_HEAP"m"
+fi
+
+# Add SQL Client CLI-specific JVM options
+export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_SCC}"
 
 # get path of jar in /opt if it exist
 FLINK_SQL_CLIENT_JAR=$(find "$FLINK_OPT_DIR" -regex ".*flink-sql-client.*.jar")
@@ -66,13 +78,16 @@ FLINK_SQL_CLIENT_JAR=$(find "$FLINK_OPT_DIR" -regex ".*flink-sql-client.*.jar")
 if [[ "$CC_CLASSPATH" =~ .*flink-sql-client.*.jar ]]; then
 
     # start client without jar
-    exec $JAVA_RUN $JVM_ARGS "${log_setting[@]}" -classpath "`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.table.client.SqlClient "$@"
+    exec $JAVA_RUN $JVM_ARGS $FLINK_ENV_JAVA_OPTS "${log_setting[@]}" \
+        -classpath "`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.table.client.SqlClient "$@"
 
 # check if SQL client jar is in /opt
 elif [ -n "$FLINK_SQL_CLIENT_JAR" ]; then
 
     # start client with jar
-    exec $JAVA_RUN $JVM_ARGS "${log_setting[@]}" -classpath "`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS:$FLINK_SQL_CLIENT_JAR"`" org.apache.flink.table.client.SqlClient "$@" --jar "`manglePath $FLINK_SQL_CLIENT_JAR`"
+    exec $JAVA_RUN $JVM_ARGS $FLINK_ENV_JAVA_OPTS "${log_setting[@]}" \
+        -classpath "`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS:$FLINK_SQL_CLIENT_JAR"`" \
+        org.apache.flink.table.client.SqlClient "$@" --jar "`manglePath $FLINK_SQL_CLIENT_JAR`"
 
 # write error message to stderr
 else
