@@ -19,7 +19,9 @@
 package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.util.FlinkRuntimeException;
 
 /**
  * A utility class for describing generic types. It can be used to obtain a type information via:
@@ -44,7 +46,14 @@ public abstract class TypeHint<T> {
 	 * Creates a hint for the generic type in the class signature.
 	 */
 	public TypeHint() {
-		this.typeInfo = TypeExtractor.createTypeInfo(this, TypeHint.class, getClass(), 0);
+		try {
+			this.typeInfo = TypeExtractor.createTypeInfo(
+					this, TypeHint.class, getClass(), 0);
+		}
+		catch (InvalidTypesException e) {
+			throw new FlinkRuntimeException("The TypeHint is using a generic variable." +
+					"This is not supported, generic types must be fully specified for the TypeHint.");
+		}
 	}
 
 	/**
