@@ -35,9 +35,12 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.COMMITTED_OFFSETS_METRICS_GAUGE;
@@ -77,6 +80,9 @@ public abstract class AbstractFetcher<T, KPH> {
 
 	/** All partitions (and their state) that this fetcher is subscribed to. */
 	private final List<KafkaTopicPartitionState<KPH>> subscribedPartitionStates;
+
+	/** Partitions marked to be removed. */
+	protected final Set<KPH> partitionsToBeRemoved;
 
 	/**
 	 * Queue of partitions that are not yet assigned to any Kafka clients for consuming.
@@ -183,6 +189,8 @@ public abstract class AbstractFetcher<T, KPH> {
 				watermarksPunctuated,
 				userCodeClassLoader);
 
+		this.partitionsToBeRemoved = new HashSet<>();
+
 		// check that all seed partition states have a defined offset
 		for (KafkaTopicPartitionState partitionState : subscribedPartitionStates) {
 			if (!partitionState.isOffsetDefined()) {
@@ -244,6 +252,21 @@ public abstract class AbstractFetcher<T, KPH> {
 			unassignedPartitionsQueue.add(newPartitionState);
 		}
 	}
+
+	public void removePartitions(List<KafkaTopicPartition> partitionsToRemove) throws IOException, ClassNotFoundException {
+		Iterator<KafkaTopicPartitionState<KPH>> iter = subscribedPartitionStates.iterator();
+		Set<KafkaTopicPartition> fetcherPartitionsToRemove = new HashSet<>();
+		while (iter.hasNext()) {
+			KafkaTopicPartitionState<KPH> next = iter.next();
+			if (partitionsToRemove.contains(next.getKafkaTopicPartition())) {
+				iter.remove();
+				fetcherPartitionsToRemove.add(next.getKafkaTopicPartition());
+			}
+		}
+		addPartitionsToBeRemoved(fetcherPartitionsToRemove);
+	}
+
+	protected abstract void addPartitionsToBeRemoved(Set<KafkaTopicPartition> partitionsToRemove);
 
 	// ------------------------------------------------------------------------
 	//  Properties

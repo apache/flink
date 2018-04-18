@@ -47,6 +47,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -340,6 +341,11 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	@Override
 	protected TopicAndPartition createKafkaPartitionHandle(KafkaTopicPartition partition) {
 		return new TopicAndPartition(partition.getTopic(), partition.getPartition());
+	}
+
+	@Override
+	protected void addPartitionsToBeRemoved(Set<KafkaTopicPartition> partitionsToRemove) {
+		throw new UnsupportedOperationException();
 	}
 
 	// ------------------------------------------------------------------------

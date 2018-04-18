@@ -37,6 +37,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -414,6 +415,10 @@ public class AbstractFetcherTest {
 				TestFetcher.class.getClassLoader(),
 				new UnregisteredMetricsGroup(),
 				false);
+		}
+
+		@Override
+		protected void addPartitionsToBeRemoved(Set<KafkaTopicPartition> partitionsToRemove) {
 		}
 
 		@Override

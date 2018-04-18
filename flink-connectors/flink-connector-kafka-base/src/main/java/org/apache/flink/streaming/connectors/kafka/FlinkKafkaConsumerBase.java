@@ -44,6 +44,7 @@ import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitModes;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer;
+import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer.DiscoveryType;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionAssigner;
@@ -59,6 +60,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -104,6 +106,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 	/** Configuration key to define the consumer's partition discovery interval, in milliseconds. */
 	public static final String KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS = "flink.partition-discovery.interval-millis";
+
+	/** Boolean configuration key to define whether or not unsubscribe from partitions that are not longer available. */
+	public static final String FLINK_CHECK_UNAVAILABLE_PARTITIONS = "flink.check-unavailable-partitions";
 
 	/** State name of the consumer's partition offset states. */
 	private static final String OFFSETS_STATE_NAME = "topic-partition-offset-states";
@@ -194,6 +199,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	/** Flag indicating whether the consumer is still running. */
 	private volatile boolean running = true;
 
+	/** Flag indicating whether or not unsubscribe from partitions that are not longer available.*/
+	private final boolean checkUnavailablePartitions;
+
 	// ------------------------------------------------------------------------
 	//  internal metrics
 	// ------------------------------------------------------------------------
@@ -235,7 +243,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			Pattern topicPattern,
 			KeyedDeserializationSchema<T> deserializer,
 			long discoveryIntervalMillis,
-			boolean useMetrics) {
+			boolean useMetrics,
+			boolean checkUnavailablePartitions) {
 		this.topicsDescriptor = new KafkaTopicsDescriptor(topics, topicPattern);
 		this.deserializer = checkNotNull(deserializer, "valueDeserializer");
 
@@ -245,6 +254,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		this.discoveryIntervalMillis = discoveryIntervalMillis;
 
 		this.useMetrics = useMetrics;
+
+		this.checkUnavailablePartitions = checkUnavailablePartitions;
 	}
 
 	// ------------------------------------------------------------------------
@@ -479,7 +490,19 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				}
 			}
 
-			for (Map.Entry<KafkaTopicPartition, Long> restoredStateEntry : restoredState.entrySet()) {
+			Iterator<Map.Entry<KafkaTopicPartition, Long>> iter = restoredState.entrySet().iterator();
+			while (iter.hasNext()) {
+				Map.Entry<KafkaTopicPartition, Long> restoredStateEntry = iter.next();
+
+				// After adding new partitions, restoredState should contain all partitions
+				// but restoredStated could contain partitions that are no longer available.
+				// In that case, those partitions should be removed.
+				// Comparing against allPartitions only when it has elements.
+				if (this.checkUnavailablePartitions && !allPartitions.isEmpty()
+					&& !allPartitions.contains(restoredStateEntry.getKey())) {
+					iter.remove();
+					continue;
+				}
 				if (!restoredFromOldState) {
 					// seed the partition discoverer with the union state while filtering out
 					// restored partitions that should not be subscribed by this subtask
@@ -672,7 +695,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					try {
 						// --------------------- partition discovery loop ---------------------
 
-						List<KafkaTopicPartition> discoveredPartitions;
+						Map<DiscoveryType, List<KafkaTopicPartition>> discoveredPartitions;
+						List<KafkaTopicPartition> newDiscoveredPartitions;
+						List<KafkaTopicPartition> partitionsToBeRemoved;
 
 						// throughout the loop, we always eagerly check if we are still running before
 						// performing the next operation, so that we can escape the loop as soon as possible
@@ -683,7 +708,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 							}
 
 							try {
-								discoveredPartitions = partitionDiscoverer.discoverPartitions();
+								discoveredPartitions = partitionDiscoverer.discoverNewAndUnavailablePartitions(checkUnavailablePartitions);
+								newDiscoveredPartitions = discoveredPartitions.get(DiscoveryType.DISCOVERED_NEW_PARTITIONS);
+								partitionsToBeRemoved = discoveredPartitions.get(DiscoveryType.DISCOVERED_UNAVAILABLE_PARTITIONS);
 							} catch (AbstractPartitionDiscoverer.WakeupException | AbstractPartitionDiscoverer.ClosedException e) {
 								// the partition discoverer may have been closed or woken up before or during the discovery;
 								// this would only happen if the consumer was canceled; simply escape the loop
@@ -691,8 +718,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 							}
 
 							// no need to add the discovered partitions if we were closed during the meantime
-							if (running && !discoveredPartitions.isEmpty()) {
-								kafkaFetcher.addDiscoveredPartitions(discoveredPartitions);
+							if (running && !newDiscoveredPartitions.isEmpty()) {
+								kafkaFetcher.addDiscoveredPartitions(newDiscoveredPartitions);
+							}
+							if (running && !partitionsToBeRemoved.isEmpty()) {
+								kafkaFetcher.removePartitions(partitionsToBeRemoved);
 							}
 
 							// do not waste any time sleeping if we're not running anymore

@@ -644,6 +644,7 @@ public class FlinkKafkaConsumerBaseTest {
 					null,
 					(KeyedDeserializationSchema < T >) mock(KeyedDeserializationSchema.class),
 					PARTITION_DISCOVERY_DISABLED,
+					false,
 					false);
 
 			this.testFetcher = testFetcher;
@@ -781,6 +782,10 @@ public class FlinkKafkaConsumerBaseTest {
 			this.lastCommittedOffsets = offsets;
 			this.commitCount++;
 			commitCallback.onSuccess();
+		}
+
+		@Override
+		protected void addPartitionsToBeRemoved(Set<KafkaTopicPartition> partitionsToRemove) {
 		}
 
 		@Override

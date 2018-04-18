@@ -19,9 +19,12 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 
 import org.apache.flink.annotation.Internal;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -73,6 +76,12 @@ public abstract class AbstractPartitionDiscoverer {
 	 */
 	private Set<KafkaTopicPartition> discoveredPartitions;
 
+	/** Type of partitions discovered (new or unavailable). */
+	public enum DiscoveryType {
+		DISCOVERED_NEW_PARTITIONS,
+		DISCOVERED_UNAVAILABLE_PARTITIONS
+	}
+
 	public AbstractPartitionDiscoverer(
 			KafkaTopicsDescriptor topicsDescriptor,
 			int indexOfThisSubtask,
@@ -122,9 +131,25 @@ public abstract class AbstractPartitionDiscoverer {
 	 * @return List of discovered new partitions that this subtask should subscribe to.
 	 */
 	public List<KafkaTopicPartition> discoverPartitions() throws WakeupException, ClosedException {
+		return discoverNewAndUnavailablePartitions(false).get(DiscoveryType.DISCOVERED_NEW_PARTITIONS);
+	}
+
+	/**
+	 * Execute a partition discovery attempt for this subtask and optionally check for unavailable partitions present in
+	 * the previously discovered partitions.
+	 * This method lets the partition discoverer update what partitions it has discovered so far.
+	 *
+	 * @param checkUnavailable whether or not to check for partitions no longer available.
+	 *
+	 * @return Map containing discovered new partitions that this subtask should subscribe to and partitions no longer
+	 * available that this subtask should un-subscribe from.
+	 */
+	public Map<DiscoveryType, List<KafkaTopicPartition>> discoverNewAndUnavailablePartitions(boolean checkUnavailable) throws WakeupException, ClosedException {
 		if (!closed && !wakeup) {
 			try {
+				Map<DiscoveryType, List<KafkaTopicPartition>> discovered = new HashMap<>();
 				List<KafkaTopicPartition> newDiscoveredPartitions;
+				List<KafkaTopicPartition> unavailablePartitions = new ArrayList<>();
 
 				// (1) get all possible partitions, based on whether we are subscribed to fixed topics or a topic pattern
 				if (topicsDescriptor.isFixedTopics()) {
@@ -152,6 +177,20 @@ public abstract class AbstractPartitionDiscoverer {
 				if (newDiscoveredPartitions == null || newDiscoveredPartitions.isEmpty()) {
 					throw new RuntimeException("Unable to retrieve any partitions with KafkaTopicsDescriptor: " + topicsDescriptor);
 				} else {
+
+					if (checkUnavailable) {
+						// Determine is any partition discovered previously is no longer available and mark them for deletion
+						Iterator<KafkaTopicPartition> currentIter = discoveredPartitions.iterator();
+						KafkaTopicPartition currentNextPartition;
+						while (currentIter.hasNext()) {
+							currentNextPartition = currentIter.next();
+							if (!newDiscoveredPartitions.contains(currentNextPartition)) {
+								unavailablePartitions.add(currentNextPartition);
+								currentIter.remove();
+							}
+						}
+					}
+
 					Iterator<KafkaTopicPartition> iter = newDiscoveredPartitions.iterator();
 					KafkaTopicPartition nextPartition;
 					while (iter.hasNext()) {
@@ -162,7 +201,10 @@ public abstract class AbstractPartitionDiscoverer {
 					}
 				}
 
-				return newDiscoveredPartitions;
+				discovered.put(DiscoveryType.DISCOVERED_NEW_PARTITIONS, newDiscoveredPartitions);
+				discovered.put(DiscoveryType.DISCOVERED_UNAVAILABLE_PARTITIONS, unavailablePartitions);
+
+				return discovered;
 			} catch (WakeupException e) {
 				// the actual topic / partition metadata fetching methods
 				// may be woken up midway; reset the wakeup flag and rethrow

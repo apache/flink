@@ -42,9 +42,12 @@ import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -79,6 +82,9 @@ public class KafkaConsumerThread extends Thread {
 
 	/** The queue of unassigned partitions that we need to assign to the Kafka consumer. */
 	private final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue;
+
+	/** The list of partitions to be removed from kafka consumer. */
+	private final Set<TopicPartition> partitionsToBeRemoved;
 
 	/** The indirections on KafkaConsumer methods, for cases where KafkaConsumer compatibility is broken. */
 	private final KafkaConsumerCallBridge consumerCallBridge;
@@ -130,7 +136,8 @@ public class KafkaConsumerThread extends Thread {
 			long pollTimeout,
 			boolean useMetrics,
 			MetricGroup consumerMetricGroup,
-			MetricGroup subtaskMetricGroup) {
+			MetricGroup subtaskMetricGroup,
+			Set<TopicPartition> partitionsToBeRemoved) {
 
 		super(threadName);
 		setDaemon(true);
@@ -143,6 +150,8 @@ public class KafkaConsumerThread extends Thread {
 		this.consumerCallBridge = checkNotNull(consumerCallBridge);
 
 		this.unassignedPartitionsQueue = checkNotNull(unassignedPartitionsQueue);
+
+		this.partitionsToBeRemoved = checkNotNull(partitionsToBeRemoved);
 
 		this.pollTimeout = pollTimeout;
 		this.useMetrics = useMetrics;
@@ -240,7 +249,9 @@ public class KafkaConsumerThread extends Thread {
 						newPartitions = unassignedPartitionsQueue.getBatchBlocking();
 					}
 					if (newPartitions != null) {
-						reassignPartitions(newPartitions);
+						reassignPartitions(newPartitions, new HashSet<>());
+					} else if (!partitionsToBeRemoved.isEmpty()){
+						reassignPartitions(new ArrayList<>(), partitionsToBeRemoved);
 					}
 				} catch (AbortedReassignmentException e) {
 					continue;
@@ -374,8 +385,8 @@ public class KafkaConsumerThread extends Thread {
 	 * <p>This method is exposed for testing purposes.
 	 */
 	@VisibleForTesting
-	void reassignPartitions(List<KafkaTopicPartitionState<TopicPartition>> newPartitions) throws Exception {
-		if (newPartitions.size() == 0) {
+	void reassignPartitions(List<KafkaTopicPartitionState<TopicPartition>> newPartitions, Set<TopicPartition> partitionsToBeRemoved) throws Exception {
+		if (newPartitions.isEmpty() && partitionsToBeRemoved.isEmpty()) {
 			return;
 		}
 		hasAssignedPartitions = true;
@@ -391,14 +402,29 @@ public class KafkaConsumerThread extends Thread {
 		}
 
 		final Map<TopicPartition, Long> oldPartitionAssignmentsToPosition = new HashMap<>();
+		final List<TopicPartition> removedPartitions = new ArrayList<>();
 		try {
 			for (TopicPartition oldPartition : consumerTmp.assignment()) {
 				oldPartitionAssignmentsToPosition.put(oldPartition, consumerTmp.position(oldPartition));
 			}
 
+			Set<TopicPartition> oldTopicPartitions = oldPartitionAssignmentsToPosition.keySet();
+			Iterator<TopicPartition> iter = partitionsToBeRemoved.iterator();
+			while (iter.hasNext()) {
+				TopicPartition partition = iter.next();
+				if (oldTopicPartitions.contains(partition)) {
+					oldTopicPartitions.remove(partition);
+					removedPartitions.add(partition);
+					iter.remove();
+				}
+			}
+			if (!removedPartitions.isEmpty()) {
+				log.info("Removing " + removedPartitions.size() + " partition(s) from consumer.");
+			}
+
 			final List<TopicPartition> newPartitionAssignments =
-				new ArrayList<>(newPartitions.size() + oldPartitionAssignmentsToPosition.size());
-			newPartitionAssignments.addAll(oldPartitionAssignmentsToPosition.keySet());
+				new ArrayList<>(newPartitions.size() + oldTopicPartitions.size());
+			newPartitionAssignments.addAll(oldTopicPartitions);
 			newPartitionAssignments.addAll(convertKafkaPartitions(newPartitions));
 
 			// reassign with the new partitions
@@ -458,6 +484,11 @@ public class KafkaConsumerThread extends Thread {
 				// re-add all new partitions back to the unassigned partitions queue to be picked up again
 				for (KafkaTopicPartitionState<TopicPartition> newPartition : newPartitions) {
 					unassignedPartitionsQueue.add(newPartition);
+				}
+
+				// re-add all "partitions to be removed" back to the list to be actually removed next time
+				for (TopicPartition removedPartition : removedPartitions) {
+					partitionsToBeRemoved.add(removedPartition);
 				}
 
 				// this signals the main fetch loop to continue through the loop

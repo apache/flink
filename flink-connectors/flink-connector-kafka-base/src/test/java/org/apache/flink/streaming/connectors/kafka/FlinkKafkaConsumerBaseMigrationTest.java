@@ -374,6 +374,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 				null,
 				(KeyedDeserializationSchema< T >) mock(KeyedDeserializationSchema.class),
 				discoveryInterval,
+				false,
 				false);
 
 			this.fetcher = fetcher;

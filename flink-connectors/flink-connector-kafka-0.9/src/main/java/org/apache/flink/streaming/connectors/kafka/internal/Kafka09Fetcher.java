@@ -44,6 +44,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -112,7 +113,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 				pollTimeout,
 				useMetrics,
 				consumerMetricGroup,
-				subtaskMetricGroup);
+				subtaskMetricGroup,
+				partitionsToBeRemoved);
 	}
 
 	// ------------------------------------------------------------------------
@@ -213,6 +215,16 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	@Override
 	public TopicPartition createKafkaPartitionHandle(KafkaTopicPartition partition) {
 		return new TopicPartition(partition.getTopic(), partition.getPartition());
+	}
+
+	@Override
+	protected void addPartitionsToBeRemoved(Set<KafkaTopicPartition> partitionsToRemove) {
+		for (KafkaTopicPartition ptr : partitionsToRemove) {
+			TopicPartition partition = new TopicPartition(ptr.getTopic(), ptr.getPartition());
+			if (!partitionsToBeRemoved.contains(partition)) {
+				partitionsToBeRemoved.add(partition);
+			}
+		}
 	}
 
 	@Override

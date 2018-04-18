@@ -40,10 +40,12 @@ import org.slf4j.Logger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -721,7 +723,8 @@ public class KafkaConsumerThreadTest {
 					0,
 					false,
 					new UnregisteredMetricsGroup(),
-					new UnregisteredMetricsGroup());
+					new UnregisteredMetricsGroup(),
+					new HashSet<>());
 
 			this.mockConsumer = mockConsumer;
 		}
@@ -748,7 +751,7 @@ public class KafkaConsumerThreadTest {
 		}
 
 		@Override
-		void reassignPartitions(List<KafkaTopicPartitionState<TopicPartition>> newPartitions) throws Exception {
+		void reassignPartitions(List<KafkaTopicPartitionState<TopicPartition>> newPartitions, Set<TopicPartition> partitionsToBeRemoved) throws Exception {
 			// triggers blocking calls on waitPartitionReassignmentInvoked()
 			preReassignmentLatch.trigger();
 
@@ -756,7 +759,7 @@ public class KafkaConsumerThreadTest {
 			startReassignmentLatch.await();
 
 			try {
-				super.reassignPartitions(newPartitions);
+				super.reassignPartitions(newPartitions, partitionsToBeRemoved);
 			} finally {
 				// triggers blocking calls on waitPartitionReassignmentComplete()
 				reassignmentCompleteLatch.trigger();

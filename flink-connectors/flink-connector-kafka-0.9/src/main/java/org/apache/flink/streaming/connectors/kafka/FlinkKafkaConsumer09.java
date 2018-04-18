@@ -212,7 +212,8 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 				getLong(
 					checkNotNull(props, "props"),
 					KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS, PARTITION_DISCOVERY_DISABLED),
-				!getBoolean(props, KEY_DISABLE_METRICS, false));
+				!getBoolean(props, KEY_DISABLE_METRICS, false),
+				getBoolean(props, FLINK_CHECK_UNAVAILABLE_PARTITIONS, false));
 
 		this.properties = props;
 		setDeserializer(this.properties);
