@@ -95,7 +95,7 @@ public class YarnEntrypointUtils {
 			ApplicationConstants.Environment.NM_HOST.key());
 
 		configuration.setString(JobManagerOptions.ADDRESS, hostname);
-		configuration.setString(RestOptions.REST_ADDRESS, hostname);
+		configuration.setString(RestOptions.ADDRESS, hostname);
 
 		// TODO: Support port ranges for the AM
 //		final String portRange = configuration.getString(
@@ -115,9 +115,9 @@ public class YarnEntrypointUtils {
 			configuration.setInteger(WebOptions.PORT, 0);
 		}
 
-		if (configuration.getInteger(RestOptions.REST_PORT) >= 0) {
+		if (configuration.getInteger(RestOptions.PORT) >= 0) {
 			// set the REST port to 0 to select it randomly
-			configuration.setInteger(RestOptions.REST_PORT, 0);
+			configuration.setInteger(RestOptions.PORT, 0);
 		}
 
 		// if the user has set the deprecated YARN-specific config keys, we add the

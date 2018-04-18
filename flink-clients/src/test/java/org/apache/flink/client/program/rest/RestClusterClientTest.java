@@ -692,8 +692,8 @@ public class RestClusterClientTest extends TestLogger {
 
 		configuration.setString(JobManagerOptions.ADDRESS, configuredHostname);
 		configuration.setInteger(JobManagerOptions.PORT, configuredPort);
-		configuration.setString(RestOptions.REST_ADDRESS, configuredHostname);
-		configuration.setInteger(RestOptions.REST_PORT, configuredPort);
+		configuration.setString(RestOptions.ADDRESS, configuredHostname);
+		configuration.setInteger(RestOptions.PORT, configuredPort);
 
 		final DefaultCLI defaultCLI = new DefaultCLI(configuration);
 
