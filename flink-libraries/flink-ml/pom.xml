@@ -99,6 +99,16 @@
 		</dependency>
 	</dependencies>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.scala-lang.modules</groupId>
+				<artifactId>scala-xml_${scala.binary.version}</artifactId>
+				<version>1.0.5</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<profiles>
 		<profile>
 			<id>windows</id>

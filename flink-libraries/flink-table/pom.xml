@@ -385,23 +385,6 @@ under the License.
 					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
 				</configuration>
 			</plugin>
-
-			<!-- Enable enforcer plugin for checking dependency convergence -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-enforcer-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>dependency-convergence</id>
-						<goals>
-							<goal>enforce</goal>
-						</goals>
-						<configuration>
-							<skip>false</skip>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
 		</plugins>
 	</build>
 </project>
