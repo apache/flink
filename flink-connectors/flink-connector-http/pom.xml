@@ -53,12 +53,6 @@ under the License.
 			<version>4.5.3</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpcore-nio</artifactId>
-			<version>4.4.5</version>
-		</dependency>
-
 		<!-- streaming-java dependencies -->
 
 		<dependency>
@@ -124,11 +118,6 @@ under the License.
 			<artifactId>flink-metrics-jmx</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpasyncclient</artifactId>
-			<version>RELEASE</version>
 		</dependency>
 
 	</dependencies>
