@@ -31,6 +31,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionJobVertex.VALUE_NOT_SET;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -122,7 +123,7 @@ public abstract class StreamTransformation<T> {
 	 * The maximum parallelism for this stream transformation. It defines the upper limit for
 	 * dynamic scaling and the number of key groups used for partitioned state.
 	 */
-	private int maxParallelism = -1;
+	private int maxParallelism = VALUE_NOT_SET;
 
 	/**
 	 *  The minimum resources for this stream transformation. It defines the lower limit for
