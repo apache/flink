@@ -83,12 +83,13 @@ public class TaskExecutorLocalStateStoresManager {
 		this.closed = false;
 
 		for (File localStateRecoveryRootDir : localStateRootDirectories) {
-			if (!localStateRecoveryRootDir.exists()) {
 
-				if (!localStateRecoveryRootDir.mkdirs()) {
-					throw new IOException("Could not create root directory for local recovery: " +
-						localStateRecoveryRootDir);
-				}
+			if (!localStateRecoveryRootDir.exists()
+				&& !localStateRecoveryRootDir.mkdirs()
+				// we double check for exists in case another task created the directory concurrently.
+				&& !localStateRecoveryRootDir.exists()) {
+				throw new IOException("Could not create root directory for local recovery: " +
+					localStateRecoveryRootDir);
 			}
 		}
 
