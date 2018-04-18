@@ -23,7 +23,7 @@ import org.junit.Test;
 /**
  * Tests for various network benchmarks based on {@link StreamNetworkThroughputBenchmark}.
  */
-public class StreamNetworkThroughputBenchmarkTests {
+public class StreamNetworkThroughputBenchmarkTest {
 	@Test
 	public void pointToPointBenchmark() throws Exception {
 		StreamNetworkThroughputBenchmark benchmark = new StreamNetworkThroughputBenchmark();
