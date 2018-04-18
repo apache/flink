@@ -1195,10 +1195,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			throw new IOException("Error creating ColumnFamilyHandle.", e);
 		}
 
-		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, S>> tuple =
+		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> tuple =
 			new Tuple2<>(columnFamily, newMetaInfo);
-		Map rawAccess = kvStateInformation;
-		rawAccess.put(descriptor.getName(), tuple);
+		kvStateInformation.put(descriptor.getName(), tuple);
 		return columnFamily;
 	}
 
