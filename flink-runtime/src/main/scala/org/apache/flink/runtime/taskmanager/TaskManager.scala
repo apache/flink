@@ -129,7 +129,7 @@ class TaskManager(
     protected val taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
     protected val numberOfSlots: Int,
     protected val highAvailabilityServices: HighAvailabilityServices,
-    protected val taskManagerMetricGroup: TaskManagerMetricGroup)
+    protected val metricRegistry: FlinkMetricRegistry)
   extends FlinkActor
   with LeaderSessionMessageFilter // Mixin order is important: We want to filter after logging
   with LogMessages // Mixin order is important: first we want to support message logging
@@ -177,6 +177,8 @@ class TaskManager(
 
   private var scheduledTaskManagerRegistration: Option[Cancellable] = None
   private var currentRegistrationRun: UUID = UUID.randomUUID()
+
+  protected var taskManagerMetricGroup: TaskManagerMetricGroup = null
 
   private var connectionUtils: Option[(
     CheckpointResponder,
@@ -260,7 +262,11 @@ class TaskManager(
       case t: Exception => log.error("Task state manager did not shutdown properly.", t)
     }
 
-    taskManagerMetricGroup.close()
+    if (taskManagerMetricGroup != null) {
+      if (!taskManagerMetricGroup.isClosed) {
+        taskManagerMetricGroup.close()
+      }
+    }
 
     log.info(s"Task manager ${self.path} is completely shut down.")
   }
@@ -1103,6 +1109,9 @@ class TaskManager(
 
         // reset our state to disassociated
         disassociateFromJobManager()
+
+        // close task manager metric group
+        taskManagerMetricGroup.close()
       }
       catch {
         // this is pretty bad, it leaves the TaskManager in a state where it cannot
@@ -1506,6 +1515,11 @@ class TaskManager(
       // only trigger the registration if we have obtained a valid leader id (!= null)
       triggerTaskManagerRegistration()
     }
+
+    this.taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
+      metricRegistry,
+      location,
+      network)
   }
 
   /** Starts the TaskManager's registration process to connect to the JobManager.
@@ -2035,11 +2049,6 @@ object TaskManager {
       EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag,
       EnvironmentInformation.getMaxJvmHeapMemory)
 
-    val taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
-      metricRegistry,
-      taskManagerServices.getTaskManagerLocation(),
-      taskManagerServices.getNetworkEnvironment())
-
     // create the actor properties (which define the actor constructor parameters)
     val tmProps = getTaskManagerProps(
       taskManagerClass,
@@ -2051,7 +2060,7 @@ object TaskManager {
       taskManagerServices.getNetworkEnvironment(),
       taskManagerServices.getTaskManagerStateStore(),
       highAvailabilityServices,
-      taskManagerMetricGroup)
+      metricRegistry)
 
     taskManagerActorName match {
       case Some(actorName) => actorSystem.actorOf(tmProps, actorName)
@@ -2069,7 +2078,7 @@ object TaskManager {
     networkEnvironment: NetworkEnvironment,
     taskStateManager: TaskExecutorLocalStateStoresManager,
     highAvailabilityServices: HighAvailabilityServices,
-    taskManagerMetricGroup: TaskManagerMetricGroup
+    metricRegistry: FlinkMetricRegistry
   ): Props = {
     Props(
       taskManagerClass,
@@ -2082,7 +2091,7 @@ object TaskManager {
       taskStateManager,
       taskManagerConfig.getNumberSlots(),
       highAvailabilityServices,
-      taskManagerMetricGroup)
+      metricRegistry)
   }
 
   // --------------------------------------------------------------------------

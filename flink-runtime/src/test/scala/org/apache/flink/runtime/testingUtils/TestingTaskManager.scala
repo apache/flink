@@ -23,6 +23,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.memory.MemoryManager
+import org.apache.flink.runtime.metrics.MetricRegistry
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration
@@ -42,7 +43,7 @@ class TestingTaskManager(
     taskManagerStateStore: TaskExecutorLocalStateStoresManager,
     numberOfSlots: Int,
     highAvailabilityServices: HighAvailabilityServices,
-    taskManagerMetricGroup : TaskManagerMetricGroup)
+    metricRegistry: MetricRegistry)
   extends TaskManager(
     config,
     resourceID,
@@ -53,7 +54,7 @@ class TestingTaskManager(
     taskManagerStateStore,
     numberOfSlots,
     highAvailabilityServices,
-    taskManagerMetricGroup)
+    metricRegistry)
   with TestingTaskManagerLike {
 
   def this(
@@ -65,7 +66,7 @@ class TestingTaskManager(
     taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
     numberOfSlots: Int,
     highAvailabilityServices: HighAvailabilityServices,
-    taskManagerMetricGroup : TaskManagerMetricGroup) {
+    metricRegistry: MetricRegistry) {
     this(
       config,
       ResourceID.generate(),
@@ -76,6 +77,6 @@ class TestingTaskManager(
       taskManagerLocalStateStoresManager,
       numberOfSlots,
       highAvailabilityServices,
-      taskManagerMetricGroup)
+      metricRegistry)
   }
 }
