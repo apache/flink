@@ -52,11 +52,20 @@ public class AWSUtil {
 	 * @return a new AmazonKinesis client
 	 */
 	public static AmazonKinesis createKinesisClient(Properties configProps) {
+		return createKinesisClient(configProps, new ClientConfigurationFactory().getConfig());
+	}
+
+	/**
+	 * Creates an Amazon Kinesis Client.
+	 * @param configProps configuration properties containing the access key, secret key, and region
+	 * @param awsClientConfig preconfigured AWS SDK client configuration
+	 * @return a new Amazon Kinesis Client
+	 */
+	public static AmazonKinesis createKinesisClient(Properties configProps, ClientConfiguration awsClientConfig) {
 		// set a Flink-specific user agent
-		ClientConfiguration awsClientConfig = new ClientConfigurationFactory().getConfig()
-				.withUserAgentPrefix(String.format(USER_AGENT_FORMAT,
-														EnvironmentInformation.getVersion(),
-														EnvironmentInformation.getRevisionInformation().commitId));
+		awsClientConfig.setUserAgentPrefix(String.format(USER_AGENT_FORMAT,
+				EnvironmentInformation.getVersion(),
+				EnvironmentInformation.getRevisionInformation().commitId));
 
 		// utilize automatic refreshment of credentials by directly passing the AWSCredentialsProvider
 		AmazonKinesisClientBuilder builder = AmazonKinesisClientBuilder.standard()
