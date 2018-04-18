@@ -260,6 +260,7 @@ public class MiniDispatcherTest extends TestLogger {
 			testingJobManagerRunnerFactory,
 			testingFatalErrorHandler,
 			null,
+			null,
 			jobGraph,
 			executionMode);
 	}

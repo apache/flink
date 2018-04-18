@@ -38,6 +38,7 @@ import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.FlinkException;
@@ -98,7 +99,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			@Nullable String metricQueryServicePath,
 			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			FatalErrorHandler fatalErrorHandler,
-			@Nullable String restAddress) throws Exception {
+			@Nullable String restAddress,
+			@Nullable JsonArchivist jsonArchivist) throws Exception {
 
 		final JobGraph jobGraph = retrieveJobGraph(configuration);
 
@@ -120,6 +122,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
 			fatalErrorHandler,
 			restAddress,
+			jsonArchivist,
 			jobGraph,
 			executionMode);
 	}

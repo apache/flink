@@ -64,6 +64,7 @@ import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
@@ -355,7 +356,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				metricRegistry.getMetricQueryServicePath(),
 				archivedExecutionGraphStore,
 				this,
-				webMonitorEndpoint.getRestBaseUrl());
+				webMonitorEndpoint.getRestBaseUrl(),
+				webMonitorEndpoint);
 
 			LOG.debug("Starting ResourceManager.");
 			resourceManager.start();
@@ -655,7 +657,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		@Nullable String metricQueryServicePath,
 		ArchivedExecutionGraphStore archivedExecutionGraphStore,
 		FatalErrorHandler fatalErrorHandler,
-		@Nullable String restAddress) throws Exception;
+		@Nullable String restAddress,
+		@Nullable JsonArchivist jsonArchivist) throws Exception;
 
 	protected abstract ResourceManager<?> createResourceManager(
 		Configuration configuration,
