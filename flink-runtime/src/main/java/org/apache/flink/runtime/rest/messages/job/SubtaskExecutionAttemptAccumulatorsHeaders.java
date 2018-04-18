@@ -36,7 +36,7 @@ public class SubtaskExecutionAttemptAccumulatorsHeaders implements MessageHeader
 	private static final SubtaskExecutionAttemptAccumulatorsHeaders INSTANCE = new SubtaskExecutionAttemptAccumulatorsHeaders();
 
 	public static final String URL = String.format(
-		"/jobs/:%s/vertices/:%s/subtasks/:%s/attempts/%s/accumulators",
+		"/jobs/:%s/vertices/:%s/subtasks/:%s/attempts/:%s/accumulators",
 		JobIDPathParameter.KEY,
 		JobVertexIdPathParameter.KEY,
 		SubtaskIndexPathParameter.KEY,

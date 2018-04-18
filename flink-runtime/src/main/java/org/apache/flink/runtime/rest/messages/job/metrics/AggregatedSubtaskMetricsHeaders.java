@@ -38,7 +38,7 @@ public class AggregatedSubtaskMetricsHeaders extends AbstractAggregatedMetricsHe
 
 	@Override
 	public String getTargetRestEndpointURL() {
-		return "/jobs/" + JobIDPathParameter.KEY + "/vertices/" + JobVertexIdPathParameter.KEY + "/subtasks/metrics";
+		return "/jobs/:" + JobIDPathParameter.KEY + "/vertices/:" + JobVertexIdPathParameter.KEY + "/subtasks/metrics";
 	}
 
 	public static AggregatedSubtaskMetricsHeaders getInstance() {
