@@ -100,7 +100,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 					HandlerUtils.sendErrorResponse(
 						ctx,
 						httpRequest,
-						new ErrorResponseBody("Internal server error."),
+						new ErrorResponseBody("Internal server error." + error.getMessage() + "."),
 						HttpResponseStatus.INTERNAL_SERVER_ERROR,
 						responseHeaders);
 				}
