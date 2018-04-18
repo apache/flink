@@ -34,7 +34,6 @@ public class AggregatedSubtaskMetricsParameters extends AbstractAggregatedMetric
 
 	private final JobIDPathParameter jobId = new JobIDPathParameter();
 	private final JobVertexIdPathParameter vertexId = new JobVertexIdPathParameter();
-	private final SubtaskIndexPathParameter subtaskIndex = new SubtaskIndexPathParameter();
 
 	public AggregatedSubtaskMetricsParameters() {
 		super(new SubtasksFilterQueryParameter());
@@ -44,8 +43,7 @@ public class AggregatedSubtaskMetricsParameters extends AbstractAggregatedMetric
 	public Collection<MessagePathParameter<?>> getPathParameters() {
 		return Collections.unmodifiableCollection(Arrays.asList(
 			jobId,
-			vertexId,
-			subtaskIndex
+			vertexId
 		));
 	}
 }
