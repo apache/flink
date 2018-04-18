@@ -968,8 +968,11 @@ public class DataStream<T> {
 	 *            The path pointing to the location the text file is written to.
 	 *
 	 * @return The closed DataStream.
+	 *
+	 * @deprecated Please use the {@code BucketingSink} for writing to files from a streaming program.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public DataStreamSink<T> writeAsText(String path) {
 		return writeUsingOutputFormat(new TextOutputFormat<T>(new Path(path)));
 	}
@@ -987,8 +990,11 @@ public class DataStream<T> {
 	 *            NO_OVERWRITE and OVERWRITE.
 	 *
 	 * @return The closed DataStream.
+	 *
+	 * @deprecated Please use the {@code BucketingSink} for writing to files from a streaming program.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public DataStreamSink<T> writeAsText(String path, WriteMode writeMode) {
 		TextOutputFormat<T> tof = new TextOutputFormat<>(new Path(path));
 		tof.setWriteMode(writeMode);
@@ -1006,8 +1012,11 @@ public class DataStream<T> {
 	 *            the path pointing to the location the text file is written to
 	 *
 	 * @return the closed DataStream
+	 *
+	 * @deprecated Please use the {@code BucketingSink} for writing to files from a streaming program.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public DataStreamSink<T> writeAsCsv(String path) {
 		return writeAsCsv(path, null, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
@@ -1026,8 +1035,11 @@ public class DataStream<T> {
 	 *            NO_OVERWRITE and OVERWRITE.
 	 *
 	 * @return the closed DataStream
+	 *
+	 * @deprecated Please use the {@code BucketingSink} for writing to files from a streaming program.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public DataStreamSink<T> writeAsCsv(String path, WriteMode writeMode) {
 		return writeAsCsv(path, writeMode, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
@@ -1050,9 +1062,12 @@ public class DataStream<T> {
 	 *            the delimiter for two fields
 	 *
 	 * @return the closed DataStream
+	 *
+	 * @deprecated Please use the {@code BucketingSink} for writing to files from a streaming program.
 	 */
 	@SuppressWarnings("unchecked")
 	@PublicEvolving
+	@Deprecated
 	public <X extends Tuple> DataStreamSink<T> writeAsCsv(
 			String path,
 			WriteMode writeMode,
@@ -1085,8 +1100,11 @@ public class DataStream<T> {
 	 * @param schema
 	 *            schema for serialization
 	 * @return the closed DataStream
+	 *
+	 * @deprecated Please use the {@code BucketingSink} for writing to files from a streaming program.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public DataStreamSink<T> writeToSocket(String hostName, int port, SerializationSchema<T> schema) {
 		DataStreamSink<T> returnStream = addSink(new SocketClientSink<>(hostName, port, schema, 0));
 		returnStream.setParallelism(1); // It would not work if multiple instances would connect to the same port
@@ -1103,8 +1121,11 @@ public class DataStream<T> {
 	 *
 	 * @param format The output format
 	 * @return The closed DataStream
+	 *
+	 * @deprecated Please use the {@code BucketingSink} for writing to files from a streaming program.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public DataStreamSink<T> writeUsingOutputFormat(OutputFormat<T> format) {
 		return addSink(new OutputFormatSinkFunction<>(format));
 	}
