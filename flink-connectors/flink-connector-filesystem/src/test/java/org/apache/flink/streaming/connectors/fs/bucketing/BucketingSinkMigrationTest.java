@@ -153,7 +153,8 @@ public class BucketingSinkMigrationTest {
 			.setValidLengthPrefix("")
 			.setInProgressSuffix(IN_PROGRESS_SUFFIX)
 			.setPendingSuffix(PENDING_SUFFIX)
-			.setValidLengthSuffix(VALID_LENGTH_SUFFIX);
+			.setValidLengthSuffix(VALID_LENGTH_SUFFIX)
+			.setUseTruncate(false); // don't use truncate because files do not exist
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness = new OneInputStreamOperatorTestHarness<>(
 			new StreamSink<>(sink), 10, 1, 0);
