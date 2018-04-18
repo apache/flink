@@ -165,12 +165,18 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		} catch (Exception ex) {
 
 			// cleanup if something went wrong before results got published.
-			if (streamTaskCloseableRegistry.unregisterCloseable(keyedStatedBackend)) {
+			if (keyedStatedBackend != null) {
+				if (streamTaskCloseableRegistry.unregisterCloseable(keyedStatedBackend)) {
+					IOUtils.closeQuietly(keyedStatedBackend);
+				}
 				// release resource (e.g native resource)
 				keyedStatedBackend.dispose();
 			}
 
-			if (streamTaskCloseableRegistry.unregisterCloseable(operatorStateBackend)) {
+			if (operatorStateBackend != null) {
+				if (streamTaskCloseableRegistry.unregisterCloseable(operatorStateBackend)) {
+					IOUtils.closeQuietly(operatorStateBackend);
+				}
 				operatorStateBackend.dispose();
 			}
 
