@@ -301,6 +301,12 @@ function s3_delete {
     https://${bucket}.s3.amazonaws.com/${s3_file}
 }
 
+function kill_random_taskmanager {
+  KILL_TM=$(jps | grep "TaskManager" | sort -R | head -n 1 | awk '{print $1}')
+  kill -9 "$KILL_TM"
+  echo "TaskManager $KILL_TM killed."
+}
+
 # make sure to clean up even in case of failures
 function cleanup {
   stop_cluster
