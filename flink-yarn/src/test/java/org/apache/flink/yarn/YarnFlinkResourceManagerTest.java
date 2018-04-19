@@ -74,9 +74,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests for {@link Utils}.
+ * Tests for {@link YarnFlinkResourceManager}.
  */
-public class UtilsTest extends TestLogger {
+public class YarnFlinkResourceManagerTest extends TestLogger {
 
 	private static ActorSystem system;
 
