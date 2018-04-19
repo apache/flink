@@ -36,7 +36,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Ignore;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +46,6 @@ import java.util.concurrent.TimeUnit;
 /**
  * Manually test the throughput of the network stack.
  */
-@Ignore
 public class NetworkStackThroughputITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NetworkStackThroughputITCase.class);
@@ -84,7 +83,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 				// Determine the amount of data to send per subtask
 				int dataVolumeGb = getTaskConfiguration().getInteger(NetworkStackThroughputITCase.DATA_VOLUME_GB_CONFIG_KEY, 1);
 
-				long dataMbPerSubtask = (dataVolumeGb * 1024) / getCurrentNumberOfSubtasks();
+				long dataMbPerSubtask = (dataVolumeGb * 10) / getCurrentNumberOfSubtasks();
 				long numRecordsToEmit = (dataMbPerSubtask * 1024 * 1024) / SpeedTestRecord.RECORD_SIZE;
 
 				LOG.info(String.format("%d/%d: Producing %d records (each record: %d bytes, total: %.2f GB)",
@@ -209,6 +208,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
 	// ------------------------------------------------------------------------
 
+	@Test
 	public void testThroughput() throws Exception {
 		Object[][] configParams = new Object[][]{
 				new Object[]{1, false, false, false, 4, 2},
@@ -335,13 +335,9 @@ public class NetworkStackThroughputITCase extends TestLogger {
 		return jobGraph;
 	}
 
-	private void runAllTests() throws Exception {
-		testThroughput();
+	public static void main(String[] args) throws Exception {
+		new NetworkStackThroughputITCase().testThroughput();
 
 		System.out.println("Done.");
-	}
-
-	public static void main(String[] args) throws Exception {
-		new NetworkStackThroughputITCase().runAllTests();
 	}
 }
