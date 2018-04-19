@@ -201,7 +201,7 @@ public class UtilsTest extends TestLogger {
 
 				expectMsgClass(deadline.timeLeft(), RegisterResourceManager.class);
 
-				resourceManagerGateway.tell(new RegisterResourceManagerSuccessful(leader1, Collections.EMPTY_LIST));
+				resourceManagerGateway.tell(new RegisterResourceManagerSuccessful(leader1, Collections.emptyList()));
 
 				for (int i = 0; i < containerList.size(); i++) {
 					expectMsgClass(deadline.timeLeft(), Acknowledge.class);
@@ -217,7 +217,7 @@ public class UtilsTest extends TestLogger {
 
 				expectMsgClass(deadline.timeLeft(), RegisterResourceManager.class);
 
-				resourceManagerGateway.tell(new RegisterResourceManagerSuccessful(leader1, Collections.EMPTY_LIST));
+				resourceManagerGateway.tell(new RegisterResourceManagerSuccessful(leader1, Collections.emptyList()));
 
 				for (Container container: containerList) {
 					resourceManagerGateway.tell(
