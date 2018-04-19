@@ -18,12 +18,6 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.KryoException;
-import com.esotericsoftware.kryo.Serializer;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
@@ -38,9 +32,15 @@ import org.apache.flink.api.java.typeutils.runtime.KryoUtils;
 import org.apache.flink.api.java.typeutils.runtime.NoFetchingInput;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.InstantiationUtil;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoException;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+import org.apache.commons.lang3.exception.CloneFailedException;
 import org.objenesis.strategy.StdInstantiatorStrategy;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -127,14 +127,37 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	 * Copy-constructor that does not copy transient fields. They will be initialized once required.
 	 */
 	protected KryoSerializer(KryoSerializer<T> toCopy) {
-		defaultSerializers = toCopy.defaultSerializers;
-		defaultSerializerClasses = toCopy.defaultSerializerClasses;
 
-		kryoRegistrations = toCopy.kryoRegistrations;
+		this.type = checkNotNull(toCopy.type, "Type class cannot be null.");
+		this.defaultSerializerClasses = toCopy.defaultSerializerClasses;
+		this.defaultSerializers = new LinkedHashMap<>(toCopy.defaultSerializers.size());
+		this.kryoRegistrations = new LinkedHashMap<>(toCopy.kryoRegistrations.size());
 
-		type = toCopy.type;
-		if(type == null){
-			throw new NullPointerException("Type class cannot be null.");
+		// deep copy the serializer instances in defaultSerializers
+		for (Map.Entry<Class<?>, ExecutionConfig.SerializableSerializer<?>> entry :
+			toCopy.defaultSerializers.entrySet()) {
+
+			this.defaultSerializers.put(entry.getKey(), deepCopySerializer(entry.getValue()));
+		}
+
+		// deep copy the serializer instances in kryoRegistrations
+		for (Map.Entry<String, KryoRegistration> entry : toCopy.kryoRegistrations.entrySet()) {
+
+			KryoRegistration kryoRegistration = entry.getValue();
+
+			if (kryoRegistration.getSerializerDefinitionType() == KryoRegistration.SerializerDefinitionType.INSTANCE) {
+
+				ExecutionConfig.SerializableSerializer<? extends Serializer<?>> serializerInstance =
+					kryoRegistration.getSerializableSerializerInstance();
+
+				if (serializerInstance != null) {
+					kryoRegistration = new KryoRegistration(
+						kryoRegistration.getRegisteredClass(),
+						deepCopySerializer(serializerInstance));
+				}
+			}
+
+			this.kryoRegistrations.put(entry.getKey(), kryoRegistration);
 		}
 	}
 
@@ -495,6 +518,17 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 					registeredTypes,
 					registeredTypesWithSerializerClasses,
 					registeredTypesWithSerializers);
+		}
+	}
+
+	private ExecutionConfig.SerializableSerializer<? extends Serializer<?>> deepCopySerializer(
+		ExecutionConfig.SerializableSerializer<? extends Serializer<?>> original) {
+		try {
+			return InstantiationUtil.clone(original, Thread.currentThread().getContextClassLoader());
+		} catch (IOException | ClassNotFoundException ex) {
+			throw new CloneFailedException(
+				"Could not clone serializer instance of class " + original.getClass(),
+				ex);
 		}
 	}
 
