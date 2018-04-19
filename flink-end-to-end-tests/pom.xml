@@ -38,6 +38,7 @@ under the License.
 		<module>flink-parent-child-classloading-test</module>
 		<module>flink-dataset-allround-test</module>
 		<module>flink-stream-sql-test</module>
+		<module>flink-rest-api-test</module>
 	</modules>
 
 </project>
