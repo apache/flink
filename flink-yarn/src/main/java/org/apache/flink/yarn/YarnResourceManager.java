@@ -435,7 +435,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		String[] hostPort = address.split("@")[1].split(":");
 		String host = hostPort[0];
 		String port = hostPort[1].split("/")[0];
-		return new Tuple2(host, Integer.valueOf(port));
+		return new Tuple2<>(host, Integer.valueOf(port));
 	}
 
 	private void requestYarnContainer(Resource resource, Priority priority) {
