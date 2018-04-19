@@ -279,6 +279,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		} catch (Throwable t) {
 			log.error("Could not unregister the application master.", t);
 		}
+
+		Utils.deleteApplicationFiles(env);
 	}
 
 	@Override

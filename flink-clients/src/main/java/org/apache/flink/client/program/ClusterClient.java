@@ -1036,4 +1036,7 @@ public abstract class ClusterClient<T> {
 		throw new UnsupportedOperationException("The " + getClass().getSimpleName() + " does not support rescaling.");
 	}
 
+	public void shutDownCluster() {
+		throw new UnsupportedOperationException("The " + getClass().getSimpleName() + " does not support shutDownCluster.");
+	}
 }
