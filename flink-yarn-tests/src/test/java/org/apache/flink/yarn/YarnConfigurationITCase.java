@@ -184,7 +184,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
 				clusterClient.shutdown();
 			}
 
-			clusterDescriptor.terminateCluster(clusterId);
+			clusterDescriptor.killCluster(clusterId);
 
 		} finally {
 			clusterDescriptor.close();

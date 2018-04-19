@@ -277,8 +277,8 @@ public class CliFrontend {
 					if (clusterId == null && !client.isDetached()) {
 						// terminate the cluster only if we have started it before and if it's not detached
 						try {
-							clusterDescriptor.terminateCluster(client.getClusterId());
-						} catch (FlinkException e) {
+							client.shutDownCluster();
+						} catch (final Exception e) {
 							LOG.info("Could not properly terminate the Flink cluster.", e);
 						}
 					}

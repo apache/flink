@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -76,6 +77,7 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -90,7 +92,9 @@ import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_SHIP_FILES;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_HADOOP_USER_NAME;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_JAR_PATH;
+import static org.apache.flink.yarn.YarnConfigKeys.FLINK_YARN_FILES;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -105,9 +109,9 @@ public class YarnResourceManagerTest extends TestLogger {
 
 	private static final Time TIMEOUT = Time.seconds(10L);
 
-	private static Configuration flinkConfig = new Configuration();
+	private Configuration flinkConfig = new Configuration();
 
-	private static Map<String, String> env = new HashMap<>();
+	private Map<String, String> env = new HashMap<>();
 
 	@Rule
 	public TemporaryFolder folder = new TemporaryFolder();
@@ -200,7 +204,7 @@ public class YarnResourceManagerTest extends TestLogger {
 		}
 	}
 
-	static class Context {
+	class Context {
 
 		// services
 		final TestingRpcService rpcService;
@@ -386,6 +390,22 @@ public class YarnResourceManagerTest extends TestLogger {
 			// It's now safe to access the SlotManager state since the ResourceManager has been stopped.
 			assertTrue(rmServices.slotManager.getNumberRegisteredSlots() == 0);
 			assertTrue(resourceManager.getNumberOfRegisteredTaskManagers().get() == 0);
+		}};
+	}
+
+	/**
+	 * Tests that application files are deleted when the YARN application master is de-registered.
+	 */
+	@Test
+	public void testDeleteApplicationFiles() throws Exception {
+		new Context() {{
+			final File applicationDir = folder.newFolder(".flink");
+			env.put(FLINK_YARN_FILES, applicationDir.getCanonicalPath());
+
+			startResourceManager();
+
+			resourceManager.deregisterApplication(ApplicationStatus.SUCCEEDED, null);
+			assertFalse("YARN application directory was not removed", Files.exists(applicationDir.toPath()));
 		}};
 	}
 }
