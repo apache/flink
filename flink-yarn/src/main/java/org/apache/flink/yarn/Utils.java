@@ -156,7 +156,7 @@ public final class Utils {
 
 		Path dst = new Path(homedir, suffix);
 
-		LOG.debug("Copying from " + localSrcPath + " to " + dst);
+		LOG.debug("Copying from {} to {}", localSrcPath, dst);
 
 		fs.copyFromLocalFile(false, true, localSrcPath, dst);
 
