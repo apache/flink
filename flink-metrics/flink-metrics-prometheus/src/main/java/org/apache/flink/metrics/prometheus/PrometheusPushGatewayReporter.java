@@ -72,7 +72,7 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
 		try {
 			pushGateway.push(CollectorRegistry.defaultRegistry, jobName);
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOG.warn("Failed reporting metrics to Prometheus.", e);
 		}
 	}
 
