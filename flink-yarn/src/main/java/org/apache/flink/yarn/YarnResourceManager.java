@@ -267,8 +267,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	protected void internalDeregisterApplication(
-		ApplicationStatus finalStatus,
-		@Nullable String diagnostics) {
+			ApplicationStatus finalStatus,
+			@Nullable String diagnostics) {
 
 		// first, de-register from YARN
 		FinalApplicationStatus yarnStatus = getYarnStatus(finalStatus);
