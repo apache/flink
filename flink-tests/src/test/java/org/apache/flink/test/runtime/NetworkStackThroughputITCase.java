@@ -36,7 +36,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -209,6 +208,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
 	// ------------------------------------------------------------------------
 
+	@Test
 	public void testThroughput() throws Exception {
 		Object[][] configParams = new Object[][]{
 				new Object[]{1, false, false, false, 4, 2},
@@ -335,14 +335,9 @@ public class NetworkStackThroughputITCase extends TestLogger {
 		return jobGraph;
 	}
 
-	@Test
-	public void runAllTests() throws Exception {
-		testThroughput();
+	public static void main(String[] args) throws Exception {
+		new NetworkStackThroughputITCase().testThroughput();
 
 		System.out.println("Done.");
-	}
-
-	public static void main(String[] args) throws Exception {
-		new NetworkStackThroughputITCase().runAllTests();
 	}
 }
