@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -29,7 +30,9 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
@@ -37,6 +40,7 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -113,6 +117,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	private int numPendingContainerRequests;
 
 	private final Map<ResourceProfile, Integer> resourcePriorities = new HashMap<>();
+
+	/** The containers that we expected to register with ResourceManager. */
+	private final Map<ResourceID, Container> pendingContainersExpectedToRegister = new ConcurrentHashMap<>();
 
 	public YarnResourceManager(
 			RpcService rpcService,
@@ -266,6 +273,29 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	@Override
+	public CompletableFuture<RegistrationResponse> registerTaskExecutor(
+		String taskExecutorAddress,
+		ResourceID taskExecutorResourceId,
+		SlotReport slotReport,
+		int dataPort,
+		HardwareDescription hardwareDescription,
+		Time timeout) {
+
+		CompletableFuture<RegistrationResponse> responseFuture = super.registerTaskExecutor(
+			taskExecutorAddress,
+			taskExecutorResourceId,
+			slotReport,
+			dataPort,
+			hardwareDescription,
+			timeout);
+
+		// ack the pending register
+		pendingContainersExpectedToRegister.remove(taskExecutorResourceId);
+
+		return responseFuture;
+	}
+
+	@Override
 	protected void internalDeregisterApplication(
 		ApplicationStatus finalStatus,
 		@Nullable String diagnostics) {
@@ -334,7 +364,16 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 						closeTaskManagerConnection(new ResourceID(
 							container.getContainerId().toString()), new Exception(container.getDiagnostics()));
 					}
-					workerNodeMap.remove(new ResourceID(container.getContainerId().toString()));
+
+					ResourceID completedResourceID = new ResourceID(container.getContainerId().toString());
+					workerNodeMap.remove(completedResourceID);
+
+					// this means the TM exists without registering with ResourceManager successfully,
+					// we just fire a new request
+					Container pendingContainer = pendingContainersExpectedToRegister.remove(completedResourceID);
+					if (pendingContainer != null) {
+						requestYarnContainer(pendingContainer.getResource(), pendingContainer.getPriority());
+					}
 				}
 			}
 		);
@@ -356,6 +395,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 					workerNodeMap.put(new ResourceID(containerIdStr), new YarnWorkerNode(container));
 
+					ResourceID resourceID = new ResourceID(containerIdStr);
+
 					try {
 						// Context information used to start a TaskExecutor Java process
 						ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(
@@ -363,9 +404,15 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 							containerIdStr,
 							container.getNodeId().getHost());
 
+						// remember the pending container that need to be registered with ResourceManager.
+						pendingContainersExpectedToRegister.put(resourceID, container);
+
 						nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
 					} catch (Throwable t) {
 						log.error("Could not start TaskManager in container {}.", container.getId(), t);
+
+						// remove the failed container
+						pendingContainersExpectedToRegister.remove(resourceID);
 
 						// release the failed container
 						resourceManagerClient.releaseAssignedContainer(container.getId());
