@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -40,22 +39,27 @@ import java.util.Map;
  * @param <UV> The type of the values in the state.
  */
 public class HeapMapState<K, N, UK, UV>
-		extends AbstractHeapState<K, N, Map<UK, UV>, MapState<UK, UV>, MapStateDescriptor<UK, UV>>
+		extends AbstractHeapState<K, N, Map<UK, UV>, MapState<UK, UV>>
 		implements InternalMapState<K, N, UK, UV> {
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateDesc  The state identifier for the state. This contains name
-	 *                   and can create a default state value.
-	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
+	 * @param stateTable The state table for which this state is associated to.
+	 * @param keySerializer The serializer for the keys.
+	 * @param valueSerializer The serializer for the state.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param defaultValue The default value for the state.
 	 */
 	public HeapMapState(
-			MapStateDescriptor<UK, UV> stateDesc,
 			StateTable<K, N, Map<UK, UV>> stateTable,
 			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer) {
-		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
+			TypeSerializer<Map<UK, UV>> valueSerializer,
+			TypeSerializer<N> namespaceSerializer,
+			Map<UK, UV> defaultValue) {
+		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
+
+		Preconditions.checkState(valueSerializer instanceof MapSerializer, "Unexpected serializer type.");
 	}
 
 	@Override
@@ -70,10 +74,7 @@ public class HeapMapState<K, N, UK, UV>
 
 	@Override
 	public TypeSerializer<Map<UK, UV>> getValueSerializer() {
-		return new MapSerializer<>(
-				stateDesc.getKeySerializer(),
-				stateDesc.getValueSerializer()
-		);
+		return valueSerializer;
 	}
 
 	@Override

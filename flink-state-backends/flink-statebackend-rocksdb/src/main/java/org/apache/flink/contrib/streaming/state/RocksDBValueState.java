@@ -19,7 +19,6 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -39,26 +38,26 @@ import java.io.IOException;
  * @param <V> The type of value that the state state stores.
  */
 public class RocksDBValueState<K, N, V>
-		extends AbstractRocksDBState<K, N, V, ValueState<V>, ValueStateDescriptor<V>>
+		extends AbstractRocksDBState<K, N, V, ValueState<V>>
 		implements InternalValueState<K, N, V> {
-
-	/** Serializer for the values. */
-	private final TypeSerializer<V> valueSerializer;
 
 	/**
 	 * Creates a new {@code RocksDBValueState}.
 	 *
+	 * @param columnFamily The RocksDB column family that this state is associated to.
 	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                           and can create a default state value.
+	 * @param valueSerializer The serializer for the state.
+	 * @param defaultValue The default value for the state.
+	 * @param backend The backend for which this state is bind to.
 	 */
-	public RocksDBValueState(ColumnFamilyHandle columnFamily,
+	public RocksDBValueState(
+			ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			ValueStateDescriptor<V> stateDesc,
+			TypeSerializer<V> valueSerializer,
+			V defaultValue,
 			RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, stateDesc, backend);
-		this.valueSerializer = stateDesc.getSerializer();
+		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
 	}
 
 	@Override
@@ -73,7 +72,7 @@ public class RocksDBValueState<K, N, V>
 
 	@Override
 	public TypeSerializer<V> getValueSerializer() {
-		return stateDesc.getSerializer();
+		return valueSerializer;
 	}
 
 	@Override
@@ -83,7 +82,7 @@ public class RocksDBValueState<K, N, V>
 			byte[] key = keySerializationStream.toByteArray();
 			byte[] valueBytes = backend.db.get(columnFamily, key);
 			if (valueBytes == null) {
-				return stateDesc.getDefaultValue();
+				return getDefaultValue();
 			}
 			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
 		} catch (IOException | RocksDBException e) {

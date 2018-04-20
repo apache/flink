@@ -28,7 +28,6 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
@@ -157,75 +156,35 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
 			TypeSerializer<N> namespaceSerializer, StateDescriptor<?, V> stateDesc) throws StateMigrationException {
 
-		return tryRegisterStateTable(
-				stateDesc.getName(), stateDesc.getType(),
-				namespaceSerializer, stateDesc.getSerializer());
-	}
-
-	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
-			String stateName,
-			StateDescriptor.Type stateType,
-			TypeSerializer<N> namespaceSerializer,
-			TypeSerializer<V> valueSerializer) throws StateMigrationException {
-
-		final RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo =
-				new RegisteredKeyedBackendStateMetaInfo<>(stateType, stateName, namespaceSerializer, valueSerializer);
-
 		@SuppressWarnings("unchecked")
-		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) stateTables.get(stateName);
+		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) stateTables.get(stateDesc.getName());
 
-		if (stateTable == null) {
-			stateTable = snapshotStrategy.newStateTable(newMetaInfo);
-			stateTables.put(stateName, stateTable);
-		} else {
-			// TODO with eager registration in place, these checks should be moved to restorePartitionedState()
+		RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo;
+		if (stateTable != null) {
+			@SuppressWarnings("unchecked")
+			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, V> restoredMetaInfoSnapshot =
+				(RegisteredKeyedBackendStateMetaInfo.Snapshot<N, V>) restoredKvStateMetaInfos.get(stateDesc.getName());
 
 			Preconditions.checkState(
-				stateName.equals(stateTable.getMetaInfo().getName()),
-				"Incompatible state names. " +
-					"Was [" + stateTable.getMetaInfo().getName() + "], " +
-					"registered with [" + newMetaInfo.getName() + "].");
+				restoredMetaInfoSnapshot != null,
+				"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
+					" but its corresponding restored snapshot cannot be found.");
 
-			if (!newMetaInfo.getStateType().equals(StateDescriptor.Type.UNKNOWN)
-					&& !stateTable.getMetaInfo().getStateType().equals(StateDescriptor.Type.UNKNOWN)) {
+			newMetaInfo = RegisteredKeyedBackendStateMetaInfo.resolveKvStateCompatibility(
+				restoredMetaInfoSnapshot,
+				namespaceSerializer,
+				stateDesc);
 
-				Preconditions.checkState(
-					newMetaInfo.getStateType().equals(stateTable.getMetaInfo().getStateType()),
-					"Incompatible state types. " +
-						"Was [" + stateTable.getMetaInfo().getStateType() + "], " +
-						"registered with [" + newMetaInfo.getStateType() + "].");
-			}
+			stateTable.setMetaInfo(newMetaInfo);
+		} else {
+			newMetaInfo = new RegisteredKeyedBackendStateMetaInfo<>(
+				stateDesc.getType(),
+				stateDesc.getName(),
+				namespaceSerializer,
+				stateDesc.getSerializer());
 
-			@SuppressWarnings("unchecked")
-			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, V> restoredMetaInfo =
-				(RegisteredKeyedBackendStateMetaInfo.Snapshot<N, V>) restoredKvStateMetaInfos.get(stateName);
-
-			// check compatibility results to determine if state migration is required
-			CompatibilityResult<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-					restoredMetaInfo.getNamespaceSerializer(),
-					null,
-					restoredMetaInfo.getNamespaceSerializerConfigSnapshot(),
-					newMetaInfo.getNamespaceSerializer());
-
-			CompatibilityResult<V> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-					restoredMetaInfo.getStateSerializer(),
-					UnloadableDummyTypeSerializer.class,
-					restoredMetaInfo.getStateSerializerConfigSnapshot(),
-					newMetaInfo.getStateSerializer());
-
-			if (!namespaceCompatibility.isRequiresMigration() && !stateCompatibility.isRequiresMigration()) {
-				// new serializers are compatible; use them to replace the old serializers
-				stateTable.setMetaInfo(newMetaInfo);
-			} else {
-				// TODO state migration currently isn't possible.
-
-				// NOTE: for heap backends, it is actually fine to proceed here without failing the restore,
-				// since the state has already been deserialized to objects and we can just continue with
-				// the new serializer; we're deliberately failing here for now to have equal functionality with
-				// the RocksDB backend to avoid confusion for users.
-
-				throw new StateMigrationException("State migration isn't supported, yet.");
-			}
+			stateTable = snapshotStrategy.newStateTable(newMetaInfo);
+			stateTables.put(stateDesc.getName(), stateTable);
 		}
 
 		return stateTable;
@@ -250,7 +209,12 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			ValueStateDescriptor<V> stateDesc) throws Exception {
 
 		StateTable<K, N, V> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapValueState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
+		return new HeapValueState<>(
+				stateTable,
+				keySerializer,
+				stateTable.getStateSerializer(),
+				stateTable.getNamespaceSerializer(),
+				stateDesc.getDefaultValue());
 	}
 
 	@Override
@@ -259,7 +223,12 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			ListStateDescriptor<T> stateDesc) throws Exception {
 
 		StateTable<K, N, List<T>> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapListState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
+		return new HeapListState<>(
+				stateTable,
+				keySerializer,
+				stateTable.getStateSerializer(),
+				stateTable.getNamespaceSerializer(),
+				stateDesc.getDefaultValue());
 	}
 
 	@Override
@@ -268,7 +237,13 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			ReducingStateDescriptor<T> stateDesc) throws Exception {
 
 		StateTable<K, N, T> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapReducingState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
+		return new HeapReducingState<>(
+				stateTable,
+				keySerializer,
+				stateTable.getStateSerializer(),
+				stateTable.getNamespaceSerializer(),
+				stateDesc.getDefaultValue(),
+				stateDesc.getReduceFunction());
 	}
 
 	@Override
@@ -277,7 +252,13 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception {
 
 		StateTable<K, N, ACC> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapAggregatingState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
+		return new HeapAggregatingState<>(
+				stateTable,
+				keySerializer,
+				stateTable.getStateSerializer(),
+				stateTable.getNamespaceSerializer(),
+				stateDesc.getDefaultValue(),
+				stateDesc.getAggregateFunction());
 	}
 
 	@Override
@@ -286,7 +267,13 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
 
 		StateTable<K, N, ACC> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapFoldingState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
+		return new HeapFoldingState<>(
+				stateTable,
+				keySerializer,
+				stateTable.getStateSerializer(),
+				stateTable.getNamespaceSerializer(),
+				stateDesc.getDefaultValue(),
+				stateDesc.getFoldFunction());
 	}
 
 	@Override
@@ -295,7 +282,13 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			MapStateDescriptor<UK, UV> stateDesc) throws Exception {
 
 		StateTable<K, N, Map<UK, UV>> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapMapState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
+
+		return new HeapMapState<>(
+				stateTable,
+				keySerializer,
+				stateTable.getStateSerializer(),
+				stateTable.getNamespaceSerializer(),
+				stateDesc.getDefaultValue());
 	}
 
 	@Override
