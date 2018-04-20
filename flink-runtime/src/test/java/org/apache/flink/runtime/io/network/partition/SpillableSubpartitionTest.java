@@ -334,6 +334,9 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertTrue(reader.nextBufferIsEvent()); // end of partition event
 		assertNextEvent(reader, 4, EndOfPartitionEvent.class, false, 0, false, true);
 		assertEquals(0, partition.getBuffersInBacklog());
+
+		//close buffer consumers
+		Arrays.stream(bufferConsumers).forEach(bufferConsumer -> bufferConsumer.close());
 	}
 
 	/**
