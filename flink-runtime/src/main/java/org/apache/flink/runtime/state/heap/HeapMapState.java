@@ -46,16 +46,18 @@ public class HeapMapState<K, N, UK, UV>
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateDesc  The state identifier for the state. This contains name
-	 *                   and can create a default state value.
+	 * @param valueSerializer  The serializer for the state.
 	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
 	 */
 	public HeapMapState(
-			MapStateDescriptor<UK, UV> stateDesc,
 			StateTable<K, N, Map<UK, UV>> stateTable,
 			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer) {
-		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
+			TypeSerializer<Map<UK, UV>> valueSerializer,
+			TypeSerializer<N> namespaceSerializer,
+			HashMap<UK, UV> defaultValue) {
+		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
+
+		Preconditions.checkState(valueSerializer instanceof MapSerializer, "Unexpected serializer type.");
 	}
 
 	@Override
@@ -70,10 +72,7 @@ public class HeapMapState<K, N, UK, UV>
 
 	@Override
 	public TypeSerializer<Map<UK, UV>> getValueSerializer() {
-		return new MapSerializer<>(
-				stateDesc.getKeySerializer(),
-				stateDesc.getValueSerializer()
-		);
+		return valueSerializer;
 	}
 
 	@Override

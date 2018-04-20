@@ -1125,7 +1125,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * that we checkpointed, i.e. is already in the map of column families.
 	 */
 	@SuppressWarnings("rawtypes, unchecked")
-	protected <N, S> ColumnFamilyHandle getColumnFamily(
+	protected <N, S> Tuple2<ColumnFamilyHandle, TypeSerializer<S>> getColumnFamilyAndStateSerializer(
 		StateDescriptor<?, S> descriptor, TypeSerializer<N> namespaceSerializer) throws IOException, StateMigrationException {
 
 		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> stateInfo =
@@ -1177,7 +1177,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				throw new StateMigrationException("State migration isn't supported, yet.");
 			} else {
 				stateInfo.f1 = newMetaInfo;
-				return stateInfo.f0;
+				return Tuple2.of(stateInfo.f0, newMetaInfo.getStateSerializer());
 			}
 		}
 
@@ -1198,7 +1198,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> tuple =
 			new Tuple2<>(columnFamily, newMetaInfo);
 		kvStateInformation.put(descriptor.getName(), tuple);
-		return columnFamily;
+		return Tuple2.of(columnFamily, newMetaInfo.getStateSerializer());
 	}
 
 	@Override
@@ -1206,9 +1206,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		TypeSerializer<N> namespaceSerializer,
 		ValueStateDescriptor<T> stateDesc) throws Exception {
 
-		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
+		Tuple2<ColumnFamilyHandle, TypeSerializer<T>> registerResult =
+				getColumnFamilyAndStateSerializer(stateDesc, namespaceSerializer);
 
-		return new RocksDBValueState<>(columnFamily, namespaceSerializer,  stateDesc, this);
+		return new RocksDBValueState<>(
+				registerResult.f0,
+				namespaceSerializer,
+				registerResult.f1,
+				stateDesc.getDefaultValue(),
+				this);
 	}
 
 	@Override
@@ -1216,9 +1222,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		TypeSerializer<N> namespaceSerializer,
 		ListStateDescriptor<T> stateDesc) throws Exception {
 
-		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
+		Tuple2<ColumnFamilyHandle, TypeSerializer<List<T>>> registerResult =
+				getColumnFamilyAndStateSerializer(stateDesc, namespaceSerializer);
 
-		return new RocksDBListState<>(columnFamily, namespaceSerializer, stateDesc, this);
+		return new RocksDBListState<>(
+				registerResult.f0,
+				namespaceSerializer,
+				registerResult.f1,
+				stateDesc.getDefaultValue(),
+				stateDesc.getElementSerializer(),
+				this);
 	}
 
 	@Override
@@ -1226,9 +1239,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		TypeSerializer<N> namespaceSerializer,
 		ReducingStateDescriptor<T> stateDesc) throws Exception {
 
-		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
+		Tuple2<ColumnFamilyHandle, TypeSerializer<T>> registerResult =
+				getColumnFamilyAndStateSerializer(stateDesc, namespaceSerializer);
 
-		return new RocksDBReducingState<>(columnFamily, namespaceSerializer,  stateDesc, this);
+		return new RocksDBReducingState<>(
+				registerResult.f0,
+				namespaceSerializer,
+				registerResult.f1,
+				stateDesc.getDefaultValue(),
+				stateDesc.getReduceFunction(),
+				this);
 	}
 
 	@Override
@@ -1236,8 +1256,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		TypeSerializer<N> namespaceSerializer,
 		AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception {
 
-		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
-		return new RocksDBAggregatingState<>(columnFamily, namespaceSerializer, stateDesc, this);
+		Tuple2<ColumnFamilyHandle, TypeSerializer<ACC>> registerResult =
+				getColumnFamilyAndStateSerializer(stateDesc, namespaceSerializer);
+
+		return new RocksDBAggregatingState<>(
+				registerResult.f0,
+				namespaceSerializer,
+				registerResult.f1,
+				stateDesc.getDefaultValue(),
+				stateDesc.getAggregateFunction(),
+				this);
 	}
 
 	@Override
@@ -1245,9 +1273,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		TypeSerializer<N> namespaceSerializer,
 		FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
 
-		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
+		Tuple2<ColumnFamilyHandle, TypeSerializer<ACC>> registerResult =
+				getColumnFamilyAndStateSerializer(stateDesc, namespaceSerializer);
 
-		return new RocksDBFoldingState<>(columnFamily, namespaceSerializer, stateDesc, this);
+		return new RocksDBFoldingState<>(
+				registerResult.f0,
+				namespaceSerializer,
+				registerResult.f1,
+				stateDesc.getDefaultValue(),
+				stateDesc.getFoldFunction(),
+				this);
 	}
 
 	@Override
@@ -1255,9 +1290,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		TypeSerializer<N> namespaceSerializer,
 		MapStateDescriptor<UK, UV> stateDesc) throws Exception {
 
-		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
+		Tuple2<ColumnFamilyHandle, TypeSerializer<Map<UK, UV>>> registerResult =
+				getColumnFamilyAndStateSerializer(stateDesc, namespaceSerializer);
 
-		return new RocksDBMapState<>(columnFamily, namespaceSerializer, stateDesc, this);
+		return new RocksDBMapState<>(
+				registerResult.f0,
+				namespaceSerializer,
+				registerResult.f1,
+				stateDesc.getDefaultValue(),
+				this);
 	}
 
 	/**

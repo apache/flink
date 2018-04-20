@@ -42,23 +42,19 @@ public class RocksDBValueState<K, N, V>
 		extends AbstractRocksDBState<K, N, V, ValueState<V>, ValueStateDescriptor<V>>
 		implements InternalValueState<K, N, V> {
 
-	/** Serializer for the values. */
-	private final TypeSerializer<V> valueSerializer;
-
 	/**
 	 * Creates a new {@code RocksDBValueState}.
 	 *
 	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                           and can create a default state value.
+	 * @param valueSerializer The serializer for the state.
 	 */
 	public RocksDBValueState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			ValueStateDescriptor<V> stateDesc,
+			TypeSerializer<V> valueSerializer,
+			V defaultValue,
 			RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, stateDesc, backend);
-		this.valueSerializer = stateDesc.getSerializer();
+		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
 	}
 
 	@Override
@@ -73,7 +69,7 @@ public class RocksDBValueState<K, N, V>
 
 	@Override
 	public TypeSerializer<V> getValueSerializer() {
-		return stateDesc.getSerializer();
+		return valueSerializer;
 	}
 
 	@Override
@@ -83,7 +79,7 @@ public class RocksDBValueState<K, N, V>
 			byte[] key = keySerializationStream.toByteArray();
 			byte[] valueBytes = backend.db.get(columnFamily, key);
 			if (valueBytes == null) {
-				return stateDesc.getDefaultValue();
+				return getDefaultValue();
 			}
 			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
 		} catch (IOException | RocksDBException e) {

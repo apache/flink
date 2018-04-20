@@ -51,7 +51,7 @@ public class RocksDBListState<K, N, V>
 		implements InternalListState<K, N, V> {
 
 	/** Serializer for the values. */
-	private final TypeSerializer<V> valueSerializer;
+	private final TypeSerializer<V> elementSerializer;
 
 	/**
 	 * Separator of StringAppendTestOperator in RocksDB.
@@ -62,16 +62,17 @@ public class RocksDBListState<K, N, V>
 	 * Creates a new {@code RocksDBListState}.
 	 *
 	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                     and can create a default state value.
+	 * @param valueSerializer The serializer for the state.
 	 */
 	public RocksDBListState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			ListStateDescriptor<V> stateDesc,
+			TypeSerializer<List<V>> valueSerializer,
+			List<V> defaultValue,
+			TypeSerializer<V> elementSerializer,
 			RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, stateDesc, backend);
-		this.valueSerializer = stateDesc.getElementSerializer();
+		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
+		this.elementSerializer = elementSerializer;
 	}
 
 	@Override
@@ -86,7 +87,7 @@ public class RocksDBListState<K, N, V>
 
 	@Override
 	public TypeSerializer<List<V>> getValueSerializer() {
-		return stateDesc.getSerializer();
+		return valueSerializer;
 	}
 
 	@Override
@@ -105,7 +106,7 @@ public class RocksDBListState<K, N, V>
 
 			List<V> result = new ArrayList<>();
 			while (in.available() > 0) {
-				result.add(valueSerializer.deserialize(in));
+				result.add(elementSerializer.deserialize(in));
 				if (in.available() > 0) {
 					in.readByte();
 				}
@@ -125,7 +126,7 @@ public class RocksDBListState<K, N, V>
 			byte[] key = keySerializationStream.toByteArray();
 			keySerializationStream.reset();
 			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
-			valueSerializer.serialize(value, out);
+			elementSerializer.serialize(value, out);
 			backend.db.merge(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 		} catch (Exception e) {
 			throw new RuntimeException("Error while adding data to RocksDB", e);
@@ -227,7 +228,7 @@ public class RocksDBListState<K, N, V>
 			} else {
 				keySerializationStream.write(DELIMITER);
 			}
-			valueSerializer.serialize(value, out);
+			elementSerializer.serialize(value, out);
 		}
 
 		return keySerializationStream.toByteArray();

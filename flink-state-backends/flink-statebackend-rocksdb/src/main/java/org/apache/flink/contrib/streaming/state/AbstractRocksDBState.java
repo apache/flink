@@ -52,6 +52,9 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends 
 	/** Serializer for the namespace. */
 	final TypeSerializer<N> namespaceSerializer;
 
+	/** Serializer for the state values. */
+	final TypeSerializer<V> valueSerializer;
+
 	/** The current namespace, which the next value methods will refer to. */
 	private N currentNamespace;
 
@@ -61,8 +64,7 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends 
 	/** The column family of this particular instance of state. */
 	protected ColumnFamilyHandle columnFamily;
 
-	/** State descriptor from which to create this state instance. */
-	protected final SD stateDesc;
+	protected final V defaultValue;
 
 	protected final WriteOptions writeOptions;
 
@@ -79,7 +81,8 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends 
 	protected AbstractRocksDBState(
 			ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			SD stateDesc,
+			TypeSerializer<V> valueSerializer,
+			V defaultValue,
 			RocksDBKeyedStateBackend<K> backend) {
 
 		this.namespaceSerializer = namespaceSerializer;
@@ -88,7 +91,8 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends 
 		this.columnFamily = columnFamily;
 
 		this.writeOptions = backend.getWriteOptions();
-		this.stateDesc = Preconditions.checkNotNull(stateDesc, "State Descriptor");
+		this.valueSerializer = Preconditions.checkNotNull(valueSerializer, "State value serializer");
+		this.defaultValue = defaultValue;
 
 		this.keySerializationStream = new ByteArrayOutputStreamWithPos(128);
 		this.keySerializationDataOutputView = new DataOutputViewStreamWrapper(keySerializationStream);
@@ -189,5 +193,13 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends 
 		RocksDBKeySerializationUtils.writeKeyGroup(keyGroup, backend.getKeyGroupPrefixBytes(), keySerializationDataOutputView);
 		RocksDBKeySerializationUtils.writeKey(key, keySerializer, keySerializationStream, keySerializationDataOutputView, ambiguousKeyPossible);
 		RocksDBKeySerializationUtils.writeNameSpace(namespace, namespaceSerializer, keySerializationStream, keySerializationDataOutputView, ambiguousKeyPossible);
+	}
+
+	protected V getDefaultValue() {
+		if (defaultValue != null) {
+			return valueSerializer.copy(defaultValue);
+		} else {
+			return null;
+		}
 	}
 }

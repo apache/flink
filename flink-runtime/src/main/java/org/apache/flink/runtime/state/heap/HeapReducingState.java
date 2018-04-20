@@ -44,18 +44,19 @@ public class HeapReducingState<K, N, V>
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                           and can create a default state value.
+	 * @param valueSerializer The serializer for the state.
 	 * @param stateTable The state table to use in this kev/value state. May contain initial state.
 	 */
 	public HeapReducingState(
-			ReducingStateDescriptor<V> stateDesc,
 			StateTable<K, N, V> stateTable,
 			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer) {
+			TypeSerializer<V> valueSerializer,
+			TypeSerializer<N> namespaceSerializer,
+			V defaultValue,
+			ReduceFunction<V> reduceFunction) {
 
-		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
-		this.reduceTransformation = new ReduceTransformation<>(stateDesc.getReduceFunction());
+		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
+		this.reduceTransformation = new ReduceTransformation<>(reduceFunction);
 	}
 
 	@Override
@@ -70,7 +71,7 @@ public class HeapReducingState<K, N, V>
 
 	@Override
 	public TypeSerializer<V> getValueSerializer() {
-		return stateDesc.getSerializer();
+		return valueSerializer;
 	}
 
 	// ------------------------------------------------------------------------

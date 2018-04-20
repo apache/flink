@@ -47,21 +47,23 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateDesc
-	 *             The state identifier for the state. This contains name and can create a default state value.
+	 * @param valueSerializer
+	 *             The serializer for the state.
 	 * @param stateTable
 	 *             The state table to use in this kev/value state. May contain initial state.
 	 * @param namespaceSerializer
 	 *             The serializer for the type that indicates the namespace
 	 */
 	public HeapAggregatingState(
-			AggregatingStateDescriptor<IN, ACC, OUT> stateDesc,
 			StateTable<K, N, ACC> stateTable,
 			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer) {
+			TypeSerializer<ACC> valueSerializer,
+			TypeSerializer<N> namespaceSerializer,
+			ACC defaultValue,
+			AggregateFunction<IN, ACC, OUT> aggregateFunction) {
 
-		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
-		this.aggregateTransformation = new AggregateTransformation<>(stateDesc.getAggregateFunction());
+		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
+		this.aggregateTransformation = new AggregateTransformation<>(aggregateFunction);
 	}
 
 	@Override
@@ -76,7 +78,7 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 
 	@Override
 	public TypeSerializer<ACC> getValueSerializer() {
-		return stateDesc.getSerializer();
+		return valueSerializer;
 	}
 
 	// ------------------------------------------------------------------------

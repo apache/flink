@@ -250,7 +250,12 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			ValueStateDescriptor<V> stateDesc) throws Exception {
 
 		StateTable<K, N, V> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapValueState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
+		return new HeapValueState<>(
+				stateTable,
+				keySerializer,
+				stateTable.getStateSerializer(),
+				namespaceSerializer,
+				stateDesc.getDefaultValue());
 	}
 
 	@Override
@@ -259,7 +264,12 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			ListStateDescriptor<T> stateDesc) throws Exception {
 
 		StateTable<K, N, List<T>> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapListState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
+		return new HeapListState<>(
+				stateTable,
+				keySerializer,
+				stateTable.getStateSerializer(),
+				namespaceSerializer,
+				stateDesc.getDefaultValue());
 	}
 
 	@Override
@@ -268,7 +278,13 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			ReducingStateDescriptor<T> stateDesc) throws Exception {
 
 		StateTable<K, N, T> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapReducingState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
+		return new HeapReducingState<>(
+				stateTable,
+				keySerializer,
+				stateTable.getStateSerializer(),
+				namespaceSerializer,
+				stateDesc.getDefaultValue(),
+				stateDesc.getReduceFunction());
 	}
 
 	@Override
@@ -277,7 +293,13 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception {
 
 		StateTable<K, N, ACC> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapAggregatingState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
+		return new HeapAggregatingState<>(
+				stateTable,
+				keySerializer,
+				stateTable.getStateSerializer(),
+				namespaceSerializer,
+				stateDesc.getDefaultValue(),
+				stateDesc.getAggregateFunction());
 	}
 
 	@Override
@@ -286,7 +308,13 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
 
 		StateTable<K, N, ACC> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapFoldingState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
+		return new HeapFoldingState<>(
+				stateTable,
+				keySerializer,
+				stateTable.getStateSerializer(),
+				namespaceSerializer,
+				stateDesc.getDefaultValue(),
+				stateDesc.getFoldFunction());
 	}
 
 	@Override
@@ -295,7 +323,13 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			MapStateDescriptor<UK, UV> stateDesc) throws Exception {
 
 		StateTable<K, N, Map<UK, UV>> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapMapState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
+
+		return new HeapMapState<>(
+				stateTable,
+				keySerializer,
+				stateTable.getStateSerializer(),
+				namespaceSerializer,
+				null);
 	}
 
 	@Override

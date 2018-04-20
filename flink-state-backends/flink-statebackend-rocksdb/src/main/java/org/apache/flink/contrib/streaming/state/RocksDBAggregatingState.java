@@ -46,9 +46,6 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 		extends AbstractRocksDBState<K, N, ACC, AggregatingState<T, R>, AggregatingStateDescriptor<T, ACC, R>>
 		implements InternalAggregatingState<K, N, T, ACC, R> {
 
-	/** Serializer for the values. */
-	private final TypeSerializer<ACC> valueSerializer;
-
 	/** User-specified aggregation function. */
 	private final AggregateFunction<T, ACC, R> aggFunction;
 
@@ -57,19 +54,19 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 	 *
 	 * @param namespaceSerializer
 	 *             The serializer for the namespace.
-	 * @param stateDesc
-	 *             The state identifier for the state. This contains the state name and aggregation function.
+	 * @param valueSerializer
+	 *             The serializer for the state.
 	 */
 	public RocksDBAggregatingState(
 			ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			AggregatingStateDescriptor<T, ACC, R> stateDesc,
+			TypeSerializer<ACC> valueSerializer,
+			ACC defaultValue,
+			AggregateFunction<T, ACC, R> aggFunction,
 			RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, stateDesc, backend);
-
-		this.valueSerializer = stateDesc.getSerializer();
-		this.aggFunction = stateDesc.getAggregateFunction();
+		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
+		this.aggFunction = aggFunction;
 	}
 
 	@Override
@@ -84,7 +81,7 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 
 	@Override
 	public TypeSerializer<ACC> getValueSerializer() {
-		return stateDesc.getSerializer();
+		return valueSerializer;
 	}
 
 	@Override

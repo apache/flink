@@ -45,9 +45,6 @@ public class RocksDBReducingState<K, N, V>
 		extends AbstractRocksDBState<K, N, V, ReducingState<V>, ReducingStateDescriptor<V>>
 		implements InternalReducingState<K, N, V> {
 
-	/** Serializer for the values. */
-	private final TypeSerializer<V> valueSerializer;
-
 	/** User-specified reduce function. */
 	private final ReduceFunction<V> reduceFunction;
 
@@ -55,17 +52,17 @@ public class RocksDBReducingState<K, N, V>
 	 * Creates a new {@code RocksDBReducingState}.
 	 *
 	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                     and can create a default state value.
+	 * @param valueSerializer The serializer for the state.
 	 */
 	public RocksDBReducingState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			ReducingStateDescriptor<V> stateDesc,
+			TypeSerializer<V> valueSerializer,
+			V defaultValue,
+			ReduceFunction<V> reduceFunction,
 			RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, stateDesc, backend);
-		this.valueSerializer = stateDesc.getSerializer();
-		this.reduceFunction = stateDesc.getReduceFunction();
+		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
+		this.reduceFunction = reduceFunction;
 	}
 
 	@Override
@@ -80,7 +77,7 @@ public class RocksDBReducingState<K, N, V>
 
 	@Override
 	public TypeSerializer<V> getValueSerializer() {
-		return stateDesc.getSerializer();
+		return valueSerializer;
 	}
 
 	@Override

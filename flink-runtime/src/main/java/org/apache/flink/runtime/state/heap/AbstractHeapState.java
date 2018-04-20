@@ -42,33 +42,35 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 	/** Map containing the actual key/value pairs. */
 	protected final StateTable<K, N, SV> stateTable;
 
-	/** This holds the name of the state and can create an initial default value for the state. */
-	protected final SD stateDesc;
-
 	/** The current namespace, which the access methods will refer to. */
 	protected N currentNamespace;
 
 	protected final TypeSerializer<K> keySerializer;
 
+	protected final TypeSerializer<SV> valueSerializer;
+
 	protected final TypeSerializer<N> namespaceSerializer;
+
+	private final SV defaultValue;
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                           and can create a default state value.
+	 * @param valueSerializer The serializer for the state.
 	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
 	 */
 	protected AbstractHeapState(
-			SD stateDesc,
 			StateTable<K, N, SV> stateTable,
 			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer) {
+			TypeSerializer<SV> valueSerializer,
+			TypeSerializer<N> namespaceSerializer,
+			SV defaultValue) {
 
-		this.stateDesc = stateDesc;
 		this.stateTable = Preconditions.checkNotNull(stateTable, "State table must not be null.");
 		this.keySerializer = keySerializer;
+		this.valueSerializer = valueSerializer;
 		this.namespaceSerializer = namespaceSerializer;
+		this.defaultValue = defaultValue;
 		this.currentNamespace = null;
 	}
 
@@ -113,5 +115,13 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 	@VisibleForTesting
 	public StateTable<K, N, SV> getStateTable() {
 		return stateTable;
+	}
+
+	protected SV getDefaultValue() {
+		if (defaultValue != null) {
+			return valueSerializer.copy(defaultValue);
+		} else {
+			return null;
+		}
 	}
 }

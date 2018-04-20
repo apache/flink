@@ -37,16 +37,16 @@ public class HeapValueState<K, N, V>
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                           and can create a default state value.
+	 * @param valueSerializer The serializer for the state.
 	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
 	 */
 	public HeapValueState(
-			ValueStateDescriptor<V> stateDesc,
 			StateTable<K, N, V> stateTable,
 			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer) {
-		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
+			TypeSerializer<V> valueSerializer,
+			TypeSerializer<N> namespaceSerializer,
+			V defaultValue) {
+		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
 	}
 
 	@Override
@@ -61,7 +61,7 @@ public class HeapValueState<K, N, V>
 
 	@Override
 	public TypeSerializer<V> getValueSerializer() {
-		return stateDesc.getSerializer();
+		return valueSerializer;
 	}
 
 	@Override
@@ -69,7 +69,7 @@ public class HeapValueState<K, N, V>
 		final V result = stateTable.get(currentNamespace);
 
 		if (result == null) {
-			return stateDesc.getDefaultValue();
+			return getDefaultValue();
 		}
 
 		return result;

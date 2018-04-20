@@ -49,17 +49,18 @@ public class HeapFoldingState<K, N, T, ACC>
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                           and can create a default state value.
+	 * @param valueSerializer The serializer for the state.
 	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
 	 */
 	public HeapFoldingState(
-			FoldingStateDescriptor<T, ACC> stateDesc,
 			StateTable<K, N, ACC> stateTable,
 			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer) {
-		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
-		this.foldTransformation = new FoldTransformation<>(stateDesc);
+			TypeSerializer<ACC> valueSerializer,
+			TypeSerializer<N> namespaceSerializer,
+			ACC defaultValue,
+			FoldFunction<T, ACC> foldFunction) {
+		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
+		this.foldTransformation = new FoldTransformation<>(foldFunction, this);
 	}
 
 	@Override
@@ -74,7 +75,7 @@ public class HeapFoldingState<K, N, T, ACC>
 
 	@Override
 	public TypeSerializer<ACC> getValueSerializer() {
-		return stateDesc.getSerializer();
+		return valueSerializer;
 	}
 
 	// ------------------------------------------------------------------------
@@ -103,17 +104,17 @@ public class HeapFoldingState<K, N, T, ACC>
 
 	private static final class FoldTransformation<T, ACC> implements StateTransformationFunction<ACC, T> {
 
-		private final FoldingStateDescriptor<T, ACC> stateDescriptor;
+		private final HeapFoldingState<?, ?, T, ACC> stateRef;
 		private final FoldFunction<T, ACC> foldFunction;
 
-		FoldTransformation(FoldingStateDescriptor<T, ACC> stateDesc) {
-			this.stateDescriptor = Preconditions.checkNotNull(stateDesc);
-			this.foldFunction = Preconditions.checkNotNull(stateDesc.getFoldFunction());
+		FoldTransformation(FoldFunction<T, ACC> foldFunction, HeapFoldingState<?, ?, T, ACC> stateRef) {
+			this.stateRef = Preconditions.checkNotNull(stateRef);
+			this.foldFunction = Preconditions.checkNotNull(foldFunction);
 		}
 
 		@Override
 		public ACC apply(ACC previousState, T value) throws Exception {
-			return foldFunction.fold((previousState != null) ? previousState : stateDescriptor.getDefaultValue(), value);
+			return foldFunction.fold((previousState != null) ? previousState : stateRef.getDefaultValue(), value);
 		}
 	}
 }

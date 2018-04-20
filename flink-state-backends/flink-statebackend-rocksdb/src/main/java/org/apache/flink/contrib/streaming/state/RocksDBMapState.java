@@ -75,18 +75,22 @@ public class RocksDBMapState<K, N, UK, UV>
 	 * Creates a new {@code RocksDBMapState}.
 	 *
 	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param stateDesc The state identifier for the state.
+	 * @param valueSerializer The serializer for the state.
 	 */
 	public RocksDBMapState(
 			ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			MapStateDescriptor<UK, UV> stateDesc,
+			TypeSerializer<Map<UK, UV>> valueSerializer,
+			Map<UK, UV> defaultValue,
 			RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, stateDesc, backend);
+		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
 
-		this.userKeySerializer = stateDesc.getKeySerializer();
-		this.userValueSerializer = stateDesc.getValueSerializer();
+		Preconditions.checkState(valueSerializer instanceof MapSerializer, "Unexpected serializer type.");
+
+		MapSerializer<UK, UV> castedMapSerializer = (MapSerializer<UK, UV>) valueSerializer;
+		this.userKeySerializer = castedMapSerializer.getKeySerializer();
+		this.userValueSerializer = castedMapSerializer.getValueSerializer();
 	}
 
 	@Override
@@ -101,7 +105,7 @@ public class RocksDBMapState<K, N, UK, UV>
 
 	@Override
 	public TypeSerializer<Map<UK, UV>> getValueSerializer() {
-		return stateDesc.getSerializer();
+		return valueSerializer;
 	}
 
 	// ------------------------------------------------------------------------

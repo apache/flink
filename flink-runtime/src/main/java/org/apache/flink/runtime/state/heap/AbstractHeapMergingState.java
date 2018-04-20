@@ -50,17 +50,17 @@ public abstract class AbstractHeapMergingState<K, N, IN, SV, OUT, S extends Stat
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                           and can create a default state value.
+	 * @param valueSerializer The serializer for the state.
 	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
 	 */
 	protected AbstractHeapMergingState(
-			SD stateDesc,
 			StateTable<K, N, SV> stateTable,
 			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer) {
+			TypeSerializer<SV> valueSerializer,
+			TypeSerializer<N> namespaceSerializer,
+			SV defaultValue) {
 
-		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
+		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
 		this.mergeTransformation = new MergeTransformation();
 	}
 

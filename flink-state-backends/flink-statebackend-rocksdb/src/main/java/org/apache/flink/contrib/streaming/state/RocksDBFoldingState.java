@@ -47,9 +47,6 @@ public class RocksDBFoldingState<K, N, T, ACC>
 		extends AbstractRocksDBState<K, N, ACC, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>>
 		implements InternalFoldingState<K, N, T, ACC> {
 
-	/** Serializer for the values. */
-	private final TypeSerializer<ACC> valueSerializer;
-
 	/** User-specified fold function. */
 	private final FoldFunction<T, ACC> foldFunction;
 
@@ -57,18 +54,18 @@ public class RocksDBFoldingState<K, N, T, ACC>
 	 * Creates a new {@code RocksDBFoldingState}.
 	 *
 	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                     and can create a default state value.
+	 * @param valueSerializer The serializer for the state.
 	 */
 	public RocksDBFoldingState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			FoldingStateDescriptor<T, ACC> stateDesc,
+			TypeSerializer<ACC> valueSerializer,
+			ACC defaultValue,
+			FoldFunction<T, ACC> foldFunction,
 			RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, stateDesc, backend);
+		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
 
-		this.valueSerializer = stateDesc.getSerializer();
-		this.foldFunction = stateDesc.getFoldFunction();
+		this.foldFunction = foldFunction;
 	}
 
 	@Override
@@ -83,7 +80,7 @@ public class RocksDBFoldingState<K, N, T, ACC>
 
 	@Override
 	public TypeSerializer<ACC> getValueSerializer() {
-		return stateDesc.getSerializer();
+		return valueSerializer;
 	}
 
 	@Override
@@ -110,7 +107,7 @@ public class RocksDBFoldingState<K, N, T, ACC>
 			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
 			if (valueBytes == null) {
 				keySerializationStream.reset();
-				valueSerializer.serialize(foldFunction.fold(stateDesc.getDefaultValue(), value), out);
+				valueSerializer.serialize(foldFunction.fold(getDefaultValue(), value), out);
 				backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 			} else {
 				ACC oldValue = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
