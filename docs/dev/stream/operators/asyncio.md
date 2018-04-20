@@ -104,17 +104,26 @@ class AsyncDatabaseRequest extends RichAsyncFunction<String, Tuple2<String, Stri
     }
 
     @Override
-    public void asyncInvoke(final String str, final ResultFuture<Tuple2<String, String>> resultFuture) throws Exception {
+    public void asyncInvoke(String key, final ResultFuture<Tuple2<String, String>> resultFuture) throws Exception {
 
         // issue the asynchronous request, receive a future for result
-        Future<String> resultFuture = client.query(str);
+        final Future<String> result = client.query(key);
 
         // set the callback to be executed once the request by the client is complete
         // the callback simply forwards the result to the result future
-        resultFuture.thenAccept( (String result) -> {
+        CompletableFuture.supplyAsync(new Supplier<String>() {
 
-            resultFuture.complete(Collections.singleton(new Tuple2<>(str, result)));
-         
+            @Override
+            public String get() {
+                try {
+                    return result.get();
+                } catch (InterruptedException | ExecutionException e) {
+                    // Normally handled explicitly.
+                    return null;
+                }
+            }
+        }).thenAccept( (String dbResult) -> {
+            resultFuture.complete(Collections.singleton(new Tuple2<>(key, dbResult)));
         });
     }
 }
