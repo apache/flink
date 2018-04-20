@@ -140,6 +140,43 @@ public class ArchivedJobGenerationUtils {
 			.build();
 	}
 
+	public static AccessExecutionGraph generateUniqueArchivedJob() throws Exception {
+		// Attempt
+		StringifiedAccumulatorResult acc1 = new StringifiedAccumulatorResult("name1", "type1", "value1");
+		StringifiedAccumulatorResult acc2 = new StringifiedAccumulatorResult("name2", "type2", "value2");
+		TaskManagerLocation location = new TaskManagerLocation(new ResourceID("hello"), InetAddress.getLocalHost(), 1234);
+		ArchivedExecution originalAttempt = new ArchivedExecutionBuilder()
+			.setStateTimestamps(new long[]{1, 2, 3, 4, 5, 6, 7, 8, 9})
+			.setParallelSubtaskIndex(1)
+			.setAttemptNumber(0)
+			.setAssignedResourceLocation(location)
+			.setUserAccumulators(new StringifiedAccumulatorResult[]{acc1, acc2})
+			.setState(ExecutionState.FINISHED)
+			.setFailureCause("attemptException")
+			.build();
+		// Subtask
+		ArchivedExecutionVertex originalSubtask = new ArchivedExecutionVertexBuilder()
+			.setSubtaskIndex(originalAttempt.getParallelSubtaskIndex())
+			.setTaskNameWithSubtask("hello(1/1)")
+			.setCurrentExecution(originalAttempt)
+			.build();
+		// Task
+		ArchivedExecutionJobVertex originalTask = new ArchivedExecutionJobVertexBuilder()
+			.setTaskVertices(new ArchivedExecutionVertex[]{originalSubtask})
+			.build();
+		// Job
+		Map<JobVertexID, ArchivedExecutionJobVertex> tasks = new HashMap<>();
+		tasks.put(originalTask.getJobVertexId(), originalTask);
+		return new ArchivedExecutionGraphBuilder()
+			.setJobID(new JobID())
+			.setTasks(tasks)
+			.setFailureCause(new ErrorInfo(new Exception("jobException"), originalAttempt.getStateTimestamp(ExecutionState.FAILED)))
+			.setState(JobStatus.FINISHED)
+			.setStateTimestamps(new long[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})
+			.setArchivedUserAccumulators(new StringifiedAccumulatorResult[]{acc1, acc2})
+			.build();
+	}
+
 	// ========================================================================
 	// utility methods
 	// ========================================================================
