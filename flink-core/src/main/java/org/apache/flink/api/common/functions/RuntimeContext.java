@@ -249,7 +249,7 @@ public interface RuntimeContext {
 	 *
 	 * keyedStream.map(new RichMapFunction<MyType, Tuple2<MyType, Long>>() {
 	 *
-	 *     private ValueState<Long> count;
+	 *     private ValueState<Long> state;
 	 *
 	 *     public void open(Configuration cfg) {
 	 *         state = getRuntimeContext().getState(
