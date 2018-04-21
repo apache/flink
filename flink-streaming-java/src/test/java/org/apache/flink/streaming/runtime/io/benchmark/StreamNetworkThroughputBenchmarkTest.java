@@ -18,12 +18,21 @@
 
 package org.apache.flink.streaming.runtime.io.benchmark;
 
+import org.apache.flink.configuration.TaskManagerOptions;
+
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
+
+import java.io.IOException;
 
 /**
  * Tests for various network benchmarks based on {@link StreamNetworkThroughputBenchmark}.
  */
 public class StreamNetworkThroughputBenchmarkTest {
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
+
 	@Test
 	public void pointToPointBenchmark() throws Exception {
 		StreamNetworkThroughputBenchmark benchmark = new StreamNetworkThroughputBenchmark();
@@ -57,6 +66,42 @@ public class StreamNetworkThroughputBenchmarkTest {
 		StreamNetworkThroughputBenchmark env = new StreamNetworkThroughputBenchmark();
 		env.setUp(1, 1, 0, false);
 		env.executeBenchmark(1_000_000);
+		env.tearDown();
+	}
+
+	@Test
+	public void remoteModeInsufficientBuffersSender() throws Exception {
+		StreamNetworkThroughputBenchmark env = new StreamNetworkThroughputBenchmark();
+		int writers = 2;
+		int channels = 2;
+
+		expectedException.expect(IOException.class);
+		expectedException.expectMessage("Insufficient number of network buffers");
+
+		env.setUp(writers, channels, 100, false, writers * channels - 1, writers * channels * TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue());
+	}
+
+	@Test
+	public void remoteModeInsufficientBuffersReceiver() throws Exception {
+		StreamNetworkThroughputBenchmark env = new StreamNetworkThroughputBenchmark();
+		int writers = 2;
+		int channels = 2;
+
+		expectedException.expect(IOException.class);
+		expectedException.expectMessage("Insufficient number of network buffers");
+
+		env.setUp(writers, channels, 100, false, writers * channels, writers * channels * TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1);
+	}
+
+	@Test
+	public void remoteModeMinimumBuffers() throws Exception {
+		StreamNetworkThroughputBenchmark env = new StreamNetworkThroughputBenchmark();
+		int writers = 2;
+		int channels = 2;
+
+		env.setUp(writers, channels, 100, false, writers * channels, writers * channels *
+			TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue());
+		env.executeBenchmark(10_000);
 		env.tearDown();
 	}
 
