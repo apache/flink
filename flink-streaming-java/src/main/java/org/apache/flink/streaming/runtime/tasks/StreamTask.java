@@ -399,7 +399,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			// release the output resources. this method should never fail.
 			if (operatorChain != null) {
-				operatorChain.releaseOutputs();
+				// beware: without synchronization, #performCheckpoint() may run in
+				//         parallel and this call is not thread-safe
+				synchronized (lock) {
+					operatorChain.releaseOutputs();
+				}
 			}
 		}
 	}
