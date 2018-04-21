@@ -271,22 +271,33 @@ override def onTimer(timestamp: Long, ctx: OnTimerContext, out: Collector[OUT]):
 </div>
 </div>
 
-## Optimizations
+## Timers
+
+Both types of timers (processing-time and event-time) are internally maintained by the `TimerService` and enqueued for execution.
+
+The `TimerService` deduplicates timers per key and timestamp, i.e., there is at most one timer per key and timestamp. If multiple timers are registered for the same timestamp, the `onTimer()` method will be called just once.
+
+**Note:** Flink synchronizes invocations of `onTimer()` and `processElement()`. Hence, users do not have to worry about concurrent modification of state.
+
+### Fault Tolerance
+
+Timers are fault tolerant and checkpointed along with the state of the application. 
+In case of a failure recovery or when starting an application from a savepoint, the timers are restored.
+
+**Note:** Checkpointed processing-time timers that were supposed to fire before their restoration, will fire immediately. 
+This might happen when an application recovers from a failure or when it is started from a savepoint.
+
+**Note:** Timers are always synchronously checkpointed, regardless of the configuration of the state backends. 
+Therefore, a large number of timers can significantly increase checkpointing time. 
+See the "Timer Coalescing" section for advice on how to reduce the number of timers.
 
 ### Timer Coalescing
 
-Every timer registered at the `TimerService` via `registerEventTimeTimer()` or
-`registerProcessingTimeTimer()` will be stored on the Java heap and enqueued for execution. There is,
-however, a maximum of one timer per key and timestamp at a millisecond resolution and thus, in the
-worst case, every key may have a timer for each upcoming millisecond. Even if you do not do any
-processing for outdated timers in `onTimer`, this may put a significant burden on the
-Flink runtime.
+Since Flink maintains only one timer per key and timestamp, you can reduce the number of timers by reducing the timer resolution to coalesce them.
 
-Since there is only one timer per key and timestamp, however, you may coalesce timers by reducing the
-timer resolution. For a timer resolution of 1 second (event or processing time), for example, you
-can round down the target time to full seconds and therefore allow the timer to fire at most 1
-second earlier but not later than with millisecond accuracy. As a result, there would be at most
-one timer for each combination of key and timestamp:
+For a timer resolution of 1 second (event or processing time), you
+can round down the target time to full seconds. Timers will fire at most 1 second earlier but not later than requested with millisecond accuracy. 
+As a result, there are at most one timer per key and second.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
