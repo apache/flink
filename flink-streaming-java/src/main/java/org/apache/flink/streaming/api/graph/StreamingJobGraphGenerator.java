@@ -85,7 +85,7 @@ public class StreamingJobGraphGenerator {
 	 * Restart delay used for the FixedDelayRestartStrategy in case checkpointing was enabled but
 	 * no restart strategy has been specified.
 	 */
-	private static final long DEFAULT_RESTART_DELAY = 10000L;
+	private static final long DEFAULT_RESTART_DELAY = 0L;
 
 	// ------------------------------------------------------------------------
 
