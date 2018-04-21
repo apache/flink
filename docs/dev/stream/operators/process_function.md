@@ -271,16 +271,39 @@ override def onTimer(timestamp: Long, ctx: OnTimerContext, out: Collector[OUT]):
 </div>
 </div>
 
-## Optimizations
+## Timers
 
-### Timer Coalescing
+Every timer registered via `registerEventTimeTimer()` or `registerProcessingTimeTimer()` will be stored on `TimerService`
+and enqueued for execution.
 
-Every timer registered at the `TimerService` via `registerEventTimeTimer()` or
-`registerProcessingTimeTimer()` will be stored on the Java heap and enqueued for execution. There is,
-however, a maximum of one timer per key and timestamp at a millisecond resolution and thus, in the
-worst case, every key may have a timer for each upcoming millisecond. Even if you do not do any
-processing for outdated timers in `onTimer`, this may put a significant burden on the
-Flink runtime.
+Invocations of `onTimer()` and `processElement()` are always synchronized, so that users don't have to worry about
+concurrent modification of state.
+
+Note that there is a maximum of one timer per key and timestamp at a millisecond resolution and thus, in the worst case,
+every key may have a timer for each upcoming millisecond. Even if you do not do any processing for outdated timers in `onTimer`,
+this may put a significant burden on the Flink runtime.
+
+### Fault Tolerance
+
+Timers registered within `ProcessFunction` are fault tolerant. They are synchronously checkpointed by Flink, regardless of
+configurations of state backends. (Therefore, a large number of timers can significantly increase checkpointing time. See optimizations
+section for advice to reduce the number of timers.)
+
+Upon restoring, timers that are checkpointed from the previous job will be restored on whatever new instance is responsible for that key.
+
+#### Processing Time Timers
+
+For processing timer timers, the firing time of a timer is an absolute value of when to fire.
+
+It's important to note that if a job isn’t running at t (when the timer is supposed to fire), then on restore from either
+a checkpoint or a savepoint, that timer is fired immediately.
+
+#### Event Time Timers
+
+For event time timers, a restored event time timer from either checkpoint or savepoint will fire when the watermark on the
+new machine surpasses the timer's timestamp.
+
+### Optimizations - Timer Coalescing
 
 Since there is only one timer per key and timestamp, however, you may coalesce timers by reducing the
 timer resolution. For a timer resolution of 1 second (event or processing time), for example, you
