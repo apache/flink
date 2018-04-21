@@ -317,6 +317,8 @@ public class WebFrontendITCase extends TestLogger {
 				"\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"default\"," +
 				"\"job-parallelism\":-1,\"object-reuse-mode\":false,\"user-config\":{}}}", response.getContent());
 		}
+
+		BlockingInvokable.reset();
 	}
 
 	@Test
@@ -347,25 +349,27 @@ public class WebFrontendITCase extends TestLogger {
 		final FiniteDuration testTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
 		final Deadline deadline = testTimeout.fromNow();
 
-		while (!getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
-			try (HttpTestClient client = new HttpTestClient("localhost", CLUSTER.getWebUIPort())) {
-				// Request the file from the web server
-				client.sendGetRequest("/jobs/" + jid + "/yarn-stop", deadline.timeLeft());
+		try (HttpTestClient client = new HttpTestClient("localhost", CLUSTER.getWebUIPort())) {
+			// Request the file from the web server
+			client.sendGetRequest("/jobs/" + jid + "/yarn-stop", deadline.timeLeft());
 
-				HttpTestClient.SimpleHttpResponse response = client
-					.getNextResponse(deadline.timeLeft());
+			HttpTestClient.SimpleHttpResponse response = client
+				.getNextResponse(deadline.timeLeft());
 
-				if (Objects.equals(MiniClusterResource.NEW_CODEBASE, System.getProperty(MiniClusterResource.CODEBASE_KEY))) {
-					assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
-				} else {
-					assertEquals(HttpResponseStatus.OK, response.getStatus());
-				}
-				assertEquals("application/json; charset=UTF-8", response.getType());
-				assertEquals("{}", response.getContent());
+			if (Objects.equals(MiniClusterResource.NEW_CODEBASE, System.getProperty(MiniClusterResource.CODEBASE_KEY))) {
+				assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
+			} else {
+				assertEquals(HttpResponseStatus.OK, response.getStatus());
 			}
+			assertEquals("application/json; charset=UTF-8", response.getType());
+			assertEquals("{}", response.getContent());
+		}
 
+		// wait for cancellation to finish
+		while (!getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
 			Thread.sleep(20);
 		}
+
 		BlockingInvokable.reset();
 	}
 
