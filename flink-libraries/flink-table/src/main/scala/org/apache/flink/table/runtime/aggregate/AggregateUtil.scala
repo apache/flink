@@ -1473,16 +1473,18 @@ object AggregateUtil {
     aggregateCalls.zipWithIndex.foreach {
       case (aggCall, index) =>
         if (aggCall.isDistinct) {
+          // Generate distinct aggregates and the corresponding DistinctAccumulator
+          // wrappers for storing distinct mapping
           val argList: util.List[Integer] = aggCall.getArgList
           // Only support single argument for distinct operation
           if (argList.size() > 1) {
             throw TableException(
-              "Cannot apply distinct filter on multiple input argument fields at this moment!")
+              "DISTINCT aggregations with multiple parameters not fully supported yet.")
           }
           val relDataType = aggregateInputType.getFieldList.get(argList.get(0)).getType
           val fieldIndex = aggFieldIndexes(index)(0)
           val mapViewTypeInfo = new MapViewTypeInfo(
-            FlinkTypeFactory.toTypeInfo(relDataType), BasicTypeInfo.INT_TYPE_INFO)
+            FlinkTypeFactory.toTypeInfo(relDataType), BasicTypeInfo.LONG_TYPE_INFO)
 
           distinctAggs(index) = Seq(
             MapViewSpec(
@@ -1490,11 +1492,14 @@ object AggregateUtil {
               classOf[DistinctAccumulator[_, _]].getDeclaredField("mapView"),
               mapViewTypeInfo))
 
+          // Using Pojo fields for the real underlying accumulator
           val pojoFields = new util.ArrayList[PojoField]()
           pojoFields.add(new PojoField(
             classOf[DistinctAccumulator[_, _]].getDeclaredField("realAcc"),
             accTypes(index))
           )
+          // If StateBackend is not enabled, the distinct mapping also needs
+          // to be added to the Pojo fields.
           if (!isStateBackedDataViews) {
             pojoFields.add(new PojoField(
               classOf[DistinctAccumulator[_, _]].getDeclaredField("mapView"),

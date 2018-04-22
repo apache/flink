@@ -161,6 +161,12 @@ class AggregationCodeGenerator(
     val distinctAccType = s"${classOf[DistinctAccumulator[_, _]].getName}"
     val isDistinctAggs = distinctAggs.map(_.nonEmpty)
 
+    if (isDistinctAggs.contains(true) && partialResults && isStateBackedDataViews) {
+      throw new CodeGenException(
+        s"Distinct aggregate using state backend does not support partial result!"
+      )
+    }
+
     // initialize and create data views for distinct filters.
     addDistinctFilterDataViews()
 
@@ -392,42 +398,35 @@ class AggregationCodeGenerator(
         for (i <- aggs.indices) yield
 
           if (partialResults) {
-            if (isDistinctAggs(i)) {
-
-              j"""
-                 |    $distinctAccType distinctAcc$i = ($distinctAccType) accs.getField($i);
-                 |    output.setField(
-                 |      ${aggMapping(i)},
-                 |      (${accTypes(i)}) distinctAcc$i.getRealAcc());""".stripMargin
-            } else {
-              j"""
-                 |    output.setField(
-                 |      ${aggMapping(i)},
-                 |      (${accTypes(i)}) accs.getField($i));""".stripMargin
-            }
+            j"""
+               |    output.setField(
+               |      ${aggMapping(i)},
+               |      (${accTypes(i)}) accs.getField($i));""".stripMargin
           } else {
+            val setAccOutput =
+              j"""
+                 |    ${genAccDataViewFieldSetter(s"acc$i", i)}
+                 |    output.setField(
+                 |      ${aggMapping(i)},
+                 |      baseClass$i.getValue(acc$i));
+                 """.stripMargin
             if (isDistinctAggs(i)) {
-              j"""
-                 |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
-                 |      (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
-                 |    $distinctAccType distinctAcc$i = ($distinctAccType) accs.getField($i);
-                 |    ${genDistinctDataViewFieldSetter(s"distinctAcc$i", i)}
-                 |    ${accTypes(i)} acc$i = (${accTypes(i)}) distinctAcc$i.getRealAcc();
-                 |    ${genAccDataViewFieldSetter(s"acc$i", i)}
-                 |    output.setField(
-                 |      ${aggMapping(i)},
-                 |      baseClass$i.getValue(acc$i));""".stripMargin
-            } else {
-              j"""
-                 |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
-                 |      (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
-                 |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
-                 |    ${genAccDataViewFieldSetter(s"acc$i", i)}
-                 |    output.setField(
-                 |      ${aggMapping(i)},
-                 |      baseClass$i.getValue(acc$i));""".stripMargin
+                j"""
+                   |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
+                   |      (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
+                   |    $distinctAccType distinctAcc$i = ($distinctAccType) accs.getField($i);
+                   |    ${accTypes(i)} acc$i = (${accTypes(i)}) distinctAcc$i.getRealAcc();
+                   |    $setAccOutput
+                   """.stripMargin
+              } else {
+                j"""
+                   |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
+                   |      (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
+                   |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
+                   |    $setAccOutput
+                   """.stripMargin
+              }
             }
-          }
       }.mkString("\n")
 
       j"""
@@ -446,23 +445,25 @@ class AggregationCodeGenerator(
 
       val accumulate: String = {
         for (i <- aggs.indices) yield {
+          val accumulateAcc =
+            j"""
+               |      ${genAccDataViewFieldSetter(s"acc$i", i)}
+               |      ${aggs(i)}.accumulate(acc$i
+               |        ${if (!parametersCode(i).isEmpty) "," else ""} ${parametersCode(i)});
+               """.stripMargin
           if (isDistinctAggs(i)) {
             j"""
                |    $distinctAccType distinctAcc$i = ($distinctAccType) accs.getField($i);
                |    ${genDistinctDataViewFieldSetter(s"distinctAcc$i", i)}
                |    if (distinctAcc$i.add(${parametersCode(i)})) {
                |      ${accTypes(i)} acc$i = (${accTypes(i)}) distinctAcc$i.getRealAcc();
-               |      ${genAccDataViewFieldSetter(s"acc$i", i)}
-               |      ${aggs(i)}.accumulate(acc$i
-               |        ${if (!parametersCode(i).isEmpty) "," else "" } ${parametersCode(i)});
+               |      $accumulateAcc
                |    }
                """.stripMargin
           } else {
             j"""
                |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
-               |    ${genAccDataViewFieldSetter(s"acc$i", i)}
-               |    ${aggs(i)}.accumulate(
-               |      acc$i ${if (!parametersCode(i).isEmpty) "," else "" } ${parametersCode(i)});
+               |    $accumulateAcc
                """.stripMargin
           }
         }
@@ -483,23 +484,25 @@ class AggregationCodeGenerator(
 
       val retract: String = {
         for (i <- aggs.indices) yield {
+          val retractAcc =
+            j"""
+               |    ${genAccDataViewFieldSetter(s"acc$i", i)}
+               |    ${aggs(i)}.retract(
+               |      acc$i ${if (!parametersCode(i).isEmpty) "," else ""} ${parametersCode(i)});
+               """.stripMargin
           if (isDistinctAggs(i)) {
             j"""
                |    $distinctAccType distinctAcc$i = ($distinctAccType) accs.getField($i);
                |    ${genDistinctDataViewFieldSetter(s"distinctAcc$i", i)}
                |    if (distinctAcc$i.remove(${parametersCode(i)})) {
                |      ${accTypes(i)} acc$i = (${accTypes(i)}) distinctAcc$i.getRealAcc();
-               |      ${genAccDataViewFieldSetter(s"acc$i", i)}
-               |      ${aggs(i)}.retract(acc$i
-               |        ${if (!parametersCode(i).isEmpty) "," else "" } ${parametersCode(i)});
+               |      $retractAcc
                |    }
                """.stripMargin
           } else {
             j"""
                |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
-               |    ${genAccDataViewFieldSetter(s"acc$i", i)}
-               |    ${aggs(i)}.retract(
-               |      acc$i ${if (!parametersCode(i).isEmpty) "," else "" } ${parametersCode(i)});
+               |    $retractAcc
                """.stripMargin
           }
         }
@@ -535,8 +538,6 @@ class AggregationCodeGenerator(
                |    ${accTypes(i)} acc$i = (${accTypes(i)}) ${aggs(i)}.createAccumulator();
                |    $distinctAccType distinctAcc$i = ($distinctAccType) new org.apache.flink.table.
                |        functions.aggfunctions.DistinctAccumulator(acc$i);
-               |    ${genDistinctDataViewFieldSetter(s"distinctAcc$i", i)}
-               |    ${genAccDataViewFieldSetter(s"acc$i", i)}
                |    accs.setField(
                |      $i,
                |      distinctAcc$i);"""
@@ -544,7 +545,6 @@ class AggregationCodeGenerator(
           } else {
             j"""
                |    ${accTypes(i)} acc$i = (${accTypes(i)}) ${aggs(i)}.createAccumulator();
-               |    ${genAccDataViewFieldSetter(s"acc$i", i)}
                |    accs.setField(
                |      $i,
                |      acc$i);"""
@@ -617,7 +617,7 @@ class AggregationCodeGenerator(
                |    while (mergeIt$i.hasNext()) {
                |      java.util.Map.Entry entry = (java.util.Map.Entry) mergeIt$i.next();
                |      Object k = entry.getKey();
-               |      Integer v = (Integer) entry.getValue();
+               |      Long v = (Long) entry.getValue();
                |      if (aDistinctAcc$i.add(k, v)) {
                |        ${accTypes(i)} aAcc$i = (${accTypes(i)}) aDistinctAcc$i.getRealAcc();
                |        ${aggs(i)}.accumulate(aAcc$i, k);

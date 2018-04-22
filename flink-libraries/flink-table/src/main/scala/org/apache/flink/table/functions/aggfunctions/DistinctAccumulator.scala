@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.functions.aggfunctions
 
+import java.lang.{Long => JLong}
 import java.lang.{Iterable => JIterable}
 import java.util.{Map => JMap}
+
 import org.apache.flink.table.api.dataview.MapView
 
 /**
@@ -29,13 +31,13 @@ import org.apache.flink.table.api.dataview.MapView
   * @tparam E the element type for the distinct filter hash map.
   * @tparam ACC the accumulator type for the realAcc.
   */
-class DistinctAccumulator[E, ACC](var realAcc: ACC, var mapView: MapView[E, Integer]) {
+class DistinctAccumulator[E, ACC](var realAcc: ACC, var mapView: MapView[E, JLong]) {
   def this() {
-    this(null.asInstanceOf[ACC], new MapView[E, Integer]())
+    this(null.asInstanceOf[ACC], new MapView[E, JLong]())
   }
 
   def this(realAcc: ACC) {
-    this(realAcc, new MapView[E, Integer]())
+    this(realAcc, new MapView[E, JLong]())
   }
 
   def getRealAcc: ACC = realAcc
@@ -51,11 +53,12 @@ class DistinctAccumulator[E, ACC](var realAcc: ACC, var mapView: MapView[E, Inte
 
   def add(element: E): Boolean = {
     if (element != null) {
-      if (mapView.contains(element)) {
-        mapView.put(element, mapView.get(element) + 1)
+      val currentVal = mapView.get(element)
+      if (currentVal != null) {
+        mapView.put(element, currentVal + 1L)
         false
       } else {
-        mapView.put(element, 1)
+        mapView.put(element, 1L)
         true
       }
     } else {
@@ -63,10 +66,11 @@ class DistinctAccumulator[E, ACC](var realAcc: ACC, var mapView: MapView[E, Inte
     }
   }
 
-  def add(element: E, count: Int): Boolean = {
+  def add(element: E, count: JLong): Boolean = {
     if (element != null) {
-      if (mapView.contains(element)) {
-        mapView.put(element, mapView.get(element) + count)
+      val currentVal = mapView.get(element)
+      if (currentVal != null) {
+        mapView.put(element, currentVal + count)
         false
       } else {
         mapView.put(element, count)
@@ -84,7 +88,7 @@ class DistinctAccumulator[E, ACC](var realAcc: ACC, var mapView: MapView[E, Inte
         mapView.remove(element)
         true
       } else {
-        mapView.put(element, count - 1)
+        mapView.put(element, count - 1L)
         false
       }
     } else {
@@ -96,7 +100,7 @@ class DistinctAccumulator[E, ACC](var realAcc: ACC, var mapView: MapView[E, Inte
     mapView.clear()
   }
 
-  def elements(): JIterable[JMap.Entry[E, Integer]] = {
+  def elements(): JIterable[JMap.Entry[E, JLong]] = {
     mapView.map.entrySet()
   }
 }
