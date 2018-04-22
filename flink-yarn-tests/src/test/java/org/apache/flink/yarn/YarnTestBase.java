@@ -81,8 +81,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 
-import static org.apache.flink.configuration.CoreOptions.LEGACY_MODE;
-
 /**
  * This base class allows to use the MiniYARNCluster.
  * The cluster is re-used for all tests.
@@ -528,7 +526,6 @@ public abstract class YarnTestBase extends TestLogger {
 
 				globalConfiguration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB.key(), keytab);
 				globalConfiguration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(), principal);
-				globalConfiguration.setString(CoreOptions.MODE.key(), LEGACY_MODE);
 
 				BootstrapTools.writeConfiguration(
 					globalConfiguration,

@@ -19,6 +19,7 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -32,20 +33,34 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoSchedule
 import org.hamcrest.Matchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Callable;
 
 /**
  * An extension of the {@link YARNSessionFIFOITCase} that runs the tests in a secured YARN cluster.
  */
+@RunWith(Parameterized.class)
 public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
-
 	protected static final Logger LOG = LoggerFactory.getLogger(YARNSessionFIFOSecuredITCase.class);
+
+	@Parameterized.Parameter
+	public String mode;
+
+	@Parameterized.Parameters(name = "Mode = {0}")
+	public static List<String> parameters() {
+		return Arrays.asList(CoreOptions.LEGACY_MODE, CoreOptions.NEW_MODE);
+	}
 
 	@BeforeClass
 	public static void setup() {
@@ -100,6 +115,14 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 		SecureTestEnvironment.cleanup();
 	}
 
+	@Before
+	public void setMode() {
+		flinkConfiguration.setString(CoreOptions.MODE.key(), mode);
+		isNewMode = CoreOptions.NEW_MODE.equalsIgnoreCase(
+				flinkConfiguration.getString(CoreOptions.MODE));
+	}
+
+	@Test(timeout = 60000) // timeout after a minute.
 	@Override
 	public void testDetachedMode() throws InterruptedException, IOException {
 		super.testDetachedMode();
