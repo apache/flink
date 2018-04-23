@@ -60,14 +60,16 @@ public class JSONGenerator {
 		List<Integer> operatorIDs = new ArrayList<Integer>(streamGraph.getVertexIDs());
 		Collections.sort(operatorIDs, new Comparator<Integer>() {
 			@Override
-			public int compare(Integer o1, Integer o2) {
+			public int compare(Integer idOne, Integer idTwo) {
+				boolean isIdOneSinkId = streamGraph.getSinkIDs().contains(idOne);
+				boolean isIdTwoSinkId = streamGraph.getSinkIDs().contains(idTwo);
 				// put sinks at the back
-				if (streamGraph.getSinkIDs().contains(o1)) {
+				if (isIdOneSinkId == isIdTwoSinkId) {
+					return idOne.compareTo(idTwo);
+				} else if (isIdOneSinkId) {
 					return 1;
-				} else if (streamGraph.getSinkIDs().contains(o2)) {
-					return -1;
 				} else {
-					return o1 - o2;
+					return -1;
 				}
 			}
 		});
