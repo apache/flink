@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
@@ -45,29 +46,17 @@ import java.util.concurrent.Executor;
  */
 public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexHandler<SubtasksAllAccumulatorsInfo, JobVertexMessageParameters> {
 
-	/**
-	 * Instantiates a new subtasks all accumulators handler.
-	 *
-	 * @param localRestAddress    the local rest address
-	 * @param leaderRetriever     the leader retriever
-	 * @param timeout             the timeout
-	 * @param responseHeaders     the response headers
-	 * @param messageHeaders      the message headers
-	 * @param executionGraphCache the execution graph cache
-	 * @param executor            the executor
-	 */
 	public SubtasksAllAccumulatorsHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, MessageHeaders<EmptyRequestBody, SubtasksAllAccumulatorsInfo, JobVertexMessageParameters> messageHeaders, ExecutionGraphCache executionGraphCache, Executor executor) {
 		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 	}
 
 	@Override
 	protected SubtasksAllAccumulatorsInfo handleRequest(HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request, AccessExecutionJobVertex jobVertex) throws RestHandlerException {
-		String vertexId = jobVertex.getJobVertexId().toString();
+		JobVertexID jobVertexId = jobVertex.getJobVertexId();
 		int parallelism = jobVertex.getParallelism();
 
 		final List<SubtasksAllAccumulatorsInfo.SubtaskAccumulatorsInfo> subtaskAccumulatorsInfos = new ArrayList<>();
 
-		int index = 0;
 		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
 			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
 			String locationString = location == null ? "(unassigned)" : location.getHostname();
@@ -80,14 +69,14 @@ public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexHandler<Sub
 
 			subtaskAccumulatorsInfos.add(
 				new SubtasksAllAccumulatorsInfo.SubtaskAccumulatorsInfo(
-					index++,
+					vertex.getCurrentExecutionAttempt().getParallelSubtaskIndex(),
 					vertex.getCurrentExecutionAttempt().getAttemptNumber(),
 					locationString,
 					userAccumulators
 				));
 		}
 
-		return new SubtasksAllAccumulatorsInfo(vertexId, parallelism, subtaskAccumulatorsInfos);
+		return new SubtasksAllAccumulatorsInfo(jobVertexId, parallelism, subtaskAccumulatorsInfos);
 	}
 
 }

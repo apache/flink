@@ -97,7 +97,6 @@ public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHand
 
 		gen.writeArrayFieldStart("subtasks");
 
-		int num = 0;
 		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
 
 			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
@@ -105,7 +104,7 @@ public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHand
 
 			gen.writeStartObject();
 
-			gen.writeNumberField("subtask", num++);
+			gen.writeNumberField("subtask", vertex.getCurrentExecutionAttempt().getParallelSubtaskIndex());
 			gen.writeNumberField("attempt", vertex.getCurrentExecutionAttempt().getAttemptNumber());
 			gen.writeStringField("host", locationString);
 

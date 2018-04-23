@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.job;
 
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
 import java.util.ArrayList;
@@ -34,9 +35,9 @@ public class SubtasksAllAccumulatorsInfoTest extends RestResponseMarshallingTest
 
 	@Override
 	protected SubtasksAllAccumulatorsInfo getTestResponseInstance() throws Exception {
-		List<SubtasksAllAccumulatorsInfo.SubtaskAccumulatorsInfo> subtaskAccumulatorsInfos = new ArrayList<>();
+		List<SubtasksAllAccumulatorsInfo.SubtaskAccumulatorsInfo> subtaskAccumulatorsInfos = new ArrayList<>(3);
 
-		List<UserAccumulator> userAccumulators = new ArrayList<>(3);
+		List<UserAccumulator> userAccumulators = new ArrayList<>(2);
 		userAccumulators.add(new UserAccumulator("test name1", "test type1", "test value1"));
 		userAccumulators.add(new UserAccumulator("test name2", "test type2", "test value2"));
 
@@ -50,7 +51,7 @@ public class SubtasksAllAccumulatorsInfoTest extends RestResponseMarshallingTest
 				));
 
 		}
-		return new SubtasksAllAccumulatorsInfo("vertexId",
+		return new SubtasksAllAccumulatorsInfo(new JobVertexID(),
 			4,
 			subtaskAccumulatorsInfos);
 	}

@@ -18,41 +18,46 @@
 
 package org.apache.flink.runtime.rest.messages.job;
 
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.job.SubtasksAllAccumulatorsHandler;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.json.JobVertexIDDeserializer;
+import org.apache.flink.runtime.rest.messages.json.JobVertexIDSerializer;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.util.Collection;
 import java.util.Objects;
-
 
 /**
  * Response type of the {@link SubtasksAllAccumulatorsHandler}.
  */
 public class SubtasksAllAccumulatorsInfo implements ResponseBody {
 
-	public static final String FIELD_NAME_ID = "id";
+	public static final String FIELD_NAME_JOB_VERTEX_ID = "id";
 	public static final String FIELD_NAME_PARALLELISM = "parallelism";
-	public static final String FILED_NMAE_SUBTASKS = "subtasks";
+	public static final String FILED_NAME_SUBTASKS = "subtasks";
 
-	@JsonProperty(FIELD_NAME_ID)
-	private String id;
+	@JsonProperty(FIELD_NAME_JOB_VERTEX_ID)
+	@JsonSerialize(using = JobVertexIDSerializer.class)
+	private final JobVertexID jobVertexId;
 
 	@JsonProperty(FIELD_NAME_PARALLELISM)
-	private int parallelism;
+	private final int parallelism;
 
-	@JsonProperty(FILED_NMAE_SUBTASKS)
-	private Collection<SubtaskAccumulatorsInfo> subtaskAccumulatorsInfos;
+	@JsonProperty(FILED_NAME_SUBTASKS)
+	private final Collection<SubtaskAccumulatorsInfo> subtaskAccumulatorsInfos;
 
 	@JsonCreator
 	public SubtasksAllAccumulatorsInfo(
-		@JsonProperty(FIELD_NAME_ID) String id,
+		@JsonDeserialize(using = JobVertexIDDeserializer.class) @JsonProperty(FIELD_NAME_JOB_VERTEX_ID) JobVertexID jobVertexId,
 		@JsonProperty(FIELD_NAME_PARALLELISM) int parallelism,
-		@JsonProperty(FILED_NMAE_SUBTASKS) Collection<SubtaskAccumulatorsInfo> subtaskAccumulatorsInfos) {
-		this.id = Preconditions.checkNotNull(id);
+		@JsonProperty(FILED_NAME_SUBTASKS) Collection<SubtaskAccumulatorsInfo> subtaskAccumulatorsInfos) {
+		this.jobVertexId = Preconditions.checkNotNull(jobVertexId);
 		this.parallelism = parallelism;
 		this.subtaskAccumulatorsInfos = Preconditions.checkNotNull(subtaskAccumulatorsInfos);
 	}
@@ -66,14 +71,14 @@ public class SubtasksAllAccumulatorsInfo implements ResponseBody {
 			return false;
 		}
 		SubtasksAllAccumulatorsInfo that = (SubtasksAllAccumulatorsInfo) o;
-		return Objects.equals(id, that.id) &&
+		return Objects.equals(jobVertexId, that.jobVertexId) &&
 			parallelism == that.parallelism &&
 			Objects.equals(subtaskAccumulatorsInfos, that.subtaskAccumulatorsInfos);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(id, parallelism, subtaskAccumulatorsInfos);
+		return Objects.hash(jobVertexId, parallelism, subtaskAccumulatorsInfos);
 	}
 
 	// ---------------------------------------------------
