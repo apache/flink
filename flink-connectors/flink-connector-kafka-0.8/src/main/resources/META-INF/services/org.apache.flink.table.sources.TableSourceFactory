@@ -14,3 +14,4 @@
 # limitations under the License.
 
 org.apache.flink.streaming.connectors.kafka.Kafka08JsonTableSourceFactory
+org.apache.flink.streaming.connectors.kafka.Kafka08AvroTableSourceFactory

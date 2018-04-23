@@ -62,7 +62,18 @@ abstract class PunctuatedWatermarkAssigner extends WatermarkStrategy {
 }
 
 /** A strategy which indicates the watermarks should be preserved from the underlying datastream.*/
-final class PreserveWatermarks extends WatermarkStrategy
+final class PreserveWatermarks extends WatermarkStrategy {
+  override def equals(obj: scala.Any): Boolean =  {
+    obj match {
+      case _: PreserveWatermarks => true
+      case _ => false
+    }
+  }
+
+  override def hashCode(): Int =  {
+    PreserveWatermarks.this.getClass.hashCode()
+  }
+}
 object PreserveWatermarks {
   val INSTANCE: PreserveWatermarks = new PreserveWatermarks
 }
