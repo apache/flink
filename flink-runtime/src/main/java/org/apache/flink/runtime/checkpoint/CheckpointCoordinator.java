@@ -99,7 +99,7 @@ public class CheckpointCoordinator {
 	/** The executor used for asynchronous calls, like potentially blocking I/O */
 	private final Executor executor;
 
-	/** Tasks who need to be sent a message when a checkpoint is started */
+	/** Tasks who need to be sent a message when a checkpoint is started 需要触发checkpoint的tasks*/
 	private final ExecutionVertex[] tasksToTrigger;
 
 	/** Tasks who need to acknowledge a checkpoint before it succeeds */
@@ -108,7 +108,7 @@ public class CheckpointCoordinator {
 	/** Tasks who need to be sent a message when a checkpoint is confirmed */
 	private final ExecutionVertex[] tasksToCommitTo;
 
-	/** Map from checkpoint ID to the pending checkpoint */
+	/** Map from checkpoint ID to the pending checkpoint 存储checkpoint的pending队列*/
 	private final Map<Long, PendingCheckpoint> pendingCheckpoints;
 
 	/** Completed checkpoints. Implementations can be blocking. Make sure calls to methods
@@ -127,7 +127,7 @@ public class CheckpointCoordinator {
 	private final CheckpointIDCounter checkpointIdCounter;
 
 	/** The base checkpoint interval. Actual trigger time may be affected by the
-	 * max concurrent checkpoints and minimum-pause values */
+	 * max concurrent checkpoints and minimum-pause values 触发checkpoint时间间隔*/
 	private final long baseInterval;
 
 	/** The max time (in ms) that a checkpoint may take */
@@ -167,7 +167,7 @@ public class CheckpointCoordinator {
 	private boolean triggerRequestQueued;
 
 	/** Flag marking the coordinator as shut down (not accepting any messages any more) */
-	private volatile boolean shutdown;
+	private volatile boolean shutdown;   //保存内存可见性
 
 	/** Optional tracker for checkpoint statistics. */
 	@Nullable
@@ -189,10 +189,10 @@ public class CheckpointCoordinator {
 			int maxConcurrentCheckpointAttempts,
 			CheckpointRetentionPolicy retentionPolicy,
 			ExecutionVertex[] tasksToTrigger,
-			ExecutionVertex[] tasksToWaitFor,
-			ExecutionVertex[] tasksToCommitTo,
+			ExecutionVertex[] tasksToWaitFor,  //任务在成功前需要确认一个checkpoint的tasks
+			ExecutionVertex[] tasksToCommitTo,  //当checkpoint被确认时，需要发送消息的任务
 			CheckpointIDCounter checkpointIDCounter,
-			CompletedCheckpointStore completedCheckpointStore,
+			CompletedCheckpointStore completedCheckpointStore, //记录已经完成的checkpoint
 			StateBackend checkpointStateBackend,
 			Executor executor,
 			SharedStateRegistryFactory sharedStateRegistryFactory) {
@@ -606,7 +606,7 @@ public class CheckpointCoordinator {
 						checkpointStorageLocation.getLocationReference());
 
 				// send the messages to the tasks that trigger their checkpoint
-				for (Execution execution: executions) {
+				for (Execution execution: executions) {  //给需要发送checkpoint的task发送checkpoint消息
 					execution.triggerCheckpoint(checkpointID, timestamp, checkpointOptions);
 				}
 

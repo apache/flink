@@ -574,7 +574,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			// first of all, get a user-code classloader
 			// this may involve downloading the job's JAR files and/or classes
 			LOG.info("Loading JAR files for task {}.", this);
-
+			//创建用户自定义operator类加载器
 			userCodeClassLoader = createUserCodeClassloader();
 			final ExecutionConfig executionConfig = serializedExecutionConfig.deserializeValue(userCodeClassLoader);
 
@@ -675,7 +675,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				metrics,
 				this);
 
-			// now load and instantiate the task's invokable code
+			// now load and instantiate the task's invokable code 加载用户自定义code
 			invokable = loadAndInstantiateInvokable(userCodeClassLoader, nameOfInvokableClass, env);
 
 			// ----------------------------------------------------------------
@@ -698,7 +698,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			// make sure the user code classloader is accessible thread-locally
 			executingThread.setContextClassLoader(userCodeClassLoader);
 
-			// run the invokable
+			// run the invokable  //启动用户自定义Operator
 			invokable.invoke();
 
 			// make sure, we enter the catch block if the task leaves the invoke() method due
@@ -1206,6 +1206,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 					FileSystemSafetyNet.setSafetyNetCloseableRegistryForThread(safetyNetCloseableRegistry);
 
 					try {
+						// 调用自定义code的triggerCheckpint函数，所以自己实现checkpoint的相关接口
+						// 这个时候task正在执行，所以checkpoint是并行做的
 						boolean success = invokable.triggerCheckpoint(checkpointMetaData, checkpointOptions);
 						if (!success) {
 							checkpointResponder.declineCheckpoint(
