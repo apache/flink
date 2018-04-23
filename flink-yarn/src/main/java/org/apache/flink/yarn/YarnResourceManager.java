@@ -477,7 +477,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			taskManagerParameters,
 			flinkConfig,
 			currDir,
-			YarnTaskExecutorRunner.class,
+			YarnTaskExecutorRunnerFactory.class,
 			log);
 
 		// set a special environment variable to uniquely identify this container
