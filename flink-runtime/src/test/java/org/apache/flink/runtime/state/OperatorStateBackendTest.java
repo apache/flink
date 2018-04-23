@@ -40,6 +40,7 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackend.PartitionableL
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
+import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -834,7 +835,10 @@ public class OperatorStateBackendTest {
 
 		// cancel the future, which should close the underlying stream
 		runnableFuture.cancel(true);
-		Assert.assertTrue(streamFactory.getLastCreatedStream().isClosed());
+
+		for (BlockingCheckpointOutputStream stream : streamFactory.getAllCreatedStreams()) {
+			Assert.assertTrue(stream.isClosed());
+		}
 
 		// we allow the stream under test to proceed
 		blockerLatch.trigger();
