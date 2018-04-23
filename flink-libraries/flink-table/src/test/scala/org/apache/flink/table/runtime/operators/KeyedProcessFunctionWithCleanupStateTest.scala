@@ -18,69 +18,36 @@
 
 package org.apache.flink.table.runtime.operators
 
-<<<<<<< 04fe3fb4543fd075a94184b8c5a6976e3137ba96
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
-import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction
-import org.apache.flink.streaming.api.operators.KeyedProcessOperator
-=======
-import java.lang.{Boolean => JBool}
-
-import scala.collection.JavaConversions._
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.TimeDomain
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
->>>>>>> Use keyed process function.
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.runtime.aggregate.KeyedProcessFunctionWithCleanupState
 import org.apache.flink.table.runtime.harness.HarnessTestBase
 import org.apache.flink.util.Collector
-<<<<<<< 04fe3fb4543fd075a94184b8c5a6976e3137ba96
-
-import org.junit.Test
 import org.junit.Assert.assertEquals
+import org.junit.Test
 
 class KeyedProcessFunctionWithCleanupStateTest extends HarnessTestBase {
 
   @Test
-  def testStateCleaning(): Unit = {
+  def testProcessingTimeStateCleaning(): Unit = {
     val queryConfig = new StreamQueryConfig()
       .withIdleStateRetentionTime(Time.milliseconds(5), Time.milliseconds(10))
 
-    val func = new MockedKeyedProcessFunction(queryConfig)
+    val func = new MockedKeyedProcessFunction(queryConfig, TimeDomain.PROCESSING_TIME)
     val operator = new KeyedProcessOperator(func)
 
     val testHarness = createHarnessTester(operator,
       new FirstFieldSelector,
-=======
-import org.junit.Test
-import org.junit.Assert.assertArrayEquals
-
-class KeyedProcessFunctionWithCleanupStateTest extends HarnessTestBase {
-  @Test
-  def testProcessingTimeNeedToCleanup(): Unit = {
-    val queryConfig = new StreamQueryConfig()
-      .withIdleStateRetentionTime(Time.milliseconds(5), Time.milliseconds(10))
-
-    val func = new MockedKeyedProcessFunction[String, String](
-        queryConfig,
-        TimeDomain.PROCESSING_TIME)
-    val operator = new KeyedProcessOperator(func)
-
-    val testHarness = createHarnessTester(operator,
-      new IdentityKeySelector[String],
->>>>>>> Use keyed process function.
       TypeInformation.of(classOf[String]))
 
     testHarness.open()
 
-<<<<<<< 04fe3fb4543fd075a94184b8c5a6976e3137ba96
     testHarness.setProcessingTime(1)
     // add state for key "a"
     testHarness.processElement(("a", "payload"), 1)
@@ -124,9 +91,67 @@ class KeyedProcessFunctionWithCleanupStateTest extends HarnessTestBase {
 
     testHarness.close()
   }
+
+  @Test
+  def testEventTimeStateCleaning(): Unit = {
+    val queryConfig = new StreamQueryConfig()
+      .withIdleStateRetentionTime(Time.milliseconds(5), Time.milliseconds(10))
+
+    val func = new MockedKeyedProcessFunction(queryConfig, TimeDomain.EVENT_TIME)
+    val operator = new KeyedProcessOperator(func)
+
+    val testHarness = createHarnessTester(operator,
+      new FirstFieldSelector,
+      TypeInformation.of(classOf[String]))
+
+    testHarness.open()
+
+    testHarness.processWatermark(1)
+    // add state for key "a"
+    testHarness.processElement(("a", "payload"), 1)
+    // add state for key "b"
+    testHarness.processElement(("b", "payload"), 1)
+
+    // check that we have two states (a, b)
+    // we check for the double number of states, because KeyedProcessFunctionWithCleanupState
+    //   adds one more state per key to hold the cleanup timestamp.
+    assertEquals(4, testHarness.numKeyedStateEntries())
+
+    // advance time and add state for key "c"
+    testHarness.processWatermark(2)
+    testHarness.processElement(("c", "payload"), 5)
+    // add state for key "a". Timer is not reset, because it is still within minRetentionTime
+    testHarness.processElement(("a", "payload"), 5)
+
+    // check that we have three states (a, b, c)
+    assertEquals(6, testHarness.numKeyedStateEntries())
+
+    // advance time and update key "b". Timer for "b" is reset to 18
+    testHarness.processWatermark(7)
+    testHarness.processElement(("b", "payload"), 8)
+    // check that we have three states (a, b, c)
+    assertEquals(6, testHarness.numKeyedStateEntries())
+
+    // advance time to clear state for key "a"
+    testHarness.processWatermark(11)
+    // check that we have two states (b, c)
+    assertEquals(4, testHarness.numKeyedStateEntries())
+
+    // advance time to clear state for key "c"
+    testHarness.processWatermark(15)
+    // check that we have one state (b)
+    assertEquals(2, testHarness.numKeyedStateEntries())
+
+    // advance time to clear state for key "c"
+    testHarness.processWatermark(18)
+    // check that we have no states
+    assertEquals(0, testHarness.numKeyedStateEntries())
+
+    testHarness.close()
+  }
 }
 
-private class MockedKeyedProcessFunction(queryConfig: StreamQueryConfig)
+private class MockedKeyedProcessFunction(queryConfig: StreamQueryConfig, timeDomain: TimeDomain)
     extends KeyedProcessFunctionWithCleanupState[String, (String, String), String](queryConfig) {
 
   var state: ValueState[String] = _
@@ -142,8 +167,11 @@ private class MockedKeyedProcessFunction(queryConfig: StreamQueryConfig)
       ctx: KeyedProcessFunction[String, (String, String), String]#Context,
       out: Collector[String]): Unit = {
 
-    val curTime = ctx.timerService().currentProcessingTime()
-    registerProcessingCleanupTimer(ctx, curTime)
+    val curTime = timeDomain match {
+      case TimeDomain.PROCESSING_TIME => ctx.timerService().currentProcessingTime()
+      case TimeDomain.EVENT_TIME => ctx.timerService().currentWatermark()
+    }
+    registerCleanupTimer(ctx, curTime, timeDomain)
     state.update(value._2)
   }
 
@@ -157,79 +185,4 @@ private class MockedKeyedProcessFunction(queryConfig: StreamQueryConfig)
     }
   }
 }
-=======
-    testHarness.setProcessingTime(2)
-    testHarness.processElement("a", 2)
-    testHarness.processElement("a", 8)
-    testHarness.setProcessingTime(12)
-    testHarness.processElement("a", 10)
 
-    val output: Array[Boolean] = testHarness.getOutput
-      .map(_.asInstanceOf[StreamRecord[JBool]].getValue.asInstanceOf[Boolean])
-      .toArray
-    val expected = Array(false, false, true)
-
-    assertArrayEquals(expected, output)
-
-    testHarness.close()
-  }
-
-  @Test
-  def testEventTimeNeedToCleanup(): Unit = {
-    val queryConfig = new StreamQueryConfig()
-      .withIdleStateRetentionTime(Time.milliseconds(5), Time.milliseconds(10))
-
-    val func = new MockedKeyedProcessFunction[String, String](
-      queryConfig,
-      TimeDomain.EVENT_TIME)
-    val operator = new KeyedProcessOperator(func)
-
-    val testHarness = createHarnessTester(operator,
-      new IdentityKeySelector[String],
-      TypeInformation.of(classOf[String]))
-
-    testHarness.open()
-
-    testHarness.processElement("a", 2)
-    testHarness.processElement("a", 8)
-    testHarness.processElement("a", 18)
-
-    val output: Array[Boolean] = testHarness.getOutput
-      .map(_.asInstanceOf[StreamRecord[JBool]].getValue.asInstanceOf[Boolean])
-      .toArray
-    val expected = Array(false, false, true)
-
-    assertArrayEquals(expected, output)
-
-    testHarness.close()
-  }
-}
-
-private class MockedKeyedProcessFunction[K, I](
-    private val queryConfig: StreamQueryConfig,
-    private val timeDomain: TimeDomain)
-  extends KeyedProcessFunctionWithCleanupState[K, I, Boolean](queryConfig) {
-  override def open(parameters: Configuration): Unit = {
-    initCleanupTimeState("CleanUpState")
-  }
-
-
-  override def processElement(
-    value: I,
-    ctx: KeyedProcessFunction[K, I, Boolean]#Context,
-    out: Collector[Boolean]): Unit = {
-    val curTime = getTime(ctx)
-    out.collect(needToCleanupState(curTime))
-
-    registerCleanupTimer(ctx, curTime, timeDomain)
-  }
-
-  private def getTime(ctx: KeyedProcessFunction[K, I, Boolean]#Context): Long = {
-    timeDomain match {
-      case TimeDomain.EVENT_TIME => ctx.timestamp()
-      case TimeDomain.PROCESSING_TIME => ctx.timerService().currentProcessingTime()
-    }
-  }
-}
-
->>>>>>> Use keyed process function.

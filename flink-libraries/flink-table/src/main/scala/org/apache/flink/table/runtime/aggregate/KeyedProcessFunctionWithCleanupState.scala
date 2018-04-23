@@ -19,16 +19,10 @@
 package org.apache.flink.table.runtime.aggregate
 
 import java.lang.{Long => JLong}
-<<<<<<< 04fe3fb4543fd075a94184b8c5a6976e3137ba96
-import org.apache.flink.api.common.state.{State, ValueState, ValueStateDescriptor}
-import org.apache.flink.streaming.api.TimeDomain
-import org.apache.flink.streaming.api.functions.{KeyedProcessFunction, ProcessFunction}
-=======
 
 import org.apache.flink.api.common.state.{State, ValueState, ValueStateDescriptor}
 import org.apache.flink.streaming.api.TimeDomain
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
->>>>>>> Use keyed process function.
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 
 abstract class KeyedProcessFunctionWithCleanupState[K, I, O](queryConfig: StreamQueryConfig)
@@ -51,10 +45,6 @@ abstract class KeyedProcessFunctionWithCleanupState[K, I, O](queryConfig: Stream
   protected def registerProcessingCleanupTimer(
     ctx: KeyedProcessFunction[K, I, O]#Context,
     currentTime: Long): Unit = {
-<<<<<<< 04fe3fb4543fd075a94184b8c5a6976e3137ba96
-    if (stateCleaningEnabled) {
-
-=======
     registerCleanupTimer(ctx, currentTime, TimeDomain.PROCESSING_TIME)
   }
 
@@ -69,7 +59,6 @@ abstract class KeyedProcessFunctionWithCleanupState[K, I, O](queryConfig: Stream
     currentTime: Long,
     timeDomain: TimeDomain): Unit = {
     if (stateCleaningEnabled) {
->>>>>>> Use keyed process function.
       // last registered timer
       val curCleanupTime = cleanupTimeState.value()
 
@@ -79,16 +68,12 @@ abstract class KeyedProcessFunctionWithCleanupState[K, I, O](queryConfig: Stream
         // we need to register a new (later) timer
         val cleanupTime = currentTime + maxRetentionTime
         // register timer and remember clean-up time
-<<<<<<< 04fe3fb4543fd075a94184b8c5a6976e3137ba96
-        ctx.timerService().registerProcessingTimeTimer(cleanupTime)
-=======
         timeDomain match {
           case TimeDomain.EVENT_TIME =>
             ctx.timerService().registerEventTimeTimer(cleanupTime)
           case TimeDomain.PROCESSING_TIME =>
             ctx.timerService().registerProcessingTimeTimer(cleanupTime)
         }
->>>>>>> Use keyed process function.
         cleanupTimeState.update(cleanupTime)
       }
     }
