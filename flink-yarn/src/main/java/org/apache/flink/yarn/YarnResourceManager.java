@@ -289,8 +289,13 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			hardwareDescription,
 			timeout);
 
-		// ack the pending register
-		pendingContainersExpectedToRegister.remove(taskExecutorResourceId);
+		// ack the pending registration only when the registration is truly completed.
+		responseFuture.whenComplete((RegistrationResponse response, Throwable throwable) -> {
+			// ack the pending registration
+			if (response instanceof RegistrationResponse.Success) {
+				pendingContainersExpectedToRegister.remove(taskExecutorResourceId);
+			}
+		});
 
 		return responseFuture;
 	}
@@ -413,6 +418,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 						// remove the failed container
 						pendingContainersExpectedToRegister.remove(resourceID);
+
+						// remove the resourceID from workerNodeMap eagerly
+						workerNodeMap.remove(resourceID);
 
 						// release the failed container
 						resourceManagerClient.releaseAssignedContainer(container.getId());
