@@ -23,27 +23,36 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobClient;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.util.ScalaUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+import akka.actor.AddressFromURIString;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -57,7 +66,7 @@ import static org.apache.flink.shaded.guava18.com.google.common.base.Strings.emp
  * Handler to submit jobs uploaded via the Web UI.
  */
 public class JarRunHandler extends
-		AbstractRestHandler<RestfulGateway, EmptyRequestBody, JarRunResponseBody, JarRunMessageParameters> {
+		AbstractRestHandler<DispatcherGateway, EmptyRequestBody, JarRunResponseBody, JarRunMessageParameters> {
 
 	private final Path jarDir;
 
@@ -65,30 +74,26 @@ public class JarRunHandler extends
 
 	private final Executor executor;
 
-	private final RestClusterClient<?> restClusterClient;
-
 	public JarRunHandler(
 			final CompletableFuture<String> localRestAddress,
-			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+			final GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> responseHeaders,
 			final MessageHeaders<EmptyRequestBody, JarRunResponseBody, JarRunMessageParameters> messageHeaders,
 			final Path jarDir,
 			final Configuration configuration,
-			final Executor executor,
-			final RestClusterClient<?> restClusterClient) {
+			final Executor executor) {
 		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
 
 		this.jarDir = requireNonNull(jarDir);
 		this.configuration = requireNonNull(configuration);
 		this.executor = requireNonNull(executor);
-		this.restClusterClient = requireNonNull(restClusterClient);
 	}
 
 	@Override
 	protected CompletableFuture<JarRunResponseBody> handleRequest(
 			@Nonnull final HandlerRequest<EmptyRequestBody, JarRunMessageParameters> request,
-			@Nonnull final RestfulGateway gateway) throws RestHandlerException {
+			@Nonnull final DispatcherGateway gateway) throws RestHandlerException {
 
 		final String pathParameter = request.getPathParameter(JarIdPathParameter.class);
 		final Path jarFile = jarDir.resolve(pathParameter);
@@ -105,9 +110,32 @@ public class JarRunHandler extends
 			savepointRestoreSettings,
 			parallelism);
 
-		return jobGraphFuture.thenCompose(jobGraph -> restClusterClient
-			.submitJob(jobGraph)
-			.thenApply((jobSubmitResponseBody -> new JarRunResponseBody(jobGraph.getJobID()))))
+		CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
+
+		CompletableFuture<JobGraph> jarUploadFuture = jobGraphFuture.thenCombine(blobServerPortFuture, (jobGraph, blobServerPort) -> {
+			final InetSocketAddress address = new InetSocketAddress(getDispatcherHost(gateway), blobServerPort);
+			final List<PermanentBlobKey> keys;
+			try {
+				keys = BlobClient.uploadJarFiles(address, configuration, jobGraph.getJobID(), jobGraph.getUserJars());
+			} catch (IOException ioe) {
+				throw new CompletionException(new FlinkException("Could not upload job jar files.", ioe));
+			}
+
+			for (PermanentBlobKey key : keys) {
+				jobGraph.addBlob(key);
+			}
+
+			return jobGraph;
+		});
+
+		CompletableFuture<Acknowledge> jobSubmissionFuture = jarUploadFuture.thenCompose(jobGraph -> {
+			// we have to enable queued scheduling because slots will be allocated lazily
+			jobGraph.setAllowQueuedScheduling(true);
+			return gateway.submitJob(jobGraph, timeout);
+		});
+
+		return jobSubmissionFuture
+			.thenCombine(jarUploadFuture, (ack, jobGraph) -> new JarRunResponseBody(jobGraph.getJobID()))
 			.exceptionally(throwable -> {
 				throw new CompletionException(new RestHandlerException(
 					throwable.getMessage(),
@@ -159,5 +187,16 @@ public class JarRunHandler extends
 			jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 			return jobGraph;
 		}, executor);
+	}
+
+	private static String getDispatcherHost(DispatcherGateway gateway) {
+		String dispatcherAddress = gateway.getAddress();
+		final Optional<String> host = ScalaUtils.toJava(AddressFromURIString.parse(dispatcherAddress).host());
+
+		return host.orElseGet(() -> {
+			// if the dispatcher address does not contain a host part, then assume it's running
+			// on the same machine as the handler
+			return "localhost";
+		});
 	}
 }
