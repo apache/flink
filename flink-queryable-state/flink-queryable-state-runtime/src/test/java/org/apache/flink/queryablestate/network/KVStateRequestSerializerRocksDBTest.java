@@ -41,7 +41,6 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 
 import java.io.File;
-import java.util.Map;
 
 import static org.mockito.Mockito.mock;
 
@@ -160,8 +159,8 @@ public final class KVStateRequestSerializerRocksDBTest {
 		longHeapKeyedStateBackend.restore(null);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final InternalMapState<Long, VoidNamespace, Long, String, Map<Long, String>> mapState =
-				(InternalMapState<Long, VoidNamespace, Long, String, Map<Long, String>>)
+		final InternalMapState<Long, VoidNamespace, Long, String> mapState =
+				(InternalMapState<Long, VoidNamespace, Long, String>)
 						longHeapKeyedStateBackend.getPartitionedState(
 								VoidNamespace.INSTANCE,
 								VoidNamespaceSerializer.INSTANCE,
