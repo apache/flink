@@ -27,11 +27,11 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.messages.ArchiveMessages;
+import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedJobGenerationUtils;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import akka.actor.ActorRef;
@@ -94,11 +94,9 @@ public class HistoryServerTest extends TestLogger {
 
 			ObjectMapper mapper = new ObjectMapper();
 			String response = getFromHTTP(baseUrl + JobsOverviewHeaders.URL);
-			JsonNode overview = mapper.readTree(response);
+			MultipleJobsDetails overview = mapper.readValue(response, MultipleJobsDetails.class);
 
-			String jobID = overview.get("jobs").get(0).get("jid").asText();
-			JsonNode jobDetails = mapper.readTree(getFromHTTP(baseUrl + "/jobs/" + jobID));
-			Assert.assertNotNull(jobDetails.get("jid"));
+			Assert.assertEquals(1, overview.getJobs().size());
 		} finally {
 			hs.stop();
 		}

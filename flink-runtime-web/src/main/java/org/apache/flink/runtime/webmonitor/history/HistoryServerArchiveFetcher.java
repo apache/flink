@@ -24,6 +24,8 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.history.FsJobArchivist;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.handler.legacy.JobsOverviewHandler;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -31,7 +33,6 @@ import org.apache.flink.util.FileUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.slf4j.Logger;
@@ -42,6 +43,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -233,21 +236,15 @@ class HistoryServerArchiveFetcher {
 	 */
 	private static void updateJobOverview(File webOverviewDir, File webDir) {
 		try (JsonGenerator gen = jacksonFactory.createGenerator(HistoryServer.createOrGetFile(webDir, JobsOverviewHeaders.URL))) {
-			gen.writeStartObject();
-			gen.writeArrayFieldStart("jobs");
-
 			File[] overviews = new File(webOverviewDir.getPath()).listFiles();
 			if (overviews != null) {
+				Collection<JobDetails> allJobs = new ArrayList<>(overviews.length);
 				for (File overview : overviews) {
-					JsonNode root = mapper.readTree(overview);
-					JsonNode finished = root.get("jobs");
-					JsonNode job = finished.get(0);
-					mapper.writeTree(gen, job);
+					MultipleJobsDetails subJobs = mapper.readValue(overview, MultipleJobsDetails.class);
+					allJobs.addAll(subJobs.getJobs());
 				}
+				mapper.writeValue(gen, new MultipleJobsDetails(allJobs));
 			}
-
-			gen.writeEndArray();
-			gen.writeEndObject();
 		} catch (IOException ioe) {
 			LOG.error("Failed to update job overview.", ioe);
 		}
