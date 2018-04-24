@@ -62,6 +62,12 @@ public class ConfigOptionsDocGenerator {
 	private static final Pattern CLASS_NAME_PATTERN = Pattern.compile("(?<" + CLASS_NAME_GROUP + ">(?<" + CLASS_PREFIX_GROUP + ">[a-zA-Z]*)(?:Options|Config|Parameters))(?:\\.java)?");
 
 	/**
+	 * Placeholder that is used to prevent certain sections from being escaped. We don't need a sophisticated value
+	 * but only something that won't show up in config options.
+	 */
+	private static final String TEMPORARY_PLACEHOLDER = "superRandomTemporaryPlaceholder";
+
+	/**
 	 * This method generates html tables from set of classes containing {@link ConfigOption ConfigOptions}.
 	 *
 	 * <p>For each class 1 or more html tables will be generated and placed into a separate file, depending on whether
@@ -204,7 +210,7 @@ public class ConfigOptionsDocGenerator {
 		return "" +
 			"        <tr>\n" +
 			"            <td><h5>" + escapeCharacters(option.key()) + "</h5></td>\n" +
-			"            <td style=\"word-wrap: break-word;\">" + escapeCharacters(defaultValueToHtml(defaultValue)) + "</td>\n" +
+			"            <td style=\"word-wrap: break-word;\">" + escapeCharacters(addWordBreakOpportunities(defaultValueToHtml(defaultValue))) + "</td>\n" +
 			"            <td>" + escapeCharacters(option.description()) + "</td>\n" +
 			"        </tr>\n";
 	}
@@ -222,8 +228,16 @@ public class ConfigOptionsDocGenerator {
 
 	private static String escapeCharacters(String value) {
 		return value
+			.replaceAll("<wbr>", TEMPORARY_PLACEHOLDER)
 			.replaceAll("<", "&#60;")
-			.replaceAll(">", "&#62;");
+			.replaceAll(">", "&#62;")
+			.replaceAll(TEMPORARY_PLACEHOLDER, "<wbr>");
+	}
+
+	private static String addWordBreakOpportunities(String value) {
+		return value
+			// allow breaking of semicolon separated lists
+			.replace(";", ";<wbr>");
 	}
 
 	private static void sortOptions(List<ConfigOption<?>> configOptions) {
