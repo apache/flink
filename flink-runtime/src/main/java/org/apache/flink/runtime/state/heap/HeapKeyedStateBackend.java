@@ -45,7 +45,6 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.DoneFuture;
-import org.apache.flink.runtime.state.HashMapSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -108,7 +107,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * but we can't put them here because different key/value states with different types and
 	 * namespace types share this central list of tables.
 	 */
-	private final HashMap<String, StateTable<K, ?, ?>> stateTables = new HashMap<>();
+	private final Map<String, StateTable<K, ?, ?>> stateTables = new HashMap<>();
 
 	/**
 	 * Map of state names to their corresponding restored state meta info.
@@ -291,16 +290,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	protected <N, UK, UV> InternalMapState<K, N, UK, UV, ? extends Map<UK, UV>> createMapState(
+	protected <N, UK, UV> InternalMapState<K, N, UK, UV> createMapState(
 			TypeSerializer<N> namespaceSerializer,
 			MapStateDescriptor<UK, UV> stateDesc) throws Exception {
 
-		StateTable<K, N, HashMap<UK, UV>> stateTable = tryRegisterStateTable(
-				stateDesc.getName(),
-				stateDesc.getType(),
-				namespaceSerializer,
-				new HashMapSerializer<>(stateDesc.getKeySerializer(), stateDesc.getValueSerializer()));
-
+		StateTable<K, N, Map<UK, UV>> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
 		return new HeapMapState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 

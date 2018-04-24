@@ -60,7 +60,7 @@ import java.util.Map;
  */
 public class RocksDBMapState<K, N, UK, UV>
 		extends AbstractRocksDBState<K, N, Map<UK, UV>, MapState<UK, UV>, MapStateDescriptor<UK, UV>>
-		implements InternalMapState<K, N, UK, UV, Map<UK, UV>> {
+		implements InternalMapState<K, N, UK, UV> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBMapState.class);
 
