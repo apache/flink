@@ -766,6 +766,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testKryoRestoreResilienceWithDifferentRegistrationOrder() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		Environment env = new DummyEnvironment();
@@ -783,6 +784,15 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
 		ValueState<TestPojo> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// access the internal state representation to retrieve the original Kryo registration ids;
+		// these will be later used to check that on restore, the new Kryo serializer has reconfigured itself to
+		// have identical mappings
+		InternalKvState internalKvState = (InternalKvState) state;
+		KryoSerializer<TestPojo> kryoSerializer = (KryoSerializer<TestPojo>) internalKvState.getValueSerializer();
+		int mainPojoClassRegistrationId = kryoSerializer.getKryo().getRegistration(TestPojo.class).getId();
+		int nestedPojoClassARegistrationId = kryoSerializer.getKryo().getRegistration(TestNestedPojoClassA.class).getId();
+		int nestedPojoClassBRegistrationId = kryoSerializer.getKryo().getRegistration(TestNestedPojoClassB.class).getId();
 
 		// ============== create snapshot of current configuration ==============
 
@@ -816,6 +826,14 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		// initializeSerializerUnlessSet would not pick up our new config
 		kvId = new ValueStateDescriptor<>("id", pojoType);
 		state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// verify that on restore, the serializer that the state handle uses has reconfigured itself to have
+		// identical Kryo registration ids compared to the previous execution
+		internalKvState = (InternalKvState) state;
+		kryoSerializer = (KryoSerializer<TestPojo>) internalKvState.getValueSerializer();
+		assertEquals(mainPojoClassRegistrationId, kryoSerializer.getKryo().getRegistration(TestPojo.class).getId());
+		assertEquals(nestedPojoClassARegistrationId, kryoSerializer.getKryo().getRegistration(TestNestedPojoClassA.class).getId());
+		assertEquals(nestedPojoClassBRegistrationId, kryoSerializer.getKryo().getRegistration(TestNestedPojoClassB.class).getId());
 
 		backend.setCurrentKey(1);
 
