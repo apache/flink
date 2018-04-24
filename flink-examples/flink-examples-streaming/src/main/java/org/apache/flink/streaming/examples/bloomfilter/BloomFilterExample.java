@@ -9,7 +9,7 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
-import org.apache.flink.streaming.api.operators.PartitionedBloomFilter;
+import org.apache.flink.streaming.api.operators.ElasticBloomFilter;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -74,8 +74,8 @@ public class BloomFilterExample {
 			})
 			.timeWindow(Time.milliseconds(1000))
 			.apply(new RichWindowFunction<Integer, Integer, Integer, TimeWindow>() {
-				private PartitionedBloomFilter bf1;
-				private PartitionedBloomFilter bf2;
+				private ElasticBloomFilter bf1;
+				private ElasticBloomFilter bf2;
 
 				@Override
 				public void open(Configuration parameters) throws Exception {

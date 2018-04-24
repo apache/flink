@@ -15,7 +15,7 @@ import java.io.ByteArrayOutputStream;
 import java.util.Random;
 
 /**
- * {@link PartitionedBloomFilterManager} unit tests.
+ * {@link ElasticBloomFilterManager} unit tests.
  */
 public class PartitionedBloomFilterManagerTest {
 
@@ -36,13 +36,13 @@ public class PartitionedBloomFilterManagerTest {
 			}
 		};
 
-		PartitionedBloomFilterManager<String> partitionedBloomFilterManager = new PartitionedBloomFilterManager<String>(
+		ElasticBloomFilterManager<String> partitionedBloomFilterManager = new ElasticBloomFilterManager<String>(
 			keyContext,
 			TypeInformation.of(String.class).createSerializer(new ExecutionConfig()),
 			10,
 			new KeyGroupRange(0, 9));
 
-		PartitionedBloomFilter<String, Integer> partitionedBloomFilter = partitionedBloomFilterManager.getOrCreateBloomFilterState(
+		ElasticBloomFilter<String, Integer> partitionedBloomFilter = partitionedBloomFilterManager.getOrCreateBloomFilterState(
 			new PartitionedBloomFilterDescriptor(
 				"test-bf",
 				TypeInformation.of(Integer.class).createSerializer(new ExecutionConfig()),
@@ -72,7 +72,7 @@ public class PartitionedBloomFilterManagerTest {
 			}
 		};
 
-		PartitionedBloomFilterManager<String> partitionedBloomFilterManager = new PartitionedBloomFilterManager<String>(
+		ElasticBloomFilterManager<String> partitionedBloomFilterManager = new ElasticBloomFilterManager<String>(
 			keyContext,
 			TypeInformation.of(String.class).createSerializer(new ExecutionConfig()),
 			10,
@@ -88,8 +88,8 @@ public class PartitionedBloomFilterManagerTest {
 			TypeInformation.of(Integer.class).createSerializer(new ExecutionConfig()),
 			10_000, 0.01, 60000);
 
-		PartitionedBloomFilter<String, Integer> partitionedBloomFilter1 = partitionedBloomFilterManager.getOrCreateBloomFilterState(desc1);
-		PartitionedBloomFilter<String, Integer> partitionedBloomFilter2 = partitionedBloomFilterManager.getOrCreateBloomFilterState(desc2);
+		ElasticBloomFilter<String, Integer> partitionedBloomFilter1 = partitionedBloomFilterManager.getOrCreateBloomFilterState(desc1);
+		ElasticBloomFilter<String, Integer> partitionedBloomFilter2 = partitionedBloomFilterManager.getOrCreateBloomFilterState(desc2);
 
 		String[] keys1 = new String[10_000];
 		for (int i = 0; i < 10_000; ++i) {
@@ -117,7 +117,7 @@ public class PartitionedBloomFilterManagerTest {
 		// restore
 		ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
 		DataInputViewStreamWrapper inputViewStreamWrapper = new DataInputViewStreamWrapper(inputStream);
-		PartitionedBloomFilterManager<String> partitionedBloomFilterManager2 = new PartitionedBloomFilterManager(
+		ElasticBloomFilterManager<String> partitionedBloomFilterManager2 = new ElasticBloomFilterManager(
 			keyContext,
 			TypeInformation.of(String.class).createSerializer(new ExecutionConfig()),
 			10,
@@ -128,8 +128,8 @@ public class PartitionedBloomFilterManagerTest {
 		}
 
 		// valid
-		PartitionedBloomFilter<String, Integer> partitionedBloomFilter3 = partitionedBloomFilterManager2.getOrCreateBloomFilterState(desc1);
-		PartitionedBloomFilter<String, Integer> partitionedBloomFilter4 = partitionedBloomFilterManager2.getOrCreateBloomFilterState(desc2);
+		ElasticBloomFilter<String, Integer> partitionedBloomFilter3 = partitionedBloomFilterManager2.getOrCreateBloomFilterState(desc1);
+		ElasticBloomFilter<String, Integer> partitionedBloomFilter4 = partitionedBloomFilterManager2.getOrCreateBloomFilterState(desc2);
 
 		for (int i = 0; i < 10_000; ++i) {
 			String key = keys1[i];

@@ -30,23 +30,23 @@ import java.util.Iterator;
 import java.util.LinkedList;
 
 /**
- * A list of {@link LinkedBloomFilterNode} to avoid data skewed between key ranges. The size of nodes on the list
+ * A list of {@link ShrinkableBloomFilterNode} to avoid data skewed between key ranges. The size of nodes on the list
  * grow by a {@code growRate} to avoid the list to be too long.
  */
-public class LinkedBloomFilter {
+public class LinkedShrinkableBloomFilter {
 
-	private static final Logger LOG = LoggerFactory.getLogger(LinkedBloomFilter.class);
+	private static final Logger LOG = LoggerFactory.getLogger(LinkedShrinkableBloomFilter.class);
 
 	private long currentSize;
 
 	private long initSize;
 	private double growRate;
 
-	private PartitionedBloomFilter partitionedBloomFilter;
+	private ElasticBloomFilter partitionedBloomFilter;
 
-	private LinkedList<LinkedBloomFilterNode> bloomFilterNodes = new LinkedList<>();
+	private LinkedList<ShrinkableBloomFilterNode> bloomFilterNodes = new LinkedList<>();
 
-	public LinkedBloomFilter(PartitionedBloomFilter partitionedBloomFilter, long initSize, double growRate) {
+	public LinkedShrinkableBloomFilter(ElasticBloomFilter partitionedBloomFilter, long initSize, double growRate) {
 		this.partitionedBloomFilter = partitionedBloomFilter;
 		this.currentSize = initSize;
 		this.initSize = initSize;
@@ -55,7 +55,7 @@ public class LinkedBloomFilter {
 
 	public void add(byte[] content) {
 		synchronized (bloomFilterNodes) {
-			LinkedBloomFilterNode node;
+			ShrinkableBloomFilterNode node;
 			if (bloomFilterNodes.size() > 0) {
 				node = bloomFilterNodes.getLast();
 				if (node.isFull()) {
@@ -82,9 +82,9 @@ public class LinkedBloomFilter {
 
 	public boolean contains(byte[] content) {
 		synchronized (bloomFilterNodes) {
-			Iterator<LinkedBloomFilterNode> iter = bloomFilterNodes.descendingIterator();
+			Iterator<ShrinkableBloomFilterNode> iter = bloomFilterNodes.descendingIterator();
 			while (iter.hasNext()) {
-				LinkedBloomFilterNode node = iter.next();
+				ShrinkableBloomFilterNode node = iter.next();
 				if (node.contains(content)) {
 					return true;
 				}
@@ -92,17 +92,17 @@ public class LinkedBloomFilter {
 			return false;
 		}
 	}
-
-	// for checkpoint and recovery
-	public LinkedBloomFilter copy() {
-		synchronized (bloomFilterNodes) {
-			LinkedBloomFilter bloomFilter = new LinkedBloomFilter(partitionedBloomFilter, initSize, growRate);
-			for (LinkedBloomFilterNode node : bloomFilterNodes) {
-				bloomFilter.bloomFilterNodes.add(node.copy());
-			}
-			return bloomFilter;
-		}
-	}
+//
+//	// for checkpoint and recovery
+//	public LinkedBloomFilter copy() {
+//		synchronized (bloomFilterNodes) {
+//			LinkedBloomFilter bloomFilter = new LinkedBloomFilter(partitionedBloomFilter, initSize, growRate);
+//			for (ShrinkableBloomFilterNode node : bloomFilterNodes) {
+//				bloomFilter.bloomFilterNodes.add(node.copy());
+//			}
+//			return bloomFilter;
+//		}
+//	}
 
 	@VisibleForTesting
 	long getCurrentSize() {
@@ -120,7 +120,7 @@ public class LinkedBloomFilter {
 	}
 
 	@VisibleForTesting
-	LinkedList<LinkedBloomFilterNode> getBloomFilterNodes() {
+	LinkedList<ShrinkableBloomFilterNode> getBloomFilterNodes() {
 		return bloomFilterNodes;
 	}
 
@@ -128,7 +128,7 @@ public class LinkedBloomFilter {
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
 		synchronized (bloomFilterNodes) {
-			for (LinkedBloomFilterNode node : bloomFilterNodes) {
+			for (ShrinkableBloomFilterNode node : bloomFilterNodes) {
 				if (builder.length() > 0) {
 					builder.append(" -> ");
 				}
@@ -145,7 +145,7 @@ public class LinkedBloomFilter {
 		outputView.writeDouble(growRate);
 
 		bloomFilterNodes.removeIf(node -> {
-			if (node.getDeleteTS() <= ts) {
+			if (node.getDealine() <= ts) {
 				partitionedBloomFilter.takeBack(node);
 				return true;
 			}
@@ -153,7 +153,7 @@ public class LinkedBloomFilter {
 		});
 
 		outputView.writeInt(bloomFilterNodes.size());
-		for (LinkedBloomFilterNode node : bloomFilterNodes) {
+		for (ShrinkableBloomFilterNode node : bloomFilterNodes) {
 			node.snapshot(outputView);
 		}
 	}
@@ -164,7 +164,7 @@ public class LinkedBloomFilter {
 		growRate = source.readDouble();
 		int len = source.readInt();
 		for (int i = 0; i < len; ++i) {
-			LinkedBloomFilterNode node = new LinkedBloomFilterNode();
+			ShrinkableBloomFilterNode node = new ShrinkableBloomFilterNode(1, 1, 1);
 			node.restore(source);
 			bloomFilterNodes.add(node);
 		}

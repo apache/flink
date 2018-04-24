@@ -171,7 +171,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		return keyedStateStore.getMapState(stateProperties);
 	}
 
-	public PartitionedBloomFilter getPartitionedBloomFilter(PartitionedBloomFilterDescriptor descriptor) {
+	public ElasticBloomFilter getPartitionedBloomFilter(PartitionedBloomFilterDescriptor descriptor) {
 		descriptor.initializeSerializerUnlessSet(getExecutionConfig());
 		return operator.getBloomFilterStateManager().getOrCreateBloomFilterState(descriptor);
 	}

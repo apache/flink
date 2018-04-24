@@ -15,7 +15,7 @@ import java.io.ByteArrayOutputStream;
 import java.util.Random;
 
 /**
- * {@link PartitionedBloomFilter} unit tests.
+ * {@link ElasticBloomFilter} unit tests.
  */
 public class PartitionedBloomFilterTest {
 
@@ -36,7 +36,7 @@ public class PartitionedBloomFilterTest {
 			}
 		};
 
-		PartitionedBloomFilter<String, Integer> partitionedBloomFilter = new PartitionedBloomFilter<String, Integer>(
+		ElasticBloomFilter<String, Integer> partitionedBloomFilter = new ElasticBloomFilter<String, Integer>(
 			new StringSerializer(),
 			new IntSerializer(),
 			10,
@@ -50,7 +50,7 @@ public class PartitionedBloomFilterTest {
 			2.0
 		);
 
-		LinkedBloomFilter[] linkedBloomFilters = partitionedBloomFilter.getLinkedBloomFilters();
+		LinkedShrinkableBloomFilter[] linkedBloomFilters = partitionedBloomFilter.getLinkedBloomFilters();
 		Assert.assertEquals(10, linkedBloomFilters.length);
 		for (int i = 0; i < 10; ++i) {
 			Assert.assertNull(linkedBloomFilters[i]);
@@ -85,7 +85,7 @@ public class PartitionedBloomFilterTest {
 			}
 		};
 
-		PartitionedBloomFilter<String, Integer> partitionedBloomFilter = new PartitionedBloomFilter<String, Integer>(
+		ElasticBloomFilter<String, Integer> partitionedBloomFilter = new ElasticBloomFilter<String, Integer>(
 			new StringSerializer(),
 			new IntSerializer(),
 			10,
@@ -115,7 +115,7 @@ public class PartitionedBloomFilterTest {
 			partitionedBloomFilter.snapshotStateForKeyGroup(outputViewStreamWrapper, i);
 		}
 
-		PartitionedBloomFilter<String, Integer> partitionedBloomFilter2 = new PartitionedBloomFilter<String, Integer>(
+		ElasticBloomFilter<String, Integer> partitionedBloomFilter2 = new ElasticBloomFilter<String, Integer>(
 			new StringSerializer(),
 			new IntSerializer(),
 			10,

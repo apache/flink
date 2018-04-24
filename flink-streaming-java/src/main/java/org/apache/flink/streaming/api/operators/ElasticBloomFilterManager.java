@@ -35,15 +35,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Responsible for managing all {@link PartitionedBloomFilter}.
+ * Responsible for managing all {@link ElasticBloomFilter}.
  *
  * @param <K> The type of keys.
  */
-public class PartitionedBloomFilterManager<K> {
+public class ElasticBloomFilterManager<K> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(PartitionedBloomFilterManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ElasticBloomFilterManager.class);
 
-	private Map<String, PartitionedBloomFilter> bloomFilterStates = new HashMap<>();
+	private Map<String, ElasticBloomFilter> bloomFilterStates = new HashMap<>();
 	private Map<String, PartitionedBloomFilterDescriptor> bloomFilterStateDescriptors = new HashMap<>();
 	private int numberOfKeyGroups;
 	private KeyGroupRange keyGroupRange;
@@ -52,7 +52,7 @@ public class PartitionedBloomFilterManager<K> {
 	/** Serializer for the key. */
 	private final TypeSerializer<K> keySerializer;
 
-	public PartitionedBloomFilterManager(
+	public ElasticBloomFilterManager(
 		KeyContext keyContext,
 		TypeSerializer<K> keySerializer,
 		int numberOfKeyGroups,
@@ -65,11 +65,11 @@ public class PartitionedBloomFilterManager<K> {
 	}
 
 	// ----------------------------------------------------
-	public <T> PartitionedBloomFilter<K, T> getOrCreateBloomFilterState(PartitionedBloomFilterDescriptor<T> stateDescriptor) {
+	public <T> ElasticBloomFilter<K, T> getOrCreateBloomFilterState(PartitionedBloomFilterDescriptor<T> stateDescriptor) {
 		String stateName = stateDescriptor.getStateName();
-		PartitionedBloomFilter<K, T> state = bloomFilterStates.get(stateName);
+		ElasticBloomFilter<K, T> state = bloomFilterStates.get(stateName);
 		if (state == null) {
-			state = new PartitionedBloomFilter(keySerializer,
+			state = new ElasticBloomFilter(keySerializer,
 				stateDescriptor.getSerializer(),
 				numberOfKeyGroups,
 				keyGroupRange,
@@ -99,7 +99,7 @@ public class PartitionedBloomFilterManager<K> {
 	public void snapshotStateForKeyGroup(DataOutputViewStreamWrapper stream, int keyGroupIdx) {
 		try {
 			stream.writeInt(this.bloomFilterStates.size());
-			for (Map.Entry<String, PartitionedBloomFilter> entry : this.bloomFilterStates.entrySet()) {
+			for (Map.Entry<String, ElasticBloomFilter> entry : this.bloomFilterStates.entrySet()) {
 				PartitionedBloomFilterDescriptor desc = this.bloomFilterStateDescriptors.get(entry.getKey());
 
 				ObjectOutputStream outputStream = new ObjectOutputStream(stream);
@@ -127,11 +127,11 @@ public class PartitionedBloomFilterManager<K> {
 				ObjectInputStream inputStream = new ObjectInputStream(stream);
 				PartitionedBloomFilterDescriptor desc = (PartitionedBloomFilterDescriptor) inputStream.readObject();
 
-				PartitionedBloomFilter state = bloomFilterStates.get(desc.getStateName());
+				ElasticBloomFilter state = bloomFilterStates.get(desc.getStateName());
 				LOG.info("restoring state [{}] for key group {}", desc.getStateName(), keyGroupIdx);
 				if (state == null) {
 					LOG.info("c:{} f:{} t:{} mie:{} mae:{} g:{}", desc.getCapacity(), desc.getFpp(), desc.getTtl(), desc.getMiniExpectNum(), desc.getMaxExpectNum(), desc.getGrowRate());
-					state = new PartitionedBloomFilter(keySerializer,
+					state = new ElasticBloomFilter(keySerializer,
 						desc.getSerializer(),
 						numberOfKeyGroups,
 						keyGroupRange,

@@ -12,14 +12,14 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 /**
- * {@link LinkedBloomFilterNode} unit tests.
+ * {@link ElasticBloomFilterNode} unit tests.
  */
 public class LinkedBloomFilterNodeTest {
 
 	@Test
 	public void basicTest() throws InterruptedException {
 
-		LinkedBloomFilterNode node = new LinkedBloomFilterNode(100, 0.01, 1000);
+		ElasticBloomFilterNode node = new ElasticBloomFilterNode(100, 0.01, 1000);
 
 		Assert.assertEquals(Long.MAX_VALUE, node.getDeleteTS());
 
@@ -35,7 +35,7 @@ public class LinkedBloomFilterNodeTest {
 	@Test
 	public void testSnapshotAndRestore() throws InterruptedException, IOException {
 
-		LinkedBloomFilterNode node1 = new LinkedBloomFilterNode(100, 0.01, 1000);
+		ElasticBloomFilterNode node1 = new ElasticBloomFilterNode(100, 0.01, 1000);
 		for (int i = 0; i < 100; ++i) {
 			node1.add(String.valueOf(i).getBytes());
 			Assert.assertTrue(node1.contains(String.valueOf(i).getBytes()));
@@ -48,7 +48,7 @@ public class LinkedBloomFilterNodeTest {
 
 		byte[] outputBytes = outputStream.toByteArray();
 
-		LinkedBloomFilterNode node2 = new LinkedBloomFilterNode();
+		ElasticBloomFilterNode node2 = new ElasticBloomFilterNode();
 		node2.restore(new DataInputViewStreamWrapper(new ByteArrayInputStream(outputBytes)));
 
 		Assert.assertEquals(node1.getCapacity(), node2.getCapacity());

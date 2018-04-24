@@ -46,14 +46,14 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * @param <K> The type of keys.
  * @param <V> The type of values.
  */
-public class PartitionedBloomFilter<K, V> {
+public class ElasticBloomFilter<K, V> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(PartitionedBloomFilter.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ElasticBloomFilter.class);
 
 	private final int totalKeyGroups;
 	private final KeyGroupsList localKeyGroupRange;
 	private final KeyContext keyContext;
-	private LinkedBloomFilter[] linkedBloomFilters;
+	private LinkedShrinkableBloomFilter[] linkedBloomFilters;
 	private final int localKeyGroupRangeStartIdx;
 
 	private long totalMemSize;
@@ -75,17 +75,17 @@ public class PartitionedBloomFilter<K, V> {
 	private final ByteArrayOutputStreamWithPos valueSerializationStream;
 	private final DataOutputView valueSerializationDataOutputView;
 
-	public PartitionedBloomFilter(TypeSerializer<K> keySerializer,
-								TypeSerializer<V> valueSerializer,
-								int totalKeyGroups,
-								KeyGroupsList localKeyGroupRange,
-								KeyContext keyContext,
-								long capacity,
-								double fpp,
-								long ttl,
-								long miniExpectNum,
-								long maxExpectNum,
-								double growRate) {
+	public ElasticBloomFilter(TypeSerializer<K> keySerializer,
+							  TypeSerializer<V> valueSerializer,
+							  int totalKeyGroups,
+							  KeyGroupsList localKeyGroupRange,
+							  KeyContext keyContext,
+							  long capacity,
+							  double fpp,
+							  long ttl,
+							  long miniExpectNum,
+							  long maxExpectNum,
+							  double growRate) {
 		this.capacity = capacity;
 		this.fpp = fpp;
 		this.ttl = ttl;
@@ -99,7 +99,7 @@ public class PartitionedBloomFilter<K, V> {
 		this.keyContext = keyContext;
 		this.totalKeyGroups = totalKeyGroups;
 		this.localKeyGroupRange = localKeyGroupRange;
-		this.linkedBloomFilters = new LinkedBloomFilter[localKeyGroupRange.getNumberOfKeyGroups()];
+		this.linkedBloomFilters = new LinkedShrinkableBloomFilter[localKeyGroupRange.getNumberOfKeyGroups()];
 
 		// find the starting index of the local key-group range
 		int startIdx = Integer.MAX_VALUE;
@@ -118,9 +118,9 @@ public class PartitionedBloomFilter<K, V> {
 		int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(keyContext.getCurrentKey(), totalKeyGroups);
 		int index = getIndexForKeyGroup(keyGroupIndex);
 
-		LinkedBloomFilter bloomFilter = linkedBloomFilters[index];
+		LinkedShrinkableBloomFilter bloomFilter = linkedBloomFilters[index];
 		if (bloomFilter == null) {
-			bloomFilter = new LinkedBloomFilter(this, miniExpectNum, growRate);
+			bloomFilter = new LinkedShrinkableBloomFilter(this, miniExpectNum, growRate);
 			linkedBloomFilters[index] = bloomFilter;
 		}
 		bloomFilter.add(buildBloomFilterKey(content));
@@ -130,7 +130,7 @@ public class PartitionedBloomFilter<K, V> {
 		int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(keyContext.getCurrentKey(), totalKeyGroups);
 		int index = getIndexForKeyGroup(keyGroupIndex);
 
-		LinkedBloomFilter bloomFilter = linkedBloomFilters[index];
+		LinkedShrinkableBloomFilter bloomFilter = linkedBloomFilters[index];
 		if (bloomFilter == null) {
 			return false;
 		}
@@ -147,7 +147,7 @@ public class PartitionedBloomFilter<K, V> {
 
 		LOG.info("snapshot state for group {} ", keyGroupIdx);
 		int index = getIndexForKeyGroup(keyGroupIdx);
-		LinkedBloomFilter bloomFilter = this.linkedBloomFilters[index];
+		LinkedShrinkableBloomFilter bloomFilter = this.linkedBloomFilters[index];
 		if (bloomFilter != null) {
 			stream.writeBoolean(true);
 			stream.writeLong(this.restMemSize);
@@ -165,7 +165,7 @@ public class PartitionedBloomFilter<K, V> {
 		int index = getIndexForKeyGroup(keyGroupIdx);
 		if (stream.readBoolean()) {
 			this.restMemSize = stream.readLong();
-			LinkedBloomFilter linkedBloomFilter = new LinkedBloomFilter(this, miniExpectNum, growRate);
+			LinkedShrinkableBloomFilter linkedBloomFilter = new LinkedShrinkableBloomFilter(this, miniExpectNum, growRate);
 			linkedBloomFilter.restore(stream);
 			this.linkedBloomFilters[index] = linkedBloomFilter;
 			LOG.info("group {} restored.", keyGroupIdx);
@@ -176,11 +176,11 @@ public class PartitionedBloomFilter<K, V> {
 
 	// ---------------------
 
-	LinkedBloomFilterNode allocateBloomFilterNode(long expectNum) {
+	ShrinkableBloomFilterNode allocateBloomFilterNode(long expectNum) {
 		return allocateBloomFilterNode(expectNum, false);
 	}
 
-	LinkedBloomFilterNode allocateBloomFilterNode(long expectNum, boolean force) {
+	ShrinkableBloomFilterNode allocateBloomFilterNode(long expectNum, boolean force) {
 		long requestNum = expectNum;
 		if (!force) {
 			if (restMemSize > 0) {
@@ -199,10 +199,10 @@ public class PartitionedBloomFilter<K, V> {
 		}
 
 		restMemSize -= BloomFilter.optimalNumOfBits(requestNum, fpp);
-		return new LinkedBloomFilterNode(requestNum, fpp, ttl);
+		return new ShrinkableBloomFilterNode((int) requestNum, fpp, ttl);
 	}
 
-	void takeBack(LinkedBloomFilterNode node) {
+	void takeBack(ShrinkableBloomFilterNode node) {
 		restMemSize += BloomFilter.optimalNumOfBits(node.getCapacity(), node.getFpp());
 	}
 
@@ -236,7 +236,7 @@ public class PartitionedBloomFilter<K, V> {
 			.append("total memory:").append(totalMemSize).append("\t").append("rest memory:").append(restMemSize).append("\n");
 
 		for (int i = 0; i < localKeyGroupRange.getNumberOfKeyGroups(); ++i) {
-			LinkedBloomFilter bloomFilter = this.linkedBloomFilters[i];
+			LinkedShrinkableBloomFilter bloomFilter = this.linkedBloomFilters[i];
 			if (bloomFilter != null) {
 				builder.append("group ").append(i + localKeyGroupRangeStartIdx).append(":").append(bloomFilter.toString()).append("\n");
 			}
@@ -245,7 +245,7 @@ public class PartitionedBloomFilter<K, V> {
 	}
 
 	@VisibleForTesting
-	LinkedBloomFilter[] getLinkedBloomFilters() {
+	LinkedShrinkableBloomFilter[] getLinkedBloomFilters() {
 		return this.linkedBloomFilters;
 	}
 }
