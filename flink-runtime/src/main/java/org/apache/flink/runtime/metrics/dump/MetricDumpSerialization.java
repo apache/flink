@@ -40,6 +40,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_JM;
 import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_JOB;
@@ -216,10 +217,8 @@ public class MetricDumpSerialization {
 	}
 
 	private static void serializeGauge(DataOutput out, QueryScopeInfo info, String name, Gauge<?> gauge) throws IOException {
-		Object value = gauge.getValue();
-		if (value == null) {
-			throw new NullPointerException("Value returned by gauge " + name + " was null.");
-		}
+		Object value = Optional.ofNullable(gauge.getValue()).orElseThrow(() -> new NullPointerException("Value returned by gauge " + name + " was "
+			+ "null."));
 		String stringValue = value.toString();
 		if (stringValue == null) {
 			throw new NullPointerException("toString() of the value returned by gauge " + name + " returned null.");
