@@ -131,7 +131,7 @@ parallelism.default: 1
 # The port under which the web-based runtime monitor listens.
 # A value of -1 deactivates the web server.
 
-web.port: 8081
+rest.port: 8081
 
 # Flag to specify whether job submission is enabled from the web-based
 # runtime monitor. Uncomment to disable.

@@ -39,7 +39,10 @@ public class WebOptions {
 
 	/**
 	 * The port for the runtime monitor web-frontend server.
+	 *
+	 * @deprecated Use {@link RestOptions#PORT} instead
 	 */
+	@Deprecated
 	public static final ConfigOption<Integer> PORT =
 		key("web.port")
 			.defaultValue(8081)
