@@ -920,99 +920,105 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@Test
 	public void testStateSerializerReconfiguration() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		Environment env = new DummyEnvironment();
 
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
 
-		ValueStateDescriptor<TestCustomStateClass> kvId = new ValueStateDescriptor<>("id", new TestReconfigurableCustomTypeSerializer());
-		ValueState<TestCustomStateClass> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+		try {
+			ValueStateDescriptor<TestCustomStateClass> kvId = new ValueStateDescriptor<>("id", new TestReconfigurableCustomTypeSerializer());
+			ValueState<TestCustomStateClass> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
-		// ============== create snapshot, using the non-reconfigured serializer ==============
+			// ============== create snapshot, using the non-reconfigured serializer ==============
 
-		// make some modifications
-		backend.setCurrentKey(1);
-		state.update(new TestCustomStateClass("test-message-1", "this-should-be-ignored"));
+			// make some modifications
+			backend.setCurrentKey(1);
+			state.update(new TestCustomStateClass("test-message-1", "this-should-be-ignored"));
 
-		backend.setCurrentKey(2);
-		state.update(new TestCustomStateClass("test-message-2", "this-should-be-ignored"));
+			backend.setCurrentKey(2);
+			state.update(new TestCustomStateClass("test-message-2", "this-should-be-ignored"));
 
-		// verify that our assumption that the serializer is not yet reconfigured;
-		// we cast the state handle to the internal representation in order to retrieve the serializer
-		InternalKvState internal = (InternalKvState) state;
-		assertTrue(internal.getValueSerializer() instanceof TestReconfigurableCustomTypeSerializer);
-		assertFalse(((TestReconfigurableCustomTypeSerializer) internal.getValueSerializer()).isReconfigured());
+			// verify that our assumption that the serializer is not yet reconfigured;
+			// we cast the state handle to the internal representation in order to retrieve the serializer
+			InternalKvState internal = (InternalKvState) state;
+			assertTrue(internal.getValueSerializer() instanceof TestReconfigurableCustomTypeSerializer);
+			assertFalse(((TestReconfigurableCustomTypeSerializer) internal.getValueSerializer()).isReconfigured());
 
-		KeyedStateHandle snapshot = runSnapshot(backend.snapshot(
-			682375462378L,
-			2,
-			streamFactory,
-			CheckpointOptions.forCheckpointWithDefaultLocation()));
+			KeyedStateHandle snapshot1 = runSnapshot(backend.snapshot(
+				682375462378L,
+				2,
+				streamFactory,
+				CheckpointOptions.forCheckpointWithDefaultLocation()));
 
-		backend.dispose();
+			snapshot1.registerSharedStates(sharedStateRegistry);
+			backend.dispose();
 
-		// ========== restore snapshot, which should reconfigure the serializer, and then create a snapshot again ==========
+			// ========== restore snapshot, which should reconfigure the serializer, and then create a snapshot again ==========
 
-		env = new DummyEnvironment();
+			env = new DummyEnvironment();
 
-		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1, env);
 
-		snapshot.discardState();
+			kvId = new ValueStateDescriptor<>("id", new TestReconfigurableCustomTypeSerializer());
+			state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
-		kvId = new ValueStateDescriptor<>("id", new TestReconfigurableCustomTypeSerializer());
-		state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			// verify that the serializer used is correctly reconfigured
+			internal = (InternalKvState) state;
+			assertTrue(internal.getValueSerializer() instanceof TestReconfigurableCustomTypeSerializer);
+			assertTrue(((TestReconfigurableCustomTypeSerializer) internal.getValueSerializer()).isReconfigured());
 
-		// verify that the serializer used is correctly reconfigured
-		internal = (InternalKvState) state;
-		assertTrue(internal.getValueSerializer() instanceof TestReconfigurableCustomTypeSerializer);
-		assertTrue(((TestReconfigurableCustomTypeSerializer) internal.getValueSerializer()).isReconfigured());
+			backend.setCurrentKey(1);
+			TestCustomStateClass restoredState1 = state.value();
+			assertEquals("test-message-1", restoredState1.getMessage());
+			// the previous serializer schema does not contain the extra message
+			assertNull(restoredState1.getExtraMessage());
 
-		backend.setCurrentKey(1);
-		TestCustomStateClass restoredState1 = state.value();
-		assertEquals("test-message-1", restoredState1.getMessage());
-		// the previous serializer schema does not contain the extra message
-		assertNull(restoredState1.getExtraMessage());
+			state.update(new TestCustomStateClass("new-test-message-1", "extra-message-1"));
 
-		state.update(new TestCustomStateClass("new-test-message-1", "extra-message-1"));
+			backend.setCurrentKey(2);
+			TestCustomStateClass restoredState2 = state.value();
+			assertEquals("test-message-2", restoredState2.getMessage());
+			assertNull(restoredState1.getExtraMessage());
 
-		backend.setCurrentKey(2);
-		TestCustomStateClass restoredState2 = state.value();
-		assertEquals("test-message-2", restoredState2.getMessage());
-		assertNull(restoredState1.getExtraMessage());
+			state.update(new TestCustomStateClass("new-test-message-2", "extra-message-2"));
 
-		state.update(new TestCustomStateClass("new-test-message-2", "extra-message-2"));
+			KeyedStateHandle snapshot2 = runSnapshot(backend.snapshot(
+				682375462379L,
+				3,
+				streamFactory,
+				CheckpointOptions.forCheckpointWithDefaultLocation()));
 
-		snapshot = runSnapshot(backend.snapshot(
-			682375462379L,
-			3,
-			streamFactory,
-			CheckpointOptions.forCheckpointWithDefaultLocation()));
+			snapshot2.registerSharedStates(sharedStateRegistry);
+			snapshot1.discardState();
+			backend.dispose();
 
-		backend.dispose();
+			// ========== restore snapshot again; state should now be in the new schema containing the extra message ==========
 
-		// ========== restore snapshot again; state should now be in the new schema containing the extra message ==========
+			env = new DummyEnvironment();
 
-		env = new DummyEnvironment();
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2, env);
 
-		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
+			snapshot2.discardState();
 
-		snapshot.discardState();
+			kvId = new ValueStateDescriptor<>("id", new TestReconfigurableCustomTypeSerializer());
+			state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
-		kvId = new ValueStateDescriptor<>("id", new TestReconfigurableCustomTypeSerializer());
-		state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			internal = (InternalKvState) state;
+			assertTrue(internal.getValueSerializer() instanceof TestReconfigurableCustomTypeSerializer);
+			assertTrue(((TestReconfigurableCustomTypeSerializer) internal.getValueSerializer()).isReconfigured());
 
-		internal = (InternalKvState) state;
-		assertTrue(internal.getValueSerializer() instanceof TestReconfigurableCustomTypeSerializer);
-		assertTrue(((TestReconfigurableCustomTypeSerializer) internal.getValueSerializer()).isReconfigured());
+			backend.setCurrentKey(1);
+			restoredState1 = state.value();
+			assertEquals("new-test-message-1", restoredState1.getMessage());
+			assertEquals("extra-message-1", restoredState1.getExtraMessage());
 
-		backend.setCurrentKey(1);
-		restoredState1 = state.value();
-		assertEquals("new-test-message-1", restoredState1.getMessage());
-		assertEquals("extra-message-1", restoredState1.getExtraMessage());
-
-		backend.setCurrentKey(2);
-		restoredState2 = state.value();
-		assertEquals("new-test-message-2", restoredState2.getMessage());
-		assertEquals("extra-message-2", restoredState2.getExtraMessage());
+			backend.setCurrentKey(2);
+			restoredState2 = state.value();
+			assertEquals("new-test-message-2", restoredState2.getMessage());
+			assertEquals("extra-message-2", restoredState2.getExtraMessage());
+		} finally {
+			backend.dispose();
+		}
 	}
 
 	@Test
