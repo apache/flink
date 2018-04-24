@@ -587,23 +587,23 @@ Previously this key was named `recovery.mode` and the default value was `standal
 
 ### Queryable State
 
-#### Server
+The following configuration parameters influence the behaviour of the queryable state server and client.
+They are defined in `QueryableStateOptions`.
 
-- `query.server.enable`: Enable queryable state (Default: `true`).
+#### State Server
+* `query.server.ports`: the server port range of the queryable state server. This is useful to avoid port clashes if more 
+   than 1 task managers run on the same machine. The specified range can be: a port: "9123", a range of ports: "50100-50200",
+   or a list of ranges and or points: "50100-50200,50300-50400,51234". The default port is 9067.
+* `query.server.network-threads`: number of network (event loop) threads receiving incoming requests for the state server (0 => #slots)
+* `query.server.query-threads`: number of threads handling/serving incoming requests for the state server (0 => #slots).
 
-- `query.server.port`: Port to bind queryable state server to (Default: `0`, binds to random port).
 
-- `query.server.network-threads`: Number of network (Netty's event loop) Threads for queryable state server (Default: `0`, picks number of slots).
-
-- `query.server.query-threads`: Number of query Threads for queryable state server (Default: `0`, picks number of slots).
-
-#### Client
-
-- `query.client.network-threads`: Number of network (Netty's event loop) Threads for queryable state client (Default: `0`, picks number of available cores as returned by `Runtime.getRuntime().availableProcessors()`).
-
-- `query.client.lookup.num-retries`: Number of retries on KvState lookup failure due to unavailable JobManager (Default: `3`).
-
-- `query.client.lookup.retry-delay`: Retry delay in milliseconds on KvState lookup failure due to unavailable JobManager (Default: `1000`).
+#### Proxy
+* `query.proxy.ports`: the server port range of the queryable state proxy. This is useful to avoid port clashes if more 
+  than 1 task managers run on the same machine. The specified range can be: a port: "9123", a range of ports: "50100-50200",
+  or a list of ranges and or points: "50100-50200,50300-50400,51234". The default port is 9069.
+* `query.proxy.network-threads`: number of network (event loop) threads receiving incoming requests for the client proxy (0 => #slots)
+* `query.proxy.query-threads`: number of threads handling/serving incoming requests for the client proxy (0 => #slots).
 
 ### Metrics
 
