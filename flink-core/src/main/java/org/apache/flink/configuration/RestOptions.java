@@ -51,6 +51,7 @@ public class RestOptions {
 	public static final ConfigOption<Integer> PORT =
 		key("rest.port")
 			.defaultValue(8081)
+			.withDeprecatedKeys("web.port")
 			.withDescription("The port that the server listens on / the client connects to.");
 
 	/**
