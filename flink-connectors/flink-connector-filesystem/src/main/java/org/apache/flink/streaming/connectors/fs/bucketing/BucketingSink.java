@@ -89,8 +89,8 @@ import java.util.UUID;
  * {@code subtask 1} of the sink and is the {@code 17th} bucket created by that subtask. Per default
  * the part prefix is {@code "part"} but this can be configured using {@link #setPartPrefix(String)}.
  * When a part file becomes bigger than the user-specified batch size or when the part file becomes older
- * than the user-specified roll over interval the current part file is closed,the part counter is increased
- * and a new part file is created. The batch size defaults to {@code 384MB},this can be configured
+ * than the user-specified roll over interval the current part file is closed, the part counter is increased
+ * and a new part file is created. The batch size defaults to {@code 384MB}, this can be configured
  * using {@link #setBatchSize(long)}. The roll over interval defaults to {@code Long.MAX_VALUE} and
  * this can be configured using {@link #setBatchRolloverInterval(long)}.
  *
@@ -464,6 +464,7 @@ public class BucketingSink<T>
 	 * <ol>
 	 *     <li>no file is created yet for the task to write to, or</li>
 	 *     <li>the current file has reached the maximum bucket size.</li>
+	 *     <li>the current file is older than roll over interval</li>
 	 * </ol>
 	 */
 	private boolean shouldRoll(BucketState<T> bucketState) throws IOException {
@@ -483,7 +484,7 @@ public class BucketingSink<T>
 					batchSize);
 			} else {
 				long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
-				if (currentProcessingTime - bucketState.firstWrittenToTime > batchRolloverInterval) {
+				if (currentProcessingTime - bucketState.creationTime > batchRolloverInterval) {
 					shouldRoll = true;
 					LOG.debug(
 						"BucketingSink {} starting new bucket because file is older than roll over interval {}.",
@@ -555,7 +556,7 @@ public class BucketingSink<T>
 		}
 
 		// Record the creation time of the bucket
-		bucketState.firstWrittenToTime = processingTimeService.getCurrentProcessingTime();
+		bucketState.creationTime = processingTimeService.getCurrentProcessingTime();
 
 		if (partSuffix != null) {
 			partPath = partPath.suffix(partSuffix);
@@ -1145,9 +1146,9 @@ public class BucketingSink<T>
 		long lastWrittenToTime;
 
 		/**
-		 * The time this bucket was first written to.
+		 * The time this bucket was created.
 		 */
-		long firstWrittenToTime;
+		long creationTime;
 
 		/**
 		 * Pending files that accumulated since the last checkpoint.
