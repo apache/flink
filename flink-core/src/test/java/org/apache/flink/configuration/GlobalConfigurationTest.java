@@ -31,7 +31,9 @@ import java.io.PrintWriter;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * This class contains tests for the global configuration (parsing configuration directory information).
@@ -120,4 +122,12 @@ public class GlobalConfigurationTest extends TestLogger {
 		assertNotNull(GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath()));
 	}
 
+	@Test
+	public void testHiddenKey() {
+		assertTrue(GlobalConfiguration.isHiddenKey("password123"));
+		assertTrue(GlobalConfiguration.isHiddenKey("123pasSword"));
+		assertTrue(GlobalConfiguration.isHiddenKey("PasSword"));
+		assertTrue(GlobalConfiguration.isHiddenKey("Secret"));
+		assertFalse(GlobalConfiguration.isHiddenKey("Hello"));
+	}
 }
