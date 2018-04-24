@@ -162,7 +162,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	// --------------------------------------------------------------------------------------------
 
 	public static TaskManagerConfiguration fromConfiguration(Configuration configuration) {
-		int numberSlots = configuration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+		int numberSlots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
 
 		if (numberSlots == -1) {
 			numberSlots = 1;
