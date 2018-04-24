@@ -23,12 +23,13 @@ import java.lang.{Iterable => JIterable}
 import org.apache.calcite.rex.RexLiteral
 import org.apache.commons.codec.binary.Base64
 import org.apache.flink.api.common.state.{State, StateDescriptor}
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.TypeExtractionUtils.{extractTypeArgument, getRawClass}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.dataview._
 import org.apache.flink.table.codegen.CodeGenUtils.{newName, reflectiveFieldWriteAccess}
 import org.apache.flink.table.codegen.Indenter.toISC
+import org.apache.flink.table.dataview.MapViewTypeInfo
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.aggfunctions.DistinctAccumulator
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
@@ -75,8 +76,7 @@ class AggregationCodeGenerator(
     * @param aggregates  All aggregate functions
     * @param aggFields   Indexes of the input fields for all aggregate functions
     * @param aggMapping  The mapping of aggregates to output fields
-    * @param distinctAggs The mapping of aggregate to distinct filter DataViewSpec for each input
-    *                     field.
+    * @param isDistinctAggs The flag array indicating whether it is distinct aggregate.
     * @param isStateBackedDataViews a flag to indicate if distinct filter uses state backend.
     * @param partialResults A flag defining whether final or partial results (accumulators) are set
     *                       to the output row.
@@ -97,7 +97,7 @@ class AggregationCodeGenerator(
       aggregates: Array[AggregateFunction[_ <: Any, _ <: Any]],
       aggFields: Array[Array[Int]],
       aggMapping: Array[Int],
-      distinctAggs: Array[Seq[DataViewSpec[_]]],
+      isDistinctAggs: Array[Boolean],
       isStateBackedDataViews: Boolean,
       partialResults: Boolean,
       fwdMapping: Array[Int],
@@ -159,7 +159,22 @@ class AggregationCodeGenerator(
 
     // get distinct filter of acc fields for each aggregate functions
     val distinctAccType = s"${classOf[DistinctAccumulator[_, _]].getName}"
-    val isDistinctAggs = distinctAggs.map(_.nonEmpty)
+
+    val distinctAggs: Array[Seq[DataViewSpec[_]]] = isDistinctAggs.zipWithIndex.map {
+      case (isDistinctAgg, idx) => if (isDistinctAgg) {
+        val fieldIndex: Int = aggFields(idx)(0)
+        val mapViewTypeInfo = new MapViewTypeInfo(
+          physicalInputTypes(fieldIndex), BasicTypeInfo.LONG_TYPE_INFO)
+        Seq(
+          MapViewSpec(
+            "distinctAgg" + idx + "_field" + fieldIndex,
+            classOf[DistinctAccumulator[_, _]].getDeclaredField("mapView"),
+            mapViewTypeInfo)
+        )
+      } else {
+        Seq()
+      }
+    }
 
     if (isDistinctAggs.contains(true) && partialResults && isStateBackedDataViews) {
       throw new CodeGenException(
