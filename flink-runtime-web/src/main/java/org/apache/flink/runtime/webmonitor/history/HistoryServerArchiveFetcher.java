@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.rest.handler.legacy.JobsOverviewHandler;
+import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.FileUtils;
 
@@ -162,7 +163,7 @@ class HistoryServerArchiveFetcher {
 									String json = archive.getJson();
 
 									File target;
-									if (path.equals("/joboverview")) {
+									if (path.equals(JobsOverviewHeaders.URL)) {
 										target = new File(webOverviewDir, jobID + JSON_FILE_ENDING);
 									} else {
 										target = new File(webDir, path + JSON_FILE_ENDING);
@@ -211,7 +212,7 @@ class HistoryServerArchiveFetcher {
 						}
 					}
 					if (updateOverview) {
-						updateJobOverview(webDir);
+						updateJobOverview(webOverviewDir, webDir);
 					}
 				}
 			} catch (Exception e) {
@@ -230,19 +231,16 @@ class HistoryServerArchiveFetcher {
 	 *
 	 * <p>For the display in the HistoryServer WebFrontend we have to combine these overviews.
 	 */
-	private static void updateJobOverview(File webDir) {
-		File webOverviewDir = new File(webDir, "overviews");
-		try (JsonGenerator gen = jacksonFactory.createGenerator(HistoryServer.createOrGetFile(webDir, "joboverview"))) {
+	private static void updateJobOverview(File webOverviewDir, File webDir) {
+		try (JsonGenerator gen = jacksonFactory.createGenerator(HistoryServer.createOrGetFile(webDir, JobsOverviewHeaders.URL))) {
 			gen.writeStartObject();
-			gen.writeArrayFieldStart("running");
-			gen.writeEndArray();
-			gen.writeArrayFieldStart("finished");
+			gen.writeArrayFieldStart("jobs");
 
 			File[] overviews = new File(webOverviewDir.getPath()).listFiles();
 			if (overviews != null) {
 				for (File overview : overviews) {
 					JsonNode root = mapper.readTree(overview);
-					JsonNode finished = root.get("finished");
+					JsonNode finished = root.get("jobs");
 					JsonNode job = finished.get(0);
 					mapper.writeTree(gen, job);
 				}
