@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +43,11 @@ public final class GlobalConfiguration {
 
 	public static final String FLINK_CONF_FILENAME = "flink-conf.yaml";
 
+	// the keys whose values should be hidden
+	private static final String[] SENSITIVE_KEYS = new String[] {"password", "secret"};
+
+	// the hidden content to be displayed
+	public static final String HIDDEN_CONTENT = "******";
 
 	// --------------------------------------------------------------------------------------------
 
@@ -183,7 +189,7 @@ public final class GlobalConfiguration {
 						continue;
 					}
 
-					LOG.info("Loading configuration property: {}, {}", key, value);
+					LOG.info("Loading configuration property: {}, {}", key, isSensitive(key) ? HIDDEN_CONTENT : value);
 					config.setString(key, value);
 				}
 			}
@@ -194,4 +200,20 @@ public final class GlobalConfiguration {
 		return config;
 	}
 
+	/**
+	 * Check whether the key is a hidden key.
+	 *
+	 * @param key the config key
+	 */
+	public static boolean isSensitive(String key) {
+		Preconditions.checkNotNull(key, "key is null");
+		final String keyInLower = key.toLowerCase();
+		for (String hideKey : SENSITIVE_KEYS) {
+			if (keyInLower.length() >= hideKey.length()
+				&& keyInLower.contains(hideKey)) {
+				return true;
+			}
+		}
+		return false;
+	}
 }
