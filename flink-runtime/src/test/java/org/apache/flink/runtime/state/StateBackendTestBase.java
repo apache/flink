@@ -40,7 +40,10 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -51,6 +54,8 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.JavaSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -82,6 +87,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -90,6 +96,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.PrimitiveIterator;
 import java.util.Random;
 import java.util.Timer;
@@ -890,6 +897,104 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			CheckpointOptions.forCheckpointWithDefaultLocation()));
 
 		backend.dispose();
+	}
+
+	@Test
+	public void testStateSerializerReconfiguration() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		Environment env = new DummyEnvironment();
+
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
+
+		ValueStateDescriptor<TestCustomStateClass> kvId = new ValueStateDescriptor<>("id", new TestReconfigurableCustomTypeSerializer());
+		ValueState<TestCustomStateClass> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// ============== create snapshot, using the non-reconfigured serializer ==============
+
+		// make some modifications
+		backend.setCurrentKey(1);
+		state.update(new TestCustomStateClass("test-message-1", "this-should-be-ignored"));
+
+		backend.setCurrentKey(2);
+		state.update(new TestCustomStateClass("test-message-2", "this-should-be-ignored"));
+
+		// verify that our assumption that the serializer is not yet reconfigured;
+		// we cast the state handle to the internal representation in order to retrieve the serializer
+		InternalKvState internal = (InternalKvState) state;
+		assertTrue(internal.getValueSerializer() instanceof TestReconfigurableCustomTypeSerializer);
+		assertFalse(((TestReconfigurableCustomTypeSerializer) internal.getValueSerializer()).isReconfigured());
+
+		KeyedStateHandle snapshot = runSnapshot(backend.snapshot(
+			682375462378L,
+			2,
+			streamFactory,
+			CheckpointOptions.forCheckpointWithDefaultLocation()));
+
+		backend.dispose();
+
+		// ========== restore snapshot, which should reconfigure the serializer, and then create a snapshot again ==========
+
+		env = new DummyEnvironment();
+
+		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
+
+		snapshot.discardState();
+
+		kvId = new ValueStateDescriptor<>("id", new TestReconfigurableCustomTypeSerializer());
+		state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// verify that the serializer used is correctly reconfigured
+		internal = (InternalKvState) state;
+		assertTrue(internal.getValueSerializer() instanceof TestReconfigurableCustomTypeSerializer);
+		assertTrue(((TestReconfigurableCustomTypeSerializer) internal.getValueSerializer()).isReconfigured());
+
+		backend.setCurrentKey(1);
+		TestCustomStateClass restoredState1 = state.value();
+		assertEquals("test-message-1", restoredState1.getMessage());
+		// the previous serializer schema does not contain the extra message
+		assertNull(restoredState1.getExtraMessage());
+
+		state.update(new TestCustomStateClass("new-test-message-1", "extra-message-1"));
+
+		backend.setCurrentKey(2);
+		TestCustomStateClass restoredState2 = state.value();
+		assertEquals("test-message-2", restoredState2.getMessage());
+		assertNull(restoredState1.getExtraMessage());
+
+		state.update(new TestCustomStateClass("new-test-message-2", "extra-message-2"));
+
+		snapshot = runSnapshot(backend.snapshot(
+			682375462379L,
+			3,
+			streamFactory,
+			CheckpointOptions.forCheckpointWithDefaultLocation()));
+
+		backend.dispose();
+
+		// ========== restore snapshot again; state should now be in the new schema containing the extra message ==========
+
+		env = new DummyEnvironment();
+
+		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
+
+		snapshot.discardState();
+
+		kvId = new ValueStateDescriptor<>("id", new TestReconfigurableCustomTypeSerializer());
+		state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		internal = (InternalKvState) state;
+		assertTrue(internal.getValueSerializer() instanceof TestReconfigurableCustomTypeSerializer);
+		assertTrue(((TestReconfigurableCustomTypeSerializer) internal.getValueSerializer()).isReconfigured());
+
+		backend.setCurrentKey(1);
+		restoredState1 = state.value();
+		assertEquals("new-test-message-1", restoredState1.getMessage());
+		assertEquals("extra-message-1", restoredState1.getExtraMessage());
+
+		backend.setCurrentKey(2);
+		restoredState2 = state.value();
+		assertEquals("new-test-message-2", restoredState2.getMessage());
+		assertEquals("extra-message-2", restoredState2.getExtraMessage());
 	}
 
 	@Test
@@ -3892,6 +3997,183 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			int result = doubleField.hashCode();
 			result = 31 * result + strField.hashCode();
 			return result;
+		}
+	}
+
+	/**
+	 * Custom state class used for testing state serializer schema migration.
+	 * The corresponding serializer used in the tests is {@link TestReconfigurableCustomTypeSerializer}.
+	 */
+	public static class TestCustomStateClass {
+
+		private String message;
+		private String extraMessage;
+
+		public TestCustomStateClass(String message, String extraMessage) {
+			this.message = message;
+			this.extraMessage = extraMessage;
+		}
+
+		public String getMessage() {
+			return message;
+		}
+
+		public void setMessage(String message) {
+			this.message = message;
+		}
+
+		public String getExtraMessage() {
+			return extraMessage;
+		}
+
+		public void setExtraMessage(String extraMessage) {
+			this.extraMessage = extraMessage;
+		}
+	}
+
+	/**
+	 * A reconfigurable serializer that simulates backwards compatible schema evolution for the {@link TestCustomStateClass}.
+	 * A flag is maintained to determine whether or not the serializer has be reconfigured.
+	 * Whether or not it has been reconfigured affects which fields of {@link TestCustomStateClass} instances are
+	 * written and read on serialization.
+	 */
+	public static class TestReconfigurableCustomTypeSerializer extends TypeSerializer<TestCustomStateClass> {
+
+		private boolean reconfigured = false;
+
+		public TestReconfigurableCustomTypeSerializer() {}
+
+		/** Copy constructor. */
+		private TestReconfigurableCustomTypeSerializer(boolean reconfigured) {
+			this.reconfigured = reconfigured;
+		}
+
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			return new ParameterlessTypeSerializerConfig(getClass().getName());
+		}
+
+		@Override
+		public CompatibilityResult<TestCustomStateClass> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+			if (configSnapshot instanceof ParameterlessTypeSerializerConfig &&
+					((ParameterlessTypeSerializerConfig) configSnapshot).getSerializationFormatIdentifier().equals(getClass().getName())) {
+
+				this.reconfigured = true;
+				return CompatibilityResult.compatible();
+			} else {
+				return CompatibilityResult.requiresMigration();
+			}
+		}
+
+		@Override
+		public TypeSerializer<TestCustomStateClass> duplicate() {
+			return new TestReconfigurableCustomTypeSerializer(reconfigured);
+		}
+
+		@Override
+		public TestCustomStateClass createInstance() {
+			return new TestCustomStateClass(null, null);
+		}
+
+		@Override
+		public void serialize(TestCustomStateClass record, DataOutputView target) throws IOException {
+			target.writeBoolean(reconfigured);
+
+			target.writeUTF(record.getMessage());
+			if (reconfigured) {
+				target.writeUTF(record.getExtraMessage());
+			}
+		}
+
+		@Override
+		public TestCustomStateClass deserialize(DataInputView source) throws IOException {
+			boolean isNewSchema = source.readBoolean();
+
+			String message = source.readUTF();
+			if (isNewSchema) {
+				return new TestCustomStateClass(message, source.readUTF());
+			} else {
+				return new TestCustomStateClass(message, null);
+			}
+		}
+
+		@Override
+		public TestCustomStateClass deserialize(TestCustomStateClass reuse, DataInputView source) throws IOException {
+			boolean isNewSchema = source.readBoolean();
+
+			String message = source.readUTF();
+			if (isNewSchema) {
+				reuse.setMessage(message);
+				reuse.setExtraMessage(source.readUTF());
+				return reuse;
+			} else {
+				reuse.setMessage(message);
+				reuse.setExtraMessage(null);
+				return reuse;
+			}
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			boolean reconfigured = source.readBoolean();
+
+			target.writeUTF(source.readUTF());
+			if (reconfigured)
+			target.writeUTF(source.readUTF());
+		}
+
+		@Override
+		public TestCustomStateClass copy(TestCustomStateClass from) {
+			return new TestCustomStateClass(from.getMessage(), from.getExtraMessage());
+		}
+
+		@Override
+		public TestCustomStateClass copy(TestCustomStateClass from, TestCustomStateClass reuse) {
+			reuse.setMessage(from.getMessage());
+			reuse.setExtraMessage(from.getExtraMessage());
+			return reuse;
+		}
+
+		@Override
+		public int getLength() {
+			return 0;
+		}
+
+		@Override
+		public boolean isImmutableType() {
+			return false;
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return obj instanceof TestReconfigurableCustomTypeSerializer;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == null) {
+				return false;
+			}
+
+			if (!(obj instanceof TestReconfigurableCustomTypeSerializer)) {
+				return false;
+			}
+
+			if (obj == this) {
+				return true;
+			} else {
+				TestReconfigurableCustomTypeSerializer other = (TestReconfigurableCustomTypeSerializer) obj;
+				return other.reconfigured == this.reconfigured;
+			}
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(getClass().getName(), reconfigured);
+		}
+
+		public boolean isReconfigured() {
+			return reconfigured;
 		}
 	}
 
