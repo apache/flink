@@ -168,13 +168,16 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<N> namespaceSerializer,
 			TypeSerializer<V> valueSerializer) throws StateMigrationException {
 
-		final RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo =
-				new RegisteredKeyedBackendStateMetaInfo<>(stateType, stateName, namespaceSerializer, valueSerializer);
-
 		@SuppressWarnings("unchecked")
 		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) stateTables.get(stateName);
 
 		if (stateTable == null) {
+			RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo = new RegisteredKeyedBackendStateMetaInfo<>(
+					stateType,
+					stateName,
+					namespaceSerializer,
+					valueSerializer);
+
 			stateTable = snapshotStrategy.newStateTable(newMetaInfo);
 			stateTables.put(stateName, stateTable);
 		} else {
@@ -184,16 +187,16 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateName.equals(stateTable.getMetaInfo().getName()),
 				"Incompatible state names. " +
 					"Was [" + stateTable.getMetaInfo().getName() + "], " +
-					"registered with [" + newMetaInfo.getName() + "].");
+					"registered with [" + stateName + "].");
 
-			if (!newMetaInfo.getStateType().equals(StateDescriptor.Type.UNKNOWN)
+			if (!stateType.equals(StateDescriptor.Type.UNKNOWN)
 					&& !stateTable.getMetaInfo().getStateType().equals(StateDescriptor.Type.UNKNOWN)) {
 
 				Preconditions.checkState(
-					newMetaInfo.getStateType().equals(stateTable.getMetaInfo().getStateType()),
+					stateType.equals(stateTable.getMetaInfo().getStateType()),
 					"Incompatible state types. " +
 						"Was [" + stateTable.getMetaInfo().getStateType() + "], " +
-						"registered with [" + newMetaInfo.getStateType() + "].");
+						"registered with [" + stateType + "].");
 			}
 
 			@SuppressWarnings("unchecked")
@@ -201,19 +204,27 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				(RegisteredKeyedBackendStateMetaInfo.Snapshot<N, V>) restoredKvStateMetaInfos.get(stateName);
 
 			// check compatibility results to determine if state migration is required
+			TypeSerializer<N> newNamespaceSerializer = namespaceSerializer.duplicate();
 			CompatibilityResult<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
 					restoredMetaInfo.getNamespaceSerializer(),
 					null,
 					restoredMetaInfo.getNamespaceSerializerConfigSnapshot(),
-					newMetaInfo.getNamespaceSerializer());
+					newNamespaceSerializer);
 
+			TypeSerializer<V> newValueSerializer = valueSerializer.duplicate();
 			CompatibilityResult<V> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
 					restoredMetaInfo.getStateSerializer(),
 					UnloadableDummyTypeSerializer.class,
 					restoredMetaInfo.getStateSerializerConfigSnapshot(),
-					newMetaInfo.getStateSerializer());
+					newValueSerializer);
 
 			if (!namespaceCompatibility.isRequiresMigration() && !stateCompatibility.isRequiresMigration()) {
+				RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo = new RegisteredKeyedBackendStateMetaInfo<>(
+						stateType,
+						stateName,
+						newNamespaceSerializer,
+						newValueSerializer);
+
 				// new serializers are compatible; use them to replace the old serializers
 				stateTable.setMetaInfo(newMetaInfo);
 			} else {
@@ -254,7 +265,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateTable,
 				keySerializer,
 				stateTable.getStateSerializer(),
-				namespaceSerializer,
+				stateTable.getNamespaceSerializer(),
 				stateDesc.getDefaultValue());
 	}
 
@@ -268,7 +279,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateTable,
 				keySerializer,
 				stateTable.getStateSerializer(),
-				namespaceSerializer,
+				stateTable.getNamespaceSerializer(),
 				stateDesc.getDefaultValue());
 	}
 
@@ -282,7 +293,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateTable,
 				keySerializer,
 				stateTable.getStateSerializer(),
-				namespaceSerializer,
+				stateTable.getNamespaceSerializer(),
 				stateDesc.getDefaultValue(),
 				stateDesc.getReduceFunction());
 	}
@@ -297,7 +308,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateTable,
 				keySerializer,
 				stateTable.getStateSerializer(),
-				namespaceSerializer,
+				stateTable.getNamespaceSerializer(),
 				stateDesc.getDefaultValue(),
 				stateDesc.getAggregateFunction());
 	}
@@ -312,7 +323,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateTable,
 				keySerializer,
 				stateTable.getStateSerializer(),
-				namespaceSerializer,
+				stateTable.getNamespaceSerializer(),
 				stateDesc.getDefaultValue(),
 				stateDesc.getFoldFunction());
 	}
@@ -328,7 +339,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateTable,
 				keySerializer,
 				stateTable.getStateSerializer(),
-				namespaceSerializer,
+				stateTable.getNamespaceSerializer(),
 				null);
 	}
 
