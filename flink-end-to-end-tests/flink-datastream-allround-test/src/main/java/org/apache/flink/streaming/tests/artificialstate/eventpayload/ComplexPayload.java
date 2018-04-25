@@ -16,15 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.tests.general.artificialstate.eventpayload;
+package org.apache.flink.streaming.tests.artificialstate.eventpayload;
 
-import org.apache.flink.streaming.tests.general.Event;
+import org.apache.flink.streaming.tests.Event;
 
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 
 public class ComplexPayload implements Serializable {
+
+	private static final long serialVersionUID = 233624606545704853L;
 
 	public ComplexPayload(Event event) {
 		this.eventTime = event.getEventTime();
@@ -37,6 +39,9 @@ public class ComplexPayload implements Serializable {
 	private final InnerPayLoad innerPayLoad;
 
 	public static class InnerPayLoad implements Serializable {
+
+		private static final long serialVersionUID = 3986298180012117883L;
+
 		private final long sequenceNumber;
 
 		public InnerPayLoad(long sequenceNumber) {

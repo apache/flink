@@ -16,25 +16,45 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.tests.general.artificialstate;
+package org.apache.flink.streaming.tests;
 
-import org.apache.flink.runtime.state.FunctionInitializationContext;
+public class Event {
 
-import java.io.Serializable;
+	private final int key;
+	private final long eventTime;
+	private final long sequenceNumber;
+	private final String payload;
 
-public abstract class ArtificialKeyedStateBuilder<T> implements Serializable {
-
-	protected final String stateName;
-
-	public ArtificialKeyedStateBuilder(String stateName) {
-		this.stateName = stateName;
+	public Event(int key, long eventTime, long sequenceNumber, String payload) {
+		this.key = key;
+		this.eventTime = eventTime;
+		this.sequenceNumber = sequenceNumber;
+		this.payload = payload;
 	}
 
-	public String getStateName() {
-		return stateName;
+	public int getKey() {
+		return key;
 	}
 
-	public abstract void artificialStateForElement(T element) throws Exception;
+	public long getEventTime() {
+		return eventTime;
+	}
 
-	public abstract void initialize(FunctionInitializationContext initializationContext);
+	public long getSequenceNumber() {
+		return sequenceNumber;
+	}
+
+	public String getPayload() {
+		return payload;
+	}
+
+	@Override
+	public String toString() {
+		return "Event{" +
+			"key=" + key +
+			", eventTime=" + eventTime +
+			", sequenceNumber=" + sequenceNumber +
+			", payload='" + payload + '\'' +
+			'}';
+	}
 }

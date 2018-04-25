@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.tests.general.artificialstate;
+package org.apache.flink.streaming.tests.artificialstate;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.Set;
 
 public class ArtificialKeyedStateMapper<IN, OUT> extends RichMapFunction<IN, OUT> implements CheckpointedFunction {
+
+	private static final long serialVersionUID = 513012258173556604L;
 
 	private final MapFunction<IN, OUT> mapFunction;
 	private final List<ArtificialKeyedStateBuilder<IN>> artificialKeyedStateBuilder;

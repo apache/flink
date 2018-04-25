@@ -16,16 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.tests.general.artificialstate.eventpayload;
+package org.apache.flink.streaming.tests.artificialstate.eventpayload;
 
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.streaming.tests.general.artificialstate.ArtificialKeyedStateBuilder;
+import org.apache.flink.streaming.tests.artificialstate.ArtificialKeyedStateBuilder;
 
 public class ArtificialValueStateBuilder<IN, STATE> extends ArtificialKeyedStateBuilder<IN> {
+
+	private static final long serialVersionUID = -1205814329756790916L;
 
 	private transient ValueState<STATE> valueState;
 	private final TypeSerializer<STATE> typeSerializer;

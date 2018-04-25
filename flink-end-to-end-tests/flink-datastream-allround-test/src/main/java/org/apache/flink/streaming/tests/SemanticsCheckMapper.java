@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.tests.general;
+package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ValueState;
@@ -32,6 +32,8 @@ import java.io.Serializable;
  * This mapper validates exactly-once and at-least-once semantics in connection with {@link SequenceGeneratorSource}.
  */
 public class SemanticsCheckMapper extends RichFlatMapFunction<Event, String> implements CheckpointedFunction {
+
+	private static final long serialVersionUID = -744070793650644485L;
 
 	/** This value state tracks the current sequence number per key. */
 	private volatile ValueState<Long> sequenceValue;

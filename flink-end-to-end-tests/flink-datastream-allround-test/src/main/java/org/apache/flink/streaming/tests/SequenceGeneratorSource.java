@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.tests.general;
+package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
@@ -40,6 +40,8 @@ import java.util.Random;
  * This source function generates a sequence of long values per key.
  */
 public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> implements CheckpointedFunction {
+
+	private static final long serialVersionUID = -3986989644799442178L;
 
 	private final static Logger LOG = LoggerFactory.getLogger(SequenceGeneratorSource.class);
 

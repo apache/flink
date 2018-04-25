@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.tests.general;
+package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -35,10 +35,10 @@ import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.tests.general.artificialstate.ArtificialKeyedStateBuilder;
-import org.apache.flink.streaming.tests.general.artificialstate.ArtificialKeyedStateMapper;
-import org.apache.flink.streaming.tests.general.artificialstate.eventpayload.ArtificialValueStateBuilder;
-import org.apache.flink.streaming.tests.general.artificialstate.eventpayload.ComplexPayload;
+import org.apache.flink.streaming.tests.artificialstate.ArtificialKeyedStateBuilder;
+import org.apache.flink.streaming.tests.artificialstate.ArtificialKeyedStateMapper;
+import org.apache.flink.streaming.tests.artificialstate.eventpayload.ArtificialValueStateBuilder;
+import org.apache.flink.streaming.tests.artificialstate.eventpayload.ComplexPayload;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,7 +48,7 @@ import java.util.UUID;
 /**
  * A general purpose test for Flink.
  */
-public class GeneralPurposeJobTest {
+public class DataStreamAllroundTestProgram {
 
 	private static final ConfigOption<String> TEST_SEMANTICS = ConfigOptions
 		.key("test.semantics")
@@ -120,22 +120,10 @@ public class GeneralPurposeJobTest {
 				(Event first, ComplexPayload second) -> new ComplexPayload(first),
 				Arrays.asList(
 					new KryoSerializer<>(ComplexPayload.class, env.getConfig()))
-//					AvroUtils.getAvroUtils().createAvroSerializer(ComplexPayload.class))
 				)
 			)
-			.returns(Event.class)
 			.keyBy(Event::getKey)
 			.flatMap(createSemanticsCheckMapper(pt))
-//			.timeWindow(Time.seconds(10), Time.seconds(1))
-//			.apply(new WindowFunction<Event, Object, Integer, TimeWindow>() {
-//				@Override
-//				public void apply(Integer integer, TimeWindow window, Iterable<Event> input, Collector<Object> out) throws Exception {
-//					System.out.println("------------ "+integer);
-//					for (Event event : input) {
-//						System.out.println(event);
-//					}
-//				}
-//			});
 			.addSink(new PrintSinkFunction<>());
 
 		env.execute("General purpose test job");

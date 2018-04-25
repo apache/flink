@@ -16,19 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.tests.general.artificialstate.eventpayload;
+package org.apache.flink.streaming.tests.artificialstate.eventpayload;
 
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.streaming.tests.general.artificialstate.ArtificialKeyedStateBuilder;
+import org.apache.flink.streaming.tests.artificialstate.ArtificialKeyedStateBuilder;
 
 import java.util.Iterator;
 import java.util.Map;
 
 public class ArtificialMapStateBuilder<IN, K, V> extends ArtificialKeyedStateBuilder<IN> {
+
+	private static final long serialVersionUID = -143079058769306954L;
 
 	private transient MapState<K, V> mapState;
 	private final TypeSerializer<K> keySerializer;
