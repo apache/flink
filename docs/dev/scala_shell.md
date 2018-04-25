@@ -27,9 +27,9 @@ It can be used in a local setup as well as in a cluster setup.
 
 To use the shell with an integrated Flink cluster just execute:
 
-~~~bash
+{% highlight bash %}
 bin/start-scala-shell.sh local
-~~~
+{% endhighlight %}
 
 in the root directory of your binary Flink directory. To run the Shell on a
 cluster, please see the Setup section below.
@@ -44,7 +44,7 @@ Use "benv" and "senv" to access the Batch and Streaming environment respectively
 
 The following example will execute the wordcount program in the Scala shell:
 
-~~~scala
+{% highlight scala %}
 Scala-Flink> val text = benv.fromElements(
   "To be, or not to be,--that is the question:--",
   "Whether 'tis nobler in the mind to suffer",
@@ -54,21 +54,21 @@ Scala-Flink> val counts = text
     .flatMap { _.toLowerCase.split("\\W+") }
     .map { (_, 1) }.groupBy(0).sum(1)
 Scala-Flink> counts.print()
-~~~
+{% endhighlight %}
 
 The print() command will automatically send the specified tasks to the JobManager for execution and will show the result of the computation in the terminal.
 
 It is possible to write results to a file. However, in this case you need to call `execute`, to run your program:
 
-~~~scala
+{% highlight scala %}
 Scala-Flink> benv.execute("MyProgram")
-~~~
+{% endhighlight %}
 
 ### DataStream API
 
 Similar to the batch program above, we can execute a streaming program through the DataStream API:
 
-~~~scala
+{% highlight scala %}
 Scala-Flink> val textStreaming = senv.fromElements(
   "To be, or not to be,--that is the question:--",
   "Whether 'tis nobler in the mind to suffer",
@@ -79,7 +79,7 @@ Scala-Flink> val countsStreaming = textStreaming
     .map { (_, 1) }.keyBy(0).sum(1)
 Scala-Flink> countsStreaming.print()
 Scala-Flink> senv.execute("Streaming Wordcount")
-~~~
+{% endhighlight %}
 
 Note, that in the Streaming case, the print operation does not trigger execution directly.
 
@@ -92,26 +92,26 @@ It is possible to add external classpaths to the Scala-shell. These will be sent
 
 Use the parameter `-a <path/to/jar.jar>` or `--addclasspath <path/to/jar.jar>` to load additional classes.
 
-~~~bash
+{% highlight bash %}
 bin/start-scala-shell.sh [local | remote <host> <port> | yarn] --addclasspath <path/to/jar.jar>
-~~~
+{% endhighlight %}
 
 
 ## Setup
 
 To get an overview of what options the Scala Shell provides, please use
 
-~~~bash
+{% highlight bash %}
 bin/start-scala-shell.sh --help
-~~~
+{% endhighlight %}
 
 ### Local
 
 To use the shell with an integrated Flink cluster just execute:
 
-~~~bash
+{% highlight bash %}
 bin/start-scala-shell.sh local
-~~~
+{% endhighlight %}
 
 
 ### Remote
@@ -119,9 +119,9 @@ bin/start-scala-shell.sh local
 To use it with a running cluster start the scala shell with the keyword `remote`
 and supply the host and port of the JobManager with:
 
-~~~bash
+{% highlight bash %}
 bin/start-scala-shell.sh remote <hostname> <portnumber>
-~~~
+{% endhighlight %}
 
 ### Yarn Scala Shell cluster
 
@@ -134,9 +134,9 @@ JobManager, name of YARN application, etc.
 For example, to start a Yarn cluster for the Scala Shell with two TaskManagers
 use the following:
 
-~~~bash
+{% highlight bash %}
  bin/start-scala-shell.sh yarn -n 2
-~~~
+{% endhighlight %}
 
 For all other options, see the full reference at the bottom.
 
@@ -146,14 +146,14 @@ For all other options, see the full reference at the bottom.
 If you have previously deployed a Flink cluster using the Flink Yarn Session,
 the Scala shell can connect with it using the following command:
 
-~~~bash
+{% highlight bash %}
  bin/start-scala-shell.sh yarn
-~~~
+{% endhighlight %}
 
 
 ## Full Reference
 
-~~~bash
+{% highlight bash %}
 Flink Scala Shell
 Usage: start-scala-shell.sh [local|remote|yarn] [options] <args>...
 
@@ -190,6 +190,6 @@ Starts Flink scala shell connecting to a yarn cluster
         The configuration directory.
   -h | --help
         Prints this usage text
-~~~
+{% endhighlight %}
 
 {% top %}

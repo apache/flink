@@ -125,9 +125,9 @@ input.addSink(sink)
 
 This will create a sink that writes to bucket files that follow this schema:
 
-```
+{% highlight plain %}
 /base/path/{date-time}/part-{parallel-task}-{count}
-```
+{% endhighlight %}
 
 Where `date-time` is the string that we get from the date/time format, `parallel-task` is the index
 of the parallel sink instance and `count` is the running number of part files that where created

@@ -569,7 +569,7 @@ we will list more settings specific to each reporter.
 
 Example reporter configuration that specifies multiple reporters:
 
-```
+{% highlight yaml %}
 metrics.reporters: my_jmx_reporter,my_other_reporter
 
 metrics.reporter.my_jmx_reporter.class: org.apache.flink.metrics.jmx.JMXReporter
@@ -579,7 +579,7 @@ metrics.reporter.my_other_reporter.class: org.apache.flink.metrics.graphite.Grap
 metrics.reporter.my_other_reporter.host: 192.168.1.1
 metrics.reporter.my_other_reporter.port: 10000
 
-```
+{% endhighlight %}
 
 **Important:** The jar containing the reporter must be accessible when Flink is started by placing it in the /lib folder.
 
@@ -1423,7 +1423,7 @@ Request a list of available metrics:
 
 `GET /jobmanager/metrics`
 
-~~~
+{% highlight json %}
 [
   {
     "id": "metric1"
@@ -1432,13 +1432,13 @@ Request a list of available metrics:
     "id": "metric2"
   }
 ]
-~~~
+{% endhighlight %}
 
 Request the values for specific (unaggregated) metrics:
 
 `GET taskmanagers/ABCDE/metrics?get=metric1,metric2`
 
-~~~
+{% highlight json %}
 [
   {
     "id": "metric1",
@@ -1449,13 +1449,13 @@ Request the values for specific (unaggregated) metrics:
     "value": "2"
   }
 ]
-~~~
+{% endhighlight %}
 
 Request aggregated values for specific metrics:
 
 `GET /taskmanagers/metrics?get=metric1,metric2`
 
-~~~
+{% highlight json %}
 [
   {
     "id": "metric1",
@@ -1472,13 +1472,13 @@ Request aggregated values for specific metrics:
     "sum": 16
   }
 ]
-~~~
+{% endhighlight %}
 
 Request specific aggregated values for specific metrics:
 
 `GET /taskmanagers/metrics?get=metric1,metric2&agg=min,max`
 
-~~~
+{% highlight json %}
 [
   {
     "id": "metric1",
@@ -1491,7 +1491,7 @@ Request specific aggregated values for specific metrics:
     "max": 14,
   }
 ]
-~~~
+{% endhighlight %}
 
 ## Dashboard integration
 
