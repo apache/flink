@@ -93,7 +93,7 @@ public class JarRunHandlerTest {
 						assertTrue(expected.get().getMessage().contains("ProgramInvocationException"));
 						// implies the jar was registered for the job graph (otherwise the jar name would not occur in the exception)
 						// implies the jar was uploaded (otherwise the file would not be found at all)
-						assertTrue(expected.get().getMessage().contains("empty.jar'. zip file is empty)"));
+						assertTrue(expected.get().getMessage().contains("empty.jar'. zip file is empty"));
 					} else {
 						throw e;
 					}
