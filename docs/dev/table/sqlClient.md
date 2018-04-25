@@ -192,7 +192,7 @@ CLI commands > session environment file > defaults environment file
 
 The SQL Client does not require to setup a Java project using Maven or SBT. Instead, you can pass the dependencies as regular JAR files that get submitted to the cluster. You can either specify each JAR file separately (using `--jar`) or define entire library directories (using `--library`). For connectors to external systems (such as Apache Kafka) and corresponding data formats (such as JSON), Flink provides **ready-to-use JAR bundles**. These JAR files are suffixed with `sql-jar` and can be downloaded for each release from the Maven central repository.
 
-
+{% if site.is_stable %}
 
 #### Connectors
 
@@ -211,6 +211,7 @@ The SQL Client does not require to setup a Java project using Maven or SBT. Inst
 | CSV               | Built-in               |
 | JSON              | [Download](http://central.maven.org/maven2/org/apache/flink/flink-json/{{site.version}}/flink-json-{{site.version}}-sql-jar.jar) |
 
+{% endif %}
 
 {% top %}
 
