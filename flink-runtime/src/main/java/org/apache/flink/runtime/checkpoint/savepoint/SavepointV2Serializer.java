@@ -282,6 +282,13 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 
 		KeyedStateHandle keyedStateStream = extractSingleton(subtaskState.getRawKeyedState());
 		serializeKeyedStateHandle(keyedStateStream, dos);
+
+		OperatorStateHandle keyedStateMetaStream = extractSingleton(subtaskState.getRawKeyedStateMeta());
+		len = keyedStateMetaStream != null ? 1 : 0;
+		dos.writeInt(len);
+		if(len == 1) {
+			serializeOperatorStateHandle(keyedStateMetaStream, dos);
+		}
 	}
 
 	private static OperatorSubtaskState deserializeSubtaskState(DataInputStream dis) throws IOException {
@@ -313,11 +320,15 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 
 		KeyedStateHandle keyedStateStream = deserializeKeyedStateHandle(dis);
 
+		len = dis.readInt();
+		OperatorStateHandle keyedStateMetaStream = len == 0 ? null : deserializeOperatorStateHandle(dis);
+
 		return new OperatorSubtaskState(
 				operatorStateBackend,
 				operatorStateStream,
 				keyedStateBackend,
-				keyedStateStream);
+				keyedStateStream,
+				keyedStateMetaStream);
 	}
 
 	private static void serializeKeyedStateHandle(

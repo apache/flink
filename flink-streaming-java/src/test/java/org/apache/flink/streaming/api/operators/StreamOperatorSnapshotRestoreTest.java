@@ -205,7 +205,8 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 					protected <K> InternalTimeServiceManager<?, K> internalTimeServiceManager(
 						AbstractKeyedStateBackend<K> keyedStatedBackend,
 						KeyContext keyContext,
-						Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
+						Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
+						Iterable<StatePartitionStreamProvider> rawKeyedStateMetaInputs) throws Exception {
 
 						return null;
 					}
@@ -282,7 +283,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 		}
 
 		@Override
-		public void snapshotState(StateSnapshotContext context) throws Exception {
+		public void snapshotState(StateSnapshotContext context, OperatorSnapshotFutures snapshotInProgress) throws Exception {
 
 			KeyedStateCheckpointOutputStream out = context.getRawKeyedOperatorStateOutput();
 			DataOutputView dov = new DataOutputViewStreamWrapper(out);

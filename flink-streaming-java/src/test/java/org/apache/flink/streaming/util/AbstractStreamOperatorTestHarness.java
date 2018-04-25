@@ -38,6 +38,7 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
@@ -378,11 +379,14 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 				rawOperatorState,
 				numSubtasks).get(subtaskIndex);
 
+			//TODO:
+			List<OperatorStateHandle> localRawKeyGroupStateMeta = null;
 			OperatorSubtaskState processedJmOpSubtaskState = new OperatorSubtaskState(
 				new StateObjectCollection<>(nullToEmptyCollection(localManagedOperatorState)),
 				new StateObjectCollection<>(nullToEmptyCollection(localRawOperatorState)),
 				new StateObjectCollection<>(nullToEmptyCollection(localManagedKeyGroupState)),
-				new StateObjectCollection<>(nullToEmptyCollection(localRawKeyGroupState)));
+				new StateObjectCollection<>(nullToEmptyCollection(localRawKeyGroupState)),
+				new StateObjectCollection<>(nullToEmptyCollection(localRawKeyGroupStateMeta)));
 
 			TaskStateSnapshot jmTaskStateSnapshot = new TaskStateSnapshot();
 			jmTaskStateSnapshot.putSubtaskStateByOperatorID(operator.getOperatorID(), processedJmOpSubtaskState);
@@ -439,6 +443,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 		List<KeyedStateHandle> mergedManagedKeyedState = new ArrayList<>(handles.length);
 		List<KeyedStateHandle> mergedRawKeyedState = new ArrayList<>(handles.length);
+		List<OperatorStateHandle> mergedRawKeyedStateMeta = new ArrayList<>(handles.length);
 
 		for (OperatorSubtaskState handle : handles) {
 
@@ -446,18 +451,21 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			Collection<OperatorStateHandle> rawOperatorState = handle.getRawOperatorState();
 			Collection<KeyedStateHandle> managedKeyedState = handle.getManagedKeyedState();
 			Collection<KeyedStateHandle> rawKeyedState = handle.getRawKeyedState();
+			Collection<OperatorStateHandle> rawKeyedStateMeta = handle.getRawKeyedStateMeta();
 
 			mergedManagedOperatorState.addAll(managedOperatorState);
 			mergedRawOperatorState.addAll(rawOperatorState);
 			mergedManagedKeyedState.addAll(managedKeyedState);
 			mergedRawKeyedState.addAll(rawKeyedState);
+			mergedRawKeyedStateMeta.addAll(rawKeyedStateMeta);
 		}
 
 		return new OperatorSubtaskState(
 			new StateObjectCollection<>(mergedManagedOperatorState),
 			new StateObjectCollection<>(mergedRawOperatorState),
 			new StateObjectCollection<>(mergedManagedKeyedState),
-			new StateObjectCollection<>(mergedRawKeyedState));
+			new StateObjectCollection<>(mergedRawKeyedState),
+			new StateObjectCollection<>(mergedRawKeyedStateMeta));
 	}
 
 	/**
@@ -480,7 +488,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	}
 
 	/**
-	 * Calls {@link StreamOperator#snapshotState(long, long, CheckpointOptions)}.
+	 * Calls {@link StreamOperator#snapshotState(long, long, CheckpointOptions, CheckpointStreamFactory)}.
 	 */
 	public OperatorSnapshotFinalizer snapshotWithLocalState(long checkpointId, long timestamp) throws Exception {
 

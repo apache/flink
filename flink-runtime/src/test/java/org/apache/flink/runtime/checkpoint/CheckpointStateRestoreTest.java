@@ -125,6 +125,7 @@ public class CheckpointStateRestoreTest {
 					StateObjectCollection.empty(),
 					StateObjectCollection.empty(),
 					StateObjectCollection.singleton(serializedKeyGroupStates),
+					StateObjectCollection.empty(),
 					StateObjectCollection.empty()));
 
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStates));

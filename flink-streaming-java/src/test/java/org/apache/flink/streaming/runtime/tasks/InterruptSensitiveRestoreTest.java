@@ -188,6 +188,7 @@ public class InterruptSensitiveRestoreTest {
 
 		Collection<KeyedStateHandle> keyedStateFromBackend = Collections.emptyList();
 		Collection<KeyedStateHandle> keyedStateFromStream = Collections.emptyList();
+		Collection<OperatorStateHandle> keyedStateMetaFromStream = Collections.emptyList();
 		Collection<OperatorStateHandle> operatorStateBackend = Collections.emptyList();
 		Collection<OperatorStateHandle> operatorStateStream = Collections.emptyList();
 
@@ -225,7 +226,8 @@ public class InterruptSensitiveRestoreTest {
 			new StateObjectCollection<>(operatorStateBackend),
 			new StateObjectCollection<>(operatorStateStream),
 			new StateObjectCollection<>(keyedStateFromBackend),
-			new StateObjectCollection<>(keyedStateFromStream));
+			new StateObjectCollection<>(keyedStateFromStream),
+			new StateObjectCollection<>(keyedStateMetaFromStream));
 
 		JobVertexID jobVertexID = new JobVertexID();
 		OperatorID operatorID = OperatorID.fromJobVertexID(jobVertexID);

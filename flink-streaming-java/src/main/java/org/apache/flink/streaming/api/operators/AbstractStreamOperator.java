@@ -26,6 +26,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
@@ -71,7 +73,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.Map;
+import java.util.TreeSet;
+import java.util.concurrent.Callable;
 
 /**
  * Base class for all stream operators. Operators that contain a user function should extend the class
@@ -355,14 +361,15 @@ public abstract class AbstractStreamOperator<OUT>
 
 		OperatorSnapshotFutures snapshotInProgress = new OperatorSnapshotFutures();
 
-		try (StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
+		try {
+			StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
 				checkpointId,
 				timestamp,
 				factory,
 				keyGroupRange,
-				getContainingTask().getCancelables())) {
+				getContainingTask().getCancelables());
 
-			snapshotState(snapshotContext);
+			snapshotState(snapshotContext, snapshotInProgress);
 
 			snapshotInProgress.setKeyedStateRawFuture(snapshotContext.getKeyedStateStreamFuture());
 			snapshotInProgress.setOperatorStateRawFuture(snapshotContext.getOperatorStateStreamFuture());
@@ -395,36 +402,102 @@ public abstract class AbstractStreamOperator<OUT>
 	 *
 	 * @param context context that provides information and means required for taking a snapshot
 	 */
-	public void snapshotState(StateSnapshotContext context) throws Exception {
+	public void snapshotState(StateSnapshotContext context, OperatorSnapshotFutures snapshotInProgress) throws Exception {
 		if (getKeyedStateBackend() != null) {
 			KeyedStateCheckpointOutputStream out;
-
+			OperatorStateCheckpointOutputStream metaOut;
 			try {
 				out = context.getRawKeyedOperatorStateOutput();
 			} catch (Exception exception) {
 				throw new Exception("Could not open raw keyed operator state stream for " +
 					getOperatorName() + '.', exception);
 			}
-
 			try {
-				KeyGroupsList allKeyGroups = out.getKeyGroupList();
-				for (int keyGroupIdx : allKeyGroups) {
-					out.startNewKeyGroup(keyGroupIdx);
-
-					timeServiceManager.snapshotStateForKeyGroup(
-						new DataOutputViewStreamWrapper(out), keyGroupIdx);
-				}
+				metaOut = context.getRawKeyedOperatorStateMetaOutput();
 			} catch (Exception exception) {
-				throw new Exception("Could not write timer service of " + getOperatorName() +
-					" to checkpoint state stream.", exception);
-			} finally {
-				try {
-					out.close();
-				} catch (Exception closeException) {
-					LOG.warn("Could not close raw keyed operator state stream for {}. This " +
-						"might have prevented deleting some state data.", getOperatorName(), closeException);
-				}
+				throw new Exception("Could not open raw operator state stream for " +
+					getOperatorName() + '.', exception);
 			}
+			final Tuple4<Integer, Map<String, HeapInternalTimerService>, Integer, TreeSet<Integer>> ret = timeServiceManager.startOneSnapshotState();
+			final int currentSnapshotVersion = ret.f0;
+			final Map<String, HeapInternalTimerService> timerServices = ret.f1;
+			final Integer stateTableVersion = ret.f2;
+			final TreeSet<Integer> snapshotVersions = ret.f3;
+			LOG.info("snapshotVersions after calling startOneSnapshotState:" + snapshotVersions.toString());
+			Callable<Boolean> snapshotTimerCallable = new Callable() {
+				@Override
+				public Boolean call() {
+					try {
+						KeyGroupsList allKeyGroups = out.getKeyGroupList();
+						metaOut.startNewPartition();
+						DataOutputViewStreamWrapper metaWrapper = new DataOutputViewStreamWrapper(metaOut);
+						metaWrapper.writeInt(stateTableVersion);
+						if (snapshotVersions.size() > 0) {
+							metaWrapper.writeInt(snapshotVersions.size());
+							for (Integer i : snapshotVersions) {
+								metaWrapper.writeInt(i);
+							}
+						}
+						else {
+							metaWrapper.writeInt(0);
+						}
+						int keyGroupCount = allKeyGroups.getNumberOfKeyGroups();
+						metaWrapper.writeInt(keyGroupCount);
+						for (int keyGroupIdx : allKeyGroups) {
+							out.startNewKeyGroup(keyGroupIdx);
+							metaWrapper.writeInt(keyGroupIdx);
+							InternalTimerServiceSerializationProxy serializationProxy =
+								new InternalTimerServiceSerializationProxy(timerServices, keyGroupIdx,
+									currentSnapshotVersion, timeServiceManager, metaWrapper);
+
+							serializationProxy.write(new DataOutputViewStreamWrapper(out));
+
+						}
+						LOG.info("return Tuple4 and snapshotVersions:" + snapshotVersions.toString());
+						return true;
+					} catch (Exception exception) {
+						LOG.error("Could not write timer service of " + getOperatorName() +
+							" to checkpoint state stream.", exception);
+						return false;
+					} finally {
+						timeServiceManager.stopOneSnapshotState(currentSnapshotVersion);
+						StateSnapshotContextSynchronousImpl snapshotContext = (StateSnapshotContextSynchronousImpl) context;
+						try {
+							snapshotInProgress.setKeyedStateRawFuture(snapshotContext.getKeyedStateStreamFuture());
+						} catch (IOException e) {
+							LOG.warn("setKeyedStateRawFuture in callable excpetion", e);
+							return false;
+						}
+						try {
+							snapshotInProgress.setKeyedStateMetaRawFuture(snapshotContext.getKeyedStateMetaStreamFuture());
+						} catch (IOException e) {
+							LOG.warn("setKeyedStateMetaRawFuture in callable excpetion", e);
+							return false;
+						}
+						try {
+							out.close();
+						} catch (Exception closeException) {
+							LOG.warn("Could not close raw keyed operator state stream for {}. This " +
+								"might have prevented deleting some state data.", getOperatorName(), closeException);
+							return false;
+						}
+						try {
+							metaOut.close();
+						} catch (Exception closeException) {
+							LOG.warn("Could not close raw operator state stream for {}. This " +
+								"might have prevented deleting some state data.", getOperatorName(), closeException);
+							return false;
+						}
+						try {
+							snapshotContext.close();
+						} catch (IOException e) {
+							LOG.warn("could not close snapshotContext", e);
+							return false;
+						}
+					}
+				}
+			};
+			snapshotInProgress.setSnapshotTimerCallable(snapshotTimerCallable);
 		}
 	}
 

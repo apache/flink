@@ -181,7 +181,8 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 							createNewKeyedStateHandle(keyGroupRange1),
 							createNewKeyedStateHandle(keyGroupRange2)));
 
-		return new OperatorSubtaskState(s1, s2, s3, s4);
+		//TODO:
+		return new OperatorSubtaskState(s1, s2, s3, s4, null);
 	}
 
 	/**
@@ -198,17 +199,20 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 					deepCopyFirstElement(primaryOriginal.getManagedOperatorState()),
 					deepCopyFirstElement(primaryOriginal.getRawOperatorState()),
 					deepCopyFirstElement(primaryOriginal.getManagedKeyedState()),
-					deepCopyFirstElement(primaryOriginal.getRawKeyedState()));
+					deepCopyFirstElement(primaryOriginal.getRawKeyedState()),
+					deepCopyFirstElement(primaryOriginal.getRawKeyedStateMeta()));
 			case 1:
 				return new OperatorSubtaskState();
 			case 2:
 				KeyGroupRange otherRange = new KeyGroupRange(8, 16);
 				int numNamedStates = 2;
+				//TODO:
 				return new OperatorSubtaskState(
 					createNewOperatorStateHandle(numNamedStates, random),
 					createNewOperatorStateHandle(numNamedStates, random),
 					createNewKeyedStateHandle(otherRange),
-					createNewKeyedStateHandle(otherRange));
+					createNewKeyedStateHandle(otherRange),
+					null);
 			default:
 				throw new IllegalArgumentException("Mode: " + mode);
 		}

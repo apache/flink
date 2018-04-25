@@ -58,12 +58,16 @@ public class PrioritizedOperatorSubtaskState {
 	/** List of prioritized snapshot alternatives for raw keyed state. */
 	private final List<StateObjectCollection<KeyedStateHandle>> prioritizedRawKeyedState;
 
+	/** List of prioritized snapshot alternatives for raw keyed state meta. */
+	private final List<StateObjectCollection<OperatorStateHandle>> prioritizedRawKeyedStateMeta;
+
 	/** Signal flag if this represents state for a restored operator. */
 	private final boolean restored;
 
 	PrioritizedOperatorSubtaskState(
 		@Nonnull List<StateObjectCollection<KeyedStateHandle>> prioritizedManagedKeyedState,
 		@Nonnull List<StateObjectCollection<KeyedStateHandle>> prioritizedRawKeyedState,
+		@Nonnull List<StateObjectCollection<OperatorStateHandle>> prioritizedRawKeyedStateMeta,
 		@Nonnull List<StateObjectCollection<OperatorStateHandle>> prioritizedManagedOperatorState,
 		@Nonnull List<StateObjectCollection<OperatorStateHandle>> prioritizedRawOperatorState,
 		boolean restored) {
@@ -72,6 +76,7 @@ public class PrioritizedOperatorSubtaskState {
 		this.prioritizedRawOperatorState = prioritizedRawOperatorState;
 		this.prioritizedManagedKeyedState = prioritizedManagedKeyedState;
 		this.prioritizedRawKeyedState = prioritizedRawKeyedState;
+		this.prioritizedRawKeyedStateMeta = prioritizedRawKeyedStateMeta;
 		this.restored = restored;
 	}
 
@@ -113,6 +118,11 @@ public class PrioritizedOperatorSubtaskState {
 		return prioritizedRawKeyedState;
 	}
 
+	@Nonnull
+	public List<StateObjectCollection<OperatorStateHandle>> getPrioritizedRawKeyedStateMeta() {
+		return prioritizedRawKeyedStateMeta;
+	}
+
 	// -----------------------------------------------------------------------------------------------------------------
 
 	/**
@@ -149,6 +159,11 @@ public class PrioritizedOperatorSubtaskState {
 	@Nonnull
 	public StateObjectCollection<KeyedStateHandle> getJobManagerRawKeyedState() {
 		return lastElement(prioritizedRawKeyedState);
+	}
+
+	@Nonnull
+	public StateObjectCollection<OperatorStateHandle> getJobManagerRawKeyedStateMeta() {
+		return lastElement(prioritizedRawKeyedStateMeta);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
@@ -209,12 +224,14 @@ public class PrioritizedOperatorSubtaskState {
 			List<StateObjectCollection<KeyedStateHandle>> managedKeyedAlternatives = new ArrayList<>(size);
 			List<StateObjectCollection<OperatorStateHandle>> rawOperatorAlternatives = new ArrayList<>(size);
 			List<StateObjectCollection<KeyedStateHandle>> rawKeyedAlternatives = new ArrayList<>(size);
+			List<StateObjectCollection<OperatorStateHandle>> rawKeyedMetaAlternatives = new ArrayList<>(size);
 
 			for (OperatorSubtaskState subtaskState : alternativesByPriority) {
 
 				if (subtaskState != null) {
 					managedKeyedAlternatives.add(subtaskState.getManagedKeyedState());
 					rawKeyedAlternatives.add(subtaskState.getRawKeyedState());
+					rawKeyedMetaAlternatives.add(subtaskState.getRawKeyedStateMeta());
 					managedOperatorAlternatives.add(subtaskState.getManagedOperatorState());
 					rawOperatorAlternatives.add(subtaskState.getRawOperatorState());
 				}
@@ -237,6 +254,11 @@ public class PrioritizedOperatorSubtaskState {
 					jobManagerState.getRawKeyedState(),
 					rawKeyedAlternatives,
 					keyedStateApprover),
+				resolvePrioritizedAlternatives(
+					jobManagerState.getRawKeyedStateMeta(),
+					rawKeyedMetaAlternatives,
+					operatorStateApprover
+				),
 				resolvePrioritizedAlternatives(
 					jobManagerState.getManagedOperatorState(),
 					managedOperatorAlternatives,

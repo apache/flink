@@ -122,11 +122,13 @@ public class CheckpointTestUtils {
 					keyedStateStream = createDummyKeyGroupStateHandle(random);
 				}
 
+				//TODO:
 				taskState.putState(subtaskIdx, new OperatorSubtaskState(
 						operatorStateHandleBackend,
 						operatorStateHandleStream,
 						keyedStateStream,
-						keyedStateBackend));
+						keyedStateBackend,
+						null));
 			}
 
 			taskStates.add(taskState);

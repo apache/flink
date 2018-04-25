@@ -49,6 +49,9 @@ public class OperatorSnapshotFinalizer {
 		SnapshotResult<KeyedStateHandle> keyedRaw =
 			FutureUtil.runIfNotDoneAndGet(snapshotFutures.getKeyedStateRawFuture());
 
+		SnapshotResult<OperatorStateHandle> keyedMetaRaw =
+			FutureUtil.runIfNotDoneAndGet(snapshotFutures.getKeyedStateMetaRawFuture());
+
 		SnapshotResult<OperatorStateHandle> operatorManaged =
 			FutureUtil.runIfNotDoneAndGet(snapshotFutures.getOperatorStateManagedFuture());
 
@@ -59,14 +62,16 @@ public class OperatorSnapshotFinalizer {
 			operatorManaged.getJobManagerOwnedSnapshot(),
 			operatorRaw.getJobManagerOwnedSnapshot(),
 			keyedManaged.getJobManagerOwnedSnapshot(),
-			keyedRaw.getJobManagerOwnedSnapshot()
+			keyedRaw.getJobManagerOwnedSnapshot(),
+			keyedMetaRaw.getJobManagerOwnedSnapshot()
 		);
 
 		taskLocalState = new OperatorSubtaskState(
 			operatorManaged.getTaskLocalSnapshot(),
 			operatorRaw.getTaskLocalSnapshot(),
 			keyedManaged.getTaskLocalSnapshot(),
-			keyedRaw.getTaskLocalSnapshot()
+			keyedRaw.getTaskLocalSnapshot(),
+			keyedMetaRaw.getTaskLocalSnapshot()
 		);
 	}
 

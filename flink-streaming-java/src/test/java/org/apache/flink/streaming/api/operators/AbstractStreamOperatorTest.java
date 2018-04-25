@@ -529,6 +529,7 @@ public class AbstractStreamOperatorTest {
 		final CloseableRegistry closeableRegistry = new CloseableRegistry();
 
 		StateSnapshotContextSynchronousImpl context = mock(StateSnapshotContextSynchronousImpl.class);
+		OperatorSnapshotFutures snapshotInProgress = mock(OperatorSnapshotFutures.class);
 
 		whenNew(StateSnapshotContextSynchronousImpl.class).withAnyArguments().thenReturn(context);
 
@@ -540,7 +541,7 @@ public class AbstractStreamOperatorTest {
 		doReturn(containingTask).when(operator).getContainingTask();
 
 		// lets fail when calling the actual snapshotState method
-		doThrow(failingException).when(operator).snapshotState(eq(context));
+		doThrow(failingException).when(operator).snapshotState(eq(context), eq(snapshotInProgress));
 
 		try {
 			operator.snapshotState(

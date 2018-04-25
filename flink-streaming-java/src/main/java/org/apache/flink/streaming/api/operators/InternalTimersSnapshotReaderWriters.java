@@ -27,13 +27,14 @@ import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -95,32 +96,69 @@ public class InternalTimersSnapshotReaderWriters {
 		@Override
 		public final void writeTimersSnapshot(DataOutputView out) throws IOException {
 			writeKeyAndNamespaceSerializers(out);
-
 			InternalTimer.TimerSerializer<K, N> timerSerializer = new InternalTimer.TimerSerializer<>(
 				timersSnapshot.getKeySerializer(),
 				timersSnapshot.getNamespaceSerializer());
-
+			int snapshotVersion = timersSnapshot.getSnapshotVersion();
+			InternalTimeServiceManager<K, N> manager = timersSnapshot.getManager();
+			DataOutputViewStreamWrapper metaWrapper = timersSnapshot.getMetaWrapper();
 			// write the event time timers
-			Set<InternalTimer<K, N>> eventTimers = timersSnapshot.getEventTimeTimers();
+			Map<String, InternalTimer<K, N>> eventTimers = timersSnapshot.getEventTimeTimers();
+			int eventTimersCount = 0;
 			if (eventTimers != null) {
-				out.writeInt(eventTimers.size());
-				for (InternalTimer<K, N> eventTimer : eventTimers) {
-					timerSerializer.serialize(eventTimer, out);
+				for (String key : eventTimers.keySet()) {
+					InternalTimer<K, N> eventTimer = eventTimers.get(key);
+					int createVersion = eventTimer.getCreateVersion();
+					if (createVersion < snapshotVersion) {
+						int deleteVersion = eventTimer.getDeleteVersion();
+						if (deleteVersion != -1) {
+							if (deleteVersion >= snapshotVersion) {
+								timerSerializer.serialize(eventTimer, out);
+								eventTimersCount++;
+							}
+							else {
+								if (deleteVersion < manager.getMinRunningSnapshotVersion()) {
+									eventTimers.remove(key);
+								}
+							}
+						}
+						else {
+							timerSerializer.serialize(eventTimer, out);
+							eventTimersCount++;
+						}
+					}
 				}
-			} else {
-				out.writeInt(0);
 			}
-
 			// write the processing time timers
-			Set<InternalTimer<K, N>> processingTimers = timersSnapshot.getProcessingTimeTimers();
+			Map<String, InternalTimer<K, N>> processingTimers = timersSnapshot.getProcessingTimeTimers();
+			int processingTimersCount = 0;
 			if (processingTimers != null) {
-				out.writeInt(processingTimers.size());
-				for (InternalTimer<K, N> processingTimer : processingTimers) {
-					timerSerializer.serialize(processingTimer, out);
+				for (String key : processingTimers.keySet()) {
+					InternalTimer<K, N> processingTimer = processingTimers.get(key);
+					int createVersion = processingTimer.getCreateVersion();
+					if (createVersion < snapshotVersion) {
+						int deleteVersion = processingTimer.getDeleteVersion();
+						if (deleteVersion != -1) {
+							if (deleteVersion >= snapshotVersion) {
+								timerSerializer.serialize(processingTimer, out);
+								processingTimersCount++;
+							}
+							else {
+								if (deleteVersion < manager.getMinRunningSnapshotVersion()) {
+									processingTimers.remove(key);
+								}
+							}
+						}
+						else {
+							timerSerializer.serialize(processingTimer, out);
+							processingTimersCount++;
+						}
+					}
+
 				}
-			} else {
-				out.writeInt(0);
 			}
+			metaWrapper.writeInt(eventTimersCount);
+			metaWrapper.writeInt(processingTimersCount);
 		}
 	}
 
@@ -194,7 +232,7 @@ public class InternalTimersSnapshotReaderWriters {
 		 * @return the read timers snapshot
 		 * @throws IOException
 		 */
-		InternalTimersSnapshot<K, N> readTimersSnapshot(DataInputView in) throws IOException;
+		InternalTimersSnapshot<K, N> readTimersSnapshot(DataInputView in, Tuple2<Integer, Integer> counts) throws IOException;
 	}
 
 	private abstract static class AbstractInternalTimersSnapshotReader<K, N> implements InternalTimersSnapshotReader<K, N> {
@@ -210,7 +248,7 @@ public class InternalTimersSnapshotReaderWriters {
 				DataInputView in) throws IOException;
 
 		@Override
-		public final InternalTimersSnapshot<K, N> readTimersSnapshot(DataInputView in) throws IOException {
+		public final InternalTimersSnapshot<K, N> readTimersSnapshot(DataInputView in, Tuple2<Integer, Integer> counts) throws IOException {
 			InternalTimersSnapshot<K, N> restoredTimersSnapshot = new InternalTimersSnapshot<>();
 
 			restoreKeyAndNamespaceSerializers(restoredTimersSnapshot, in);
@@ -219,24 +257,22 @@ public class InternalTimersSnapshotReaderWriters {
 				restoredTimersSnapshot.getKeySerializer(),
 				restoredTimersSnapshot.getNamespaceSerializer());
 
-			// read the event time timers
-			int sizeOfEventTimeTimers = in.readInt();
-			Set<InternalTimer<K, N>> restoredEventTimers = new HashSet<>(sizeOfEventTimeTimers);
+			int sizeOfEventTimeTimers = counts.f0;
+			Map<String, InternalTimer<K, N>> restoredEventTimers = new ConcurrentHashMap<>(sizeOfEventTimeTimers);
 			if (sizeOfEventTimeTimers > 0) {
 				for (int i = 0; i < sizeOfEventTimeTimers; i++) {
 					InternalTimer<K, N> timer = timerSerializer.deserialize(in);
-					restoredEventTimers.add(timer);
+					restoredEventTimers.put(timer.buildHashKey(), timer);
 				}
 			}
 			restoredTimersSnapshot.setEventTimeTimers(restoredEventTimers);
 
-			// read the processing time timers
-			int sizeOfProcessingTimeTimers = in.readInt();
-			Set<InternalTimer<K, N>> restoredProcessingTimers = new HashSet<>(sizeOfProcessingTimeTimers);
+			int sizeOfProcessingTimeTimers = counts.f1;
+			Map<String, InternalTimer<K, N>> restoredProcessingTimers = new ConcurrentHashMap<>(sizeOfProcessingTimeTimers);
 			if (sizeOfProcessingTimeTimers > 0) {
 				for (int i = 0; i < sizeOfProcessingTimeTimers; i++) {
 					InternalTimer<K, N> timer = timerSerializer.deserialize(in);
-					restoredProcessingTimers.add(timer);
+					restoredProcessingTimers.put(timer.buildHashKey(), timer);
 				}
 			}
 			restoredTimersSnapshot.setProcessingTimeTimers(restoredProcessingTimers);

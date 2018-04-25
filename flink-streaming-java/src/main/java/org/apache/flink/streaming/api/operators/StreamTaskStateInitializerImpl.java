@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
@@ -53,11 +54,16 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * This class is the main implementation of a {@link StreamTaskStateInitializer}. This class obtains the state to create
@@ -123,6 +129,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		AbstractKeyedStateBackend<?> keyedStatedBackend = null;
 		OperatorStateBackend operatorStateBackend = null;
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs = null;
+		CloseableIterable<StatePartitionStreamProvider> rawKeyedStateMetaInputs = null;
 		CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs = null;
 		InternalTimeServiceManager<?, ?> timeServiceManager;
 
@@ -146,12 +153,16 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 				prioritizedOperatorSubtaskStates.getPrioritizedRawKeyedState().iterator());
 			streamTaskCloseableRegistry.registerCloseable(rawKeyedStateInputs);
 
+			rawKeyedStateMetaInputs = rawOperatorStateInputs(
+				prioritizedOperatorSubtaskStates.getPrioritizedRawKeyedStateMeta().iterator());
+			streamTaskCloseableRegistry.registerCloseable(rawKeyedStateMetaInputs);
+
 			rawOperatorStateInputs = rawOperatorStateInputs(
 				prioritizedOperatorSubtaskStates.getPrioritizedRawOperatorState().iterator());
 			streamTaskCloseableRegistry.registerCloseable(rawOperatorStateInputs);
 
 			// -------------- Internal Timer Service Manager --------------
-			timeServiceManager = internalTimeServiceManager(keyedStatedBackend, keyContext, rawKeyedStateInputs);
+			timeServiceManager = internalTimeServiceManager(keyedStatedBackend, keyContext, rawKeyedStateInputs, rawKeyedStateMetaInputs);
 
 			// -------------- Preparing return value --------------
 
@@ -195,7 +206,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 	protected <K> InternalTimeServiceManager<?, K> internalTimeServiceManager(
 		AbstractKeyedStateBackend<K> keyedStatedBackend,
 		KeyContext keyContext, //the operator
-		Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
+		Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
+		Iterable<StatePartitionStreamProvider> rawKeyedStateMetas) throws Exception {
 
 		if (keyedStatedBackend == null) {
 			return null;
@@ -203,22 +215,45 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 		final KeyGroupRange keyGroupRange = keyedStatedBackend.getKeyGroupRange();
 
+		Integer v = 0;
+		TreeSet<Integer> snapshotVersions = new TreeSet<>();
+		Map<Integer, Tuple2<Integer, Integer>> groupCounts = new HashMap<>();
+		for (StatePartitionStreamProvider streamProvider : rawKeyedStateMetas) {
+			InputStream inputStream = streamProvider.getStream();
+			DataInputViewStreamWrapper wrapper = new DataInputViewStreamWrapper(inputStream);
+			v = wrapper.readInt();
+			int snapshotVersionCount = wrapper.readInt();
+			for (int i = 0; i < snapshotVersionCount; i++) {
+				snapshotVersions.add(wrapper.readInt());
+			}
+			int keyGroupCount = wrapper.readInt();
+			if (keyGroupCount > 0) {
+				for (int i = 0; i < keyGroupCount; i++) {
+					int keyGroupIdx = wrapper.readInt();
+					int eventTimersCount = wrapper.readInt();
+					int processingTimersCount = wrapper.readInt();
+					groupCounts.put(keyGroupIdx, new Tuple2<>(eventTimersCount, processingTimersCount));
+				}
+			}
+		}
+
 		final InternalTimeServiceManager<?, K> timeServiceManager = new InternalTimeServiceManager<>(
 			keyedStatedBackend.getNumberOfKeyGroups(),
 			keyGroupRange,
 			keyContext,
-			processingTimeService);
+			processingTimeService,
+			new AtomicInteger(v.intValue()),
+			snapshotVersions);
 
 		// and then initialize the timer services
 		for (KeyGroupStatePartitionStreamProvider streamProvider : rawKeyedStates) {
 			int keyGroupIdx = streamProvider.getKeyGroupId();
-
 			Preconditions.checkArgument(keyGroupRange.contains(keyGroupIdx),
 				"Key Group " + keyGroupIdx + " does not belong to the local range.");
-
+			Tuple2<Integer, Integer> timerCounts = groupCounts.get(keyGroupIdx);
 			timeServiceManager.restoreStateForKeyGroup(
 				streamProvider.getStream(),
-				keyGroupIdx, environment.getUserClassLoader());
+				keyGroupIdx, environment.getUserClassLoader(), timerCounts);
 		}
 
 		return timeServiceManager;

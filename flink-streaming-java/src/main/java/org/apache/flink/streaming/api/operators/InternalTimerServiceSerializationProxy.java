@@ -19,9 +19,11 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.PostVersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
@@ -50,6 +52,11 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 	private KeyGroupsList localKeyGroupRange;
 	private KeyContext keyContext;
 	private ProcessingTimeService processingTimeService;
+	private int snapshotVersion;
+
+	private InternalTimeServiceManager<K, N> knInternalTimeServiceManager;
+	private DataOutputViewStreamWrapper metaWrapper;
+	private Tuple2<Integer, Integer> counts;
 
 	/**
 	 * Constructor to use when restoring timer services.
@@ -61,7 +68,9 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 			KeyGroupsList localKeyGroupRange,
 			KeyContext keyContext,
 			ProcessingTimeService processingTimeService,
-			int keyGroupIdx) {
+			int keyGroupIdx,
+			int snapshotVersion,
+			InternalTimeServiceManager<K, N> knInternalTimeServiceManager) {
 
 		this.timerServices = checkNotNull(timerServicesMapToPopulate);
 		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
@@ -70,6 +79,8 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 		this.keyContext = checkNotNull(keyContext);
 		this.processingTimeService = checkNotNull(processingTimeService);
 		this.keyGroupIdx = keyGroupIdx;
+		this.snapshotVersion = snapshotVersion;
+		this.knInternalTimeServiceManager = knInternalTimeServiceManager;
 	}
 
 	/**
@@ -77,10 +88,15 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 	 */
 	public InternalTimerServiceSerializationProxy(
 			Map<String, HeapInternalTimerService<K, N>> timerServices,
-			int keyGroupIdx) {
+			int keyGroupIdx, int snapshotVersion, InternalTimeServiceManager<K, N> knInternalTimeServiceManager,
+			DataOutputViewStreamWrapper metaWrapper) {
 
 		this.timerServices = checkNotNull(timerServices);
 		this.keyGroupIdx = keyGroupIdx;
+		this.snapshotVersion = snapshotVersion;
+		this.knInternalTimeServiceManager = knInternalTimeServiceManager;
+		this.metaWrapper = metaWrapper;
+
 	}
 
 	@Override
@@ -99,7 +115,8 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 
 			out.writeUTF(serviceName);
 			InternalTimersSnapshotReaderWriters
-				.getWriterForVersion(VERSION, timerService.snapshotTimersForKeyGroup(keyGroupIdx))
+				.getWriterForVersion(VERSION, timerService.snapshotTimersForKeyGroup(keyGroupIdx, knInternalTimeServiceManager,
+					snapshotVersion, metaWrapper))
 				.writeTimersSnapshot(out);
 		}
 	}
@@ -117,16 +134,24 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 					totalKeyGroups,
 					localKeyGroupRange,
 					keyContext,
-					processingTimeService);
+					processingTimeService, this.knInternalTimeServiceManager);
 				timerServices.put(serviceName, timerService);
 			}
 
 			int readerVersion = wasVersioned ? getReadVersion() : InternalTimersSnapshotReaderWriters.NO_VERSION;
 			InternalTimersSnapshot<?, ?> restoredTimersSnapshot = InternalTimersSnapshotReaderWriters
 				.getReaderForVersion(readerVersion, userCodeClassLoader)
-				.readTimersSnapshot(in);
+				.readTimersSnapshot(in, this.getCounts());
 
 			timerService.restoreTimersForKeyGroup(restoredTimersSnapshot, keyGroupIdx);
 		}
+	}
+
+	public Tuple2<Integer, Integer> getCounts() {
+		return counts;
+	}
+
+	public void setCounts(Tuple2<Integer, Integer> counts) {
+		this.counts = counts;
 	}
 }

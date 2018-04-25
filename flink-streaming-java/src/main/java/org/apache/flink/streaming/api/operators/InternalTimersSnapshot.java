@@ -20,11 +20,12 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.Set;
+import java.util.Map;
 
 /**
  * A snapshot of internal timers, containing event and processing timers and
@@ -37,9 +38,12 @@ public class InternalTimersSnapshot<K, N> {
 	private TypeSerializer<N> namespaceSerializer;
 	private TypeSerializerConfigSnapshot namespaceSerializerConfigSnapshot;
 
-	private Set<InternalTimer<K, N>> eventTimeTimers;
-	private Set<InternalTimer<K, N>> processingTimeTimers;
+	private Map<String, InternalTimer<K, N>> eventTimeTimers;
+	private Map<String, InternalTimer<K, N>> processingTimeTimers;
 
+	private InternalTimeServiceManager<K, N> manager;
+	private int snapshotVersion;
+	private DataOutputViewStreamWrapper metaWrapper;
 	/** Empty constructor used when restoring the timers. */
 	public InternalTimersSnapshot() {}
 
@@ -49,8 +53,11 @@ public class InternalTimersSnapshot<K, N> {
 			TypeSerializerConfigSnapshot keySerializerConfigSnapshot,
 			TypeSerializer<N> namespaceSerializer,
 			TypeSerializerConfigSnapshot namespaceSerializerConfigSnapshot,
-			@Nullable Set<InternalTimer<K, N>> eventTimeTimers,
-			@Nullable Set<InternalTimer<K, N>> processingTimeTimers) {
+			@Nullable Map<String, InternalTimer<K, N>> eventTimeTimers,
+			@Nullable Map<String, InternalTimer<K, N>> processingTimeTimers,
+			InternalTimeServiceManager<K, N> manager,
+			int snapshotVersion,
+			DataOutputViewStreamWrapper metaWrapper) {
 
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.keySerializerConfigSnapshot = Preconditions.checkNotNull(keySerializerConfigSnapshot);
@@ -58,6 +65,9 @@ public class InternalTimersSnapshot<K, N> {
 		this.namespaceSerializerConfigSnapshot = Preconditions.checkNotNull(namespaceSerializerConfigSnapshot);
 		this.eventTimeTimers = eventTimeTimers;
 		this.processingTimeTimers = processingTimeTimers;
+		this.manager = manager;
+		this.snapshotVersion = snapshotVersion;
+		this.metaWrapper = metaWrapper;
 	}
 
 	public TypeSerializer<K> getKeySerializer() {
@@ -92,19 +102,19 @@ public class InternalTimersSnapshot<K, N> {
 		this.namespaceSerializerConfigSnapshot = namespaceSerializerConfigSnapshot;
 	}
 
-	public Set<InternalTimer<K, N>> getEventTimeTimers() {
+	public Map<String, InternalTimer<K, N>> getEventTimeTimers() {
 		return eventTimeTimers;
 	}
 
-	public void setEventTimeTimers(Set<InternalTimer<K, N>> eventTimeTimers) {
+	public void setEventTimeTimers(Map<String, InternalTimer<K, N>> eventTimeTimers) {
 		this.eventTimeTimers = eventTimeTimers;
 	}
 
-	public Set<InternalTimer<K, N>> getProcessingTimeTimers() {
+	public Map<String, InternalTimer<K, N>> getProcessingTimeTimers() {
 		return processingTimeTimers;
 	}
 
-	public void setProcessingTimeTimers(Set<InternalTimer<K, N>> processingTimeTimers) {
+	public void setProcessingTimeTimers(Map<String, InternalTimer<K, N>> processingTimeTimers) {
 		this.processingTimeTimers = processingTimeTimers;
 	}
 
@@ -116,5 +126,17 @@ public class InternalTimersSnapshot<K, N> {
 	@Override
 	public int hashCode() {
 		return super.hashCode();
+	}
+
+	public InternalTimeServiceManager<K, N> getManager() {
+		return manager;
+	}
+
+	public int getSnapshotVersion() {
+		return snapshotVersion;
+	}
+
+	public DataOutputViewStreamWrapper getMetaWrapper() {
+		return metaWrapper;
 	}
 }

@@ -20,21 +20,11 @@ package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
-import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.util.Preconditions;
-
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -148,108 +138,6 @@ public class SavepointV2 implements Savepoint {
 	public static Savepoint convertToOperatorStateSavepointV2(
 			Map<JobVertexID, ExecutionJobVertex> tasks,
 			Savepoint savepoint) {
-
-		if (savepoint.getOperatorStates() != null) {
-			return savepoint;
-		}
-
-		boolean expandedToLegacyIds = false;
-
-		Map<OperatorID, OperatorState> operatorStates = new HashMap<>(savepoint.getTaskStates().size() << 1);
-
-		for (TaskState taskState : savepoint.getTaskStates()) {
-			ExecutionJobVertex jobVertex = tasks.get(taskState.getJobVertexID());
-
-			// on the first time we can not find the execution job vertex for an id, we also consider alternative ids,
-			// for example as generated from older flink versions, to provide backwards compatibility.
-			if (jobVertex == null && !expandedToLegacyIds) {
-				tasks = ExecutionJobVertex.includeLegacyJobVertexIDs(tasks);
-				jobVertex = tasks.get(taskState.getJobVertexID());
-				expandedToLegacyIds = true;
-			}
-
-			if (jobVertex == null) {
-				throw new IllegalStateException(
-					"Could not find task for state with ID " + taskState.getJobVertexID() + ". " +
-					"When migrating a savepoint from a version < 1.3 please make sure that the topology was not " +
-					"changed through removal of a stateful operator or modification of a chain containing a stateful " +
-					"operator.");
-			}
-
-			List<OperatorID> operatorIDs = jobVertex.getOperatorIDs();
-
-			Preconditions.checkArgument(
-				jobVertex.getParallelism() == taskState.getParallelism(),
-				"Detected change in parallelism during migration for task " + jobVertex.getJobVertexId() +"." +
-					"When migrating a savepoint from a version < 1.3 please make sure that no changes were made " +
-					"to the parallelism of stateful operators.");
-
-			Preconditions.checkArgument(
-				operatorIDs.size() == taskState.getChainLength(),
-				"Detected change in chain length during migration for task " + jobVertex.getJobVertexId() +". " +
-					"When migrating a savepoint from a version < 1.3 please make sure that the topology was not " +
-					"changed by modification of a chain containing a stateful operator.");
-
-			for (int subtaskIndex = 0; subtaskIndex < jobVertex.getParallelism(); subtaskIndex++) {
-				SubtaskState subtaskState;
-				try {
-					subtaskState = taskState.getState(subtaskIndex);
-				} catch (Exception e) {
-					throw new IllegalStateException(
-						"Could not find subtask with index " + subtaskIndex + " for task " + jobVertex.getJobVertexId() + ". " +
-						"When migrating a savepoint from a version < 1.3 please make sure that no changes were made " +
-						"to the parallelism of stateful operators.",
-						e);
-				}
-
-				if (subtaskState == null) {
-					continue;
-				}
-
-				ChainedStateHandle<OperatorStateHandle> partitioneableState =
-					subtaskState.getManagedOperatorState();
-				ChainedStateHandle<OperatorStateHandle> rawOperatorState =
-					subtaskState.getRawOperatorState();
-
-				for (int chainIndex = 0; chainIndex < taskState.getChainLength(); chainIndex++) {
-
-					// task consists of multiple operators so we have to break the state apart
-					for (int operatorIndex = 0; operatorIndex < operatorIDs.size(); operatorIndex++) {
-						OperatorID operatorID = operatorIDs.get(operatorIndex);
-						OperatorState operatorState = operatorStates.get(operatorID);
-
-						if (operatorState == null) {
-							operatorState = new OperatorState(
-								operatorID,
-								jobVertex.getParallelism(),
-								jobVertex.getMaxParallelism());
-							operatorStates.put(operatorID, operatorState);
-						}
-
-						KeyedStateHandle managedKeyedState = null;
-						KeyedStateHandle rawKeyedState = null;
-
-						// only the head operator retains the keyed state
-						if (operatorIndex == operatorIDs.size() - 1) {
-							managedKeyedState = subtaskState.getManagedKeyedState();
-							rawKeyedState = subtaskState.getRawKeyedState();
-						}
-
-						OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-							partitioneableState != null ? partitioneableState.get(operatorIndex) : null,
-							rawOperatorState != null ? rawOperatorState.get(operatorIndex) : null,
-							managedKeyedState,
-							rawKeyedState);
-
-						operatorState.putState(subtaskIndex, operatorSubtaskState);
-					}
-				}
-			}
-		}
-
-		return new SavepointV2(
-			savepoint.getCheckpointId(),
-			operatorStates.values(),
-			savepoint.getMasterStates());
+		throw new RuntimeException("no longer support convertToOperatorStateSavepointV2 since break changed has made");
 	}
 }

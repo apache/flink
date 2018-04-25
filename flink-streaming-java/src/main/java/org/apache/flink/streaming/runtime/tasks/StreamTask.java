@@ -70,6 +70,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -854,6 +855,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					OperatorID operatorID = entry.getKey();
 					OperatorSnapshotFutures snapshotInProgress = entry.getValue();
 
+					Boolean snapshotTimerSuccess = null;
+					Callable<Boolean> snapshotTimerCallable = snapshotInProgress.getSnapshotTimerCallable();
+					if (snapshotTimerCallable != null) {
+						snapshotTimerSuccess = snapshotTimerCallable.call();
+						if (!snapshotTimerSuccess) {
+							throw new Exception("snapshot timer failed");
+						}
+					}
 					// finalize the async part of all by executing all snapshot runnables
 					OperatorSnapshotFinalizer finalizedSnapshots =
 						new OperatorSnapshotFinalizer(snapshotInProgress);

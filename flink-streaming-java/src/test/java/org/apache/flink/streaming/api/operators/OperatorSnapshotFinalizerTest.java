@@ -78,7 +78,9 @@ public class OperatorSnapshotFinalizerTest extends TestLogger {
 		Assert.assertFalse(managedOp.isDone());
 		Assert.assertFalse(rawOp.isDone());
 
-		OperatorSnapshotFutures futures = new OperatorSnapshotFutures(managedKeyed, rawKeyed, managedOp, rawOp);
+		//TODO:
+		DoneFuture<SnapshotResult<OperatorStateHandle>> rawKeyedMeta = null;
+		OperatorSnapshotFutures futures = new OperatorSnapshotFutures(managedKeyed, rawKeyed, rawKeyedMeta, managedOp, rawOp);
 		OperatorSnapshotFinalizer operatorSnapshotFinalizer = new OperatorSnapshotFinalizer(futures);
 
 		Assert.assertTrue(managedKeyed.isDone());

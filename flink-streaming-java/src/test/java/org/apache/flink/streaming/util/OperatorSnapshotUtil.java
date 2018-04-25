@@ -19,20 +19,15 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1Serializer;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 
-import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 
 /**
  * Util for writing/reading {@link OperatorSubtaskState},
@@ -106,64 +101,6 @@ public class OperatorSnapshotUtil {
 	}
 
 	public static OperatorSubtaskState readStateHandle(String path) throws IOException, ClassNotFoundException {
-		FileInputStream in = new FileInputStream(path);
-		try (DataInputStream dis = new DataInputStream(in)) {
-
-			// required for backwards compatibility.
-			dis.readInt();
-
-			// still required for compatibility to consume the bytes.
-			SavepointV1Serializer.deserializeStreamStateHandle(dis);
-
-			List<OperatorStateHandle> rawOperatorState = null;
-			int numRawOperatorStates = dis.readInt();
-			if (numRawOperatorStates >= 0) {
-				rawOperatorState = new ArrayList<>();
-				for (int i = 0; i < numRawOperatorStates; i++) {
-					OperatorStateHandle operatorState = SavepointV1Serializer.deserializeOperatorStateHandle(
-						dis);
-					rawOperatorState.add(operatorState);
-				}
-			}
-
-			List<OperatorStateHandle> managedOperatorState = null;
-			int numManagedOperatorStates = dis.readInt();
-			if (numManagedOperatorStates >= 0) {
-				managedOperatorState = new ArrayList<>();
-				for (int i = 0; i < numManagedOperatorStates; i++) {
-					OperatorStateHandle operatorState = SavepointV1Serializer.deserializeOperatorStateHandle(
-						dis);
-					managedOperatorState.add(operatorState);
-				}
-			}
-
-			List<KeyedStateHandle> rawKeyedState = null;
-			int numRawKeyedStates = dis.readInt();
-			if (numRawKeyedStates >= 0) {
-				rawKeyedState = new ArrayList<>();
-				for (int i = 0; i < numRawKeyedStates; i++) {
-					KeyedStateHandle keyedState = SavepointV1Serializer.deserializeKeyedStateHandle(
-						dis);
-					rawKeyedState.add(keyedState);
-				}
-			}
-
-			List<KeyedStateHandle> managedKeyedState = null;
-			int numManagedKeyedStates = dis.readInt();
-			if (numManagedKeyedStates >= 0) {
-				managedKeyedState = new ArrayList<>();
-				for (int i = 0; i < numManagedKeyedStates; i++) {
-					KeyedStateHandle keyedState = SavepointV1Serializer.deserializeKeyedStateHandle(
-						dis);
-					managedKeyedState.add(keyedState);
-				}
-			}
-
-			return new OperatorSubtaskState(
-				new StateObjectCollection<>(managedOperatorState),
-				new StateObjectCollection<>(rawOperatorState),
-				new StateObjectCollection<>(managedKeyedState),
-				new StateObjectCollection<>(rawKeyedState));
-		}
+		throw new RuntimeException("break change has made for state, no longer support older version");
 	}
 }
