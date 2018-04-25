@@ -134,13 +134,17 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 		// set number of bulk iterations for KMeans algorithm
 		IterativeDataSet<KMeans.Centroid> loop = centroids.iterate(20);
 
+		// add some re-partitions to increase network buffer use
 		DataSet<KMeans.Centroid> newCentroids = points
+				.rebalance()
 				// compute closest centroid for each point
 				.map(new KMeans.SelectNearestCenter()).withBroadcastSet(loop, "centroids")
-						// count and sum point coordinates for each centroid
+				.rebalance()
+				// count and sum point coordinates for each centroid
 				.map(new KMeans.CountAppender())
 				.groupBy(0).reduce(new KMeans.CentroidAccumulator())
-						// compute new centroids from point counts and coordinate sums
+				// compute new centroids from point counts and coordinate sums
+				.rebalance()
 				.map(new KMeans.CentroidAverager());
 
 		// feed new centroids back into next iteration
