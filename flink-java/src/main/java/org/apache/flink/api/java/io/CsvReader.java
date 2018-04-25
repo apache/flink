@@ -139,6 +139,7 @@ public class CsvReader {
 	 *
 	 * @param delimiter The delimiter that separates the fields in one row.
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 *
 	 * @deprecated Please use {@link #fieldDelimiter(String)}.
 	 */
 	@Deprecated
@@ -223,7 +224,7 @@ public class CsvReader {
 	 * @param fields The array of flags that describes which fields are to be included and which not.
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
-	public CsvReader includeFields(boolean... fields) {
+	public CsvReader includeFields(boolean ... fields) {
 		if (fields == null || fields.length == 0) {
 			throw new IllegalArgumentException("The set of included fields must not be null or empty.");
 		}
@@ -285,9 +286,9 @@ public class CsvReader {
 	 *
 	 * <p>Examples:
 	 * <ul>
-	 * <li>A mask of {@code 0x7} would include the first three fields.</li>
-	 * <li>A mask of {@code 0x26} (binary {@code 100110} would skip the first fields, include fields
-	 * two and three, skip fields four and five, and include field six.</li>
+	 *   <li>A mask of {@code 0x7} would include the first three fields.</li>
+	 *   <li>A mask of {@code 0x26} (binary {@code 100110} would skip the first fields, include fields
+	 *       two and three, skip fields four and five, and include field six.</li>
 	 * </ul>
 	 *
 	 * @param mask The bit mask defining which fields to include and which to skip.
@@ -329,7 +330,7 @@ public class CsvReader {
 	 *
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
-	public CsvReader ignoreInvalidLines() {
+	public CsvReader ignoreInvalidLines(){
 		ignoreInvalidLines = true;
 		return this;
 	}
@@ -338,7 +339,7 @@ public class CsvReader {
 	 * Configures the reader to read the CSV data and parse it to the given type. The all fields of the type
 	 * must be public or able to set value. The type information for the fields is obtained from the type class.
 	 *
-	 * @param pojoType   The class of the target POJO.
+	 * @param pojoType The class of the target POJO.
 	 * @param pojoFields The fields of the POJO which are mapped to CSV fields.
 	 * @return The DataSet representing the parsed CSV data.
 	 */
