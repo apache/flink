@@ -16,13 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.tests.general.artificialstate;
+package org.apache.flink.streaming.tests.artificialstate;
 
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 
 import java.io.Serializable;
 
+/**
+ * The keyed state builder wraps the logic of registering state in user
+ * functions, as well as how state is updated per input element..
+ */
 public abstract class ArtificialKeyedStateBuilder<T> implements Serializable {
+
+	private static final long serialVersionUID = -5887676929924485788L;
 
 	protected final String stateName;
 
@@ -34,7 +40,17 @@ public abstract class ArtificialKeyedStateBuilder<T> implements Serializable {
 		return stateName;
 	}
 
+	/**
+	 * Manipulate the state for an input element.
+	 *
+	 * @param element the current input element.
+	 */
 	public abstract void artificialStateForElement(T element) throws Exception;
 
+	/**
+	 * Registers the state.
+	 *
+	 * @param initializationContext the state initialization context, provided by the user function.
+	 */
 	public abstract void initialize(FunctionInitializationContext initializationContext);
 }

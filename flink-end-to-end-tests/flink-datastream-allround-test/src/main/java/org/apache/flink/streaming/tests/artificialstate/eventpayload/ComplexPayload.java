@@ -16,15 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.tests.general.artificialstate.eventpayload;
+package org.apache.flink.streaming.tests.artificialstate.eventpayload;
 
-import org.apache.flink.streaming.tests.general.Event;
+import org.apache.flink.streaming.tests.DataStreamAllroundTestProgram;
+import org.apache.flink.streaming.tests.Event;
 
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * A state type used in the {@link DataStreamAllroundTestProgram}.
+ * Wraps an {@link Event} as state.
+ */
 public class ComplexPayload implements Serializable {
+
+	private static final long serialVersionUID = 233624606545704853L;
 
 	public ComplexPayload(Event event) {
 		this.eventTime = event.getEventTime();
@@ -36,7 +43,13 @@ public class ComplexPayload implements Serializable {
 	private final List<String> stringList;
 	private final InnerPayLoad innerPayLoad;
 
+	/**
+	 * Nested class in state type. Wraps an {@link Event}'s sequence number.
+	 */
 	public static class InnerPayLoad implements Serializable {
+
+		private static final long serialVersionUID = 3986298180012117883L;
+
 		private final long sequenceNumber;
 
 		public InnerPayLoad(long sequenceNumber) {
