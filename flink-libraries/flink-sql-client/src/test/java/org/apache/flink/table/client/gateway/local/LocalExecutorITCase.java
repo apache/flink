@@ -109,6 +109,10 @@ public class LocalExecutorITCase extends TestLogger {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
 
+		session.setSessionProperty("execution.result-mode", "changelog");
+
+		executor.getSessionProperties(session);
+
 		// modify defaults
 		session.setSessionProperty("execution.result-mode", "table");
 
