@@ -110,7 +110,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
-import akka.dispatch.Futures;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -135,15 +134,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
-import scala.concurrent.impl.Promise;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -178,7 +172,7 @@ public class StreamTaskTest extends TestLogger {
 	 */
 	@Test
 	public void testEarlyCanceling() throws Exception {
-		Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
+		long deadlineMilli = TimeUnit.MINUTES.toMillis(2) + System.currentTimeMillis();
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		cfg.setOperatorID(new OperatorID(4711L, 42L));
 		cfg.setStreamOperator(new SlowlyDeserializingOperator());
@@ -194,7 +188,7 @@ public class StreamTaskTest extends TestLogger {
 		Future<ExecutionState> running = testingExecutionStateListener.notifyWhenExecutionState(ExecutionState.RUNNING);
 
 		// wait until the task thread reached state RUNNING
-		ExecutionState executionState = Await.result(running, deadline.timeLeft());
+		ExecutionState executionState = running.get(timeLeftMilli(deadlineMilli), TimeUnit.MILLISECONDS);
 
 		// make sure the task is really running
 		if (executionState != ExecutionState.RUNNING) {
@@ -208,16 +202,20 @@ public class StreamTaskTest extends TestLogger {
 
 		Future<ExecutionState> canceling = testingExecutionStateListener.notifyWhenExecutionState(ExecutionState.CANCELING);
 
-		executionState = Await.result(canceling, deadline.timeLeft());
+		executionState = canceling.get(timeLeftMilli(deadlineMilli), TimeUnit.MILLISECONDS);
 
 		// the task should reach state canceled eventually
 		assertTrue(executionState == ExecutionState.CANCELING ||
 				executionState == ExecutionState.CANCELED);
 
-		task.getExecutingThread().join(deadline.timeLeft().toMillis());
+		task.getExecutingThread().join(timeLeftMilli(deadlineMilli));
 
 		assertFalse("Task did not cancel", task.getExecutingThread().isAlive());
 		assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+	}
+
+	private static long timeLeftMilli(long deadlineMilli) {
+		return Math.max(0, deadlineMilli - System.currentTimeMillis());
 	}
 
 	@Test
@@ -858,25 +856,17 @@ public class StreamTaskTest extends TestLogger {
 
 		private ExecutionState executionState = null;
 
-		private final PriorityQueue<Tuple2<ExecutionState, Promise<ExecutionState>>> priorityQueue = new PriorityQueue<>(
-			1,
-			new Comparator<Tuple2<ExecutionState, Promise<ExecutionState>>>() {
-				@Override
-				public int compare(Tuple2<ExecutionState, Promise<ExecutionState>> o1, Tuple2<ExecutionState, Promise<ExecutionState>> o2) {
-					return o1.f0.ordinal() - o2.f0.ordinal();
-				}
-			});
+		private final PriorityQueue<Tuple2<ExecutionState, CompletableFuture<ExecutionState>>> priorityQueue =
+			new PriorityQueue<>(1, Comparator.comparingInt(o -> o.f0.ordinal()));
 
-		public Future<ExecutionState> notifyWhenExecutionState(ExecutionState executionState) {
+		Future<ExecutionState> notifyWhenExecutionState(ExecutionState executionState) {
 			synchronized (priorityQueue) {
 				if (this.executionState != null && this.executionState.ordinal() >= executionState.ordinal()) {
-					return Futures.<ExecutionState>successful(executionState);
+					return CompletableFuture.completedFuture(executionState);
 				} else {
-					Promise<ExecutionState> promise = new Promise.DefaultPromise<ExecutionState>();
-
+					CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
 					priorityQueue.offer(Tuple2.of(executionState, promise));
-
-					return promise.future();
+					return promise;
 				}
 			}
 		}
@@ -887,9 +877,8 @@ public class StreamTaskTest extends TestLogger {
 				this.executionState = taskExecutionState.getExecutionState();
 
 				while (!priorityQueue.isEmpty() && priorityQueue.peek().f0.ordinal() <= executionState.ordinal()) {
-					Promise<ExecutionState> promise = priorityQueue.poll().f1;
-
-					promise.success(executionState);
+					CompletableFuture<ExecutionState> promise = priorityQueue.poll().f1;
+					promise.complete(executionState);
 				}
 			}
 		}
