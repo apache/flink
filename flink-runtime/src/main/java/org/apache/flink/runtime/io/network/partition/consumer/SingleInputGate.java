@@ -157,8 +157,10 @@ public class SingleInputGate implements InputGate {
 	 */
 	private BufferPool bufferPool;
 
-	/** Global network buffer pool to request and recycle exclusive buffers. */
+	/** Global network buffer pool to request and recycle exclusive buffers (only for credit-based). */
 	private NetworkBufferPool networkBufferPool;
+
+	private final boolean isCreditBased;
 
 	private boolean hasReceivedAllEndOfPartitionEvents;
 
@@ -189,7 +191,8 @@ public class SingleInputGate implements InputGate {
 		int consumedSubpartitionIndex,
 		int numberOfInputChannels,
 		TaskActions taskActions,
-		TaskIOMetricGroup metrics) {
+		TaskIOMetricGroup metrics,
+		boolean isCreditBased) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		this.jobId = checkNotNull(jobId);
@@ -208,6 +211,7 @@ public class SingleInputGate implements InputGate {
 		this.enqueuedInputChannelsWithData = new BitSet(numberOfInputChannels);
 
 		this.taskActions = checkNotNull(taskActions);
+		this.isCreditBased = isCreditBased;
 	}
 
 	// ------------------------------------------------------------------------
@@ -288,6 +292,7 @@ public class SingleInputGate implements InputGate {
 	 * @param networkBuffersPerChannel The number of exclusive buffers for each channel
 	 */
 	public void assignExclusiveSegments(NetworkBufferPool networkBufferPool, int networkBuffersPerChannel) throws IOException {
+		checkState(this.isCreditBased, "Bug in input gate setup logic: exclusive buffers only exist with credit-based flow control.");
 		checkState(this.networkBufferPool == null, "Bug in input gate setup logic: global buffer pool has" +
 			"already been set for this input gate.");
 
@@ -347,8 +352,13 @@ public class SingleInputGate implements InputGate {
 				}
 				else if (partitionLocation.isRemote()) {
 					newChannel = unknownChannel.toRemoteInputChannel(partitionLocation.getConnectionId());
-					((RemoteInputChannel)newChannel).assignExclusiveSegments(
-						networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
+
+					if (this.isCreditBased) {
+						checkState(this.networkBufferPool != null, "Bug in input gate setup logic: " +
+							"global buffer pool has not been set for this input gate.");
+						((RemoteInputChannel) newChannel).assignExclusiveSegments(
+							networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
+					}
 				}
 				else {
 					throw new IllegalStateException("Tried to update unknown channel with unknown channel.");
@@ -661,7 +671,7 @@ public class SingleInputGate implements InputGate {
 
 		final SingleInputGate inputGate = new SingleInputGate(
 			owningTaskName, jobId, consumedResultId, consumedPartitionType, consumedSubpartitionIndex,
-			icdd.length, taskActions, metrics);
+			icdd.length, taskActions, metrics, networkEnvironment.isCreditBased());
 
 		// Create the input channels. There is one input channel for each consumed partition.
 		final InputChannel[] inputChannels = new InputChannel[icdd.length];
