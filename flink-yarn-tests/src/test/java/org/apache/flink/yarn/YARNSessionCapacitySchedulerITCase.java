@@ -592,8 +592,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
 			try {
 				LOG.info("testDetachedPerJobYarnClusterInternal: Closing the yarn client");
-				yc.close();
-			} catch (IOException e) {
+				yc.stop();
+			} catch (Exception e) {
 				LOG.warn("testDetachedPerJobYarnClusterInternal: Exception while close the yarn client", e);
 			}
 		}
