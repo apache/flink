@@ -1481,9 +1481,6 @@ object AggregateUtil {
             throw TableException(
               "DISTINCT aggregations with multiple parameters not fully supported yet.")
           }
-          val relDataType = aggregateInputType.getFieldList.get(argList.get(0)).getType
-          val mapViewTypeInfo = new MapViewTypeInfo(
-            FlinkTypeFactory.toTypeInfo(relDataType), BasicTypeInfo.LONG_TYPE_INFO)
 
           // Using Pojo fields for the real underlying accumulator
           val pojoFields = new util.ArrayList[PojoField]()
@@ -1494,8 +1491,12 @@ object AggregateUtil {
           // If StateBackend is not enabled, the distinct mapping also needs
           // to be added to the Pojo fields.
           if (!isStateBackedDataViews) {
+            val relDataType = aggregateInputType.getFieldList.get(argList.get(0)).getType
+            val mapViewTypeInfo = new MapViewTypeInfo(
+              new RowTypeInfo(FlinkTypeFactory.toTypeInfo(relDataType)),
+              BasicTypeInfo.LONG_TYPE_INFO)
             pojoFields.add(new PojoField(
-              classOf[DistinctAccumulator[_, _]].getDeclaredField("mapView"),
+              classOf[DistinctAccumulator[_, _]].getDeclaredField("distinctValueMap"),
               mapViewTypeInfo)
             )
           }

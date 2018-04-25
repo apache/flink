@@ -167,7 +167,6 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setStateBackend(getStateBackend)
-    env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
 
@@ -196,6 +195,49 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "Hello World,8,2,15", "Hello World,8,3,21",
       "Hello World,9,2,17",
       "Hello World,20,3,37")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testProcTimeDistinctUnboundedPartitionedRangeOverWithNullValues(): Unit = {
+    val data = List(
+      (1L, 1, null),
+      (2L, 1, null),
+      (3L, 2, null),
+      (4L, 1, "Hello"),
+      (5L, 1, "Hello"),
+      (6L, 2, "Hello"),
+      (7L, 1, "Hello World"),
+      (8L, 2, "Hello World"),
+      (9L, 2, "Hello World"))
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    // for sum aggregation ensure that every time the order of each element is consistent
+    env.setParallelism(1)
+
+    val table = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+
+    tEnv.registerTable("MyTable", table)
+
+    val sqlQuery = "SELECT " +
+      "  c, " +
+      "  b, " +
+      "  COUNT(DISTINCT c) OVER (PARTITION BY b ORDER BY proctime RANGE UNBOUNDED preceding)" +
+      "FROM " +
+      "  MyTable"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      "null,1,0", "null,1,0", "null,2,0",
+      "Hello,1,1", "Hello,1,1", "Hello,2,1",
+      "Hello World,1,2", "Hello World,2,2", "Hello World,2,2")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

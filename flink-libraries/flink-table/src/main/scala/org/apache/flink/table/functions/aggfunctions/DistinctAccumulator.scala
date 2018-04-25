@@ -23,21 +23,25 @@ import java.lang.{Iterable => JIterable}
 import java.util.{Map => JMap}
 
 import org.apache.flink.table.api.dataview.MapView
+import org.apache.flink.types.Row
 
 /**
   * The base class for accumulator wrapper when applying distinct aggregation.
   * @param realAcc the actual accumulator which gets invoke after distinct filter.
-  * @param mapView the [[MapView]] element used to store the distinct filter hash map.
+  * @param distinctValueMap the [[MapView]] element used to store the distinct filter hash map.
   * @tparam E the element type for the distinct filter hash map.
   * @tparam ACC the accumulator type for the realAcc.
   */
-class DistinctAccumulator[E, ACC](var realAcc: ACC, var mapView: MapView[E, JLong]) {
+class DistinctAccumulator[E <: AnyRef, ACC](
+    var realAcc: ACC,
+    var distinctValueMap: MapView[Row, JLong]) {
+
   def this() {
-    this(null.asInstanceOf[ACC], new MapView[E, JLong]())
+    this(null.asInstanceOf[ACC], new MapView[Row, JLong]())
   }
 
   def this(realAcc: ACC) {
-    this(realAcc, new MapView[E, JLong]())
+    this(realAcc, new MapView[Row, JLong]())
   }
 
   def getRealAcc: ACC = realAcc
@@ -47,60 +51,51 @@ class DistinctAccumulator[E, ACC](var realAcc: ACC, var mapView: MapView[E, JLon
   override def equals(that: Any): Boolean =
     that match {
       case that: DistinctAccumulator[E, ACC] => that.canEqual(this) &&
-        this.mapView == that.mapView
+        this.distinctValueMap == that.distinctValueMap
       case _ => false
     }
 
   def add(element: E): Boolean = {
-    if (element != null) {
-      val currentVal = mapView.get(element)
-      if (currentVal != null) {
-        mapView.put(element, currentVal + 1L)
-        false
-      } else {
-        mapView.put(element, 1L)
-        true
-      }
-    } else {
+    val wrappedElement = Row.of(element)
+    val currentVal = distinctValueMap.get(wrappedElement)
+    if (currentVal != null) {
+      distinctValueMap.put(wrappedElement, currentVal + 1L)
       false
+    } else {
+      distinctValueMap.put(wrappedElement, 1L)
+      true
     }
   }
 
   def add(element: E, count: JLong): Boolean = {
-    if (element != null) {
-      val currentVal = mapView.get(element)
-      if (currentVal != null) {
-        mapView.put(element, currentVal + count)
-        false
-      } else {
-        mapView.put(element, count)
-        true
-      }
-    } else {
+    val wrappedElement = Row.of(element)
+    val currentVal = distinctValueMap.get(wrappedElement)
+    if (currentVal != null) {
+      distinctValueMap.put(wrappedElement, currentVal + count)
       false
+    } else {
+      distinctValueMap.put(wrappedElement, count)
+      true
     }
   }
 
   def remove(element: E): Boolean = {
-    if (element != null) {
-      val count = mapView.get(element)
-      if (count == 1) {
-        mapView.remove(element)
-        true
-      } else {
-        mapView.put(element, count - 1L)
-        false
-      }
+    val wrappedElement = Row.of(element)
+    val count = distinctValueMap.get(wrappedElement)
+    if (count == 1) {
+      distinctValueMap.remove(wrappedElement)
+      true
     } else {
+      distinctValueMap.put(wrappedElement, count - 1L)
       false
     }
   }
 
   def reset(): Unit = {
-    mapView.clear()
+    distinctValueMap.clear()
   }
 
-  def elements(): JIterable[JMap.Entry[E, JLong]] = {
-    mapView.map.entrySet()
+  def elements(): JIterable[JMap.Entry[Row, JLong]] = {
+    distinctValueMap.map.entrySet()
   }
 }

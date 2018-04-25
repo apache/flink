@@ -22,14 +22,15 @@ import java.lang.{Iterable => JIterable}
 
 import org.apache.calcite.rex.RexLiteral
 import org.apache.commons.codec.binary.Base64
-import org.apache.flink.api.common.state.{State, StateDescriptor}
+import org.apache.flink.api.common.state.{ListStateDescriptor, MapStateDescriptor, State, StateDescriptor}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.typeutils.TypeExtractionUtils.{extractTypeArgument, getRawClass}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.dataview._
 import org.apache.flink.table.codegen.CodeGenUtils.{newName, reflectiveFieldWriteAccess}
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.dataview.MapViewTypeInfo
+import org.apache.flink.table.dataview.{MapViewTypeInfo, StateListView, StateMapView}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.aggfunctions.DistinctAccumulator
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
@@ -162,13 +163,18 @@ class AggregationCodeGenerator(
 
     val distinctAggs: Array[Seq[DataViewSpec[_]]] = isDistinctAggs.zipWithIndex.map {
       case (isDistinctAgg, idx) => if (isDistinctAgg) {
+        if (aggFields(idx).length != 1) {
+          throw new CodeGenException(
+            s"Distinct aggregate should only applied to exactly one aggregate field!"
+          )
+        }
         val fieldIndex: Int = aggFields(idx)(0)
         val mapViewTypeInfo = new MapViewTypeInfo(
-          physicalInputTypes(fieldIndex), BasicTypeInfo.LONG_TYPE_INFO)
+          new RowTypeInfo(physicalInputTypes(fieldIndex)), BasicTypeInfo.LONG_TYPE_INFO)
         Seq(
           MapViewSpec(
-            "distinctAgg" + idx + "_field" + fieldIndex,
-            classOf[DistinctAccumulator[_, _]].getDeclaredField("mapView"),
+            "distinctAgg" + idx,
+            classOf[DistinctAccumulator[_, _]].getDeclaredField("distinctValueMap"),
             mapViewTypeInfo)
         )
       } else {
@@ -182,10 +188,7 @@ class AggregationCodeGenerator(
       )
     }
 
-    // initialize and create data views for distinct filters.
-    addDistinctFilterDataViews()
-
-    // initialize and create data views for accumulators.
+    // initialize and create data views for accumulators & distinct filters
     addAccumulatorDataViews()
 
     // check and validate the needed methods
@@ -241,15 +244,16 @@ class AggregationCodeGenerator(
         }
     }
 
-
     /**
-      * Add all data view for all distinct filters defined by aggregation functions.
+      * Add all data views for all field accumulators and distinct filters defined by
+      * aggregation functions.
       */
-    def addDistinctFilterDataViews(): Unit = {
-      val descMapping: Map[String, StateDescriptor[_, _]] = distinctAggs
-        .flatMap(specs => specs.map(s => (s.stateId, s.toStateDescriptor)))
-        .toMap[String, StateDescriptor[_ <: State, _]]
+    def addAccumulatorDataViews(): Unit = {
       if (isStateBackedDataViews) {
+        val descMapping: Map[String, StateDescriptor[_, _]] = distinctAggs
+          .flatMap(specs => specs.map(s => (s.stateId, s.toStateDescriptor)))
+          .toMap[String, StateDescriptor[_ <: State, _]]
+
         for (i <- aggs.indices) yield {
           for (spec <- distinctAggs(i)) {
             // Check if stat descriptor exists.
@@ -261,12 +265,7 @@ class AggregationCodeGenerator(
           }
         }
       }
-    }
 
-    /**
-      * Add all data views for all field accumulators defined by aggregation functions.
-      */
-    def addAccumulatorDataViews(): Unit = {
       if (accConfig.isDefined) {
         val descMapping: Map[String, StateDescriptor[_, _]] = accConfig.get
           .flatMap(specs => specs.map(s => (s.stateId, s.toStateDescriptor)))
@@ -332,16 +331,16 @@ class AggregationCodeGenerator(
       val createDataView = if (dataViewField.getType == classOf[MapView[_, _]]) {
         s"""
            |    $descDeserializeCode
-           |    $dataViewFieldTerm = new org.apache.flink.table.dataview.StateMapView(
-           |      $contextTerm.getMapState((
-           |      org.apache.flink.api.common.state.MapStateDescriptor)$descFieldTerm));
+           |    $dataViewFieldTerm = new ${classOf[StateMapView[_, _]].getCanonicalName}(
+           |      $contextTerm.getMapState(
+           |        (${classOf[MapStateDescriptor[_, _]].getCanonicalName}) $descFieldTerm));
            |""".stripMargin
       } else if (dataViewField.getType == classOf[ListView[_]]) {
         s"""
            |    $descDeserializeCode
-           |    $dataViewFieldTerm = new org.apache.flink.table.dataview.StateListView(
-           |      $contextTerm.getListState((
-           |      org.apache.flink.api.common.state.ListStateDescriptor)$descFieldTerm));
+           |    $dataViewFieldTerm = new ${classOf[StateListView[_]].getCanonicalName}(
+           |      $contextTerm.getListState(
+           |        (${classOf[ListStateDescriptor[_]].getCanonicalName}) $descFieldTerm));
            |""".stripMargin
       } else {
         throw new CodeGenException(s"Unsupported dataview type: $dataViewTypeTerm")
@@ -551,8 +550,8 @@ class AggregationCodeGenerator(
           if (isDistinctAggs(i)) {
             j"""
                |    ${accTypes(i)} acc$i = (${accTypes(i)}) ${aggs(i)}.createAccumulator();
-               |    $distinctAccType distinctAcc$i = ($distinctAccType) new org.apache.flink.table.
-               |        functions.aggfunctions.DistinctAccumulator(acc$i);
+               |    $distinctAccType distinctAcc$i = ($distinctAccType)
+               |      new ${classOf[DistinctAccumulator[_, _]].getCanonicalName} (acc$i);
                |    accs.setField(
                |      $i,
                |      distinctAcc$i);"""
@@ -629,12 +628,13 @@ class AggregationCodeGenerator(
                |    $distinctAccType bDistinctAcc$i = ($distinctAccType) b.getField(${mapping(i)});
                |    java.util.Iterator<java.util.Map.Entry> mergeIt$i =
                |        bDistinctAcc$i.elements().iterator();
+               |    ${accTypes(i)} aAcc$i = (${accTypes(i)}) aDistinctAcc$i.getRealAcc();
+               |
                |    while (mergeIt$i.hasNext()) {
                |      java.util.Map.Entry entry = (java.util.Map.Entry) mergeIt$i.next();
                |      Object k = entry.getKey();
                |      Long v = (Long) entry.getValue();
                |      if (aDistinctAcc$i.add(k, v)) {
-               |        ${accTypes(i)} aAcc$i = (${accTypes(i)}) aDistinctAcc$i.getRealAcc();
                |        ${aggs(i)}.accumulate(aAcc$i, k);
                |      }
                |    }
