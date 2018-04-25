@@ -443,9 +443,9 @@ active at the same time. Since the *intra-node-parallelism* is typically the num
 more than 4 repartitioning or broadcasting channels are rarely active in parallel, it frequently
 boils down to
 
-```
+{% highlight plain %}
 #slots-per-TM^2 * #TMs * 4
-```
+{% endhighlight %}
 
 Where `#slots per TM` are the [number of slots per TaskManager](#configuring-taskmanager-processing-slots) and `#TMs` are the total number of task managers.
 

@@ -58,9 +58,9 @@ After creating your cluster, you can [connect to the master node](http://docs.aw
 1. Go the [Downloads Page]({{ site.download_url }}) and **download a binary version of Flink matching the Hadoop version** of your EMR cluster, e.g. Hadoop 2.7 for EMR releases 4.3.0, 4.4.0, or 4.5.0.
 2. Extract the Flink distribution and you are ready to deploy [Flink jobs via YARN](yarn_setup.html) after **setting the Hadoop config directory**:
 
-```bash
+{% highlight bash %}
 HADOOP_CONF_DIR=/etc/hadoop/conf ./bin/flink run -m yarn-cluster -yn 1 examples/streaming/WordCount.jar
-```
+{% endhighlight %}
 
 {% top %}
 
@@ -70,13 +70,13 @@ HADOOP_CONF_DIR=/etc/hadoop/conf ./bin/flink run -m yarn-cluster -yn 1 examples/
 
 You can use S3 objects like regular files by specifying paths in the following format:
 
-```
+{% highlight plain %}
 s3://<your-bucket>/<endpoint>
-```
+{% endhighlight %}
 
 The endpoint can either be a single file or a directory, for example:
 
-```java
+{% highlight java %}
 // Read from S3 bucket
 env.readTextFile("s3://<bucket>/<endpoint>");
 
@@ -85,7 +85,7 @@ stream.writeAsText("s3://<bucket>/<endpoint>");
 
 // Use S3 as FsStatebackend
 env.setStateBackend(new FsStateBackend("s3://<your-bucket>/<endpoint>"));
-```
+{% endhighlight %}
 
 Note that these examples are *not* exhaustive and you can use S3 in other places as well, including your [high availability setup](../jobmanager_high_availability.html) or the [RocksDBStateBackend]({{ site.baseurl }}/ops/state/state_backends.html#the-rocksdbstatebackend); everywhere that Flink expects a FileSystem URI.
 
@@ -101,9 +101,9 @@ implementation. Both ways are described below.
 To use either `flink-s3-fs-hadoop` or `flink-s3-fs-presto`, copy the respective JAR file from the
 `opt` directory to the `lib` directory of your Flink distribution before starting Flink, e.g.
 
-```
+{% highlight bash %}
 cp ./opt/flink-s3-fs-presto-{{ site.version }}.jar ./lib/
-```
+{% endhighlight %}
 
 #### Configure Access Credentials
 
@@ -121,10 +121,10 @@ Access to S3 can be granted via your **access and secret key pair**. Please note
 
 You need to configure both `s3.access-key` and `s3.secret-key`  in Flink's  `flink-conf.yaml`:
 
-```
+{% highlight yaml %}
 s3.access-key: your-access-key
 s3.secret-key: your-secret-key
-```
+{% endhighlight %}
 
 {% top %}
 
@@ -149,7 +149,7 @@ This is the recommended S3 FileSystem implementation to use. It uses Amazon's SD
 
 You need to point Flink to a valid Hadoop configuration, which contains the following properties in `core-site.xml`:
 
-```xml
+{% highlight xml %}
 <configuration>
 
 <property>
@@ -165,7 +165,7 @@ You need to point Flink to a valid Hadoop configuration, which contains the foll
 </property>
 
 </configuration>
-```
+{% endhighlight %}
 
 This registers `S3AFileSystem` as the default FileSystem for URIs with the `s3a://` scheme.
 
@@ -175,12 +175,12 @@ This file system is limited to files up to 5GB in size and it does not work with
 
 You need to point Flink to a valid Hadoop configuration, which contains the following property in `core-site.xml`:
 
-```xml
+{% highlight xml %}
 <property>
   <name>fs.s3.impl</name>
   <value>org.apache.hadoop.fs.s3native.NativeS3FileSystem</value>
 </property>
-```
+{% endhighlight %}
 
 This registers `NativeS3FileSystem` as the default FileSystem for URIs with the `s3://` scheme.
 
@@ -192,9 +192,9 @@ You can specify the [Hadoop configuration](../config.html#hdfs) in various ways 
 the path of the Hadoop configuration directory, for example
 - by setting the environment variable `HADOOP_CONF_DIR`, or
 - by setting the `fs.hdfs.hadoopconf` configuration option in `flink-conf.yaml`:
-```
+{% highlight yaml %}
 fs.hdfs.hadoopconf: /path/to/etc/hadoop
-```
+{% endhighlight %}
 
 This registers `/path/to/etc/hadoop` as Hadoop's configuration directory with Flink. Flink will look for the `core-site.xml` and `hdfs-site.xml` files in the specified directory.
 
@@ -222,7 +222,7 @@ Access to S3 can be granted via your **access and secret key pair**. Please note
 
 For `S3AFileSystem` you need to configure both `fs.s3a.access.key` and `fs.s3a.secret.key`  in Hadoop's  `core-site.xml`:
 
-```xml
+{% highlight xml %}
 <property>
   <name>fs.s3a.access.key</name>
   <value></value>
@@ -232,7 +232,7 @@ For `S3AFileSystem` you need to configure both `fs.s3a.access.key` and `fs.s3a.s
   <name>fs.s3a.secret.key</name>
   <value></value>
 </property>
-```
+{% endhighlight %}
 
 {% top %}
 
@@ -242,7 +242,7 @@ Access to S3 can be granted via your **access and secret key pair**. But this is
 
 For `NativeS3FileSystem` you need to configure both `fs.s3.awsAccessKeyId` and `fs.s3.awsSecretAccessKey`  in Hadoop's  `core-site.xml`:
 
-```xml
+{% highlight xml %}
 <property>
   <name>fs.s3.awsAccessKeyId</name>
   <value></value>
@@ -252,7 +252,7 @@ For `NativeS3FileSystem` you need to configure both `fs.s3.awsAccessKeyId` and `
   <name>fs.s3.awsSecretAccessKey</name>
   <value></value>
 </property>
-```
+{% endhighlight %}
 
 {% top %}
 
@@ -320,7 +320,7 @@ The following sections lists common issues when working with Flink on AWS.
 
 If your job submission fails with an Exception message noting that `No file system found with scheme s3` this means that no FileSystem has been configured for S3. Please check out the configuration sections for our [shaded Hadoop/Presto](#shaded-hadooppresto-s3-file-systems-recommended) or [generic Hadoop](#set-s3-filesystem) file systems for details on how to configure this properly.
 
-```
+{% highlight plain %}
 org.apache.flink.client.program.ProgramInvocationException: The program execution failed:
   Failed to submit job cd927567a81b62d7da4c18eaa91c3c39 (WordCount Example) [...]
 Caused by: org.apache.flink.runtime.JobException: Creating the input splits caused an error:
@@ -332,7 +332,7 @@ Caused by: java.io.IOException: No file system found with scheme s3,
     at o.a.f.api.common.io.FileInputFormat.createInputSplits(FileInputFormat.java:450)
     at o.a.f.api.common.io.FileInputFormat.createInputSplits(FileInputFormat.java:57)
     at o.a.f.runtime.executiongraph.ExecutionJobVertex.<init>(ExecutionJobVertex.java:156)
-```
+{% endhighlight %}
 
 {% top %}
 
@@ -340,7 +340,7 @@ Caused by: java.io.IOException: No file system found with scheme s3,
 
 If you see your job failing with an Exception noting that the `AWS Access Key ID and Secret Access Key must be specified as the username or password`, your access credentials have not been set up properly. Please refer to the access credential section for our [shaded Hadoop/Presto](#configure-access-credentials) or [generic Hadoop](#configure-access-credentials-1) file systems for details on how to configure this.
 
-```
+{% highlight plain %}
 org.apache.flink.client.program.ProgramInvocationException: The program execution failed:
   Failed to submit job cd927567a81b62d7da4c18eaa91c3c39 (WordCount Example) [...]
 Caused by: java.io.IOException: The given file URI (s3://<bucket>/<endpoint>) points to the
@@ -362,7 +362,7 @@ Caused by: java.lang.IllegalArgumentException: AWS Access Key ID and Secret Acce
     at o.a.h.fs.s3native.$Proxy6.initialize(Unknown Source)
     at o.a.h.fs.s3native.NativeS3FileSystem.initialize(NativeS3FileSystem.java:330)
     at o.a.f.runtime.fs.hdfs.HadoopFileSystem.initialize(HadoopFileSystem.java:321)
-```
+{% endhighlight %}
 
 {% top %}
 
@@ -370,7 +370,7 @@ Caused by: java.lang.IllegalArgumentException: AWS Access Key ID and Secret Acce
 
 If you see this Exception, the S3 FileSystem is not part of the class path of Flink. Please refer to [S3 FileSystem dependency section](#provide-s3-filesystem-dependency) for details on how to configure this properly.
 
-```
+{% highlight plain %}
 Caused by: java.lang.RuntimeException: java.lang.RuntimeException: java.lang.ClassNotFoundException: Class org.apache.hadoop.fs.s3native.NativeS3FileSystem not found
   at org.apache.hadoop.conf.Configuration.getClass(Configuration.java:2186)
   at org.apache.flink.runtime.fs.hdfs.HadoopFileSystem.getHadoopWrapperClassNameForFileSystem(HadoopFileSystem.java:460)
@@ -389,7 +389,7 @@ Caused by: java.lang.ClassNotFoundException: Class org.apache.hadoop.fs.s3native
   at org.apache.hadoop.conf.Configuration.getClassByName(Configuration.java:2060)
   at org.apache.hadoop.conf.Configuration.getClass(Configuration.java:2152)
   ... 33 more
-```
+{% endhighlight %}
 
 {% top %}
 
@@ -397,16 +397,16 @@ Caused by: java.lang.ClassNotFoundException: Class org.apache.hadoop.fs.s3native
 
 If you have configured everything properly, but get a `Bad Request` Exception **and** your S3 bucket is located in region `eu-central-1`, you might be running an S3 client, which does not support [Amazon's signature version 4](http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html).
 
-```
+{% highlight plain %}
 [...]
 Caused by: java.io.IOException: s3://<bucket-in-eu-central-1>/<endpoint> : 400 : Bad Request [...]
 Caused by: org.jets3t.service.impl.rest.HttpException [...]
-```
+{% endhighlight %}
 or
-```
+{% highlight plain %}
 com.amazonaws.services.s3.model.AmazonS3Exception: Status Code: 400, AWS Service: Amazon S3, AWS Request ID: [...], AWS Error Code: null, AWS Error Message: Bad Request, S3 Extended Request ID: [...]
 
-```
+{% endhighlight %}
 
 This should not apply to our shaded Hadoop/Presto S3 file systems but can occur for Hadoop-provided
 S3 file systems. In particular, all Hadoop versions up to 2.7.2 running `NativeS3FileSystem` (which
@@ -417,9 +417,9 @@ Except for changing the bucket region, you may also be able to solve this by
 [requesting signature version 4 for request authentication](https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version),
 e.g. by adding this to Flink's JVM options in `flink-conf.yaml` (see
 [configuration](../config.html#common-options)):
-```
+{% highlight yaml %}
 env.java.opts: -Dcom.amazonaws.services.s3.enableV4
-```
+{% endhighlight %}
 
 {% top %}
 
@@ -427,7 +427,7 @@ env.java.opts: -Dcom.amazonaws.services.s3.enableV4
 
 This Exception is usually caused by skipping the local buffer directory configuration `fs.s3a.buffer.dir` for the `S3AFileSystem`. Please refer to the [S3AFileSystem configuration](#s3afilesystem-recommended) section to see how to configure the `S3AFileSystem` properly.
 
-```
+{% highlight plain %}
 [...]
 Caused by: java.lang.NullPointerException at
 o.a.h.fs.LocalDirAllocator$AllocatorPerContext.confChanged(LocalDirAllocator.java:268) at
@@ -442,6 +442,6 @@ o.a.h.fs.FileSystem.create(FileSystem.java:785) at
 o.a.f.runtime.fs.hdfs.HadoopFileSystem.create(HadoopFileSystem.java:404) at
 o.a.f.runtime.fs.hdfs.HadoopFileSystem.create(HadoopFileSystem.java:48) at
 ... 25 more
-```
+{% endhighlight %}
 
 {% top %}

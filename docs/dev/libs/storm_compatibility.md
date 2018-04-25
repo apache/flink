@@ -43,13 +43,13 @@ The code resides in the `org.apache.flink.storm` package.
 
 Add the following dependency to your `pom.xml` if you want to execute Storm code in Flink.
 
-~~~xml
+{% highlight xml %}
 <dependency>
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-storm{{ site.scala_version_suffix }}</artifactId>
 	<version>{{site.version}}</version>
 </dependency>
-~~~
+{% endhighlight %}
 
 **Please note**: Do not add `storm-core` as a dependency. It is already included via `flink-storm`.
 
@@ -74,7 +74,7 @@ If a topology is executed in a remote cluster, parameters `nimbus.host` and `nim
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-~~~java
+{% highlight java %}
 TopologyBuilder builder = new TopologyBuilder(); // the Storm topology builder
 
 // actual topology assembling code and used Spouts/Bolts can be used as-is
@@ -95,7 +95,7 @@ if(runLocal) { // submit to test cluster
 	// replaces: StormSubmitter.submitTopology(topologyId, conf, builder.createTopology());
 	FlinkSubmitter.submitTopology("WordCount", conf, FlinkTopology.createTopology(builder));
 }
-~~~
+{% endhighlight %}
 </div>
 </div>
 
@@ -118,7 +118,7 @@ The generic type declaration `OUT` specifies the type of the source output strea
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-~~~java
+{% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 // stream has `raw` type (single field output streams only)
@@ -128,7 +128,7 @@ DataStream<String> rawInput = env.addSource(
 
 // process data stream
 [...]
-~~~
+{% endhighlight %}
 </div>
 </div>
 
@@ -145,7 +145,7 @@ The generic type declarations `IN` and `OUT` specify the type of the operator's 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-~~~java
+{% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 DataStream<String> text = env.readTextFile(localFilePath);
 
@@ -156,7 +156,7 @@ DataStream<Tuple2<String, Integer>> counts = text.transform(
 
 // do further processing
 [...]
-~~~
+{% endhighlight %}
 </div>
 </div>
 
@@ -192,7 +192,7 @@ Thus, Flink additionally provides `StormConfig` class that can be used like a ra
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-~~~java
+{% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 StormConfig config = new StormConfig();
@@ -204,7 +204,7 @@ env.getConfig().setGlobalJobParameters(config);
 
 // assemble program with embedded Spouts and/or Bolts
 [...]
-~~~
+{% endhighlight %}
 </div>
 </div>
 
@@ -219,7 +219,7 @@ Furthermore, the wrapper type `SplitStreamTuple<T>` can be removed using `SplitS
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-~~~java
+{% highlight java %}
 [...]
 
 // get DataStream from Spout or Bolt which declares two output streams s1 and s2 with output type SomeType
@@ -233,7 +233,7 @@ DataStream<SomeType> s2 = splitStream.select("s2").map(new SplitStreamMapper<Som
 
 // do further processing on s1 and s2
 [...]
-~~~
+{% endhighlight %}
 </div>
 </div>
 
@@ -259,7 +259,7 @@ An example of a finite Spout that emits records for 10 seconds only:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-~~~java
+{% highlight java %}
 public class TimedFiniteSpout extends BaseRichSpout implements FiniteSpout {
 	[...] // implement open(), nextTuple(), ...
 
@@ -269,7 +269,7 @@ public class TimedFiniteSpout extends BaseRichSpout implements FiniteSpout {
 		return System.currentTimeMillis() - starttime > 10000l;
 	}
 }
-~~~
+{% endhighlight %}
 </div>
 </div>
 
