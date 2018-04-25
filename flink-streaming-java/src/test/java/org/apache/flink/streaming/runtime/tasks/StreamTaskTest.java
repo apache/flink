@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -124,6 +125,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -172,7 +174,7 @@ public class StreamTaskTest extends TestLogger {
 	 */
 	@Test
 	public void testEarlyCanceling() throws Exception {
-		long deadlineMilli = TimeUnit.MINUTES.toMillis(2) + System.currentTimeMillis();
+		Deadline deadline = Deadline.fromNow(Duration.ofMinutes(2));
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		cfg.setOperatorID(new OperatorID(4711L, 42L));
 		cfg.setStreamOperator(new SlowlyDeserializingOperator());
@@ -188,7 +190,7 @@ public class StreamTaskTest extends TestLogger {
 		Future<ExecutionState> running = testingExecutionStateListener.notifyWhenExecutionState(ExecutionState.RUNNING);
 
 		// wait until the task thread reached state RUNNING
-		ExecutionState executionState = running.get(timeLeftMilli(deadlineMilli), TimeUnit.MILLISECONDS);
+		ExecutionState executionState = running.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
 		// make sure the task is really running
 		if (executionState != ExecutionState.RUNNING) {
@@ -202,20 +204,16 @@ public class StreamTaskTest extends TestLogger {
 
 		Future<ExecutionState> canceling = testingExecutionStateListener.notifyWhenExecutionState(ExecutionState.CANCELING);
 
-		executionState = canceling.get(timeLeftMilli(deadlineMilli), TimeUnit.MILLISECONDS);
+		executionState = canceling.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
 		// the task should reach state canceled eventually
 		assertTrue(executionState == ExecutionState.CANCELING ||
 				executionState == ExecutionState.CANCELED);
 
-		task.getExecutingThread().join(timeLeftMilli(deadlineMilli));
+		task.getExecutingThread().join(deadline.timeLeft().toMillis());
 
 		assertFalse("Task did not cancel", task.getExecutingThread().isAlive());
 		assertEquals(ExecutionState.CANCELED, task.getExecutionState());
-	}
-
-	private static long timeLeftMilli(long deadlineMilli) {
-		return Math.max(0, deadlineMilli - System.currentTimeMillis());
 	}
 
 	@Test
