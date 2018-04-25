@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.tests.general;
+package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
@@ -41,7 +41,9 @@ import java.util.Random;
  */
 public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> implements CheckpointedFunction {
 
-	private final static Logger LOG = LoggerFactory.getLogger(SequenceGeneratorSource.class);
+	private static final long serialVersionUID = -3986989644799442178L;
+
+	private static final Logger LOG = LoggerFactory.getLogger(SequenceGeneratorSource.class);
 
 	/** Length of the artificial payload string generated for each event. */
 	private final int payloadLength;
@@ -69,21 +71,6 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 
 	/** Flag that determines if this source is running, i.e. generating events. */
 	private volatile boolean running;
-
-
-	SequenceGeneratorSource(
-		int totalKeySpaceSize,
-		int payloadLength,
-		long maxOutOfOrder,
-		long eventTimeClockProgressPerEvent) {
-
-		this(totalKeySpaceSize,
-			payloadLength,
-			maxOutOfOrder,
-			eventTimeClockProgressPerEvent,
-			0L,
-			0L);
-	}
 
 	SequenceGeneratorSource(
 		int totalKeySpaceSize,
@@ -115,7 +102,7 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 
 			KeyRangeStates randomKeyRangeStates = keyRanges.get(random.nextInt(keyRanges.size()));
 			int randomKey = randomKeyRangeStates.getRandomKey(random);
-			long value = randomKeyRangeStates.incrementAndGet(randomKey);
+
 			long eventTime = Math.max(
 				0,
 				generateEventTimeWithOutOfOrderness(random, monotonousEventTime));
@@ -123,19 +110,25 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 			// uptick the event time clock
 			monotonousEventTime += eventTimeClockProgressPerEvent;
 
-			Event event = new Event(
-				randomKey,
-				eventTime,
-				value,
-				StringUtils.getRandomString(random, payloadLength, payloadLength, 'A', 'z'));
+			synchronized (ctx.getCheckpointLock()) {
+				long value = randomKeyRangeStates.incrementAndGet(randomKey);
 
-			ctx.collect(event);
+				Event event = new Event(
+					randomKey,
+					eventTime,
+					value,
+					StringUtils.getRandomString(random, payloadLength, payloadLength, 'A', 'z'));
 
-			if (elementsBeforeSleep == 1) {
-				elementsBeforeSleep = sleepAfterElements;
-				Thread.sleep(sleepTime);
-			} else if (elementsBeforeSleep > 1) {
-				--elementsBeforeSleep;
+				ctx.collect(event);
+			}
+
+			if (sleepTime > 0) {
+				if (elementsBeforeSleep == 1) {
+					elementsBeforeSleep = sleepAfterElements;
+					Thread.sleep(sleepTime);
+				} else if (elementsBeforeSleep > 1) {
+					--elementsBeforeSleep;
+				}
 			}
 		}
 	}

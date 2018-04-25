@@ -16,14 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.tests.general;
+package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
@@ -31,7 +29,9 @@ import java.io.Serializable;
 /**
  * This mapper validates exactly-once and at-least-once semantics in connection with {@link SequenceGeneratorSource}.
  */
-public class SemanticsCheckMapper extends RichFlatMapFunction<Event, String> implements CheckpointedFunction {
+public class SemanticsCheckMapper extends RichFlatMapFunction<Event, String> {
+
+	private static final long serialVersionUID = -744070793650644485L;
 
 	/** This value state tracks the current sequence number per key. */
 	private volatile ValueState<Long> sequenceValue;
@@ -56,24 +56,19 @@ public class SemanticsCheckMapper extends RichFlatMapFunction<Event, String> imp
 		if (validator.check(currentValue, nextValue)) {
 			sequenceValue.update(nextValue);
 		} else {
-			out.collect("Alert: " + currentValue + " -> " + nextValue);
+			out.collect("Alert: " + currentValue + " -> " + nextValue + " (" + event.getKey() + ")");
 		}
 	}
 
 	@Override
-	public void snapshotState(FunctionSnapshotContext context) {
-	}
-
-	@Override
-	public void initializeState(FunctionInitializationContext context) {
-
+	public void open(Configuration parameters) throws Exception {
 		ValueStateDescriptor<Long> sequenceStateDescriptor =
 			new ValueStateDescriptor<>("sequenceState", Long.class);
 
-		sequenceValue = context.getKeyedStateStore().getState(sequenceStateDescriptor);
+		sequenceValue = getRuntimeContext().getState(sequenceStateDescriptor);
 	}
 
-	public interface ValidatorFunction extends Serializable {
+	interface ValidatorFunction extends Serializable {
 		boolean check(long current, long update);
 
 		static ValidatorFunction exactlyOnce() {
