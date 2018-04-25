@@ -32,10 +32,11 @@ import org.apache.flink.examples.java.clustering.util.KMeansData;
 import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
@@ -50,13 +51,6 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 
 	private static final int PARALLELISM = 16;
 
-	@ClassRule
-	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfiguration(),
-			2,
-			8));
-
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
 		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 80L);
@@ -66,19 +60,28 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 
 	@Test
 	public void testSuccessfulProgramAfterFailure() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
+			.setConfiguration(getConfiguration())
+			.setNumTaskManagers(2)
+			.setNumSlotsPerTaskManager(8)
+			.build();
 
-		runConnectedComponents(env);
+		try (final MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration)) {
+			miniCluster.start();
 
-		try {
-			runKMeans(env);
-			fail("This program execution should have failed.");
+			ExecutionEnvironment env = new TestEnvironment(miniCluster, PARALLELISM, false);
+
+			runConnectedComponents(env);
+
+			try {
+				runKMeans(env);
+				fail("This program execution should have failed.");
+			} catch (JobExecutionException e) {
+				assertTrue(e.getCause().getMessage().contains("Insufficient number of network buffers"));
+			}
+
+			runConnectedComponents(env);
 		}
-		catch (JobExecutionException e) {
-			assertTrue(e.getCause().getMessage().contains("Insufficient number of network buffers"));
-		}
-
-		runConnectedComponents(env);
 	}
 
 	private static void runConnectedComponents(ExecutionEnvironment env) throws Exception {
