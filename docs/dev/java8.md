@@ -38,19 +38,19 @@ Flink API, please refer to the [Programming Guide]({{ site.baseurl }}/dev/api_co
 The following example illustrates how to implement a simple, inline `map()` function that squares its input using a Lambda Expression.
 The types of input `i` and output parameters of the `map()` function need not to be declared as they are inferred by the Java 8 compiler.
 
-~~~java
+{% highlight java %}
 env.fromElements(1, 2, 3)
 // returns the squared i
 .map(i -> i*i)
 .print();
-~~~
+{% endhighlight %}
 
 The next two examples show different implementations of a function that uses a `Collector` for output.
 Functions, such as `flatMap()`, require an output type (in this case `String`) to be defined for the `Collector` in order to be type-safe.
 If the `Collector` type can not be inferred from the surrounding context, it needs to be declared in the Lambda Expression's parameter list manually.
 Otherwise the output will be treated as type `Object` which can lead to undesired behaviour.
 
-~~~java
+{% highlight java %}
 DataSet<Integer> input = env.fromElements(1, 2, 3);
 
 // collector type must be declared
@@ -63,9 +63,9 @@ input.flatMap((Integer number, Collector<String> out) -> {
 })
 // returns (on separate lines) "a", "a", "aa", "a", "aa", "aaa"
 .print();
-~~~
+{% endhighlight %}
 
-~~~java
+{% highlight java %}
 DataSet<Integer> input = env.fromElements(1, 2, 3);
 
 // collector type must not be declared, it is inferred from the type of the dataset
@@ -79,11 +79,11 @@ DataSet<String> manyALetters = input.flatMap((number, out) -> {
 
 // returns (on separate lines) "a", "a", "aa", "a", "aa", "aaa"
 manyALetters.print();
-~~~
+{% endhighlight %}
 
 The following code demonstrates a word count which makes extensive use of Lambda Expressions.
 
-~~~java
+{% highlight java %}
 DataSet<String> input = env.fromElements("Please count", "the words", "but not this");
 
 // filter out strings that contain "not"
@@ -98,7 +98,7 @@ input.filter(line -> !line.contains("not"))
 .groupBy(0).sum(1)
 // print
 .print();
-~~~
+{% endhighlight %}
 
 ### Compiler Limitations
 Currently, Flink only supports jobs containing Lambda Expressions completely if they are **compiled with the Eclipse JDT compiler contained in Eclipse Luna 4.4.2 (and above)**.
@@ -118,7 +118,7 @@ If you are using a different IDE such as IntelliJ IDEA or you want to package yo
 
 Alternatively, you can manually insert the following lines to your Maven `pom.xml` file. Maven will then use the Eclipse JDT compiler for compilation.
 
-~~~xml
+{% highlight xml %}
 <!-- put these lines under "project/build/pluginManagement/plugins" of your pom.xml -->
 
 <plugin>
@@ -138,11 +138,11 @@ Alternatively, you can manually insert the following lines to your Maven `pom.xm
         </dependency>
     </dependencies>
 </plugin>
-~~~
+{% endhighlight %}
 
 If you are using Eclipse for development, the m2e plugin might complain about the inserted lines above and marks your `pom.xml` as invalid. If so, insert the following lines to your `pom.xml`.
 
-~~~xml
+{% highlight xml %}
 <!-- put these lines under "project/build/pluginManagement/plugins/plugin[groupId="org.eclipse.m2e", artifactId="lifecycle-mapping"]/configuration/lifecycleMappingMetadata/pluginExecutions" of your pom.xml -->
 
 <pluginExecution>
@@ -159,7 +159,7 @@ If you are using Eclipse for development, the m2e plugin might complain about th
         <ignore></ignore>
     </action>
 </pluginExecution>
-~~~
+{% endhighlight %}
 
 #### Run and debug Flink jobs within the Eclipse IDE
 
@@ -171,17 +171,17 @@ If you are using Maven, you also need to change the Java version in your `pom.xm
 
 The Eclipse JDT compiler needs a special compiler flag in order to store type information in `.class` files. Open the JDT configuration file at `{project directory}/.settings/org.eclipse.jdt.core.prefs` with your favorite text editor and add the following line:
 
-~~~
+{% highlight plain %}
 org.eclipse.jdt.core.compiler.codegen.lambda.genericSignature=generate
-~~~
+{% endhighlight %}
 
 If not already done, also modify the Java versions of the following properties to `1.8` (or above):
 
-~~~
+{% highlight plain %}
 org.eclipse.jdt.core.compiler.codegen.targetPlatform=1.8
 org.eclipse.jdt.core.compiler.compliance=1.8
 org.eclipse.jdt.core.compiler.source=1.8
-~~~
+{% endhighlight %}
 
 After you have saved the file, perform a complete project refresh in Eclipse IDE.
 
@@ -189,10 +189,10 @@ If you are using Maven, right click your Eclipse project and select `Maven` -> `
 
 You have configured everything correctly, if the following Flink program runs without exceptions:
 
-~~~java
+{% highlight java %}
 final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 env.fromElements(1, 2, 3).map((in) -> new Tuple1<String>(" " + in)).print();
 env.execute();
-~~~
+{% endhighlight %}
 
 {% top %}

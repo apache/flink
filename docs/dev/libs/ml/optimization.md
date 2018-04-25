@@ -225,9 +225,9 @@ The loss function which is minimized has to implement the `LossFunction` interfa
 Either one defines ones own `LossFunction` or one uses the `GenericLossFunction` class which constructs the loss function from an outer loss function and a prediction function.
 An example can be seen here
 
-```Scala
+{% highlight scala %}
 val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
-```
+{% endhighlight %}
 
 The full list of supported outer loss functions can be found [here](#partial-loss-function-values).
 The full list of supported prediction functions can be found [here](#prediction-function-values).

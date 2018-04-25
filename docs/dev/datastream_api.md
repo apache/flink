@@ -125,9 +125,9 @@ object WindowWordCount {
 
 To run the example program, start the input stream with netcat first from a terminal:
 
-~~~bash
+{% highlight bash %}
 nc -lk 9999
-~~~
+{% endhighlight %}
 
 Just type some words hitting return for a new word. These will be the input to the
 word count program. If you want to see counts greater than 1, type the same word again and again within
