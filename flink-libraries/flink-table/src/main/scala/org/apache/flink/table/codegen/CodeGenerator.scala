@@ -1209,7 +1209,7 @@ abstract class CodeGenerator(
           case ObjectFieldAccessor(field) =>
             // primitive
             if (isFieldPrimitive(field)) {
-              generateNonNullLiteral(fieldType, s"$inputTerm.${field.getName}")
+              generateTerm(fieldType, s"$inputTerm.${field.getName}")
             }
             // Object
             else {
@@ -1238,7 +1238,7 @@ abstract class CodeGenerator(
             val reflectiveAccessCode = reflectiveFieldReadAccess(fieldTerm, field, inputTerm)
             // primitive
             if (isFieldPrimitive(field)) {
-              generateNonNullLiteral(fieldType, reflectiveAccessCode)
+              generateTerm(fieldType, reflectiveAccessCode)
             }
             // Object
             else {
@@ -1264,6 +1264,8 @@ abstract class CodeGenerator(
         |$resultTypeTerm $resultTerm = $defaultValue;
         |boolean $nullTerm = true;
         |""".stripMargin
+
+      // mark this expression as a constant literal
       GeneratedExpression(resultTerm, nullTerm, wrappedCode, resultType, literal = true)
     } else {
       throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
@@ -1274,22 +1276,9 @@ abstract class CodeGenerator(
       literalType: TypeInformation[_],
       literalCode: String)
     : GeneratedExpression = {
-    val resultTerm = newName("result")
-    val nullTerm = newName("isNull")
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(literalType)
 
-    val resultCode = if (nullCheck) {
-      s"""
-        |$resultTypeTerm $resultTerm = $literalCode;
-        |boolean $nullTerm = false;
-        |""".stripMargin
-    } else {
-      s"""
-        |$resultTypeTerm $resultTerm = $literalCode;
-        |""".stripMargin
-    }
-
-    GeneratedExpression(resultTerm, nullTerm, resultCode, literalType, literal = true)
+    // mark this expression as a constant literal
+    generateTerm(literalType, literalCode).copy(literal = true)
   }
 
   private[flink] def generateSymbol(enum: Enum[_]): GeneratedExpression = {
@@ -1298,6 +1287,35 @@ abstract class CodeGenerator(
       "false",
       "",
       new GenericTypeInfo(enum.getDeclaringClass))
+  }
+
+  /**
+    * Generates access to a term (e.g. a field) that does not require unboxing logic.
+    *
+    * @param fieldType type of field
+    * @param fieldTerm expression term of field (already unboxed)
+    * @return internal unboxed field representation
+    */
+  private[flink] def generateTerm(
+      fieldType: TypeInformation[_],
+      fieldTerm: String)
+    : GeneratedExpression = {
+    val resultTerm = newName("result")
+    val nullTerm = newName("isNull")
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldType)
+
+    val resultCode = if (nullCheck) {
+      s"""
+        |$resultTypeTerm $resultTerm = $fieldTerm;
+        |boolean $nullTerm = false;
+        |""".stripMargin
+    } else {
+      s"""
+        |$resultTypeTerm $resultTerm = $fieldTerm;
+        |""".stripMargin
+    }
+
+    GeneratedExpression(resultTerm, nullTerm, resultCode, fieldType)
   }
 
   /**

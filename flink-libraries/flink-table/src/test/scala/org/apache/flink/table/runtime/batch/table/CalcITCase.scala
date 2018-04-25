@@ -30,19 +30,18 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.Literal
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.runtime.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.runtime.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase, UserDefinedFunctionTestUtils}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.test.util.TestBaseUtils.compareResultAsText
 import org.apache.flink.types.Row
-import org.junit._
 import org.junit.Assert.assertEquals
+import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.math.BigDecimal.RoundingMode
 
 @RunWith(classOf[Parameterized])
 class CalcITCase(
