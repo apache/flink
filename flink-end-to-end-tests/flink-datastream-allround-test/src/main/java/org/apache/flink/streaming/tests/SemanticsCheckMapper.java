@@ -75,7 +75,7 @@ public class SemanticsCheckMapper extends RichFlatMapFunction<Event, String> imp
 		sequenceValue = context.getKeyedStateStore().getState(sequenceStateDescriptor);
 	}
 
-	public interface ValidatorFunction extends Serializable {
+	interface ValidatorFunction extends Serializable {
 		boolean check(long current, long update);
 
 		static ValidatorFunction exactlyOnce() {

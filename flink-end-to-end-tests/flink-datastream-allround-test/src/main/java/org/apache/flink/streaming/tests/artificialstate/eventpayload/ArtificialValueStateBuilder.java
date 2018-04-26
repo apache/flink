@@ -25,6 +25,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.tests.artificialstate.ArtificialKeyedStateBuilder;
 
+/**
+ * An {@link ArtificialKeyedStateBuilder} for user {@link ValueState}s.
+ */
 public class ArtificialValueStateBuilder<IN, STATE> extends ArtificialKeyedStateBuilder<IN> {
 
 	private static final long serialVersionUID = -1205814329756790916L;
@@ -42,7 +45,6 @@ public class ArtificialValueStateBuilder<IN, STATE> extends ArtificialKeyedState
 		this.typeSerializer = typeSerializer;
 		this.stateValueGenerator = stateValueGenerator;
 	}
-
 
 	@Override
 	public void artificialStateForElement(IN event) throws Exception {

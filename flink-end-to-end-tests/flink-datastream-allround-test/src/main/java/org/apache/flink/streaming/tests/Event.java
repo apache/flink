@@ -18,6 +18,9 @@
 
 package org.apache.flink.streaming.tests;
 
+/**
+ * The event type of records used in the {@link DataStreamAllroundTestProgram}.
+ */
 public class Event {
 
 	private final int key;

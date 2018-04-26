@@ -43,7 +43,7 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 
 	private static final long serialVersionUID = -3986989644799442178L;
 
-	private final static Logger LOG = LoggerFactory.getLogger(SequenceGeneratorSource.class);
+	private static final Logger LOG = LoggerFactory.getLogger(SequenceGeneratorSource.class);
 
 	/** Length of the artificial payload string generated for each event. */
 	private final int payloadLength;
@@ -71,7 +71,6 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 
 	/** Flag that determines if this source is running, i.e. generating events. */
 	private volatile boolean running;
-
 
 	SequenceGeneratorSource(
 		int totalKeySpaceSize,

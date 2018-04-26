@@ -28,6 +28,9 @@ import org.apache.flink.streaming.tests.artificialstate.ArtificialKeyedStateBuil
 import java.util.Iterator;
 import java.util.Map;
 
+/**
+ * An {@link ArtificialKeyedStateBuilder} for user {@link MapState}s.
+ */
 public class ArtificialMapStateBuilder<IN, K, V> extends ArtificialKeyedStateBuilder<IN> {
 
 	private static final long serialVersionUID = -143079058769306954L;
