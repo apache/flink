@@ -21,6 +21,7 @@ package org.apache.flink.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
@@ -41,8 +42,10 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -194,10 +197,12 @@ public final class InstantiationUtil {
 			try {
 				Class.forName(streamClassDescriptor.getName(), false, classLoader);
 			} catch (ClassNotFoundException e) {
-				if (streamClassDescriptor.getName().equals("org.apache.avro.generic.GenericData$Array")) {
-					ObjectStreamClass result = ObjectStreamClass.lookup(
-						KryoRegistrationSerializerConfigSnapshot.DummyRegisteredClass.class);
-					return result;
+
+				final ObjectStreamClass equivalentSerializer =
+						MigrationUtil.getEquivalentSerializer(streamClassDescriptor.getName());
+
+				if (equivalentSerializer != null) {
+					return equivalentSerializer;
 				}
 			}
 
@@ -218,6 +223,52 @@ public final class InstantiationUtil {
 			}
 
 			return streamClassDescriptor;
+		}
+	}
+
+	/**
+	 * A mapping between the full path of a deprecated serializer and its equivalent.
+	 * These mappings are hardcoded and fixed.
+	 *
+	 * <p>IMPORTANT: mappings can be removed after 1 release as there will be a "migration path".
+	 * As an example, a serializer is removed in 1.5-SNAPSHOT, then the mapping should be added for 1.5,
+	 * and it can be removed in 1.6, as the path would be Flink-{< 1.5} -> Flink-1.5 -> Flink-{>= 1.6}.
+	 */
+	private enum MigrationUtil {
+
+		// To add a new mapping just pick a name and add an entry as the following:
+
+		GENERIC_DATA_ARRAY_SERIALIZER(
+				"org.apache.avro.generic.GenericData$Array",
+				ObjectStreamClass.lookup(KryoRegistrationSerializerConfigSnapshot.DummyRegisteredClass.class)),
+		HASH_MAP_SERIALIZER(
+				"org.apache.flink.runtime.state.HashMapSerializer",
+				ObjectStreamClass.lookup(MapSerializer.class)); // added in 1.5
+
+		/** An internal unmodifiable map containing the mappings between deprecated and new serializers. */
+		private static final Map<String, ObjectStreamClass> EQUIVALENCE_MAP = Collections.unmodifiableMap(initMap());
+
+		/** The full name of the class of the old serializer. */
+		private final String oldSerializerName;
+
+		/** The serialization descriptor of the class of the new serializer. */
+		private final ObjectStreamClass newSerializerStreamClass;
+
+		MigrationUtil(String oldSerializerName, ObjectStreamClass newSerializerStreamClass) {
+			this.oldSerializerName = oldSerializerName;
+			this.newSerializerStreamClass = newSerializerStreamClass;
+		}
+
+		private static Map<String, ObjectStreamClass> initMap() {
+			final Map<String, ObjectStreamClass> init = new HashMap<>(4);
+			for (MigrationUtil m: MigrationUtil.values()) {
+				init.put(m.oldSerializerName, m.newSerializerStreamClass);
+			}
+			return init;
+		}
+
+		private static ObjectStreamClass getEquivalentSerializer(String classDescriptorName) {
+			return EQUIVALENCE_MAP.get(classDescriptorName);
 		}
 	}
 
