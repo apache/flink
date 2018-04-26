@@ -60,7 +60,12 @@ public class ProcessingTimeTrigger extends Trigger<Object, TimeWindow> {
 	@Override
 	public void onMerge(TimeWindow window,
 			OnMergeContext ctx) {
-		ctx.registerProcessingTimeTimer(window.maxTimestamp());
+		//only current wartermark less than a merge window maxtimestamp that we regsiter a new timer for fire
+		//otherwise if will fired immediately by call onElement
+		long windowMaxTimestamp = window.maxTimestamp();
+		if (windowMaxTimestamp > ctx.getCurrentWatermark()) {
+			ctx.registerProcessingTimeTimer(windowMaxTimestamp);
+		}
 	}
 
 	@Override
