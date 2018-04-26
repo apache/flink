@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.manual;
+package org.apache.flink.batch;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -24,62 +24,17 @@ import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
-import org.apache.flink.test.util.MiniClusterResource;
-
-import static org.junit.Assert.fail;
 
 /**
- * This test starts a mini cluster with 100 task managers and runs connected components
+ * This test starts a cluster with 100 task managers and runs connected components
  * with a parallelism of 100.
  */
-public class NotSoMiniClusterIterations {
+public class HighParallelismIterationsTestProgram {
 
-	private static final int PARALLELISM = 100;
-
-	public static void main(String[] args) {
-		if ((Runtime.getRuntime().maxMemory() >>> 20) < 5000) {
-			throw new RuntimeException("This test program needs to run with at least 5GB of heap space.");
-		}
-
-		MiniClusterResource cluster = null;
-
-		try {
-			Configuration config = new Configuration();
-			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 8L);
-			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 1000);
-			config.setInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE, 8 * 1024);
-
-			config.setInteger("taskmanager.net.server.numThreads", 1);
-			config.setInteger("taskmanager.net.client.numThreads", 1);
-
-			cluster = new MiniClusterResource(
-				new MiniClusterResource.MiniClusterResourceConfiguration(
-					config,
-					PARALLELISM,
-					1));
-			cluster.before();
-
-			runConnectedComponents();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
-			if (cluster != null) {
-				cluster.after();
-			}
-		}
-	}
-
-	private static void runConnectedComponents() throws Exception {
-
+	public static void main(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
 		// read vertex and edge data
@@ -92,7 +47,7 @@ public class NotSoMiniClusterIterations {
 
 		// assign the initial components (equal to the vertex id)
 		DataSet<Tuple2<Long, Long>> verticesWithInitialId = vertices
-				.map(new ConnectedComponents.DuplicateValue<Long>());
+				.map(new ConnectedComponents.DuplicateValue<>());
 
 		// open a delta iteration
 		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
@@ -113,7 +68,7 @@ public class NotSoMiniClusterIterations {
 		// close the delta iteration (delta and new workset are identical)
 		DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
 
-		result.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+		result.output(new DiscardingOutputFormat<>());
 
 		env.execute();
 	}
