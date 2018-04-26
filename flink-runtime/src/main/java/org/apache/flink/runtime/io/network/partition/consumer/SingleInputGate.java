@@ -290,8 +290,10 @@ public class SingleInputGate implements InputGate {
 	 *
 	 * @param networkBufferPool The global pool to request and recycle exclusive buffers
 	 * @param networkBuffersPerChannel The number of exclusive buffers for each channel
+	 *
+	 * @return number of exclusive buffers taken from the pool
 	 */
-	public void assignExclusiveSegments(NetworkBufferPool networkBufferPool, int networkBuffersPerChannel) throws IOException {
+	public int assignExclusiveSegments(NetworkBufferPool networkBufferPool, int networkBuffersPerChannel) throws IOException {
 		checkState(this.isCreditBased, "Bug in input gate setup logic: exclusive buffers only exist with credit-based flow control.");
 		checkState(this.networkBufferPool == null, "Bug in input gate setup logic: global buffer pool has" +
 			"already been set for this input gate.");
@@ -299,14 +301,17 @@ public class SingleInputGate implements InputGate {
 		this.networkBufferPool = checkNotNull(networkBufferPool);
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 
+		int bufferCount = 0;
 		synchronized (requestLock) {
 			for (InputChannel inputChannel : inputChannels.values()) {
 				if (inputChannel instanceof RemoteInputChannel) {
 					((RemoteInputChannel) inputChannel).assignExclusiveSegments(
 						networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
+					bufferCount += networkBuffersPerChannel;
 				}
 			}
 		}
+		return bufferCount;
 	}
 
 	/**

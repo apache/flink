@@ -232,20 +232,26 @@ public class NetworkEnvironment {
 	@VisibleForTesting
 	public void setupInputGate(SingleInputGate gate) throws IOException {
 		BufferPool bufferPool = null;
-		int maxNumberOfMemorySegments;
 		try {
 			if (enableCreditBased) {
-				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-					extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+				final int assignedExclusiveMemorySegments =
+					gate.assignExclusiveSegments(networkBufferPool, networkBuffersPerChannel);
 
-				// assign exclusive buffers to input channels directly and use the rest for floating buffers
-				gate.assignExclusiveSegments(networkBufferPool, networkBuffersPerChannel);
-				bufferPool = networkBufferPool.createBufferPool(0, maxNumberOfMemorySegments);
+				final int maxFloatingMemorySegments;
+				if (gate.getConsumedPartitionType().isBounded()) {
+					int desiredMaxNumberOfMemorySegments =
+						gate.getNumberOfInputChannels() * networkBuffersPerChannel + extraNetworkBuffersPerGate;
+					maxFloatingMemorySegments =
+						desiredMaxNumberOfMemorySegments - assignedExclusiveMemorySegments;
+
+				} else {
+					maxFloatingMemorySegments = Integer.MAX_VALUE;
+				}
+				bufferPool = networkBufferPool.createBufferPool(0, maxFloatingMemorySegments);
 			} else {
-				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
+				int maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
 					gate.getNumberOfInputChannels() * networkBuffersPerChannel +
 						extraNetworkBuffersPerGate : Integer.MAX_VALUE;
-
 				bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
 					maxNumberOfMemorySegments);
 			}

@@ -136,8 +136,10 @@ public class NetworkEnvironmentTest {
 
 		assertEquals(Integer.MAX_VALUE, ig1.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(Integer.MAX_VALUE, ig2.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 8 : 2 * 2 + 8, ig3.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 8 : 8 * 2 + 8, ig4.getBufferPool().getMaxNumberOfMemorySegments());
+		// note: credit-based assigns exclusive buffers to (remote) channels but we did not set up
+		//       any channels, therefore, all buffers will be floating buffers
+		assertEquals(2 * 2 + 8, ig3.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(8 * 2 + 8, ig4.getBufferPool().getMaxNumberOfMemorySegments());
 
 		int invokations = enableCreditBasedFlowControl ? 1 : 0;
 		verify(ig1, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
