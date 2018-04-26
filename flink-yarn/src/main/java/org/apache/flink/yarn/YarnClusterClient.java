@@ -68,7 +68,6 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 	private final int slotsPerTaskManager;
 	private final LazApplicationClientLoader applicationClient;
 	private final FiniteDuration akkaDuration;
-	private final ApplicationReport appReport;
 	private final ApplicationId appId;
 	private final String trackingURL;
 
@@ -101,7 +100,6 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 		this.clusterDescriptor = clusterDescriptor;
 		this.numberTaskManagers = numberTaskManagers;
 		this.slotsPerTaskManager = slotsPerTaskManager;
-		this.appReport = appReport;
 		this.appId = appReport.getApplicationId();
 		this.trackingURL = appReport.getTrackingUrl();
 		this.newlyCreatedCluster = newlyCreatedCluster;
