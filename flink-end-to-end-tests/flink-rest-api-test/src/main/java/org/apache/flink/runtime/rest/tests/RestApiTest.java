@@ -37,20 +37,23 @@ import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
-import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.RescalingParallelismQueryParameter;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
+import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointIdPathParameter;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptPathParameter;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalRequest;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
@@ -102,11 +105,13 @@ public class RestApiTest {
 	private static final FiniteDuration TEST_TIMEOUT = new FiniteDuration(10L, TimeUnit.SECONDS);
 	private static final ObjectMapper MAPPER = new ObjectMapper();
 	private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
-	private static final Joiner JOINER = Joiner.on(",");
+	private static final Joiner JOINER = Joiner.on("\n");
 
 	private static int testSuccessCount = 0;
 	private static List<String> testSkipList = new ArrayList<>();
 	private static List<String> testFailureList = new ArrayList<>();
+
+	private static String savepointPath;
 
 	private static Map<String, String> pathParameterMap = new HashMap<>();
 	private static Map<String, List<String>> queryParameterMap = new HashMap<>();
@@ -115,6 +120,7 @@ public class RestApiTest {
 	public static void main(String[] args) throws Exception {
 
 		ParameterTool params = ParameterTool.fromArgs(args);
+		savepointPath = params.getRequired("savepointPath");
 		final String host = params.get("host", "localhost");
 		final int port = params.getInt("port", 8081);
 		final HttpTestClient httpClient = new HttpTestClient(host, port);
@@ -132,13 +138,18 @@ public class RestApiTest {
 		if (testFailureList.size() != 0) {
 			throw new RuntimeException("There are test failures. Success: " + testSuccessCount +
 				" Failures: " + testFailureList.size() + " Skipped: " + testSkipList.size() +
-				"\n Failure list: " + testFailureList.toString() +
-				"\n Skip List: " + testSkipList.toString());
+				"\n Failure REST APIs: \n" + JOINER.join(testFailureList) +
+				"\n Skipped REST APIs: \n" + JOINER.join(testSkipList));
+		} else {
+			System.out.print("Test successfully completed! Success test count: " + testSuccessCount +
+				"\n Skipped REST APIs: \n" + JOINER.join(testSkipList));
 		}
 	}
 
 	private static void validateRunningFlinkJob(HttpTestClient httpClient) {
 		HttpTestClient.SimpleHttpResponse resp;
+		RequestBody requestBody;
+		TriggerResponse triggerResponse;
 		try {
 			// 1. Validate Flink cluster running
 			httpClient.sendGetRequest("/jobs", TEST_TIMEOUT);
@@ -157,7 +168,7 @@ public class RestApiTest {
 				.stream()
 				.findFirst();
 			assert taskManagerInfo.isPresent();
-			pathParameterMap.put(TaskManagerIdPathParameter.KEY,
+			pathParameterMap.put(":" + TaskManagerIdPathParameter.KEY,
 				taskManagerInfo.get().getResourceId().toString());
 
 			// 3. Validate at least one running job
@@ -168,7 +179,7 @@ public class RestApiTest {
 				.findFirst();
 			assert job.isPresent();
 			String jobId = job.get().getJobId().toString();
-			pathParameterMap.put(JobIDPathParameter.KEY, jobId);
+			pathParameterMap.put(":" + JobIDPathParameter.KEY, jobId);
 
 			// 4. Validate job info contains all parameters
 			httpClient.sendGetRequest("/jobs/" + jobId, TEST_TIMEOUT);
@@ -178,19 +189,49 @@ public class RestApiTest {
 				.stream()
 				.findFirst();
 			assert vertexInfo.isPresent();
-			pathParameterMap.put(JobVertexIdPathParameter.KEY,
+			pathParameterMap.put(":" + JobVertexIdPathParameter.KEY,
 				vertexInfo.get().getJobVertexID().toString());
+
+			// 5. Validate savepoint disposal works for the cluster
+			requestBody = new SavepointDisposalRequest(savepointPath);
+			httpClient.sendPostRequest("savepoint-disposal",
+				Unpooled.copiedBuffer(MAPPER.writeValueAsBytes(requestBody)),
+				TEST_TIMEOUT);
+			resp = httpClient.getNextResponse();
+			triggerResponse = MAPPER.readValue(resp.getContent(), TriggerResponse.class);
+			assert triggerResponse != null;
+			pathParameterMap.put("savepoint-disposal/:" + TriggerIdPathParameter.KEY,
+				"savepoint-disposal/" + triggerResponse.getTriggerId().toString());
+
+			// 6. Validate savepoint works for the job
+			requestBody = new SavepointTriggerRequestBody(savepointPath, false);
+			httpClient.sendPostRequest("/jobs/" + jobId + "/savepoints",
+				Unpooled.copiedBuffer(MAPPER.writeValueAsBytes(requestBody)),
+				TEST_TIMEOUT);
+			resp = httpClient.getNextResponse();
+			triggerResponse = MAPPER.readValue(resp.getContent(), TriggerResponse.class);
+			assert triggerResponse != null;
+			pathParameterMap.put("savepoints/:" + TriggerIdPathParameter.KEY,
+				"savepoints/" + triggerResponse.getTriggerId().toString());
+
+			// 7. Validate rescaling works for the job
+			httpClient.sendPatchRequest("/jobs/" + jobId + "/rescaling?parallelism=2" , null, TEST_TIMEOUT);
+			resp = httpClient.getNextResponse();
+			triggerResponse = MAPPER.readValue(resp.getContent(), TriggerResponse.class);
+			assert triggerResponse != null;
+			pathParameterMap.put("rescaling/:" + TriggerIdPathParameter.KEY,
+				"rescaling/" + triggerResponse.getTriggerId().toString());
 		} catch (Exception e) {
-			throw new RuntimeException("Cannot get validate runnning job on Flink cluster, " +
+			throw new RuntimeException("Cannot get validate running job on Flink cluster, " +
 				"please make sure cluster is running and job(s) have been submitted!", e);
 		}
 	}
 
 	private static void loadResource() {
 
-		pathParameterMap.put(CheckpointIdPathParameter.KEY, "1"); // first checkpoint
-		pathParameterMap.put(SubtaskIndexPathParameter.KEY, "0"); // first subtask
-		pathParameterMap.put(SubtaskAttemptPathParameter.KEY, "0"); // first attempt
+		pathParameterMap.put(":" + CheckpointIdPathParameter.KEY, "1"); // first checkpoint
+		pathParameterMap.put(":" + SubtaskIndexPathParameter.KEY, "0"); // first subtask
+		pathParameterMap.put(":" + SubtaskAttemptPathParameter.KEY, "0"); // first attempt
 		queryParameterMap.put(RescalingParallelismQueryParameter.KEY, ImmutableList.of("4"));
 
 		// Load RequestBody payloads
@@ -198,11 +239,16 @@ public class RestApiTest {
 			JsonNode jsonNode = YAML_MAPPER.readTree(in).get("requestBodies");
 			for (final JsonNode requestBodyNode : jsonNode) {
 				requestBodyMap.put(requestBodyNode.get("url").asText(),
-					requestBodyNode.get("payload").asText());
+					resolvePayloadParameter(requestBodyNode.get("payload").asText()));
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot load necessary resources for e2e REST API test!", e);
 		}
+	}
+
+	private static String resolvePayloadParameter(String payload) {
+		return payload
+			.replace("${savepointPath}", savepointPath);
 	}
 
 	private static <R extends RequestBody, P extends ResponseBody, M extends MessageParameters>
@@ -254,9 +300,15 @@ public class RestApiTest {
 			testSuccessCount += 1;
 			LOGGER.info("================================================");
 		} catch (UnsupportedOperationException e) {
-			testSkipList.add(spec.getTargetRestEndpointURL() + "," + spec.getHttpMethod());
+			testSkipList.add(
+				"\n URL: " + spec.getTargetRestEndpointURL() +
+				"\n METHOD: " + spec.getHttpMethod()
+			);
 		} catch (Exception e) {
-			testFailureList.add(spec.getTargetRestEndpointURL() + "," + spec.getHttpMethod());
+			testFailureList.add(
+				"\n URL: " + spec.getTargetRestEndpointURL() +
+					"\n METHOD: " + spec.getHttpMethod()
+			);
 		}
 	}
 
@@ -264,10 +316,8 @@ public class RestApiTest {
 		throws UnsupportedOperationException {
 		MessageParameters unresolvedMessageParameters = specs.getUnresolvedMessageParameters();
 		try {
-			for (MessagePathParameter pathParam : unresolvedMessageParameters.getPathParameters()) {
-				String paramValue = Preconditions.checkNotNull(pathParameterMap.get(pathParam.getKey()),
-					"Cannot find path parameter for: " + pathParam.getKey());
-				targetUrl = targetUrl.replace(":" + pathParam.getKey(), paramValue);
+			for (Map.Entry<String, String> pathParam : pathParameterMap.entrySet()) {
+				targetUrl = targetUrl.replace(pathParam.getKey(), pathParam.getValue());
 			}
 			QueryStringEncoder queryStringEncoder = new QueryStringEncoder(targetUrl);
 			for (MessageQueryParameter queryParam : unresolvedMessageParameters.getQueryParameters()) {
@@ -277,7 +327,7 @@ public class RestApiTest {
 						"Cannot find query parameter for: " + queryParam.getKey());
 				}
 				if (paramValue != null) {
-					queryStringEncoder.addParam(queryParam.getKey(), JOINER.join(paramValue));
+					queryStringEncoder.addParam(queryParam.getKey(), Joiner.on(",").join(paramValue));
 				}
 			}
 			return queryStringEncoder.toString();
@@ -439,8 +489,9 @@ public class RestApiTest {
 			return initializeHandlers(CompletableFuture.completedFuture(null)).stream()
 				.filter(tuple -> tuple.f0 instanceof MessageHeaders)
 				.map(tuple -> (MessageHeaders) tuple.f0)
-				.sorted((spec1, spec2) -> -comparator.compare(
-					spec1.getTargetRestEndpointURL(), spec2.getTargetRestEndpointURL()))
+				.sorted((spec1, spec2) -> comparator.compare(
+					spec1.getTargetRestEndpointURL() + spec1.getHttpMethod(),
+					spec2.getTargetRestEndpointURL() + spec2.getHttpMethod()))
 				.collect(Collectors.toList());
 		}
 	}

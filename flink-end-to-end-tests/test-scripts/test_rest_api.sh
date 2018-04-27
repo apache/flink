@@ -36,7 +36,7 @@ $FLINK_DIR/bin/flink run -d $TEST_JAR_JAR -outputPath file://${TEST_DATA_DIR}/ou
 sleep 5s
 
 # Start the REST API test job and go through all REST APIs
-$FLINK_DIR/bin/flink run $TEST_PROGRAM_JAR
+$FLINK_DIR/bin/flink run $TEST_PROGRAM_JAR -savepointPath file://${TEST_DATA_DIR}/out/savepoint
 
 stop_cluster
 $FLINK_DIR/bin/taskmanager.sh stop-all
