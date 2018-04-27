@@ -65,6 +65,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -178,8 +179,8 @@ public class MiniDispatcherTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that in detached mode, the {@link MiniDispatcher} will terminate after the job
-	 * has completed.
+	 * Tests that in detached mode, the {@link MiniDispatcher} will complete the future that
+	 * signals job termination.
 	 */
 	@Test
 	public void testTerminationAfterJobCompletion() throws Exception {
@@ -197,7 +198,7 @@ public class MiniDispatcherTest extends TestLogger {
 			resultFuture.complete(archivedExecutionGraph);
 
 			// wait until we terminate
-			miniDispatcher.getTerminationFuture().get();
+			miniDispatcher.getJobTerminationFuture().get();
 		} finally {
 			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
 		}
@@ -222,9 +223,7 @@ public class MiniDispatcherTest extends TestLogger {
 
 			resultFuture.complete(archivedExecutionGraph);
 
-			final CompletableFuture<Void> terminationFuture = miniDispatcher.getTerminationFuture();
-
-			assertThat(terminationFuture.isDone(), is(false));
+			assertFalse(miniDispatcher.getTerminationFuture().isDone());
 
 			final DispatcherGateway dispatcherGateway = miniDispatcher.getSelfGateway(DispatcherGateway.class);
 
@@ -233,9 +232,8 @@ public class MiniDispatcherTest extends TestLogger {
 			final JobResult jobResult = jobResultFuture.get();
 
 			assertThat(jobResult.getJobId(), is(jobGraph.getJobID()));
-
-			terminationFuture.get();
-		} finally {
+		}
+		finally {
 			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
 		}
 	}
