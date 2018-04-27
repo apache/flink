@@ -57,7 +57,7 @@ public class RegisteredOperatorBackendStateMetaInfo<S> {
 		this.assignmentMode = Preconditions.checkNotNull(assignmentMode);
 	}
 
-	private RegisteredOperatorBackendStateMetaInfo(RegisteredOperatorBackendStateMetaInfo copy) {
+	private RegisteredOperatorBackendStateMetaInfo(RegisteredOperatorBackendStateMetaInfo<S> copy) {
 
 		Preconditions.checkNotNull(copy);
 
@@ -69,7 +69,7 @@ public class RegisteredOperatorBackendStateMetaInfo<S> {
 	/**
 	 * Creates a deep copy of the itself.
 	 */
-	public RegisteredOperatorBackendStateMetaInfo deepCopy() {
+	public RegisteredOperatorBackendStateMetaInfo<S> deepCopy() {
 		return new RegisteredOperatorBackendStateMetaInfo(this);
 	}
 

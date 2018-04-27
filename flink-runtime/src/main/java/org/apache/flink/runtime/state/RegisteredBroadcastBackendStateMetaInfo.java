@@ -52,7 +52,7 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> {
 		this.valueSerializer = Preconditions.checkNotNull(valueSerializer);
 	}
 
-	public RegisteredBroadcastBackendStateMetaInfo(RegisteredBroadcastBackendStateMetaInfo copy) {
+	public RegisteredBroadcastBackendStateMetaInfo(RegisteredBroadcastBackendStateMetaInfo<K, V> copy) {
 
 		Preconditions.checkNotNull(copy);
 
@@ -65,7 +65,7 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> {
 	/**
 	 * Creates a deep copy of the itself.
 	 */
-	public RegisteredBroadcastBackendStateMetaInfo deepCopy() {
+	public RegisteredBroadcastBackendStateMetaInfo<K, V> deepCopy() {
 		return new RegisteredBroadcastBackendStateMetaInfo(this);
 	}
 
