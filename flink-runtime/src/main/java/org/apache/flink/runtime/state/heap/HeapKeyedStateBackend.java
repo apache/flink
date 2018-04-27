@@ -28,7 +28,6 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
@@ -157,86 +156,35 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
 			TypeSerializer<N> namespaceSerializer, StateDescriptor<?, V> stateDesc) throws StateMigrationException {
 
-		return tryRegisterStateTable(
-				stateDesc.getName(), stateDesc.getType(),
-				namespaceSerializer, stateDesc.getSerializer());
-	}
-
-	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
-			String stateName,
-			StateDescriptor.Type stateType,
-			TypeSerializer<N> namespaceSerializer,
-			TypeSerializer<V> valueSerializer) throws StateMigrationException {
-
 		@SuppressWarnings("unchecked")
-		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) stateTables.get(stateName);
+		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) stateTables.get(stateDesc.getName());
 
-		if (stateTable == null) {
-			RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo = new RegisteredKeyedBackendStateMetaInfo<>(
-					stateType,
-					stateName,
-					namespaceSerializer,
-					valueSerializer);
-
-			stateTable = snapshotStrategy.newStateTable(newMetaInfo);
-			stateTables.put(stateName, stateTable);
-		} else {
-			// TODO with eager registration in place, these checks should be moved to restorePartitionedState()
+		RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo;
+		if (stateTable != null) {
+			@SuppressWarnings("unchecked")
+			RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> restoredMetaInfoSnapshot =
+				restoredKvStateMetaInfos.get(stateDesc.getName());
 
 			Preconditions.checkState(
-				stateName.equals(stateTable.getMetaInfo().getName()),
-				"Incompatible state names. " +
-					"Was [" + stateTable.getMetaInfo().getName() + "], " +
-					"registered with [" + stateName + "].");
+				restoredMetaInfoSnapshot != null,
+				"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
+					" but its corresponding restored snapshot cannot be found.");
 
-			if (!stateType.equals(StateDescriptor.Type.UNKNOWN)
-					&& !stateTable.getMetaInfo().getStateType().equals(StateDescriptor.Type.UNKNOWN)) {
+			newMetaInfo = RegisteredKeyedBackendStateMetaInfo.resolveKvStateCompatibility(
+				restoredMetaInfoSnapshot,
+				namespaceSerializer,
+				stateDesc);
 
-				Preconditions.checkState(
-					stateType.equals(stateTable.getMetaInfo().getStateType()),
-					"Incompatible state types. " +
-						"Was [" + stateTable.getMetaInfo().getStateType() + "], " +
-						"registered with [" + stateType + "].");
-			}
+			stateTable.setMetaInfo(newMetaInfo);
+		} else {
+			newMetaInfo = new RegisteredKeyedBackendStateMetaInfo<>(
+				stateDesc.getType(),
+				stateDesc.getName(),
+				namespaceSerializer,
+				stateDesc.getSerializer());
 
-			@SuppressWarnings("unchecked")
-			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, V> restoredMetaInfo =
-				(RegisteredKeyedBackendStateMetaInfo.Snapshot<N, V>) restoredKvStateMetaInfos.get(stateName);
-
-			// check compatibility results to determine if state migration is required
-			TypeSerializer<N> newNamespaceSerializer = namespaceSerializer.duplicate();
-			CompatibilityResult<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-					restoredMetaInfo.getNamespaceSerializer(),
-					null,
-					restoredMetaInfo.getNamespaceSerializerConfigSnapshot(),
-					newNamespaceSerializer);
-
-			TypeSerializer<V> newValueSerializer = valueSerializer.duplicate();
-			CompatibilityResult<V> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-					restoredMetaInfo.getStateSerializer(),
-					UnloadableDummyTypeSerializer.class,
-					restoredMetaInfo.getStateSerializerConfigSnapshot(),
-					newValueSerializer);
-
-			if (!namespaceCompatibility.isRequiresMigration() && !stateCompatibility.isRequiresMigration()) {
-				RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo = new RegisteredKeyedBackendStateMetaInfo<>(
-						stateType,
-						stateName,
-						newNamespaceSerializer,
-						newValueSerializer);
-
-				// new serializers are compatible; use them to replace the old serializers
-				stateTable.setMetaInfo(newMetaInfo);
-			} else {
-				// TODO state migration currently isn't possible.
-
-				// NOTE: for heap backends, it is actually fine to proceed here without failing the restore,
-				// since the state has already been deserialized to objects and we can just continue with
-				// the new serializer; we're deliberately failing here for now to have equal functionality with
-				// the RocksDB backend to avoid confusion for users.
-
-				throw new StateMigrationException("State migration isn't supported, yet.");
-			}
+			stateTable = snapshotStrategy.newStateTable(newMetaInfo);
+			stateTables.put(stateDesc.getName(), stateTable);
 		}
 
 		return stateTable;

@@ -455,4 +455,5 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	@VisibleForTesting
 	public abstract int numStateEntries();
 
+
 }
