@@ -30,6 +30,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
@@ -62,7 +63,8 @@ import java.util.UUID;
  *
  * <p>Program parameters:
  * <ul>
- *     <li>test.semantics (String, default - 'exactly-once'): This configures the semantics to test. Can be 'exactly-once' or 'at-least-once'</li>
+ *     <li>test.semantics (String, default - 'exactly-once'): This configures the semantics to test. Can be 'exactly-once' or 'at-least-once'.</li>
+ *     <li>environment.checkpoint_interval (long, default - 1000): the checkpoint interval.</li>
  *     <li>environment.parallelism (int, default - 1): parallelism to use for the job.</li>
  *     <li>environment.max_parallelism (int, default - 128): max parallelism to use for the job</li>
  *     <li>environment.restart_strategy.delay (long, default - 0): delay between restart attempts, in milliseconds.</li>
@@ -82,6 +84,10 @@ public class DataStreamAllroundTestProgram {
 		.key("test.semantics")
 		.defaultValue("exactly-once")
 		.withDescription("This configures the semantics to test. Can be 'exactly-once' or 'at-least-once'");
+
+	private static final ConfigOption<Long> ENVIRONMENT_CHECKPOINT_INTERVAL = ConfigOptions
+		.key("environment.checkpoint_interval")
+		.defaultValue(1000L);
 
 	private static final ConfigOption<Integer> ENVIRONMENT_PARALLELISM = ConfigOptions
 		.key("environment.parallelism")
@@ -152,14 +158,26 @@ public class DataStreamAllroundTestProgram {
 					new KryoSerializer<>(ComplexPayload.class, env.getConfig()))
 				)
 			)
+			.name("ArtificalKeyedStateMapper")
+			.returns(Event.class)
 			.keyBy(Event::getKey)
 			.flatMap(createSemanticsCheckMapper(pt))
+			.name("SemanticsCheckMapper")
 			.addSink(new PrintSinkFunction<>());
 
 		env.execute("General purpose test job");
 	}
 
 	public static void setupEnvironment(StreamExecutionEnvironment env, ParameterTool pt) throws Exception {
+
+		// set checkpointing semantics
+		String semantics = pt.get(TEST_SEMANTICS.key(), TEST_SEMANTICS.defaultValue());
+		long checkpointInterval = pt.getLong(ENVIRONMENT_CHECKPOINT_INTERVAL.key(), ENVIRONMENT_CHECKPOINT_INTERVAL.defaultValue());
+		CheckpointingMode checkpointingMode = semantics.equalsIgnoreCase("exactly-once")
+			? CheckpointingMode.EXACTLY_ONCE
+			: CheckpointingMode.AT_LEAST_ONCE;
+
+		env.enableCheckpointing(checkpointInterval, checkpointingMode);
 
 		// use event time
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);

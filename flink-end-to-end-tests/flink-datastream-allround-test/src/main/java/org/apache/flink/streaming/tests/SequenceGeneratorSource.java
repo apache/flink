@@ -116,7 +116,7 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 
 			KeyRangeStates randomKeyRangeStates = keyRanges.get(random.nextInt(keyRanges.size()));
 			int randomKey = randomKeyRangeStates.getRandomKey(random);
-			long value = randomKeyRangeStates.incrementAndGet(randomKey);
+
 			long eventTime = Math.max(
 				0,
 				generateEventTimeWithOutOfOrderness(random, monotonousEventTime));
@@ -124,13 +124,17 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 			// uptick the event time clock
 			monotonousEventTime += eventTimeClockProgressPerEvent;
 
-			Event event = new Event(
-				randomKey,
-				eventTime,
-				value,
-				StringUtils.getRandomString(random, payloadLength, payloadLength, 'A', 'z'));
+			synchronized (ctx.getCheckpointLock()) {
+				long value = randomKeyRangeStates.incrementAndGet(randomKey);
 
-			ctx.collect(event);
+				Event event = new Event(
+					randomKey,
+					eventTime,
+					value,
+					StringUtils.getRandomString(random, payloadLength, payloadLength, 'A', 'z'));
+
+				ctx.collect(event);
+			}
 
 			if (elementsBeforeSleep == 1) {
 				elementsBeforeSleep = sleepAfterElements;
