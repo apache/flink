@@ -66,7 +66,7 @@ public class HeapBroadcastState<K, V> implements BackendWritableBroadcastState<K
 	}
 
 	private HeapBroadcastState(HeapBroadcastState<K, V> toCopy) {
-		this(toCopy.stateMetaInfo, toCopy.internalMapCopySerializer.copy(toCopy.backingMap));
+		this(toCopy.stateMetaInfo.deepCopy(), toCopy.internalMapCopySerializer.copy(toCopy.backingMap));
 	}
 
 	@Override
