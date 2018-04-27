@@ -33,6 +33,10 @@ else
   NUM_SLOTS=$NEW_DOP
 fi
 
+STATE_BACKEND_TYPE=${STATE_BACKEND_TYPE:-file}
+STATE_BACKEND_FILE_ASYNC=${STATE_BACKEND_FILE_ASYNC:-true}
+STATE_BACKEND_ROCKS_INCREMENTAL=${STATE_BACKEND_ROCKS_INCREMENTAL:-false}
+
 # modify configuration to have enough slots
 cp $FLINK_DIR/conf/flink-conf.yaml $FLINK_DIR/conf/flink-conf.yaml.bak
 sed -i -e "s/taskmanager.numberOfTaskSlots: 1/taskmanager.numberOfTaskSlots: $NUM_SLOTS/" $FLINK_DIR/conf/flink-conf.yaml
@@ -68,7 +72,10 @@ TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-datastream-a
 DATASTREAM_JOB=$($FLINK_DIR/bin/flink run -d -p $ORIGINAL_DOP $TEST_PROGRAM_JAR \
   --test.semantics exactly-once \
   --environment.parallelism $ORIGINAL_DOP \
+  --state_backend $STATE_BACKEND_TYPE \
   --state_backend.checkpoint_directory $CHECKPOINT_DIR \
+  --state_backend.file.async $STATE_BACKEND_FILE_ASYNC \
+  --state_backend.rocks.incremental $STATE_BACKEND_ROCKS_INCREMENTAL \
   --sequence_generator_source.sleep_time 15 \
   --sequence_generator_source.sleep_after_elements 1 \
   | grep "Job has been submitted with JobID" | sed 's/.* //g')
@@ -114,7 +121,10 @@ OLD_NUM_METRICS=$(get_num_metric_samples)
 DATASTREAM_JOB=$($FLINK_DIR/bin/flink run -s $SAVEPOINT_PATH -p $NEW_DOP -d $TEST_PROGRAM_JAR \
   --test.semantics exactly-once \
   --environment.parallelism $NEW_DOP \
+  --state_backend $STATE_BACKEND_TYPE \
   --state_backend.checkpoint_directory $CHECKPOINT_DIR \
+  --state_backend.file.async $STATE_BACKEND_FILE_ASYNC \
+  --state_backend.rocks.incremental $STATE_BACKEND_ROCKS_INCREMENTAL \
   --sequence_generator_source.sleep_time 15 \
   --sequence_generator_source.sleep_after_elements 1 \
   | grep "Job has been submitted with JobID" | sed 's/.* //g')
