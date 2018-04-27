@@ -68,9 +68,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpRequest;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.QueryStringEncoder;
 
 import org.slf4j.Logger;
@@ -79,6 +76,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -107,8 +105,8 @@ public class RestApiTest {
 	private static final Joiner JOINER = Joiner.on(",");
 
 	private static int testSuccessCount = 0;
-	private static int testFailureCount = 0;
-	private static int testSkipCount = 0;
+	private static List<String> testSkipList = new ArrayList<>();
+	private static List<String> testFailureList = new ArrayList<>();
 
 	private static Map<String, String> pathParameterMap = new HashMap<>();
 	private static Map<String, List<String>> queryParameterMap = new HashMap<>();
@@ -131,9 +129,11 @@ public class RestApiTest {
 		List<MessageHeaders> specs = new E2ETestDispatcherRestEndpoint().getSpecs();
 		specs.forEach(spec -> testMonitoringEndpointSpecs(httpClient, (MessageHeaders<?, ?, ?>) spec));
 
-		if (testFailureCount != 0) {
+		if (testFailureList.size() != 0) {
 			throw new RuntimeException("There are test failures. Success: " + testSuccessCount +
-				" Failures: " + testFailureCount + " Skipped: " + testSkipCount);
+				" Failures: " + testFailureList.size() + " Skipped: " + testSkipList.size() +
+				"\n Failure list: " + testFailureList.toString() +
+				"\n Skip List: " + testSkipList.toString());
 		}
 	}
 
@@ -213,6 +213,7 @@ public class RestApiTest {
 			LOGGER.info("Target URL: " + targetUrl + " Method: " + spec.getHttpMethod());
 			String url = resolveParamsForUrl(targetUrl, spec);
 			LOGGER.info("Resolved URL: " + url);
+			RequestBody requestBody;
 			switch (spec.getHttpMethod()) {
 				case GET:
 					httpClient.sendGetRequest(url, TEST_TIMEOUT);
@@ -220,22 +221,28 @@ public class RestApiTest {
 				case DELETE:
 					httpClient.sendDeleteRequest(url, TEST_TIMEOUT);
 					break;
-				default:
-					HttpRequest request;
+				case PATCH:
 					if (spec.getRequestClass() != EmptyRequestBody.class) {
-						RequestBody requestBody = resolveRequestBody(spec);
-						request = new DefaultFullHttpRequest(
-							HttpVersion.HTTP_1_1,
-							spec.getHttpMethod().getNettyHttpMethod(),
-							url,
-							Unpooled.copiedBuffer(MAPPER.writeValueAsBytes(requestBody)));
+						requestBody = resolveRequestBody(spec);
 					} else {
-						request = new DefaultFullHttpRequest(
-							HttpVersion.HTTP_1_1,
-							spec.getHttpMethod().getNettyHttpMethod(),
-							url);
+						requestBody = null;
 					}
-					httpClient.sendRequest(request, TEST_TIMEOUT);
+					httpClient.sendPatchRequest(url,
+						Unpooled.copiedBuffer(MAPPER.writeValueAsBytes(requestBody)),
+						TEST_TIMEOUT);
+					break;
+				case POST:
+					if (spec.getRequestClass() != EmptyRequestBody.class) {
+						requestBody = resolveRequestBody(spec);
+					} else {
+						requestBody = null;
+					}
+					httpClient.sendPostRequest(url,
+						Unpooled.copiedBuffer(MAPPER.writeValueAsBytes(requestBody)),
+						TEST_TIMEOUT);
+					break;
+				default:
+					throw new UnsupportedOperationException("Unknown REST type: " + spec.getHttpMethod());
 			}
 			HttpTestClient.SimpleHttpResponse resp = httpClient.getNextResponse();
 			LOGGER.info("Return Code: " + resp.getStatus().code());
@@ -247,9 +254,9 @@ public class RestApiTest {
 			testSuccessCount += 1;
 			LOGGER.info("================================================");
 		} catch (UnsupportedOperationException e) {
-			testSkipCount += 1;
+			testSkipList.add(spec.getTargetRestEndpointURL() + "," + spec.getHttpMethod());
 		} catch (Exception e) {
-			testFailureCount += 1;
+			testFailureList.add(spec.getTargetRestEndpointURL() + "," + spec.getHttpMethod());
 		}
 	}
 

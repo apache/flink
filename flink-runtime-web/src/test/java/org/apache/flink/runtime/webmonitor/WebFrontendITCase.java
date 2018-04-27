@@ -283,7 +283,7 @@ public class WebFrontendITCase extends TestLogger {
 		try (HttpTestClient client = new HttpTestClient("localhost", CLUSTER.getWebUIPort())) {
 			if (Objects.equals(MiniClusterResource.NEW_CODEBASE, System.getProperty(MiniClusterResource.CODEBASE_KEY))) {
 				// stop the job
-				client.sendPatchRequest("/jobs/" + jid + "/?mode=stop", deadline.timeLeft());
+				client.sendPatchRequest("/jobs/" + jid + "/?mode=stop", null, deadline.timeLeft());
 				HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
 
 				assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
