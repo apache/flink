@@ -757,16 +757,17 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 				(RegisteredOperatorBackendStateMetaInfo.Snapshot<S>) restoredOperatorStateMetaInfos.get(name);
 
 			// check compatibility to determine if state migration is required
+			TypeSerializer<S> newPartitionStateSerializer = partitionStateSerializer.duplicate();
 			CompatibilityResult<S> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
 					restoredMetaInfo.getPartitionStateSerializer(),
 					UnloadableDummyTypeSerializer.class,
 					restoredMetaInfo.getPartitionStateSerializerConfigSnapshot(),
-					partitionStateSerializer);
+					newPartitionStateSerializer);
 
 			if (!stateCompatibility.isRequiresMigration()) {
 				// new serializer is compatible; use it to replace the old serializer
 				partitionableListState.setStateMetaInfo(
-					new RegisteredOperatorBackendStateMetaInfo<>(name, partitionStateSerializer, mode));
+					new RegisteredOperatorBackendStateMetaInfo<>(name, newPartitionStateSerializer, mode));
 			} else {
 				// TODO state migration currently isn't possible.
 

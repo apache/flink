@@ -19,7 +19,6 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -47,11 +46,11 @@ import java.util.List;
  * @param <V> The type of the values in the list state.
  */
 public class RocksDBListState<K, N, V>
-		extends AbstractRocksDBState<K, N, List<V>, ListState<V>, ListStateDescriptor<V>>
+		extends AbstractRocksDBState<K, N, List<V>, ListState<V>>
 		implements InternalListState<K, N, V> {
 
 	/** Serializer for the values. */
-	private final TypeSerializer<V> valueSerializer;
+	private final TypeSerializer<V> elementSerializer;
 
 	/**
 	 * Separator of StringAppendTestOperator in RocksDB.
@@ -61,17 +60,23 @@ public class RocksDBListState<K, N, V>
 	/**
 	 * Creates a new {@code RocksDBListState}.
 	 *
+	 * @param columnFamily The RocksDB column family that this state is associated to.
 	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                     and can create a default state value.
+	 * @param valueSerializer The serializer for the state.
+	 * @param defaultValue The default value for the state.
+	 * @param elementSerializer The serializer for elements of the list state.
+	 * @param backend The backend for which this state is bind to.
 	 */
-	public RocksDBListState(ColumnFamilyHandle columnFamily,
+	public RocksDBListState(
+			ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			ListStateDescriptor<V> stateDesc,
+			TypeSerializer<List<V>> valueSerializer,
+			List<V> defaultValue,
+			TypeSerializer<V> elementSerializer,
 			RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, stateDesc, backend);
-		this.valueSerializer = stateDesc.getElementSerializer();
+		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
+		this.elementSerializer = elementSerializer;
 	}
 
 	@Override
@@ -86,7 +91,7 @@ public class RocksDBListState<K, N, V>
 
 	@Override
 	public TypeSerializer<List<V>> getValueSerializer() {
-		return stateDesc.getSerializer();
+		return valueSerializer;
 	}
 
 	@Override
@@ -105,7 +110,7 @@ public class RocksDBListState<K, N, V>
 
 			List<V> result = new ArrayList<>();
 			while (in.available() > 0) {
-				result.add(valueSerializer.deserialize(in));
+				result.add(elementSerializer.deserialize(in));
 				if (in.available() > 0) {
 					in.readByte();
 				}
@@ -125,7 +130,7 @@ public class RocksDBListState<K, N, V>
 			byte[] key = keySerializationStream.toByteArray();
 			keySerializationStream.reset();
 			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
-			valueSerializer.serialize(value, out);
+			elementSerializer.serialize(value, out);
 			backend.db.merge(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 		} catch (Exception e) {
 			throw new RuntimeException("Error while adding data to RocksDB", e);
@@ -227,7 +232,7 @@ public class RocksDBListState<K, N, V>
 			} else {
 				keySerializationStream.write(DELIMITER);
 			}
-			valueSerializer.serialize(value, out);
+			elementSerializer.serialize(value, out);
 		}
 
 		return keySerializationStream.toByteArray();

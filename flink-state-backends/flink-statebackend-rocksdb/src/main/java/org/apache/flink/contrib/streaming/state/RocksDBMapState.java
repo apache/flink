@@ -19,7 +19,6 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -59,7 +58,7 @@ import java.util.Map;
  * @param <UV> The type of the values in the map state.
  */
 public class RocksDBMapState<K, N, UK, UV>
-		extends AbstractRocksDBState<K, N, Map<UK, UV>, MapState<UK, UV>, MapStateDescriptor<UK, UV>>
+		extends AbstractRocksDBState<K, N, Map<UK, UV>, MapState<UK, UV>>
 		implements InternalMapState<K, N, UK, UV> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBMapState.class);
@@ -74,19 +73,26 @@ public class RocksDBMapState<K, N, UK, UV>
 	/**
 	 * Creates a new {@code RocksDBMapState}.
 	 *
+	 * @param columnFamily The RocksDB column family that this state is associated to.
 	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param stateDesc The state identifier for the state.
+	 * @param valueSerializer The serializer for the state.
+	 * @param defaultValue The default value for the state.
+	 * @param backend The backend for which this state is bind to.
 	 */
 	public RocksDBMapState(
 			ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			MapStateDescriptor<UK, UV> stateDesc,
+			TypeSerializer<Map<UK, UV>> valueSerializer,
+			Map<UK, UV> defaultValue,
 			RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, stateDesc, backend);
+		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
 
-		this.userKeySerializer = stateDesc.getKeySerializer();
-		this.userValueSerializer = stateDesc.getValueSerializer();
+		Preconditions.checkState(valueSerializer instanceof MapSerializer, "Unexpected serializer type.");
+
+		MapSerializer<UK, UV> castedMapSerializer = (MapSerializer<UK, UV>) valueSerializer;
+		this.userKeySerializer = castedMapSerializer.getKeySerializer();
+		this.userValueSerializer = castedMapSerializer.getValueSerializer();
 	}
 
 	@Override
@@ -101,7 +107,7 @@ public class RocksDBMapState<K, N, UK, UV>
 
 	@Override
 	public TypeSerializer<Map<UK, UV>> getValueSerializer() {
-		return stateDesc.getSerializer();
+		return valueSerializer;
 	}
 
 	// ------------------------------------------------------------------------

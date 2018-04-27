@@ -18,7 +18,6 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -45,12 +44,14 @@ import java.io.IOException;
  * @param <N> The type of the namespace.
  * @param <V> The type of values kept internally in state.
  * @param <S> The type of {@link State}.
- * @param <SD> The type of {@link StateDescriptor}.
  */
-public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends StateDescriptor<S, V>> implements InternalKvState<K, N, V>, State {
+public abstract class AbstractRocksDBState<K, N, V, S extends State> implements InternalKvState<K, N, V>, State {
 
 	/** Serializer for the namespace. */
 	final TypeSerializer<N> namespaceSerializer;
+
+	/** Serializer for the state values. */
+	final TypeSerializer<V> valueSerializer;
 
 	/** The current namespace, which the next value methods will refer to. */
 	private N currentNamespace;
@@ -61,8 +62,7 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends 
 	/** The column family of this particular instance of state. */
 	protected ColumnFamilyHandle columnFamily;
 
-	/** State descriptor from which to create this state instance. */
-	protected final SD stateDesc;
+	protected final V defaultValue;
 
 	protected final WriteOptions writeOptions;
 
@@ -74,12 +74,18 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends 
 
 	/**
 	 * Creates a new RocksDB backed state.
-	 *  @param namespaceSerializer The serializer for the namespace.
+	 *
+	 * @param columnFamily The RocksDB column family that this state is associated to.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param valueSerializer The serializer for the state.
+	 * @param defaultValue The default value for the state.
+	 * @param backend The backend for which this state is bind to.
 	 */
 	protected AbstractRocksDBState(
 			ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			SD stateDesc,
+			TypeSerializer<V> valueSerializer,
+			V defaultValue,
 			RocksDBKeyedStateBackend<K> backend) {
 
 		this.namespaceSerializer = namespaceSerializer;
@@ -88,7 +94,8 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends 
 		this.columnFamily = columnFamily;
 
 		this.writeOptions = backend.getWriteOptions();
-		this.stateDesc = Preconditions.checkNotNull(stateDesc, "State Descriptor");
+		this.valueSerializer = Preconditions.checkNotNull(valueSerializer, "State value serializer");
+		this.defaultValue = defaultValue;
 
 		this.keySerializationStream = new ByteArrayOutputStreamWithPos(128);
 		this.keySerializationDataOutputView = new DataOutputViewStreamWrapper(keySerializationStream);
@@ -189,5 +196,13 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends 
 		RocksDBKeySerializationUtils.writeKeyGroup(keyGroup, backend.getKeyGroupPrefixBytes(), keySerializationDataOutputView);
 		RocksDBKeySerializationUtils.writeKey(key, keySerializer, keySerializationStream, keySerializationDataOutputView, ambiguousKeyPossible);
 		RocksDBKeySerializationUtils.writeNameSpace(namespace, namespaceSerializer, keySerializationStream, keySerializationDataOutputView, ambiguousKeyPossible);
+	}
+
+	protected V getDefaultValue() {
+		if (defaultValue != null) {
+			return valueSerializer.copy(defaultValue);
+		} else {
+			return null;
+		}
 	}
 }
