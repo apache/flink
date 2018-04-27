@@ -58,25 +58,97 @@ fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
-  printf "Running Resuming Savepoint (no parallelism change) end-to-end test\n"
+  printf "Running Resuming Savepoint (file, async, no parallelism change) end-to-end test\n"
   printf "==============================================================================\n"
-  $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 2
+  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=true $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 2
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
-  printf "Running Resuming Savepoint (scale up) end-to-end test\n"
+  printf "Running Resuming Savepoint (file, sync, no parallelism change) end-to-end test\n"
   printf "==============================================================================\n"
-  $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 4
+  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=false $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 2
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
-  printf "Running Resuming Savepoint (scale down) end-to-end test\n"
+  printf "Running Resuming Savepoint (file, async, scale up) end-to-end test\n"
   printf "==============================================================================\n"
-  $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 4 2
+  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=true $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 4
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
+  printf "Running Resuming Savepoint (file, sync, scale up) end-to-end test\n"
+  printf "==============================================================================\n"
+  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=false $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 4
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
+  printf "Running Resuming Savepoint (file, async, scale down) end-to-end test\n"
+  printf "==============================================================================\n"
+  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=true $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 4 2
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
+  printf "Running Resuming Savepoint (file, sync, scale down) end-to-end test\n"
+  printf "==============================================================================\n"
+  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=false $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 4 2
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
+  printf "Running Resuming Savepoint (rocks, non-incremental, no parallelism change) end-to-end test\n"
+  printf "==============================================================================\n"
+  STATE_BACKEND_TYPE=rocks STATE_BACKEND_ROCKS_INCREMENTAL=false $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 2
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
+  printf "Running Resuming Savepoint (rocks, incremental, no parallelism change) end-to-end test\n"
+  printf "==============================================================================\n"
+  STATE_BACKEND_TYPE=rocks STATE_BACKEND_ROCKS_INCREMENTAL=true $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 2
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
+  printf "Running Resuming Savepoint (rocks, non-incremental, scale up) end-to-end test\n"
+  printf "==============================================================================\n"
+  STATE_BACKEND_TYPE=rocks STATE_BACKEND_ROCKS_INCREMENTAL=false $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 4
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
+  printf "Running Resuming Savepoint (rocks, incremental, scale up) end-to-end test\n"
+  printf "==============================================================================\n"
+  STATE_BACKEND_TYPE=rocks STATE_BACKEND_ROCKS_INCREMENTAL=true $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 4
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
+  printf "Running Resuming Savepoint (rocks, non-incremental, scale down) end-to-end test\n"
+  printf "==============================================================================\n"
+  STATE_BACKEND_TYPE=rocks STATE_BACKEND_ROCKS_INCREMENTAL=false $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 4 2
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
+  printf "Running Resuming Savepoint (rocks, incremental, scale down) end-to-end test\n"
+  printf "==============================================================================\n"
+  STATE_BACKEND_TYPE=rocks STATE_BACKEND_ROCKS_INCREMENTAL=true $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 4 2
   EXIT_CODE=$?
 fi
 
