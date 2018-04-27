@@ -241,6 +241,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 						LOG.info("Could not properly terminate the Dispatcher.", throwable);
 					}
 
+					// This is the general shutdown path. If a separate more specific shutdown was
+					// already triggered, this will do nothing
 					shutDownAndTerminate(
 						SUCCESS_RETURN_CODE,
 						ApplicationStatus.SUCCEEDED,
@@ -578,7 +580,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		return terminationFuture;
 	}
 
-	private void shutDownAndTerminate(
+	protected void shutDownAndTerminate(
 		int returnCode,
 		ApplicationStatus applicationStatus,
 		@Nullable String diagnostics,

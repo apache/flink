@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.runtime.jobgraph.JobStatus;
+
 /**
  * The status of an application.
  */
@@ -52,4 +54,27 @@ public enum ApplicationStatus {
 		return processExitCode;
 	}
 
+	/**
+	 * Derives the ApplicationStatus that should be used for a job that resulted in the given
+	 * job status. If the job is not yet in a globally terminal state, this method returns
+	 * {@link #UNKNOWN}.
+	 */
+	public static ApplicationStatus fromJobStatus(JobStatus jobStatus) {
+		if (jobStatus == null) {
+			return UNKNOWN;
+		}
+		else {
+			switch (jobStatus) {
+				case FAILED:
+					return FAILED;
+				case CANCELED:
+					return CANCELED;
+				case FINISHED:
+					return SUCCEEDED;
+
+				default:
+					return UNKNOWN;
+			}
+		}
+	}
 }

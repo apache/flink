@@ -21,6 +21,7 @@ package org.apache.flink.runtime.entrypoint;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobService;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
@@ -44,6 +45,7 @@ import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nullable;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -106,7 +108,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 
 		final ExecutionMode executionMode = ExecutionMode.valueOf(executionModeValue);
 
-		return new MiniDispatcher(
+		final MiniDispatcher dispatcher = new MiniDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME,
 			configuration,
@@ -122,7 +124,13 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			restAddress,
 			jobGraph,
 			executionMode);
+
+		registerShutdownActions(dispatcher.getJobTerminationFuture());
+
+		return dispatcher;
 	}
 
 	protected abstract JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException;
+
+	protected abstract void registerShutdownActions(CompletableFuture<ApplicationStatus> terminationFuture);
 }
