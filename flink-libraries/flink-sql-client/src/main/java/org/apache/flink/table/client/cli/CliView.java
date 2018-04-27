@@ -193,10 +193,10 @@ public abstract class CliView<OP extends Enum<OP>, OUT> {
 		final List<String> lines = new ArrayList<>();
 
 		// title part
-		client.getTerminal().writer().println(computeTitleLine().toAnsi());
+		client.getTerminal().writer().println(computeTitleLine().toAnsi(client.getTerminal()));
 
 		// header part
-		headerLines.forEach(l -> client.getTerminal().writer().println(l.toAnsi()));
+		headerLines.forEach(l -> client.getTerminal().writer().println(l.toAnsi(client.getTerminal())));
 
 		// main part
 		// update vertical offset
@@ -218,7 +218,7 @@ public abstract class CliView<OP extends Enum<OP>, OUT> {
 		Stream.concat(mainHeaderLines.stream(), windowedMainLines.stream()).forEach(l -> {
 			if (offsetX < l.length()) {
 				final AttributedString windowX = l.substring(offsetX, Math.min(l.length(), offsetX + width));
-				client.getTerminal().writer().println(windowX.toAnsi());
+				client.getTerminal().writer().println(windowX.toAnsi(client.getTerminal()));
 			} else {
 				client.getTerminal().writer().println(); // nothing to show for this line
 			}
@@ -233,9 +233,9 @@ public abstract class CliView<OP extends Enum<OP>, OUT> {
 		IntStream.range(0, footerLines.size()).forEach((i) -> {
 			final AttributedString l = footerLines.get(i);
 			if (i == footerLines.size() - 1) {
-				client.getTerminal().writer().print(l.toAnsi());
+				client.getTerminal().writer().print(l.toAnsi(client.getTerminal()));
 			} else {
-				client.getTerminal().writer().println(l.toAnsi());
+				client.getTerminal().writer().println(l.toAnsi(client.getTerminal()));
 			}
 		});
 
