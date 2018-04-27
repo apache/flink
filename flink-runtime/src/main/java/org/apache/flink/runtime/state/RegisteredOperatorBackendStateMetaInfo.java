@@ -57,6 +57,22 @@ public class RegisteredOperatorBackendStateMetaInfo<S> {
 		this.assignmentMode = Preconditions.checkNotNull(assignmentMode);
 	}
 
+	private RegisteredOperatorBackendStateMetaInfo(RegisteredOperatorBackendStateMetaInfo copy) {
+
+		Preconditions.checkNotNull(copy);
+
+		this.name = copy.name;
+		this.partitionStateSerializer = copy.partitionStateSerializer.duplicate();
+		this.assignmentMode = copy.assignmentMode;
+	}
+
+	/**
+	 * Creates a deep copy of the itself.
+	 */
+	public RegisteredOperatorBackendStateMetaInfo deepCopy() {
+		return new RegisteredOperatorBackendStateMetaInfo(this);
+	}
+
 	public String getName() {
 		return name;
 	}
