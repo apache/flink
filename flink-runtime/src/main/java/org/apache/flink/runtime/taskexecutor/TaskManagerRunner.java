@@ -59,7 +59,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetAddress;
-import java.net.ServerSocket;
 import java.util.Iterator;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -359,7 +358,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 				taskManagerHostname, taskManagerAddress.getHostAddress());
 		}
 
-		final String portRangeDefinition = configuration.getString(TaskManagerOptions.RPC_PORT, "0");
+		final String portRangeDefinition = configuration.getString(TaskManagerOptions.RPC_PORT);
 
 		// parse port range definition and create port iterator
 		Iterator<Integer> portsIterator;
@@ -370,29 +369,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		}
 
 		while (portsIterator.hasNext()) {
-			// first, we check if the port is available by opening a socket
-			// if the actor system fails to start on the port, we try further
-			ServerSocket availableSocket = NetUtils.createSocketFromPorts(
-				portsIterator,
-				new NetUtils.SocketFactory() {
-					@Override
-					public ServerSocket createSocket(int port) throws IOException {
-						return new ServerSocket(port);
-					}
-				});
-
-			int port;
-			if (availableSocket == null) {
-				throw new BindException("Unable to allocate further port in port range: " + portRangeDefinition);
-			} else {
-				port = availableSocket.getLocalPort();
-				try {
-					availableSocket.close();
-				} catch (IOException ignored) {}
-			}
-
 			try {
-				return AkkaRpcServiceUtils.createRpcService(taskManagerHostname, port, configuration);
+				return AkkaRpcServiceUtils.createRpcService(taskManagerHostname, portsIterator.next(), configuration);
 			}
 			catch (Exception e) {
 				// we can continue to try if this contains a netty channel exception
@@ -405,7 +383,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		}
 
 		// if we come here, we have exhausted the port range
-		throw new BindException("Could not start actor system on any port in port range "
+		throw new BindException("Could not start task manager on any port in port range "
 			+ portRangeDefinition);
 	}
 }
