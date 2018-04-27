@@ -43,7 +43,7 @@ public class HeapFoldingState<K, N, T, ACC>
 		implements InternalFoldingState<K, N, T, ACC> {
 
 	/** The function used to fold the state */
-	private final FoldTransformation<T, ACC> foldTransformation;
+	private final FoldTransformation foldTransformation;
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
@@ -63,7 +63,7 @@ public class HeapFoldingState<K, N, T, ACC>
 			ACC defaultValue,
 			FoldFunction<T, ACC> foldFunction) {
 		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
-		this.foldTransformation = new FoldTransformation<>(foldFunction, this);
+		this.foldTransformation = new FoldTransformation(foldFunction);
 	}
 
 	@Override
@@ -105,19 +105,17 @@ public class HeapFoldingState<K, N, T, ACC>
 		}
 	}
 
-	private static final class FoldTransformation<T, ACC> implements StateTransformationFunction<ACC, T> {
+	private final class FoldTransformation implements StateTransformationFunction<ACC, T> {
 
-		private final HeapFoldingState<?, ?, T, ACC> stateRef;
 		private final FoldFunction<T, ACC> foldFunction;
 
-		FoldTransformation(FoldFunction<T, ACC> foldFunction, HeapFoldingState<?, ?, T, ACC> stateRef) {
-			this.stateRef = Preconditions.checkNotNull(stateRef);
+		FoldTransformation(FoldFunction<T, ACC> foldFunction) {
 			this.foldFunction = Preconditions.checkNotNull(foldFunction);
 		}
 
 		@Override
 		public ACC apply(ACC previousState, T value) throws Exception {
-			return foldFunction.fold((previousState != null) ? previousState : stateRef.getDefaultValue(), value);
+			return foldFunction.fold((previousState != null) ? previousState : getDefaultValue(), value);
 		}
 	}
 }
