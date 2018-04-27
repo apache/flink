@@ -60,25 +60,28 @@ The `ExternalizedCheckpointCleanup` mode configures what happens with externaliz
 
 Similarly to [savepoints](savepoints.html), an externalized checkpoint consists
 of a meta data file and, depending on the state back-end, some additional data
-files. The **target directory** for the externalized checkpoint's meta data is
-determined from the configuration key `state.checkpoints.dir` which, currently,
-can only be set via the configuration files.
+files. The externalized checkpoint's meta data is stored in the same directory 
+as data files. So the **target directory** can be set via configuration key 
+`state.checkpoints.dir` in the configuration files, and also can be specified 
+for per job in the code.
 
+- Configure globally via configuration files
 {% highlight yaml %}
 state.checkpoints.dir: hdfs:///checkpoints/
 {% endhighlight %}
 
-This directory will then contain the checkpoint meta data required to restore
-the checkpoint. For the `MemoryStateBackend`, this meta data file will be
-self-contained and no further files are needed.
-
-`FsStateBackend` and `RocksDBStateBackend` write separate data files
-and only write the paths to these files into the meta data file. These data
-files are stored at the path given to the state back-end during construction.
-
+- Configure for per job via code when constructing the state backend
 {% highlight java %}
 env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/");
 {% endhighlight %}
+
+This directory will then contain the checkpoint meta data required to restore
+the checkpoint. 
+- For the `MemoryStateBackend`, this meta data file will be
+self-contained and no further files are needed.
+
+- For `FsStateBackend` and `RocksDBStateBackend`, they write separate data files
+and only write the paths to these files into the meta data file. 
 
 ### Difference to Savepoints
 
