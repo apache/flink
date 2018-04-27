@@ -3203,7 +3203,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.update(121818273);
 
-			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?,? ,?, ?>) kvState).getStateTable();
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?, ? ,?>) kvState).getStateTable();
 			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 
 		}
@@ -3225,7 +3225,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.add(121818273);
 
-			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?,? ,?, ?>) kvState).getStateTable();
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?, ? , ?>) kvState).getStateTable();
 			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 		}
 
@@ -3252,7 +3252,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.add(121818273);
 
-			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?,? ,?, ?>) kvState).getStateTable();
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?, ? ,?>) kvState).getStateTable();
 			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 		}
 
@@ -3279,7 +3279,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.add(121818273);
 
-			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?,? ,?, ?>) kvState).getStateTable();
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?, ? ,?>) kvState).getStateTable();
 			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 		}
 
