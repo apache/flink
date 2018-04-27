@@ -76,20 +76,6 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 		int totalKeySpaceSize,
 		int payloadLength,
 		long maxOutOfOrder,
-		long eventTimeClockProgressPerEvent) {
-
-		this(totalKeySpaceSize,
-			payloadLength,
-			maxOutOfOrder,
-			eventTimeClockProgressPerEvent,
-			0L,
-			0L);
-	}
-
-	SequenceGeneratorSource(
-		int totalKeySpaceSize,
-		int payloadLength,
-		long maxOutOfOrder,
 		long eventTimeClockProgressPerEvent,
 		long sleepTime,
 		long sleepAfterElements) {
@@ -136,11 +122,13 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 				ctx.collect(event);
 			}
 
-			if (elementsBeforeSleep == 1) {
-				elementsBeforeSleep = sleepAfterElements;
-				Thread.sleep(sleepTime);
-			} else if (elementsBeforeSleep > 1) {
-				--elementsBeforeSleep;
+			if (sleepTime > 0) {
+				if (elementsBeforeSleep == 1) {
+					elementsBeforeSleep = sleepAfterElements;
+					Thread.sleep(sleepTime);
+				} else if (elementsBeforeSleep > 1) {
+					--elementsBeforeSleep;
+				}
 			}
 		}
 	}
