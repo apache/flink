@@ -74,14 +74,14 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	private final Map<String, String> env;
 
 	/** YARN container map. Package private for unit test purposes. */
-	final ConcurrentMap<ResourceID, YarnWorkerNode> workerNodeMap;
+	private final ConcurrentMap<ResourceID, YarnWorkerNode> workerNodeMap;
 
 	/** The heartbeat interval while the resource master is waiting for containers. */
 	private static final int FAST_YARN_HEARTBEAT_INTERVAL_MS = 500;
 
 	/** Environment variable name of the final container id used by the YarnResourceManager.
 	 * Container ID generation may vary across Hadoop versions. */
-	static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
+	private static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
 
 	/** Environment variable name of the hostname given by the YARN.
 	 * In task executor we use the hostnames given by YARN consistently throughout akka */
