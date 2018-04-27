@@ -60,6 +60,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
+import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -95,6 +96,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -386,6 +388,110 @@ public class YarnResourceManagerTest extends TestLogger {
 			// It's now safe to access the SlotManager state since the ResourceManager has been stopped.
 			assertTrue(rmServices.slotManager.getNumberRegisteredSlots() == 0);
 			assertTrue(resourceManager.getNumberOfRegisteredTaskManagers().get() == 0);
+		}};
+	}
+
+	/**
+	 * Tests the case that containers are killed before registering with ResourceManager successfully.
+	 */
+	@Test
+	public void testKillContainerBeforeTMRegisterSuccessfully() throws Exception {
+		new Context() {{
+			startResourceManager();
+
+			// Request slot from SlotManager.
+			CompletableFuture<?> registerSlotRequestFuture = resourceManager.runInMainThread(() -> {
+				rmServices.slotManager.registerSlotRequest(
+					new SlotRequest(new JobID(), new AllocationID(), resourceProfile1, taskHost));
+				return null;
+			});
+
+			// wait for the registerSlotRequest completion
+			registerSlotRequestFuture.get();
+
+			// step1 ------------> test container completed before registering with master <------------
+
+			ApplicationId testingApplicationId = ApplicationId.newInstance(System.currentTimeMillis(), 1);
+			ContainerId containerCompletedBeforeRegisteringWithRMId = ContainerId.newInstance(
+				ApplicationAttemptId.newInstance(
+					testingApplicationId,
+					1),
+				1);
+
+			// Callback from YARN when container is allocated.
+			Container containerCompletedBeforeRegisteringWithRM = mock(Container.class);
+			when(containerCompletedBeforeRegisteringWithRM.getId()).thenReturn(containerCompletedBeforeRegisteringWithRMId);
+
+			when(containerCompletedBeforeRegisteringWithRM.getNodeId()).thenReturn(NodeId.newInstance("containerCompletedBeforeRegisteringWithRM", 1234));
+			when(containerCompletedBeforeRegisteringWithRM.getResource()).thenReturn(Resource.newInstance(200, 1));
+			when(containerCompletedBeforeRegisteringWithRM.getPriority()).thenReturn(Priority.UNDEFINED);
+			resourceManager.onContainersAllocated(ImmutableList.of(containerCompletedBeforeRegisteringWithRM));
+			verify(mockResourceManagerClient, times(1)).addContainerRequest(any(AMRMClient.ContainerRequest.class));
+			verify(mockNMClient, times(1)).startContainer(eq(containerCompletedBeforeRegisteringWithRM), any(ContainerLaunchContext.class));
+
+			ContainerStatus containerCompletedBeforeRegisteringWithRMStatus = mock(ContainerStatus.class);
+			when(containerCompletedBeforeRegisteringWithRMStatus.getExitStatus()).thenReturn(-1);
+			when(containerCompletedBeforeRegisteringWithRMStatus.getDiagnostics()).thenReturn("the mock diagnostics.");
+			when(containerCompletedBeforeRegisteringWithRMStatus.getContainerId()).thenReturn(containerCompletedBeforeRegisteringWithRMId);
+
+			resourceManager.onContainersCompleted(ImmutableList.of(containerCompletedBeforeRegisteringWithRMStatus));
+
+			verify(mockResourceManagerClient, times(2)).addContainerRequest(any(AMRMClient.ContainerRequest.class));
+
+			// step2 -----------> test container completed after registering with master <-----------
+
+			ContainerId containerRegisterSuccessfullyId = ContainerId.newInstance(
+				ApplicationAttemptId.newInstance(
+					testingApplicationId,
+					1),
+				2);
+
+			Container containerRegisterSuccessfully = mock(Container.class);
+			when(containerRegisterSuccessfully.getId()).thenReturn(containerRegisterSuccessfullyId);
+
+			when(containerRegisterSuccessfully.getNodeId()).thenReturn(NodeId.newInstance("container", 1234));
+			when(containerRegisterSuccessfully.getResource()).thenReturn(Resource.newInstance(200, 1));
+			when(containerRegisterSuccessfully.getPriority()).thenReturn(Priority.UNDEFINED);
+
+			resourceManager.onContainersAllocated(ImmutableList.of(containerRegisterSuccessfully));
+			verify(mockNMClient, times(1)).startContainer(eq(containerRegisterSuccessfully), any(ContainerLaunchContext.class));
+
+			// Remote task executor registers with YarnResourceManager.
+			TaskExecutorGateway mockTaskExecutorGateway = mock(TaskExecutorGateway.class);
+			rpcService.registerGateway(taskHost, mockTaskExecutorGateway);
+
+			final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
+
+			final ResourceID taskManagerResourceId = new ResourceID(containerRegisterSuccessfully.getId().toString());
+			final SlotReport slotReport = new SlotReport(
+				new SlotStatus(
+					new SlotID(taskManagerResourceId, 1),
+					new ResourceProfile(10, 1, 1, 1, 0, Collections.emptyMap())));
+
+			CompletableFuture<Integer> numberRegisteredSlotsFuture = rmGateway
+				.registerTaskExecutor(
+					taskHost,
+					taskManagerResourceId,
+					slotReport,
+					dataPort,
+					hardwareDescription,
+					Time.seconds(10L))
+				.handleAsync(
+					(RegistrationResponse response, Throwable throwable) -> rmServices.slotManager.getNumberRegisteredSlots(),
+					resourceManager.getMainThreadExecutorForTesting());
+
+			final int numberRegisteredSlots = numberRegisteredSlotsFuture.get();
+
+			assertEquals(1, numberRegisteredSlots);
+
+			ContainerStatus containerRegisterSuccessfullyStatus = mock(ContainerStatus.class);
+			when(containerRegisterSuccessfullyStatus.getExitStatus()).thenReturn(-1);
+			when(containerRegisterSuccessfullyStatus.getDiagnostics()).thenReturn("the mock diagnostics.");
+			when(containerRegisterSuccessfullyStatus.getContainerId()).thenReturn(containerRegisterSuccessfullyId);
+
+			resourceManager.onContainersCompleted(ImmutableList.of(containerRegisterSuccessfullyStatus));
+
+			verify(mockResourceManagerClient, times(2)).addContainerRequest(any(AMRMClient.ContainerRequest.class));
 		}};
 	}
 }
