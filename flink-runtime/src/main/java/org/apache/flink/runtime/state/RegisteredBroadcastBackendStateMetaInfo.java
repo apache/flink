@@ -52,6 +52,23 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> {
 		this.valueSerializer = Preconditions.checkNotNull(valueSerializer);
 	}
 
+	public RegisteredBroadcastBackendStateMetaInfo(RegisteredBroadcastBackendStateMetaInfo<K, V> copy) {
+
+		Preconditions.checkNotNull(copy);
+
+		this.name = copy.name;
+		this.assignmentMode = copy.assignmentMode;
+		this.keySerializer = copy.keySerializer.duplicate();
+		this.valueSerializer = copy.valueSerializer.duplicate();
+	}
+
+	/**
+	 * Creates a deep copy of the itself.
+	 */
+	public RegisteredBroadcastBackendStateMetaInfo<K, V> deepCopy() {
+		return new RegisteredBroadcastBackendStateMetaInfo<>(this);
+	}
+
 	public String getName() {
 		return name;
 	}

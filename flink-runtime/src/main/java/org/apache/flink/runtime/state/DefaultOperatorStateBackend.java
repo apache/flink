@@ -636,7 +636,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 		private PartitionableListState(PartitionableListState<S> toCopy) {
 
-			this(toCopy.stateMetaInfo, toCopy.internalListCopySerializer.copy(toCopy.internalList));
+			this(toCopy.stateMetaInfo.deepCopy(), toCopy.internalListCopySerializer.copy(toCopy.internalList));
 		}
 
 		public void setStateMetaInfo(RegisteredOperatorBackendStateMetaInfo<S> stateMetaInfo) {
