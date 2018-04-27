@@ -20,7 +20,6 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
@@ -36,7 +35,7 @@ import java.io.IOException;
  * @param <V> The type of the value.
  */
 public class HeapReducingState<K, N, V>
-		extends AbstractHeapMergingState<K, N, V, V, V, ReducingState<V>, ReducingStateDescriptor<V>>
+		extends AbstractHeapMergingState<K, N, V, V, V, ReducingState<V>>
 		implements InternalReducingState<K, N, V> {
 
 	private final ReduceTransformation<V> reduceTransformation;
@@ -44,8 +43,12 @@ public class HeapReducingState<K, N, V>
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
+	 * @param stateTable The state table for which this state is associated to.
+	 * @param keySerializer The serializer for the keys.
 	 * @param valueSerializer The serializer for the state.
-	 * @param stateTable The state table to use in this kev/value state. May contain initial state.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param defaultValue The default value for the state.
+	 * @param reduceFunction The reduce function used for reducing state.
 	 */
 	public HeapReducingState(
 			StateTable<K, N, V> stateTable,

@@ -20,7 +20,6 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -42,7 +41,7 @@ import java.util.Collection;
  * @param <V> The type of value that the state state stores.
  */
 public class RocksDBReducingState<K, N, V>
-		extends AbstractRocksDBState<K, N, V, ReducingState<V>, ReducingStateDescriptor<V>>
+		extends AbstractRocksDBState<K, N, V, ReducingState<V>>
 		implements InternalReducingState<K, N, V> {
 
 	/** User-specified reduce function. */
@@ -51,8 +50,12 @@ public class RocksDBReducingState<K, N, V>
 	/**
 	 * Creates a new {@code RocksDBReducingState}.
 	 *
+	 * @param columnFamily The RocksDB column family that this state is associated to.
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param valueSerializer The serializer for the state.
+	 * @param defaultValue The default value for the state.
+	 * @param reduceFunction The reduce function used for reducing state.
+	 * @param backend The backend for which this state is bind to.
 	 */
 	public RocksDBReducingState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,

@@ -20,7 +20,6 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.AggregatingState;
-import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -43,7 +42,7 @@ import java.util.Collection;
  * @param <R> The type of the value returned from the state
  */
 public class RocksDBAggregatingState<K, N, T, ACC, R>
-		extends AbstractRocksDBState<K, N, ACC, AggregatingState<T, R>, AggregatingStateDescriptor<T, ACC, R>>
+		extends AbstractRocksDBState<K, N, ACC, AggregatingState<T, R>>
 		implements InternalAggregatingState<K, N, T, ACC, R> {
 
 	/** User-specified aggregation function. */
@@ -52,10 +51,12 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 	/**
 	 * Creates a new {@code RocksDBAggregatingState}.
 	 *
-	 * @param namespaceSerializer
-	 *             The serializer for the namespace.
-	 * @param valueSerializer
-	 *             The serializer for the state.
+	 * @param columnFamily The RocksDB column family that this state is associated to.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param valueSerializer The serializer for the state.
+	 * @param defaultValue The default value for the state.
+	 * @param aggFunction The aggregate function used for aggregating state.
+	 * @param backend The backend for which this state is bind to.
 	 */
 	public RocksDBAggregatingState(
 			ColumnFamilyHandle columnFamily,

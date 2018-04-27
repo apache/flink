@@ -19,7 +19,6 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -47,7 +46,7 @@ import java.util.List;
  * @param <V> The type of the values in the list state.
  */
 public class RocksDBListState<K, N, V>
-		extends AbstractRocksDBState<K, N, List<V>, ListState<V>, ListStateDescriptor<V>>
+		extends AbstractRocksDBState<K, N, List<V>, ListState<V>>
 		implements InternalListState<K, N, V> {
 
 	/** Serializer for the values. */
@@ -61,10 +60,15 @@ public class RocksDBListState<K, N, V>
 	/**
 	 * Creates a new {@code RocksDBListState}.
 	 *
+	 * @param columnFamily The RocksDB column family that this state is associated to.
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param valueSerializer The serializer for the state.
+	 * @param defaultValue The default value for the state.
+	 * @param elementSerializer The serializer for elements of the list state.
+	 * @param backend The backend for which this state is bind to.
 	 */
-	public RocksDBListState(ColumnFamilyHandle columnFamily,
+	public RocksDBListState(
+			ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			TypeSerializer<List<V>> valueSerializer,
 			List<V> defaultValue,

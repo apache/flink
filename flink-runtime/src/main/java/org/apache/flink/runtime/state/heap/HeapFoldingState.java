@@ -20,7 +20,6 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
@@ -40,7 +39,7 @@ import java.io.IOException;
  */
 @Deprecated
 public class HeapFoldingState<K, N, T, ACC>
-		extends AbstractHeapState<K, N, ACC, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>>
+		extends AbstractHeapState<K, N, ACC, FoldingState<T, ACC>>
 		implements InternalFoldingState<K, N, T, ACC> {
 
 	/** The function used to fold the state */
@@ -49,8 +48,12 @@ public class HeapFoldingState<K, N, T, ACC>
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
+	 * @param stateTable The state table for which this state is associated to.
+	 * @param keySerializer The serializer for the keys.
 	 * @param valueSerializer The serializer for the state.
-	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param defaultValue The default value for the state.
+	 * @param foldFunction The fold function used for folding state.
 	 */
 	public HeapFoldingState(
 			StateTable<K, N, ACC> stateTable,

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 
@@ -31,14 +30,17 @@ import org.apache.flink.runtime.state.internal.InternalValueState;
  * @param <V> The type of the value.
  */
 public class HeapValueState<K, N, V>
-		extends AbstractHeapState<K, N, V, ValueState<V>, ValueStateDescriptor<V>>
+		extends AbstractHeapState<K, N, V, ValueState<V>>
 		implements InternalValueState<K, N, V> {
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
+	 * @param stateTable The state table for which this state is associated to.
+	 * @param keySerializer The serializer for the keys.
 	 * @param valueSerializer The serializer for the state.
-	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param defaultValue The default value for the state.
 	 */
 	public HeapValueState(
 			StateTable<K, N, V> stateTable,

@@ -18,7 +18,6 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -45,9 +44,8 @@ import java.io.IOException;
  * @param <N> The type of the namespace.
  * @param <V> The type of values kept internally in state.
  * @param <S> The type of {@link State}.
- * @param <SD> The type of {@link StateDescriptor}.
  */
-public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends StateDescriptor<S, V>> implements InternalKvState<K, N, V>, State {
+public abstract class AbstractRocksDBState<K, N, V, S extends State> implements InternalKvState<K, N, V>, State {
 
 	/** Serializer for the namespace. */
 	final TypeSerializer<N> namespaceSerializer;
@@ -76,7 +74,12 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends 
 
 	/**
 	 * Creates a new RocksDB backed state.
-	 *  @param namespaceSerializer The serializer for the namespace.
+	 *
+	 * @param columnFamily The RocksDB column family that this state is associated to.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param valueSerializer The serializer for the state.
+	 * @param defaultValue The default value for the state.
+	 * @param backend The backend for which this state is bind to.
 	 */
 	protected AbstractRocksDBState(
 			ColumnFamilyHandle columnFamily,

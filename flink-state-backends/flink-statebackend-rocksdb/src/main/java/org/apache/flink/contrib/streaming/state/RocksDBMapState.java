@@ -19,7 +19,6 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -59,7 +58,7 @@ import java.util.Map;
  * @param <UV> The type of the values in the map state.
  */
 public class RocksDBMapState<K, N, UK, UV>
-		extends AbstractRocksDBState<K, N, Map<UK, UV>, MapState<UK, UV>, MapStateDescriptor<UK, UV>>
+		extends AbstractRocksDBState<K, N, Map<UK, UV>, MapState<UK, UV>>
 		implements InternalMapState<K, N, UK, UV> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBMapState.class);
@@ -74,8 +73,11 @@ public class RocksDBMapState<K, N, UK, UV>
 	/**
 	 * Creates a new {@code RocksDBMapState}.
 	 *
+	 * @param columnFamily The RocksDB column family that this state is associated to.
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param valueSerializer The serializer for the state.
+	 * @param defaultValue The default value for the state.
+	 * @param backend The backend for which this state is bind to.
 	 */
 	public RocksDBMapState(
 			ColumnFamilyHandle columnFamily,
