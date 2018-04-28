@@ -641,7 +641,8 @@ class AggregationCodeGenerator(
                |      java.util.Map.Entry entry = (java.util.Map.Entry) mergeIt$i.next();
                |      Object k = entry.getKey();
                |      Long v = (Long) entry.getValue();
-               |      if (aDistinctAcc$i.add(k, v)) {
+               |      if (aDistinctAcc$i.add(
+               |          ${classOf[Row].getCanonicalName}.of(k), v)) {
                |        ${aggs(i)}.accumulate(aAcc$i, k);
                |      }
                |    }

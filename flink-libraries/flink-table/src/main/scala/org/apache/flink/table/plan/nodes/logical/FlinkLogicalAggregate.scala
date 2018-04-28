@@ -82,7 +82,7 @@ private class FlinkLogicalAggregateConverter
       case _ => true
     }
 
-    !agg.containsDistinctCall() && supported
+    supported
   }
 
   override def convert(rel: RelNode): RelNode = {

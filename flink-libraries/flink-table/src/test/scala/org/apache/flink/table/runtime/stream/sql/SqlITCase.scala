@@ -53,6 +53,76 @@ class SqlITCase extends StreamingWithStateTestBase {
     (20000L, "20", "Hello World"))
 
   @Test
+  def testDistinctAggWithMergeOnEventTimeSessionGroupWindow(): Unit = {
+    // create a watermark with 10ms offset to delay the window emission by 10ms to verify merge
+    val sessionWindowTestdata = List(
+      (1L, 1, "Hello"),
+      (2L, 2, "Hello"),
+      (8L, 8, "Hello"),
+      (9L, 9, "Hello World"),
+      (4L, 4, "Hello"),
+      (16L, 16, "Hello"))
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    env.setParallelism(1)
+    StreamITCase.clear
+    val stream = env
+      .fromCollection(sessionWindowTestdata)
+      .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](10L))
+
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
+    tEnv.registerTable("MyTable", table)
+
+    val sqlQuery = "SELECT string, " +
+      "  COUNT(DISTINCT long) " +
+      "FROM MyTable " +
+      "GROUP BY SESSION(rowtime, INTERVAL '0.005' SECOND), string "
+
+    val results = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq("Hello World,1", "Hello,1", "Hello,4")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testDistinctAggOnRowTimeTumbleWindow(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.clear
+
+    val t = StreamTestData.get5TupleDataStream(env).assignAscendingTimestamps(x => x._2)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery = "SELECT a, " +
+      "  SUM(DISTINCT e), " +
+      "  MIN(DISTINCT e), " +
+      "  COUNT(DISTINCT e)" +
+      "FROM MyTable " +
+      "GROUP BY a, " +
+      "  TUMBLE(rowtime, INTERVAL '5' SECOND) "
+
+    val results = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      "1,1,1,1",
+      "2,3,1,2",
+      "3,5,2,2",
+      "4,3,1,2",
+      "5,6,1,3")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
   def testRowTimeTumbleWindow(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
