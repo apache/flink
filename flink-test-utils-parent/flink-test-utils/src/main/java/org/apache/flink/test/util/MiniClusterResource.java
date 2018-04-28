@@ -39,7 +39,9 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
+import org.junit.Rule;
 import org.junit.rules.ExternalResource;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +60,9 @@ public class MiniClusterResource extends ExternalResource {
 	public static final String CODEBASE_KEY = "codebase";
 
 	public static final String NEW_CODEBASE = "new";
+
+	@Rule
+	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private final MiniClusterResourceConfiguration miniClusterResourceConfiguration;
 
@@ -139,6 +144,8 @@ public class MiniClusterResource extends ExternalResource {
 	public void before() throws Exception {
 
 		startJobExecutorService(miniClusterType);
+
+		miniClusterResourceConfiguration.getConfiguration().setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
 		numberSlots = miniClusterResourceConfiguration.getNumberSlotsPerTaskManager() * miniClusterResourceConfiguration.getNumberTaskManagers();
 
