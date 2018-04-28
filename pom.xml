@@ -120,7 +120,7 @@ under the License.
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.7.9</jackson.version>
 		<metrics.version>3.1.5</metrics.version>
-		<prometheus.version>0.0.26</prometheus.version>
+		<prometheus.version>0.3.0</prometheus.version>
 		<avro.version>1.8.2</avro.version>
 		<junit.version>4.12</junit.version>
 		<mockito.version>1.10.19</mockito.version>
