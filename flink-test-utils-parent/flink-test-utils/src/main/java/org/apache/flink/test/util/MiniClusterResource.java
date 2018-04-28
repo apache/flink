@@ -40,6 +40,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.rules.ExternalResource;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +59,8 @@ public class MiniClusterResource extends ExternalResource {
 	public static final String CODEBASE_KEY = "codebase";
 
 	public static final String NEW_CODEBASE = "new";
+
+	private final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private final MiniClusterResourceConfiguration miniClusterResourceConfiguration;
 
@@ -137,6 +140,7 @@ public class MiniClusterResource extends ExternalResource {
 
 	@Override
 	public void before() throws Exception {
+		temporaryFolder.create();
 
 		startJobExecutorService(miniClusterType);
 
@@ -149,6 +153,7 @@ public class MiniClusterResource extends ExternalResource {
 
 	@Override
 	public void after() {
+		temporaryFolder.delete();
 
 		TestStreamEnvironment.unsetAsContext();
 		TestEnvironment.unsetAsContext();
@@ -199,6 +204,7 @@ public class MiniClusterResource extends ExternalResource {
 		final Configuration configuration = new Configuration(miniClusterResourceConfiguration.getConfiguration());
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, miniClusterResourceConfiguration.getNumberTaskManagers());
 		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, miniClusterResourceConfiguration.getNumberSlotsPerTaskManager());
+		configuration.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
 		final LocalFlinkMiniCluster flinkMiniCluster = TestBaseUtils.startCluster(
 			configuration,
@@ -219,6 +225,7 @@ public class MiniClusterResource extends ExternalResource {
 
 	private void startMiniCluster() throws Exception {
 		final Configuration configuration = miniClusterResourceConfiguration.getConfiguration();
+		configuration.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
 		// we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
 		// enabled this by default
