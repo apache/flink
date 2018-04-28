@@ -67,6 +67,7 @@ import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.TriggerId;
+import org.apache.flink.runtime.rest.messages.cluster.ShutdownHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
@@ -568,6 +569,21 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 					throw new CompletionException(asynchronousOperationInfo.getFailureCause());
 				}
 			});
+	}
+
+	@Override
+	public void shutDownCluster() {
+		try {
+			sendRetryableRequest(
+				ShutdownHeaders.getInstance(),
+				EmptyMessageParameters.getInstance(),
+				EmptyRequestBody.getInstance(),
+				isConnectionProblemException()).get();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		} catch (ExecutionException e) {
+			log.error("Error while shutting down cluster", e);
+		}
 	}
 
 	/**

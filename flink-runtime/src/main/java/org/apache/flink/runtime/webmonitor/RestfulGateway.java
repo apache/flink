@@ -200,4 +200,8 @@ public interface RestfulGateway extends RpcGateway {
 			@RpcTimeout Time timeout) {
 		throw new UnsupportedOperationException();
 	}
+
+	default CompletableFuture<Acknowledge> shutDownCluster() {
+		throw new UnsupportedOperationException();
+	}
 }

@@ -267,8 +267,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	protected void internalDeregisterApplication(
-		ApplicationStatus finalStatus,
-		@Nullable String diagnostics) {
+			ApplicationStatus finalStatus,
+			@Nullable String diagnostics) {
 
 		// first, de-register from YARN
 		FinalApplicationStatus yarnStatus = getYarnStatus(finalStatus);
@@ -279,6 +279,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		} catch (Throwable t) {
 			log.error("Could not unregister the application master.", t);
 		}
+
+		Utils.deleteApplicationFiles(env);
 	}
 
 	@Override
@@ -286,7 +288,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		// Priority for worker containers - priorities are intra-application
 		//TODO: set priority according to the resource allocated
 		Priority priority = Priority.newInstance(generatePriority(resourceProfile));
-		int mem = resourceProfile.getMemoryInMB() < 0 ? defaultTaskManagerMemoryMB : (int) resourceProfile.getMemoryInMB();
+		int mem = resourceProfile.getMemoryInMB() < 0 ? defaultTaskManagerMemoryMB : resourceProfile.getMemoryInMB();
 		int vcore = resourceProfile.getCpuCores() < 1 ? defaultCpus : (int) resourceProfile.getCpuCores();
 		Resource capability = Resource.newInstance(mem, vcore);
 		requestYarnContainer(capability, priority);
@@ -435,7 +437,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		String[] hostPort = address.split("@")[1].split(":");
 		String host = hostPort[0];
 		String port = hostPort[1].split("/")[0];
-		return new Tuple2(host, Integer.valueOf(port));
+		return new Tuple2<>(host, Integer.valueOf(port));
 	}
 
 	private void requestYarnContainer(Resource resource, Priority priority) {

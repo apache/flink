@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -156,7 +157,7 @@ public final class Utils {
 
 		Path dst = new Path(homedir, suffix);
 
-		LOG.debug("Copying from " + localSrcPath + " to " + dst);
+		LOG.debug("Copying from {} to {}", localSrcPath, dst);
 
 		fs.copyFromLocalFile(false, true, localSrcPath, dst);
 
@@ -170,6 +171,29 @@ public final class Utils {
 		LocalResource resource = registerLocalResource(dst, localFile.length(), localFile.lastModified());
 
 		return Tuple2.of(dst, resource);
+	}
+
+	/**
+	 * Deletes the YARN application files, e.g., Flink binaries, libraries, etc., from the remote
+	 * filesystem.
+	 *
+	 * @param env The environment variables.
+	 */
+	public static void deleteApplicationFiles(final Map<String, String> env) {
+		final String applicationFilesDir = env.get(YarnConfigKeys.FLINK_YARN_FILES);
+		if (!StringUtils.isNullOrWhitespaceOnly(applicationFilesDir)) {
+			final org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(applicationFilesDir);
+			try {
+				final org.apache.flink.core.fs.FileSystem fileSystem = path.getFileSystem();
+				if (!fileSystem.delete(path, true)) {
+					LOG.error("Deleting yarn application files under {} was unsuccessful.", applicationFilesDir);
+				}
+			} catch (final IOException e) {
+				LOG.error("Could not properly delete yarn application files directory {}.", applicationFilesDir, e);
+			}
+		} else {
+			LOG.debug("No yarn application files directory set. Therefore, cannot clean up the data.");
+		}
 	}
 
 	/**

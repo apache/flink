@@ -109,8 +109,6 @@ class YarnJobManager(
 
   private def handleYarnShutdown: Receive = {
     case msg: StopCluster =>
-      super.handleMessage(msg)
-
       // do global cleanup if the yarn files path has been set
       yarnFilesPath match {
         case Some(filePath) =>
@@ -135,5 +133,7 @@ class YarnJobManager(
           log.debug("No yarn application files directory set. Therefore, cannot clean up " +
             "the data.")
       }
+
+      super.handleMessage(msg)
   }
 }
