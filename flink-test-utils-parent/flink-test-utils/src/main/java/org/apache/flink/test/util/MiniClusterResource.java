@@ -145,8 +145,6 @@ public class MiniClusterResource extends ExternalResource {
 
 		startJobExecutorService(miniClusterType);
 
-		miniClusterResourceConfiguration.getConfiguration().setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
-
 		numberSlots = miniClusterResourceConfiguration.getNumberSlotsPerTaskManager() * miniClusterResourceConfiguration.getNumberTaskManagers();
 
 		executionEnvironment = new TestEnvironment(jobExecutorService, numberSlots, false);
@@ -206,6 +204,7 @@ public class MiniClusterResource extends ExternalResource {
 		final Configuration configuration = new Configuration(miniClusterResourceConfiguration.getConfiguration());
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, miniClusterResourceConfiguration.getNumberTaskManagers());
 		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, miniClusterResourceConfiguration.getNumberSlotsPerTaskManager());
+		configuration.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
 		final LocalFlinkMiniCluster flinkMiniCluster = TestBaseUtils.startCluster(
 			configuration,
@@ -226,6 +225,7 @@ public class MiniClusterResource extends ExternalResource {
 
 	private void startMiniCluster() throws Exception {
 		final Configuration configuration = miniClusterResourceConfiguration.getConfiguration();
+		configuration.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
 		// we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
 		// enabled this by default
