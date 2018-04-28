@@ -32,6 +32,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
+import org.apache.flink.streaming.util.serialization.KeyedWithTimestampDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -105,6 +106,23 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	/**
 	 * Creates a new Kafka streaming source consumer for Kafka 0.10.x
 	 *
+	 * <p>This constructor allows passing a {@see KeyedWithTimestampDeserializationSchema} for reading key/value
+	 * pairs, offsets, timestamp, timestampType and topic names from Kafka.
+	 *
+	 * @param topic
+	 *           The name of the topic that should be consumed.
+	 * @param deserializer
+	 *           The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
+	 * @param props
+	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
+	 */
+	public FlinkKafkaConsumer010(String topic, KeyedWithTimestampDeserializationSchema<T> deserializer, Properties props) {
+		this(Collections.singletonList(topic), deserializer, props);
+	}
+
+	/**
+	 * Creates a new Kafka streaming source consumer for Kafka 0.10.x
+	 *
 	 * <p>This constructor allows passing multiple topics to the consumer.
 	 *
 	 * @param topics
@@ -131,6 +149,22 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer010(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
+		super(topics, deserializer, props);
+	}
+
+	/**
+	 * Creates a new Kafka streaming source consumer for Kafka 0.10.x
+	 *
+	 * <p>This constructor allows passing multiple topics and a key/value/timestamp deserialization schema.
+	 *
+	 * @param topics
+	 *           The Kafka topics to read from.
+	 * @param deserializer
+	 *           The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
+	 * @param props
+	 *           The properties that are used to configure both the fetcher and the offset handler.
+	 */
+	public FlinkKafkaConsumer010(List<String> topics, KeyedWithTimestampDeserializationSchema<T> deserializer, Properties props) {
 		super(topics, deserializer, props);
 	}
 
@@ -174,6 +208,30 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	 */
 	@PublicEvolving
 	public FlinkKafkaConsumer010(Pattern subscriptionPattern, KeyedDeserializationSchema<T> deserializer, Properties props) {
+		super(subscriptionPattern, deserializer, props);
+	}
+
+
+	/**
+	 * Creates a new Kafka streaming source consumer for Kafka 0.10.x. Use this constructor to
+	 * subscribe to multiple topics based on a regular expression pattern.
+	 *
+	 * <p>If partition discovery is enabled (by setting a non-negative value for
+	 * {@link FlinkKafkaConsumer010#KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS} in the properties), topics
+	 * with names matching the pattern will also be subscribed to as they are created on the fly.
+	 *
+	 * <p>This constructor allows passing a {@see KeyedDeserializationSchema} for reading key/value
+	 * pairs, offsets, timestamps, timestampTypes and topic names from Kafka.
+	 *
+	 * @param subscriptionPattern
+	 *           The regular expression for a pattern of topic names to subscribe to.
+	 * @param deserializer
+	 *           The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
+	 * @param props
+	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
+	 */
+	@PublicEvolving
+	public FlinkKafkaConsumer010(Pattern subscriptionPattern, KeyedWithTimestampDeserializationSchema<T> deserializer, Properties props) {
 		super(subscriptionPattern, deserializer, props);
 	}
 

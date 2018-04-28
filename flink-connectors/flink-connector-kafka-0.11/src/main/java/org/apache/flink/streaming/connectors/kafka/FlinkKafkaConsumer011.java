@@ -21,6 +21,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
+import org.apache.flink.streaming.util.serialization.KeyedWithTimestampDeserializationSchema;
 
 import java.util.Collections;
 import java.util.List;
@@ -85,6 +86,23 @@ public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 	/**
 	 * Creates a new Kafka streaming source consumer for Kafka 0.11.x
 	 *
+	 * <p>This constructor allows passing a {@see KeyedWithTimestampDeserializationSchema} for reading key/value
+	 * pairs, offsets, timestamp, timestampType and topic names from Kafka.
+	 *
+	 * @param topic
+	 *           The name of the topic that should be consumed.
+	 * @param deserializer
+	 *           The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
+	 * @param props
+	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
+	 */
+	public FlinkKafkaConsumer011(String topic, KeyedWithTimestampDeserializationSchema<T> deserializer, Properties props) {
+		this(Collections.singletonList(topic), deserializer, props);
+	}
+
+	/**
+	 * Creates a new Kafka streaming source consumer for Kafka 0.11.x
+	 *
 	 * <p>This constructor allows passing multiple topics to the consumer.
 	 *
 	 * @param topics
@@ -111,6 +129,22 @@ public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer011(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
+		super(topics, deserializer, props);
+	}
+
+	/**
+	 * Creates a new Kafka streaming source consumer for Kafka 0.11.x
+	 *
+	 * <p>This constructor allows passing multiple topics and a key/value/timestamp deserialization schema.
+	 *
+	 * @param topics
+	 *           The Kafka topics to read from.
+	 * @param deserializer
+	 *           The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
+	 * @param props
+	 *           The properties that are used to configure both the fetcher and the offset handler.
+	 */
+	public FlinkKafkaConsumer011(List<String> topics, KeyedWithTimestampDeserializationSchema<T> deserializer, Properties props) {
 		super(topics, deserializer, props);
 	}
 
@@ -154,6 +188,29 @@ public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 	 */
 	@PublicEvolving
 	public FlinkKafkaConsumer011(Pattern subscriptionPattern, KeyedDeserializationSchema<T> deserializer, Properties props) {
+		super(subscriptionPattern, deserializer, props);
+	}
+
+	/**
+	 * Creates a new Kafka streaming source consumer for Kafka 0.11.x. Use this constructor to
+	 * subscribe to multiple topics based on a regular expression pattern.
+	 *
+	 * <p>If partition discovery is enabled (by setting a non-negative value for
+	 * {@link FlinkKafkaConsumer011#KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS} in the properties), topics
+	 * with names matching the pattern will also be subscribed to as they are created on the fly.
+	 *
+	 * <p>This constructor allows passing a {@see KeyedWithTimestampDeserializationSchema} for reading key/value
+	 * pairs, offsets, timestamp, timestampType and topic names from Kafka.
+	 *
+	 * @param subscriptionPattern
+	 *           The regular expression for a pattern of topic names to subscribe to.
+	 * @param deserializer
+	 *           The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
+	 * @param props
+	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
+	 */
+	@PublicEvolving
+	public FlinkKafkaConsumer011(Pattern subscriptionPattern, KeyedWithTimestampDeserializationSchema<T> deserializer, Properties props) {
 		super(subscriptionPattern, deserializer, props);
 	}
 }

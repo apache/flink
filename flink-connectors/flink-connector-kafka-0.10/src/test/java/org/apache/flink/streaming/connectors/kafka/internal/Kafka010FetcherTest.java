@@ -28,8 +28,9 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
+import org.apache.flink.streaming.util.serialization.KeyedWithTimestampDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedWithTimestampDeserializationSchemaWrapper;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -115,7 +116,8 @@ public class Kafka010FetcherTest {
 		SourceContext<String> sourceContext = mock(SourceContext.class);
 		Map<KafkaTopicPartition, Long> partitionsWithInitialOffsets =
 			Collections.singletonMap(new KafkaTopicPartition("test", 42), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
-		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
+		KeyedWithTimestampDeserializationSchema<String> schema =
+			new KeyedWithTimestampDeserializationSchemaWrapper<>(new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema()));
 
 		final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
 				sourceContext,
@@ -252,7 +254,8 @@ public class Kafka010FetcherTest {
 		SourceContext<String> sourceContext = mock(SourceContext.class);
 		Map<KafkaTopicPartition, Long> partitionsWithInitialOffsets =
 			Collections.singletonMap(new KafkaTopicPartition("test", 42), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
-		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
+		KeyedWithTimestampDeserializationSchema<String> schema =
+			new KeyedWithTimestampDeserializationSchemaWrapper<>(new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema()));
 
 		final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
 				sourceContext,
@@ -367,7 +370,8 @@ public class Kafka010FetcherTest {
 		BlockingSourceContext<String> sourceContext = new BlockingSourceContext<>();
 		Map<KafkaTopicPartition, Long> partitionsWithInitialOffsets =
 			Collections.singletonMap(new KafkaTopicPartition(topic, partition), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
-		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
+		KeyedWithTimestampDeserializationSchema<String> schema =
+			new KeyedWithTimestampDeserializationSchemaWrapper<>(new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema()));
 
 		final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
 				sourceContext,

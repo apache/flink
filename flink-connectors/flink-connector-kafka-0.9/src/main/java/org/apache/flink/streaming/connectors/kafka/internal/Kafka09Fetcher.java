@@ -28,7 +28,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedWithTimestampDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -60,7 +60,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	// ------------------------------------------------------------------------
 
 	/** The schema to convert between Kafka's byte messages, and Flink's objects. */
-	private final KeyedDeserializationSchema<T> deserializer;
+	private final KeyedWithTimestampDeserializationSchema<T> deserializer;
 
 	/** The handover of data and exceptions between the consumer thread and the task thread. */
 	private final Handover handover;
@@ -82,7 +82,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
 			String taskNameWithSubtasks,
-			KeyedDeserializationSchema<T> deserializer,
+			KeyedWithTimestampDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
 			MetricGroup subtaskMetricGroup,
@@ -139,9 +139,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 							records.records(partition.getKafkaPartitionHandle());
 
 					for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
-						final T value = deserializer.deserialize(
-								record.key(), record.value(),
-								record.topic(), record.partition(), record.offset());
+						final T value = deserializeRecord(record);
 
 						if (deserializer.isEndOfStream(value)) {
 							// end of stream signaled
@@ -170,6 +168,13 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 			// we ignore this here and only restore the interruption state
 			Thread.currentThread().interrupt();
 		}
+	}
+
+	protected T deserializeRecord(ConsumerRecord<byte[], byte[]> record) throws java.io.IOException {
+		return deserializer.deserialize(
+				record.key(), record.value(),
+				record.topic(), record.partition(), record.offset(),
+				Long.MIN_VALUE, KeyedWithTimestampDeserializationSchema.TimestampType.NO_TIMESTAMP_TYPE);
 	}
 
 	@Override
@@ -204,6 +209,10 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 	protected KafkaConsumerCallBridge createCallBridge() {
 		return new KafkaConsumerCallBridge();
+	}
+
+	protected KeyedWithTimestampDeserializationSchema<T> getDeserializer() {
+		return deserializer;
 	}
 
 	// ------------------------------------------------------------------------

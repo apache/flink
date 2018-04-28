@@ -155,6 +155,9 @@ to implement the `getProducedType(...)` method themselves.
 For accessing both the key and value of the Kafka message, the `KeyedDeserializationSchema` has
 the following deserialize method ` T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset)`.
 
+For accessing the key, value and timestamp of the Kafka message, the `KeyedWithTimestampDeserializationSchema` has
+the following deserialize method ` T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset, long timestamp, TimestampType timestampType)`.
+
 For convenience, Flink provides the following schemas:
 
 1. `TypeInformationSerializationSchema` (and `TypeInformationKeyValueSerializationSchema`) which creates

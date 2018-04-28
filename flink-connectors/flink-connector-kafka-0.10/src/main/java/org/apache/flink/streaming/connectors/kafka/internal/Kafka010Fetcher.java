@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedWithTimestampDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -55,7 +55,7 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
 			String taskNameWithSubtasks,
-			KeyedDeserializationSchema<T> deserializer,
+			KeyedWithTimestampDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
 			MetricGroup subtaskMetricGroup,
@@ -76,6 +76,27 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 				subtaskMetricGroup,
 				consumerMetricGroup,
 				useMetrics);
+	}
+
+	@Override
+	protected T deserializeRecord(ConsumerRecord<byte[], byte[]> record) throws java.io.IOException {
+		// we have to convert the kafka timestampType to our local timestampType
+		KeyedWithTimestampDeserializationSchema.TimestampType localTimestampType;
+		switch(record.timestampType()) {
+			case CREATE_TIME:
+				localTimestampType = KeyedWithTimestampDeserializationSchema.TimestampType.CREATE_TIME;
+				break;
+			case LOG_APPEND_TIME:
+				localTimestampType = KeyedWithTimestampDeserializationSchema.TimestampType.LOG_APPEND_TIME;
+				break;
+			default:
+				localTimestampType = KeyedWithTimestampDeserializationSchema.TimestampType.NO_TIMESTAMP_TYPE;
+				break;
+		}
+		return getDeserializer().deserialize(
+			record.key(), record.value(),
+			record.topic(), record.partition(), record.offset(),
+			record.timestamp(), localTimestampType);
 	}
 
 	@Override
