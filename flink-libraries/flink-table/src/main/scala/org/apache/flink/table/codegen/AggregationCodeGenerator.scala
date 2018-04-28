@@ -639,7 +639,8 @@ class AggregationCodeGenerator(
                |
                |    while (mergeIt$i.hasNext()) {
                |      java.util.Map.Entry entry = (java.util.Map.Entry) mergeIt$i.next();
-               |      Object k = entry.getKey();
+               |      ${classOf[Row].getCanonicalName} k =
+               |          (${classOf[Row].getCanonicalName}) entry.getKey();
                |      Long v = (Long) entry.getValue();
                |      if (aDistinctAcc$i.add(k, v)) {
                |        ${aggs(i)}.accumulate(aAcc$i, k);
