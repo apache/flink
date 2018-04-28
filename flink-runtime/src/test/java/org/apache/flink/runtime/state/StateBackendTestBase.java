@@ -94,9 +94,14 @@ import java.util.PrimitiveIterator;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
@@ -3592,6 +3597,58 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		public String fold(String acc, Integer value) throws Exception {
 			return acc + "," + value;
 		}
+	}
+
+	@Test
+	public void testCheckConcurrencyProblemWhenPerformingCheckpointAsync() throws Exception {
+
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		Environment env = new DummyEnvironment();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
+
+		ExecutorService executorService = Executors.newScheduledThreadPool(1);
+		try {
+			long checkpointID = 0;
+			List<Future> futureList = new ArrayList();
+			for (int i = 0; i < 10; ++i) {
+				ValueStateDescriptor<Integer> kvId = new ValueStateDescriptor<>("id" + i, IntSerializer.INSTANCE);
+				ValueState<Integer> state = backend.getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, kvId);
+				((InternalValueState) state).setCurrentNamespace(VoidNamespace.INSTANCE);
+				backend.setCurrentKey(i);
+				state.update(i);
+
+				futureList.add(runSnapshotAsync(executorService,
+					backend.snapshot(checkpointID++, System.currentTimeMillis(), streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation())));
+			}
+
+			for (Future future : futureList) {
+				future.get(10, TimeUnit.SECONDS);
+			}
+		} catch (Exception e) {
+			fail();
+		} finally {
+			backend.dispose();
+			executorService.shutdown();
+		}
+	}
+
+	protected Future<SnapshotResult<KeyedStateHandle>> runSnapshotAsync(
+		ExecutorService executorService,
+		RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunnableFuture) throws Exception {
+
+		if (!snapshotRunnableFuture.isDone()) {
+			CompletableFuture<SnapshotResult<KeyedStateHandle>> completableFuture = new CompletableFuture<>();
+			executorService.submit(() -> {
+				try {
+					snapshotRunnableFuture.run();
+					completableFuture.complete(snapshotRunnableFuture.get());
+				} catch (Exception e) {
+					completableFuture.completeExceptionally(e);
+				}
+			});
+			return completableFuture;
+		}
+		return CompletableFuture.completedFuture(snapshotRunnableFuture.get());
 	}
 
 	/**

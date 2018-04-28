@@ -622,20 +622,23 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			final Map<String, Integer> kVStateToId = new HashMap<>(stateTables.size());
 
-			final Map<StateTable<K, ?, ?>, StateTableSnapshot> cowStateStableSnapshots =
+			final Map<String, StateTableSnapshot> cowStateStableSnapshots =
 				new HashedMap(stateTables.size());
 
 			for (Map.Entry<String, StateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
-				kVStateToId.put(kvState.getKey(), kVStateToId.size());
+				String stateName = kvState.getKey();
+				kVStateToId.put(stateName, kVStateToId.size());
 				StateTable<K, ?, ?> stateTable = kvState.getValue();
 				if (null != stateTable) {
 					metaInfoSnapshots.add(stateTable.getMetaInfo().snapshot());
-					cowStateStableSnapshots.put(stateTable, stateTable.createSnapshot());
+					cowStateStableSnapshots.put(stateName, stateTable.createSnapshot());
 				}
 			}
 
 			final KeyedBackendSerializationProxy<K> serializationProxy =
 				new KeyedBackendSerializationProxy<>(
+					// we don't duplicate the serializer here, because it just be written here.
+					// NOTE: There's a loophole when the serializer is stateful, but that rarely occur in reality use case.
 					keySerializer,
 					metaInfoSnapshots,
 					!Objects.equals(UncompressedStreamCompressionDecorator.INSTANCE, keyGroupCompressionDecorator));
@@ -710,11 +713,12 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							keyGroupRangeOffsets[keyGroupPos] = localStream.getPos();
 							outView.writeInt(keyGroupId);
 
-							for (Map.Entry<String, StateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
+							for (Map.Entry<String, StateTableSnapshot> kvState : cowStateStableSnapshots.entrySet()) {
 								try (OutputStream kgCompressionOut = keyGroupCompressionDecorator.decorateWithCompression(localStream)) {
+									String stateName = kvState.getKey();
 									DataOutputViewStreamWrapper kgCompressionView = new DataOutputViewStreamWrapper(kgCompressionOut);
-									kgCompressionView.writeShort(kVStateToId.get(kvState.getKey()));
-									cowStateStableSnapshots.get(kvState.getValue()).writeMappingsInKeyGroup(kgCompressionView, keyGroupId);
+									kgCompressionView.writeShort(kVStateToId.get(stateName));
+									kvState.getValue().writeMappingsInKeyGroup(kgCompressionView, keyGroupId);
 								} // this will just close the outer compression stream
 							}
 						}

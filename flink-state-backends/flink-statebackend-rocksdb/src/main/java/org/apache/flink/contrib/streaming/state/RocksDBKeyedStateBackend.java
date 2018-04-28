@@ -1987,6 +1987,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			KeyedBackendSerializationProxy<K> serializationProxy =
 				new KeyedBackendSerializationProxy<>(
+					// we use the statBackend's keySerializer directly here, because it just be written here.
+					// NOTE: There's a loophole when the serializer is stateful, but that rarely occur in reality use case.
 					stateBackend.getKeySerializer(),
 					stateMetaInfoSnapshots,
 					!Objects.equals(
