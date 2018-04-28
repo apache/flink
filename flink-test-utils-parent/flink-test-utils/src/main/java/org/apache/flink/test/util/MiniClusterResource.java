@@ -142,6 +142,7 @@ public class MiniClusterResource extends ExternalResource {
 
 	@Override
 	public void before() throws Exception {
+		temporaryFolder.create();
 
 		startJobExecutorService(miniClusterType);
 
@@ -154,6 +155,7 @@ public class MiniClusterResource extends ExternalResource {
 
 	@Override
 	public void after() {
+		temporaryFolder.delete();
 
 		TestStreamEnvironment.unsetAsContext();
 		TestEnvironment.unsetAsContext();
