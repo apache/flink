@@ -173,7 +173,7 @@ A `Table` is registered in a `TableEnvironment` as follows:
 StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // Table is the result of a simple projection query 
-Table projTable = tableEnv.scan("X").project(...);
+Table projTable = tableEnv.scan("X").select(...);
 
 // register the Table projTable as table "projectedX"
 tableEnv.registerTable("projectedTable", projTable);
@@ -186,7 +186,7 @@ tableEnv.registerTable("projectedTable", projTable);
 val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 // Table is the result of a simple projection query 
-val projTable: Table = tableEnv.scan("X").project(...)
+val projTable: Table = tableEnv.scan("X").select(...)
 
 // register the Table projTable as table "projectedX"
 tableEnv.registerTable("projectedTable", projTable)
