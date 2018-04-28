@@ -18,10 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
@@ -78,11 +74,17 @@ import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
-import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -101,9 +103,14 @@ import java.util.PrimitiveIterator;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
@@ -3721,6 +3728,58 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		public String fold(String acc, Integer value) throws Exception {
 			return acc + "," + value;
 		}
+	}
+
+	@Test
+	public void testCheckConcurrencyProblemWhenPerformingCheckpointAsync() throws Exception {
+
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		Environment env = new DummyEnvironment();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
+
+		ExecutorService executorService = Executors.newScheduledThreadPool(1);
+		try {
+			long checkpointID = 0;
+			List<Future> futureList = new ArrayList();
+			for (int i = 0; i < 10; ++i) {
+				ValueStateDescriptor<Integer> kvId = new ValueStateDescriptor<>("id" + i, IntSerializer.INSTANCE);
+				ValueState<Integer> state = backend.getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, kvId);
+				((InternalValueState) state).setCurrentNamespace(VoidNamespace.INSTANCE);
+				backend.setCurrentKey(i);
+				state.update(i);
+
+				futureList.add(runSnapshotAsync(executorService,
+					backend.snapshot(checkpointID++, System.currentTimeMillis(), streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation())));
+			}
+
+			for (Future future : futureList) {
+				future.get(20, TimeUnit.SECONDS);
+			}
+		} catch (Exception e) {
+			fail();
+		} finally {
+			backend.dispose();
+			executorService.shutdown();
+		}
+	}
+
+	protected Future<SnapshotResult<KeyedStateHandle>> runSnapshotAsync(
+		ExecutorService executorService,
+		RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunnableFuture) throws Exception {
+
+		if (!snapshotRunnableFuture.isDone()) {
+			CompletableFuture<SnapshotResult<KeyedStateHandle>> completableFuture = new CompletableFuture<>();
+			executorService.submit(() -> {
+				try {
+					snapshotRunnableFuture.run();
+					completableFuture.complete(snapshotRunnableFuture.get());
+				} catch (Exception e) {
+					completableFuture.completeExceptionally(e);
+				}
+			});
+			return completableFuture;
+		}
+		return CompletableFuture.completedFuture(snapshotRunnableFuture.get());
 	}
 
 	/**
