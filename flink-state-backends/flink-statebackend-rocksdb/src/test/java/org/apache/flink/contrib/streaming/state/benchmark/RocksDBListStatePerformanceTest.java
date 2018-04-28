@@ -131,6 +131,8 @@ public class RocksDBListStatePerformanceTest extends TestLogger {
 			final long endInsert2 = System.nanoTime();
 
 			log.info("end update - duration: {} ns", (endInsert2 - beginInsert2));
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 

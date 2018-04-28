@@ -134,6 +134,8 @@ public class RocksDBPerformanceTest extends TestLogger {
 			final long endGet3 = System.nanoTime();
 
 			log.info("end get - duration: {} ms", (endGet3 - beginGet3) / 1_000_000);
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -183,6 +185,8 @@ public class RocksDBPerformanceTest extends TestLogger {
 			final long endGet = System.nanoTime();
 
 			log.info("end get - duration: {} ms", (endGet - beginGet) / 1_000_000);
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
