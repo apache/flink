@@ -329,7 +329,7 @@ public class NetworkEnvironmentTest {
 	 *
 	 * @return input gate with some fake settings
 	 */
-	private static SingleInputGate createSingleInputGate(
+	private SingleInputGate createSingleInputGate(
 			final ResultPartitionType partitionType, final int channels) {
 		return spy(new SingleInputGate(
 			"Test Task Name",
@@ -339,7 +339,8 @@ public class NetworkEnvironmentTest {
 			0,
 			channels,
 			mock(TaskActions.class),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup()));
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			enableCreditBasedFlowControl));
 	}
 
 	private static void createRemoteInputChannel(

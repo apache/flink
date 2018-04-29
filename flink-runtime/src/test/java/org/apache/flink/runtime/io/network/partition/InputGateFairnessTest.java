@@ -93,7 +93,8 @@ public class InputGateFairnessTest {
 				new IntermediateDataSetID(),
 				0, numChannels,
 				mock(TaskActions.class),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				true);
 
 		for (int i = 0; i < numChannels; i++) {
 			LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
@@ -146,7 +147,8 @@ public class InputGateFairnessTest {
 				new IntermediateDataSetID(),
 				0, numChannels,
 				mock(TaskActions.class),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				true);
 
 			for (int i = 0; i < numChannels; i++) {
 				LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
@@ -196,7 +198,8 @@ public class InputGateFairnessTest {
 				new IntermediateDataSetID(),
 				0, numChannels,
 				mock(TaskActions.class),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				true);
 
 		final ConnectionManager connManager = createDummyConnectionManager();
 
@@ -251,7 +254,8 @@ public class InputGateFairnessTest {
 				new IntermediateDataSetID(),
 				0, numChannels,
 				mock(TaskActions.class),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				true);
 
 		final ConnectionManager connManager = createDummyConnectionManager();
 
@@ -349,11 +353,12 @@ public class InputGateFairnessTest {
 				int consumedSubpartitionIndex,
 				int numberOfInputChannels,
 				TaskActions taskActions,
-				TaskIOMetricGroup metrics) {
+				TaskIOMetricGroup metrics,
+				boolean isCreditBased) {
 
 			super(owningTaskName, jobId, consumedResultId, ResultPartitionType.PIPELINED,
 				consumedSubpartitionIndex,
-					numberOfInputChannels, taskActions, metrics);
+					numberOfInputChannels, taskActions, metrics, isCreditBased);
 
 			try {
 				Field f = SingleInputGate.class.getDeclaredField("inputChannelsWithData");

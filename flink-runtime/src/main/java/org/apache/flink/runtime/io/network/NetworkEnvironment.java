@@ -157,6 +157,10 @@ public class NetworkEnvironment {
 		return partitionRequestMaxBackoff;
 	}
 
+	public boolean isCreditBased() {
+		return enableCreditBased;
+	}
+
 	public KvStateRegistry getKvStateRegistry() {
 		return kvStateRegistry;
 	}
