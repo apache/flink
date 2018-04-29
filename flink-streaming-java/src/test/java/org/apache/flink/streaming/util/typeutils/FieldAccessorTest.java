@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
@@ -368,4 +369,23 @@ public class FieldAccessorTest {
 
 		FieldAccessor<Long, Long> f = FieldAccessorFactory.getAccessor(tpeInfo, "foo", null);
 	}
+
+	/**
+	 * Validates that no ClassCastException happens
+	 * should not fail e.g. like in FLINK-8255.
+	 */
+	@Test(expected = CompositeType.InvalidFieldReferenceException.class)
+	public void testRowTypeInfo() {
+		TypeInformation<?>[] typeList = new TypeInformation<?>[]{
+			new RowTypeInfo(
+				BasicTypeInfo.SHORT_TYPE_INFO,
+				BasicTypeInfo.BIG_DEC_TYPE_INFO)
+		};
+
+		String[] fieldNames = new String[]{"row"};
+		RowTypeInfo rowTypeInfo = new RowTypeInfo(typeList, fieldNames);
+
+		FieldAccessor f = FieldAccessorFactory.getAccessor(rowTypeInfo, "row.0", null);
+	}
+
 }
