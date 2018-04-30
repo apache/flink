@@ -286,8 +286,8 @@ this may put a significant burden on the Flink runtime.
 ### Fault Tolerance
 
 Timers registered within `ProcessFunction` are fault tolerant. They are synchronously checkpointed by Flink, regardless of
-configurations of state backends. (Therefore, a large number of timers can significantly increase checkpointing time. See optimizations
-section for advice to reduce the number of timers.)
+configurations of state backends. (Therefore, a large number of timers can significantly increase checkpointing time. See the optimizations
+section for advice on how to reduce the number of timers.)
 
 Upon restoring, timers that are checkpointed from the previous job will be restored on whatever new instance is responsible for that key.
 
