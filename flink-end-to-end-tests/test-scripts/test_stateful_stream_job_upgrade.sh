@@ -17,20 +17,15 @@
 # limitations under the License.
 ################################################################################
 
-if [ -z $1 ] || [ -z $2 ]; then
-  echo "Usage: ./test_resume_savepoint.sh <original_dop> <new_dop>"
-  exit 1
-fi
-
 source "$(dirname "$0")"/common.sh
 
-ORIGINAL_DOP=$1
-NEW_DOP=$2
+ORIGINAL_DOP="${1:-2}"
+NEW_DOP="${2:-4}"
 
 if (( $ORIGINAL_DOP >= $NEW_DOP )); then
-  NUM_SLOTS=$ORIGINAL_DOP
+  NUM_SLOTS=${ORIGINAL_DOP}
 else
-  NUM_SLOTS=$NEW_DOP
+  NUM_SLOTS=${NEW_DOP}
 fi
 
 backup_config
@@ -55,44 +50,42 @@ function test_cleanup {
 trap test_cleanup INT
 trap test_cleanup EXIT
 
-CHECKPOINT_DIR="file://$TEST_DATA_DIR/savepoint-e2e-test-chckpt-dir"
+CHECKPOINT_DIR="file://${TEST_DATA_DIR}/savepoint-e2e-test-chckpt-dir"
 
-# run the DataStream allroundjob
-TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
-DATASTREAM_JOB=$($FLINK_DIR/bin/flink run -d -p $ORIGINAL_DOP $TEST_PROGRAM_JAR \
-  --test.semantics exactly-once \
-  --environment.parallelism $ORIGINAL_DOP \
-  --state_backend.checkpoint_directory $CHECKPOINT_DIR \
-  --sequence_generator_source.sleep_time 15 \
-  --sequence_generator_source.sleep_after_elements 1 \
+TEST_PROGRAM_JAR="${TEST_INFRA_DIR}/../../flink-end-to-end-tests/flink-stream-stateful-job-upgrade-test/target/StatefulStreamJobUpgradeTestProgram.jar"
+
+function job() {
+    DOP=$1
+    CMD="${FLINK_DIR}/bin/flink run -d -p ${DOP} ${TEST_PROGRAM_JAR} \
+      --test.semantics exactly-once \
+      --environment.parallelism ${DOP} \
+      --state_backend.checkpoint_directory ${CHECKPOINT_DIR} \
+      --sequence_generator_source.sleep_time 15 \
+      --sequence_generator_source.sleep_after_elements 1"
+    echo "${CMD}"
+}
+
+JOB=$(job ${ORIGINAL_DOP})
+ORIGINAL_JOB=$(${JOB} --test.job.variant original \
   | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
-wait_job_running $DATASTREAM_JOB
+wait_job_running ${ORIGINAL_JOB}
 
-wait_oper_metric_num_in_records ArtificalKeyedStateMapper.0 200
+wait_oper_metric_num_in_records stateMap2.1 200
 
 # take a savepoint of the state machine job
-SAVEPOINT_PATH=$(take_savepoint $DATASTREAM_JOB $TEST_DATA_DIR \
+SAVEPOINT_PATH=$(take_savepoint ${ORIGINAL_JOB} ${TEST_DATA_DIR} \
   | grep "Savepoint completed. Path:" | sed 's/.* //g')
 
-cancel_job $DATASTREAM_JOB
+cancel_job ${ORIGINAL_JOB}
 
-# Since it is not possible to differentiate reporter output between the first and second execution,
-# we remember the number of metrics sampled in the first execution so that they can be ignored in the following monitorings
-OLD_NUM_METRICS=$(get_num_metric_samples)
-
-# resume state machine job with savepoint
-DATASTREAM_JOB=$($FLINK_DIR/bin/flink run -s $SAVEPOINT_PATH -p $NEW_DOP -d $TEST_PROGRAM_JAR \
-  --test.semantics exactly-once \
-  --environment.parallelism $NEW_DOP \
-  --state_backend.checkpoint_directory $CHECKPOINT_DIR \
-  --sequence_generator_source.sleep_time 15 \
-  --sequence_generator_source.sleep_after_elements 1 \
+JOB=$(job ${NEW_DOP})
+UPGRADED_JOB=$(${JOB} --test.job.variant upgraded \
   | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
-wait_job_running $DATASTREAM_JOB
+wait_job_running ${UPGRADED_JOB}
 
-wait_oper_metric_num_in_records ArtificalKeyedStateMapper.0 200
+wait_oper_metric_num_in_records stateMap3.2 200
 
 # if state is errorneous and the state machine job produces alerting state transitions,
 # output would be non-empty and the test will not pass

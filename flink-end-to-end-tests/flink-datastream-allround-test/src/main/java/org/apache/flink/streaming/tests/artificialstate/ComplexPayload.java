@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.tests.artificialstate.eventpayload;
+package org.apache.flink.streaming.tests.artificialstate;
 
 import org.apache.flink.streaming.tests.DataStreamAllroundTestProgram;
 import org.apache.flink.streaming.tests.Event;
@@ -30,18 +30,23 @@ import java.util.List;
  * Wraps an {@link Event} as state.
  */
 public class ComplexPayload implements Serializable {
-
 	private static final long serialVersionUID = 233624606545704853L;
-
-	public ComplexPayload(Event event) {
-		this.eventTime = event.getEventTime();
-		this.innerPayLoad = new InnerPayLoad(event.getSequenceNumber());
-		this.stringList = Arrays.asList(String.valueOf(event.getKey()), event.getPayload());
-	}
 
 	private final long eventTime;
 	private final List<String> stringList;
+	private final String strPayload;
 	private final InnerPayLoad innerPayLoad;
+
+	public ComplexPayload(Event event, String strPayload) {
+		this.eventTime = event.getEventTime();
+		this.innerPayLoad = new InnerPayLoad(event.getSequenceNumber());
+		this.strPayload = strPayload;
+		this.stringList = Arrays.asList(String.valueOf(event.getKey()), event.getPayload());
+	}
+
+	public ComplexPayload(Event event) {
+		this(event, event.getPayload());
+	}
 
 	/**
 	 * Nested class in state type. Wraps an {@link Event}'s sequence number.
@@ -67,6 +72,10 @@ public class ComplexPayload implements Serializable {
 
 	public List<String> getStringList() {
 		return stringList;
+	}
+
+	public String getStrPayload() {
+		return strPayload;
 	}
 
 	public InnerPayLoad getInnerPayLoad() {

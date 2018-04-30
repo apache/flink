@@ -41,6 +41,7 @@ under the License.
 		<module>flink-stream-sql-test</module>
 		<module>flink-bucketing-sink-test</module>
 		<module>flink-high-parallelism-iterations-test</module>
+		<module>flink-stream-stateful-job-upgrade-test</module>
 	</modules>
 
 </project>
