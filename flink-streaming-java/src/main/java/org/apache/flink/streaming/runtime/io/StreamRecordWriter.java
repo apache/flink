@@ -67,7 +67,8 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 		}
 		else {
 			String threadName = taskName == null ?
-				DEFAULT_OUTPUT_FLUSH_THREAD_NAME : "Output Timeout Flusher - " + taskName;
+				DEFAULT_OUTPUT_FLUSH_THREAD_NAME :
+				DEFAULT_OUTPUT_FLUSH_THREAD_NAME + " for " + taskName;
 
 			outputFlusher = new OutputFlusher(threadName, timeout);
 			outputFlusher.start();
