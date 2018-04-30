@@ -136,7 +136,6 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 
 		// add some re-partitions to increase network buffer use
 		DataSet<KMeans.Centroid> newCentroids = points
-				.rebalance()
 				// compute closest centroid for each point
 				.map(new KMeans.SelectNearestCenter()).withBroadcastSet(loop, "centroids")
 				.rebalance()
