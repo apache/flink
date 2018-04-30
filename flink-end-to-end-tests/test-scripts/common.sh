@@ -39,6 +39,12 @@ cd $TEST_ROOT
 export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
 echo "TEST_DATA_DIR: $TEST_DATA_DIR"
 
+function backup_config() {
+    # back up the masters and flink-conf.yaml
+    cp $FLINK_DIR/conf/masters $FLINK_DIR/conf/masters.bak
+    cp $FLINK_DIR/conf/flink-conf.yaml $FLINK_DIR/conf/flink-conf.yaml.bak
+}
+
 function revert_default_config() {
 
     # revert our modifications to the masters file
@@ -52,11 +58,22 @@ function revert_default_config() {
     fi
 }
 
+function set_conf() {
+    CONF_NAME=$1
+    VAL=$2
+    echo "$CONF_NAME: $VAL" >> $FLINK_DIR/conf/flink-conf.yaml
+}
+
+function change_conf() {
+    CONF_NAME=$1
+    OLD_VAL=$2
+    NEW_VAL=$3
+    sed -i -e "s/${CONF_NAME}: ${OLD_VAL}/${CONF_NAME}: ${NEW_VAL}/" ${FLINK_DIR}/conf/flink-conf.yaml
+}
+
 function create_ha_config() {
 
-    # back up the masters and flink-conf.yaml
-    cp $FLINK_DIR/conf/masters $FLINK_DIR/conf/masters.bak
-    cp $FLINK_DIR/conf/flink-conf.yaml $FLINK_DIR/conf/flink-conf.yaml.bak
+    backup_config
 
     # clean up the dir that will be used for zookeeper storage
     # (see high-availability.zookeeper.storageDir below)
@@ -307,6 +324,60 @@ function kill_random_taskmanager {
   KILL_TM=$(jps | grep "TaskManager" | sort -R | head -n 1 | awk '{print $1}')
   kill -9 "$KILL_TM"
   echo "TaskManager $KILL_TM killed."
+}
+
+function setup_flink_slf4j_metric_reporter() {
+  INTERVAL="${1:-1 SECONDS}"
+  cp $FLINK_DIR/opt/flink-metrics-slf4j-*.jar $FLINK_DIR/lib/
+  set_conf "metrics.reporter.slf4j.class" "org.apache.flink.metrics.slf4j.Slf4jReporter"
+  set_conf "metrics.reporter.slf4j.interval" "${INTERVAL}"
+}
+
+function rollback_flink_slf4j_metric_reporter() {
+  rm $FLINK_DIR/lib/flink-metrics-slf4j-*.jar
+}
+
+function get_metric_processed_records {
+  OPERATOR=$1
+  N=$(grep ".General purpose test job.$OPERATOR.numRecordsIn:" $FLINK_DIR/log/*taskexecutor*.log | sed 's/.* //g' | tail -1)
+  if [ -z $N ]; then
+    N=0
+  fi
+  echo $N
+}
+
+function get_num_metric_samples {
+  OPERATOR=$1
+  N=$(grep ".General purpose test job.$OPERATOR.numRecordsIn:" $FLINK_DIR/log/*taskexecutor*.log | wc -l)
+  if [ -z $N ]; then
+    N=0
+  fi
+  echo $N
+}
+
+function wait_oper_metric_num_in_records {
+    OPERATOR=$1
+    MAX_NUM_METRICS="${2:-200}"
+    NUM_METRICS=$(get_num_metric_samples ${OPERATOR})
+    OLD_NUM_METRICS=${3:-${NUM_METRICS}}
+    # monitor the numRecordsIn metric of the state machine operator in the second execution
+    # we let the test finish once the second restore execution has processed 200 records
+    while : ; do
+      NUM_METRICS=$(get_num_metric_samples ${OPERATOR})
+      NUM_RECORDS=$(get_metric_processed_records ${OPERATOR})
+
+      # only account for metrics that appeared in the second execution
+      if (( $OLD_NUM_METRICS >= $NUM_METRICS )) ; then
+        NUM_RECORDS=0
+      fi
+
+      if (( $NUM_RECORDS < $MAX_NUM_METRICS )); then
+        echo "Waiting for job to process up to 200 records, current progress: $NUM_RECORDS records ..."
+        sleep 1
+      else
+        break
+      fi
+    done
 }
 
 # make sure to clean up even in case of failures
