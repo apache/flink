@@ -75,6 +75,9 @@ abstract class NonWindowJoin(
   // other condition function
   protected var joinFunction: FlatJoinFunction[Row, Row, Row] = _
 
+  // current processing time
+  protected var curProcessTime: Long = _
+
   override def open(parameters: Configuration): Unit = {
     LOG.debug(s"Compiling JoinFunction: $genJoinFuncName \n\n " +
                 s"Code:\n$genJoinFuncCode")
@@ -244,10 +247,10 @@ abstract class NonWindowJoin(
       value: CRow,
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       timerState: ValueState[Long],
-      currentSideState: MapState[Row, JTuple2[Long, Long]]): (Long, JTuple2[Long, Long]) = {
+      currentSideState: MapState[Row, JTuple2[Long, Long]]): JTuple2[Long, Long] = {
 
     val inputRow = value.row
-    val curProcessTime = ctx.timerService.currentProcessingTime
+    curProcessTime = ctx.timerService.currentProcessingTime
     val oldCntAndExpiredTime = currentSideState.get(inputRow)
     val cntAndExpiredTime = if (null == oldCntAndExpiredTime) {
       JTuple2.of(0L, -1L)
@@ -275,7 +278,7 @@ abstract class NonWindowJoin(
       currentSideState.put(inputRow, cntAndExpiredTime)
     }
 
-    (curProcessTime, cntAndExpiredTime)
+    cntAndExpiredTime
   }
 
   def callJoinFunction(

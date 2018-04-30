@@ -72,7 +72,7 @@ class NonWindowInnerJoin(
       isLeft: Boolean): Unit = {
 
     val inputRow = value.row
-    val (curProcessTime, _) = updateCurrentSide(value, ctx, timerState, currentSideState)
+    updateCurrentSide(value, ctx, timerState, currentSideState)
 
     cRowWrapper.setCollector(out)
     cRowWrapper.setChange(value.change)

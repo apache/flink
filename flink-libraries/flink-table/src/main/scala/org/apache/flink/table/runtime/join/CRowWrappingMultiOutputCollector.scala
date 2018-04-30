@@ -34,8 +34,6 @@ class CRowWrappingMultiOutputCollector() extends Collector[Row] {
   private var times: Long = 0L
   // count how many records have been emitted
   private var emitCnt: Long = 0L
-  // don't collect to downstream if set lazyOutput to true
-  private var lazyOutput: Boolean = false
 
   def setCollector(collector: Collector[CRow]): Unit = this.out = collector
 
@@ -51,26 +49,37 @@ class CRowWrappingMultiOutputCollector() extends Collector[Row] {
 
   def getEmitCnt(): Long = emitCnt
 
-  def setLazyOutput(lazyOutput: Boolean): Unit = this.lazyOutput = lazyOutput
-
   override def collect(record: Row): Unit = {
     outCRow.row = record
-    if (!lazyOutput) {
-      emitCnt += times
-      var i: Long = 0L
-      while (i < times) {
-        out.collect(outCRow)
-        i += 1
-      }
+    emitCnt += times
+    var i: Long = 0L
+    while (i < times) {
+      out.collect(outCRow)
+      i += 1
     }
   }
 
   def reset(): Unit = {
-    this.outCRow.change = true
     this.times = 0
     this.emitCnt = 0
-    this.lazyOutput = false
   }
 
   override def close(): Unit = out.close()
+}
+
+/**
+  * This collector is used to count how many rows have been collected. It will not collect data
+  * actually.
+  */
+class LazyOutputCollector extends Collector[Row] {
+  // count how many records may be emitted
+  private var emitCnt: Long = 0L
+
+  override def collect(record: Row): Unit = emitCnt += 1
+
+  def reset(): Unit = emitCnt = 0
+
+  def getEmitCnt(): Long = emitCnt
+
+  override def close(): Unit = {}
 }

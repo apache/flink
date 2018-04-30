@@ -78,18 +78,17 @@ class NonWindowLeftRightJoin(
       recordFromLeft: Boolean): Unit = {
 
     val inputRow = value.row
-    val (curProcessTime, _) = updateCurrentSide(value, ctx, timerState, currentSideState)
+    updateCurrentSide(value, ctx, timerState, currentSideState)
 
     cRowWrapper.reset()
     cRowWrapper.setCollector(out)
     cRowWrapper.setChange(value.change)
-    cRowWrapper.setEmitCnt(0)
 
     // join other side data
     if (recordFromLeft == isLeftJoin) {
-      preservedJoin(inputRow, recordFromLeft, otherSideState, curProcessTime)
+      preservedJoin(inputRow, recordFromLeft, otherSideState)
     } else {
-      retractJoin(value, recordFromLeft, currentSideState, otherSideState, curProcessTime)
+      retractJoin(value, recordFromLeft, currentSideState, otherSideState)
     }
   }
 }

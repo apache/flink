@@ -63,12 +63,6 @@ trait UpsertStreamTableSink[T] extends TableSink[JTuple2[JBool, T]] {
   def setKeyFields(keys: Array[String]): Unit
 
   /**
-    * Enforce output key fields. Users can use this method to enforce output key fields which
-    * may different from key fields of the query. Note: use it when you know what you are doing.
-    */
-  def enforceKeyFields(): Array[String] = null
-
-  /**
     * Specifies whether the [[Table]] to write is append-only or not.
     *
     * @param isAppendOnly true if the table is append-only, false otherwise.

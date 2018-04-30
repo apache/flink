@@ -269,30 +269,6 @@ class TableSinkITCase extends AbstractTestBase {
   }
 
   @Test
-  def testUpsertSinkOnUpdatingTableWithoutKey(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
-
-    ds1.leftOuterJoin(ds2, 'b === 'e)
-      .select('c, 'g)
-      .writeToSink(new TestUpsertSinkWithEnforceKeys(Array("c"), false))
-
-    env.execute()
-    val results = RowCollector.getAndClearValues
-
-    val retracted = RowCollector.upsertResults(results, Array(0)).sorted
-    val expected = List(
-      "Hi,Hallo",
-      "Hello,Hallo Welt",
-      "Hello world,Hallo Welt").sorted
-    assertEquals(expected, retracted)
-  }
-
-  @Test
   def testUpsertSinkOnAppendingTableWithFullKey1(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
@@ -670,25 +646,6 @@ private[flink] class TestUpsertSink(
       fieldNames: Array[String],
       fieldTypes: Array[TypeInformation[_]]): TableSink[JTuple2[JBool, Row]] = {
     val copy = new TestUpsertSink(expectedKeys, expectedIsAppendOnly)
-    copy.fNames = fieldNames
-    copy.fTypes = fieldTypes
-    copy
-  }
-}
-
-private[flink] class TestUpsertSinkWithEnforceKeys(
-    enforceKeys: Array[String],
-    expectedIsAppendOnly: Boolean)
-  extends TestUpsertSink(
-    enforceKeys,
-    expectedIsAppendOnly) {
-
-  override def enforceKeyFields(): Array[String] = enforceKeys
-
-  override def configure(
-      fieldNames: Array[String],
-      fieldTypes: Array[TypeInformation[_]]): TableSink[JTuple2[JBool, Row]] = {
-    val copy = new TestUpsertSinkWithEnforceKeys(enforceKeys, expectedIsAppendOnly)
     copy.fNames = fieldNames
     copy.fTypes = fieldTypes
     copy

@@ -1207,19 +1207,25 @@ class JoinHarnessTest extends HarnessTestBase {
 
     testHarness.processElement1(new StreamRecord(
       CRow(Row.of(1: JInt, "aaa"), change = false)))
-    // expired left stream record with key value of 1
-    testHarness.setProcessingTime(5)
     testHarness.processElement2(new StreamRecord(
       CRow(Row.of(1: JInt, "Hi2"), change = true)))
     testHarness.processElement2(new StreamRecord(
       CRow(Row.of(1: JInt, "Hi2"), change = false)))
-    // 1 left timer(6), 1 left keys(2), 1 join cnt, 2 right timer(7,8), 2 right key(1,2)
-    assertEquals(7, testHarness.numKeyedStateEntries())
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(1: JInt, "Hi1"), change = false)))
+    // expired left stream record with key value of 1
+    testHarness.setProcessingTime(5)
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(1: JInt, "Hi3"), change = true)))
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(1: JInt, "Hi3"), change = false)))
+    // 1 left timer(6), 1 left keys(2), 1 join cnt, 2 right timer(7,8), 1 right key(2)
+    assertEquals(6, testHarness.numKeyedStateEntries())
     assertEquals(3, testHarness.numProcessingTimeTimers())
 
     // expired all left stream record
     testHarness.setProcessingTime(6)
-    assertEquals(4, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
     // expired right stream record with key value of 2
@@ -1255,7 +1261,14 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(Row.of(2: JInt, "bbb", 2: JInt, "Hello"), change = true)))
     expectedOutput.add(new StreamRecord(
       CRow(Row.of(1: JInt, "aaa", 1: JInt, "Hi1"), change = false)))
-
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", 1: JInt, "Hi2"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", 1: JInt, "Hi2"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", 1: JInt, "Hi1"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", null: JInt, null), change = true)))
     verify(expectedOutput, result, new RowResultSortComparator())
 
     testHarness.close()

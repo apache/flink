@@ -49,7 +49,7 @@ class NonWindowLeftRightJoinWithNonEquiPredicates(
     genJoinFuncCode: String,
     isLeftJoin: Boolean,
     queryConfig: StreamQueryConfig)
-  extends NonWindowOuterJoin(
+  extends NonWindowOuterJoinWithNonEquiPredicates(
     leftType,
     rightType,
     resultType,
@@ -78,29 +78,27 @@ class NonWindowLeftRightJoinWithNonEquiPredicates(
       otherSideState: MapState[Row, JTuple2[Long, Long]],
       recordFromLeft: Boolean): Unit = {
 
-    val joinCntIdx = getJoinCntIndex(recordFromLeft)
+    val currentJoinCntState = getJoinCntState(joinCntState, recordFromLeft)
     val inputRow = value.row
-    val (curProcessTime, cntAndExpiredTime) =
-      updateCurrentSide(value, ctx, timerState, currentSideState)
+    val cntAndExpiredTime = updateCurrentSide(value, ctx, timerState, currentSideState)
     if (!value.change && cntAndExpiredTime.f0 <= 0 && recordFromLeft == isLeftJoin) {
-      joinCntState(joinCntIdx).remove(inputRow)
+      currentJoinCntState.remove(inputRow)
     }
 
     cRowWrapper.reset()
     cRowWrapper.setCollector(out)
     cRowWrapper.setChange(value.change)
-    cRowWrapper.setEmitCnt(0)
     // join other side data
     if (recordFromLeft == isLeftJoin) {
-      val joinCnt =
-        preservedJoin(inputRow, recordFromLeft, otherSideState, curProcessTime)
+      val joinCnt = preservedJoin(inputRow, recordFromLeft, otherSideState)
       // init matched cnt only when row cnt is changed from 0 to 1. Each time encountered a
       // new record from the other side, joinCnt will also be updated.
       if (cntAndExpiredTime.f0 == 1 && value.change) {
-        joinCntState(joinCntIdx).put(inputRow, joinCnt)
+        currentJoinCntState.put(inputRow, joinCnt)
       }
     } else {
-      retractJoinWithNonEquiPreds(value, recordFromLeft, otherSideState, joinCntIdx, curProcessTime)
+      val otherSideJoinCntState = getJoinCntState(joinCntState, !recordFromLeft)
+      retractJoinWithNonEquiPreds(value, recordFromLeft, otherSideState, otherSideJoinCntState)
     }
   }
 
