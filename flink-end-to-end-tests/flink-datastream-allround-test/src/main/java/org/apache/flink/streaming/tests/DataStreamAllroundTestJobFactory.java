@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.tests.artificialstate.ArtificalOperatorStateMapper;
 import org.apache.flink.streaming.tests.artificialstate.ArtificialKeyedStateMapper;
 import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialListStateBuilder;
 import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialStateBuilder;
@@ -283,6 +284,12 @@ class DataStreamAllroundTestJobFactory {
 			artificialStateBuilders.add(createListStateBuilder(inputAndOldStateToNewState, typeSerializer));
 		}
 		return new ArtificialKeyedStateMapper<>(mapFunction, artificialStateBuilders);
+	}
+
+	static <IN, OUT> ArtificalOperatorStateMapper<IN, OUT> createArtificialOperatorStateMapper(
+		MapFunction<IN, OUT> mapFunction) {
+
+		return new ArtificalOperatorStateMapper<>(mapFunction);
 	}
 
 	static <IN, STATE> ArtificialStateBuilder<IN> createValueStateBuilder(
