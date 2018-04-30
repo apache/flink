@@ -206,6 +206,26 @@ class DataStreamAllroundTestJobFactory {
 				SEQUENCE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS.defaultValue()));
 	}
 
+	static SourceFunction<Event> createSingleKeyEventSource(ParameterTool pt) {
+		return new SequenceGeneratorSource(
+			1,
+			pt.getInt(
+				SEQUENCE_GENERATOR_SRC_PAYLOAD_SIZE.key(),
+				SEQUENCE_GENERATOR_SRC_PAYLOAD_SIZE.defaultValue()),
+			pt.getLong(
+				SEQUENCE_GENERATOR_SRC_EVENT_TIME_MAX_OUT_OF_ORDERNESS.key(),
+				SEQUENCE_GENERATOR_SRC_EVENT_TIME_MAX_OUT_OF_ORDERNESS.defaultValue()),
+			pt.getLong(
+				SEQUENCE_GENERATOR_SRC_EVENT_TIME_CLOCK_PROGRESS.key(),
+				SEQUENCE_GENERATOR_SRC_EVENT_TIME_CLOCK_PROGRESS.defaultValue()),
+			pt.getLong(
+				SEQUENCE_GENERATOR_SRC_SLEEP_TIME.key(),
+				SEQUENCE_GENERATOR_SRC_SLEEP_TIME.defaultValue()),
+			pt.getLong(
+				SEQUENCE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS.key(),
+				SEQUENCE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS.defaultValue()));
+	}
+
 	static BoundedOutOfOrdernessTimestampExtractor<Event> createTimestampExtractor(ParameterTool pt) {
 		return new BoundedOutOfOrdernessTimestampExtractor<Event>(
 			Time.milliseconds(

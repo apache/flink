@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
@@ -31,6 +32,7 @@ import java.util.Collections;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialKeyedStateMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createEventSource;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSemanticsCheckMapper;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSingleKeyEventSource;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
 
@@ -58,7 +60,7 @@ public class DataStreamAllroundTestProgram {
 
 		setupEnvironment(env, pt);
 
-		env.addSource(createEventSource(pt))
+		DataStream<Event> eventStream = env.addSource(createEventSource(pt))
 			.assignTimestampsAndWatermarks(createTimestampExtractor(pt))
 			.keyBy(Event::getKey)
 			.map(createArtificialKeyedStateMapper(
@@ -76,8 +78,15 @@ public class DataStreamAllroundTestProgram {
 				)
 			)
 			.name(STATE_OPER_NAME)
-			.returns(Event.class)
-			.keyBy(Event::getKey)
+			.returns(Event.class);
+
+		DataStream<Event> broadcastStream = env.addSource(createSingleKeyEventSource(pt)).broadcast();
+		DataStream<Event> eventStream2 = broadcastStream
+			.connect(eventStream)
+			.flatMap(new BroadcastAndUnionStateFlatMapper())
+			.name("BroadcastAndUnionStateFlatMapper");
+
+		eventStream2.keyBy(Event::getKey)
 			.flatMap(createSemanticsCheckMapper(pt))
 			.name("SemanticsCheckMapper")
 			.addSink(new PrintSinkFunction<>());
