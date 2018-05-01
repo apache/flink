@@ -40,6 +40,7 @@ under the License.
 		<module>flink-datastream-allround-test</module>
 		<module>flink-stream-sql-test</module>
 		<module>flink-bucketing-sink-test</module>
+		<module>flink-operator-state-test</module>
 	</modules>
 
 </project>
