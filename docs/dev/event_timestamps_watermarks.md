@@ -58,14 +58,14 @@ progress in event time.
 There are two ways to assign timestamps and generate watermarks:
 
   1. Directly in the data stream source
-  2. Via a timestamp assigner / watermark generator: in Flink timestamp assigners also define the watermarks to be emitted
+  2. Via a timestamp assigner / watermark generator: in Flink, timestamp assigners also define the watermarks to be emitted
 
 <span class="label label-danger">Attention</span> Both timestamps and watermarks are specified as
 milliseconds since the Java epoch of 1970-01-01T00:00:00Z.
 
 ### Source Functions with Timestamps and Watermarks
 
-Stream sources can also directly assign timestamps to the elements they produce, and they can also emit watermarks.
+Stream sources can directly assign timestamps to the elements they produce, and they can also emit watermarks.
 When this is done, no timestamp assigner is needed.
 Note that if a timestamp assigner is used, any timestamps and watermarks provided by the source will be overwritten.
 
@@ -180,7 +180,7 @@ The interval (every *n* milliseconds) in which the watermark will be generated i
 called each time, and a new watermark will be emitted if the returned watermark is non-null and larger than the previous
 watermark.
 
-Two simple examples of timestamp assigners with periodic watermark generation are below.
+Here we show two simple examples of timestamp assigners that use periodic watermark generation. Note that Flink ships with a `BoundedOutOfOrdernessTimestampExtractor` similar to the `BoundedOutOfOrdernessGenerator` shown below, which you can read about [here]({{ site.baseurl }}/dev/event_timestamp_extractors.html#assigners-allowing-a-fixed-amount-of-lateness).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
