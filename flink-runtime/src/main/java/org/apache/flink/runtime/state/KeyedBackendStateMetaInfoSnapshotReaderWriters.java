@@ -170,8 +170,8 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 			metaInfo.setStateType(StateDescriptor.Type.values()[in.readInt()]);
 			metaInfo.setName(in.readUTF());
 
-			metaInfo.setNamespaceSerializer(TypeSerializerSerializationUtil.<N>tryReadSerializer(in, userCodeClassLoader));
-			metaInfo.setStateSerializer(TypeSerializerSerializationUtil.<S>tryReadSerializer(in, userCodeClassLoader));
+			metaInfo.setNamespaceSerializer(TypeSerializerSerializationUtil.<N>tryReadSerializer(in, userCodeClassLoader, true));
+			metaInfo.setStateSerializer(TypeSerializerSerializationUtil.<S>tryReadSerializer(in, userCodeClassLoader, true));
 
 			// older versions do not contain the configuration snapshot
 			metaInfo.setNamespaceSerializerConfigSnapshot(null);

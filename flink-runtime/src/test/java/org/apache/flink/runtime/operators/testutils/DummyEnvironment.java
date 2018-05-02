@@ -59,9 +59,15 @@ public class DummyEnvironment implements Environment {
 	private KvStateRegistry kvStateRegistry = new KvStateRegistry();
 	private TaskStateManager taskStateManager;
 	private final AccumulatorRegistry accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
+	private ClassLoader userClassLoader;
 
 	public DummyEnvironment() {
 		this("Test Job", 1, 0, 1);
+	}
+
+	public DummyEnvironment(ClassLoader userClassLoader) {
+		this("Test Job", 1, 0, 1);
+		this.userClassLoader = userClassLoader;
 	}
 
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
@@ -143,7 +149,11 @@ public class DummyEnvironment implements Environment {
 
 	@Override
 	public ClassLoader getUserClassLoader() {
-		return getClass().getClassLoader();
+		if (userClassLoader == null) {
+			return getClass().getClassLoader();
+		} else {
+			return userClassLoader;
+		}
 	}
 
 	@Override
