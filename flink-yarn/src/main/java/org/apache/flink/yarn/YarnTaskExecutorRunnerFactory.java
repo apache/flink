@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -42,6 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -49,15 +51,46 @@ import java.util.concurrent.Callable;
 /**
  * This class is the executable entry point for running a TaskExecutor in a YARN container.
  */
-public class YarnTaskExecutorRunner {
+public class YarnTaskExecutorRunnerFactory {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(YarnTaskExecutorRunner.class);
-
-	/** The process environment variables. */
-	private static final Map<String, String> ENV = System.getenv();
+	protected static final Logger LOG = LoggerFactory.getLogger(YarnTaskExecutorRunnerFactory.class);
 
 	/** The exit code returned if the initialization of the yarn task executor runner failed. */
 	private static final int INIT_ERROR_EXIT_CODE = 31;
+
+	/**
+	 * Runner for the {@link TaskManagerRunner}.
+	 */
+	public static class Runner implements Callable<Object> {
+		private final Configuration configuration;
+		private final ResourceID resourceId;
+
+		Runner(Configuration configuration, ResourceID resourceId) {
+			this.configuration = Preconditions.checkNotNull(configuration);
+			this.resourceId = Preconditions.checkNotNull(resourceId);
+		}
+
+		@Override
+		public Object call() throws Exception {
+			try {
+				TaskManagerRunner.runTaskManager(configuration, resourceId);
+			} catch (Throwable t) {
+				LOG.error("Error while starting the TaskManager", t);
+				System.exit(INIT_ERROR_EXIT_CODE);
+			}
+			return null;
+		}
+
+		@VisibleForTesting
+		Configuration getConfiguration() {
+			return configuration;
+		}
+
+		@VisibleForTesting
+		ResourceID getResourceId() {
+			return resourceId;
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//  Program entry point
@@ -73,63 +106,59 @@ public class YarnTaskExecutorRunner {
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		run(args);
+		try {
+			SecurityUtils.getInstalledContext().runSecured(
+					YarnTaskExecutorRunnerFactory.create(System.getenv()));
+		} catch (Exception e) {
+			LOG.error("Exception occurred while launching Task Executor runner", e);
+			throw new RuntimeException(e);
+		}
 	}
 
 	/**
-	 * The instance entry point for the YARN task executor. Obtains user group information and calls
-	 * the main work method {@link TaskManagerRunner#runTaskManager(Configuration, ResourceID)}  as a
-	 * privileged action.
+	 * Creates a {@link YarnTaskExecutorRunnerFactory.Runner}.
 	 *
-	 * @param args The command line arguments.
+	 * @param envs environment variables.
 	 */
-	private static void run(String[] args) {
+	@VisibleForTesting
+	protected static Runner create(Map<String, String> envs) throws IOException {
+		LOG.debug("All environment variables: {}", envs);
+
+		final String yarnClientUsername = envs.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
+		final String localDirs = envs.get(Environment.LOCAL_DIRS.key());
+		LOG.info("Current working/local Directory: {}", localDirs);
+
+		final String currDir = envs.get(Environment.PWD.key());
+		LOG.info("Current working Directory: {}", currDir);
+
+		final String remoteKeytabPrincipal = envs.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
+		LOG.info("TM: remote keytab principal obtained {}", remoteKeytabPrincipal);
+
+		final Configuration configuration = GlobalConfiguration.loadConfiguration(currDir);
+		FileSystem.initialize(configuration);
+
+		// configure local directory
+		if (configuration.contains(CoreOptions.TMP_DIRS)) {
+			LOG.info("Overriding YARN's temporary file directories with those " +
+				"specified in the Flink config: " + configuration.getValue(CoreOptions.TMP_DIRS));
+		}
+		else {
+			LOG.info("Setting directories for temporary files to: {}", localDirs);
+			configuration.setString(CoreOptions.TMP_DIRS, localDirs);
+		}
+
+		// tell akka to die in case of an error
+		configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
+
 		try {
-			LOG.debug("All environment variables: {}", ENV);
-
-			final String yarnClientUsername = ENV.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
-			final String localDirs = ENV.get(Environment.LOCAL_DIRS.key());
-			LOG.info("Current working/local Directory: {}", localDirs);
-
-			final String currDir = ENV.get(Environment.PWD.key());
-			LOG.info("Current working Directory: {}", currDir);
-
-			final String remoteKeytabPath = ENV.get(YarnConfigKeys.KEYTAB_PATH);
-			LOG.info("TM: remote keytab path obtained {}", remoteKeytabPath);
-
-			final String remoteKeytabPrincipal = ENV.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
-			LOG.info("TM: remote keytab principal obtained {}", remoteKeytabPrincipal);
-
-			final Configuration configuration = GlobalConfiguration.loadConfiguration(currDir);
-			FileSystem.initialize(configuration);
-
-			// configure local directory
-			if (configuration.contains(CoreOptions.TMP_DIRS)) {
-				LOG.info("Overriding YARN's temporary file directories with those " +
-					"specified in the Flink config: " + configuration.getValue(CoreOptions.TMP_DIRS));
-			}
-			else {
-				LOG.info("Setting directories for temporary files to: {}", localDirs);
-				configuration.setString(CoreOptions.TMP_DIRS, localDirs);
-			}
-
-			// tell akka to die in case of an error
-			configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
-
-			String keytabPath = null;
-			if (remoteKeytabPath != null) {
-				File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
-				keytabPath = f.getAbsolutePath();
-				LOG.info("keytab path: {}", keytabPath);
-			}
-
 			UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
 
 			LOG.info("YARN daemon is running as: {} Yarn client user obtainer: {}",
 					currentUser.getShortUserName(), yarnClientUsername);
 
-			if (keytabPath != null && remoteKeytabPrincipal != null) {
-				configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
+			File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
+			if (f.exists() && remoteKeytabPrincipal != null) {
+				configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, f.getAbsolutePath());
 				configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
@@ -151,30 +180,23 @@ public class YarnTaskExecutorRunner {
 				sc = new SecurityConfiguration(configuration);
 			}
 
-			final String containerId = ENV.get(YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID);
+			final String containerId = envs.get(YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID);
 			Preconditions.checkArgument(containerId != null,
 				"ContainerId variable %s not set", YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID);
 
 			// use the hostname passed by job manager
-			final String taskExecutorHostname = ENV.get(YarnResourceManager.ENV_FLINK_NODE_ID);
+			final String taskExecutorHostname = envs.get(YarnResourceManager.ENV_FLINK_NODE_ID);
 			if (taskExecutorHostname != null) {
 				configuration.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, taskExecutorHostname);
 			}
 
 			SecurityUtils.install(sc);
 
-			SecurityUtils.getInstalledContext().runSecured(new Callable<Void>() {
-				@Override
-				public Void call() throws Exception {
-					TaskManagerRunner.runTaskManager(configuration, new ResourceID(containerId));
-					return null;
-				}
-			});
-		}
-		catch (Throwable t) {
+			return new Runner(configuration, new ResourceID(containerId));
+		} catch (Throwable t) {
 			// make sure that everything whatever ends up in the log
 			LOG.error("YARN TaskManager initialization failed.", t);
-			System.exit(INIT_ERROR_EXIT_CODE);
+			throw new RuntimeException(t);
 		}
 	}
 }
