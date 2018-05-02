@@ -3637,15 +3637,15 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunnableFuture) throws Exception {
 
 		if (!snapshotRunnableFuture.isDone()) {
-			CompletableFuture<SnapshotResult<KeyedStateHandle>> completableFuture = new CompletableFuture<>();
-			executorService.submit(() -> {
+			final CompletableFuture<SnapshotResult<KeyedStateHandle>> completableFuture = new CompletableFuture<>();
+			CompletableFuture.runAsync(() -> {
 				try {
 					snapshotRunnableFuture.run();
 					completableFuture.complete(snapshotRunnableFuture.get());
 				} catch (Exception e) {
 					completableFuture.completeExceptionally(e);
 				}
-			});
+			}, executorService);
 			return completableFuture;
 		}
 		return CompletableFuture.completedFuture(snapshotRunnableFuture.get());
