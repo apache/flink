@@ -137,7 +137,7 @@ Some more parameters and/or defaults may be set via `conf/flink-conf.yaml` (see 
    -  `jobmanager`: In-memory state, backup to JobManager's/ZooKeeper's memory. Should be used only for minimal state (Kafka offsets) or testing and local debugging.
    -  `filesystem`: State is in-memory on the TaskManagers, and state snapshots are stored in a file system. Supported are all filesystems supported by Flink, for example HDFS, S3, ...
 
-- `state.checkpoints.dir`: The target directory for storing checkpoints data files and meta data of [externalized checkpoints]({{ site.baseurl }}/ops/state/checkpoints.html#externalized-checkpoints) in a Flink supported filesystem. Note: State backend must be accessible from the JobManager, use `file://` only for local setups.
+- `state.checkpoints.dir`: The target directory for storing checkpoints data files and meta data of [externalized checkpoints]({{ site.baseurl }}/ops/state/checkpoints.html#externalized-checkpoints) in a Flink supported filesystem. Note: the storage path must be accessible from all participating processes/nodes(i.e. all TaskManagers and JobManagers).
 
 - `state.backend.rocksdb.localdir`:  The local directory for storing RocksDB files, or a list of directories separated by the systems directory delimiter (for example ‘:’ (colon) on Linux/Unix). (DEFAULT value is `taskmanager.tmp.dirs`)
 
