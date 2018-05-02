@@ -86,4 +86,19 @@ public class KinesisProxyTest {
 		assertEquals(10000, clientConfiguration.getSocketTimeout());
 	}
 
+	@Test
+	public void testClientConfigOverride() {
+
+		Properties configProps = new Properties();
+		configProps.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		configProps.setProperty(AWSUtil.AWS_CLIENT_CONFIG_PREFIX + "socketTimeout", "9999");
+
+		KinesisProxyInterface proxy = KinesisProxy.create(configProps);
+
+		AmazonKinesis kinesisClient = Whitebox.getInternalState(proxy, "kinesisClient");
+		ClientConfiguration clientConfiguration = Whitebox.getInternalState(kinesisClient,
+			"clientConfiguration");
+		assertEquals(9999, clientConfiguration.getSocketTimeout());
+	}
+
 }
