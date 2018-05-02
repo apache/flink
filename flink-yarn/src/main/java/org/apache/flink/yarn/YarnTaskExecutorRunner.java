@@ -128,6 +128,11 @@ public class YarnTaskExecutorRunner {
 			LOG.info("YARN daemon is running as: {} Yarn client user obtainer: {}",
 					currentUser.getShortUserName(), yarnClientUsername);
 
+			if (keytabPath != null && remoteKeytabPrincipal != null) {
+				configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
+				configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
+			}
+
 			SecurityConfiguration sc;
 
 			//To support Yarn Secure Integration Test Scenario
@@ -144,11 +149,6 @@ public class YarnTaskExecutorRunner {
 
 			} else {
 				sc = new SecurityConfiguration(configuration);
-			}
-
-			if (keytabPath != null && remoteKeytabPrincipal != null) {
-				configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
-				configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
 			final String containerId = ENV.get(YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID);
