@@ -69,7 +69,7 @@ public class TypeSerializerSerializationUtil {
 	 * written using {@link #writeSerializer(DataOutputView, TypeSerializer)}.
 	 *
 	 * <p>If deserialization fails for any reason (corrupted serializer bytes, serializer class
-	 * no longer in classpath, serializer class no longer valid, etc.), {@code null} will
+	 * no longer in classpath, serializer class no longer valid, etc.), an {@link IOException} is thrown.
 	 * be returned instead.
 	 *
 	 * @param in the data input view.
@@ -79,7 +79,7 @@ public class TypeSerializerSerializationUtil {
 	 *
 	 * @return the deserialized serializer.
 	 */
-	public static <T> TypeSerializer<T> tryReadSerializer(DataInputView in, ClassLoader userCodeClassLoader) {
+	public static <T> TypeSerializer<T> tryReadSerializer(DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
 		return tryReadSerializer(in, userCodeClassLoader, false);
 	}
 
@@ -87,10 +87,8 @@ public class TypeSerializerSerializationUtil {
 	 * Reads from a data input view a {@link TypeSerializer} that was previously
 	 * written using {@link #writeSerializer(DataOutputView, TypeSerializer)}.
 	 *
-	 * <p>If deserialization fails due to {@link ClassNotFoundException} or {@link InvalidClassException},
-	 * users can opt to use a dummy {@link UnloadableDummyTypeSerializer} to hold the serializer bytes,
-	 * otherwise {@code null} is returned. If the failure is due to a {@link java.io.StreamCorruptedException},
-	 * then {@code null} is returned.
+	 * <p>If deserialization fails due to any exception, users can opt to use a dummy
+	 * {@link UnloadableDummyTypeSerializer} to hold the serializer bytes, otherwise an {@link IOException} is thrown.
 	 *
 	 * @param in the data input view.
 	 * @param userCodeClassLoader the user code class loader to use.
@@ -102,18 +100,16 @@ public class TypeSerializerSerializationUtil {
 	 *
 	 * @return the deserialized serializer.
 	 */
-	public static <T> TypeSerializer<T> tryReadSerializer(DataInputView in, ClassLoader userCodeClassLoader, boolean useDummyPlaceholder) {
+	public static <T> TypeSerializer<T> tryReadSerializer(
+			DataInputView in,
+			ClassLoader userCodeClassLoader,
+			boolean useDummyPlaceholder) throws IOException {
+
 		final TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<T> proxy =
 			new TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<>(userCodeClassLoader, useDummyPlaceholder);
 
-		try {
-			proxy.read(in);
-			return proxy.getTypeSerializer();
-		} catch (IOException e) {
-			LOG.warn("Deserialization of serializer errored; replacing with null.", e);
-
-			return null;
-		}
+		proxy.read(in);
+		return proxy.getTypeSerializer();
 	}
 
 	/**
@@ -161,8 +157,9 @@ public class TypeSerializerSerializationUtil {
 	/**
 	 * Reads from a data input view a list of serializers and their corresponding config snapshots
 	 * written using {@link #writeSerializersAndConfigsWithResilience(DataOutputView, List)}.
-	 * This is fault tolerant to any failures when deserializing the serializers. Serializers which
-	 * were not successfully deserialized will be replaced by {@code null}.
+	 *
+	 * <p>If deserialization for serializers fails due to any exception, users can opt to use a dummy
+	 * {@link UnloadableDummyTypeSerializer} to hold the serializer bytes
 	 *
 	 * @param in the data input view.
 	 * @param userCodeClassLoader the user code class loader to use.
@@ -200,7 +197,7 @@ public class TypeSerializerSerializationUtil {
 			for (int i = 0; i < numSerializersAndConfigSnapshots; i++) {
 
 				bufferWithPos.setPosition(offsets[i * 2]);
-				serializer = tryReadSerializer(bufferWrapper, userCodeClassLoader);
+				serializer = tryReadSerializer(bufferWrapper, userCodeClassLoader, true);
 
 				bufferWithPos.setPosition(offsets[i * 2 + 1]);
 				configSnapshot = readSerializerConfigSnapshot(bufferWrapper, userCodeClassLoader);
@@ -373,15 +370,14 @@ public class TypeSerializerSerializationUtil {
 
 				Thread.currentThread().setContextClassLoader(userClassLoader);
 				typeSerializer = (TypeSerializer<T>) ois.readObject();
-			} catch (ClassNotFoundException | InvalidClassException e) {
+			} catch (Exception e) {
 				if (useDummyPlaceholder) {
 					// we create a dummy so that all the information is not lost when we get a new checkpoint before receiving
 					// a proper typeserializer from the user
-					typeSerializer =
-						new UnloadableDummyTypeSerializer<>(buffer);
-					LOG.warn("Could not find requested TypeSerializer class in classpath. Created dummy.", e);
+					typeSerializer = new UnloadableDummyTypeSerializer<>(buffer);
+					LOG.warn("Could not read requested TypeSerializer. Created dummy.", e);
 				} else {
-					throw new IOException("Unloadable class for type serializer.", e);
+					throw new IOException("Unloadable TypeSerializer.", e);
 				}
 			} finally {
 				Thread.currentThread().setContextClassLoader(previousClassLoader);
