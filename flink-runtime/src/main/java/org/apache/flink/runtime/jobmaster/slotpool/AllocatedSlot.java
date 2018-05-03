@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -78,6 +79,13 @@ public class AllocatedSlot implements SlotContext {
 	}
 
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Gets the Slot's unique ID defined by its TaskManager.
+	 */
+	public SlotID getSlotId() {
+		return new SlotID(getTaskManagerId(), physicalSlotNumber);
+	}
 
 	/**
 	 * Gets the ID under which the slot is allocated, which uniquely identifies the slot.
