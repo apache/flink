@@ -889,7 +889,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	public void grantLeadership(final UUID newLeaderSessionID) {
 		runAsyncWithoutFencing(
 			() -> {
-				final ResourceManagerId newResourceManagerId = new ResourceManagerId(newLeaderSessionID);
+				final ResourceManagerId newResourceManagerId = ResourceManagerId.fromUuid(newLeaderSessionID);
 
 				log.info("ResourceManager {} was granted leadership with fencing token {}", getAddress(), newResourceManagerId);
 
