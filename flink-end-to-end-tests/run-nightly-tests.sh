@@ -108,7 +108,7 @@ if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
   printf "Running stateful stream job upgrade nightly end-to-end test\n"
   printf "==============================================================================\n"
-  $END_TO_END_DIR/test-scripts/test_stateful_stream_job_upgrade.sh
+  $END_TO_END_DIR/test-scripts/test_stateful_stream_job_upgrade.sh 2 4
   EXIT_CODE=$?
 fi
 

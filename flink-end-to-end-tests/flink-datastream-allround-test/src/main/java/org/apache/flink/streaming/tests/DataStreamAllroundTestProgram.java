@@ -24,8 +24,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
-import org.apache.flink.streaming.tests.artificialstate.eventpayload.ComplexPayload;
-import org.apache.flink.streaming.tests.artificialstate.eventpayload.RestoredStateVerifier;
+import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
 
 import java.util.Collections;
 
@@ -65,15 +64,15 @@ public class DataStreamAllroundTestProgram {
 			.map(createArtificialKeyedStateMapper(
 					// map function simply forwards the inputs
 					(MapFunction<Event, Event>) in -> in,
-					// state is updated per event as a wrapped ComplexPayload state object
-					(Event first, ComplexPayload second) -> new ComplexPayload(first, STATE_OPER_NAME),
+					// state is verified and updated per event as a wrapped ComplexPayload state object
+					(Event first, ComplexPayload second) -> {
+							if (second != null && !second.getStrPayload().equals(STATE_OPER_NAME)) {
+								System.out.println("State is set or restored incorrectly");
+							}
+							return new ComplexPayload(first, STATE_OPER_NAME);
+						},
 					Collections.singletonList(
-						new KryoSerializer<>(ComplexPayload.class, env.getConfig())),
-					(RestoredStateVerifier<ComplexPayload>) state -> {
-						if (state == null || !state.getStrPayload().equals(STATE_OPER_NAME)) {
-							System.out.println("State is restored incorrectly");
-						}
-					}
+						new KryoSerializer<>(ComplexPayload.class, env.getConfig()))
 				)
 			)
 			.name(STATE_OPER_NAME)

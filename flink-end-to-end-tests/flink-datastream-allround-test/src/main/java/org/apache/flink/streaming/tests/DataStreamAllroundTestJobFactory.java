@@ -34,10 +34,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.tests.artificialstate.ArtificialKeyedStateBuilder;
 import org.apache.flink.streaming.tests.artificialstate.ArtificialKeyedStateMapper;
-import org.apache.flink.streaming.tests.artificialstate.eventpayload.ArtificialValueStateBuilder;
-import org.apache.flink.streaming.tests.artificialstate.eventpayload.RestoredStateVerifier;
+import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialListStateBuilder;
+import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialStateBuilder;
+import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialValueStateBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -240,22 +240,42 @@ class DataStreamAllroundTestJobFactory {
 	static <IN, OUT, STATE> ArtificialKeyedStateMapper<IN, OUT> createArtificialKeyedStateMapper(
 		MapFunction<IN, OUT> mapFunction,
 		JoinFunction<IN, STATE, STATE> inputAndOldStateToNewState,
-		List<TypeSerializer<STATE>> stateSerializers,
-		RestoredStateVerifier<STATE> restoredStateVerifier) {
+		List<TypeSerializer<STATE>> stateSerializers) {
 
-		List<ArtificialKeyedStateBuilder<IN>> artificialStateBuilders = new ArrayList<>(stateSerializers.size());
+		List<ArtificialStateBuilder<IN>> artificialStateBuilders = new ArrayList<>(stateSerializers.size());
 		for (TypeSerializer<STATE> typeSerializer : stateSerializers) {
-
-			String stateName = "valueState-" + typeSerializer.getClass().getSimpleName();
-
-			ArtificialValueStateBuilder<IN, STATE> stateBuilder = new ArtificialValueStateBuilder<>(
-				stateName,
-				inputAndOldStateToNewState,
-				typeSerializer,
-				restoredStateVerifier);
-
-			artificialStateBuilders.add(stateBuilder);
+			artificialStateBuilders.add(createValueStateBuilder(inputAndOldStateToNewState, typeSerializer));
+			artificialStateBuilders.add(createListStateBuilder(inputAndOldStateToNewState, typeSerializer));
 		}
 		return new ArtificialKeyedStateMapper<>(mapFunction, artificialStateBuilders);
+	}
+
+	static <IN, STATE> ArtificialStateBuilder<IN> createValueStateBuilder(
+		JoinFunction<IN, STATE, STATE> inputAndOldStateToNewState,
+		TypeSerializer<STATE> typeSerializer) {
+
+		return new ArtificialValueStateBuilder<>(
+			"valueState-" + typeSerializer.getClass().getSimpleName(),
+			inputAndOldStateToNewState,
+			typeSerializer);
+	}
+
+	static <IN, STATE> ArtificialStateBuilder<IN> createListStateBuilder(
+		JoinFunction<IN, STATE, STATE> inputAndOldStateToNewState,
+		TypeSerializer<STATE> typeSerializer) {
+
+		JoinFunction<IN, Iterable<STATE>, List<STATE>> listStateGenerator = (first, second) -> {
+			List<STATE> newState = new ArrayList<>();
+			for (STATE s : second) {
+				newState.add(inputAndOldStateToNewState.join(first, s));
+			}
+			return newState;
+		};
+
+		return new ArtificialListStateBuilder<>(
+			"listState-" + typeSerializer.getClass().getSimpleName(),
+			listStateGenerator,
+			listStateGenerator,
+			typeSerializer);
 	}
 }

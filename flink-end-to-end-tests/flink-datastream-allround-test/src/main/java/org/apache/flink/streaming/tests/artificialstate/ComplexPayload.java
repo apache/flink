@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.tests.artificialstate.eventpayload;
+package org.apache.flink.streaming.tests.artificialstate;
 
 import org.apache.flink.streaming.tests.DataStreamAllroundTestProgram;
 import org.apache.flink.streaming.tests.Event;

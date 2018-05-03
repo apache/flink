@@ -27,8 +27,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
-import org.apache.flink.streaming.tests.artificialstate.eventpayload.ComplexPayload;
-import org.apache.flink.streaming.tests.artificialstate.eventpayload.RestoredStateVerifier;
+import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
 
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialKeyedStateMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createEventSource;
@@ -129,7 +128,7 @@ public class StatefulStreamJobUpgradeTestProgram {
 		KeyedStream<Event, Integer> source,
 		List<TypeSerializer<ComplexPayload>> stateSer) {
 		return source
-			.map(createArtificialKeyedStateMapper(e -> e, stateFunc, stateSer, restoredStateVerifier(name)))
+			.map(createArtificialKeyedStateMapper(e -> e, stateFunc, stateSer))
 			.name(name)
 			.uid(name)
 			.returns(Event.class)
@@ -137,21 +136,23 @@ public class StatefulStreamJobUpgradeTestProgram {
 	}
 
 	private static JoinFunction<Event, ComplexPayload, ComplexPayload> simpleStateUpdate(String strPayload) {
-		return (Event first, ComplexPayload second) -> new ComplexPayload(first, strPayload);
+		return (Event first, ComplexPayload second) -> {
+			verifyState(strPayload, second);
+			return new ComplexPayload(first, strPayload);
+		};
 	}
 
 	private static JoinFunction<Event, ComplexPayload, ComplexPayload> lastStateUpdate(String strPayload) {
 		return (Event first, ComplexPayload second) -> {
+			verifyState(strPayload, second);
 			boolean isLastEvent = second != null && first.getEventTime() <= second.getEventTime();
 			return isLastEvent ? second : new ComplexPayload(first, strPayload);
 		};
 	}
 
-	private static RestoredStateVerifier<ComplexPayload> restoredStateVerifier(String strPayload) {
-		return (RestoredStateVerifier<ComplexPayload>) state -> {
-			if (state == null || !state.getStrPayload().equals(strPayload)) {
-				System.out.println("State is restored incorrectly");
-			}
-		};
+	private static void verifyState(String strPayload, ComplexPayload state) {
+		if (state != null && !state.getStrPayload().equals(strPayload)) {
+			System.out.println("State is set or restored incorrectly");
+		}
 	}
 }
