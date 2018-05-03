@@ -936,12 +936,23 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		}
 
 		// check whether we have already using this slot
-		if (allocatedSlots.contains(allocationID) || availableSlots.contains(allocationID)) {
-			log.debug("Received repeated offer for slot [{}]. Ignoring.", allocationID);
+		AllocatedSlot preSlot = allocatedSlots.get(allocationID);
+		if (preSlot == null) {
+			preSlot = availableSlots.get(allocationID);
+		}
+		if (preSlot != null) {
+			if (preSlot.getTaskManagerId().equals(taskManagerLocation.getResourceID())
+					&& preSlot.getPhysicalSlotNumber() == slotOffer.getSlotIndex()) {
+				log.info("Received repeated offer for slot [{}]. Ignoring.", allocationID);
 
-			// return true here so that the sender will get a positive acknowledgement to the retry
-			// and mark the offering as a success
-			return CompletableFuture.completedFuture(true);
+				// return true here so that the sender will get a positive acknowledgement to the retry
+				// and mark the offering as a success
+				return CompletableFuture.completedFuture(true);
+			} else {
+				// the allocation has been fulfilled by another slot, reject the offer so task executor
+				// will offer the slot to resource manager
+				return CompletableFuture.completedFuture(false);
+			}
 		}
 
 		final AllocatedSlot allocatedSlot = new AllocatedSlot(
@@ -1382,6 +1393,15 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		 */
 		boolean contains(AllocationID slotId) {
 			return availableSlots.containsKey(slotId);
+		}
+
+		AllocatedSlot get(AllocationID allocationID) {
+			SlotAndTimestamp slotAndTimestamp = availableSlots.get(allocationID);
+			if (slotAndTimestamp != null) {
+				return slotAndTimestamp.slot();
+			} else {
+				return null;
+			}
 		}
 
 		/**
