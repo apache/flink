@@ -49,19 +49,20 @@ Flink supports different notions of *time* in streaming programs.
 
 - **Event time:** Event time is the time that each individual event occurred on its producing device.
     This time is typically embedded within the records before they enter Flink, and that *event timestamp*
-    can be extracted from each record. An hourly event time window will contain all records that carry an
-    event timestamp that falls into that hour, regardless of when the records arrive, in what order
-    they arrive, or when they are processed.
-
-    Event time gives correct results even on out-of-order events, late events, or on replays
-    of data from backups or persistent logs. In event time, the progress of time depends on the data,
+    can be extracted from each record. In event time, the progress of time depends on the data,
     not on any wall clocks. Event time programs must specify how to generate *Event Time Watermarks*,
-    which is the mechanism that signals progress in event time. This mechanism is
-    described below.
+    which is the mechanism that signals progress in event time. This watermarking mechanism is
+    described in a later section, [below](#event-time-and-watermarks).
 
-    Event time processing often incurs a certain latency, due to its nature of waiting a certain time for
-    late and out-of-order events. Because of that, event time programs are often combined with
-    *processing time* operations.
+    In a perfect world, event time processing would yield completely consistent and deterministic results, regardless of when events arrive, or their ordering.
+    However, unless the events are known to arrive in-order (by timestamp), event time processing incurs some latency while waiting for out-of-order events. As it is only possible to wait for a finite period of time, this places a limit on how deterministic event time applications can be.
+
+    Assuming all of the data has arrived, event time operations will behave as expected, and produce correct and consistent results even when working with out-of-order or late events, or when reprocessing historic data. For example, an hourly event time window will contain all records
+    that carry an event timestamp that falls into that hour, regardless of the order in which they arrive, or when they are processed. (See the section on [late events](#late-elements) for more information.)
+
+
+
+    Note that sometimes when event time programs are processing live data in real-time, they will use some *processing time* operations in order to guarantee that they are progressing in a timely fashion.
 
 - **Ingestion time:** Ingestion time is the time that events enter Flink. At the source operator each
     record gets the source's current time as a timestamp, and time-based operations (like time windows)
