@@ -144,7 +144,13 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 
 			boolean allDone = true;
 			for (Tuple2<String, Integer> acc : expectedAccumulators) {
-				Integer numFinished = (Integer) accumulators.get(acc.f0).get();
+				OptionalFailure<Object> accumOpt = accumulators.get(acc.f0);
+				if (accumOpt == null) {
+					allDone = false;
+					break;
+				}
+
+				Integer numFinished = (Integer) accumOpt.get();
 				if (numFinished == null) {
 					allDone = false;
 					break;
