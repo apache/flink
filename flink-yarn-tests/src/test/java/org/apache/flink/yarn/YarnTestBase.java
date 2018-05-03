@@ -22,7 +22,6 @@ import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Preconditions;
@@ -30,7 +29,6 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileUtil;
@@ -75,13 +73,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 
-import static org.apache.flink.configuration.CoreOptions.LEGACY_MODE;
+import static org.apache.flink.test.util.MiniClusterResource.CODEBASE_KEY;
+import static org.apache.flink.test.util.MiniClusterResource.NEW_CODEBASE;
 
 /**
  * This base class allows to use the MiniYARNCluster.
@@ -220,7 +220,7 @@ public abstract class YarnTestBase extends TestLogger {
 		}
 
 		flinkConfiguration = new org.apache.flink.configuration.Configuration(globalConfiguration);
-		isNewMode = CoreOptions.NEW_MODE.equalsIgnoreCase(flinkConfiguration.getString(CoreOptions.MODE));
+		isNewMode = Objects.equals(NEW_CODEBASE, System.getProperty(CODEBASE_KEY));
 	}
 
 	@Nullable
@@ -519,32 +519,25 @@ public abstract class YarnTestBase extends TestLogger {
 			final String confDirPath = flinkConfDirPath.getParentFile().getAbsolutePath();
 			globalConfiguration = GlobalConfiguration.loadConfiguration(confDirPath);
 
-			if (!StringUtils.isBlank(principal) && !StringUtils.isBlank(keytab)) {
+			//copy conf dir to test temporary workspace location
+			tempConfPathForSecureRun = tmp.newFolder("conf");
 
-				//copy conf dir to test temporary workspace location
-				tempConfPathForSecureRun = tmp.newFolder("conf");
+			FileUtils.copyDirectory(new File(confDirPath), tempConfPathForSecureRun);
 
-				FileUtils.copyDirectory(new File(confDirPath), tempConfPathForSecureRun);
+			globalConfiguration.setString(CoreOptions.MODE,
+				Objects.equals(NEW_CODEBASE, System.getProperty(CODEBASE_KEY)) ? CoreOptions.NEW_MODE : CoreOptions.LEGACY_MODE);
 
-				globalConfiguration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB.key(), keytab);
-				globalConfiguration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(), principal);
-				globalConfiguration.setString(CoreOptions.MODE.key(), LEGACY_MODE);
+			BootstrapTools.writeConfiguration(
+				globalConfiguration,
+				new File(tempConfPathForSecureRun, "flink-conf.yaml"));
 
-				BootstrapTools.writeConfiguration(
-					globalConfiguration,
-					new File(tempConfPathForSecureRun, "flink-conf.yaml"));
+			String configDir = tempConfPathForSecureRun.getAbsolutePath();
 
-				String configDir = tempConfPathForSecureRun.getAbsolutePath();
+			LOG.info("Temporary Flink configuration directory to be used for secure test: {}", configDir);
 
-				LOG.info("Temporary Flink configuration directory to be used for secure test: {}", configDir);
+			Assert.assertNotNull(configDir);
 
-				Assert.assertNotNull(configDir);
-
-				map.put(ConfigConstants.ENV_FLINK_CONF_DIR, configDir);
-
-			} else {
-				map.put(ConfigConstants.ENV_FLINK_CONF_DIR, flinkConfDirPath.getParent());
-			}
+			map.put(ConfigConstants.ENV_FLINK_CONF_DIR, configDir);
 
 			File yarnConfFile = writeYarnSiteConfigXML(conf);
 			map.put("YARN_CONF_DIR", yarnConfFile.getParentFile().getAbsolutePath());
