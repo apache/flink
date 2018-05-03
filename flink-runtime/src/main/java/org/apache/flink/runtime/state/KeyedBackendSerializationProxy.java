@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -44,6 +45,9 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 	/** This specifies if we use a compressed format write the key-groups */
 	private boolean usingKeyGroupCompression;
 
+	/** This specifies whether or not to use dummy {@link UnloadableDummyTypeSerializer} when serializers cannot be read. */
+	private boolean isSerializerPresenceRequired;
+
 	private TypeSerializer<K> keySerializer;
 	private TypeSerializerConfigSnapshot keySerializerConfigSnapshot;
 
@@ -51,8 +55,9 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
 	private ClassLoader userCodeClassLoader;
 
-	public KeyedBackendSerializationProxy(ClassLoader userCodeClassLoader) {
+	public KeyedBackendSerializationProxy(ClassLoader userCodeClassLoader, boolean isSerializerPresenceRequired) {
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
+		this.isSerializerPresenceRequired = isSerializerPresenceRequired;
 	}
 
 	public KeyedBackendSerializationProxy(
@@ -139,17 +144,35 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 			this.keySerializer = (TypeSerializer<K>) keySerializerAndConfig.f0;
 			this.keySerializerConfigSnapshot = keySerializerAndConfig.f1;
 		} else {
-			this.keySerializer = TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader);
+			this.keySerializer = TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader, true);
 			this.keySerializerConfigSnapshot = null;
+		}
+
+		if (isSerializerPresenceRequired) {
+			checkSerializerPresence(keySerializer);
 		}
 
 		int numKvStates = in.readShort();
 		stateMetaInfoSnapshots = new ArrayList<>(numKvStates);
 		for (int i = 0; i < numKvStates; i++) {
-			stateMetaInfoSnapshots.add(
-				KeyedBackendStateMetaInfoSnapshotReaderWriters
-					.getReaderForVersion(getReadVersion(), userCodeClassLoader)
-					.readStateMetaInfo(in));
+			RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> snapshot = KeyedBackendStateMetaInfoSnapshotReaderWriters
+				.getReaderForVersion(getReadVersion(), userCodeClassLoader)
+				.readStateMetaInfo(in);
+
+			if (isSerializerPresenceRequired) {
+				checkSerializerPresence(snapshot.getNamespaceSerializer());
+				checkSerializerPresence(snapshot.getStateSerializer());
+			}
+			stateMetaInfoSnapshots.add(snapshot);
+		}
+	}
+
+	private void checkSerializerPresence(TypeSerializer<?> serializer) throws IOException {
+		if (serializer instanceof UnloadableDummyTypeSerializer) {
+			throw new IOException("Unable to restore keyed state, because a previous serializer" +
+				" of the keyed state is not present The serializer could have been removed from the classpath, " +
+				" or its implementation have changed and could not be loaded. This is a temporary restriction that will" +
+				" be fixed in future versions.");
 		}
 	}
 }

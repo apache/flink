@@ -127,6 +127,11 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		return backend;
 	}
 
+	@Override
+	protected boolean isSerializerPresenceRequiredOnRestore() {
+		return false;
+	}
+
 	// small safety net for instance cleanups, so that no native objects are left
 	@After
 	public void cleanupRocksDB() {
