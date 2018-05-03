@@ -33,21 +33,28 @@ public class ArtificialValueStateBuilder<IN, STATE> extends ArtificialKeyedState
 	private static final long serialVersionUID = -1205814329756790916L;
 
 	private transient ValueState<STATE> valueState;
+	private transient boolean afterRestoration;
 	private final TypeSerializer<STATE> typeSerializer;
 	private final JoinFunction<IN, STATE, STATE> stateValueGenerator;
+	private final RestoredStateVerifier<STATE> restoredStateVerifier;
 
 	public ArtificialValueStateBuilder(
 		String stateName,
 		JoinFunction<IN, STATE, STATE> stateValueGenerator,
-		TypeSerializer<STATE> typeSerializer) {
-
+		TypeSerializer<STATE> typeSerializer,
+		RestoredStateVerifier<STATE> restoredStateVerifier) {
 		super(stateName);
 		this.typeSerializer = typeSerializer;
 		this.stateValueGenerator = stateValueGenerator;
+		this.restoredStateVerifier = restoredStateVerifier;
 	}
 
 	@Override
 	public void artificialStateForElement(IN event) throws Exception {
+		if (afterRestoration) {
+			restoredStateVerifier.verify(valueState.value());
+			afterRestoration = false;
+		}
 		valueState.update(stateValueGenerator.join(event, valueState.value()));
 	}
 
@@ -56,5 +63,6 @@ public class ArtificialValueStateBuilder<IN, STATE> extends ArtificialKeyedState
 		ValueStateDescriptor<STATE> valueStateDescriptor =
 			new ValueStateDescriptor<>(stateName, typeSerializer);
 		valueState = initializationContext.getKeyedStateStore().getState(valueStateDescriptor);
+		afterRestoration = initializationContext.isRestored(); // to verify state in keyed context
 	}
 }

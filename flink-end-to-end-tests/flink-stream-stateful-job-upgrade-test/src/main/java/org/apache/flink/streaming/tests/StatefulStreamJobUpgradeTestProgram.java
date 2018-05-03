@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.api.java.utils.ParameterTool;
@@ -29,6 +28,7 @@ import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.tests.artificialstate.eventpayload.ComplexPayload;
+import org.apache.flink.streaming.tests.artificialstate.eventpayload.RestoredStateVerifier;
 
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialKeyedStateMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createEventSource;
@@ -43,22 +43,24 @@ import java.util.List;
  * Test upgrade of generic stateful job for Flink's DataStream API operators and primitives.
  *
  * <p>The job is constructed of generic components from {@link DataStreamAllroundTestJobFactory}.
- * The gaol is to test successful state restoration after taking savepoint and recovery with new job version.
+ * The goal is to test successful state restoration after taking savepoint and recovery with new job version.
  * It can be configured with '--test.job.variant' to run different variants of it:
  * <ul>
  *     <li><b>original:</b> includes 2 custom stateful map operators</li>
  *     <li><b>upgraded:</b> changes order of 2 custom stateful map operators and adds one more</li>
  * </ul>
+ *
+ * <p>The cli job configuration options are described in {@link DataStreamAllroundTestJobFactory}.
+ *
+ * <p>Job specific configuration options:
+ * <ul>
+ *     <li>test.job.variant (String, default - 'original'): This configures the job variant to test. Can be 'original' or 'upgraded'.</li>
+ * </ul>
+ *
  */
 public class StatefulStreamJobUpgradeTestProgram {
 	private static final String TEST_JOB_VARIANT_ORIGINAL = "original";
 	private static final String TEST_JOB_VARIANT_UPGRADED = "upgraded";
-
-	private static final JoinFunction<Event, ComplexPayload, ComplexPayload> SIMPLE_STATE_UPDATE =
-		(Event first, ComplexPayload second) -> new ComplexPayload(first);
-	private static final JoinFunction<Event, ComplexPayload, ComplexPayload> LAST_EVENT_STATE_UPDATE =
-		(Event first, ComplexPayload second) ->
-			(second != null && first.getEventTime() <= second.getEventTime()) ? second : new ComplexPayload(first);
 
 	private static final ConfigOption<String> TEST_JOB_VARIANT = ConfigOptions
 		.key("test.job.variant")
@@ -74,14 +76,15 @@ public class StatefulStreamJobUpgradeTestProgram {
 		setupEnvironment(env, pt);
 
 		KeyedStream<Event, Integer> source = env.addSource(createEventSource(pt))
+			.name("EventSource")
+			.uid("EventSource")
 			.assignTimestampsAndWatermarks(createTimestampExtractor(pt))
 			.keyBy(Event::getKey);
 
 		List<TypeSerializer<ComplexPayload>> stateSer =
 			Collections.singletonList(new KryoSerializer<>(ComplexPayload.class, env.getConfig()));
 
-		boolean isOriginal = pt.get(TEST_JOB_VARIANT.key()).equals(TEST_JOB_VARIANT_ORIGINAL);
-		KeyedStream<Event, Integer> afterStatefulOperations = isOriginal ?
+		KeyedStream<Event, Integer> afterStatefulOperations = isOriginalJobVariant(pt) ?
 			applyOriginalStatefulOperations(source, stateSer) :
 			applyUpgradedStatefulOperations(source, stateSer);
 
@@ -93,19 +96,31 @@ public class StatefulStreamJobUpgradeTestProgram {
 		env.execute("General purpose test job");
 	}
 
+	private static boolean isOriginalJobVariant(final ParameterTool pt) {
+		switch (pt.get(TEST_JOB_VARIANT.key())) {
+			case TEST_JOB_VARIANT_ORIGINAL:
+				return true;
+			case TEST_JOB_VARIANT_UPGRADED:
+				return false;
+			default:
+				throw new IllegalArgumentException(String.format("'--test.job.variant' can be either '%s' or '%s'",
+					TEST_JOB_VARIANT_ORIGINAL, TEST_JOB_VARIANT_UPGRADED));
+		}
+	}
+
 	private static KeyedStream<Event, Integer> applyOriginalStatefulOperations(
 		KeyedStream<Event, Integer> source,
 		List<TypeSerializer<ComplexPayload>> stateSer) {
-		source = applyTestStatefulOperator("stateMap1", SIMPLE_STATE_UPDATE, source, stateSer);
-		return applyTestStatefulOperator("stateMap2", LAST_EVENT_STATE_UPDATE, source, stateSer);
+		source = applyTestStatefulOperator("stateMap1", simpleStateUpdate("stateMap1"), source, stateSer);
+		return applyTestStatefulOperator("stateMap2", lastStateUpdate("stateMap2"), source, stateSer);
 	}
 
 	private static KeyedStream<Event, Integer> applyUpgradedStatefulOperations(
 		KeyedStream<Event, Integer> source,
 		List<TypeSerializer<ComplexPayload>> stateSer) {
-		source = applyTestStatefulOperator("stateMap2", SIMPLE_STATE_UPDATE, source, stateSer);
-		source = applyTestStatefulOperator("stateMap1", LAST_EVENT_STATE_UPDATE, source, stateSer);
-		return applyTestStatefulOperator("stateMap3", SIMPLE_STATE_UPDATE, source, stateSer);
+		source = applyTestStatefulOperator("stateMap2", simpleStateUpdate("stateMap2"), source, stateSer);
+		source = applyTestStatefulOperator("stateMap1", lastStateUpdate("stateMap1"), source, stateSer);
+		return applyTestStatefulOperator("stateMap3", simpleStateUpdate("stateMap3"), source, stateSer);
 	}
 
 	private static KeyedStream<Event, Integer> applyTestStatefulOperator(
@@ -114,15 +129,29 @@ public class StatefulStreamJobUpgradeTestProgram {
 		KeyedStream<Event, Integer> source,
 		List<TypeSerializer<ComplexPayload>> stateSer) {
 		return source
-			.map(createArtificialKeyedStateMapper(appendToEventPayload("-" + name), stateFunc, stateSer))
+			.map(createArtificialKeyedStateMapper(e -> e, stateFunc, stateSer, restoredStateVerifier(name)))
 			.name(name)
 			.uid(name)
 			.returns(Event.class)
 			.keyBy(Event::getKey);
 	}
 
-	private static MapFunction<Event, Event> appendToEventPayload(String str) {
-		return (MapFunction<Event, Event>) e ->
-			new Event(e.getKey(), e.getEventTime(), e.getSequenceNumber(), e.getPayload() + str);
+	private static JoinFunction<Event, ComplexPayload, ComplexPayload> simpleStateUpdate(String strPayload) {
+		return (Event first, ComplexPayload second) -> new ComplexPayload(first, strPayload);
+	}
+
+	private static JoinFunction<Event, ComplexPayload, ComplexPayload> lastStateUpdate(String strPayload) {
+		return (Event first, ComplexPayload second) -> {
+			boolean isLastEvent = second != null && first.getEventTime() <= second.getEventTime();
+			return isLastEvent ? second : new ComplexPayload(first, strPayload);
+		};
+	}
+
+	private static RestoredStateVerifier<ComplexPayload> restoredStateVerifier(String strPayload) {
+		return (RestoredStateVerifier<ComplexPayload>) state -> {
+			if (state == null || !state.getStrPayload().equals(strPayload)) {
+				System.out.println("State is restored incorrectly");
+			}
+		};
 	}
 }

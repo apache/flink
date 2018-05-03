@@ -25,6 +25,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.tests.artificialstate.eventpayload.ComplexPayload;
+import org.apache.flink.streaming.tests.artificialstate.eventpayload.RestoredStateVerifier;
 
 import java.util.Collections;
 
@@ -38,15 +39,18 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
  * A general purpose test job for Flink's DataStream API operators and primitives.
  *
  * <p>The job is constructed of generic components from {@link DataStreamAllroundTestJobFactory}.
- * It currrently covers the following aspects that are frequently present in Flink DataStream jobs:
+ * It currently covers the following aspects that are frequently present in Flink DataStream jobs:
  * <ul>
  *     <li>A generic Kryo input type.</li>
  *     <li>A state type for which we register a {@link KryoSerializer}.</li>
  *     <li>Operators with {@link ValueState}.</li>
  * </ul>
  *
+ * <p>The cli job configuration options are described in {@link DataStreamAllroundTestJobFactory}.
+ *
  */
 public class DataStreamAllroundTestProgram {
+	private static final String STATE_OPER_NAME = "ArtificalKeyedStateMapper";
 
 	public static void main(String[] args) throws Exception {
 		final ParameterTool pt = ParameterTool.fromArgs(args);
@@ -59,15 +63,20 @@ public class DataStreamAllroundTestProgram {
 			.assignTimestampsAndWatermarks(createTimestampExtractor(pt))
 			.keyBy(Event::getKey)
 			.map(createArtificialKeyedStateMapper(
-				// map function simply forwards the inputs
-				(MapFunction<Event, Event>) in -> in,
-				// state is updated per event as a wrapped ComplexPayload state object
-				(Event first, ComplexPayload second) -> new ComplexPayload(first), //
-				Collections.singletonList(
-					new KryoSerializer<>(ComplexPayload.class, env.getConfig()))
+					// map function simply forwards the inputs
+					(MapFunction<Event, Event>) in -> in,
+					// state is updated per event as a wrapped ComplexPayload state object
+					(Event first, ComplexPayload second) -> new ComplexPayload(first, STATE_OPER_NAME),
+					Collections.singletonList(
+						new KryoSerializer<>(ComplexPayload.class, env.getConfig())),
+					(RestoredStateVerifier<ComplexPayload>) state -> {
+						if (state == null || !state.getStrPayload().equals(STATE_OPER_NAME)) {
+							System.out.println("State is restored incorrectly");
+						}
+					}
 				)
 			)
-			.name("ArtificalKeyedStateMapper")
+			.name(STATE_OPER_NAME)
 			.returns(Event.class)
 			.keyBy(Event::getKey)
 			.flatMap(createSemanticsCheckMapper(pt))

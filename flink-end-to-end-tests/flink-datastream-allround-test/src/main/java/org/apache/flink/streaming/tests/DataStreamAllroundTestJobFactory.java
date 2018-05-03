@@ -37,10 +37,10 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.tests.artificialstate.ArtificialKeyedStateBuilder;
 import org.apache.flink.streaming.tests.artificialstate.ArtificialKeyedStateMapper;
 import org.apache.flink.streaming.tests.artificialstate.eventpayload.ArtificialValueStateBuilder;
+import org.apache.flink.streaming.tests.artificialstate.eventpayload.RestoredStateVerifier;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * A factory for components of general purpose test jobs for Flink's DataStream API operators and primitives.
@@ -240,18 +240,19 @@ class DataStreamAllroundTestJobFactory {
 	static <IN, OUT, STATE> ArtificialKeyedStateMapper<IN, OUT> createArtificialKeyedStateMapper(
 		MapFunction<IN, OUT> mapFunction,
 		JoinFunction<IN, STATE, STATE> inputAndOldStateToNewState,
-		List<TypeSerializer<STATE>> stateSerializers) {
+		List<TypeSerializer<STATE>> stateSerializers,
+		RestoredStateVerifier<STATE> restoredStateVerifier) {
 
 		List<ArtificialKeyedStateBuilder<IN>> artificialStateBuilders = new ArrayList<>(stateSerializers.size());
 		for (TypeSerializer<STATE> typeSerializer : stateSerializers) {
 
-			String stateName = "valueState-" + typeSerializer.getClass().getSimpleName() + "-" + UUID.randomUUID();
+			String stateName = "valueState-" + typeSerializer.getClass().getSimpleName();
 
 			ArtificialValueStateBuilder<IN, STATE> stateBuilder = new ArtificialValueStateBuilder<>(
 				stateName,
 				inputAndOldStateToNewState,
-				typeSerializer
-			);
+				typeSerializer,
+				restoredStateVerifier);
 
 			artificialStateBuilders.add(stateBuilder);
 		}
