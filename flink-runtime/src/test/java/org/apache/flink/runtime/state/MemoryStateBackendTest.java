@@ -67,6 +67,11 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 		return false;
 	}
 
+	@Override
+	protected boolean isSerializerPresenceRequiredOnRestore() {
+		return true;
+	}
+
 	// disable these because the verification does not work for this state backend
 	@Override
 	@Test

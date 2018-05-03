@@ -75,7 +75,7 @@ public class SerializationProxiesTest {
 		}
 
 		serializationProxy =
-				new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader());
+				new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader(), true);
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			serializationProxy.read(new DataInputViewStreamWrapper(in));
@@ -112,8 +112,10 @@ public class SerializationProxiesTest {
 			serialized = out.toByteArray();
 		}
 
+		// we wish to verify restore resilience when serializer presence is not required;
+		// set isSerializerPresenceRequired to false
 		serializationProxy =
-			new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader());
+			new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader(), false);
 
 		// mock failure when deserializing serializers
 		TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<?> mockProxy =
@@ -159,7 +161,7 @@ public class SerializationProxiesTest {
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			metaInfo = KeyedBackendStateMetaInfoSnapshotReaderWriters
 				.getReaderForVersion(KeyedBackendSerializationProxy.VERSION, Thread.currentThread().getContextClassLoader())
-				.readStateMetaInfo(new DataInputViewStreamWrapper(in));
+				.readStateMetaInfo(new DataInputViewStreamWrapper(in), false);
 		}
 
 		Assert.assertEquals(name, metaInfo.getName());
@@ -192,7 +194,7 @@ public class SerializationProxiesTest {
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			metaInfo = KeyedBackendStateMetaInfoSnapshotReaderWriters
 				.getReaderForVersion(KeyedBackendSerializationProxy.VERSION, Thread.currentThread().getContextClassLoader())
-				.readStateMetaInfo(new DataInputViewStreamWrapper(in));
+				.readStateMetaInfo(new DataInputViewStreamWrapper(in), false);
 		}
 
 		Assert.assertEquals(name, metaInfo.getName());

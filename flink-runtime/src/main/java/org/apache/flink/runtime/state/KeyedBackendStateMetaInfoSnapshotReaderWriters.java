@@ -143,7 +143,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 	}
 
 	public interface KeyedBackendStateMetaInfoReader<N, S> {
-		RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(DataInputView in) throws IOException;
+		RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(DataInputView in, boolean useDummyPlaceholders) throws IOException;
 	}
 
 	static abstract class AbstractKeyedBackendStateMetaInfoReader implements KeyedBackendStateMetaInfoReader {
@@ -163,15 +163,18 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(DataInputView in) throws IOException {
+		public RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(
+				DataInputView in,
+				boolean useDummyPlaceholders) throws IOException {
+
 			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> metaInfo =
 				new RegisteredKeyedBackendStateMetaInfo.Snapshot<>();
 
 			metaInfo.setStateType(StateDescriptor.Type.values()[in.readInt()]);
 			metaInfo.setName(in.readUTF());
 
-			metaInfo.setNamespaceSerializer(TypeSerializerSerializationUtil.<N>tryReadSerializer(in, userCodeClassLoader));
-			metaInfo.setStateSerializer(TypeSerializerSerializationUtil.<S>tryReadSerializer(in, userCodeClassLoader));
+			metaInfo.setNamespaceSerializer(TypeSerializerSerializationUtil.<N>tryReadSerializer(in, userCodeClassLoader, useDummyPlaceholders));
+			metaInfo.setStateSerializer(TypeSerializerSerializationUtil.<S>tryReadSerializer(in, userCodeClassLoader, useDummyPlaceholders));
 
 			// older versions do not contain the configuration snapshot
 			metaInfo.setNamespaceSerializerConfigSnapshot(null);
@@ -189,7 +192,10 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(DataInputView in) throws IOException {
+		public RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(
+				DataInputView in,
+				boolean useDummyPlaceholders) throws IOException {
+
 			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> metaInfo =
 				new RegisteredKeyedBackendStateMetaInfo.Snapshot<>();
 
@@ -197,7 +203,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 			metaInfo.setName(in.readUTF());
 
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
-				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader);
+				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader, useDummyPlaceholders);
 
 			metaInfo.setNamespaceSerializer((TypeSerializer<N>) serializersAndConfigs.get(0).f0);
 			metaInfo.setNamespaceSerializerConfigSnapshot(serializersAndConfigs.get(0).f1);
