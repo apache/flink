@@ -1452,7 +1452,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			runAsync(
 				() -> notifyOfNewResourceManagerLeader(
 					leaderAddress,
-					leaderSessionID != null ? new ResourceManagerId(leaderSessionID) : null));
+					ResourceManagerId.fromUuidOrNull(leaderSessionID)));
 		}
 
 		@Override

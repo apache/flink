@@ -698,7 +698,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	 */
 	@Override
 	public void grantLeadership(final UUID newLeaderSessionID) {
-		final DispatcherId dispatcherId = new DispatcherId(newLeaderSessionID);
+		final DispatcherId dispatcherId = DispatcherId.fromUuid(newLeaderSessionID);
 		log.info("Dispatcher {} was granted leadership with fencing token {}", getAddress(), dispatcherId);
 
 		final CompletableFuture<Collection<JobGraph>> recoveredJobsFuture = recoverJobs();

@@ -1387,7 +1387,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			runAsync(
 				() -> notifyOfNewResourceManagerLeader(
 					leaderAddress,
-					leaderSessionID != null ? new ResourceManagerId(leaderSessionID) : null));
+					ResourceManagerId.fromUuidOrNull(leaderSessionID)));
 		}
 
 		@Override

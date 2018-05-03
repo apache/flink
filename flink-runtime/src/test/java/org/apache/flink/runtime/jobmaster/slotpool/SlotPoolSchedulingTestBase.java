@@ -44,7 +44,7 @@ public class SlotPoolSchedulingTestBase extends TestLogger {
 
 	private static final JobID jobId = new JobID();
 
-	private static final JobMasterId jobMasterId = new JobMasterId();
+	private static final JobMasterId jobMasterId = JobMasterId.generate();
 
 	private static final String jobMasterAddress = "foobar";
 
