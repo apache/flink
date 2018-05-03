@@ -93,13 +93,13 @@ public class CheckpointingOptions {
 			.withDescription("The default directory for savepoints. Used by the state backends that write savepoints to" +
 				" file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend).");
 
-	/** The default directory used for storing checkpoints data files and meta data of externalized checkpoints in a Flink supported filesystem.
+	/** The default directory used for storing the data files and meta data of checkpoints in a Flink supported filesystem.
 	 * Note: the storage path must be accessible from all participating processes/nodes(i.e. all TaskManagers and JobManagers).*/
 	public static final ConfigOption<String> CHECKPOINTS_DIRECTORY = ConfigOptions
 			.key("state.checkpoints.dir")
 			.noDefaultValue()
 			.withDeprecatedKeys("state.backend.fs.checkpointdir")
-			.withDescription("The default directory used for storing checkpoints data files and meta data of externalized checkpoints " +
+			.withDescription("The default directory used for storing the data files and meta data of checkpoints " +
 				"in a Flink supported filesystem. Note: the storage path must be accessible from all participating processes/nodes" +
 				"(i.e. all TaskManagers and JobManagers).");
 
