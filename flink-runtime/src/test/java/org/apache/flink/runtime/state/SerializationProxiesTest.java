@@ -67,7 +67,7 @@ public class SerializationProxiesTest {
 		}
 
 		serializationProxy =
-				new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader());
+				new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader(), true);
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			serializationProxy.read(new DataInputViewStreamWrapper(in));
@@ -109,11 +109,14 @@ public class SerializationProxiesTest {
 		cnfThrowingSerializerClasses.add(LongSerializer.class.getName());
 		cnfThrowingSerializerClasses.add(DoubleSerializer.class.getName());
 
+		// we want to verify restore resilience when serializer presence is not required;
+		// set isSerializerPresenceRequired to false
 		serializationProxy =
 			new KeyedBackendSerializationProxy<>(
 				new ArtificialCNFExceptionThrowingClassLoader(
 					Thread.currentThread().getContextClassLoader(),
-					cnfThrowingSerializerClasses));
+					cnfThrowingSerializerClasses),
+				false);
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			serializationProxy.read(new DataInputViewStreamWrapper(in));

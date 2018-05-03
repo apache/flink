@@ -46,6 +46,11 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 		return false;
 	}
 
+	@Override
+	protected boolean isSerializerPresenceRequiredOnRestore() {
+		return true;
+	}
+
 	// disable these because the verification does not work for this state backend
 	@Override
 	@Test
