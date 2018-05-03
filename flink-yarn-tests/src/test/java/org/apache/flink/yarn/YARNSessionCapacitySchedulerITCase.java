@@ -400,6 +400,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-yj", flinkUberjar.getAbsolutePath(),
 				"-yt", flinkLibFolder.getAbsolutePath(),
 				"-yn", "1",
+				"-ys", "2",
 				"-yjm", "768",
 				"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
