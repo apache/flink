@@ -61,7 +61,6 @@ public class MiniClusterResource extends ExternalResource {
 
 	public static final String NEW_CODEBASE = "new";
 
-	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private final MiniClusterResourceConfiguration miniClusterResourceConfiguration;
