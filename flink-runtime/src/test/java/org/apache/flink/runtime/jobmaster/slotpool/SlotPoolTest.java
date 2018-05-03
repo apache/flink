@@ -321,9 +321,20 @@ public class SlotPoolTest extends TestLogger {
 			assertTrue(slotPoolGateway.offerSlot(taskManagerLocation, taskManagerGateway, slotOffer).get());
 			assertTrue(slot.isAlive());
 
+			final SlotOffer anotherSlotOfferWithSameAllocationId = new SlotOffer(
+					slotRequest.getAllocationId(),
+					1,
+					DEFAULT_TESTING_PROFILE);
+			assertFalse(slotPoolGateway.offerSlot(taskManagerLocation, taskManagerGateway, anotherSlotOfferWithSameAllocationId).get());
+
+			TaskManagerLocation anotherTaskManagerLocation = new LocalTaskManagerLocation();
+			assertFalse(slotPoolGateway.offerSlot(anotherTaskManagerLocation, taskManagerGateway, slotOffer).get());
+
 			// duplicated offer with free slot
 			slot.releaseSlot();
 			assertTrue(slotPoolGateway.offerSlot(taskManagerLocation, taskManagerGateway, slotOffer).get());
+			assertFalse(slotPoolGateway.offerSlot(taskManagerLocation, taskManagerGateway, anotherSlotOfferWithSameAllocationId).get());
+			assertFalse(slotPoolGateway.offerSlot(anotherTaskManagerLocation, taskManagerGateway, slotOffer).get());
 		} finally {
 			slotPool.shutDown();
 		}
