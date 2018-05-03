@@ -133,15 +133,7 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 
 Some more parameters and/or defaults may be set via `conf/flink-conf.yaml` (see [configuration]({{ site.baseurl }}/ops/config.html) for a full guide):
 
-- `state.backend`: The backend that will be used to store operator state checkpoints if checkpointing is enabled. Supported backends:
-   -  `jobmanager`: In-memory state, backup to JobManager's/ZooKeeper's memory. Should be used only for minimal state (Kafka offsets) or testing and local debugging.
-   -  `filesystem`: State is in-memory on the TaskManagers, and state snapshots are stored in a file system. Supported are all filesystems supported by Flink, for example HDFS, S3, ...
-
-- `state.checkpoints.dir`: The target directory for storing checkpoints data files and meta data of [externalized checkpoints]({{ site.baseurl }}/ops/state/checkpoints.html#externalized-checkpoints) in a Flink supported filesystem. Note: the storage path must be accessible from all participating processes/nodes(i.e. all TaskManagers and JobManagers).
-
-- `state.backend.rocksdb.localdir`:  The local directory for storing RocksDB files, or a list of directories separated by the systems directory delimiter (for example ‘:’ (colon) on Linux/Unix). (DEFAULT value is `taskmanager.tmp.dirs`)
-
-- `state.checkpoints.num-retained`: The number of completed checkpoint instances to retain. Having more than one allows recovery fallback to an earlier checkpoints if the latest checkpoint is corrupt. (Default: 1)
+{% include generated/checkpointing_configuration.html %}
 
 {% top %}
 
