@@ -39,9 +39,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.LOCATIONS;
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.stringifyDefault;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.extractConfigOptions;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.processConfigOptions;
+import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.stringifyDefault;
 
 /**
  * This test verifies that all {@link ConfigOption ConfigOptions} in the configured
