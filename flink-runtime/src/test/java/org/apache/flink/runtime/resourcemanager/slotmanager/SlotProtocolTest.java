@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
@@ -59,11 +60,11 @@ public class SlotProtocolTest extends TestLogger {
 
 	private static final long timeout = 10000L;
 
-	private static final ScheduledExecutorService scheduledExecutorService = 
+	private static final ScheduledExecutorService scheduledExecutorService =
 			new ScheduledThreadPoolExecutor(1);
 
 
-	private static final ScheduledExecutor scheduledExecutor = 
+	private static final ScheduledExecutor scheduledExecutor =
 			new ScheduledExecutorServiceAdapter(scheduledExecutorService);
 
 	@AfterClass
@@ -118,7 +119,7 @@ public class SlotProtocolTest extends TestLogger {
 			final SlotReport slotReport =
 				new SlotReport(Collections.singletonList(slotStatus));
 			// register slot at SlotManager
-			slotManager.registerTaskManager(new TaskExecutorConnection(taskExecutorGateway), slotReport);
+			slotManager.registerTaskManager(new TaskExecutorConnection(resourceID, taskExecutorGateway), slotReport);
 
 			// 4) Slot becomes available and TaskExecutor gets a SlotRequest
 			verify(taskExecutorGateway, timeout(5000L))
@@ -166,7 +167,7 @@ public class SlotProtocolTest extends TestLogger {
 				new SlotReport(Collections.singletonList(slotStatus));
 			// register slot at SlotManager
 			slotManager.registerTaskManager(
-				new TaskExecutorConnection(taskExecutorGateway), slotReport);
+				new TaskExecutorConnection(resourceID, taskExecutorGateway), slotReport);
 
 			final String targetAddress = "foobar";
 
