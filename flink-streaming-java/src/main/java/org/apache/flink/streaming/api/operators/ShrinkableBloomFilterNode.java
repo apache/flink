@@ -27,6 +27,8 @@ import org.apache.flink.shaded.guava18.com.google.common.hash.Funnels;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Objects;
 
@@ -241,15 +243,19 @@ public class ShrinkableBloomFilterNode {
 	}
 
 	/**
-	 *
+	 * The bloom filter unit to store records.
 	 */
-	private class BloomFilterUnit {
+	static class BloomFilterUnit {
 
 		private BloomFilter<byte[]> bloomFilter;
 
 		private int capacity;
 
 		private int size;
+
+		BloomFilterUnit() {
+
+		}
 
 		public BloomFilterUnit(int capacity, double fpp) {
 
@@ -289,21 +295,48 @@ public class ShrinkableBloomFilterNode {
 			return size;
 		}
 
-		public void snapshot(DataOutputView outputView) {
-//		ByteArrayOutputStream out = new ByteArrayOutputStream();
-//		bloomFilter.writeTo(out);
-//		byte[] bytes = out.toByteArray();
-//		outputView.writeInt(bytes.length);
-//		outputView.write(bytes);
+		public void snapshot(DataOutputView outputView) throws IOException {
+			outputView.writeInt(capacity);
+			outputView.writeInt(size);
+
+			try(ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+				bloomFilter.writeTo(out);
+				byte[] bytes = out.toByteArray();
+				outputView.writeInt(bytes.length);
+				outputView.write(bytes);
+			}
 		}
 
-		public void restore(DataInputView source) {
-//		int byteLen = source.readInt();
-//		byte[] bytes = new byte[byteLen];
-//		source.read(bytes, 0, byteLen);
-//		ByteArrayInputStream input = new ByteArrayInputStream(bytes);
+		public void restore(DataInputView source) throws IOException {
+			this.capacity = source.readInt();
+			this.size = source.readInt();
 
-//		bloomFilter = BloomFilter.readFrom(input, Funnels.byteArrayFunnel());
+			int byteLen = source.readInt();
+			byte[] bytes = new byte[byteLen];
+			source.read(bytes, 0, byteLen);
+			try(ByteArrayInputStream input = new ByteArrayInputStream(bytes)) {
+				bloomFilter = BloomFilter.readFrom(input, Funnels.byteArrayFunnel());
+			}
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+
+			if (obj == this) {
+				return true;
+			}
+
+			if (obj == null) {
+				return false;
+			}
+
+			if (!(obj instanceof BloomFilterUnit)) {
+				return false;
+			}
+
+			BloomFilterUnit other = (BloomFilterUnit) obj;
+
+			return this.size == other.size && this.capacity == other.capacity && this.bloomFilter.equals(other.bloomFilter);
 		}
 	}
 }

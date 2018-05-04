@@ -43,7 +43,7 @@ public class LinkedBloomFilterTest {
 
 		LinkedShrinkableBloomFilter linkedBloomFilter = new LinkedShrinkableBloomFilter(partitionedBloomFilter, 1000, 2);
 
-		List<ElasticBloomFilterNode> nodes = linkedBloomFilter.getBloomFilterNodes();
+		List<ShrinkableBloomFilterNode> nodes = linkedBloomFilter.getBloomFilterNodes();
 
 		Assert.assertEquals(0, nodes.size());
 		for (int i = 0; i < 1000; ++i) {
@@ -79,7 +79,7 @@ public class LinkedBloomFilterTest {
 
 		LinkedShrinkableBloomFilter linkedBloomFilter = new LinkedShrinkableBloomFilter(partitionedBloomFilter, 1000, 2);
 
-		List<ElasticBloomFilterNode> nodes = linkedBloomFilter.getBloomFilterNodes();
+		List<ShrinkableBloomFilterNode> nodes = linkedBloomFilter.getBloomFilterNodes();
 
 		Assert.assertEquals(0, nodes.size());
 		for (int i = 0; i < 1000; ++i) {
@@ -106,7 +106,7 @@ public class LinkedBloomFilterTest {
 		Assert.assertEquals(linkedBloomFilter.getInitSize(), linkedBloomFilter2.getInitSize());
 		Assert.assertEquals(String.valueOf(linkedBloomFilter.getGrowRate()), String.valueOf(linkedBloomFilter2.getGrowRate()));
 
-		List<ElasticBloomFilterNode> nodes2 = linkedBloomFilter2.getBloomFilterNodes();
+		List<ShrinkableBloomFilterNode> nodes2 = linkedBloomFilter2.getBloomFilterNodes();
 
 		Assert.assertEquals(nodes.size(), nodes2.size());
 		for (int i = 0; i < nodes.size(); ++i) {
@@ -122,7 +122,7 @@ public class LinkedBloomFilterTest {
 
 		LinkedShrinkableBloomFilter linkedBloomFilter3 = new LinkedShrinkableBloomFilter(partitionedBloomFilter, 1000, 2);
 		linkedBloomFilter3.restore(new DataInputViewStreamWrapper(new ByteArrayInputStream(outputBytes)));
-		List<ElasticBloomFilterNode> nodes3 = linkedBloomFilter3.getBloomFilterNodes();
+		List<ShrinkableBloomFilterNode> nodes3 = linkedBloomFilter3.getBloomFilterNodes();
 
 		Assert.assertEquals(1, nodes.size());
 		Assert.assertEquals(1, nodes3.size());
