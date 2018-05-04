@@ -471,6 +471,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		subscribedPartitionsToStartOffsets = new HashMap<>();
 
 		List<KafkaTopicPartition> allPartitions = partitionDiscoverer.discoverPartitions();
+		if (discoveryIntervalMillis == PARTITION_DISCOVERY_DISABLED && (allPartitions == null || allPartitions.isEmpty())) {
+			throw new RuntimeException("Unable to retrieve any partitions with KafkaTopicsDescriptor: " + topicsDescriptor);
+		}
 
 		if (restoredState != null) {
 			for (KafkaTopicPartition partition : allPartitions) {

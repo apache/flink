@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import static java.util.Collections.emptyList;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -124,7 +125,7 @@ public abstract class AbstractPartitionDiscoverer {
 	public List<KafkaTopicPartition> discoverPartitions() throws WakeupException, ClosedException {
 		if (!closed && !wakeup) {
 			try {
-				List<KafkaTopicPartition> newDiscoveredPartitions;
+				List<KafkaTopicPartition> newDiscoveredPartitions = null;
 
 				// (1) get all possible partitions, based on whether we are subscribed to fixed topics or a topic pattern
 				if (topicsDescriptor.isFixedTopics()) {
@@ -143,22 +144,20 @@ public abstract class AbstractPartitionDiscoverer {
 					if (matchedTopics.size() != 0) {
 						// get partitions only for matched topics
 						newDiscoveredPartitions = getAllPartitionsForTopics(matchedTopics);
-					} else {
-						newDiscoveredPartitions = null;
 					}
 				}
 
+				if (newDiscoveredPartitions == null) {
+					newDiscoveredPartitions = emptyList();
+				}
+
 				// (2) eliminate partition that are old partitions or should not be subscribed by this subtask
-				if (newDiscoveredPartitions == null || newDiscoveredPartitions.isEmpty()) {
-					throw new RuntimeException("Unable to retrieve any partitions with KafkaTopicsDescriptor: " + topicsDescriptor);
-				} else {
-					Iterator<KafkaTopicPartition> iter = newDiscoveredPartitions.iterator();
-					KafkaTopicPartition nextPartition;
-					while (iter.hasNext()) {
-						nextPartition = iter.next();
-						if (!setAndCheckDiscoveredPartition(nextPartition)) {
-							iter.remove();
-						}
+				Iterator<KafkaTopicPartition> iter = newDiscoveredPartitions.iterator();
+				KafkaTopicPartition nextPartition;
+				while (iter.hasNext()) {
+					nextPartition = iter.next();
+					if (!setAndCheckDiscoveredPartition(nextPartition)) {
+						iter.remove();
 					}
 				}
 

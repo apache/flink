@@ -76,7 +76,7 @@ public class Kafka09PartitionDiscoverer extends AbstractPartitionDiscoverer {
 			for (String topic : topics) {
 				List<PartitionInfo> topicPartitions = kafkaConsumer.partitionsFor(topic);
 				if (topicPartitions == null) {
-					throw new IllegalStateException("The topic " + topic + " does not exist");
+					continue;
 				}
 
 				for (PartitionInfo partitionInfo : topicPartitions) {

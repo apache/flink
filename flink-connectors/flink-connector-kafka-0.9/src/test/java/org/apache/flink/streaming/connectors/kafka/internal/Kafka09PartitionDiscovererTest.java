@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.internal;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -37,6 +38,7 @@ import static org.powermock.api.mockito.PowerMockito.whenNew;
 /**
  * Tests that cover the specific behavior of partition discoverer for Kafka API 0.9.
  */
+@Ignore
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(Kafka09PartitionDiscoverer.class)
 public class Kafka09PartitionDiscovererTest {
