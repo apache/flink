@@ -38,7 +38,7 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.migration.MigrationTestUtil;
 import org.apache.flink.streaming.util.migration.MigrationVersion;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedWithTimestampDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Assert;
@@ -372,7 +372,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 			super(
 				Arrays.asList("dummy-topic"),
 				null,
-				(KeyedDeserializationSchema< T >) mock(KeyedDeserializationSchema.class),
+				(KeyedWithTimestampDeserializationSchema< T >) mock(KeyedWithTimestampDeserializationSchema.class),
 				discoveryInterval,
 				false);
 

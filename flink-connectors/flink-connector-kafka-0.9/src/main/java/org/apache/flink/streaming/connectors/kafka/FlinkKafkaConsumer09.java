@@ -32,6 +32,8 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
+import org.apache.flink.streaming.util.serialization.KeyedWithTimestampDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedWithTimestampDeserializationSchemaWrapper;
 import org.apache.flink.util.PropertiesUtil;
 import org.apache.flink.util.SerializedValue;
 
@@ -153,6 +155,25 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer09(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
+		this(topics, null, new KeyedWithTimestampDeserializationSchemaWrapper<>(deserializer), props);
+	}
+
+	/**
+	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
+	 *
+	 * <p>This constructor allows passing multiple topics and a key/value/timestamp deserialization schema.
+	 *
+	 * <p>Note: Kafka 0.9.x doesn't support timestamp/timestampType but constructor is needed for the subclasses
+	 * that implement consumers for Kafka 0.10+
+	 *
+	 * @param topics
+	 *           The Kafka topics to read from.
+	 * @param deserializer
+	 *           The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
+	 * @param props
+	 *           The properties that are used to configure both the fetcher and the offset handler.
+	 */
+	protected FlinkKafkaConsumer09(List<String> topics, KeyedWithTimestampDeserializationSchema<T> deserializer, Properties props) {
 		this(topics, null, deserializer, props);
 	}
 
@@ -196,13 +217,38 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	 */
 	@PublicEvolving
 	public FlinkKafkaConsumer09(Pattern subscriptionPattern, KeyedDeserializationSchema<T> deserializer, Properties props) {
+		this(null, subscriptionPattern, new KeyedWithTimestampDeserializationSchemaWrapper<>(deserializer), props);
+	}
+
+	/**
+	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x. Use this constructor to
+	 * subscribe to multiple topics based on a regular expression pattern.
+	 *
+	 * <p>If partition discovery is enabled (by setting a non-negative value for
+	 * {@link FlinkKafkaConsumer09#KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS} in the properties), topics
+	 * with names matching the pattern will also be subscribed to as they are created on the fly.
+	 *
+	 * <p>This constructor allows passing a {@see KeyedDeserializationSchema} for reading key/value
+	 * pairs, offsets, timestamp, timestampType and topic names from Kafka.
+	 *
+	 * <p>Note: Kafka 0.9.x doesn't support timestamp/timestampType but constructor is needed for the subclasses
+	 * that implement consumers for Kafka 0.10+
+	 *
+	 * @param subscriptionPattern
+	 *           The regular expression for a pattern of topic names to subscribe to.
+	 * @param deserializer
+	 *           The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
+	 * @param props
+	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
+	 */
+	protected FlinkKafkaConsumer09(Pattern subscriptionPattern, KeyedWithTimestampDeserializationSchema<T> deserializer, Properties props) {
 		this(null, subscriptionPattern, deserializer, props);
 	}
 
 	private FlinkKafkaConsumer09(
 			List<String> topics,
 			Pattern subscriptionPattern,
-			KeyedDeserializationSchema<T> deserializer,
+			KeyedWithTimestampDeserializationSchema<T> deserializer,
 			Properties props) {
 
 		super(

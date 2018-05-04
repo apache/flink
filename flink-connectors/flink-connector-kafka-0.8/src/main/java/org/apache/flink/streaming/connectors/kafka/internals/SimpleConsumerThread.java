@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka.internals;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedWithTimestampDeserializationSchema;
 import org.apache.flink.util.ExceptionUtils;
 
 import kafka.api.FetchRequestBuilder;
@@ -68,7 +68,7 @@ class SimpleConsumerThread<T> extends Thread {
 
 	private final Kafka08Fetcher<T> owner;
 
-	private final KeyedDeserializationSchema<T> deserializer;
+	private final KeyedWithTimestampDeserializationSchema<T> deserializer;
 
 	private final List<KafkaTopicPartitionState<TopicAndPartition>> partitions;
 
@@ -103,7 +103,7 @@ class SimpleConsumerThread<T> extends Thread {
 			Node broker,
 			List<KafkaTopicPartitionState<TopicAndPartition>> seedPartitions,
 			ClosableBlockingQueue<KafkaTopicPartitionState<TopicAndPartition>> unassignedPartitions,
-			KeyedDeserializationSchema<T> deserializer,
+			KeyedWithTimestampDeserializationSchema<T> deserializer,
 			long invalidOffsetBehavior) {
 		this.owner = owner;
 		this.errorHandler = errorHandler;
@@ -370,7 +370,8 @@ class SimpleConsumerThread<T> extends Thread {
 							}
 
 							final T value = deserializer.deserialize(keyBytes, valueBytes,
-									currentPartition.getTopic(), currentPartition.getPartition(), offset);
+									currentPartition.getTopic(), currentPartition.getPartition(), offset,
+									Long.MIN_VALUE, KeyedWithTimestampDeserializationSchema.TimestampType.NO_TIMESTAMP_TYPE);
 
 							if (deserializer.isEndOfStream(value)) {
 								// remove partition from subscribed partitions.
