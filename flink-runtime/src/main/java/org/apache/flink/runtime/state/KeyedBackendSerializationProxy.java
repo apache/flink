@@ -144,8 +144,12 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 			this.keySerializer = (TypeSerializer<K>) keySerializerAndConfig.f0;
 			this.keySerializerConfigSnapshot = keySerializerAndConfig.f1;
 		} else {
-			this.keySerializer = TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader);
+			this.keySerializer = TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader, true);
 			this.keySerializerConfigSnapshot = null;
+		}
+
+		if (isSerializerPresenceRequired) {
+			checkSerializerPresence(keySerializer);
 		}
 
 		int numKvStates = in.readShort();
@@ -156,21 +160,19 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 				.readStateMetaInfo(in);
 
 			if (isSerializerPresenceRequired) {
-				if (snapshot.getNamespaceSerializer() instanceof UnloadableDummyTypeSerializer) {
-					throw new IOException("Unable to restore keyed state [" + snapshot.getName() + "]" +
-						" because the previous namespace serializer of the keyed state must be present; " +
-						" the serializer could have been removed from the classpath, or its implementation" +
-						" have changed and could not be loaded. This is a temporary restriction that will be fixed" +
-						" in future versions.");
-				} else if (snapshot.getStateSerializer() instanceof UnloadableDummyTypeSerializer) {
-					throw new IOException("Unable to restore keyed state [" + snapshot.getName() + "]" +
-						" because the previous state serializer of the keyed state must be present; " +
-						" the serializer could have been removed from the classpath, or its implementation" +
-						" have changed and could not be loaded. This is a temporary restriction that will be fixed" +
-						" in future versions.");
-				}
+				checkSerializerPresence(snapshot.getNamespaceSerializer());
+				checkSerializerPresence(snapshot.getStateSerializer());
 			}
 			stateMetaInfoSnapshots.add(snapshot);
+		}
+	}
+
+	private void checkSerializerPresence(TypeSerializer<?> serializer) throws IOException {
+		if (serializer instanceof UnloadableDummyTypeSerializer) {
+			throw new IOException("Unable to restore keyed state, because a previous serializer" +
+				" of the keyed state is not present The serializer could have been removed from the classpath, " +
+				" or its implementation have changed and could not be loaded. This is a temporary restriction that will" +
+				" be fixed in future versions.");
 		}
 	}
 }
