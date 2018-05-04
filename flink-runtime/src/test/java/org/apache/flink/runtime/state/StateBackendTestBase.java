@@ -73,7 +73,7 @@ import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
-import org.apache.flink.runtime.state.testutils.ArtificialCNFErrorThrowingClassLoader;
+import org.apache.flink.runtime.state.testutils.ArtificialCNFExceptionThrowingClassLoader;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.IOUtils;
@@ -1065,7 +1065,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			// on restore, simulate that the previous serializer class is no longer in the classloader
 			env = new DummyEnvironment(
-				new ArtificialCNFErrorThrowingClassLoader(
+				new ArtificialCNFExceptionThrowingClassLoader(
 					getClass().getClassLoader(),
 					Collections.singleton(TestReconfigurableCustomTypeSerializerPreUpgrade.class.getName())));
 

@@ -22,11 +22,11 @@ import java.util.Set;
 /**
  * Utility classloader used in tests that allows simulating {@link ClassNotFoundException}s for specific classes.
  */
-public class ArtificialCNFErrorThrowingClassLoader extends ClassLoader {
+public class ArtificialCNFExceptionThrowingClassLoader extends ClassLoader {
 
 	private final Set<String> cnfThrowingClassnames;
 
-	public ArtificialCNFErrorThrowingClassLoader(ClassLoader parent, Set<String> cnfThrowingClassnames) {
+	public ArtificialCNFExceptionThrowingClassLoader(ClassLoader parent, Set<String> cnfThrowingClassnames) {
 		super(parent);
 		this.cnfThrowingClassnames = cnfThrowingClassnames;
 	}

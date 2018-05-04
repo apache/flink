@@ -30,7 +30,7 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
-import org.apache.flink.runtime.state.testutils.ArtificialCNFErrorThrowingClassLoader;
+import org.apache.flink.runtime.state.testutils.ArtificialCNFExceptionThrowingClassLoader;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -113,7 +113,7 @@ public class SerializationProxiesTest {
 		// set isSerializerPresenceRequired to false
 		serializationProxy =
 			new KeyedBackendSerializationProxy<>(
-				new ArtificialCNFErrorThrowingClassLoader(
+				new ArtificialCNFExceptionThrowingClassLoader(
 					Thread.currentThread().getContextClassLoader(),
 					cnfThrowingSerializerClasses),
 				false);
@@ -188,7 +188,7 @@ public class SerializationProxiesTest {
 			metaInfo = KeyedBackendStateMetaInfoSnapshotReaderWriters
 				.getReaderForVersion(
 					KeyedBackendSerializationProxy.VERSION,
-					new ArtificialCNFErrorThrowingClassLoader(
+					new ArtificialCNFExceptionThrowingClassLoader(
 						Thread.currentThread().getContextClassLoader(),
 						cnfThrowingSerializerClasses))
 				.readStateMetaInfo(new DataInputViewStreamWrapper(in));
@@ -332,7 +332,7 @@ public class SerializationProxiesTest {
 			metaInfo = OperatorBackendStateMetaInfoSnapshotReaderWriters
 				.getOperatorStateReaderForVersion(
 					OperatorBackendSerializationProxy.VERSION,
-					new ArtificialCNFErrorThrowingClassLoader(
+					new ArtificialCNFExceptionThrowingClassLoader(
 						Thread.currentThread().getContextClassLoader(),
 						cnfThrowingSerializerClasses))
 				.readOperatorStateMetaInfo(new DataInputViewStreamWrapper(in));
@@ -370,7 +370,7 @@ public class SerializationProxiesTest {
 			broadcastMetaInfo = OperatorBackendStateMetaInfoSnapshotReaderWriters
 					.getBroadcastStateReaderForVersion(
 						OperatorBackendSerializationProxy.VERSION,
-						new ArtificialCNFErrorThrowingClassLoader(
+						new ArtificialCNFExceptionThrowingClassLoader(
 							Thread.currentThread().getContextClassLoader(),
 							cnfThrowingSerializerClasses))
 					.readBroadcastStateMetaInfo(new DataInputViewStreamWrapper(in));

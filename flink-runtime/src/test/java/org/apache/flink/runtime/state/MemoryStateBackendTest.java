@@ -31,7 +31,7 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.runtime.state.testutils.ArtificialCNFErrorThrowingClassLoader;
+import org.apache.flink.runtime.state.testutils.ArtificialCNFExceptionThrowingClassLoader;
 import org.apache.flink.util.FutureUtil;
 import org.junit.Assert;
 import org.junit.Ignore;
@@ -129,7 +129,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 			operatorStateBackend.dispose();
 
 			env = new DummyEnvironment(
-				new ArtificialCNFErrorThrowingClassLoader(
+				new ArtificialCNFExceptionThrowingClassLoader(
 					getClass().getClassLoader(),
 					Collections.singleton(JavaSerializer.class.getName())));
 
@@ -185,7 +185,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 				IntSerializer.INSTANCE,
 				snapshot,
 				new DummyEnvironment(
-					new ArtificialCNFErrorThrowingClassLoader(
+					new ArtificialCNFExceptionThrowingClassLoader(
 						getClass().getClassLoader(),
 						Collections.singleton(StringSerializer.class.getName()))));
 

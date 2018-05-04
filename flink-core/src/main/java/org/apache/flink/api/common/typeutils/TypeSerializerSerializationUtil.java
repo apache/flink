@@ -70,7 +70,6 @@ public class TypeSerializerSerializationUtil {
 	 *
 	 * <p>If deserialization fails for any reason (corrupted serializer bytes, serializer class
 	 * no longer in classpath, serializer class no longer valid, etc.), an {@link IOException} is thrown.
-	 * be returned instead.
 	 *
 	 * @param in the data input view.
 	 * @param userCodeClassLoader the user code class loader to use.
