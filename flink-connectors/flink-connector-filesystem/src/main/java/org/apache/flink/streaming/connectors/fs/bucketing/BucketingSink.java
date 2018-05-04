@@ -450,7 +450,7 @@ public class BucketingSink<T>
 			state.addBucketState(bucketPath, bucketState);
 		}
 
-		if (shouldRoll(bucketState)) {
+		if (shouldRoll(bucketState, currentProcessingTime)) {
 			openNewPartFile(bucketPath, bucketState);
 		}
 
@@ -467,7 +467,7 @@ public class BucketingSink<T>
 	 *     <li>the current file is older than roll over interval</li>
 	 * </ol>
 	 */
-	private boolean shouldRoll(BucketState<T> bucketState) throws IOException {
+	private boolean shouldRoll(BucketState<T> bucketState, long currentProcessingTime) throws IOException {
 		boolean shouldRoll = false;
 		int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 		if (!bucketState.isWriterOpen) {
@@ -483,7 +483,6 @@ public class BucketingSink<T>
 					writePosition,
 					batchSize);
 			} else {
-				long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 				if (currentProcessingTime - bucketState.creationTime > batchRolloverInterval) {
 					shouldRoll = true;
 					LOG.debug(
@@ -939,7 +938,10 @@ public class BucketingSink<T>
 	 * @param batchRolloverInterval The roll over interval in milliseconds
 	 */
 	public BucketingSink<T> setBatchRolloverInterval(long batchRolloverInterval) {
-		this.batchRolloverInterval = batchRolloverInterval;
+		if (batchRolloverInterval > 0) {
+			this.batchRolloverInterval = batchRolloverInterval;
+		}
+
 		return this;
 	}
 
