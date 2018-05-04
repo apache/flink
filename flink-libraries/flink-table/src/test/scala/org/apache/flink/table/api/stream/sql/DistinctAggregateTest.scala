@@ -137,37 +137,4 @@ class DistinctAggregateTest extends TableTestBase {
 
     streamUtil.verifySql(sqlQuery, expected)
   }
-
-  @Test
-  def testDistinctAggregateWithNonDistinctAndGrouping(): Unit = {
-    val sqlQuery = "SELECT a, " +
-      "  COUNT(*), " +
-      "  SUM(DISTINCT c), " +
-      "  COUNT(DISTINCT b), " +
-      "  SUM(c), " +
-      "  COUNT(b) " +
-      "FROM MyTable " +
-      "GROUP BY a, TUMBLE(rowtime, INTERVAL '15' MINUTE) "
-
-    val expected = unaryNode(
-      "DataStreamGroupWindowAggregate",
-      unaryNode(
-        "DataStreamCalc",
-        streamTableNode(0),
-        term("select", "a", "rowtime", "c", "b")
-      ),
-      term("groupBy", "a"),
-      term("window", TumblingGroupWindow('w$, 'rowtime, 900000.millis)),
-      term("select",
-        "a",
-        "COUNT(*) AS EXPR$1",
-        "SUM(DISTINCT c) AS EXPR$2",
-        "COUNT(DISTINCT b) AS EXPR$3",
-        "SUM(c) AS EXPR$4",
-        "COUNT(b) AS EXPR$5"
-      )
-    )
-
-    streamUtil.verifySql(sqlQuery, expected)
-  }
 }

@@ -55,36 +55,43 @@ class SqlITCase extends StreamingWithStateTestBase {
   @Test
   def testDistinctAggWithMergeOnEventTimeSessionGroupWindow(): Unit = {
     // create a watermark with 10ms offset to delay the window emission by 10ms to verify merge
-    val sessionWindowTestdata = List(
-      (1L, 1, "Hello"),
-      (2L, 2, "Hello"),
-      (8L, 8, "Hello"),
-      (9L, 9, "Hello World"),
-      (4L, 4, "Hello"),
-      (16L, 16, "Hello"))
+    val sessionWindowTestData = List(
+      (1L, 2, "Hello"),       // (1, Hello)       - window
+      (2L, 2, "Hello"),       // (1, Hello)       - window, deduped
+      (8L, 2, "Hello"),       // (2, Hello)       - window, deduped during merge
+      (10L, 3, "Hello"),      // (2, Hello)       - window, forwarded during merge
+      (9L, 9, "Hello World"), // (1, Hello World) - window
+      (4L, 1, "Hello"),       // (1, Hello)       - window, triggering merge
+      (16L, 16, "Hello"))     // (3, Hello)       - window (not merged)
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(1)
     StreamITCase.clear
     val stream = env
-      .fromCollection(sessionWindowTestdata)
+      .fromCollection(sessionWindowTestData)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](10L))
 
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
+    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
     tEnv.registerTable("MyTable", table)
 
-    val sqlQuery = "SELECT string, " +
-      "  COUNT(DISTINCT long) " +
+    val sqlQuery = "SELECT c, " +
+      "  COUNT(DISTINCT b)," +
+      "  SESSION_END(rowtime, INTERVAL '0.005' SECOND) " +
       "FROM MyTable " +
-      "GROUP BY SESSION(rowtime, INTERVAL '0.005' SECOND), string "
+      "GROUP BY SESSION(rowtime, INTERVAL '0.005' SECOND), c "
 
     val results = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = Seq("Hello World,1", "Hello,1", "Hello,4")
+    val expected = Seq(
+      "Hello World,1,1970-01-01 00:00:00.014", // window starts at [9L] till {14L}
+      "Hello,1,1970-01-01 00:00:00.021",       // window starts at [16L] till {21L}, not merged
+      "Hello,3,1970-01-01 00:00:00.015"        // window starts at [1L,2L],
+                                               //   merged with [8L,10L], by [4L], till {15L}
+    )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
