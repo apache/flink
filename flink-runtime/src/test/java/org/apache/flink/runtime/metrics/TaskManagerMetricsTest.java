@@ -27,8 +27,6 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServic
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
-import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
-import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
@@ -103,11 +101,6 @@ public class TaskManagerMetricsTest extends TestLogger {
 				EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag(),
 				EnvironmentInformation.getMaxJvmHeapMemory());
 
-			TaskManagerMetricGroup taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
-				metricRegistry,
-				taskManagerServices.getTaskManagerLocation(),
-				taskManagerServices.getNetworkEnvironment());
-
 			// create the task manager
 			final Props tmProps = TaskManager.getTaskManagerProps(
 				TaskManager.class,
@@ -119,7 +112,7 @@ public class TaskManagerMetricsTest extends TestLogger {
 				taskManagerServices.getNetworkEnvironment(),
 				taskManagerServices.getTaskManagerStateStore(),
 				highAvailabilityServices,
-				taskManagerMetricGroup);
+				metricRegistry);
 
 			final ActorRef taskManager = actorSystem.actorOf(tmProps);
 
