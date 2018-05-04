@@ -106,10 +106,19 @@ public class TypeSerializerSerializationUtil {
 			boolean useDummyPlaceholder) throws IOException {
 
 		final TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<T> proxy =
-			new TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<>(userCodeClassLoader, useDummyPlaceholder);
+			new TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<>(userCodeClassLoader);
 
-		proxy.read(in);
-		return proxy.getTypeSerializer();
+		try {
+			proxy.read(in);
+			return proxy.getTypeSerializer();
+		} catch (UnloadableTypeSerializerException e) {
+			if (useDummyPlaceholder) {
+				LOG.warn("Could not read a requested serializer. Replaced with a UnloadableDummyTypeSerializer.", e.getCause());
+				return new UnloadableDummyTypeSerializer<>(e.getSerializerBytes());
+			} else {
+				throw e;
+			}
+		}
 	}
 
 	/**
@@ -312,20 +321,13 @@ public class TypeSerializerSerializationUtil {
 
 		private ClassLoader userClassLoader;
 		private TypeSerializer<T> typeSerializer;
-		private boolean useDummyPlaceholder;
-
-		public TypeSerializerSerializationProxy(ClassLoader userClassLoader, boolean useDummyPlaceholder) {
-			this.userClassLoader = userClassLoader;
-			this.useDummyPlaceholder = useDummyPlaceholder;
-		}
 
 		public TypeSerializerSerializationProxy(ClassLoader userClassLoader) {
-			this(userClassLoader, false);
+			this.userClassLoader = userClassLoader;
 		}
 
 		public TypeSerializerSerializationProxy(TypeSerializer<T> typeSerializer) {
 			this.typeSerializer = Preconditions.checkNotNull(typeSerializer);
-			this.useDummyPlaceholder = false;
 		}
 
 		public TypeSerializer<T> getTypeSerializer() {
@@ -371,14 +373,7 @@ public class TypeSerializerSerializationUtil {
 				Thread.currentThread().setContextClassLoader(userClassLoader);
 				typeSerializer = (TypeSerializer<T>) ois.readObject();
 			} catch (Exception e) {
-				if (useDummyPlaceholder) {
-					// we create a dummy so that all the information is not lost when we get a new checkpoint before receiving
-					// a proper typeserializer from the user
-					typeSerializer = new UnloadableDummyTypeSerializer<>(buffer);
-					LOG.warn("Could not read requested TypeSerializer. Created dummy.", e);
-				} else {
-					throw new IOException("Unloadable TypeSerializer.", e);
-				}
+				throw new UnloadableTypeSerializerException(e, buffer);
 			} finally {
 				Thread.currentThread().setContextClassLoader(previousClassLoader);
 			}
