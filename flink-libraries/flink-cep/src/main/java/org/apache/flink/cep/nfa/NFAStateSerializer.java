@@ -35,7 +35,6 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
@@ -135,30 +134,8 @@ public class NFAStateSerializer<T> extends TypeSerializer<NFAState<T>> {
 	@Override
 	public NFAState<T> deserialize(DataInputView source) throws IOException {
 		SharedBuffer<String, T> sharedBuffer = sharedBufferSerializer.deserialize(source);
-
-		Queue<ComputationState<T>> computationStates = new LinkedList<>();
-		StringSerializer stateNameSerializer = StringSerializer.INSTANCE;
-		LongSerializer timestampSerializer = LongSerializer.INSTANCE;
-		DeweyNumber.DeweyNumberSerializer versionSerializer = new DeweyNumber.DeweyNumberSerializer();
-
-		int computationStateNo = source.readInt();
-		for (int i = 0; i < computationStateNo; i++) {
-			String state = stateNameSerializer.deserialize(source);
-			String prevState = stateNameSerializer.deserialize(source);
-			long timestamp = timestampSerializer.deserialize(source);
-			DeweyNumber version = versionSerializer.deserialize(source);
-			long startTimestamp = timestampSerializer.deserialize(source);
-			int counter = source.readInt();
-
-			T event = null;
-			if (source.readBoolean()) {
-				event = eventSerializer.deserialize(source);
-			}
-
-			computationStates.add(ComputationState.createState(
-					state, prevState, event, counter, timestamp, version, startTimestamp));
-		}
-
+		Queue<ComputationState<T>> computationStates = NFASerializationUtils.deserializeComputationStates(
+			eventSerializer, source);
 		return new NFAState<>(computationStates, sharedBuffer, false);
 	}
 
@@ -234,20 +211,20 @@ public class NFAStateSerializer<T> extends TypeSerializer<NFAState<T>> {
 	public CompatibilityResult<NFAState<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof NFAStateSerializerConfigSnapshot) {
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
-					((NFAStateSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+				((NFAStateSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
 
 			CompatibilityResult<T> eventCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					serializersAndConfigs.get(0).f0,
-					UnloadableDummyTypeSerializer.class,
-					serializersAndConfigs.get(0).f1,
-					eventSerializer);
+				serializersAndConfigs.get(0).f0,
+				UnloadableDummyTypeSerializer.class,
+				serializersAndConfigs.get(0).f1,
+				eventSerializer);
 
 			CompatibilityResult<SharedBuffer<String, T>> sharedBufCompatResult =
-					CompatibilityUtil.resolveCompatibilityResult(
-							serializersAndConfigs.get(1).f0,
-							UnloadableDummyTypeSerializer.class,
-							serializersAndConfigs.get(1).f1,
-							sharedBufferSerializer);
+				CompatibilityUtil.resolveCompatibilityResult(
+					serializersAndConfigs.get(1).f0,
+					UnloadableDummyTypeSerializer.class,
+					serializersAndConfigs.get(1).f1,
+					sharedBufferSerializer);
 
 			if (!sharedBufCompatResult.isRequiresMigration() && !eventCompatResult.isRequiresMigration()) {
 				return CompatibilityResult.compatible();
