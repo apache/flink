@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.testutils;
+package org.apache.flink.testutils;
 
 import java.util.Set;
 

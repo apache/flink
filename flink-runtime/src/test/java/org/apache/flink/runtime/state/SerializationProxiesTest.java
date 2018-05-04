@@ -29,8 +29,8 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.testutils.ArtificialCNFExceptionThrowingClassLoader;
 
-import org.apache.flink.runtime.state.testutils.ArtificialCNFExceptionThrowingClassLoader;
 import org.junit.Assert;
 import org.junit.Test;
 

@@ -924,7 +924,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					fieldName = inViewWrapper.readUTF();
 
 					inWithPos.setPosition(fieldSerializerOffsets[i * 2]);
-					fieldSerializer = TypeSerializerSerializationUtil.tryReadSerializer(inViewWrapper, getUserCodeClassLoader());
+					fieldSerializer = TypeSerializerSerializationUtil.tryReadSerializer(inViewWrapper, getUserCodeClassLoader(), true);
 
 					inWithPos.setPosition(fieldSerializerOffsets[i * 2 + 1]);
 					fieldSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(inViewWrapper, getUserCodeClassLoader());
