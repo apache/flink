@@ -219,7 +219,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		// release all registered slots by releasing the corresponding TaskExecutors
 		for (ResourceID taskManagerResourceId : registeredTaskManagers) {
-			releaseTaskManagerInternal(taskManagerResourceId);
+			releaseTaskManagerInternal(taskManagerResourceId, null);
 		}
 
 		clear();
@@ -1043,11 +1043,12 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	 * when we find some TaskManager becomes "dead" or "abnormal", and we decide to not using slots from it anymore.
 	 *
 	 * @param resourceId The id of the TaskManager
+	 * @param cause for the release the TaskManager
 	 */
 	@Override
-	public CompletableFuture<Acknowledge> releaseTaskManager(final ResourceID resourceId) {
+	public CompletableFuture<Acknowledge> releaseTaskManager(final ResourceID resourceId, final Exception cause) {
 		if (registeredTaskManagers.remove(resourceId)) {
-			releaseTaskManagerInternal(resourceId);
+			releaseTaskManagerInternal(resourceId, cause);
 		}
 
 		return CompletableFuture.completedFuture(Acknowledge.get());
@@ -1063,13 +1064,22 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		removePendingRequest(slotRequestId);
 	}
 
-	private void releaseTaskManagerInternal(final ResourceID resourceId) {
-		final FlinkException cause = new FlinkException("Releasing TaskManager " + resourceId + '.');
+	private void releaseTaskManagerInternal(final ResourceID resourceId, final Exception cause) {
+		final FlinkException finalCause;
+
+		String exceptionMsg;
+		if (cause != null) {
+			exceptionMsg = "Releasing TaskManager " + resourceId + ", because: " + cause.getMessage();
+		} else {
+			exceptionMsg = "Releasing TaskManager " + resourceId + '.';
+		}
+
+		finalCause = new FlinkException(exceptionMsg);
 
 		final Set<AllocatedSlot> removedSlots = new HashSet<>(allocatedSlots.removeSlotsForTaskManager(resourceId));
 
 		for (AllocatedSlot allocatedSlot : removedSlots) {
-			allocatedSlot.releasePayload(cause);
+			allocatedSlot.releasePayload(finalCause);
 		}
 
 		removedSlots.addAll(availableSlots.removeAllForTaskManager(resourceId));
