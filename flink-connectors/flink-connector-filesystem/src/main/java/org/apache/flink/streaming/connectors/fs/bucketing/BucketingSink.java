@@ -551,7 +551,9 @@ public class BucketingSink<T>
 		if (bucketState.writer == null) {
 			bucketState.writer = writerTemplate.duplicate();
 			if (bucketState.writer == null) {
-				throw new RuntimeException("Could not duplicate writer.");
+				throw new RuntimeException(
+					"Could not duplicate writer: class '" + writerTemplate.getClass().getName() + "' must implement the 'Writer.duplicate()' method."
+				);
 			}
 		}
 
