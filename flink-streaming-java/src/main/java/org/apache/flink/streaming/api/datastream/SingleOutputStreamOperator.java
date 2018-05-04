@@ -23,7 +23,6 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
@@ -352,50 +351,6 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 
 		transformation.setOutputType(typeInfo);
 		return this;
-	}
-
-	/**
-	 * Adds a type information hint about the return type of this operator.
-	 *
-	 * <p>Type hints are important in cases where the Java compiler throws away generic type
-	 * information necessary for efficient execution.
-	 *
-	 * <p>This method takes a type information string that will be parsed. A type information string
-	 * can contain the following types:
-	 *
-	 * <ul>
-	 * <li>Basic types such as <code>Integer</code>, <code>String</code>, etc.
-	 * <li>Basic type arrays such as <code>Integer[]</code>,
-	 * <code>String[]</code>, etc.
-	 * <li>Tuple types such as <code>Tuple1&lt;TYPE0&gt;</code>,
-	 * <code>Tuple2&lt;TYPE0, TYPE1&gt;</code>, etc.</li>
-	 * <li>Pojo types such as <code>org.my.MyPojo&lt;myFieldName=TYPE0,myFieldName2=TYPE1&gt;</code>, etc.</li>
-	 * <li>Generic types such as <code>java.lang.Class</code>, etc.
-	 * <li>Custom type arrays such as <code>org.my.CustomClass[]</code>,
-	 * <code>org.my.CustomClass$StaticInnerClass[]</code>, etc.
-	 * <li>Value types such as <code>DoubleValue</code>,
-	 * <code>StringValue</code>, <code>IntegerValue</code>, etc.</li>
-	 * <li>Tuple array types such as <code>Tuple2&lt;TYPE0,TYPE1&gt;[], etc.</code></li>
-	 * <li>Writable types such as <code>Writable&lt;org.my.CustomWritable&gt;</code></li>
-	 * <li>Enum types such as <code>Enum&lt;org.my.CustomEnum&gt;</code></li>
-	 * </ul>
-	 *
-	 * <p>Example:
-	 * <code>"Tuple2&lt;String,Tuple2&lt;Integer,org.my.MyJob$Pojo&lt;word=String&gt;&gt;&gt;"</code>
-	 *
-	 * @param typeInfoString
-	 *            type information string to be parsed
-	 * @return This operator with a given return type hint.
-	 *
-	 * @deprecated Please use {@link #returns(Class)} or {@link #returns(TypeHint)} instead.
-	 */
-	@Deprecated
-	@PublicEvolving
-	public SingleOutputStreamOperator<T> returns(String typeInfoString) {
-		if (typeInfoString == null) {
-			throw new IllegalArgumentException("Type information string must not be null.");
-		}
-		return returns(TypeInfoParser.<T>parse(typeInfoString));
 	}
 
 	// ------------------------------------------------------------------------
