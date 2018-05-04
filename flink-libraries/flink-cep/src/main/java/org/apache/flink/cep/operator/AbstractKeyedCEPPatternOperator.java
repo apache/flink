@@ -34,6 +34,7 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.NFAState;
 import org.apache.flink.cep.nfa.NFAStateSerializer;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -78,7 +79,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 
 	///////////////			State			//////////////
 
-	private static final String NFA_OPERATOR_STATE_NAME = "nfaOperatorStateName";
+	private static final String NFA_STATE_NAME = "nfaStateName";
 	private static final String EVENT_QUEUE_STATE_NAME = "eventQueuesStateName";
 
 	private transient ValueState<NFAState<IN>> nfaValueState;
@@ -136,7 +137,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		if (nfaValueState == null) {
 			nfaValueState = getRuntimeContext().getState(
 				new ValueStateDescriptor<>(
-						NFA_OPERATOR_STATE_NAME,
+						NFA_STATE_NAME,
 						new NFAStateSerializer<>(inputSerializer)));
 		}
 
@@ -149,6 +150,30 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 					)
 			);
 		}
+
+		migrateOldState();
+	}
+
+	private void migrateOldState() throws Exception {
+		getKeyedStateBackend().applyToAllKeys(
+			VoidNamespace.INSTANCE,
+			VoidNamespaceSerializer.INSTANCE,
+			new ValueStateDescriptor<>(
+				"nfaOperatorStateName",
+				new NFA.NFASerializer<>(inputSerializer)
+			),
+			new KeyedStateFunction<Object, ValueState<NFA<IN>>>() {
+				@Override
+				public void process(Object key, ValueState<NFA<IN>> state) throws Exception {
+					NFA<IN> oldState = state.value();
+					if (oldState instanceof NFA.NFASerializer.DummyNFA) {
+						NFA.NFASerializer.DummyNFA<IN> dummyNFA = (NFA.NFASerializer.DummyNFA<IN>) oldState;
+						nfaValueState.update(new NFAState<>(dummyNFA.getComputationStates(), dummyNFA.getSharedBuffer(), false));
+						state.clear();
+					}
+				}
+			}
+		);
 	}
 
 	@Override
