@@ -303,25 +303,11 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	@Override
 	public CompletableFuture<LogicalSlot> allocateSlot(
 			SlotRequestId slotRequestId,
-			ScheduledUnit scheduledUnit,
-			SlotProfile slotProfile,
-			boolean allowQueuedScheduling,
-			Time timeout) {
-
-		return internalAllocateSlot(
-			slotRequestId,
-			scheduledUnit,
-			slotProfile,
-			allowQueuedScheduling,
-			timeout);
-	}
-
-	private CompletableFuture<LogicalSlot> internalAllocateSlot(
-			SlotRequestId slotRequestId,
 			ScheduledUnit task,
 			SlotProfile slotProfile,
 			boolean allowQueuedScheduling,
 			Time allocationTimeout) {
+
 		final SlotSharingGroupId slotSharingGroupId = task.getSlotSharingGroupId();
 
 		if (slotSharingGroupId != null) {
