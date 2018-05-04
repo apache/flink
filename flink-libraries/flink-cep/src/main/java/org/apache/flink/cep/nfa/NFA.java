@@ -19,15 +19,28 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.api.common.typeutils.base.EnumSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.nfa.compiler.NFAStateNameHandler;
 import org.apache.flink.cep.operator.AbstractKeyedCEPPatternOperator;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -121,13 +134,11 @@ public class NFA<T> {
 	}
 
 	private State<T> getState(String state) {
-		State<T> result = states.get(state);
-		return result;
+		return states.get(state);
 	}
 
 	private State<T> getState(ComputationState<T> state) {
-		State<T> result = states.get(state.getState());
-		return result;
+		return states.get(state.getState());
 	}
 
 	private boolean isStartState(ComputationState<T> state) {
@@ -801,4 +812,255 @@ public class NFA<T> {
 			};
 		}
 	}
+
+	/**
+	 * The {@link TypeSerializerConfigSnapshot} serializer configuration to be stored with the managed state.
+	 */
+	@Deprecated
+	public static final class NFASerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
+
+		private static final int VERSION = 1;
+
+		/** This empty constructor is required for deserializing the configuration. */
+		public NFASerializerConfigSnapshot() {}
+
+		public NFASerializerConfigSnapshot(
+			TypeSerializer<T> eventSerializer,
+			TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer) {
+
+			super(eventSerializer, sharedBufferSerializer);
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
+		}
+	}
+
+	/**
+	 * Only for backward compatibility with <1.5.
+	 */
+	@Deprecated
+	public static class NFASerializer<T> extends TypeSerializer<NFA<T>> {
+
+		private static final long serialVersionUID = 2098282423980597010L;
+
+		private final TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer;
+
+		private final TypeSerializer<T> eventSerializer;
+
+		public NFASerializer(TypeSerializer<T> typeSerializer) {
+			this(typeSerializer, new SharedBuffer.SharedBufferSerializer<>(StringSerializer.INSTANCE, typeSerializer));
+		}
+
+		NFASerializer(
+			TypeSerializer<T> typeSerializer,
+			TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer) {
+			this.eventSerializer = typeSerializer;
+			this.sharedBufferSerializer = sharedBufferSerializer;
+		}
+
+		@Override
+		public boolean isImmutableType() {
+			return false;
+		}
+
+		@Override
+		public NFASerializer<T> duplicate() {
+			return new NFASerializer<>(eventSerializer.duplicate());
+		}
+
+		@Override
+		public NFA<T> createInstance() {
+			return null;
+		}
+
+		@Override
+		public NFA<T> copy(NFA<T> from) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public NFA<T> copy(NFA<T> from, NFA<T> reuse) {
+			return copy(from);
+		}
+
+		@Override
+		public int getLength() {
+			return -1;
+		}
+
+		@Override
+		public void serialize(NFA<T> record, DataOutputView target) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public NFA<T> deserialize(DataInputView source) throws IOException {
+			deserializeStates(source);
+			source.readLong();
+			source.readBoolean();
+
+			SharedBuffer<String, T> sharedBuffer = sharedBufferSerializer.deserialize(source);
+			Queue<ComputationState<T>> computationStates = NFASerializationUtils.deserializeComputationStates(eventSerializer, source);
+
+			return new DummyNFA<>(eventSerializer, computationStates, sharedBuffer);
+		}
+
+		/**
+		 * Dummy nfa just for backwards compatibility.
+		 */
+		public static class DummyNFA<T> extends NFA<T> {
+
+			Queue<ComputationState<T>> computationStates;
+			SharedBuffer<String, T> sharedBuffer;
+
+			public SharedBuffer<String, T> getSharedBuffer() {
+				return sharedBuffer;
+			}
+
+			public Queue<ComputationState<T>> getComputationStates() {
+				return computationStates;
+			}
+
+			DummyNFA(TypeSerializer<T> eventSerializer, Queue<ComputationState<T>> computationStates, SharedBuffer<String, T> sharedBuffer) {
+				super(eventSerializer, 0, false, Collections.emptyList());
+				this.sharedBuffer = sharedBuffer;
+				this.computationStates = computationStates;
+			}
+		}
+
+		@Override
+		public NFA<T> deserialize(NFA<T> reuse, DataInputView source) throws IOException {
+			return deserialize(source);
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj == this ||
+				(obj != null && obj.getClass().equals(getClass()) &&
+					sharedBufferSerializer.equals(((NFASerializer) obj).sharedBufferSerializer) &&
+					eventSerializer.equals(((NFASerializer) obj).eventSerializer));
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return true;
+		}
+
+		@Override
+		public int hashCode() {
+			return 37 * sharedBufferSerializer.hashCode() + eventSerializer.hashCode();
+		}
+
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			return new NFASerializerConfigSnapshot<>(eventSerializer, sharedBufferSerializer);
+		}
+
+		@Override
+		public CompatibilityResult<NFA<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+			if (configSnapshot instanceof NFASerializerConfigSnapshot) {
+				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
+					((NFASerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+
+				CompatibilityResult<T> eventCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+						serializersAndConfigs.get(0).f0,
+						UnloadableDummyTypeSerializer.class,
+						serializersAndConfigs.get(0).f1,
+						eventSerializer);
+
+				CompatibilityResult<SharedBuffer<String, T>> sharedBufCompatResult =
+						CompatibilityUtil.resolveCompatibilityResult(
+								serializersAndConfigs.get(1).f0,
+								UnloadableDummyTypeSerializer.class,
+								serializersAndConfigs.get(1).f1,
+								sharedBufferSerializer);
+
+				if (!sharedBufCompatResult.isRequiresMigration() && !eventCompatResult.isRequiresMigration()) {
+					return CompatibilityResult.compatible();
+				} else {
+					if (eventCompatResult.getConvertDeserializer() != null &&
+						sharedBufCompatResult.getConvertDeserializer() != null) {
+						return CompatibilityResult.requiresMigration(
+							new NFASerializer<>(
+								new TypeDeserializerAdapter<>(eventCompatResult.getConvertDeserializer()),
+								new TypeDeserializerAdapter<>(sharedBufCompatResult.getConvertDeserializer())));
+					}
+				}
+			}
+
+			return CompatibilityResult.requiresMigration();
+		}
+
+		private Set<State<T>> deserializeStates(DataInputView in) throws IOException {
+			TypeSerializer<String> nameSerializer = StringSerializer.INSTANCE;
+			TypeSerializer<State.StateType> stateTypeSerializer = new EnumSerializer<>(State.StateType.class);
+			TypeSerializer<StateTransitionAction> actionSerializer = new EnumSerializer<>(StateTransitionAction.class);
+
+			final int noOfStates = in.readInt();
+			Map<String, State<T>> states = new HashMap<>(noOfStates);
+
+			for (int i = 0; i < noOfStates; i++) {
+				String stateName = nameSerializer.deserialize(in);
+				State.StateType stateType = stateTypeSerializer.deserialize(in);
+
+				State<T> state = new State<>(stateName, stateType);
+				states.put(stateName, state);
+			}
+
+			for (int i = 0; i < noOfStates; i++) {
+				String srcName = nameSerializer.deserialize(in);
+
+				int noOfTransitions = in.readInt();
+				for (int j = 0; j < noOfTransitions; j++) {
+					String src = nameSerializer.deserialize(in);
+					Preconditions.checkState(src.equals(srcName),
+							"Source Edge names do not match (" + srcName + " - " + src + ").");
+
+					String trgt = nameSerializer.deserialize(in);
+					StateTransitionAction action = actionSerializer.deserialize(in);
+
+					IterativeCondition<T> condition = null;
+					try {
+						condition = deserializeCondition(in);
+					} catch (ClassNotFoundException e) {
+						e.printStackTrace();
+					}
+
+					State<T> srcState = states.get(src);
+					State<T> trgtState = states.get(trgt);
+					srcState.addStateTransition(action, trgtState, condition);
+				}
+
+			}
+			return new HashSet<>(states.values());
+		}
+
+		private IterativeCondition<T> deserializeCondition(DataInputView in) throws IOException, ClassNotFoundException {
+			boolean hasCondition = in.readBoolean();
+			if (hasCondition) {
+				int length = in.readInt();
+
+				byte[] serCondition = new byte[length];
+				in.read(serCondition);
+
+				ByteArrayInputStream bais = new ByteArrayInputStream(serCondition);
+				ObjectInputStream ois = new ObjectInputStream(bais);
+
+				IterativeCondition<T> condition = (IterativeCondition<T>) ois.readObject();
+				ois.close();
+				bais.close();
+
+				return condition;
+			}
+			return null;
+		}
+	}
+
 }
