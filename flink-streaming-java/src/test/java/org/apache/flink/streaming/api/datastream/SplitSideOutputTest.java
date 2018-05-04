@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -45,6 +46,7 @@ public class SplitSideOutputTest {
 
 		try {
 			processInput.getSideOutput(outputTag);
+			Assert.fail("Should have failed early with an exception.");
 		} catch (UnsupportedOperationException expected){
 			// expected
 		}
@@ -61,6 +63,7 @@ public class SplitSideOutputTest {
 
 		try {
 			processInput.split(Collections::singleton);
+			Assert.fail("Should have failed early with an exception.");
 		} catch (UnsupportedOperationException expected){
 			// expected
 		}
