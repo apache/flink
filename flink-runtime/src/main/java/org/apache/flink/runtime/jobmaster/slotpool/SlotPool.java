@@ -63,6 +63,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -307,6 +308,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			SlotProfile slotProfile,
 			boolean allowQueuedScheduling,
 			Time allocationTimeout) {
+
+		log.debug("Allocating slot with request {} for task execution {}", slotRequestId, task.getTaskToExecute());
 
 		final SlotSharingGroupId slotSharingGroupId = task.getSlotSharingGroupId();
 
@@ -1135,6 +1138,36 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	//  Methods for tests
 	// ------------------------------------------------------------------------
 
+	private String printStatus() {
+		validateRunsInMainThread();
+
+		final StringBuilder builder = new StringBuilder(1024).append("Slot Pool Status:\n");
+
+		builder.append("\tstatus: ");
+		if (resourceManagerGateway != null) {
+			builder.append("connected to ").append(resourceManagerGateway.getAddress()).append('\n');
+		} else {
+			builder.append("unconnected and waiting for ResourceManager ")
+					.append(waitingForResourceManager)
+					.append('\n');
+		}
+
+		builder.append("\tregistered TaskManagers: ").append(registeredTaskManagers).append('\n');
+
+		builder.append("\tavailable slots: ").append(availableSlots.printAllSlots()).append('\n');
+		builder.append("\tallocated slots: ").append(allocatedSlots.printAllSlots()).append('\n');
+
+		builder.append("\tpending requests: ").append(pendingRequests.values()).append('\n');
+
+		builder.append("\tsharing groups: {\n");
+		for (Entry<SlotSharingGroupId, SlotSharingManager> manager : slotSharingManagers.entrySet()) {
+			builder.append("\t -------- ").append(manager.getKey()).append(" --------\n");
+			builder.append(manager.getValue());
+		}
+		builder.append("\t}\n");
+		return builder.toString();
+	}
+
 	@VisibleForTesting
 	protected AllocatedSlots getAllocatedSlots() {
 		return allocatedSlots;
@@ -1289,6 +1322,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		void clear() {
 			allocatedSlotsById.clear();
 			allocatedSlotsByTaskManager.clear();
+		}
+
+		String printAllSlots() {
+			return allocatedSlotsByTaskManager.values().toString();
 		}
 
 		@VisibleForTesting
@@ -1480,6 +1517,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			}
 		}
 
+		String printAllSlots() {
+			return availableSlots.values().toString();
+		}
+
 		@VisibleForTesting
 		boolean containsTaskManager(ResourceID resourceID) {
 			return availableSlotsByTaskManager.containsKey(resourceID);
@@ -1592,6 +1633,15 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		public ResourceProfile getResourceProfile() {
 			return resourceProfile;
+		}
+
+		@Override
+		public String toString() {
+			return "PendingRequest{" +
+					"slotRequestId=" + slotRequestId +
+					", resourceProfile=" + resourceProfile +
+					", allocatedSlotFuture=" + allocatedSlotFuture +
+					'}';
 		}
 	}
 
