@@ -92,6 +92,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedSlotActions {
 
+	/** The interval (in milliseconds) in which the SlotPool writes its slot distribution on debug level. */
+	private static final int STATUS_LOG_INTERVAL_MS = 60_000;
+
 	private final JobID jobId;
 
 	private final ProviderAndOwner providerAndOwner;
@@ -198,6 +201,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		}
 
 		scheduleRunAsync(this::checkIdleSlot, idleSlotTimeout);
+
+		if (log.isDebugEnabled()) {
+			scheduleRunAsync(this::scheduledLogStatus, STATUS_LOG_INTERVAL_MS, TimeUnit.MILLISECONDS);
+		}
 	}
 
 	@Override
@@ -1137,6 +1144,11 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	// ------------------------------------------------------------------------
 	//  Methods for tests
 	// ------------------------------------------------------------------------
+
+	private void scheduledLogStatus() {
+		log.debug(printStatus());
+		scheduleRunAsync(this::scheduledLogStatus, STATUS_LOG_INTERVAL_MS, TimeUnit.MILLISECONDS);
+	}
 
 	private String printStatus() {
 		validateRunsInMainThread();
