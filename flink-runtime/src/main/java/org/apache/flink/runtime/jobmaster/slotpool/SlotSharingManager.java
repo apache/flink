@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -211,6 +212,19 @@ public class SlotSharingManager {
 		}
 
 		return null;
+	}
+
+	@Override
+	public String toString() {
+		final StringBuilder builder = new StringBuilder("{\n\tgroupId=").append(slotSharingGroupId).append('\n');
+
+		synchronized (lock) {
+			builder.append("\tunresolved=").append(unresolvedRootSlots).append('\n');
+			builder.append("\tresolved=").append(resolvedRootSlots).append('\n');
+			builder.append("\tall=").append(allTaskSlots).append('\n');
+		}
+
+		return builder.append('}').toString();
 	}
 
 	// ------------------------------------------------------------------------
@@ -499,6 +513,25 @@ public class SlotSharingManager {
 				}
 			}
 		}
+
+		@Override
+		public String toString() {
+			String physicalSlotDescription = "";
+			try {
+				physicalSlotDescription = String.valueOf(slotContextFuture.getNow(null));
+			}
+			catch (Exception e) {
+				physicalSlotDescription = '(' + ExceptionUtils.stripCompletionException(e).getMessage() + ')';
+			}
+
+			return "MultiTaskSlot{"
+					+ "requestId=" + getSlotRequestId()
+					+ ", allocatedRequestId=" + allocatedSlotRequestId
+					+ ", groupId=" + getGroupId()
+					+ ", physicalSlot=" + physicalSlotDescription
+					+ ", children=" + children.values().toString()
+					+ '}';
+		}
 	}
 
 	/**
@@ -540,8 +573,6 @@ public class SlotSharingManager {
 		public void release(Throwable cause) {
 			singleLogicalSlotFuture.completeExceptionally(cause);
 
-			boolean pendingLogicalSlotRelease = false;
-
 			if (singleLogicalSlotFuture.isDone() && !singleLogicalSlotFuture.isCompletedExceptionally()) {
 				// we have a single task slot which we first have to release
 				final SingleLogicalSlot singleLogicalSlot = singleLogicalSlotFuture.getNow(null);
@@ -550,6 +581,27 @@ public class SlotSharingManager {
 			}
 
 			parent.releaseChild(getGroupId());
+		}
+
+		@Override
+		public String toString() {
+			String logicalSlotString = "(pending)";
+			try {
+				LogicalSlot slot = singleLogicalSlotFuture.getNow(null);
+				if (slot != null) {
+					logicalSlotString = "(requestId=" + slot.getSlotRequestId()
+							+ ", allocationId=" + slot.getAllocationId() + ')';
+				}
+			}
+			catch (Exception e) {
+				logicalSlotString = '(' + ExceptionUtils.stripCompletionException(e).getMessage() + ')';
+			}
+
+			return "SingleTaskSlot{"
+					+ "logicalSlot=" + logicalSlotString
+					+ ", request=" + getSlotRequestId()
+					+ ", group=" + getGroupId()
+					+ '}';
 		}
 	}
 
