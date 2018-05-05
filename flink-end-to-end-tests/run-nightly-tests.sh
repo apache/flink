@@ -106,14 +106,6 @@ fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
-  printf "Running connected components iterations with high parallelism nightly end-to-end test\n"
-  printf "==============================================================================\n"
-  $END_TO_END_DIR/test-scripts/test_high_parallelism_iterations.sh
-  EXIT_CODE=$?
-fi
-
-if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
   printf "Running stateful stream job upgrade nightly end-to-end test\n"
   printf "==============================================================================\n"
   $END_TO_END_DIR/test-scripts/test_stateful_stream_job_upgrade.sh 2 4
