@@ -51,25 +51,24 @@ public class MasterHooks {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Initializes the state of the master hooks.
+	 * Resets the master hooks.
 	 *
-	 * @param hooks The hooks to initialize
+	 * @param hooks The hooks to reset
 	 *
 	 * @throws FlinkException Thrown, if the hooks throw an exception.
 	 */
-	public static void initializeState(
+	public static void reset(
 		Collection<MasterTriggerRestoreHook<?>> hooks,
-		MasterTriggerRestoreHook.HookInitializationContext context,
 		final Logger log) throws FlinkException {
 
 		for (MasterTriggerRestoreHook<?> hook : hooks) {
 			final String id = hook.getIdentifier();
 			try {
-				hook.initializeState(context);
+				hook.reset();
 			}
 			catch (Throwable t) {
 				ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-				throw new FlinkException("Error while initializing checkpoint master hook '" + id + '\'', t);
+				throw new FlinkException("Error while resetting checkpoint master hook '" + id + '\'', t);
 			}
 		}
 	}
@@ -90,7 +89,7 @@ public class MasterHooks {
 				hook.close();
 			}
 			catch (Throwable t) {
-				log.warn("Failed to cleanly close a master hook (" + hook.getIdentifier() + ")", t);
+				log.warn("Failed to cleanly close a checkpoint master hook (" + hook.getIdentifier() + ")", t);
 			}
 		}
 	}
@@ -342,13 +341,13 @@ public class MasterHooks {
 		}
 
 		@Override
-		public void initializeState(HookInitializationContext context) throws Exception {
+		public void reset() throws Exception {
 			final Thread thread = Thread.currentThread();
 			final ClassLoader originalClassLoader = thread.getContextClassLoader();
 			thread.setContextClassLoader(userClassLoader);
 
 			try {
-				hook.initializeState(context);
+				hook.reset();
 			}
 			finally {
 				thread.setContextClassLoader(originalClassLoader);

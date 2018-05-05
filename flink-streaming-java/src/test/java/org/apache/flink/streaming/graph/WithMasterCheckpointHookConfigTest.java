@@ -116,7 +116,7 @@ public class WithMasterCheckpointHookConfigTest extends TestLogger {
 		}
 
 		@Override
-		public void initializeState(HookInitializationContext context) throws Exception {
+		public void reset() throws Exception {
 			throw new UnsupportedOperationException();
 		}
 

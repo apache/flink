@@ -121,7 +121,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 	}
 
 	@Test
-	public void testHookStateInitialization() throws Exception {
+	public void testHookReset() throws Exception {
 		final String id1 = "id1";
 		final String id2 = "id2";
 
@@ -144,8 +144,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 			Collections.<JobVertexID, ExecutionJobVertex>emptyMap(),
 			false,
 			false);
-		verify(hook1, times(1)).initializeState(any(MasterTriggerRestoreHook.HookInitializationContext.class));
-		verify(hook2, times(1)).initializeState(any(MasterTriggerRestoreHook.HookInitializationContext.class));
+		verify(hook1, times(1)).reset();
+		verify(hook2, times(1)).reset();
 
 		// shutdown
 		cc.shutdown(JobStatus.CANCELED);

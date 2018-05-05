@@ -70,7 +70,12 @@ public class MasterHooksTest extends TestLogger {
 			}
 
 			@Override
-			public void initializeState(HookInitializationContext context) throws Exception {
+			public void reset() throws Exception {
+				assertEquals(userClassLoader, Thread.currentThread().getContextClassLoader());
+			}
+
+			@Override
+			public void close() throws Exception {
 				assertEquals(userClassLoader, Thread.currentThread().getContextClassLoader());
 			}
 
@@ -119,6 +124,11 @@ public class MasterHooksTest extends TestLogger {
 		// verify createCheckpointDataSerializer
 		wrapped.createCheckpointDataSerializer();
 		verify(hook, times(1)).createCheckpointDataSerializer();
+		assertEquals(originalClassLoader, thread.getContextClassLoader());
+
+		// verify close
+		wrapped.close();
+		verify(hook, times(1)).close();
 		assertEquals(originalClassLoader, thread.getContextClassLoader());
 	}
 

@@ -1013,11 +1013,6 @@ public class CheckpointCoordinator {
 
 			LOG.debug("Status of the shared state registry after restore: {}.", sharedStateRegistry);
 
-			// Instruct the master hooks to initialize their state (unconditionally)
-			LOG.debug("Initializing the master hooks.");
-			MasterTriggerRestoreHook.HookInitializationContext context = new MasterTriggerRestoreHook.HookInitializationContext() {};
-			MasterHooks.initializeState(masterHooks.values(), context, LOG);
-
 			// Restore from the latest checkpoint
 			CompletedCheckpoint latest = completedCheckpointStore.getLatestCheckpoint();
 
@@ -1025,6 +1020,9 @@ public class CheckpointCoordinator {
 				if (errorIfNoCheckpoint) {
 					throw new IllegalStateException("No completed checkpoint available");
 				} else {
+					LOG.debug("Resetting the master hooks.");
+					MasterHooks.reset(masterHooks.values(), LOG);
+
 					return false;
 				}
 			}
