@@ -19,7 +19,8 @@
 package org.apache.flink.streaming.connectors.kafka.internals;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.api.common.serialization.ConsumerRecordMetaInfo;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.util.ExceptionUtils;
 
 import kafka.api.FetchRequestBuilder;
@@ -68,7 +69,7 @@ class SimpleConsumerThread<T> extends Thread {
 
 	private final Kafka08Fetcher<T> owner;
 
-	private final KeyedDeserializationSchema<T> deserializer;
+	private final DeserializationSchema<T> deserializer;
 
 	private final List<KafkaTopicPartitionState<TopicAndPartition>> partitions;
 
@@ -103,7 +104,7 @@ class SimpleConsumerThread<T> extends Thread {
 			Node broker,
 			List<KafkaTopicPartitionState<TopicAndPartition>> seedPartitions,
 			ClosableBlockingQueue<KafkaTopicPartitionState<TopicAndPartition>> unassignedPartitions,
-			KeyedDeserializationSchema<T> deserializer,
+			DeserializationSchema<T> deserializer,
 			long invalidOffsetBehavior) {
 		this.owner = owner;
 		this.errorHandler = errorHandler;
@@ -369,8 +370,10 @@ class SimpleConsumerThread<T> extends Thread {
 								keyPayload.get(keyBytes);
 							}
 
-							final T value = deserializer.deserialize(keyBytes, valueBytes,
+							ConsumerRecordMetaInfo consumerRecordMetaInfo = new KafkaConsumerRecordWrapper08(
+									keyBytes, valueBytes,
 									currentPartition.getTopic(), currentPartition.getPartition(), offset);
+							final T value = deserializer.deserialize(consumerRecordMetaInfo);
 
 							if (deserializer.isEndOfStream(value)) {
 								// remove partition from subscribed partitions.
@@ -527,6 +530,64 @@ class SimpleConsumerThread<T> extends Thread {
 			if (!part.isOffsetDefined()) {
 				throw new IllegalArgumentException("SimpleConsumerThread received a partition with undefined starting offset");
 			}
+		}
+	}
+
+	private class KafkaConsumerRecordWrapper08 implements ConsumerRecordMetaInfo {
+		private static final long serialVersionUID = 2651665280744549936L;
+
+		private final byte[] key;
+		private final byte[] value;
+		private final String topic;
+		private final int partition;
+		private final Long offset;
+
+		public KafkaConsumerRecordWrapper08(
+			byte[] key,
+			byte[] value,
+			String topic,
+			int partition,
+			Long offset) {
+			this.key = key;
+			this.value = value;
+			this.topic = topic;
+			this.partition = partition;
+			this.offset = offset;
+		}
+
+		@Override
+		public byte[] getKey() {
+			return key;
+		}
+
+		@Override
+		public byte[] getMessage() {
+			return value;
+		}
+
+		@Override
+		public String getTopic() {
+			return topic;
+		}
+
+		@Override
+		public int getPartition() {
+			return partition;
+		}
+
+		@Override
+		public long getOffset() {
+			return offset;
+		}
+
+		@Override
+		public long getTimestamp() {
+			return Long.MIN_VALUE;
+		}
+
+		@Override
+		public TimestampType getTimestampType() {
+			return ConsumerRecordMetaInfo.TimestampType.NO_TIMESTAMP_TYPE;
 		}
 	}
 }

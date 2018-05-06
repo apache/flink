@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
@@ -54,7 +55,6 @@ import org.apache.flink.streaming.connectors.kafka.testutils.TestPartitionDiscov
 import org.apache.flink.streaming.connectors.kafka.testutils.TestSourceContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -642,7 +642,7 @@ public class FlinkKafkaConsumerBaseTest {
 			super(
 					Collections.singletonList("dummy-topic"),
 					null,
-					(KeyedDeserializationSchema < T >) mock(KeyedDeserializationSchema.class),
+					(DeserializationSchema< T >) mock(DeserializationSchema.class),
 					PARTITION_DISCOVERY_DISABLED,
 					false);
 

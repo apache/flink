@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.serialization.ConsumerRecordMetaInfo;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -26,7 +28,6 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -55,7 +56,7 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
 			String taskNameWithSubtasks,
-			KeyedDeserializationSchema<T> deserializer,
+			DeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
 			MetricGroup subtaskMetricGroup,
@@ -76,6 +77,69 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 				subtaskMetricGroup,
 				consumerMetricGroup,
 				useMetrics);
+	}
+
+	private class KafkaConsumerRecordWrapper10 implements ConsumerRecordMetaInfo {
+		private static final long serialVersionUID = 2651665280744549935L;
+
+		private final ConsumerRecord<byte[], byte[]> consumerRecord;
+
+		public KafkaConsumerRecordWrapper10(ConsumerRecord<byte[], byte[]> consumerRecord) {
+			this.consumerRecord = consumerRecord;
+		}
+
+		@Override
+		public byte[] getKey() {
+			return consumerRecord.key();
+		}
+
+		@Override
+		public byte[] getMessage() {
+			return consumerRecord.value();
+		}
+
+		@Override
+		public String getTopic() {
+			return consumerRecord.topic();
+		}
+
+		@Override
+		public int getPartition() {
+			return consumerRecord.partition();
+		}
+
+		@Override
+		public long getOffset() {
+			return consumerRecord.offset();
+		}
+
+		@Override
+		public long getTimestamp() {
+			return Long.MIN_VALUE;
+		}
+
+		@Override
+		public TimestampType getTimestampType() {
+			// we have to convert the kafka timestampType to our local timestampType
+			ConsumerRecordMetaInfo.TimestampType localTimestampType;
+			switch(consumerRecord.timestampType()) {
+				case CREATE_TIME:
+					localTimestampType = TimestampType.CREATE_TIME;
+					break;
+				case LOG_APPEND_TIME:
+					localTimestampType = TimestampType.INGEST_TIME;
+					break;
+				default:
+					localTimestampType = TimestampType.NO_TIMESTAMP_TYPE;
+					break;
+			}
+			return localTimestampType;
+		}
+	}
+
+	@Override
+	protected ConsumerRecordMetaInfo wrapConsumerRecord(ConsumerRecord<byte[], byte[]> record) {
+		return new KafkaConsumerRecordWrapper10(record);
 	}
 
 	@Override

@@ -57,6 +57,9 @@ public class TypeInformationSerializationSchemaTest {
 				byte[] serialized = schema.serialize(val);
 				MyPOJO deser = schema.deserialize(serialized);
 				assertEquals(val, deser);
+
+				MyPOJO deserConsumerRecord = schema.deserialize(new MyConsumerRecordMetaInfo(serialized));
+				assertEquals(val, deserConsumerRecord);
 			}
 		}
 		catch (Exception e) {
@@ -84,6 +87,48 @@ public class TypeInformationSerializationSchemaTest {
 	// ------------------------------------------------------------------------
 	//  Test data types
 	// ------------------------------------------------------------------------
+	private class MyConsumerRecordMetaInfo implements ConsumerRecordMetaInfo {
+		private byte[] message;
+
+		public MyConsumerRecordMetaInfo(byte[] message) {
+			this.message = message;
+		}
+
+		@Override
+		public byte[] getKey() {
+			return null;
+		}
+
+		@Override
+		public byte[] getMessage() {
+			return message;
+		}
+
+		@Override
+		public String getTopic() {
+			return null;
+		}
+
+		@Override
+		public int getPartition() {
+			return 0;
+		}
+
+		@Override
+		public long getOffset() {
+			return 0;
+		}
+
+		@Override
+		public long getTimestamp() {
+			return Long.MIN_VALUE;
+		}
+
+		@Override
+		public TimestampType getTimestampType() {
+			return null;
+		}
+	}
 
 	private static class MyPOJO {
 

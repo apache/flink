@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.serialization.ConsumerRecordMetaInfo;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -28,7 +30,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -60,7 +61,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	// ------------------------------------------------------------------------
 
 	/** The schema to convert between Kafka's byte messages, and Flink's objects. */
-	private final KeyedDeserializationSchema<T> deserializer;
+	private final DeserializationSchema<T> deserializer;
 
 	/** The handover of data and exceptions between the consumer thread and the task thread. */
 	private final Handover handover;
@@ -82,7 +83,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
 			String taskNameWithSubtasks,
-			KeyedDeserializationSchema<T> deserializer,
+			DeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
 			MetricGroup subtaskMetricGroup,
@@ -139,9 +140,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 							records.records(partition.getKafkaPartitionHandle());
 
 					for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
-						final T value = deserializer.deserialize(
-								record.key(), record.value(),
-								record.topic(), record.partition(), record.offset());
+						final ConsumerRecordMetaInfo wrappedConsumerRecord = wrapConsumerRecord(record);
+						final T value = deserializer.deserialize(wrappedConsumerRecord);
 
 						if (deserializer.isEndOfStream(value)) {
 							// end of stream signaled
@@ -172,6 +172,51 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		}
 	}
 
+	private class KafkaConsumerRecordWrapper09 implements ConsumerRecordMetaInfo {
+		private static final long serialVersionUID = 2651665280744549934L;
+
+		private final ConsumerRecord<byte[], byte[]> consumerRecord;
+
+		public KafkaConsumerRecordWrapper09(ConsumerRecord<byte[], byte[]> consumerRecord) {
+			this.consumerRecord = consumerRecord;
+		}
+
+		@Override
+		public byte[] getKey() {
+			return consumerRecord.key();
+		}
+
+		@Override
+		public byte[] getMessage() {
+			return consumerRecord.value();
+		}
+
+		@Override
+		public String getTopic() {
+			return consumerRecord.topic();
+		}
+
+		@Override
+		public int getPartition() {
+			return consumerRecord.partition();
+		}
+
+		@Override
+		public long getOffset() {
+			return consumerRecord.offset();
+		}
+
+		@Override
+		public long getTimestamp() {
+			return Long.MIN_VALUE;
+		}
+
+		@Override
+		public TimestampType getTimestampType() {
+			return ConsumerRecordMetaInfo.TimestampType.NO_TIMESTAMP_TYPE;
+		}
+	}
+
 	@Override
 	public void cancel() {
 		// flag the main thread to exit. A thread interrupt will come anyways.
@@ -184,6 +229,10 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	//  The below methods are overridden in the 0.10 fetcher, which otherwise
 	//   reuses most of the 0.9 fetcher behavior
 	// ------------------------------------------------------------------------
+
+	protected ConsumerRecordMetaInfo wrapConsumerRecord(ConsumerRecord<byte[], byte[]> record) {
+		return new KafkaConsumerRecordWrapper09(record);
+	}
 
 	protected void emitRecord(
 			T record,

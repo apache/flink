@@ -18,39 +18,45 @@
 package org.apache.flink.streaming.util.serialization;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.serialization.ConsumerRecordMetaInfo;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import java.io.IOException;
 
 /**
- * A simple wrapper for using the DeserializationSchema with the KeyedDeserializationSchema
- * interface.
+ * A simple wrapper for using the KeyedDeserializationSchema with the DeserializationSchema interface.
  * @param <T> The type created by the deserialization schema.
  */
 @Internal
-public class KeyedDeserializationSchemaWrapper<T> implements KeyedDeserializationSchema<T> {
+public class KeyedDeserializationSchemaWrapper<T> implements DeserializationSchema<T> {
 
 	private static final long serialVersionUID = 2651665280744549932L;
 
-	private final DeserializationSchema<T> deserializationSchema;
+	private final KeyedDeserializationSchema<T> keyedDeserializationSchema;
 
-	public KeyedDeserializationSchemaWrapper(DeserializationSchema<T> deserializationSchema) {
-		this.deserializationSchema = deserializationSchema;
+	public KeyedDeserializationSchemaWrapper(KeyedDeserializationSchema<T> keyedDeserializationSchema) {
+		this.keyedDeserializationSchema = keyedDeserializationSchema;
 	}
 
 	@Override
-	public T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
-		return deserializationSchema.deserialize(message);
+	public T deserialize(byte[] message) throws IOException {
+		return keyedDeserializationSchema.deserialize(null, message, null, 0, 0L);
+	}
+
+	@Override
+	public T deserialize(ConsumerRecordMetaInfo consumerRecordMetaInfo) throws IOException {
+		return keyedDeserializationSchema.deserialize(consumerRecordMetaInfo.getKey(), consumerRecordMetaInfo.getMessage(),
+				consumerRecordMetaInfo.getTopic(), consumerRecordMetaInfo.getPartition(), consumerRecordMetaInfo.getOffset());
 	}
 
 	@Override
 	public boolean isEndOfStream(T nextElement) {
-		return deserializationSchema.isEndOfStream(nextElement);
+		return keyedDeserializationSchema.isEndOfStream(nextElement);
 	}
 
 	@Override
 	public TypeInformation<T> getProducedType() {
-		return deserializationSchema.getProducedType();
+		return keyedDeserializationSchema.getProducedType();
 	}
 }

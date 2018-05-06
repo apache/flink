@@ -43,13 +43,21 @@ import java.io.Serializable;
 public interface DeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 
 	/**
+	 * @deprecated Use {@link #deserialize(ConsumerRecordMetaInfo)} .
+	 */
+	@Deprecated
+	T deserialize(byte[] message) throws IOException;
+
+	/**
 	 * Deserializes the byte message.
 	 *
-	 * @param message The message, as a byte array.
+	 * @param consumerRecordMetaInfossage The message, as a {@link ConsumerRecordMetaInfo}.
 	 *
 	 * @return The deserialized message as an object (null if the message cannot be deserialized).
 	 */
-	T deserialize(byte[] message) throws IOException;
+	default T deserialize(ConsumerRecordMetaInfo consumerRecordMetaInfossage) throws IOException {
+		return deserialize(consumerRecordMetaInfossage.getMessage());
+	}
 
 	/**
 	 * Method to decide whether the element signals the end of the stream. If

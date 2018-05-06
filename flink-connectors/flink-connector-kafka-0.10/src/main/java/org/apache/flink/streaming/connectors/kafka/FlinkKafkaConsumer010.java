@@ -31,7 +31,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDi
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -40,7 +39,6 @@ import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,7 +80,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
 	 */
 	public FlinkKafkaConsumer010(String topic, DeserializationSchema<T> valueDeserializer, Properties props) {
-		this(Collections.singletonList(topic), valueDeserializer, props);
+		super(topic, valueDeserializer, props);
 	}
 
 	/**
@@ -99,7 +97,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
 	 */
 	public FlinkKafkaConsumer010(String topic, KeyedDeserializationSchema<T> deserializer, Properties props) {
-		this(Collections.singletonList(topic), deserializer, props);
+		super(topic, deserializer, props);
 	}
 
 	/**
@@ -115,7 +113,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer010(List<String> topics, DeserializationSchema<T> deserializer, Properties props) {
-		this(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
+		super(topics, deserializer, props);
 	}
 
 	/**
@@ -151,7 +149,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	 */
 	@PublicEvolving
 	public FlinkKafkaConsumer010(Pattern subscriptionPattern, DeserializationSchema<T> valueDeserializer, Properties props) {
-		this(subscriptionPattern, new KeyedDeserializationSchemaWrapper<>(valueDeserializer), props);
+		super(subscriptionPattern, valueDeserializer, props);
 	}
 
 	/**
