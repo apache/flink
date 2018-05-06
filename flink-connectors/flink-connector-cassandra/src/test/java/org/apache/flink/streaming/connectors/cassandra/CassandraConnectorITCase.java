@@ -430,6 +430,25 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	}
 
 	@Test
+	public void testCassandraPojoNoAnnotatedKeyspaceAtLeastOnceSink() throws Exception {
+		session.execute(CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, "testPojoNoAnnotatedKeyspace"));
+
+		CassandraPojoSink<PojoNoAnnotatedKeyspace> sink = new CassandraPojoSink<>(PojoNoAnnotatedKeyspace.class, builder, "flink");
+
+		Configuration configuration = new Configuration();
+		sink.open(configuration);
+
+		for (int x = 0; x < 20; x++) {
+			sink.send(new PojoNoAnnotatedKeyspace(UUID.randomUUID().toString(), x, 0));
+		}
+
+		sink.close();
+
+		ResultSet rs = session.execute(SELECT_DATA_QUERY.replace(TABLE_NAME_VARIABLE, "testPojoNoAnnotatedKeyspace"));
+		Assert.assertEquals(20, rs.all().size());
+	}
+
+	@Test
 	public void testCassandraTableSink() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(4);
