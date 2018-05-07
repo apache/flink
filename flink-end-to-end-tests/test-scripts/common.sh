@@ -113,7 +113,7 @@ function create_ha_config() {
     # Web Frontend
     #==============================================================================
 
-    web.port: 8081
+    rest.port: 8081
 EOL
 }
 
