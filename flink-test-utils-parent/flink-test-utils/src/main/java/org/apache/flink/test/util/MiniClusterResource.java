@@ -60,7 +60,7 @@ public class MiniClusterResource extends ExternalResource {
 
 	public static final String NEW_CODEBASE = "new";
 
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+	private final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private final MiniClusterResourceConfiguration miniClusterResourceConfiguration;
 
