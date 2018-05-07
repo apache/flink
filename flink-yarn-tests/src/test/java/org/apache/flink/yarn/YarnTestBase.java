@@ -220,7 +220,7 @@ public abstract class YarnTestBase extends TestLogger {
 		}
 
 		flinkConfiguration = new org.apache.flink.configuration.Configuration(globalConfiguration);
-		isNewMode = CoreOptions.NEW_MODE.equalsIgnoreCase(flinkConfiguration.getString(CoreOptions.MODE));
+		isNewMode = Objects.equals(NEW_CODEBASE, System.getProperty(CODEBASE_KEY));
 	}
 
 	@Nullable
