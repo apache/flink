@@ -41,4 +41,10 @@ public class AggregatedTaskManagerMetricsHeaders extends AbstractAggregatedMetri
 	public static AggregatedTaskManagerMetricsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Provides access to aggregated task manager metrics.";
+	}
+
 }

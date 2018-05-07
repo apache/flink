@@ -66,4 +66,9 @@ public class ShutdownHeaders implements MessageHeaders<EmptyRequestBody, EmptyRe
 	public static ShutdownHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Shuts down the cluster";
+	}
 }

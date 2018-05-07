@@ -72,4 +72,9 @@ public class SubtasksAllAccumulatorsHeaders implements MessageHeaders<EmptyReque
 	public static SubtasksAllAccumulatorsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns all user-defined accumulators for all subtasks of a task.";
+	}
 }

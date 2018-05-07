@@ -68,4 +68,9 @@ public class JobExecutionResultHeaders
 		return INSTANCE;
 	}
 
+	@Override
+	public String getDescription() {
+		return "Returns the result of a job execution. Gives access to the execution time of the job " +
+			"and to all accumulators created by this job.";
+	}
 }

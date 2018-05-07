@@ -68,4 +68,9 @@ public class JobSubmitHeaders implements MessageHeaders<JobSubmitRequestBody, Jo
 	public static JobSubmitHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Submits a job. This call is primarily intended to be used by the Flink client.";
+	}
 }

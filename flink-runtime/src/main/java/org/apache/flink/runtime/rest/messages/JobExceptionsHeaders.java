@@ -67,4 +67,10 @@ public class JobExceptionsHeaders implements MessageHeaders<EmptyRequestBody, Jo
 	public static JobExceptionsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns the non-recoverable exceptions that have been observed by the job. The truncated flag defines " +
+			"whether more exceptions occurred, but are not listed, because the response would otherwise get too big.";
+	}
 }

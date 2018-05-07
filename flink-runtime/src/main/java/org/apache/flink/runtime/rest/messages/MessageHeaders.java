@@ -56,4 +56,11 @@ public interface MessageHeaders<R extends RequestBody, P extends ResponseBody, M
 	default Collection<Class<?>> getResponseTypeParameters() {
 		return Collections.emptyList();
 	}
+
+	/**
+	 * Returns the description for this header.
+	 *
+	 * @return description for the header
+	 */
+	String getDescription();
 }

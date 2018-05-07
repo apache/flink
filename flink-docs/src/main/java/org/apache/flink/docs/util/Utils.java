@@ -16,34 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.metrics;
+package org.apache.flink.docs.util;
 
 /**
- * Headers for aggregating job metrics.
+ * Contains various shared utility functions.
  */
-public class AggregatedJobMetricsHeaders extends AbstractAggregatedMetricsHeaders<AggregatedJobMetricsParameters> {
+public enum Utils {
+	;
 
-	private static final AggregatedJobMetricsHeaders INSTANCE = new AggregatedJobMetricsHeaders();
+	/**
+	 * Placeholder that is used to prevent certain sections from being escaped. We don't need a sophisticated value
+	 * but only something that won't show up in config options.
+	 */
+	private static final String TEMPORARY_PLACEHOLDER = "superRandomTemporaryPlaceholder";
 
-	private AggregatedJobMetricsHeaders() {
-	}
-
-	@Override
-	public String getTargetRestEndpointURL() {
-		return "/jobs/metrics";
-	}
-
-	@Override
-	public AggregatedJobMetricsParameters getUnresolvedMessageParameters() {
-		return new AggregatedJobMetricsParameters();
-	}
-
-	public static AggregatedJobMetricsHeaders getInstance() {
-		return INSTANCE;
-	}
-
-	@Override
-	public String getDescription() {
-		return "Provides access to aggregated job metrics.";
+	public static String escapeCharacters(String value) {
+		return value
+			.replaceAll("<wbr>", TEMPORARY_PLACEHOLDER)
+			.replaceAll("<", "&#60;")
+			.replaceAll(">", "&#62;")
+			.replaceAll(TEMPORARY_PLACEHOLDER, "<wbr>");
 	}
 }

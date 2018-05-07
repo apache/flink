@@ -8,7 +8,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the port of blob server which can be used to upload jars.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -52,7 +52,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Shuts down the cluster</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -88,7 +88,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the configuration of the WebUI.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -144,7 +144,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns a list of all jars previously uploaded via '/jars/upload'.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -221,7 +221,8 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Uploads a jar to the cluster. The jar must be sent as multi-part data. Make sure that the "Content-Type" header is set to "application/x-java-archive", as some http libraries do not add the header by default.
+Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#path/to/flink-job.jar" http://hostname:port/jars/upload'.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -277,7 +278,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Deletes a jar previously uploaded via '/jars/upload'.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -323,7 +324,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the dataflow plan of a job contained in a jar previously uploaded via '/jars/upload'.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -383,7 +384,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Submits a job by running a jar previously uploaded via '/jars/upload'.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -451,7 +452,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the cluster configuration.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -501,7 +502,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Provides access to job manager metrics.</td>
     </tr>
     <tr>
       <td colspan="2">Query parameters</td>
@@ -549,7 +550,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns an overview over all jobs and their current state.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -606,7 +607,7 @@
       <td class="text-left">Response code: <code>202 Accepted</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Submits a job. This call is primarily intended to be used by the Flink client.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -661,7 +662,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Provides access to aggregated job metrics.</td>
     </tr>
     <tr>
       <td colspan="2">Query parameters</td>
@@ -711,7 +712,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns an overview over all jobs.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -758,7 +759,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns details of a job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -916,7 +917,7 @@
       <td class="text-left">Response code: <code>202 Accepted</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Terminates a job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -972,7 +973,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the accumulators for all tasks of a job, aggregated across the respective subtasks.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1063,7 +1064,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns checkpointing statistics for a job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1366,7 +1367,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the checkpointing configuration.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1444,7 +1445,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns details for a checkpoint.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1561,7 +1562,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns checkpoint statistics for a task and its subtasks.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1707,7 +1708,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the configuration of a job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1755,7 +1756,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the non-recoverable exceptions that have been observed by the job. The truncated flag defines whether more exceptions occurred, but are not listed, because the response would otherwise get too big.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1836,7 +1837,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the result of a job execution. Gives access to the execution time of the job and to all accumulators created by this job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1902,7 +1903,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Provides access to job metrics.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1960,7 +1961,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the dataflow plan of a job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2008,7 +2009,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Triggers the rescaling of a job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2072,7 +2073,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the status of a rescaling operation.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2138,7 +2139,7 @@
       <td class="text-left">Response code: <code>202 Accepted</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Triggers a savepoint, and optionally cancels the job afterwards.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2203,7 +2204,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the status of a savepoint operation.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2269,7 +2270,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns details for a task, with a summary for each of its subtasks.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2394,7 +2395,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns user-defined accumulators of a task, aggregated across all subtasks.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2467,7 +2468,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns user-defined accumulators of a task, aggregated across all subtasks.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2540,7 +2541,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns back-pressure information for a job, and may initiate back-pressure sampling if necessary.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2622,7 +2623,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Provides access to task metrics.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2681,7 +2682,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Provides access to aggregated subtask metrics.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2742,7 +2743,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns details of the current or latest execution attempt of a subtask.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2847,7 +2848,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns details of an execution attempt of a subtask. Multiple execution attempts happen in case of failure/recovery.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2953,7 +2954,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the accumulators of an execution attempt of a subtask. Multiple execution attempts happen in case of failure/recovery.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -3034,7 +3035,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Provides access to subtask metrics.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -3094,7 +3095,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns time-related information for all subtasks of a task.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -3179,7 +3180,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns task information aggregated by task manager.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -3301,7 +3302,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns an overview over the Flink cluster.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -3369,7 +3370,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Triggers the desposal of a savepoint.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -3421,7 +3422,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the status of a savepoint disposal operation.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -3486,7 +3487,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns an overview over all task managers.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -3572,7 +3573,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Provides access to aggregated task manager metrics.</td>
     </tr>
     <tr>
       <td colspan="2">Query parameters</td>
@@ -3622,7 +3623,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns details for a task manager.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -3775,7 +3776,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Provides access to task manager metrics.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
