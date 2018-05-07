@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
@@ -66,6 +67,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.Closeable;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -352,26 +354,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			Thread.interrupted();
 
 			// stop all timers and threads
-			if (timerService != null && !timerService.isTerminated()) {
-				try {
-
-					final long timeoutMs = getEnvironment().getTaskManagerInfo().getConfiguration().
-						getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS);
-
-					// wait for a reasonable time for all pending timer threads to finish
-					boolean timerShutdownComplete =
-						timerService.shutdownAndAwaitPending(timeoutMs, TimeUnit.MILLISECONDS);
-
-					if (!timerShutdownComplete) {
-						LOG.warn("Timer service shutdown exceeded time limit of {} ms while waiting for pending " +
-							"timers. Will continue with shutdown procedure.", timeoutMs);
-					}
-				}
-				catch (Throwable t) {
-					// catch and log the exception to not replace the original exception
-					LOG.error("Could not shut down timer service", t);
-				}
-			}
+			tryShutdownTimerService();
 
 			// stop all asynchronous checkpoint threads
 			try {
@@ -702,6 +685,38 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			}
 			else {
 				LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", getName());
+			}
+		}
+	}
+
+	private void tryShutdownTimerService() {
+		if (timerService != null && !timerService.isTerminated()) {
+			try {
+
+				final long totalTimeoutMs = getEnvironment().getTaskManagerInfo().getConfiguration().
+					getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS);
+
+				final Deadline deadline = Deadline.fromNow(Duration.ofMillis(totalTimeoutMs));
+
+				boolean timerServiceShutdownComplete = false;
+
+				while (!timerServiceShutdownComplete && deadline.hasTimeLeft()) {
+					try {
+						// wait for a reasonable time for all pending timer threads to finish
+						timerServiceShutdownComplete =
+							timerService.shutdownAndAwaitPending(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+					} catch (InterruptedException iex) {
+						LOG.trace("Intercepted attempt to interrupt timer service shutdown.", iex);
+					}
+				}
+
+				if (!timerServiceShutdownComplete) {
+					LOG.warn("Timer service shutdown exceeded time limit of {} ms while waiting for pending " +
+						"timers. Will continue with shutdown procedure.", totalTimeoutMs);
+				}
+			} catch (Throwable t) {
+				// catch and log the exception to not replace the original exception
+				LOG.error("Could not shut down timer service", t);
 			}
 		}
 	}
