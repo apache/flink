@@ -716,7 +716,7 @@ public abstract class AbstractStreamOperator<OUT>
 	 *
 	 * @param <N> The type of the timer namespace.
 	 */
-	public <K, N> InternalTimerService<N> getInternalTimerService(
+	public <K, N> InternalTimerService<K, N> getInternalTimerService(
 			String name,
 			TypeSerializer<N> namespaceSerializer,
 			Triggerable<K, N> triggerable) {
@@ -724,9 +724,8 @@ public abstract class AbstractStreamOperator<OUT>
 		checkTimerServiceInitialization();
 
 		// the following casting is to overcome type restrictions.
-		TypeSerializer<K> keySerializer = (TypeSerializer<K>) getKeyedStateBackend().getKeySerializer();
 		InternalTimeServiceManager<K, N> keyedTimeServiceHandler = (InternalTimeServiceManager<K, N>) timeServiceManager;
-		return keyedTimeServiceHandler.getInternalTimerService(name, keySerializer, namespaceSerializer, triggerable);
+		return keyedTimeServiceHandler.getInternalTimerService(name, namespaceSerializer, triggerable);
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {

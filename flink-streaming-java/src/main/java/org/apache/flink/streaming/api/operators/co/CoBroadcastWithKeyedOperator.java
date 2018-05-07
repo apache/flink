@@ -89,7 +89,7 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 	public void open() throws Exception {
 		super.open();
 
-		InternalTimerService<VoidNamespace> internalTimerService =
+		InternalTimerService<KS, VoidNamespace> internalTimerService =
 				getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
 
 		TimerService timerService = new SimpleTimerService(internalTimerService);

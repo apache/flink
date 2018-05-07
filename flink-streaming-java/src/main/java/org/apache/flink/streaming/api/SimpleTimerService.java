@@ -28,9 +28,9 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 @Internal
 public class SimpleTimerService implements TimerService {
 
-	private final InternalTimerService<VoidNamespace> internalTimerService;
+	private final InternalTimerService<?, VoidNamespace> internalTimerService;
 
-	public SimpleTimerService(InternalTimerService<VoidNamespace> internalTimerService) {
+	public SimpleTimerService(InternalTimerService<?, VoidNamespace> internalTimerService) {
 		this.internalTimerService = internalTimerService;
 	}
 

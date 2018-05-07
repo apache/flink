@@ -62,7 +62,7 @@ public class KeyedCoProcessOperator<K, IN1, IN2, OUT>
 		super.open();
 		collector = new TimestampedCollector<>(output);
 
-		InternalTimerService<VoidNamespace> internalTimerService =
+		InternalTimerService<K, VoidNamespace> internalTimerService =
 				getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
 
 		TimerService timerService = new SimpleTimerService(internalTimerService);

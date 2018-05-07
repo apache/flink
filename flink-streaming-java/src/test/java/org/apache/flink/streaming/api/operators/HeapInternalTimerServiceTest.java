@@ -829,9 +829,9 @@ public class HeapInternalTimerServiceTest {
 		for (Integer keyGroupIndex : keyGroupsList) {
 			if (state.containsKey(keyGroupIndex)) {
 				try (ByteArrayInputStream inputStream = new ByteArrayInputStream(state.get(keyGroupIndex))) {
-					InternalTimersSnapshot<?, ?> restoredTimersSnapshot =
+					InternalTimersSnapshot<Integer, String> restoredTimersSnapshot =
 						InternalTimersSnapshotReaderWriters
-							.getReaderForVersion(snapshotVersion, HeapInternalTimerServiceTest.class.getClassLoader())
+							.<Integer, String>getReaderForVersion(snapshotVersion, HeapInternalTimerServiceTest.class.getClassLoader())
 							.readTimersSnapshot(new DataInputViewStreamWrapper(inputStream));
 
 					service.restoreTimersForKeyGroup(restoredTimersSnapshot, keyGroupIndex);

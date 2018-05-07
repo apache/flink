@@ -503,7 +503,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		private final ValueStateDescriptor<Long> stateDescriptor =
 			new ValueStateDescriptor<>("state-name", LongSerializer.INSTANCE);
 
-		private transient InternalTimerService<Long> timerService;
+		private transient InternalTimerService<Long, Long> timerService;
 
 		@Override
 		public void open() throws Exception {

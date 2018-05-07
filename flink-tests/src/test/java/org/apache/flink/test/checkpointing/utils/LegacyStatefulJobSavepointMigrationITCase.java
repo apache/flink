@@ -531,7 +531,7 @@ public class LegacyStatefulJobSavepointMigrationITCase extends SavepointMigratio
 		private final ValueStateDescriptor<Long> stateDescriptor =
 			new ValueStateDescriptor<Long>("state-name", LongSerializer.INSTANCE);
 
-		private transient InternalTimerService<Long> timerService;
+		private transient InternalTimerService<Long, Long> timerService;
 
 		@Override
 		public void open() throws Exception {
@@ -587,7 +587,7 @@ public class LegacyStatefulJobSavepointMigrationITCase extends SavepointMigratio
 		private final ValueStateDescriptor<Long> stateDescriptor =
 			new ValueStateDescriptor<Long>("state-name", LongSerializer.INSTANCE);
 
-		private transient InternalTimerService<Long> timerService;
+		private transient InternalTimerService<Long, Long> timerService;
 
 		@Override
 		public void open() throws Exception {

@@ -19,6 +19,9 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+
+import java.io.IOException;
 
 /**
  * Interface for working with time and timers.
@@ -29,13 +32,29 @@ import org.apache.flink.annotation.Internal;
  * @param <N> Type of the namespace to which timers are scoped.
  */
 @Internal
-public interface InternalTimerService<N> {
+public interface InternalTimerService<K, N> {
+
+	/**
+	 * Starts the local {@link HeapInternalTimerService} by:
+	 * <ol>
+	 *     <li>Setting the {@code keySerialized} and {@code namespaceSerializer} for the timers it will contain.</li>
+	 *     <li>Setting the {@code triggerTarget} which contains the action to be performed when a timer fires.</li>
+	 *     <li>Re-registering timers that were retrieved after recovering from a node failure, if any.</li>
+	 * </ol>
+	 * This method can be called multiple times, as long as it is called with the same serializers.
+	 */
+	void startTimerService(TypeSerializer<K> keySerializer,
+			TypeSerializer<N> namespaceSerializer,
+			Triggerable<K, N> triggerTarget);
 
 	/** Returns the current processing time. */
 	long currentProcessingTime();
 
 	/** Returns the current event-time watermark. */
 	long currentWatermark();
+
+	/** Advances the current event-time watermark. */
+	void advanceWatermark(long timestamp) throws Exception;
 
 	/**
 	 * Registers a timer to be fired when processing time passes the given time. The namespace
@@ -58,4 +77,33 @@ public interface InternalTimerService<N> {
 	 * Deletes the timer for the given key and namespace.
 	 */
 	void deleteEventTimeTimer(N namespace, long time);
+
+	/**
+	 * Snapshots the timers (both processing and event time ones) for a given {@code keyGroupIdx}.
+	 *
+	 * @param keyGroupIdx the id of the key-group to be put in the snapshot.
+	 * @return a snapshot containing the timers for the given key-group, and the serializers for them
+	 */
+	InternalTimersSnapshot<K, N> snapshotTimersForKeyGroup(int keyGroupIdx) throws IOException;
+
+	/**
+	 * Restore the timers (both processing and event time ones) for a given {@code keyGroupIdx}.
+	 *
+	 * @param restoredTimersSnapshot the restored snapshot containing the key-group's timers,
+	 *                       and the serializers that were used to write them
+	 * @param keyGroupIdx the id of the key-group to be put in the snapshot.
+	 */
+	void restoreTimersForKeyGroup(InternalTimersSnapshot<K, N> restoredTimersSnapshot, int keyGroupIdx) throws IOException;
+
+	/** Returns the number of processing-time timers. */
+	int numProcessingTimeTimers();
+
+	/** Returns the number of event-time timers. */
+	int numEventTimeTimers();
+
+	/** Returns the number of processing-time timers with the given namespace. */
+	int numProcessingTimeTimers(N namespace);
+
+	/** Returns the number of event-time timers with the given namespace. */
+	int numEventTimeTimers(N namespace);
 }

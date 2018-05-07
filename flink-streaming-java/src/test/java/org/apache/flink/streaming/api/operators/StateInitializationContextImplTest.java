@@ -175,6 +175,7 @@ public class StateInitializationContextImplTest {
 
 			@Override
 			protected <K> InternalTimeServiceManager<?, K> internalTimeServiceManager(
+				String operatorIdentifierText,
 				AbstractKeyedStateBackend<K> keyedStatedBackend,
 				KeyContext keyContext,
 				Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {

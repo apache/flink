@@ -22,8 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.PostVersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.KeyGroupsList;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.io.IOException;
 import java.util.Map;
@@ -38,48 +36,36 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 
 	public static final int VERSION = 1;
 
-	/** The key-group timer services to write / read. */
-	private Map<String, HeapInternalTimerService<K, N>> timerServices;
+	/** The timer service manager to write / read. */
+	private InternalTimeServiceManager<K, N> timeServiceManager;
 
 	/** The user classloader; only relevant if the proxy is used to restore timer services. */
 	private ClassLoader userCodeClassLoader;
 
-	/** Properties of restored timer services. */
+	/** The index of the key group to write / read. */
 	private int keyGroupIdx;
-	private int totalKeyGroups;
-	private KeyGroupsList localKeyGroupRange;
-	private KeyContext keyContext;
-	private ProcessingTimeService processingTimeService;
 
 	/**
 	 * Constructor to use when restoring timer services.
 	 */
 	public InternalTimerServiceSerializationProxy(
-			Map<String, HeapInternalTimerService<K, N>> timerServicesMapToPopulate,
-			ClassLoader userCodeClassLoader,
-			int totalKeyGroups,
-			KeyGroupsList localKeyGroupRange,
-			KeyContext keyContext,
-			ProcessingTimeService processingTimeService,
-			int keyGroupIdx) {
+			InternalTimeServiceManager<K, N> timeServiceManager,
+			int keyGroupIdx,
+			ClassLoader userCodeClassLoader) {
 
-		this.timerServices = checkNotNull(timerServicesMapToPopulate);
-		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
-		this.totalKeyGroups = totalKeyGroups;
-		this.localKeyGroupRange = checkNotNull(localKeyGroupRange);
-		this.keyContext = checkNotNull(keyContext);
-		this.processingTimeService = checkNotNull(processingTimeService);
+		this.timeServiceManager = checkNotNull(timeServiceManager);
 		this.keyGroupIdx = keyGroupIdx;
+		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
 	}
 
 	/**
 	 * Constructor to use when writing timer services.
 	 */
 	public InternalTimerServiceSerializationProxy(
-			Map<String, HeapInternalTimerService<K, N>> timerServices,
+			InternalTimeServiceManager<K, N> timeServiceManager,
 			int keyGroupIdx) {
 
-		this.timerServices = checkNotNull(timerServices);
+		this.timeServiceManager = checkNotNull(timeServiceManager);
 		this.keyGroupIdx = keyGroupIdx;
 	}
 
@@ -90,12 +76,15 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
+
+		Map<String, InternalTimerService<K, N>> timerServices = timeServiceManager.getTimerServices();
+
 		super.write(out);
 
 		out.writeInt(timerServices.size());
-		for (Map.Entry<String, HeapInternalTimerService<K, N>> entry : timerServices.entrySet()) {
+		for (Map.Entry<String, InternalTimerService<K, N>> entry : timerServices.entrySet()) {
 			String serviceName = entry.getKey();
-			HeapInternalTimerService<K, N> timerService = entry.getValue();
+			InternalTimerService<K, N> timerService = entry.getValue();
 
 			out.writeUTF(serviceName);
 			InternalTimersSnapshotReaderWriters
@@ -106,24 +95,23 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 
 	@Override
 	protected void read(DataInputView in, boolean wasVersioned) throws IOException {
+
+		Map<String, InternalTimerService<K, N>> timerServices = timeServiceManager.getTimerServices();
+
 		int noOfTimerServices = in.readInt();
 
 		for (int i = 0; i < noOfTimerServices; i++) {
 			String serviceName = in.readUTF();
 
-			HeapInternalTimerService<K, N> timerService = timerServices.get(serviceName);
+			InternalTimerService<K, N> timerService = timerServices.get(serviceName);
 			if (timerService == null) {
-				timerService = new HeapInternalTimerService<>(
-					totalKeyGroups,
-					localKeyGroupRange,
-					keyContext,
-					processingTimeService);
+				timerService = timeServiceManager.createInternalTimerService();
 				timerServices.put(serviceName, timerService);
 			}
 
 			int readerVersion = wasVersioned ? getReadVersion() : InternalTimersSnapshotReaderWriters.NO_VERSION;
-			InternalTimersSnapshot<?, ?> restoredTimersSnapshot = InternalTimersSnapshotReaderWriters
-				.getReaderForVersion(readerVersion, userCodeClassLoader)
+			InternalTimersSnapshot<K, N> restoredTimersSnapshot = InternalTimersSnapshotReaderWriters
+				.<K, N>getReaderForVersion(readerVersion, userCodeClassLoader)
 				.readTimersSnapshot(in);
 
 			timerService.restoreTimersForKeyGroup(restoredTimersSnapshot, keyGroupIdx);

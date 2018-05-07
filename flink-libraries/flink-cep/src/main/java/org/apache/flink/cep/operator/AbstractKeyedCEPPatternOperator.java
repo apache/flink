@@ -83,7 +83,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 
 	private final NFACompiler.NFAFactory<IN> nfaFactory;
 
-	private transient InternalTimerService<VoidNamespace> timerService;
+	private transient InternalTimerService<KEY, VoidNamespace> timerService;
 
 	/**
 	 * The last seen watermark. This will be used to

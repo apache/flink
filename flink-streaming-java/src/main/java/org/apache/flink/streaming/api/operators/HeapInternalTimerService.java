@@ -40,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * {@link InternalTimerService} that stores timers on the Java heap.
  */
-public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, ProcessingTimeCallback {
+public class HeapInternalTimerService<K, N> implements InternalTimerService<K, N>, ProcessingTimeCallback {
 
 	private final ProcessingTimeService processingTimeService;
 
@@ -273,6 +273,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		}
 	}
 
+	@Override
 	public void advanceWatermark(long time) throws Exception {
 		currentWatermark = time;
 
@@ -313,8 +314,8 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	 * @param keyGroupIdx the id of the key-group to be put in the snapshot.
 	 */
 	@SuppressWarnings("unchecked")
-	public void restoreTimersForKeyGroup(InternalTimersSnapshot<?, ?> restoredTimersSnapshot, int keyGroupIdx) throws IOException {
-		this.restoredTimersSnapshot = (InternalTimersSnapshot<K, N>) restoredTimersSnapshot;
+	public void restoreTimersForKeyGroup(InternalTimersSnapshot<K, N> restoredTimersSnapshot, int keyGroupIdx) throws IOException {
+		this.restoredTimersSnapshot = restoredTimersSnapshot;
 
 		if ((this.keyDeserializer != null && !this.keyDeserializer.equals(restoredTimersSnapshot.getKeySerializer())) ||
 			(this.namespaceDeserializer != null && !this.namespaceDeserializer.equals(restoredTimersSnapshot.getNamespaceSerializer()))) {

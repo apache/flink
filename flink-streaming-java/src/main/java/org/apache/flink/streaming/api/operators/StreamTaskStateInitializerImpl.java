@@ -151,7 +151,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			streamTaskCloseableRegistry.registerCloseable(rawOperatorStateInputs);
 
 			// -------------- Internal Timer Service Manager --------------
-			timeServiceManager = internalTimeServiceManager(keyedStatedBackend, keyContext, rawKeyedStateInputs);
+			timeServiceManager = internalTimeServiceManager(operatorIdentifierText, keyedStatedBackend, keyContext, rawKeyedStateInputs);
 
 			// -------------- Preparing return value --------------
 
@@ -193,6 +193,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 	}
 
 	protected <K> InternalTimeServiceManager<?, K> internalTimeServiceManager(
+		String operatorIdentifierText,
 		AbstractKeyedStateBackend<K> keyedStatedBackend,
 		KeyContext keyContext, //the operator
 		Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
@@ -201,11 +202,15 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			return null;
 		}
 
-		final KeyGroupRange keyGroupRange = keyedStatedBackend.getKeyGroupRange();
+		KeyGroupRange keyGroupRange = keyedStatedBackend.getKeyGroupRange();
 
-		final InternalTimeServiceManager<?, K> timeServiceManager = new InternalTimeServiceManager<>(
+		final InternalTimeServiceManager<?, K> timeServiceManager = new HeapInternalTimeServiceManager<>(
+			environment,
+			environment.getJobID(),
+			operatorIdentifierText,
 			keyedStatedBackend.getNumberOfKeyGroups(),
 			keyGroupRange,
+			keyedStatedBackend.getKeySerializer(),
 			keyContext,
 			processingTimeService);
 

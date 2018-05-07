@@ -19,7 +19,9 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -31,7 +33,7 @@ import java.util.Set;
  * Implementation of {@link InternalTimerService} meant to use for testing.
  */
 @Internal
-public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
+public class TestInternalTimerService<K, N> implements InternalTimerService<K, N> {
 
 	private long currentProcessingTime = Long.MIN_VALUE;
 
@@ -61,6 +63,15 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
 	}
 
 	@Override
+	public void startTimerService(
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<N> namespaceSerializer,
+		Triggerable<K, N> triggerTarget
+	) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public long currentProcessingTime() {
 		return currentProcessingTime;
 	}
@@ -68,6 +79,11 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
 	@Override
 	public long currentWatermark() {
 		return currentWatermark;
+	}
+
+	@Override
+	public void advanceWatermark(long timestamp) throws Exception {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
@@ -108,7 +124,19 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
 		}
 	}
 
-	public Collection<Timer<K, N>> advanceProcessingTime(long time) throws Exception {
+	@Override
+	public InternalTimersSnapshot<K, N> snapshotTimersForKeyGroup(int keyGroupIdx) throws IOException {
+		return null;
+	}
+
+	@Override
+	public void restoreTimersForKeyGroup(
+		InternalTimersSnapshot<K, N> restoredTimersSnapshot, int keyGroupIdx
+	) throws IOException {
+
+	}
+
+	public Collection<Timer<K, N>> pollProcessingTimeTimers(long time) throws Exception {
 		List<Timer<K, N>> result = new ArrayList<>();
 
 		Timer<K, N> timer = processingTimeTimersQueue.peek();
@@ -124,7 +152,7 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
 		return result;
 	}
 
-	public Collection<Timer<K, N>> advanceWatermark(long time) throws Exception {
+	public Collection<Timer<K, N>> pollEventTimeTimers(long time) throws Exception {
 		List<Timer<K, N>> result = new ArrayList<>();
 
 		Timer<K, N> timer = watermarkTimersQueue.peek();
