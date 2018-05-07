@@ -588,8 +588,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 */
 		private void restoreKVStateMetaData() throws IOException, StateMigrationException, RocksDBException {
 
+			// isSerializerPresenceRequired flag is set to false, since for the RocksDB state backend,
+			// deserialization of state happens lazily during runtime; we depend on the fact
+			// that the new serializer for states could be compatible, and therefore the restore can continue
+			// without old serializers required to be present.
 			KeyedBackendSerializationProxy<K> serializationProxy =
-				new KeyedBackendSerializationProxy<>(rocksDBKeyedStateBackend.userCodeClassLoader);
+				new KeyedBackendSerializationProxy<>(rocksDBKeyedStateBackend.userCodeClassLoader, false);
 
 			serializationProxy.read(currentStateHandleInView);
 
@@ -925,8 +929,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				inputStream = metaStateHandle.openInputStream();
 				stateBackend.cancelStreamRegistry.registerCloseable(inputStream);
 
+				// isSerializerPresenceRequired flag is set to false, since for the RocksDB state backend,
+				// deserialization of state happens lazily during runtime; we depend on the fact
+				// that the new serializer for states could be compatible, and therefore the restore can continue
+				// without old serializers required to be present.
 				KeyedBackendSerializationProxy<T> serializationProxy =
-					new KeyedBackendSerializationProxy<>(stateBackend.userCodeClassLoader);
+					new KeyedBackendSerializationProxy<>(stateBackend.userCodeClassLoader, false);
 				DataInputView in = new DataInputViewStreamWrapper(inputStream);
 				serializationProxy.read(in);
 

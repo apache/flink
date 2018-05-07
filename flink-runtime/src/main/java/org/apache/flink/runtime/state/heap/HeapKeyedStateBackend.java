@@ -74,7 +74,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -344,8 +343,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			try {
 				DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(fsDataInputStream);
 
+				// isSerializerPresenceRequired flag is set to true, since for the heap state backend,
+				// deserialization of state happens eagerly at restore time
 				KeyedBackendSerializationProxy<K> serializationProxy =
-						new KeyedBackendSerializationProxy<>(userCodeClassLoader);
+						new KeyedBackendSerializationProxy<>(userCodeClassLoader, true);
 
 				serializationProxy.read(inView);
 
@@ -371,22 +372,6 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						serializationProxy.getStateMetaInfoSnapshots();
 
 				for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> restoredMetaInfo : restoredMetaInfos) {
-
-					if (restoredMetaInfo.getStateSerializer() == null ||
-							restoredMetaInfo.getStateSerializer() instanceof UnloadableDummyTypeSerializer) {
-
-						// must fail now if the previous serializer cannot be restored because there is no serializer
-						// capable of reading previous state
-						// TODO when eager state registration is in place, we can try to get a convert deserializer
-						// TODO from the newly registered serializer instead of simply failing here
-
-						throw new IOException("Unable to restore keyed state [" + restoredMetaInfo.getName() + "]." +
-							" For memory-backed keyed state, the previous serializer of the keyed state must be" +
-							" present; the serializer could have been removed from the classpath, or its implementation" +
-							" have changed and could not be loaded. This is a temporary restriction that will be fixed" +
-							" in future versions.");
-					}
-
 					restoredKvStateMetaInfos.put(restoredMetaInfo.getName(), restoredMetaInfo);
 
 					StateTable<K, ?, ?> stateTable = stateTables.get(restoredMetaInfo.getName());
