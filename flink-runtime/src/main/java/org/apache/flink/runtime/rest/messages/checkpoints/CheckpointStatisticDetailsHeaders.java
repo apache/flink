@@ -69,4 +69,9 @@ public class CheckpointStatisticDetailsHeaders implements MessageHeaders<EmptyRe
 	public static CheckpointStatisticDetailsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns details for a checkpoint.";
+	}
 }

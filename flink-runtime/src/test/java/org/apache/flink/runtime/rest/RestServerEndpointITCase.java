@@ -568,6 +568,11 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 
 		@Override
+		public String getDescription() {
+			return "";
+		}
+
+		@Override
 		public TestParameters getUnresolvedMessageParameters() {
 			return new TestParameters();
 		}
@@ -699,6 +704,11 @@ public class RestServerEndpointITCase extends TestLogger {
 		@Override
 		public String getTargetRestEndpointURL() {
 			return "/upload";
+		}
+
+		@Override
+		public String getDescription() {
+			return "";
 		}
 	}
 }

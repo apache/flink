@@ -69,6 +69,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.docs.util.Utils.escapeCharacters;
+
 /**
  * Generator for the Rest API documentation.
  *
@@ -155,7 +157,7 @@ public class RestAPIDocGenerator {
 			sb.append("      <td class=\"text-left\">Response code: <code>" + spec.getResponseStatusCode() + "</code></td>\n");
 			sb.append("    </tr>\n");
 			sb.append("    <tr>\n");
-			sb.append("      <td colspan=\"2\">" + "description" + "</td>\n");
+			sb.append("      <td colspan=\"2\">" + escapeCharacters(spec.getDescription()) + "</td>\n");
 			sb.append("    </tr>\n");
 		}
 		if (!pathParameterList.isEmpty()) {

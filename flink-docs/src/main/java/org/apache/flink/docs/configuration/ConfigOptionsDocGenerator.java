@@ -43,6 +43,8 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.docs.util.Utils.escapeCharacters;
+
 /**
  * Class used for generating code based documentation of configuration parameters.
  */
@@ -59,12 +61,6 @@ public class ConfigOptionsDocGenerator {
 	private static final String CLASS_NAME_GROUP = "className";
 	private static final String CLASS_PREFIX_GROUP = "classPrefix";
 	private static final Pattern CLASS_NAME_PATTERN = Pattern.compile("(?<" + CLASS_NAME_GROUP + ">(?<" + CLASS_PREFIX_GROUP + ">[a-zA-Z]*)(?:Options|Config|Parameters))(?:\\.java)?");
-
-	/**
-	 * Placeholder that is used to prevent certain sections from being escaped. We don't need a sophisticated value
-	 * but only something that won't show up in config options.
-	 */
-	private static final String TEMPORARY_PLACEHOLDER = "superRandomTemporaryPlaceholder";
 
 	/**
 	 * This method generates html tables from set of classes containing {@link ConfigOption ConfigOptions}.
@@ -225,14 +221,6 @@ public class ConfigOptionsDocGenerator {
 			}
 			return value == null ? "(none)" : value.toString();
 		}
-	}
-
-	private static String escapeCharacters(String value) {
-		return value
-			.replaceAll("<wbr>", TEMPORARY_PLACEHOLDER)
-			.replaceAll("<", "&#60;")
-			.replaceAll(">", "&#62;")
-			.replaceAll(TEMPORARY_PLACEHOLDER, "<wbr>");
 	}
 
 	private static String addWordBreakOpportunities(String value) {

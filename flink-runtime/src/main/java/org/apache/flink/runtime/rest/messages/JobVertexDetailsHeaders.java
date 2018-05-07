@@ -65,4 +65,9 @@ public class JobVertexDetailsHeaders implements MessageHeaders<EmptyRequestBody,
 	public static JobVertexDetailsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns details for a task, with a summary for each of its subtasks.";
+	}
 }
