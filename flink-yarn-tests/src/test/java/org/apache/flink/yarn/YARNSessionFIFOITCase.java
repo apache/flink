@@ -98,19 +98,32 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		FileUtils.writeStringToFile(tmpInFile, WordCountData.TEXT);
 
 		ArrayList<String> args = new ArrayList<>();
-		args.add("-j"); args.add(flinkUberjar.getAbsolutePath());
-		args.add("-t"); args.add(flinkLibFolder.getAbsolutePath());
-		args.add("-n"); args.add("1");
-		args.add("-jm"); args.add("768");
-		args.add("-tm"); args.add("1024");
+		args.add("-j");
+		args.add(flinkUberjar.getAbsolutePath());
+
+		args.add("-t");
+		args.add(flinkLibFolder.getAbsolutePath());
+
+		args.add("-n");
+		args.add("1");
+
+		args.add("-jm");
+		args.add("768");
+
+		args.add("-tm");
+		args.add("1024");
+
 		if (SecureTestEnvironment.getTestKeytab() != null) {
 			args.add("-D" + SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + "=" + SecureTestEnvironment.getTestKeytab());
 		}
 		if (SecureTestEnvironment.getHadoopServicePrincipal() != null) {
 			args.add("-D" + SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key() + "=" + SecureTestEnvironment.getHadoopServicePrincipal());
 		}
-		args.add("--name"); args.add("MyCustomName");
+		args.add("--name");
+		args.add("MyCustomName");
+
 		args.add("--detached");
+
 		Runner clusterRunner =
 			startWithArgs(
 				args.toArray(new String[args.size()]),
