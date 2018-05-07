@@ -550,6 +550,11 @@ public class BucketingSink<T>
 		Path inProgressPath = getInProgressPathFor(partPath);
 		if (bucketState.writer == null) {
 			bucketState.writer = writerTemplate.duplicate();
+			if (bucketState.writer == null) {
+				throw new RuntimeException(
+					"Could not duplicate writer: class '" + writerTemplate.getClass().getName() + "' must implement the 'Writer.duplicate()' method."
+				);
+			}
 		}
 
 		bucketState.writer.open(fs, inProgressPath);
