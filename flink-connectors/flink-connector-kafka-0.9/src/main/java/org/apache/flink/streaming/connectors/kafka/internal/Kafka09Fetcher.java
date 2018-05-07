@@ -213,7 +213,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 		@Override
 		public TimestampType getTimestampType() {
-			return ConsumerRecordMetaInfo.TimestampType.NO_TIMESTAMP_TYPE;
+			return ConsumerRecordMetaInfo.TimestampType.NO_TIMESTAMP;
 		}
 	}
 

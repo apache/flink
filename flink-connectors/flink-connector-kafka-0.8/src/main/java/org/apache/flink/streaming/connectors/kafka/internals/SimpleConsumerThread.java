@@ -587,7 +587,7 @@ class SimpleConsumerThread<T> extends Thread {
 
 		@Override
 		public TimestampType getTimestampType() {
-			return ConsumerRecordMetaInfo.TimestampType.NO_TIMESTAMP_TYPE;
+			return ConsumerRecordMetaInfo.TimestampType.NO_TIMESTAMP;
 		}
 	}
 }

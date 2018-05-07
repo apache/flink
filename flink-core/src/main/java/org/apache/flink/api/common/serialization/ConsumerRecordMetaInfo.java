@@ -24,7 +24,7 @@ import org.apache.flink.annotation.Public;
  * key, topic, partition, offset and timestamp for Apache kafka
  *
  * <p><b>Note:</b>The timestamp is only valid for Kafka clients 0.10+, for older versions the value has the value `Long.MinValue` and
- * the timestampType has the value `NO_TIMESTAMP_TYPE`.
+ * the timestampType has the value `NO_TIMESTAMP`.
  */
 @Public
 public interface ConsumerRecordMetaInfo {
@@ -33,7 +33,7 @@ public interface ConsumerRecordMetaInfo {
 	 * so a local enumeration is needed.
 	 */
 	enum TimestampType {
-		NO_TIMESTAMP_TYPE, CREATE_TIME, INGEST_TIME
+		NO_TIMESTAMP, EVENT_TIME, INGEST_TIME
 	}
 
 	/**
@@ -62,12 +62,14 @@ public interface ConsumerRecordMetaInfo {
 	long getOffset();
 
 	/**
-	 * @return the timestamp of the consumer record
+	 * @return the timestamp of the consumer record. When the consumer record doesn't support the timestamp (e.g. kafka 0.9-)
+	 * then a dummy value should be returned (like Long.MinValue) and the timestampType should return NO_TIMESTAMP.
 	 */
 	long getTimestamp();
 
 	/**
-	 * @return The timestamp type, could be NO_TIMESTAMP_TYPE, CREATE_TIME or INGEST_TIME.
+	 * @return The timestamp type, could be NO_TIMESTAMP, EVENT_TIME or INGEST_TIME. When the consumer record doesn't
+	 * support the timestamp (e.g. kafka 0.9-) then NO_TIMESTAMP should be returned.
 	 */
 	TimestampType getTimestampType();
 }

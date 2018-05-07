@@ -115,7 +115,7 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 
 		@Override
 		public long getTimestamp() {
-			return Long.MIN_VALUE;
+			return consumerRecord.timestamp();
 		}
 
 		@Override
@@ -124,13 +124,13 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 			ConsumerRecordMetaInfo.TimestampType localTimestampType;
 			switch(consumerRecord.timestampType()) {
 				case CREATE_TIME:
-					localTimestampType = TimestampType.CREATE_TIME;
+					localTimestampType = TimestampType.EVENT_TIME;
 					break;
 				case LOG_APPEND_TIME:
 					localTimestampType = TimestampType.INGEST_TIME;
 					break;
 				default:
-					localTimestampType = TimestampType.NO_TIMESTAMP_TYPE;
+					localTimestampType = TimestampType.NO_TIMESTAMP;
 					break;
 			}
 			return localTimestampType;
