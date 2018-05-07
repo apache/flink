@@ -602,7 +602,7 @@ public class StreamingJobGraphGenerator {
 
 		for (JobVertex vertex : jobVertices.values()) {
 			if (vertex.isInputVertex()) {
-				triggerVertices.add(vertex.getID());
+				triggerVertices.add(vertex.getID()); //只有source才需要触发checkpoint
 			}
 			commitVertices.add(vertex.getID());
 			ackVertices.add(vertex.getID());

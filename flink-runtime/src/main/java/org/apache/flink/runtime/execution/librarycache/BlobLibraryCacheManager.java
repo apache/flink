@@ -106,7 +106,8 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		if (requiredClasspaths == null) {
 			requiredClasspaths = Collections.emptySet();
 		}
-
+		//根据jobId获取blob目录下上传的jar包文件，添加到cacheEntities(这个逻辑也就是一个TaskManager JVM可以同时运行多个JOB的原因，
+		// 在类加载过程完全隔离)
 		synchronized (lockObject) {
 			LibraryCacheEntry entry = cacheEntries.get(jobId);
 
