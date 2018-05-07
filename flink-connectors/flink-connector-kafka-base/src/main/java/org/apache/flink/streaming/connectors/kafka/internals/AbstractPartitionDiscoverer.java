@@ -24,7 +24,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import static java.util.Collections.emptyList;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -147,8 +146,8 @@ public abstract class AbstractPartitionDiscoverer {
 					}
 				}
 
-				if (newDiscoveredPartitions == null) {
-					newDiscoveredPartitions = emptyList();
+				if (newDiscoveredPartitions == null || newDiscoveredPartitions.isEmpty()) {
+					throw new NoPartitionsFoundException("Unable to retrieve any partitions with KafkaTopicsDescriptor: " + topicsDescriptor);
 				}
 
 				// (2) eliminate partition that are old partitions or should not be subscribed by this subtask

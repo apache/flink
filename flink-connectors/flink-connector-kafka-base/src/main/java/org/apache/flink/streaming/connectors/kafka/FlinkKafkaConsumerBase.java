@@ -49,6 +49,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionAssigner;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
+import org.apache.flink.streaming.connectors.kafka.internals.NoPartitionsFoundException;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
@@ -65,6 +66,7 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
+import static java.util.Collections.emptyList;
 import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.COMMITS_FAILED_METRICS_COUNTER;
 import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.COMMITS_SUCCEEDED_METRICS_COUNTER;
 import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.KAFKA_CONSUMER_METRICS_GROUP;
@@ -470,9 +472,12 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 		subscribedPartitionsToStartOffsets = new HashMap<>();
 
-		List<KafkaTopicPartition> allPartitions = partitionDiscoverer.discoverPartitions();
-		if (discoveryIntervalMillis == PARTITION_DISCOVERY_DISABLED && (allPartitions == null || allPartitions.isEmpty())) {
-			throw new RuntimeException("Unable to retrieve any partitions with KafkaTopicsDescriptor: " + topicsDescriptor);
+		boolean noPartitionsDiscovered = false;
+		List<KafkaTopicPartition> allPartitions = emptyList();
+		try {
+			allPartitions = partitionDiscoverer.discoverPartitions();
+		} catch (NoPartitionsFoundException ex) {
+			noPartitionsDiscovered = true;
 		}
 
 		if (restoredState != null) {
@@ -501,6 +506,10 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			LOG.info("Consumer subtask {} will start reading {} partitions with offsets in restored state: {}",
 				getRuntimeContext().getIndexOfThisSubtask(), subscribedPartitionsToStartOffsets.size(), subscribedPartitionsToStartOffsets);
 		} else {
+			if (discoveryIntervalMillis == PARTITION_DISCOVERY_DISABLED && noPartitionsDiscovered) {
+				throw new RuntimeException("Unable to retrieve any partitions with KafkaTopicsDescriptor: " + topicsDescriptor);
+			}
+
 			// use the partition discoverer to fetch the initial seed partitions,
 			// and set their initial offsets depending on the startup mode.
 			// for SPECIFIC_OFFSETS and TIMESTAMP modes, we set the specific offsets now;
@@ -687,6 +696,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 							try {
 								discoveredPartitions = partitionDiscoverer.discoverPartitions();
+							} catch (NoPartitionsFoundException e) {
+								LOG.debug(e.getMessage());
+								break;
 							} catch (AbstractPartitionDiscoverer.WakeupException | AbstractPartitionDiscoverer.ClosedException e) {
 								// the partition discoverer may have been closed or woken up before or during the discovery;
 								// this would only happen if the consumer was canceled; simply escape the loop

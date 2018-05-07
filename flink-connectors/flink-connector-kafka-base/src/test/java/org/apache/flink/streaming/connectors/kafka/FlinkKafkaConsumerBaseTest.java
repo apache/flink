@@ -66,15 +66,16 @@ import javax.annotation.Nonnull;
 import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static java.util.Arrays.asList;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasSize;
@@ -88,6 +89,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link FlinkKafkaConsumerBase}.
@@ -133,11 +135,16 @@ public class FlinkKafkaConsumerBaseTest {
 	 */
 	@Test
 	public void ignoreCheckpointWhenNotRunning() throws Exception {
+		final KafkaTopicPartition partition1 = new KafkaTopicPartition("abc", 13);
+
+		final AbstractPartitionDiscoverer testDiscoverer = mock(AbstractPartitionDiscoverer.class);
+		when(testDiscoverer.discoverPartitions()).thenReturn(asList(partition1));
+
 		@SuppressWarnings("unchecked")
 		final MockFetcher<String> fetcher = new MockFetcher<>();
 		final FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>(
 				fetcher,
-				mock(AbstractPartitionDiscoverer.class),
+				testDiscoverer,
 				false);
 
 		final TestingListState<Tuple2<KafkaTopicPartition, Long>> listState = new TestingListState<>();
@@ -146,8 +153,13 @@ public class FlinkKafkaConsumerBaseTest {
 		// snapshot before the fetcher starts running
 		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(1, 1));
 
-		// no state should have been checkpointed
-		assertFalse(listState.get().iterator().hasNext());
+		// The only state that's captured, is the assigned partition
+		Iterator<Tuple2<KafkaTopicPartition, Long>> stateIterator = listState.get().iterator();
+		KafkaTopicPartition statePartition = stateIterator.next().f0;
+		assertEquals("The assigned seed partition is not captured as a part of the state", statePartition, partition1);
+
+		// nothing else should have been checkpointed
+		assertFalse(stateIterator.hasNext());
 
 		// acknowledgement of the checkpoint should also not result in any offset commits
 		consumer.notifyCheckpointComplete(1L);
@@ -192,9 +204,19 @@ public class FlinkKafkaConsumerBaseTest {
 
 	@Test
 	public void testConfigureOnCheckpointsCommitMode() throws Exception {
+
+		final KafkaTopicPartition partition1 = new KafkaTopicPartition("abc", 13);
+		final KafkaTopicPartition partition2 = new KafkaTopicPartition("def", 7);
+
+		final AbstractPartitionDiscoverer testDiscoverer = mock(AbstractPartitionDiscoverer.class);
+		when(testDiscoverer.discoverPartitions()).thenReturn(asList(partition1, partition2));
+
 		@SuppressWarnings("unchecked")
 		// auto-commit enabled; this should be ignored in this case
-		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(true);
+		final DummyFlinkKafkaConsumer<String> consumer =
+			new DummyFlinkKafkaConsumer<String>(mock(AbstractFetcher.class),
+			testDiscoverer,
+			true);
 
 		setupConsumer(
 			consumer,
@@ -209,8 +231,18 @@ public class FlinkKafkaConsumerBaseTest {
 
 	@Test
 	public void testConfigureAutoCommitMode() throws Exception {
+
+		final KafkaTopicPartition partition1 = new KafkaTopicPartition("abc", 13);
+		final KafkaTopicPartition partition2 = new KafkaTopicPartition("def", 7);
+
+		final AbstractPartitionDiscoverer testDiscoverer = mock(AbstractPartitionDiscoverer.class);
+		when(testDiscoverer.discoverPartitions()).thenReturn(asList(partition1, partition2));
+
 		@SuppressWarnings("unchecked")
-		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(true);
+		final DummyFlinkKafkaConsumer<String> consumer =
+			new DummyFlinkKafkaConsumer<String>(mock(AbstractFetcher.class),
+				testDiscoverer,
+				true);
 
 		setupConsumer(
 			consumer,
@@ -225,9 +257,19 @@ public class FlinkKafkaConsumerBaseTest {
 
 	@Test
 	public void testConfigureDisableOffsetCommitWithCheckpointing() throws Exception {
+
+		final KafkaTopicPartition partition1 = new KafkaTopicPartition("abc", 13);
+		final KafkaTopicPartition partition2 = new KafkaTopicPartition("def", 7);
+
+		final AbstractPartitionDiscoverer testDiscoverer = mock(AbstractPartitionDiscoverer.class);
+		when(testDiscoverer.discoverPartitions()).thenReturn(asList(partition1, partition2));
+
 		@SuppressWarnings("unchecked")
 		// auto-commit enabled; this should be ignored in this case
-		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(true);
+		final DummyFlinkKafkaConsumer<String> consumer =
+			new DummyFlinkKafkaConsumer<String>(mock(AbstractFetcher.class),
+				testDiscoverer,
+				true);
 		consumer.setCommitOffsetsOnCheckpoints(false); // disabling offset committing should override everything
 
 		setupConsumer(
@@ -243,8 +285,17 @@ public class FlinkKafkaConsumerBaseTest {
 
 	@Test
 	public void testConfigureDisableOffsetCommitWithoutCheckpointing() throws Exception {
+		final KafkaTopicPartition partition1 = new KafkaTopicPartition("abc", 13);
+		final KafkaTopicPartition partition2 = new KafkaTopicPartition("def", 7);
+
+		final AbstractPartitionDiscoverer testDiscoverer = mock(AbstractPartitionDiscoverer.class);
+		when(testDiscoverer.discoverPartitions()).thenReturn(asList(partition1, partition2));
+
 		@SuppressWarnings("unchecked")
-		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(false);
+		final DummyFlinkKafkaConsumer<String> consumer =
+			new DummyFlinkKafkaConsumer<String>(mock(AbstractFetcher.class),
+				testDiscoverer,
+				false);
 
 		setupConsumer(
 			consumer,
@@ -265,25 +316,31 @@ public class FlinkKafkaConsumerBaseTest {
 		//   prepare fake states
 		// --------------------------------------------------------------------
 
+		final KafkaTopicPartition partition1 = new KafkaTopicPartition("abc", 13);
+		final KafkaTopicPartition partition2 = new KafkaTopicPartition("def", 7);
+
 		final HashMap<KafkaTopicPartition, Long> state1 = new HashMap<>();
-		state1.put(new KafkaTopicPartition("abc", 13), 16768L);
-		state1.put(new KafkaTopicPartition("def", 7), 987654321L);
+		state1.put(partition1, 16768L);
+		state1.put(partition2, 987654321L);
 
 		final HashMap<KafkaTopicPartition, Long> state2 = new HashMap<>();
-		state2.put(new KafkaTopicPartition("abc", 13), 16770L);
-		state2.put(new KafkaTopicPartition("def", 7), 987654329L);
+		state2.put(partition1, 16770L);
+		state2.put(partition2, 987654329L);
 
 		final HashMap<KafkaTopicPartition, Long> state3 = new HashMap<>();
-		state3.put(new KafkaTopicPartition("abc", 13), 16780L);
-		state3.put(new KafkaTopicPartition("def", 7), 987654377L);
+		state3.put(partition1, 16780L);
+		state3.put(partition2, 987654377L);
 
 		// --------------------------------------------------------------------
+
+		final AbstractPartitionDiscoverer testDiscoverer = mock(AbstractPartitionDiscoverer.class);
+		when(testDiscoverer.discoverPartitions()).thenReturn(asList(partition1, partition2));
 
 		final MockFetcher<String> fetcher = new MockFetcher<>(state1, state2, state3);
 
 		final FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>(
 				fetcher,
-				mock(AbstractPartitionDiscoverer.class),
+				testDiscoverer,
 				false);
 
 		final TestingListState<Serializable> listState = new TestingListState<>();
@@ -373,25 +430,31 @@ public class FlinkKafkaConsumerBaseTest {
 		//   prepare fake states
 		// --------------------------------------------------------------------
 
+		final KafkaTopicPartition partition1 = new KafkaTopicPartition("abc", 13);
+		final KafkaTopicPartition partition2 = new KafkaTopicPartition("def", 7);
+
 		final HashMap<KafkaTopicPartition, Long> state1 = new HashMap<>();
-		state1.put(new KafkaTopicPartition("abc", 13), 16768L);
-		state1.put(new KafkaTopicPartition("def", 7), 987654321L);
+		state1.put(partition1, 16768L);
+		state1.put(partition2, 987654321L);
 
 		final HashMap<KafkaTopicPartition, Long> state2 = new HashMap<>();
-		state2.put(new KafkaTopicPartition("abc", 13), 16770L);
-		state2.put(new KafkaTopicPartition("def", 7), 987654329L);
+		state2.put(partition1, 16770L);
+		state2.put(partition2, 987654329L);
 
 		final HashMap<KafkaTopicPartition, Long> state3 = new HashMap<>();
-		state3.put(new KafkaTopicPartition("abc", 13), 16780L);
-		state3.put(new KafkaTopicPartition("def", 7), 987654377L);
+		state3.put(partition1, 16780L);
+		state3.put(partition2, 987654377L);
 
 		// --------------------------------------------------------------------
+
+		final AbstractPartitionDiscoverer testDiscoverer = mock(AbstractPartitionDiscoverer.class);
+		when(testDiscoverer.discoverPartitions()).thenReturn(asList(partition1, partition2));
 
 		final MockFetcher<String> fetcher = new MockFetcher<>(state1, state2, state3);
 
 		final FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>(
 				fetcher,
-				mock(AbstractPartitionDiscoverer.class),
+				testDiscoverer,
 				false);
 		consumer.setCommitOffsetsOnCheckpoints(false); // disable offset committing
 
@@ -771,7 +834,7 @@ public class FlinkKafkaConsumerBaseTest {
 					new UnregisteredMetricsGroup(),
 					false);
 
-			this.stateSnapshotsToReturn.addAll(Arrays.asList(stateSnapshotsToReturn));
+			this.stateSnapshotsToReturn.addAll(asList(stateSnapshotsToReturn));
 		}
 
 		@Override
