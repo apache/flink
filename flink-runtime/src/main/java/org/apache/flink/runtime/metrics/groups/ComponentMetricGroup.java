@@ -57,11 +57,12 @@ public abstract class ComponentMetricGroup<P extends AbstractMetricGroup<?>> ext
 		if (variables == null) { // avoid synchronization for common case
 			synchronized (this) {
 				if (variables == null) {
-					variables = new HashMap<>();
-					putVariables(variables);
+					Map<String, String> tmpVariables = new HashMap<>();
+					putVariables(tmpVariables);
 					if (parent != null) { // not true for Job-/TaskManagerMetricGroup
-						variables.putAll(parent.getAllVariables());
+						tmpVariables.putAll(parent.getAllVariables());
 					}
+					variables = tmpVariables;
 				}
 			}
 		}
