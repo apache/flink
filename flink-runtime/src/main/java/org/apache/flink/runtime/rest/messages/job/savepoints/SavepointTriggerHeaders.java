@@ -76,4 +76,9 @@ public class SavepointTriggerHeaders
 	public static SavepointTriggerHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Trigger a savepoint.";
+	}
 }

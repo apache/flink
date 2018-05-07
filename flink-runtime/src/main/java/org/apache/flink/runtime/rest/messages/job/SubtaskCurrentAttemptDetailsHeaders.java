@@ -74,4 +74,9 @@ public class SubtaskCurrentAttemptDetailsHeaders implements MessageHeaders<Empty
 	public static SubtaskCurrentAttemptDetailsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Summary of the current or latest execution attempt of a specific subtask.";
+	}
 }

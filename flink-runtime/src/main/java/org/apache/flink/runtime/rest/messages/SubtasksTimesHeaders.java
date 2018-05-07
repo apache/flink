@@ -66,4 +66,9 @@ public class SubtasksTimesHeaders implements MessageHeaders<EmptyRequestBody, Su
 	public static SubtasksTimesHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Get times info for a subtask.";
+	}
 }

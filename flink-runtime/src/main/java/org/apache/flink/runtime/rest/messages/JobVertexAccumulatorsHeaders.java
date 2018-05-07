@@ -71,4 +71,9 @@ public class JobVertexAccumulatorsHeaders implements MessageHeaders<EmptyRequest
 	public static JobVertexAccumulatorsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "The aggregated user-defined accumulators, for a specific vertex.";
+	}
 }

@@ -70,4 +70,9 @@ public class JobAccumulatorsHeaders implements MessageHeaders<EmptyRequestBody, 
 	public static JobAccumulatorsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Get the aggregated accumulators of a job.";
+	}
 }

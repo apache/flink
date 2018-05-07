@@ -65,4 +65,9 @@ public class JarPlanHeaders implements MessageHeaders<EmptyRequestBody, JobPlanI
 	public static JarPlanHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Fetch the plan for a jar.";
+	}
 }

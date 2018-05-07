@@ -49,4 +49,8 @@ public final class JobVertexMetricsHeaders extends
 		return INSTANCE;
 	}
 
+	@Override
+	public String getDescription() {
+		return "The metrics for a specified job and job vertex.";
+	}
 }

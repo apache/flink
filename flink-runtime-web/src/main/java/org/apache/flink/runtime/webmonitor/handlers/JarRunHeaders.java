@@ -66,4 +66,10 @@ public class JarRunHeaders implements MessageHeaders<EmptyRequestBody, JarRunRes
 	public static JarRunHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Send a POST request to /jars/:jarid/run. The jarid parameter is the file name of the program JAR in the configured web frontend upload directory (configuration key jobmanager.web.upload.dir).\n\n" +
+			"If the call succeeds, you will get a response with the ID of the submitted job.";
+	}
 }

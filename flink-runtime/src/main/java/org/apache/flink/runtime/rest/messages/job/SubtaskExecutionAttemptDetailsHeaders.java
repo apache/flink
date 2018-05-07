@@ -75,4 +75,9 @@ public class SubtaskExecutionAttemptDetailsHeaders implements MessageHeaders<Emp
 	public static SubtaskExecutionAttemptDetailsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Summary of a specific execution attempt of a specific subtask. Multiple execution attempts happen in case of failure/recovery.";
+	}
 }

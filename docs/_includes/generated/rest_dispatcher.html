@@ -8,7 +8,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Query the port of blob server.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -45,6 +45,42 @@
 <table class="table table-bordered">
   <tbody>
     <tr>
+      <td class="text-left" colspan="2"><strong>/cluster</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>DELETE</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Shutdown the cluster</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1674237828">Request</button>
+        <div id="-1674237828" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1489255004">Response</button>
+        <div id="-1489255004" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
       <td class="text-left" colspan="2"><strong>/config</strong></td>
     </tr>
     <tr>
@@ -52,7 +88,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Some information about the monitoring API and the server setup.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -108,7 +144,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">List uploaded jars.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -185,7 +221,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Send a POST request to /jars/upload with your jar file sent as multi-part data under the jarfile file. Also make sure that the multi-part data includes the Content-Type of the file itself, some http libraries do not add the header by default.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -241,7 +277,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Delete an uploaded jar.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -287,7 +323,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Fetch the plan for a jar.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -347,7 +383,9 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Send a POST request to /jars/:jarid/run. The jarid parameter is the file name of the program JAR in the configured web frontend upload directory (configuration key jobmanager.web.upload.dir).
+
+If the call succeeds, you will get a response with the ID of the submitted job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -415,7 +453,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Get cluster configuration.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -465,7 +503,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">The metrics for a job manager.</td>
     </tr>
     <tr>
       <td colspan="2">Query parameters</td>
@@ -513,7 +551,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">An overview of how many jobs are in which status.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -570,7 +608,7 @@
       <td class="text-left">Response code: <code>202 Accepted</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Submit a job to a flink cluster.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -625,7 +663,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">The aggregated metrics for a job.</td>
     </tr>
     <tr>
       <td colspan="2">Query parameters</td>
@@ -675,7 +713,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Jobs, grouped by status, each with a small summary of its status.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -722,7 +760,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Summary of one job, listing dataflow plan, status, timestamps of state transitions, aggregate information for each vertex (operator).</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -880,7 +918,7 @@
       <td class="text-left">Response code: <code>202 Accepted</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Cancel the job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -936,7 +974,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Get the aggregated accumulators of a job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1027,7 +1065,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Get checkpointing statistics for a given job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1330,7 +1368,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Get checkpoint config.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1408,7 +1446,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Get checkpoint statistic details.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1525,7 +1563,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Task checkpoint statistics which also includes information about the sub task checkpoint statistics.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1671,7 +1709,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Get the configuration of a job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1719,7 +1757,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">The non-recoverable exceptions that have been observed by the job. The truncated flag defines whether more exceptions occurred, but are not listed, because the response would otherwise get too big.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1800,7 +1838,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">The result of a job execution. Gives access to the execution time of the job, and to all accumulators created by this job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1866,7 +1904,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">The metrics for a specified job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1924,7 +1962,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">The dataflow plan of a job. The plan is also included in the job summary (/jobs/<jobid>).</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1972,7 +2010,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Trigger the rescaling of a job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2036,7 +2074,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Polling the status of an ongoing rescaling operation.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2102,7 +2140,7 @@
       <td class="text-left">Response code: <code>202 Accepted</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Trigger a savepoint.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2167,7 +2205,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Polling status for the triggered savepoint.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2233,7 +2271,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Information about one specific vertex, with a summary for each of its subtasks.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2358,7 +2396,80 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">The aggregated user-defined accumulators, for a specific vertex.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+<li><code>vertexid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#485581006">Request</button>
+        <div id="485581006" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1070353054">Response</button>
+        <div id="-1070353054" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexAccumulatorsInfo",
+  "properties" : {
+    "id" : {
+      "type" : "string"
+    },
+    "user-accumulators" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:UserAccumulator",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        }
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/vertices/:vertexid/accumulators</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">The aggregated user-defined accumulators, for a specific vertex.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2431,7 +2542,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Get job request backpressure info.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2513,7 +2624,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">The metrics for a specified job and job vertex.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2572,7 +2683,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">The aggregated metrics for a vertex subtask.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2633,7 +2744,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Summary of the current or latest execution attempt of a specific subtask.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2738,7 +2849,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Summary of a specific execution attempt of a specific subtask. Multiple execution attempts happen in case of failure/recovery.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2844,7 +2955,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">The accumulators collected for one specific subtask during one specific execution attempt (multiple attempts happen in case of failure/recovery).</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2925,7 +3036,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Get metrics for a subtask.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2985,7 +3096,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Get times info for a subtask.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -3070,7 +3181,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">TaskManager statistics for one specific vertex. This is an aggregation of subtask statistics returned by /jobs/<jobid>/vertices/<vertexid>.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -3192,7 +3303,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Simple summary of the Flink cluster status.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -3260,7 +3371,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Trigger the disposal of a savepoint.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -3312,7 +3423,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Polling status for the savepoint disposal operation.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -3377,7 +3488,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Get an overview over all taskmanagers or details for a single one.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -3463,7 +3574,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">The aggregated metrics for a task manager.</td>
     </tr>
     <tr>
       <td colspan="2">Query parameters</td>
@@ -3513,7 +3624,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Get details for a TaskManager containing base information about executors and detailed metrics.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -3666,7 +3777,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Get TaskManager metrics.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>

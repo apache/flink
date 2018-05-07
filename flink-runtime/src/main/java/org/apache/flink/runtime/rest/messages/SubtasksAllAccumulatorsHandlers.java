@@ -72,4 +72,11 @@ public class SubtasksAllAccumulatorsHandlers implements MessageHeaders<EmptyRequ
 	public static SubtasksAllAccumulatorsHandlers getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Gets all user-defined accumulators for all subtasks of a given vertex. These are the individual " +
+			"accumulators that are returned in aggregated form by the request " +
+			"/jobs/<jobid>/vertices/<vertexid>/accumulators.";
+	}
 }

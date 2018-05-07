@@ -67,4 +67,9 @@ public class RescalingTriggerHeaders extends
 	public static RescalingTriggerHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Trigger the rescaling of a job.";
+	}
 }

@@ -68,4 +68,9 @@ public class JobPlanHeaders implements MessageHeaders<EmptyRequestBody, JobPlanI
 	public static JobPlanHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "The dataflow plan of a job. The plan is also included in the job summary (/jobs/<jobid>).";
+	}
 }

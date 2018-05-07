@@ -67,4 +67,9 @@ public class JobIdsWithStatusesOverviewHeaders implements MessageHeaders<EmptyRe
 	public static JobIdsWithStatusesOverviewHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "An overview of how many jobs are in which status.";
+	}
 }

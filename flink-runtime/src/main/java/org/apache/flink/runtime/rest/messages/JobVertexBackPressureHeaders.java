@@ -65,4 +65,9 @@ public class JobVertexBackPressureHeaders implements MessageHeaders<EmptyRequest
 	public static JobVertexBackPressureHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Get job request backpressure info.";
+	}
 }

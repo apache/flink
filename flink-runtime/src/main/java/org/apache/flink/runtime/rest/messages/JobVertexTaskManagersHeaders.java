@@ -71,4 +71,10 @@ public class JobVertexTaskManagersHeaders implements MessageHeaders<EmptyRequest
 	public static JobVertexTaskManagersHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "TaskManager statistics for one specific vertex. This is an aggregation of subtask statistics " +
+			"returned by /jobs/<jobid>/vertices/<vertexid>.";
+	}
 }

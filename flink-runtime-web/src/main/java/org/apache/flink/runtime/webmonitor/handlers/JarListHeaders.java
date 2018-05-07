@@ -69,4 +69,9 @@ public class JarListHeaders implements MessageHeaders<EmptyRequestBody, JarListI
 	public static JarListHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "List uploaded jars.";
+	}
 }

@@ -41,4 +41,9 @@ public class AggregatedJobMetricsHeaders extends AbstractAggregatedMetricsHeader
 	public static AggregatedJobMetricsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "The aggregated metrics for a job.";
+	}
 }

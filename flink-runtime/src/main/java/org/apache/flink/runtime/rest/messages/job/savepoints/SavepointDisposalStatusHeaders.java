@@ -72,4 +72,9 @@ public class SavepointDisposalStatusHeaders extends AsynchronousOperationStatusM
 	protected Class<AsynchronousOperationInfo> getValueClass() {
 		return AsynchronousOperationInfo.class;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Polling status for the savepoint disposal operation.";
+	}
 }
