@@ -23,7 +23,10 @@ angular.module('flinkApp')
   $scope.loadList = () ->
     JobSubmitService.loadJarList().then (data) ->
       $scope.address = data.address
-      $scope.noaccess = data.error
+      if data.error?
+        $scope.noaccess = data.error
+      else if data.errors?
+        $scope.noaccess = data.errors[0]
       $scope.jars = data.files
 
   $scope.defaultState = () ->
@@ -67,6 +70,8 @@ angular.module('flinkApp')
       angular.element(event.currentTarget).removeClass("fa-spin fa-spinner").addClass("fa-remove")
       if data.error?
         alert(data.error)
+      else if data.errors?
+        alert(data.errors[0])
 
   $scope.loadEntryClass = (name) ->
     $scope.state['entry-class'] = name
@@ -96,7 +101,10 @@ angular.module('flinkApp')
       ).then (data) ->
         if action == $scope.state['action-time']
           $scope.state['plan-button'] = "Show Plan"
-          $scope.error = data.error
+          if data.error?
+            $scope.error = data.error
+          else if data.errors?
+            $scope.error = data.errors[0]
           $scope.plan = data.plan
       .catch (err) ->
         $scope.state['plan-button'] = "Show Plan"
@@ -132,7 +140,10 @@ angular.module('flinkApp')
       ).then (data) ->
         if action == $scope.state['action-time']
           $scope.state['submit-button'] = "Submit"
-          $scope.error = data.error
+          if data.error?
+            $scope.error = data.error
+          else if data.errors?
+            $scope.error = data.errors[0]
           if data.jobid?
             $state.go("single-job.plan.subtasks", {jobid: data.jobid})
       .catch (err) ->
@@ -190,6 +201,9 @@ angular.module('flinkApp')
           response = JSON.parse(xhr.responseText)
           if response.error?
             $scope.uploader['error'] = response.error
+            $scope.uploader['success'] = null
+          else if response.errors?
+            $scope.uploader['error'] = response.errors[0]
             $scope.uploader['success'] = null
           else
             $scope.uploader['success'] = "Uploaded!"
