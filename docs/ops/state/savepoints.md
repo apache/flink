@@ -130,6 +130,10 @@ $ bin/flink cancel -s [:targetDirectory] :jobId
 
 This will atomically trigger a savepoint for the job with ID `:jobid` and cancel the job. Furthermore, you can specify a target file system directory to store the savepoint in.  The directory needs to be accessible by the JobManager(s) and TaskManager(s).
 
+<div class="alert alert-warning">
+<strong>Attention:</strong> `[:targetDirectory]` has to be a location accessible by both the JobManager(s) and TaskManager(s) e.g. a location on a distributed file-system.
+</div>
+
 ### Resuming from Savepoints
 
 {% highlight shell %}
