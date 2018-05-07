@@ -219,7 +219,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		// release all registered slots by releasing the corresponding TaskExecutors
 		for (ResourceID taskManagerResourceId : registeredTaskManagers) {
-			releaseTaskManagerInternal(taskManagerResourceId, null);
+			releaseTaskManagerInternal(taskManagerResourceId, new Throwable("SlotPool is shutting down."));
 		}
 
 		clear();
@@ -1046,7 +1046,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	 * @param cause for the release the TaskManager
 	 */
 	@Override
-	public CompletableFuture<Acknowledge> releaseTaskManager(final ResourceID resourceId, final Exception cause) {
+	public CompletableFuture<Acknowledge> releaseTaskManager(final ResourceID resourceId, final Throwable cause) {
 		if (registeredTaskManagers.remove(resourceId)) {
 			releaseTaskManagerInternal(resourceId, cause);
 		}
@@ -1064,22 +1064,11 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		removePendingRequest(slotRequestId);
 	}
 
-	private void releaseTaskManagerInternal(final ResourceID resourceId, final Exception cause) {
-		final FlinkException finalCause;
-
-		String exceptionMsg;
-		if (cause != null) {
-			exceptionMsg = "Releasing TaskManager " + resourceId + ", because: " + cause.getMessage();
-		} else {
-			exceptionMsg = "Releasing TaskManager " + resourceId + '.';
-		}
-
-		finalCause = new FlinkException(exceptionMsg);
-
+	private void releaseTaskManagerInternal(final ResourceID resourceId, final Throwable cause) {
 		final Set<AllocatedSlot> removedSlots = new HashSet<>(allocatedSlots.removeSlotsForTaskManager(resourceId));
 
 		for (AllocatedSlot allocatedSlot : removedSlots) {
-			allocatedSlot.releasePayload(finalCause);
+			allocatedSlot.releasePayload(cause);
 		}
 
 		removedSlots.addAll(availableSlots.removeAllForTaskManager(resourceId));
