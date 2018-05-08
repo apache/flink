@@ -32,14 +32,14 @@ under the License.
 
 Start a YARN session with 4 Task Managers (each with 4 GB of Heapspace):
 
-~~~bash
+{% highlight bash %}
 # get the hadoop2 package from the Flink download page at
 # {{ site.download_url }}
 curl -O <flink_hadoop2_download_url>
 tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
 cd flink-{{ site.version }}/
 ./bin/yarn-session.sh -n 4 -jm 1024 -tm 4096
-~~~
+{% endhighlight %}
 
 Specify the `-s` flag for the number of processing slots per Task Manager. We recommend to set the number of slots to the number of processors per machine.
 
@@ -47,14 +47,14 @@ Once the session has been started, you can submit jobs to the cluster using the 
 
 ### Run a Flink job on YARN
 
-~~~bash
+{% highlight bash %}
 # get the hadoop2 package from the Flink download page at
 # {{ site.download_url }}
 curl -O <flink_hadoop2_download_url>
 tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
 cd flink-{{ site.version }}/
 ./bin/flink run -m yarn-cluster -yn 4 -yjm 1024 -ytm 4096 ./examples/batch/WordCount.jar
-~~~
+{% endhighlight %}
 
 ## Flink YARN Session
 
@@ -79,22 +79,22 @@ Download a Flink package for Hadoop >= 2 from the [download page]({{ site.downlo
 
 Extract the package using:
 
-~~~bash
+{% highlight bash %}
 tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
 cd flink-{{site.version }}/
-~~~
+{% endhighlight %}
 
 #### Start a Session
 
 Use the following command to start a session
 
-~~~bash
+{% highlight bash %}
 ./bin/yarn-session.sh
-~~~
+{% endhighlight %}
 
 This command will show you the following overview:
 
-~~~bash
+{% highlight bash %}
 Usage:
    Required
      -n,--container <arg>   Number of YARN container to allocate (=Number of Task Managers)
@@ -108,15 +108,15 @@ Usage:
      -s,--slots <arg>                Number of slots per TaskManager
      -tm,--taskManagerMemory <arg>   Memory per TaskManager Container [in MB]
      -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths for HA mode
-~~~
+{% endhighlight %}
 
 Please note that the Client requires the `YARN_CONF_DIR` or `HADOOP_CONF_DIR` environment variable to be set to read the YARN and HDFS configuration.
 
 **Example:** Issue the following command to allocate 10 Task Managers, with 8 GB of memory and 32 processing slots each:
 
-~~~bash
+{% highlight bash %}
 ./bin/yarn-session.sh -n 10 -tm 8192 -s 32
-~~~
+{% endhighlight %}
 
 The system will use the configuration in `conf/flink-conf.yaml`. Please follow our [configuration guide]({{ site.baseurl }}/ops/config.html) if you want to change something.
 
@@ -148,25 +148,25 @@ Use the YARN utilities (`yarn application -kill <appId>`) to stop the YARN sessi
 
 Use the following command to start a session
 
-~~~bash
+{% highlight bash %}
 ./bin/yarn-session.sh
-~~~
+{% endhighlight %}
 
 This command will show you the following overview:
 
-~~~bash
+{% highlight bash %}
 Usage:
    Required
      -id,--applicationId <yarnAppId> YARN application Id
-~~~
+{% endhighlight %}
 
 As already mentioned, `YARN_CONF_DIR` or `HADOOP_CONF_DIR` environment variable must be set to read the YARN and HDFS configuration.
 
 **Example:** Issue the following command to attach to running Flink YARN session `application_1463870264508_0029`:
 
-~~~bash
+{% highlight bash %}
 ./bin/yarn-session.sh -id application_1463870264508_0029
-~~~
+{% endhighlight %}
 
 Attaching to a running session uses YARN ResourceManager to determine Job Manager RPC port.
 
@@ -176,15 +176,15 @@ Stop the YARN session by stopping the unix process (using CTRL+C) or by entering
 
 Use the following command to submit a Flink program to the YARN cluster:
 
-~~~bash
+{% highlight bash %}
 ./bin/flink
-~~~
+{% endhighlight %}
 
 Please refer to the documentation of the [command-line client]({{ site.baseurl }}/ops/cli.html).
 
 The command will show you a help menu like this:
 
-~~~bash
+{% highlight bash %}
 [...]
 Action "run" compiles and runs a program.
 
@@ -202,25 +202,25 @@ Action "run" compiles and runs a program.
                                       program. Optional flag to override the
                                       default value specified in the
                                       configuration
-~~~
+{% endhighlight %}
 
 Use the *run* action to submit a job to YARN. The client is able to determine the address of the JobManager. In the rare event of a problem, you can also pass the JobManager address using the `-m` argument. The JobManager address is visible in the YARN console.
 
 **Example**
 
-~~~bash
+{% highlight bash %}
 wget -O LICENSE-2.0.txt http://www.apache.org/licenses/LICENSE-2.0.txt
 hadoop fs -copyFromLocal LICENSE-2.0.txt hdfs:/// ...
 ./bin/flink run ./examples/batch/WordCount.jar \
         hdfs:///..../LICENSE-2.0.txt hdfs:///.../wordcount-result.txt
-~~~
+{% endhighlight %}
 
 If there is the following error, make sure that all TaskManagers started:
 
-~~~bash
+{% highlight bash %}
 Exception in thread "main" org.apache.flink.compiler.CompilerException:
     Available instances could not be determined from job manager: Connection timed out.
-~~~
+{% endhighlight %}
 
 You can check the number of TaskManagers in the JobManager web interface. The address of this interface is printed in the YARN session console.
 
@@ -235,9 +235,9 @@ Please note that the client then expects the `-yn` value to be set (number of Ta
 
 ***Example:***
 
-~~~bash
+{% highlight bash %}
 ./bin/flink run -m yarn-cluster -yn 2 ./examples/batch/WordCount.jar
-~~~
+{% endhighlight %}
 
 The command line options of the YARN session are also available with the `./bin/flink` tool. They are prefixed with a `y` or `yarn` (for the long argument options).
 
@@ -275,9 +275,9 @@ In cases where the Flink YARN session fails during the deployment itself, users 
 To enable it, users have to set the `yarn.log-aggregation-enable` property to `true` in the `yarn-site.xml` file.
 Once that is enabled, users can use the following command to retrieve all log files of a (failed) YARN session.
 
-~~~
+{% highlight bash %}
 yarn logs -applicationId <application ID>
-~~~
+{% endhighlight %}
 
 Note that it takes a few seconds after the session has finished until the logs show up.
 

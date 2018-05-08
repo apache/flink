@@ -27,37 +27,31 @@ import scala.collection.JavaConverters._
 /**
   * Common class for all descriptors describing a table source.
   */
-abstract class TableSourceDescriptor extends Descriptor {
+abstract class TableSourceDescriptor extends TableDescriptor {
 
-  protected var connectorDescriptor: Option[ConnectorDescriptor] = None
-  protected var formatDescriptor: Option[FormatDescriptor] = None
-  protected var schemaDescriptor: Option[Schema] = None
   protected var statisticsDescriptor: Option[Statistics] = None
-  protected var metaDescriptor: Option[Metadata] = None
 
   /**
     * Internal method for properties conversion.
     */
   override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
-    connectorDescriptor.foreach(_.addProperties(properties))
-    formatDescriptor.foreach(_.addProperties(properties))
-    schemaDescriptor.foreach(_.addProperties(properties))
-    metaDescriptor.foreach(_.addProperties(properties))
+    super.addProperties(properties)
+    statisticsDescriptor.foreach(_.addProperties(properties))
   }
 
   /**
     * Reads table statistics from the descriptors properties.
     */
   protected def getTableStats: Option[TableStats] = {
-      val normalizedProps = new DescriptorProperties()
-      addProperties(normalizedProps)
-      val rowCount = toScala(normalizedProps.getOptionalLong(STATISTICS_ROW_COUNT))
-      rowCount match {
-        case Some(cnt) =>
-          val columnStats = readColumnStats(normalizedProps, STATISTICS_COLUMNS)
-          Some(TableStats(cnt, columnStats.asJava))
-        case None =>
-          None
-      }
+    val normalizedProps = new DescriptorProperties()
+    addProperties(normalizedProps)
+    val rowCount = toScala(normalizedProps.getOptionalLong(STATISTICS_ROW_COUNT))
+    rowCount match {
+      case Some(cnt) =>
+        val columnStats = readColumnStats(normalizedProps, STATISTICS_COLUMNS)
+        Some(TableStats(cnt, columnStats.asJava))
+      case None =>
+        None
     }
+  }
 }

@@ -79,7 +79,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	private int currentKeyGroup;
 
 	/** So that we can give out state when the user uses the same key. */
-	protected final HashMap<String, InternalKvState<?>> keyValueStatesByName;
+	protected final HashMap<String, InternalKvState<K, ?, ?>> keyValueStatesByName;
 
 	/** For caching the last accessed partitioned state */
 	private String lastName;
@@ -161,7 +161,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 * @param <N> The type of the namespace.
 	 * @param <T> The type of the value that the {@code ValueState} can store.
 	 */
-	protected abstract <N, T> InternalValueState<N, T> createValueState(
+	protected abstract <N, T> InternalValueState<K, N, T> createValueState(
 			TypeSerializer<N> namespaceSerializer,
 			ValueStateDescriptor<T> stateDesc) throws Exception;
 
@@ -174,7 +174,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 * @param <N> The type of the namespace.
 	 * @param <T> The type of the values that the {@code ListState} can store.
 	 */
-	protected abstract <N, T> InternalListState<N, T> createListState(
+	protected abstract <N, T> InternalListState<K, N, T> createListState(
 			TypeSerializer<N> namespaceSerializer,
 			ListStateDescriptor<T> stateDesc) throws Exception;
 
@@ -187,7 +187,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 * @param <N> The type of the namespace.
 	 * @param <T> The type of the values that the {@code ListState} can store.
 	 */
-	protected abstract <N, T> InternalReducingState<N, T> createReducingState(
+	protected abstract <N, T> InternalReducingState<K, N, T> createReducingState(
 			TypeSerializer<N> namespaceSerializer,
 			ReducingStateDescriptor<T> stateDesc) throws Exception;
 
@@ -200,7 +200,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 * @param <N> The type of the namespace.
 	 * @param <T> The type of the values that the {@code ListState} can store.
 	 */
-	protected abstract <N, T, ACC, R> InternalAggregatingState<N, T, R> createAggregatingState(
+	protected abstract <N, T, ACC, R> InternalAggregatingState<K, N, T, ACC, R> createAggregatingState(
 			TypeSerializer<N> namespaceSerializer,
 			AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception;
 
@@ -217,7 +217,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 * @deprecated will be removed in a future version
 	 */
 	@Deprecated
-	protected abstract <N, T, ACC> InternalFoldingState<N, T, ACC> createFoldingState(
+	protected abstract <N, T, ACC> InternalFoldingState<K, N, T, ACC> createFoldingState(
 			TypeSerializer<N> namespaceSerializer,
 			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception;
 
@@ -231,7 +231,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 * @param <UK> Type of the keys in the state
 	 * @param <UV> Type of the values in the state	 *
 	 */
-	protected abstract <N, UK, UV> InternalMapState<N, UK, UV> createMapState(
+	protected abstract <N, UK, UV> InternalMapState<K, N, UK, UV> createMapState(
 			TypeSerializer<N> namespaceSerializer,
 			MapStateDescriptor<UK, UV> stateDesc) throws Exception;
 
@@ -295,16 +295,16 @@ public abstract class AbstractKeyedStateBackend<K> implements
 			final KeyedStateFunction<K, S> function) throws Exception {
 
 		try (Stream<K> keyStream = getKeys(stateDescriptor.getName(), namespace)) {
+
+			final S state = getPartitionedState(
+				namespace,
+				namespaceSerializer,
+				stateDescriptor);
+
 			keyStream.forEach((K key) -> {
 				setCurrentKey(key);
 				try {
-					function.process(
-						key,
-						getPartitionedState(
-							namespace,
-							namespaceSerializer,
-							stateDescriptor)
-					);
+					function.process(key, state);
 				} catch (Throwable e) {
 					// we wrap the checked exception in an unchecked
 					// one and catch it (and re-throw it) later.
@@ -336,7 +336,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 			stateDescriptor.initializeSerializerUnlessSet(executionConfig);
 		}
 
-		InternalKvState<?> existing = keyValueStatesByName.get(stateDescriptor.getName());
+		InternalKvState<K, ?, ?> existing = keyValueStatesByName.get(stateDescriptor.getName());
 		if (existing != null) {
 			@SuppressWarnings("unchecked")
 			S typedState = (S) existing;
@@ -379,7 +379,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		});
 
 		@SuppressWarnings("unchecked")
-		InternalKvState<N> kvState = (InternalKvState<N>) state;
+		InternalKvState<K, N, ?> kvState = (InternalKvState<K, N, ?>) state;
 		keyValueStatesByName.put(stateDescriptor.getName(), kvState);
 
 		// Publish queryable state
@@ -416,7 +416,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 			return (S) lastState;
 		}
 
-		InternalKvState<?> previous = keyValueStatesByName.get(stateDescriptor.getName());
+		InternalKvState<K, ?, ?> previous = keyValueStatesByName.get(stateDescriptor.getName());
 		if (previous != null) {
 			lastState = previous;
 			lastState.setCurrentNamespace(namespace);
@@ -425,7 +425,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		}
 
 		final S state = getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
-		final InternalKvState<N> kvState = (InternalKvState<N>) state;
+		final InternalKvState<K, N, ?> kvState = (InternalKvState<K, N, ?>) state;
 
 		lastName = stateDescriptor.getName();
 		lastState = kvState;

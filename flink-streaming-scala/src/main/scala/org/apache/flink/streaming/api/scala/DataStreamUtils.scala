@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.annotation.PublicEvolving
+import org.apache.flink.annotation.Experimental
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.{DataStreamUtils => JavaStreamUtils}
 
@@ -33,7 +33,7 @@ import scala.reflect.ClassTag
   *
   * @param self DataStream
   */
-@PublicEvolving
+@Experimental
 class DataStreamUtils[T: TypeInformation : ClassTag](val self: DataStream[T]) {
 
   /**

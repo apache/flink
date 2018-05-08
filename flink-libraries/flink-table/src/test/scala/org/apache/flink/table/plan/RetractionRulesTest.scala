@@ -250,17 +250,21 @@ class RetractionRulesTest extends TableTestBase {
     val expected =
       unaryNode(
         "DataStreamGroupAggregate",
-        unaryNode(
-          "DataStreamCalc",
-          binaryNode(
-            "DataStreamUnion",
+        binaryNode(
+          "DataStreamUnion",
+          unaryNode(
+            "DataStreamCalc",
             unaryNode(
               "DataStreamGroupAggregate",
               "DataStreamScan(true, Acc)",
               "true, AccRetract"
             ),
-            "DataStreamScan(true, Acc)",
             "true, AccRetract"
+          ),
+          unaryNode(
+            "DataStreamCalc",
+            "DataStreamScan(true, Acc)",
+            "true, Acc"
           ),
           "true, AccRetract"
         ),

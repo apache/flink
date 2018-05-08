@@ -139,7 +139,21 @@ public interface RestfulGateway extends RpcGateway {
 	default CompletableFuture<String> triggerSavepoint(
 			JobID jobId,
 			String targetDirectory,
+			boolean cancelJob,
 			@RpcTimeout Time timeout) {
+		throw new UnsupportedOperationException();
+	}
+
+	/**
+	 * Dispose the given savepoint.
+	 *
+	 * @param savepointPath identifying the savepoint to dispose
+	 * @param timeout RPC timeout
+	 * @return A future acknowledge if the disposal succeeded
+	 */
+	default CompletableFuture<Acknowledge> disposeSavepoint(
+			final String savepointPath,
+			@RpcTimeout final Time timeout) {
 		throw new UnsupportedOperationException();
 	}
 
@@ -184,6 +198,10 @@ public interface RestfulGateway extends RpcGateway {
 			int newParallelism,
 			RescalingBehaviour rescalingBehaviour,
 			@RpcTimeout Time timeout) {
+		throw new UnsupportedOperationException();
+	}
+
+	default CompletableFuture<Acknowledge> shutDownCluster() {
 		throw new UnsupportedOperationException();
 	}
 }

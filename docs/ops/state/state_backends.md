@@ -156,7 +156,7 @@ In the case where the default state backend is set to *filesystem*, the entry `s
 
 A sample section in the configuration file could look as follows:
 
-~~~
+{% highlight yaml %}
 # The backend that will be used to store operator state checkpoints
 
 state.backend: filesystem
@@ -165,6 +165,6 @@ state.backend: filesystem
 # Directory for storing checkpoints
 
 state.backend.fs.checkpointdir: hdfs://namenode:40010/flink/checkpoints
-~~~
+{% endhighlight %}
 
 {% top %}

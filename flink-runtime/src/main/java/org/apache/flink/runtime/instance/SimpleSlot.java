@@ -58,7 +58,7 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 	private volatile Locality locality = Locality.UNCONSTRAINED;
 
 	// ------------------------------------------------------------------------
-	//  Old Constructors (prior FLIP-6)
+	//  Old Constructors (legacy mode)
 	// ------------------------------------------------------------------------
 
 	/**

@@ -24,16 +24,21 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -47,18 +52,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link YarnClusterDescriptor}.
+ * Tests for the {@link LegacyYarnClusterDescriptor}.
  */
 public class YarnClusterDescriptorTest extends TestLogger {
+
+	private static YarnConfiguration yarnConfiguration;
+
+	private static YarnClient yarnClient;
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private File flinkJar;
+
+	@BeforeClass
+	public static void setupClass() {
+		yarnConfiguration = new YarnConfiguration();
+		yarnClient = YarnClient.createYarnClient();
+		yarnClient.init(yarnConfiguration);
+		yarnClient.start();
+	}
 
 	@Before
 	public void beforeTest() throws IOException {
@@ -66,21 +84,29 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		flinkJar = temporaryFolder.newFile("flink.jar");
 	}
 
+	@AfterClass
+	public static void tearDownClass() {
+		yarnClient.stop();
+	}
+
 	@Test
 	public void testFailIfTaskSlotsHigherThanMaxVcores() throws ClusterDeploymentException {
 
-		final YarnClient yarnClient = YarnClient.createYarnClient();
+		final Configuration flinkConfiguration = new Configuration();
+		flinkConfiguration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
 
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
-			new Configuration(),
+		LegacyYarnClusterDescriptor clusterDescriptor = new LegacyYarnClusterDescriptor(
+			flinkConfiguration,
+			yarnConfiguration,
 			temporaryFolder.getRoot().getAbsolutePath(),
-			yarnClient);
+			yarnClient,
+			true);
 
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
 
 		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setMasterMemoryMB(-1)
-			.setTaskManagerMemoryMB(-1)
+			.setMasterMemoryMB(1)
+			.setTaskManagerMemoryMB(1)
 			.setNumberTaskManagers(1)
 			.setSlotsPerTaskManager(Integer.MAX_VALUE)
 			.createClusterSpecification();
@@ -104,20 +130,21 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		Configuration configuration = new Configuration();
 		// overwrite vcores in config
 		configuration.setInteger(YarnConfigOptions.VCORES, Integer.MAX_VALUE);
+		configuration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
 
-		final YarnClient yarnClient = YarnClient.createYarnClient();
-
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
+		LegacyYarnClusterDescriptor clusterDescriptor = new LegacyYarnClusterDescriptor(
 			configuration,
+			yarnConfiguration,
 			temporaryFolder.getRoot().getAbsolutePath(),
-			yarnClient);
+			yarnClient,
+			true);
 
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
 
 		// configure slots
 		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setMasterMemoryMB(-1)
-			.setTaskManagerMemoryMB(-1)
+			.setMasterMemoryMB(1)
+			.setTaskManagerMemoryMB(1)
 			.setNumberTaskManagers(1)
 			.setSlotsPerTaskManager(1)
 			.createClusterSpecification();
@@ -139,11 +166,12 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	@Test
 	public void testSetupApplicationMasterContainer() {
 		Configuration cfg = new Configuration();
-		final YarnClient yarnClient = YarnClient.createYarnClient();
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
+		LegacyYarnClusterDescriptor clusterDescriptor = new LegacyYarnClusterDescriptor(
 			cfg,
+			yarnConfiguration,
 			temporaryFolder.getRoot().getAbsolutePath(),
-			yarnClient);
+			yarnClient,
+			true);
 
 		final String java = "$JAVA_HOME/bin/java";
 		final String jvmmem = "-Xmx424m";
@@ -389,10 +417,12 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	 */
 	@Test
 	public void testExplicitLibShipping() throws Exception {
-		AbstractYarnClusterDescriptor descriptor = new YarnClusterDescriptor(
+		AbstractYarnClusterDescriptor descriptor = new LegacyYarnClusterDescriptor(
 			new Configuration(),
+			yarnConfiguration,
 			temporaryFolder.getRoot().getAbsolutePath(),
-			YarnClient.createYarnClient());
+			yarnClient,
+			true);
 
 		try {
 			descriptor.setLocalJarPath(new Path("/path/to/flink.jar"));
@@ -430,10 +460,12 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	 */
 	@Test
 	public void testEnvironmentLibShipping() throws Exception {
-		AbstractYarnClusterDescriptor descriptor = new YarnClusterDescriptor(
+		AbstractYarnClusterDescriptor descriptor = new LegacyYarnClusterDescriptor(
 			new Configuration(),
+			yarnConfiguration,
 			temporaryFolder.getRoot().getAbsolutePath(),
-			YarnClient.createYarnClient());
+			yarnClient,
+			true);
 
 		try {
 			File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
@@ -461,5 +493,37 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		} finally {
 			descriptor.close();
 		}
+	}
+
+	/**
+	 * Tests that the YarnClient is only shut down if it is not shared.
+	 */
+	@Test
+	public void testYarnClientShutDown() {
+		LegacyYarnClusterDescriptor yarnClusterDescriptor = new LegacyYarnClusterDescriptor(
+			new Configuration(),
+			yarnConfiguration,
+			temporaryFolder.getRoot().getAbsolutePath(),
+			yarnClient,
+			true);
+
+		yarnClusterDescriptor.close();
+
+		assertTrue(yarnClient.isInState(Service.STATE.STARTED));
+
+		final YarnClient closableYarnClient = YarnClient.createYarnClient();
+		closableYarnClient.init(yarnConfiguration);
+		closableYarnClient.start();
+
+		yarnClusterDescriptor = new LegacyYarnClusterDescriptor(
+			new Configuration(),
+			yarnConfiguration,
+			temporaryFolder.getRoot().getAbsolutePath(),
+			closableYarnClient,
+			false);
+
+		yarnClusterDescriptor.close();
+
+		assertTrue(closableYarnClient.isInState(Service.STATE.STOPPED));
 	}
 }

@@ -33,7 +33,7 @@ import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultResponseBody;
 import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -57,7 +57,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link JobExecutionResultHandler}.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class JobExecutionResultHandlerTest extends TestLogger {
 
 	private static final JobID TEST_JOB_ID = new JobID();

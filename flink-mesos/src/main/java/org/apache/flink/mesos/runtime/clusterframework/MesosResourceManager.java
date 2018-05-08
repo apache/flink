@@ -362,9 +362,9 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	}
 
 	@Override
-	protected void shutDownApplication(
+	protected void internalDeregisterApplication(
 			ApplicationStatus finalStatus,
-			@Nullable String optionalDiagnostics) throws ResourceManagerException {
+			@Nullable String diagnostics) throws ResourceManagerException {
 		LOG.info("Shutting down and unregistering as a Mesos framework.");
 
 		Exception exception = null;

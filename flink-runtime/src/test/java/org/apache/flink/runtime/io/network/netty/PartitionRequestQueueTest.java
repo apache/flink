@@ -165,7 +165,7 @@ public class PartitionRequestQueueTest {
 		private final AtomicInteger buffersInBacklog;
 
 		private DefaultBufferResultSubpartitionView(int buffersInBacklog) {
-			this.buffersInBacklog = new AtomicInteger(buffersInBacklog);;
+			this.buffersInBacklog = new AtomicInteger(buffersInBacklog);
 		}
 
 		@Nullable

@@ -113,7 +113,7 @@ public class RemoteExecutor extends PlanExecutor {
 
 		clientConfiguration.setString(JobManagerOptions.ADDRESS, inet.getHostName());
 		clientConfiguration.setInteger(JobManagerOptions.PORT, inet.getPort());
-		clientConfiguration.setInteger(RestOptions.REST_PORT, inet.getPort());
+		clientConfiguration.setInteger(RestOptions.PORT, inet.getPort());
 	}
 
 	// ------------------------------------------------------------------------
@@ -151,7 +151,7 @@ public class RemoteExecutor extends PlanExecutor {
 	public void start() throws Exception {
 		synchronized (lock) {
 			if (client == null) {
-				if (CoreOptions.OLD_MODE.equals(clientConfiguration.getString(CoreOptions.MODE))) {
+				if (CoreOptions.LEGACY_MODE.equals(clientConfiguration.getString(CoreOptions.MODE))) {
 					client = new StandaloneClusterClient(clientConfiguration);
 				} else {
 					client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor");

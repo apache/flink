@@ -165,20 +165,23 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		} catch (Exception ex) {
 
 			// cleanup if something went wrong before results got published.
-			if (streamTaskCloseableRegistry.unregisterCloseable(keyedStatedBackend)) {
-				IOUtils.closeQuietly(keyedStatedBackend);
+			if (keyedStatedBackend != null) {
+				if (streamTaskCloseableRegistry.unregisterCloseable(keyedStatedBackend)) {
+					IOUtils.closeQuietly(keyedStatedBackend);
+				}
+				// release resource (e.g native resource)
+				keyedStatedBackend.dispose();
 			}
 
-			if (streamTaskCloseableRegistry.unregisterCloseable(operatorStateBackend)) {
-				IOUtils.closeQuietly(keyedStatedBackend);
+			if (operatorStateBackend != null) {
+				if (streamTaskCloseableRegistry.unregisterCloseable(operatorStateBackend)) {
+					IOUtils.closeQuietly(operatorStateBackend);
+				}
+				operatorStateBackend.dispose();
 			}
 
 			if (streamTaskCloseableRegistry.unregisterCloseable(rawKeyedStateInputs)) {
 				IOUtils.closeQuietly(rawKeyedStateInputs);
-			}
-
-			if (streamTaskCloseableRegistry.unregisterCloseable(rawOperatorStateInputs)) {
-				IOUtils.closeQuietly(rawOperatorStateInputs);
 			}
 
 			if (streamTaskCloseableRegistry.unregisterCloseable(rawOperatorStateInputs)) {
@@ -279,8 +282,6 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 		if (restoreStateAlternatives.hasNext()) {
 
-			final CloseableRegistry closeableRegistry = new CloseableRegistry();
-
 			Collection<OperatorStateHandle> rawOperatorState = restoreStateAlternatives.next();
 			// TODO currently this does not support local state recovery, so we expect there is only one handle.
 			Preconditions.checkState(
@@ -288,8 +289,10 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 				"Local recovery is currently not implemented for raw operator state, but found state alternative.");
 
 			if (rawOperatorState != null) {
-
 				return new CloseableIterable<StatePartitionStreamProvider>() {
+
+					final CloseableRegistry closeableRegistry = new CloseableRegistry();
+
 					@Override
 					public void close() throws IOException {
 						closeableRegistry.close();

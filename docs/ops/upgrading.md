@@ -36,21 +36,21 @@ The line of action for upgrading a streaming application or migrating an applica
 There are two ways of taking a savepoint from a running streaming application.
 
 * Taking a savepoint and continue processing.
-```
+{% highlight bash %}
 > ./bin/flink savepoint <jobID> [pathToSavepoint]
-```
+{% endhighlight %}
 It is recommended to periodically take savepoints in order to be able to restart an application from a previous point in time.
 
 * Taking a savepoint and stopping the application as a single action. 
-```
+{% highlight bash %}
 > ./bin/flink cancel -s [pathToSavepoint] <jobID>
-```
+{% endhighlight %}
 This means that the application is canceled immediately after the savepoint completed, i.e., no other checkpoints are taken after the savepoint.
 
 Given a savepoint taken from an application, the same or a compatible application (see [Application State Compatibility](#application-state-compatibility) section below) can be started from that savepoint. Starting an application from a savepoint means that the state of its operators is initialized with the operator state persisted in the savepoint. This is done by starting an application using a savepoint.
-```
+{% highlight bash %}
 > ./bin/flink run -d -s [pathToSavepoint] ~/application.jar
-```
+{% endhighlight %}
 
 The operators of the started application are initialized with the operator state of the original application (i.e., the application the savepoint was taken from) at the time when the savepoint was taken. The started application continues processing from exactly this point on. 
 
@@ -66,10 +66,10 @@ In this section, we discuss how applications can be modified to remain state com
 
 When an application is restarted from a savepoint, Flink matches the operator state stored in the savepoint to stateful operators of the started application. The matching is done based on operator IDs, which are also stored in the savepoint. Each operator has a default ID that is derived from the operator's position in the application's operator topology. Hence, an unmodified application can always be restarted from one of its own savepoints. However, the default IDs of operators are likely to change if an application is modified. Therefore, modified applications can only be started from a savepoint if the operator IDs have been explicitly specified. Assigning IDs to operators is very simple and done using the `uid(String)` method as follows:
 
-```
+{% highlight scala%}
 val mappedEvents: DataStream[(Int, Long)] = events
   .map(new MyStatefulMapFunc()).uid(“mapper-1”)
-```
+{% endhighlight %}
 
 **Note:** Since the operator IDs stored in a savepoint and IDs of operators in the application to start must be equal, it is highly recommended to assign unique IDs to all operators of an application that might be upgraded in the future. This advice applies to all operators, i.e., operators with and without explicitly declared operator state, because some operators have internal state that is not visible to the user. Upgrading an application without assigned operator IDs is significantly more difficult and may only be possible via a low-level workaround using the `setUidHash()` method.
 
@@ -171,9 +171,9 @@ savepoints can be relocated using typical filesystem operations..
 First major step in job migration is taking a savepoint of your job running in the older Flink version.
 You can do this with the command:
 
-```sh
+{% highlight shell %}
 $ bin/flink savepoint :jobId [:targetDirectory]
-```
+{% endhighlight %}
 
 For more details, please read the [savepoint documentation]({{ site.baseurl }}/ops/state/savepoints.html).
 
@@ -190,9 +190,9 @@ If you are unfamiliar with installing Flink in your cluster, please read the [de
 As the last step of job migration, you resume from the savepoint taken above on the updated cluster. You can do
 this with the command:
 
-```sh
+{% highlight shell %}
 $ bin/flink run -s :savepointPath [:runArgs]
-```
+{% endhighlight %}
 
 Again, for more details, please take a look at the [savepoint documentation]({{ site.baseurl }}/ops/state/savepoints.html).
 

@@ -47,6 +47,6 @@ public class JobAccumulatorsInfoTest extends RestResponseMarshallingTestBase<Job
 			"uta3.type",
 			"uta3.value"));
 
-		return new JobAccumulatorsInfo(Collections.emptyList(), userAccumulatorList);
+		return new JobAccumulatorsInfo(Collections.emptyList(), userAccumulatorList, Collections.emptyMap());
 	}
 }

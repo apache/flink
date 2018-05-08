@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-SQL queries are specified with the `sql()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries](common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream](common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink](common.html#emit-a-table)). SQL and Table API queries can seamlessly mixed and are holistically optimized and translated into a single program.
+SQL queries are specified with the `sqlQuery()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries](common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream](common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink](common.html#emit-a-table)). SQL and Table API queries can seamlessly mixed and are holistically optimized and translated into a single program.
 
 In order to access a table in a SQL query, it must be [registered in the TableEnvironment](common.html#register-a-table-in-the-catalog). A table can be registered from a [TableSource](common.html#register-a-tablesource), [Table](common.html#register-a-table), [DataStream, or DataSet](common.html#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register external catalogs in a TableEnvironment](common.html#register-an-external-catalog) to specify the location of the data sources.
 
@@ -113,7 +113,7 @@ Flink parses SQL using [Apache Calcite](https://calcite.apache.org/docs/referenc
 
 The following BNF-grammar describes the superset of supported SQL features in batch and streaming queries. The [Operations](#operations) section shows examples for the supported features and indicates which features are only supported for batch or streaming queries.
 
-```
+{% highlight sql %}
 
 query:
   values
@@ -180,7 +180,7 @@ insert:
   INSERT INTO tableReference
   query
 
-```
+{% endhighlight %}
 
 Flink SQL uses a lexical policy for identifier (table, attribute, function names) similar to Java:
 
@@ -1363,6 +1363,19 @@ LOG10(numeric)
 
     <tr>
       <td>
+       {% highlight text %}
+LOG(x numeric)
+LOG(b numeric, x numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the logarithm of a <i>numeric</i>.</p>
+        <p>If called with one parameter, this function returns the natural logarithm of <code>x</code>. If called with two parameters, this function returns the logarithm of <code>x</code> to the base <code>b</code>. <code>x</code> must be greater than 0. <code>b</code> must be greater than 1.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
         {% highlight text %}
 EXP(numeric)
 {% endhighlight %}
@@ -1581,17 +1594,6 @@ RAND_INTEGER(seed integer, bound integer)
     </td>
    </tr>
 
-    <tr>
-     <td>
-       {% highlight text %}
-LOG(x numeric), LOG(base numeric, x numeric)
-{% endhighlight %}
-     </td>
-    <td>
-      <p>Returns the natural logarithm of a specified number of a specified base. If called with one parameter, this function returns the natural logarithm of <code>x</code>. If called with two parameters, this function returns the logarithm of <code>x</code> to the base <code>b</code>. <code>x</code> must be greater than 0. <code>b</code> must be greater than 1.</p>
-    </td>
-   </tr>
-   
     <tr>
       <td>
 {% highlight text %}

@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.jobmanager.scheduler.Locality;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
-import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 
@@ -33,7 +33,6 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.function.Function;
 
 /**
  * Implementation of the {@link LogicalSlot} which is used by the {@link SlotPool}.
@@ -127,8 +126,7 @@ public class SingleLogicalSlot implements LogicalSlot, AllocatedSlot.Payload {
 
 		// Wait until the payload has been terminated. Only then, we return the slot to its rightful owner
 		return payload.getTerminalStateFuture()
-			.handle((Object ignored, Throwable throwable) -> slotOwner.returnAllocatedSlot(this))
-			.thenApply(Function.identity());
+			.whenComplete((Object ignored, Throwable throwable) -> slotOwner.returnAllocatedSlot(this));
 	}
 
 	@Override

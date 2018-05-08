@@ -79,9 +79,9 @@ The following configuration settings exist across different file systems
 
 If paths to files do not explicitly specify a file system scheme (and authority), a default scheme (and authority) will be used.
 
-~~~
+{% highlight yaml %}
 fs.default-scheme: <default-fs>
-~~~
+{% endhighlight %}
 
 For example, if the default file system configured as `fs.default-scheme: hdfs://localhost:9000/`, then a a file path of
 `/user/hugo/in.txt'` is interpreted as `hdfs://localhost:9000/user/hugo/in.txt'`
@@ -96,13 +96,13 @@ For example, very small HDFS clusters with few RPC handlers can sometimes be ove
 To limit a specific file system's connections, add the following entries to the Flink configuration. The file system to be limited is identified by
 its scheme.
 
-~~~
+{% highlight yaml %}
 fs.<scheme>.limit.total: (number, 0/-1 mean no limit)
 fs.<scheme>.limit.input: (number, 0/-1 mean no limit)
 fs.<scheme>.limit.output: (number, 0/-1 mean no limit)
 fs.<scheme>.limit.timeout: (milliseconds, 0 means infinite)
 fs.<scheme>.limit.stream-timeout: (milliseconds, 0 means infinite)
-~~~
+{% endhighlight %}
 
 You can limit the number if input/output connections (streams) separately (`fs.<scheme>.limit.input` and `fs.<scheme>.limit.output`), as well as impose a limit on
 the total number of concurrent streams (`fs.<scheme>.limit.total`). If the file system tries to open more streams, the operation will block until some streams are closed.

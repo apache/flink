@@ -133,11 +133,11 @@ class JobManagerFailsITCase(_system: ActorSystem)
 
   def startDeathwatchCluster(numSlots: Int, numTaskmanagers: Int): TestingCluster = {
     val config = new Configuration()
-    config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
+    config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlots)
     config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskmanagers)
     config.setInteger(JobManagerOptions.PORT, 0)
-    config.setString(TaskManagerOptions.INITIAL_REGISTRATION_PAUSE, "50 ms")
-    config.setString(TaskManagerOptions.MAX_REGISTRATION_PAUSE, "100 ms")
+    config.setString(TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF, "50 ms")
+    config.setString(TaskManagerOptions.REGISTRATION_MAX_BACKOFF, "100 ms")
 
     val cluster = new TestingCluster(config, singleActorSystem = false)
 

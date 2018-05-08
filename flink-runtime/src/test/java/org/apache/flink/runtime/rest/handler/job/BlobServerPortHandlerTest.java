@@ -28,7 +28,7 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -48,7 +48,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the {@link BlobServerPortHandler}.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class BlobServerPortHandlerTest extends TestLogger {
 	private static final int PORT = 64;
 

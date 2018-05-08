@@ -2030,6 +2030,19 @@ NUMERIC.log10()
         <p>Calculates the base 10 logarithm of given value.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight java %}
+numeric1.log()
+numeric1.log(numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the logarithm of a given numeric value.</p>
+        <p>If called without a parameter, this function returns the natural logarithm of <code>numeric1</code>. If called with a parameter <code>numeric2</code>, this function returns the logarithm of <code>numeric1</code> to the base <code>numeric2</code>. <code>numeric1</code> must be greater than 0. <code>numeric2</code> must be greater than 1.</p>
+      </td>
+    </tr>
 
     <tr>
       <td>
@@ -3509,6 +3522,19 @@ NUMERIC.log10()
       </td>
       <td>
         <p>Calculates the base 10 logarithm of given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+numeric1.log()
+numeric1.log(numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the logarithm of a given numeric value.</p>
+        <p>If called without a parameter, this function returns the natural logarithm of <code>numeric1</code>. If called with a parameter <code>numeric2</code>, this function returns the logarithm of <code>numeric1</code> to the base <code>numeric2</code>. <code>numeric1</code> must be greater than 0. <code>numeric2</code> must be greater than 1.</p>
       </td>
     </tr>
 

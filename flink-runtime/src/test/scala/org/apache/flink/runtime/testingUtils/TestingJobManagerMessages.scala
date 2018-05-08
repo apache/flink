@@ -30,6 +30,7 @@ import org.apache.flink.runtime.instance.ActorGateway
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID
 import org.apache.flink.runtime.messages.checkpoint.AbstractCheckpointMessage
+import org.apache.flink.util.OptionalFailure
 
 object TestingJobManagerMessages {
 
@@ -108,7 +109,7 @@ object TestingJobManagerMessages {
    * Reports updated accumulators back to the listener.
    */
   case class UpdatedAccumulators(jobID: JobID,
-    userAccumulators: Map[String, Accumulator[_,_]])
+    userAccumulators: Map[String, OptionalFailure[Accumulator[_,_]]])
 
   /** Notifies the sender when the [[TestingJobManager]] has been elected as the leader
    *

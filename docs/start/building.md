@@ -33,20 +33,20 @@ In order to build Flink you need the source code. Either [download the source of
 
 In addition you need **Maven 3** and a **JDK** (Java Development Kit). Flink requires **at least Java 8** to build.
 
-*NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.0.3 creates the libraries properly.
+*NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.2.5 creates the libraries properly.
 To build unit tests use Java 8u51 or above to prevent failures in unit tests that use the PowerMock runner.*
 
 To clone from git, enter:
 
-~~~bash
+{% highlight bash %}
 git clone {{ site.github_url }}
-~~~
+{% endhighlight %}
 
 The simplest way of building Flink is by running:
 
-~~~bash
+{% highlight bash %}
 mvn clean install -DskipTests
-~~~
+{% endhighlight %}
 
 This instructs [Maven](http://maven.apache.org) (`mvn`) to first remove all existing builds (`clean`) and then create a new Flink binary (`install`).
 
@@ -66,11 +66,11 @@ It is sufficient to call `mvn clean install -DskipTests` in the root directory o
 **Maven 3.3.x**
 The build has to be done in two steps: First in the base directory, then in the distribution project:
 
-~~~bash
+{% highlight bash %}
 mvn clean install -DskipTests
 cd flink-dist
 mvn clean install
-~~~
+{% endhighlight %}
 
 *Note:* To check your Maven version, run `mvn --version`.
 
@@ -85,17 +85,17 @@ Flink has dependencies to HDFS and YARN which are both dependencies from [Apache
 Hadoop is only supported from version 2.4.0 upwards.
 You can also specify a specific Hadoop version to build against:
 
-~~~bash
+{% highlight bash %}
 mvn clean install -DskipTests -Dhadoop.version=2.6.1
-~~~
+{% endhighlight %}
 
 ### Vendor-specific Versions
 
 To build Flink against a vendor specific Hadoop version, issue the following command:
 
-~~~bash
+{% highlight bash %}
 mvn clean install -DskipTests -Pvendor-repos -Dhadoop.version=2.6.1-cdh5.0.0
-~~~
+{% endhighlight %}
 
 The `-Pvendor-repos` activates a Maven [build profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html) that includes the repositories of popular Hadoop vendors such as Cloudera, Hortonworks, or MapR.
 
@@ -119,12 +119,12 @@ If your home directory is encrypted you might encounter a `java.io.IOException: 
 
 The workaround is to add:
 
-~~~xml
+{% highlight xml %}
 <args>
     <arg>-Xmax-classfile-name</arg>
     <arg>128</arg>
 </args>
-~~~
+{% endhighlight %}
 
 in the compiler configuration of the `pom.xml` file of the module causing the error. For example, if the error appears in the `flink-yarn` module, the above code should be added under the `<configuration>` tag of `scala-maven-plugin`. See [this issue](https://issues.apache.org/jira/browse/FLINK-2003) for more information.
 

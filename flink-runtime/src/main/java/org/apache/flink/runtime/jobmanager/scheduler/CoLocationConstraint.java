@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SharedSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
@@ -172,7 +173,7 @@ public class CoLocationConstraint {
 	 * Locks the location of this slot. The location can be locked only once
 	 * and only after a shared slot has been assigned.
 	 *
-	 * <p>Note: This method exists for compatibility reasons with the Flip-6 SlotPool
+	 * <p>Note: This method exists for compatibility reasons with the new {@link SlotPool}.
 	 *
 	 * @param taskManagerLocation to lock this co-location constraint to
 	 */

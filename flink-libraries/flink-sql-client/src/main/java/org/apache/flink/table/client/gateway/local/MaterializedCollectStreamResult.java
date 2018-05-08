@@ -33,8 +33,10 @@ import java.util.Map;
 
 /**
  * Collects results and returns them as table snapshots.
+ *
+ * @param <C> cluster id to which this result belongs to
  */
-public class MaterializedCollectStreamResult extends CollectStreamResult implements MaterializedResult {
+public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> implements MaterializedResult<C> {
 
 	private final List<Row> materializedTable;
 	private final Map<Row, List<Integer>> rowPositions; // positions of rows in table for faster access
@@ -86,11 +88,13 @@ public class MaterializedCollectStreamResult extends CollectStreamResult impleme
 
 	@Override
 	public List<Row> retrievePage(int page) {
-		if (page <= 0 || page > pageCount) {
-			throw new SqlExecutionException("Invalid page '" + page + "'.");
-		}
+		synchronized (resultLock) {
+			if (page <= 0 || page > pageCount) {
+				throw new SqlExecutionException("Invalid page '" + page + "'.");
+			}
 
-		return snapshot.subList(pageSize * (page - 1), Math.min(snapshot.size(), pageSize * page));
+			return snapshot.subList(pageSize * (page - 1), Math.min(snapshot.size(), pageSize * page));
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

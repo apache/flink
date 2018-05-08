@@ -753,7 +753,7 @@ public class SchedulerSlotSharingTest extends SchedulerTestBase {
 			
 			// check the scheduler's bookkeeping
 			assertEquals(4, testingSlotProvider.getNumberOfLocalizedAssignments());
-			// Flip-6 supports host localized assignments which happen in this case because all TaskManagerLocations point to the loopback address
+			// Flink supports host localized assignments which happen in this case because all TaskManagerLocations point to the loopback address
 			assertTrue(2 == testingSlotProvider.getNumberOfNonLocalizedAssignments() || 2 == testingSlotProvider.getNumberOfHostLocalizedAssignments());
 
 			assertEquals(0, testingSlotProvider.getNumberOfUnconstrainedAssignments());

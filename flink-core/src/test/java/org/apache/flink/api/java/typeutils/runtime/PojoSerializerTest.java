@@ -20,16 +20,17 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -42,34 +43,32 @@ import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.common.operators.Keys.IncompatibleKeysException;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.api.common.typeutils.base.DateSerializer;
+import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.testutils.ArtificialCNFExceptionThrowingClassLoader;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
 
 /**
  * A test for the {@link PojoSerializer}.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(TypeSerializerSerializationUtil.class)
 public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserClass> {
 	private TypeInformation<TestUserClass> type = TypeExtractor.getForClass(TestUserClass.class);
 
@@ -557,18 +556,22 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 			serializedConfig = out.toByteArray();
 		}
 
-		// mock failure when deserializing serializers
-		TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<?> mockProxy =
-			mock(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class);
-		doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
-		PowerMockito.whenNew(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
+		Set<String> cnfThrowingClassnames = new HashSet<>();
+		cnfThrowingClassnames.add(IntSerializer.class.getName());
+		cnfThrowingClassnames.add(IntPrimitiveArraySerializer.class.getName());
+		cnfThrowingClassnames.add(StringSerializer.class.getName());
+		cnfThrowingClassnames.add(DateSerializer.class.getName());
+		cnfThrowingClassnames.add(DoubleSerializer.class.getName());
 
 		// read configuration from bytes
 		PojoSerializer.PojoSerializerConfigSnapshot<TestUserClass> deserializedConfig;
 		try(ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
 			deserializedConfig = (PojoSerializer.PojoSerializerConfigSnapshot<TestUserClass>)
 				TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
-					new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+					new DataInputViewStreamWrapper(in),
+					new ArtificialCNFExceptionThrowingClassLoader(
+						Thread.currentThread().getContextClassLoader(),
+						cnfThrowingClassnames));
 		}
 
 		Assert.assertFalse(pojoSerializer.ensureCompatibility(deserializedConfig).isRequiresMigration());
@@ -584,7 +587,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		for (Map.Entry<String, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
 				: deserializedConfig.getFieldToSerializerConfigSnapshot().entrySet()) {
 
-			Assert.assertEquals(null, entry.getValue().f0);
+			Assert.assertTrue(entry.getValue().f0 instanceof UnloadableDummyTypeSerializer);
 
 			if (entry.getValue().f1 instanceof PojoSerializer.PojoSerializerConfigSnapshot) {
 				verifyPojoSerializerConfigSnapshotWithSerializerSerializationFailure(
@@ -601,7 +604,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
 				: deserializedConfig.getRegisteredSubclassesToSerializerConfigSnapshots().entrySet()) {
 
-			Assert.assertEquals(null, entry.getValue().f0);
+			Assert.assertTrue(entry.getValue().f0 instanceof UnloadableDummyTypeSerializer);
 
 			if (entry.getValue().f1 instanceof PojoSerializer.PojoSerializerConfigSnapshot) {
 				verifyPojoSerializerConfigSnapshotWithSerializerSerializationFailure(

@@ -59,12 +59,12 @@ If you don't specify the IDs manually they will be generated automatically. You 
 
 You can think of a savepoint as holding a map of `Operator ID -> State` for each stateful operator:
 
-```
+{% highlight plain %}
 Operator ID | State
 ------------+------------------------
 source-id   | State of StatefulSource
 mapper-id   | State of StatefulMapper
-```
+{% endhighlight %}
 
 In the above example, the print sink is stateless and hence not part of the savepoint state. By default, we try to map each entry of the savepoint back to the new program.
 
@@ -84,7 +84,7 @@ When triggering a savepoint, a new savepoint directory is created where the data
 
 For example with a `FsStateBackend` or `RocksDBStateBackend`:
 
-```sh
+{% highlight shell %}
 # Savepoint target directory
 /savepoints/
 
@@ -96,7 +96,7 @@ For example with a `FsStateBackend` or `RocksDBStateBackend`:
 
 # Savepoint state
 /savepoints/savepoint-:shortjobid-:savepointid/...
-```
+{% endhighlight %}
 
 <div class="alert alert-info">
   <strong>Note:</strong>
@@ -108,33 +108,33 @@ Note that if you use the `MemoryStateBackend`, metadata *and* savepoint state wi
 
 #### Trigger a Savepoint
 
-```sh
+{% highlight shell %}
 $ bin/flink savepoint :jobId [:targetDirectory]
-```
+{% endhighlight %}
 
 This will trigger a savepoint for the job with ID `:jobId`, and returns the path of the created savepoint. You need this path to restore and dispose savepoints.
 
 #### Trigger a Savepoint with YARN
 
-```sh
+{% highlight shell %}
 $ bin/flink savepoint :jobId [:targetDirectory] -yid :yarnAppId
-```
+{% endhighlight %}
 
 This will trigger a savepoint for the job with ID `:jobId` and YARN application ID `:yarnAppId`, and returns the path of the created savepoint.
 
 #### Cancel Job with Savepoint
 
-```sh
+{% highlight shell %}
 $ bin/flink cancel -s [:targetDirectory] :jobId
-```
+{% endhighlight %}
 
 This will atomically trigger a savepoint for the job with ID `:jobid` and cancel the job. Furthermore, you can specify a target file system directory to store the savepoint in.  The directory needs to be accessible by the JobManager(s) and TaskManager(s).
 
 ### Resuming from Savepoints
 
-```sh
+{% highlight shell %}
 $ bin/flink run -s :savepointPath [:runArgs]
-```
+{% endhighlight %}
 
 This submits a job and specifies a savepoint to resume from. You may give a path to either the savepoint's directory or the `_metadata` file.
 
@@ -142,15 +142,15 @@ This submits a job and specifies a savepoint to resume from. You may give a path
 
 By default the resume operation will try to map all state of the savepoint back to the program you are restoring with. If you dropped an operator, you can allow to skip state that cannot be mapped to the new program via `--allowNonRestoredState` (short: `-n`) option:
 
-```sh
+{% highlight shell %}
 $ bin/flink run -s :savepointPath -n [:runArgs]
-```
+{% endhighlight %}
 
 ### Disposing Savepoints
 
-```sh
+{% highlight shell %}
 $ bin/flink savepoint -d :savepointPath
-```
+{% endhighlight %}
 
 This disposes the savepoint stored in `:savepointPath`.
 
@@ -160,10 +160,10 @@ Note that it is possible to also manually delete a savepoint via regular file sy
 
 You can configure a default savepoint target directory via the `state.savepoints.dir` key. When triggering savepoints, this directory will be used to store the savepoint. You can overwrite the default by specifying a custom target directory with the trigger commands (see the [`:targetDirectory` argument](#trigger-a-savepoint)).
 
-```sh
+{% highlight yaml %}
 # Default savepoint target directory
 state.savepoints.dir: hdfs:///flink/savepoints
-```
+{% endhighlight %}
 
 If you neither configure a default nor specify a custom target directory, triggering the savepoint will fail.
 
@@ -189,9 +189,9 @@ By default, a savepoint restore will try to match all state back to the restored
 
 You can allow non restored state by setting the `--allowNonRestoredState` (short: `-n`) with the run command:
 
-```sh
+{% highlight shell %}
 $ bin/flink run -s :savepointPath -n [:runArgs]
-```
+{% endhighlight %}
 
 ### What happens if I reorder stateful operators in my job?
 

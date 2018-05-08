@@ -33,11 +33,14 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -118,6 +121,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	private final YarnClient yarnClient;
 
+	/** True if the descriptor must not shut down the YarnClient. */
+	private final boolean sharedYarnClient;
+
 	private String yarnQueue;
 
 	private String configurationDirectory;
@@ -145,10 +151,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	public AbstractYarnClusterDescriptor(
 			Configuration flinkConfiguration,
+			YarnConfiguration yarnConfiguration,
 			String configurationDirectory,
-			YarnClient yarnClient) {
+			YarnClient yarnClient,
+			boolean sharedYarnClient) {
 
-		yarnConfiguration = new YarnConfiguration();
+		this.yarnConfiguration = Preconditions.checkNotNull(yarnConfiguration);
 
 		// for unit tests only
 		if (System.getenv("IN_TESTS") != null) {
@@ -160,8 +168,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 
 		this.yarnClient = Preconditions.checkNotNull(yarnClient);
-		yarnClient.init(yarnConfiguration);
-		yarnClient.start();
+		this.sharedYarnClient = sharedYarnClient;
 
 		this.flinkConfiguration = Preconditions.checkNotNull(flinkConfiguration);
 		userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
@@ -306,10 +313,18 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		return false;
 	}
 
+	/**
+	 * @deprecated The cluster descriptor should not know about this option.
+	 */
+	@Deprecated
 	public void setDetachedMode(boolean detachedMode) {
 		this.detached = detachedMode;
 	}
 
+	/**
+	 * @deprecated The cluster descriptor should not know about this option.
+	 */
+	@Deprecated
 	public boolean isDetachedMode() {
 		return detached;
 	}
@@ -328,7 +343,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	@Override
 	public void close() {
-		yarnClient.stop();
+		if (!sharedYarnClient) {
+			yarnClient.stop();
+		}
 	}
 
 	// -------------------------------------------------------------
@@ -365,8 +382,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
 			flinkConfiguration.setInteger(JobManagerOptions.PORT, rpcPort);
 
-			flinkConfiguration.setString(RestOptions.REST_ADDRESS, host);
-			flinkConfiguration.setInteger(RestOptions.REST_PORT, rpcPort);
+			flinkConfiguration.setString(RestOptions.ADDRESS, host);
+			flinkConfiguration.setInteger(RestOptions.PORT, rpcPort);
 
 			return createYarnClusterClient(
 				this,
@@ -385,6 +402,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		try {
 			return deployInternal(
 				clusterSpecification,
+				"Flink session cluster",
 				getYarnSessionClusterEntrypoint(),
 				null,
 				false);
@@ -394,11 +412,36 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	@Override
-	public void terminateCluster(ApplicationId applicationId) throws FlinkException {
+	public void killCluster(ApplicationId applicationId) throws FlinkException {
 		try {
 			yarnClient.killApplication(applicationId);
+			Utils.deleteApplicationFiles(Collections.singletonMap(
+				YarnConfigKeys.FLINK_YARN_FILES,
+				getYarnFilesDir(applicationId).toUri().toString()));
 		} catch (YarnException | IOException e) {
 			throw new FlinkException("Could not kill the Yarn Flink cluster with id " + applicationId + '.', e);
+		}
+	}
+
+	/**
+	 * Method to validate cluster specification before deploy it, it will throw
+	 * an {@link FlinkException} if the {@link ClusterSpecification} is invalid.
+	 *
+	 * @param clusterSpecification cluster specification to check against the configuration of the
+	 *                             AbstractYarnClusterDescriptor
+	 * @throws FlinkException if the cluster cannot be started with the provided {@link ClusterSpecification}
+	 */
+	private void validateClusterSpecification(ClusterSpecification clusterSpecification) throws FlinkException {
+		try {
+			final long taskManagerMemorySize = clusterSpecification.getTaskManagerMemoryMB();
+			// We do the validation by calling the calculation methods here
+			// Internally these methods will check whether the cluster can be started with the provided
+			// ClusterSpecification and the configured memory requirements
+			final long cutoff = ContaineredTaskManagerParameters.calculateCutoffMB(flinkConfiguration, taskManagerMemorySize);
+			TaskManagerServices.calculateHeapSizeMB(taskManagerMemorySize - cutoff, flinkConfiguration);
+		} catch (IllegalArgumentException iae) {
+			throw new FlinkException("Cannot fulfill the minimum memory requirements with the provided " +
+				"cluster specification. Please increase the memory of the cluster.", iae);
 		}
 	}
 
@@ -406,15 +449,20 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	 * This method will block until the ApplicationMaster/JobManager have been deployed on YARN.
 	 *
 	 * @param clusterSpecification Initial cluster specification for the Flink cluster to be deployed
+	 * @param applicationName name of the Yarn application to start
 	 * @param yarnClusterEntrypoint Class name of the Yarn cluster entry point.
 	 * @param jobGraph A job graph which is deployed with the Flink cluster, {@code null} if none
 	 * @param detached True if the cluster should be started in detached mode
 	 */
 	protected ClusterClient<ApplicationId> deployInternal(
 			ClusterSpecification clusterSpecification,
+			String applicationName,
 			String yarnClusterEntrypoint,
 			@Nullable JobGraph jobGraph,
 			boolean detached) throws Exception {
+
+		// ------------------ Check if configuration is valid --------------------
+		validateClusterSpecification(clusterSpecification);
 
 		if (UserGroupInformation.isSecurityEnabled()) {
 			// note: UGI::hasKerberosCredentials inaccurately reports false
@@ -483,6 +531,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		ApplicationReport report = startAppMaster(
 			flinkConfiguration,
+			applicationName,
 			yarnClusterEntrypoint,
 			jobGraph,
 			yarnClient,
@@ -496,8 +545,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
 		flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
 
-		flinkConfiguration.setString(RestOptions.REST_ADDRESS, host);
-		flinkConfiguration.setInteger(RestOptions.REST_PORT, port);
+		flinkConfiguration.setString(RestOptions.ADDRESS, host);
+		flinkConfiguration.setInteger(RestOptions.PORT, port);
 
 		// the Flink cluster is deployed in YARN. Represent cluster
 		return createYarnClusterClient(
@@ -636,6 +685,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	public ApplicationReport startAppMaster(
 			Configuration configuration,
+			String applicationName,
 			String yarnClusterEntrypoint,
 			JobGraph jobGraph,
 			YarnClient yarnClient,
@@ -794,9 +844,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			homeDir,
 			"");
 
+		// set the right configuration values for the TaskManager
 		configuration.setInteger(
-			ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
+			TaskManagerOptions.NUM_TASK_SLOTS,
 			clusterSpecification.getSlotsPerTaskManager());
+
+		configuration.setInteger(
+			TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY,
+			clusterSpecification.getTaskManagerMemoryMB());
 
 		// Upload the flink configuration
 		// write out configuration file
@@ -845,8 +900,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 		}
 
-		Path yarnFilesDir = new Path(homeDir, ".flink/" + appId + '/');
-
+		final Path yarnFilesDir = getYarnFilesDir(appId);
 		FsPermission permission = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
 		fs.setPermission(yarnFilesDir, permission); // set permission for path.
 
@@ -966,17 +1020,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		capability.setMemory(clusterSpecification.getMasterMemoryMB());
 		capability.setVirtualCores(1);
 
-		String name;
-		if (customName == null) {
-			name = "Flink session with " + clusterSpecification.getNumberTaskManagers() + " TaskManagers";
-			if (detached) {
-				name += " (detached)";
-			}
-		} else {
-			name = customName;
-		}
+		final String customApplicationName = customName != null ? customName : applicationName;
 
-		appContext.setApplicationName(name);
+		appContext.setApplicationName(customApplicationName);
 		appContext.setApplicationType("Apache Flink");
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
@@ -1006,7 +1052,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			LOG.debug("Application State: {}", appState);
 			switch(appState) {
 				case FAILED:
-				case FINISHED: //TODO: the finished state may be valid in flip-6
+				case FINISHED:
 				case KILLED:
 					throw new YarnDeploymentException("The YARN application unexpectedly switched to state "
 						+ appState + " during deployment. \n" +
@@ -1034,11 +1080,22 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
 					"Flink on YARN, use the following command or a YARN web interface to stop " +
 					"it:\nyarn application -kill " + appId + "\nPlease also note that the " +
-					"temporary files of the YARN session in the home directoy will not be removed.");
+					"temporary files of the YARN session in the home directory will not be removed.");
 		}
 		// since deployment was successful, remove the hook
 		ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
 		return report;
+	}
+
+	/**
+	 * Returns the Path where the YARN application files should be uploaded to.
+	 *
+	 * @param appId YARN application id
+	 */
+	private Path getYarnFilesDir(final ApplicationId appId) throws IOException {
+		final FileSystem fileSystem = FileSystem.get(yarnConfiguration);
+		final Path homeDir = fileSystem.getHomeDirectory();
+		return new Path(homeDir, ".flink/" + appId + '/');
 	}
 
 	/**

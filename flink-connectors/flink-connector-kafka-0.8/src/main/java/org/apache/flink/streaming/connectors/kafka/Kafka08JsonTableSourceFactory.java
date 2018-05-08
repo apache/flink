@@ -26,7 +26,7 @@ import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_VERSIO
 public class Kafka08JsonTableSourceFactory extends KafkaJsonTableSourceFactory {
 
 	@Override
-	protected KafkaJsonTableSource.Builder createBuilder() {
+	protected KafkaJsonTableSource.Builder createKafkaJsonBuilder() {
 		return new Kafka08JsonTableSource.Builder();
 	}
 

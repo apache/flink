@@ -57,6 +57,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val EXTRACT: Keyword = Keyword("extract")
   lazy val FLOOR: Keyword = Keyword("floor")
   lazy val CEIL: Keyword = Keyword("ceil")
+  lazy val LOG: Keyword = Keyword("log")
   lazy val YEARS: Keyword = Keyword("years")
   lazy val YEAR: Keyword = Keyword("year")
   lazy val MONTHS: Keyword = Keyword("months")
@@ -246,6 +247,12 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       case operand ~ _  ~ _ ~ _ ~ unit ~ _ => TemporalCeil(unit, operand)
     }
 
+  // required because op.log(base) changes order of a parameters
+  lazy val suffixLog: PackratParser[Expression] =
+    composite ~ "." ~ LOG ~ "(" ~ expression ~ ")" ^^ {
+      case operand ~ _ ~ _ ~ _ ~ base ~ _ => Log(base, operand)
+    }
+
   lazy val suffixFunctionCall: PackratParser[Expression] =
     composite ~ "." ~ functionIdent ~ "(" ~ repsep(expression, ",") ~ ")" ^^ {
     case operand ~ _ ~ name ~ _ ~ args ~ _ => Call(name.toUpperCase, operand :: args)
@@ -307,6 +314,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     // expressions that need special expression conversion
     suffixAs | suffixTimeInterval | suffixRowInterval | suffixToTimestamp | suffixToTime |
     suffixToDate |
+    // expression for log
+    suffixLog |
     // expressions that take enumerations
     suffixCast | suffixTrim | suffixTrimWithoutArgs | suffixExtract | suffixFloor | suffixCeil |
     // expressions that take literals

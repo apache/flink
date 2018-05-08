@@ -24,8 +24,8 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -34,7 +34,6 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 
-import static org.apache.flink.client.cli.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -45,11 +44,16 @@ import static org.powermock.api.mockito.PowerMockito.doThrow;
 /**
  * Tests for the STOP command.
  */
-public class CliFrontendStopTest extends TestLogger {
+public class CliFrontendStopTest extends CliFrontendTestBase {
 
 	@BeforeClass
 	public static void setup() {
-		pipeSystemOutToNull();
+		CliFrontendTestUtils.pipeSystemOutToNull();
+	}
+
+	@AfterClass
+	public static void shutdown() {
+		CliFrontendTestUtils.restoreSystemOut();
 	}
 
 	@Test
@@ -71,10 +75,10 @@ public class CliFrontendStopTest extends TestLogger {
 	public void testUnrecognizedOption() throws Exception {
 		// test unrecognized option
 		String[] parameters = { "-v", "-l" };
-		Configuration configuration = new Configuration();
+		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(new DefaultCLI(configuration)));
+			Collections.singletonList(getCli(configuration)));
 		testFrontend.stop(parameters);
 	}
 
@@ -82,10 +86,10 @@ public class CliFrontendStopTest extends TestLogger {
 	public void testMissingJobId() throws Exception {
 		// test missing job id
 		String[] parameters = {};
-		Configuration configuration = new Configuration();
+		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(new DefaultCLI(configuration)));
+			Collections.singletonList(getCli(configuration)));
 		testFrontend.stop(parameters);
 	}
 

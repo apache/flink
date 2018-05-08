@@ -26,12 +26,12 @@ import org.apache.flink.annotation.PublicEvolving;
  *
  * <p>The state is accessed and modified by user functions, and checkpointed consistently
  * by the system as part of the distributed snapshots.
- * 
+ *
  * <p>The state is only accessible by functions applied on a {@code KeyedStream}. The key is
  * automatically supplied by the system, so the function always sees the value mapped to the
  * key of the current element. That way, the system can handle stream and state partitioning
  * consistently together.
- * 
+ *
  * @param <T> Type of the value in the operator state
  */
 @PublicEvolving

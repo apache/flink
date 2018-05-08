@@ -37,14 +37,18 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
+import static org.apache.flink.core.fs.FileSystemTestUtils.checkPathEventualExistence;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Unit tests for the S3 file system support via Presto's PrestoS3FileSystem.
- * These tests do not actually read from or write to S3.
+ * Unit tests for the S3 file system support via Presto's {@link com.facebook.presto.hive.PrestoS3FileSystem}.
+ *
+ * <p><strong>BEWARE</strong>: tests must take special care of S3's
+ * <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency guarantees</a>
+ * and what the {@link com.facebook.presto.hive.PrestoS3FileSystem} offers.
  */
 public class PrestoS3FileSystemITCase extends TestLogger {
 
@@ -64,6 +68,7 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 
 	@Test
 	public void testSimpleFileWriteAndRead() throws Exception {
+		final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
 		final Configuration conf = new Configuration();
 		conf.setString("s3.access-key", ACCESS_KEY);
 		conf.setString("s3.secret-key", SECRET_KEY);
@@ -91,10 +96,14 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 		finally {
 			fs.delete(path, false);
 		}
+
+		// now file must be gone (this is eventually-consistent!)
+		checkPathEventualExistence(fs, path, false, deadline);
 	}
 
 	@Test
 	public void testDirectoryListing() throws Exception {
+		final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
 		final Configuration conf = new Configuration();
 		conf.setString("s3.access-key", ACCESS_KEY);
 		conf.setString("s3.secret-key", SECRET_KEY);
@@ -121,7 +130,7 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 			final int numFiles = 3;
 			for (int i = 0; i < numFiles; i++) {
 				Path file = new Path(directory, "/file-" + i);
-				try (FSDataOutputStream out = fs.create(file, WriteMode.NO_OVERWRITE);
+				try (FSDataOutputStream out = fs.create(file, WriteMode.OVERWRITE);
 						OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
 					writer.write("hello-" + i + "\n");
 				}
@@ -143,7 +152,7 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 			fs.delete(directory, true);
 		}
 
-		// now directory must be gone
-		assertFalse(fs.exists(directory));
+		// now directory must be gone (this is eventually-consistent!)
+		checkPathEventualExistence(fs, directory, false, deadline);
 	}
 }

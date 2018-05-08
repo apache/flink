@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.functions.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
@@ -54,7 +55,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators.
  */
-@PublicEvolving
+@Internal
 public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final TaskInfo taskInfo;

@@ -44,9 +44,12 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
+import javax.annotation.Nullable;
 
 import java.net.InetSocketAddress;
 import java.util.Collection;
@@ -128,7 +131,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	}
 
 	@Override
-	public void heartbeatFromTaskManager(ResourceID resourceID) {
+	public void heartbeatFromTaskManager(ResourceID resourceID, AccumulatorReport accumulatorReport) {
 		throw new UnsupportedOperationException();
 	}
 
@@ -153,7 +156,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	}
 
 	@Override
-	public CompletableFuture<String> triggerSavepoint(String targetDirectory, Time timeout) {
+	public CompletableFuture<String> triggerSavepoint(@Nullable final String targetDirectory, final boolean cancelJob, final Time timeout) {
 		throw new UnsupportedOperationException();
 	}
 

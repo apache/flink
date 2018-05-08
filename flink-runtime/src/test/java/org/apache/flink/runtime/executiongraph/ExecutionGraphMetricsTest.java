@@ -120,6 +120,9 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			assertEquals(JobStatus.RUNNING, executionGraph.getState());
 			assertEquals(0L, restartingTime.getValue().longValue());
 
+			// add some pause such that RUNNING and RESTARTING timestamps are not the same
+			Thread.sleep(1L);
+
 			// fail the job so that it goes into state restarting
 			for (ExecutionAttemptID executionID : executionIDs) {
 				executionGraph.updateState(new TaskExecutionState(jobGraph.getJobID(), executionID, ExecutionState.FAILED, new Exception()));
@@ -129,13 +132,13 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 			long firstRestartingTimestamp = executionGraph.getStatusTimestamp(JobStatus.RESTARTING);
 
-			// wait some time so that the restarting time gauge shows a value different from 0
-			Thread.sleep(50);
-
 			long previousRestartingTime = restartingTime.getValue();
 
 			// check that the restarting time is monotonically increasing
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < 2; i++) {
+				// add some pause to let the currentRestartingTime increase
+				Thread.sleep(1L);
+
 				long currentRestartingTime = restartingTime.getValue();
 
 				assertTrue(currentRestartingTime >= previousRestartingTime);
@@ -165,12 +168,15 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			previousRestartingTime = restartingTime.getValue();
 
 			// check that the restarting time does not increase after we've reached the running state
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < 2; i++) {
 				long currentRestartingTime = restartingTime.getValue();
 
 				assertTrue(currentRestartingTime == previousRestartingTime);
 				previousRestartingTime = currentRestartingTime;
 			}
+
+			// add some pause such that the RUNNING and RESTARTING timestamps are not the same
+			Thread.sleep(1L);
 
 			// fail job again
 			for (ExecutionAttemptID executionID : executionIDs) {
@@ -183,12 +189,12 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 			assertTrue(firstRestartingTimestamp != secondRestartingTimestamp);
 
-			Thread.sleep(50);
-
 			previousRestartingTime = restartingTime.getValue();
 
 			// check that the restarting time is increasing again
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < 2; i++) {
+				// add some pause to the let currentRestartingTime increase
+				Thread.sleep(1L);
 				long currentRestartingTime = restartingTime.getValue();
 
 				assertTrue(currentRestartingTime >= previousRestartingTime);

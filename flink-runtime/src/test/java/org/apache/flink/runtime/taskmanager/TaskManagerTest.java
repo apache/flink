@@ -1734,6 +1734,10 @@ public class TaskManagerTest extends TestLogger {
 
 			Await.result(submitResponse, timeout);
 
+			final Future<Object> taskRunning = taskManager.ask(new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(executionAttemptId), timeout);
+
+			Await.result(taskRunning, timeout);
+
 			Future<Object> stopResponse = taskManager.ask(new StopTask(executionAttemptId), timeout);
 
 			try {

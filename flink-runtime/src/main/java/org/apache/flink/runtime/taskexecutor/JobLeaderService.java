@@ -38,6 +38,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -190,7 +191,12 @@ public class JobLeaderService {
 
 		JobLeaderService.JobManagerLeaderListener jobManagerLeaderListener = new JobManagerLeaderListener(jobId);
 
-		jobLeaderServices.put(jobId, Tuple2.of(leaderRetrievalService, jobManagerLeaderListener));
+		final Tuple2<LeaderRetrievalService, JobManagerLeaderListener> oldEntry = jobLeaderServices.put(jobId, Tuple2.of(leaderRetrievalService, jobManagerLeaderListener));
+
+		if (oldEntry != null) {
+			oldEntry.f0.stop();
+			oldEntry.f1.stop();
+		}
 
 		leaderRetrievalService.start(jobManagerLeaderListener);
 	}
@@ -272,12 +278,12 @@ public class JobLeaderService {
 		}
 
 		@Override
-		public void notifyLeaderAddress(final String leaderAddress, final UUID leaderId) {
+		public void notifyLeaderAddress(final @Nullable String leaderAddress, final @Nullable UUID leaderId) {
 			if (stopped) {
 				LOG.debug("{}'s leader retrieval listener reported a new leader for job {}. " +
 					"However, the service is no longer running.", JobLeaderService.class.getSimpleName(), jobId);
 			} else {
-				final JobMasterId jobMasterId = leaderId != null ? new JobMasterId(leaderId) : null;
+				final JobMasterId jobMasterId = JobMasterId.fromUuidOrNull(leaderId);
 
 				LOG.debug("New leader information for job {}. Address: {}, leader id: {}.",
 					jobId, leaderAddress, jobMasterId);

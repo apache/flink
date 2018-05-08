@@ -84,13 +84,13 @@ The following figure visualizes the relationship of streams, dynamic tables, and
 
 In the following, we will explain the concepts of dynamic tables and continuous queries with a stream of click events that have the following schema:
 
-```
+{% highlight plain %}
 [ 
   user:  VARCHAR,   // the name of the user
   cTime: TIMESTAMP, // the time when the URL was accessed
   url:   VARCHAR    // the URL that was accessed by the user
 ]
-```
+{% endhighlight %}
 
 ### Defining a Table on a Stream
 
@@ -362,7 +362,7 @@ In either case the event time timestamp field will hold the value of the `DataSt
 // Option 1:
 
 // extract timestamp and assign watermarks based on knowledge of the stream
-DataStream<Tuple3<String, String>> stream = inputStream.assignTimestampsAndWatermarks(...);
+DataStream<Tuple2<String, String>> stream = inputStream.assignTimestampsAndWatermarks(...);
 
 // declare an additional logical field as an event time attribute
 Table table = tEnv.fromDataStream(stream, "Username, Data, UserActionTime.rowtime");
@@ -557,9 +557,9 @@ Many queries aggregate or join records on one or more key attributes. When such 
 
 For example the following query computes the number of clicks per session.
 
-```
+{% highlight sql %}
 SELECT sessionId, COUNT(*) FROM clicks GROUP BY sessionId;
-```
+{% endhighlight %}
 
 The `sessionId` attribute is used as a grouping key and the continuous query maintains a count for each `sessionId` it observes. The `sessionId` attribute is evolving over time and `sessionId` values are only active until the session ends, i.e., for a limited period of time. However, the continuous query cannot know about this property of `sessionId` and expects that every `sessionId` value can occur at any point of time. It maintains a count for each observed `sessionId` value. Consequently, the total state size of the query is continuously growing as more and more `sessionId` values are observed. 
 

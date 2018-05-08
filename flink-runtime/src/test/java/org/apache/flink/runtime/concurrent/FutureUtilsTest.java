@@ -20,6 +20,7 @@ package org.apache.flink.runtime.concurrent;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -46,6 +47,7 @@ import java.util.function.Supplier;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.Matchers.arrayContaining;
+import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.emptyArray;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -328,6 +330,124 @@ public class FutureUtilsTest extends TestLogger {
 	}
 
 	@Test
+	public void testComposeAfterwards() throws ExecutionException, InterruptedException {
+		final CompletableFuture<Void> inputFuture = new CompletableFuture<>();
+		final OneShotLatch composeLatch = new OneShotLatch();
+
+		final CompletableFuture<Void> composeFuture = FutureUtils.composeAfterwards(
+			inputFuture,
+			() -> {
+				composeLatch.trigger();
+				return CompletableFuture.completedFuture(null);
+			});
+
+		assertThat(composeLatch.isTriggered(), is(false));
+		assertThat(composeFuture.isDone(), is(false));
+
+		inputFuture.complete(null);
+
+		assertThat(composeLatch.isTriggered(), is(true));
+		assertThat(composeFuture.isDone(), is(true));
+
+		// check that tthis future is not exceptionally completed
+		composeFuture.get();
+	}
+
+	@Test
+	public void testComposeAfterwardsFirstExceptional() throws InterruptedException {
+		final CompletableFuture<Void> inputFuture = new CompletableFuture<>();
+		final OneShotLatch composeLatch = new OneShotLatch();
+		final FlinkException testException = new FlinkException("Test exception");
+
+		final CompletableFuture<Void> composeFuture = FutureUtils.composeAfterwards(
+			inputFuture,
+			() -> {
+				composeLatch.trigger();
+				return CompletableFuture.completedFuture(null);
+			});
+
+		assertThat(composeLatch.isTriggered(), is(false));
+		assertThat(composeFuture.isDone(), is(false));
+
+		inputFuture.completeExceptionally(testException);
+
+		assertThat(composeLatch.isTriggered(), is(true));
+		assertThat(composeFuture.isDone(), is(true));
+
+		// check that this future is not exceptionally completed
+		try {
+			composeFuture.get();
+			fail("Expected an exceptional completion");
+		} catch (ExecutionException ee) {
+			assertThat(ExceptionUtils.stripExecutionException(ee), is(testException));
+		}
+	}
+
+	@Test
+	public void testComposeAfterwardsSecondExceptional() throws InterruptedException {
+		final CompletableFuture<Void> inputFuture = new CompletableFuture<>();
+		final OneShotLatch composeLatch = new OneShotLatch();
+		final FlinkException testException = new FlinkException("Test exception");
+
+		final CompletableFuture<Void> composeFuture = FutureUtils.composeAfterwards(
+			inputFuture,
+			() -> {
+				composeLatch.trigger();
+				return FutureUtils.completedExceptionally(testException);
+			});
+
+		assertThat(composeLatch.isTriggered(), is(false));
+		assertThat(composeFuture.isDone(), is(false));
+
+		inputFuture.complete(null);
+
+		assertThat(composeLatch.isTriggered(), is(true));
+		assertThat(composeFuture.isDone(), is(true));
+
+		// check that this future is not exceptionally completed
+		try {
+			composeFuture.get();
+			fail("Expected an exceptional completion");
+		} catch (ExecutionException ee) {
+			assertThat(ExceptionUtils.stripExecutionException(ee), is(testException));
+		}
+	}
+
+	@Test
+	public void testComposeAfterwardsBothExceptional() throws InterruptedException {
+		final CompletableFuture<Void> inputFuture = new CompletableFuture<>();
+		final FlinkException testException1 = new FlinkException("Test exception1");
+		final FlinkException testException2 = new FlinkException("Test exception2");
+		final OneShotLatch composeLatch = new OneShotLatch();
+
+		final CompletableFuture<Void> composeFuture = FutureUtils.composeAfterwards(
+			inputFuture,
+			() -> {
+				composeLatch.trigger();
+				return FutureUtils.completedExceptionally(testException2);
+			});
+
+		assertThat(composeLatch.isTriggered(), is(false));
+		assertThat(composeFuture.isDone(), is(false));
+
+		inputFuture.completeExceptionally(testException1);
+
+		assertThat(composeLatch.isTriggered(), is(true));
+		assertThat(composeFuture.isDone(), is(true));
+
+		// check that this future is not exceptionally completed
+		try {
+			composeFuture.get();
+			fail("Expected an exceptional completion");
+		} catch (ExecutionException ee) {
+			final Throwable actual = ExceptionUtils.stripExecutionException(ee);
+			assertThat(actual, is(testException1));
+			assertThat(actual.getSuppressed(), arrayWithSize(1));
+			assertThat(actual.getSuppressed()[0], is(testException2));
+		}
+	}
+
+	@Test
 	public void testCompleteAll() throws Exception {
 		final CompletableFuture<String> inputFuture1 = new CompletableFuture<>();
 		final CompletableFuture<Integer> inputFuture2 = new CompletableFuture<>();
@@ -457,5 +577,32 @@ public class FutureUtilsTest extends TestLogger {
 		for (CompletableFuture<Void> inputFuture : inputFutures) {
 			assertThat(inputFuture.isCancelled(), is(true));
 		}
+	}
+
+	@Test
+	public void testSupplyAsyncFailure() throws Exception {
+		final String exceptionMessage = "Test exception";
+		final FlinkException testException = new FlinkException(exceptionMessage);
+		final CompletableFuture<Object> future = FutureUtils.supplyAsync(
+			() -> {
+				throw testException;
+			},
+			TestingUtils.defaultExecutor());
+
+		try {
+			future.get();
+			fail("Expected an exception.");
+		} catch (ExecutionException e) {
+			assertThat(ExceptionUtils.findThrowableWithMessage(e, exceptionMessage).isPresent(), is(true));
+		}
+	}
+
+	@Test
+	public void testSupplyAsync() throws Exception {
+		final CompletableFuture<Acknowledge> future = FutureUtils.supplyAsync(
+			Acknowledge::get,
+			TestingUtils.defaultExecutor());
+
+		assertThat(future.get(), is(Acknowledge.get()));
 	}
 }

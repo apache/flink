@@ -26,9 +26,9 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -78,7 +78,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
 	public static void setupCluster() throws Exception {
 		configuration = new Configuration();
 
-		if (CoreOptions.FLIP6_MODE.equals(configuration.getString(CoreOptions.MODE))) {
+		if (CoreOptions.NEW_MODE.equals(configuration.getString(CoreOptions.MODE))) {
 			configuration.setInteger(WebOptions.PORT, 0);
 			final MiniCluster miniCluster = new MiniCluster(
 				new MiniClusterConfiguration.Builder()
@@ -96,7 +96,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
 
 			resource = miniCluster;
 		} else {
-			configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, TM_SLOTS);
+			configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, TM_SLOTS);
 			final StandaloneMiniCluster standaloneMiniCluster = new StandaloneMiniCluster(configuration);
 			hostname = standaloneMiniCluster.getHostname();
 			port = standaloneMiniCluster.getPort();
@@ -115,7 +115,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
 	 */
 	@Test(expected = FlinkException.class)
 	public void testInvalidAkkaConfiguration() throws Throwable {
-		assumeTrue(CoreOptions.OLD_MODE.equalsIgnoreCase(configuration.getString(CoreOptions.MODE)));
+		assumeTrue(CoreOptions.LEGACY_MODE.equalsIgnoreCase(configuration.getString(CoreOptions.MODE)));
 		Configuration config = new Configuration();
 		config.setString(AkkaOptions.STARTUP_TIMEOUT, INVALID_STARTUP_TIMEOUT);
 

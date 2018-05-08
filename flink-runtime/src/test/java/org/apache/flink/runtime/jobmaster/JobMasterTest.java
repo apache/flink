@@ -45,6 +45,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
+import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -58,7 +59,7 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
@@ -85,7 +86,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 /**
  * Tests for {@link JobMaster}.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class JobMasterTest extends TestLogger {
 
 	@ClassRule
@@ -410,12 +411,10 @@ public class JobMasterTest extends TestLogger {
 			jobManagerSharedServices,
 			fastHeartbeatServices,
 			blobServer,
-			null,
+			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
 			new NoOpOnCompletionActions(),
 			testingFatalErrorHandler,
-			JobMasterTest.class.getClassLoader(),
-			null,
-			null);
+			JobMasterTest.class.getClassLoader());
 	}
 
 	/**
@@ -430,6 +429,11 @@ public class JobMasterTest extends TestLogger {
 
 		@Override
 		public void jobFinishedByOther() {
+
+		}
+
+		@Override
+		public void jobMasterFailed(Throwable cause) {
 
 		}
 	}

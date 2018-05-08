@@ -42,9 +42,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -52,8 +50,6 @@ import java.util.concurrent.Executor;
  * REST endpoint for the {@link Dispatcher} component.
  */
 public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway> {
-
-	private final Path uploadDir;
 
 	private WebMonitorExtension webSubmissionExtension;
 
@@ -81,7 +77,6 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			leaderElectionService,
 			fatalErrorHandler);
 
-		uploadDir = endpointConfiguration.getUploadDir();
 		webSubmissionExtension = WebMonitorExtension.empty();
 	}
 
@@ -92,7 +87,6 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 		// Add the Dispatcher specific handlers
 
 		final Time timeout = restConfiguration.getTimeout();
-		final Map<String, String> responseHeaders = restConfiguration.getResponseHeaders();
 
 		BlobServerPortHandler blobServerPortHandler = new BlobServerPortHandler(
 			restAddressFuture,
@@ -120,7 +114,12 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 				// register extension handlers
 				handlers.addAll(webSubmissionExtension.getHandlers());
 			} catch (FlinkException e) {
-				log.info("Failed to load web based job submission extension.", e);
+				if (log.isDebugEnabled()) {
+					log.debug("Failed to load web based job submission extension.", e);
+				} else {
+					log.info("Failed to load web based job submission extension. " +
+						"Probable reason: flink-runtime-web is not in the classpath.");
+				}
 			}
 		} else {
 			log.info("Web-based job submission is not enabled.");

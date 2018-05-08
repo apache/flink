@@ -106,7 +106,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	 * @param heapMemoryInMB The size of the heap memory, in megabytes.
 	 */
 	public ResourceProfile(double cpuCores, int heapMemoryInMB) {
-		this(cpuCores, heapMemoryInMB, 0, 0, 0, Collections.EMPTY_MAP);
+		this(cpuCores, heapMemoryInMB, 0, 0, 0, Collections.emptyMap());
 	}
 
 	/**

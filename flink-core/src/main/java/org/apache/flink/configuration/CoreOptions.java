@@ -19,6 +19,9 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.ConfigGroup;
+import org.apache.flink.annotation.docs.ConfigGroups;
+import org.apache.flink.annotation.docs.Documentation;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -178,6 +181,7 @@ public class CoreOptions {
 	 * The config parameter defining the directories for temporary files, separated by
 	 * ",", "|", or the system's {@link java.io.File#pathSeparator}.
 	 */
+	@Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
 	public static final ConfigOption<String> TMP_DIRS =
 		key("io.tmp.dirs")
 			.defaultValue(System.getProperty("java.io.tmpdir"))
@@ -274,20 +278,20 @@ public class CoreOptions {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Constant value for the Flip-6 execution mode.
+	 * Constant value for the new execution mode.
 	 */
-	public static final String FLIP6_MODE = "flip6";
+	public static final String NEW_MODE = "new";
 
 	/**
 	 * Constant value for the old execution mode.
 	 */
-	public static final String OLD_MODE = "old";
+	public static final String LEGACY_MODE = "legacy";
 
 	/**
-	 * Switch to select the execution mode. Possible values are 'flip6' and 'old'.
+	 * Switch to select the execution mode. Possible values are {@link CoreOptions#NEW_MODE}
+	 * and {@link CoreOptions#LEGACY_MODE}.
 	 */
-	public static final ConfigOption<String> MODE = ConfigOptions
-		.key("mode")
-		.defaultValue(FLIP6_MODE)
-		.withDescription("Switch to select the execution mode. Possible values are 'flip6' and 'old'.");
+	public static final ConfigOption<String> MODE = key("mode")
+		.defaultValue(NEW_MODE)
+		.withDescription("Switch to select the execution mode. Possible values are 'new' and 'legacy'.");
 }

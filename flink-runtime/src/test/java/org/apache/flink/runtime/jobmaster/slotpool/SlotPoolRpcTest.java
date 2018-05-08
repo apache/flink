@@ -46,7 +46,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.runtime.util.clock.SystemClock;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -72,7 +72,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the SlotPool using a proper RPC setup.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class SlotPoolRpcTest extends TestLogger {
 
 	private static RpcService rpcService;
@@ -195,6 +195,9 @@ public class SlotPoolRpcTest extends TestLogger {
 			pool.start(JobMasterId.generate(), "foobar");
 			SlotPoolGateway slotPoolGateway = pool.getSelfGateway(SlotPoolGateway.class);
 
+			final CompletableFuture<SlotRequestId> slotRequestTimeoutFuture = new CompletableFuture<>();
+			pool.setTimeoutPendingSlotRequestConsumer(slotRequestTimeoutFuture::complete);
+
 			ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 			pool.connectToResourceManager(resourceManagerGateway);
 
@@ -212,6 +215,9 @@ public class SlotPoolRpcTest extends TestLogger {
 			} catch (ExecutionException e) {
 				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
 			}
+
+			// wait until we have timed out the slot request
+			slotRequestTimeoutFuture.get();
 
 			assertEquals(0L, (long) pool.getNumberOfPendingRequests().get());
 		} finally {
@@ -243,6 +249,9 @@ public class SlotPoolRpcTest extends TestLogger {
 			resourceManagerGateway.setRequestSlotConsumer(
 				(SlotRequest slotRequest) -> allocationIdFuture.complete(slotRequest.getAllocationId()));
 
+			final CompletableFuture<SlotRequestId> slotRequestTimeoutFuture = new CompletableFuture<>();
+			pool.setTimeoutPendingSlotRequestConsumer(slotRequestTimeoutFuture::complete);
+
 			pool.connectToResourceManager(resourceManagerGateway);
 
 			SlotRequestId requestId = new SlotRequestId();
@@ -259,6 +268,9 @@ public class SlotPoolRpcTest extends TestLogger {
 			} catch (ExecutionException e) {
 				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
 			}
+
+			// wait until we have timed out the slot request
+			slotRequestTimeoutFuture.get();
 
 			assertEquals(0L, (long) pool.getNumberOfPendingRequests().get());
 

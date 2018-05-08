@@ -20,7 +20,6 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
@@ -29,8 +28,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * Heap-backed partitioned {@link FoldingState} that is
- * snapshotted into files.
+ * Heap-backed partitioned {@link FoldingState} that is snapshotted into files.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
@@ -41,26 +39,46 @@ import java.io.IOException;
  */
 @Deprecated
 public class HeapFoldingState<K, N, T, ACC>
-		extends AbstractHeapState<K, N, ACC, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>>
-		implements InternalFoldingState<N, T, ACC> {
+		extends AbstractHeapState<K, N, ACC, FoldingState<T, ACC>>
+		implements InternalFoldingState<K, N, T, ACC> {
 
 	/** The function used to fold the state */
-	private final FoldTransformation<T, ACC> foldTransformation;
+	private final FoldTransformation foldTransformation;
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                           and can create a default state value.
-	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
+	 * @param stateTable The state table for which this state is associated to.
+	 * @param keySerializer The serializer for the keys.
+	 * @param valueSerializer The serializer for the state.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param defaultValue The default value for the state.
+	 * @param foldFunction The fold function used for folding state.
 	 */
 	public HeapFoldingState(
-			FoldingStateDescriptor<T, ACC> stateDesc,
 			StateTable<K, N, ACC> stateTable,
 			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer) {
-		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
-		this.foldTransformation = new FoldTransformation<>(stateDesc);
+			TypeSerializer<ACC> valueSerializer,
+			TypeSerializer<N> namespaceSerializer,
+			ACC defaultValue,
+			FoldFunction<T, ACC> foldFunction) {
+		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
+		this.foldTransformation = new FoldTransformation(foldFunction);
+	}
+
+	@Override
+	public TypeSerializer<K> getKeySerializer() {
+		return keySerializer;
+	}
+
+	@Override
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
+	}
+
+	@Override
+	public TypeSerializer<ACC> getValueSerializer() {
+		return valueSerializer;
 	}
 
 	// ------------------------------------------------------------------------
@@ -87,19 +105,17 @@ public class HeapFoldingState<K, N, T, ACC>
 		}
 	}
 
-	private static final class FoldTransformation<T, ACC> implements StateTransformationFunction<ACC, T> {
+	private final class FoldTransformation implements StateTransformationFunction<ACC, T> {
 
-		private final FoldingStateDescriptor<T, ACC> stateDescriptor;
 		private final FoldFunction<T, ACC> foldFunction;
 
-		FoldTransformation(FoldingStateDescriptor<T, ACC> stateDesc) {
-			this.stateDescriptor = Preconditions.checkNotNull(stateDesc);
-			this.foldFunction = Preconditions.checkNotNull(stateDesc.getFoldFunction());
+		FoldTransformation(FoldFunction<T, ACC> foldFunction) {
+			this.foldFunction = Preconditions.checkNotNull(foldFunction);
 		}
 
 		@Override
 		public ACC apply(ACC previousState, T value) throws Exception {
-			return foldFunction.fold((previousState != null) ? previousState : stateDescriptor.getDefaultValue(), value);
+			return foldFunction.fold((previousState != null) ? previousState : getDefaultValue(), value);
 		}
 	}
 }

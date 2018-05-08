@@ -25,8 +25,10 @@ import java.util.List;
 
 /**
  * A result that is materialized and can be viewed by navigating through a snapshot.
+ *
+ * @param <C> cluster id to which this result belongs to
  */
-public interface MaterializedResult extends DynamicResult {
+public interface MaterializedResult<C> extends DynamicResult<C> {
 
 	/**
 	 * Takes a snapshot of the current table and returns the number of pages for navigating

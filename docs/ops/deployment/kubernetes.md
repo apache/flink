@@ -57,8 +57,8 @@ jobmanager:8081) in your browser
 Again, use `kubectl` to delete the cluster:
 
     kubectl delete -f jobmanager-deployment.yaml
-    kubectl delete -f taskmanager-deployment.yaml
     kubectl delete -f jobmanager-service.yaml
+    kubectl delete -f taskmanager-deployment.yaml
 
 ## Advanced Cluster Deployment
 

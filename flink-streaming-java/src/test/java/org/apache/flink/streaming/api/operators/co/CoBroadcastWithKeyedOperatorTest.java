@@ -38,7 +38,6 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -53,6 +52,11 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Function;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link CoBroadcastWithKeyedOperator}.
@@ -135,7 +139,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 
 		@Override
-		public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 			// put an element in the broadcast state
 			ctx.applyToKeyedState(
 					listStateDesc,
@@ -148,25 +152,26 @@ public class CoBroadcastWithKeyedOperatorTest {
 							while (it.hasNext()) {
 								list.add(it.next());
 							}
-							Assert.assertEquals(expectedKeyedStates.get(key), list);
+							assertEquals(expectedKeyedStates.get(key), list);
 						}
 					});
 		}
 
 		@Override
-		public void processElement(String value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+		public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
 			getRuntimeContext().getListState(listStateDesc).add(value);
 		}
 	}
 
 	@Test
 	public void testFunctionWithTimer() throws Exception {
+		final String expectedKey = "6";
 
 		try (
 				TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness = getInitializedTestHarness(
 						BasicTypeInfo.STRING_TYPE_INFO,
 						new IdentityKeySelector<>(),
-						new FunctionWithTimerOnKeyed(41L))
+						new FunctionWithTimerOnKeyed(41L, expectedKey))
 		) {
 			testHarness.processWatermark1(new Watermark(10L));
 			testHarness.processWatermark2(new Watermark(10L));
@@ -174,8 +179,8 @@ public class CoBroadcastWithKeyedOperatorTest {
 
 			testHarness.processWatermark1(new Watermark(40L));
 			testHarness.processWatermark2(new Watermark(40L));
-			testHarness.processElement1(new StreamRecord<>("6", 13L));
-			testHarness.processElement1(new StreamRecord<>("6", 15L));
+			testHarness.processElement1(new StreamRecord<>(expectedKey, 13L));
+			testHarness.processElement1(new StreamRecord<>(expectedKey, 15L));
 
 			testHarness.processWatermark1(new Watermark(50L));
 			testHarness.processWatermark2(new Watermark(50L));
@@ -203,24 +208,27 @@ public class CoBroadcastWithKeyedOperatorTest {
 		private static final long serialVersionUID = 7496674620398203933L;
 
 		private final long timerTS;
+		private final String expectedKey;
 
-		FunctionWithTimerOnKeyed(long timerTS) {
+		FunctionWithTimerOnKeyed(long timerTS, String expectedKey) {
 			this.timerTS = timerTS;
+			this.expectedKey = expectedKey;
 		}
 
 		@Override
-		public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("BR:" + value + " WM:" + ctx.currentWatermark() + " TS:" + ctx.timestamp());
 		}
 
 		@Override
-		public void processElement(String value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+		public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
 			ctx.timerService().registerEventTimeTimer(timerTS);
 			out.collect("NON-BR:" + value + " WM:" + ctx.currentWatermark() + " TS:" + ctx.timestamp());
 		}
 
 		@Override
 		public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
+			assertEquals(expectedKey, ctx.getCurrentKey());
 			out.collect("TIMER:" + timestamp);
 		}
 	}
@@ -281,19 +289,18 @@ public class CoBroadcastWithKeyedOperatorTest {
 		};
 
 		@Override
-		public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 			ctx.output(BROADCAST_TAG, "BR:" + value + " WM:" + ctx.currentWatermark() + " TS:" + ctx.timestamp());
 		}
 
 		@Override
-		public void processElement(String value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+		public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
 			ctx.output(NON_BROADCAST_TAG, "NON-BR:" + value + " WM:" + ctx.currentWatermark() + " TS:" + ctx.timestamp());
 		}
 	}
 
 	@Test
 	public void testFunctionWithBroadcastState() throws Exception {
-
 		final Map<String, Integer> expectedBroadcastState = new HashMap<>();
 		expectedBroadcastState.put("5.key", 5);
 		expectedBroadcastState.put("34.key", 34);
@@ -301,11 +308,13 @@ public class CoBroadcastWithKeyedOperatorTest {
 		expectedBroadcastState.put("12.key", 12);
 		expectedBroadcastState.put("98.key", 98);
 
+		final String expectedKey = "trigger";
+
 		try (
 				TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness = getInitializedTestHarness(
 						BasicTypeInfo.STRING_TYPE_INFO,
 						new IdentityKeySelector<>(),
-						new FunctionWithBroadcastState("key", expectedBroadcastState, 41L))
+						new FunctionWithBroadcastState("key", expectedBroadcastState, 41L, expectedKey))
 		) {
 			testHarness.processWatermark1(new Watermark(10L));
 			testHarness.processWatermark2(new Watermark(10L));
@@ -316,7 +325,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 			testHarness.processElement2(new StreamRecord<>(12, 16L));
 			testHarness.processElement2(new StreamRecord<>(98, 19L));
 
-			testHarness.processElement1(new StreamRecord<>("trigger", 13L));
+			testHarness.processElement1(new StreamRecord<>(expectedKey, 13L));
 
 			testHarness.processElement2(new StreamRecord<>(51, 21L));
 
@@ -324,29 +333,29 @@ public class CoBroadcastWithKeyedOperatorTest {
 			testHarness.processWatermark2(new Watermark(50L));
 
 			Queue<Object> output = testHarness.getOutput();
-			Assert.assertEquals(3L, output.size());
+			assertEquals(3L, output.size());
 
 			Object firstRawWm = output.poll();
-			Assert.assertTrue(firstRawWm instanceof Watermark);
+			assertTrue(firstRawWm instanceof Watermark);
 			Watermark firstWm = (Watermark) firstRawWm;
-			Assert.assertEquals(10L, firstWm.getTimestamp());
+			assertEquals(10L, firstWm.getTimestamp());
 
 			Object rawOutputElem = output.poll();
-			Assert.assertTrue(rawOutputElem instanceof StreamRecord);
+			assertTrue(rawOutputElem instanceof StreamRecord);
 			StreamRecord<?> outputRec = (StreamRecord<?>) rawOutputElem;
-			Assert.assertTrue(outputRec.getValue() instanceof String);
+			assertTrue(outputRec.getValue() instanceof String);
 			String outputElem = (String) outputRec.getValue();
 
 			expectedBroadcastState.put("51.key", 51);
 			List<Map.Entry<String, Integer>> expectedEntries = new ArrayList<>();
 			expectedEntries.addAll(expectedBroadcastState.entrySet());
 			String expected = "TS:41 " + mapToString(expectedEntries);
-			Assert.assertEquals(expected, outputElem);
+			assertEquals(expected, outputElem);
 
 			Object secondRawWm = output.poll();
-			Assert.assertTrue(secondRawWm instanceof Watermark);
+			assertTrue(secondRawWm instanceof Watermark);
 			Watermark secondWm = (Watermark) secondRawWm;
-			Assert.assertEquals(50L, secondWm.getTimestamp());
+			assertEquals(50L, secondWm.getTimestamp());
 		}
 	}
 
@@ -357,38 +366,40 @@ public class CoBroadcastWithKeyedOperatorTest {
 		private final String keyPostfix;
 		private final Map<String, Integer> expectedBroadcastState;
 		private final long timerTs;
+		private final String expectedKey;
 
 		FunctionWithBroadcastState(
 				final String keyPostfix,
 				final Map<String, Integer> expectedBroadcastState,
-				final long timerTs
-		) {
+				final long timerTs,
+				final String expectedKey) {
 			this.keyPostfix = Preconditions.checkNotNull(keyPostfix);
 			this.expectedBroadcastState = Preconditions.checkNotNull(expectedBroadcastState);
 			this.timerTs = timerTs;
+			this.expectedKey = expectedKey;
 		}
 
 		@Override
-		public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 			// put an element in the broadcast state
 			final String key = value + "." + keyPostfix;
 			ctx.getBroadcastState(STATE_DESCRIPTOR).put(key, value);
 		}
 
 		@Override
-		public void processElement(String value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+		public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
 			Iterable<Map.Entry<String, Integer>> broadcastStateIt = ctx.getBroadcastState(STATE_DESCRIPTOR).immutableEntries();
 			Iterator<Map.Entry<String, Integer>> iter = broadcastStateIt.iterator();
 
 			for (int i = 0; i < expectedBroadcastState.size(); i++) {
-				Assert.assertTrue(iter.hasNext());
+				assertTrue(iter.hasNext());
 
 				Map.Entry<String, Integer> entry = iter.next();
-				Assert.assertTrue(expectedBroadcastState.containsKey(entry.getKey()));
-				Assert.assertEquals(expectedBroadcastState.get(entry.getKey()), entry.getValue());
+				assertTrue(expectedBroadcastState.containsKey(entry.getKey()));
+				assertEquals(expectedBroadcastState.get(entry.getKey()), entry.getValue());
 			}
 
-			Assert.assertFalse(iter.hasNext());
+			assertFalse(iter.hasNext());
 
 			ctx.timerService().registerEventTimeTimer(timerTs);
 		}
@@ -401,6 +412,8 @@ public class CoBroadcastWithKeyedOperatorTest {
 			while (iter.hasNext()) {
 				map.add(iter.next());
 			}
+
+			assertEquals(expectedKey, ctx.getCurrentKey());
 			final String mapToStr = mapToString(map);
 			out.collect("TS:" + timestamp + " " + mapToStr);
 		}
@@ -485,22 +498,22 @@ public class CoBroadcastWithKeyedOperatorTest {
 			Queue<?> output2 = testHarness2.getOutput();
 			Queue<?> output3 = testHarness3.getOutput();
 
-			Assert.assertEquals(expected.size(), output1.size());
+			assertEquals(expected.size(), output1.size());
 			for (Object o: output1) {
 				StreamRecord<String> rec = (StreamRecord<String>) o;
-				Assert.assertTrue(expected.contains(rec.getValue()));
+				assertTrue(expected.contains(rec.getValue()));
 			}
 
-			Assert.assertEquals(expected.size(), output2.size());
+			assertEquals(expected.size(), output2.size());
 			for (Object o: output2) {
 				StreamRecord<String> rec = (StreamRecord<String>) o;
-				Assert.assertTrue(expected.contains(rec.getValue()));
+				assertTrue(expected.contains(rec.getValue()));
 			}
 
-			Assert.assertEquals(expected.size(), output3.size());
+			assertEquals(expected.size(), output3.size());
 			for (Object o: output3) {
 				StreamRecord<String> rec = (StreamRecord<String>) o;
-				Assert.assertTrue(expected.contains(rec.getValue()));
+				assertTrue(expected.contains(rec.getValue()));
 			}
 		}
 	}
@@ -583,16 +596,16 @@ public class CoBroadcastWithKeyedOperatorTest {
 			Queue<?> output1 = testHarness1.getOutput();
 			Queue<?> output2 = testHarness2.getOutput();
 
-			Assert.assertEquals(expected.size(), output1.size());
+			assertEquals(expected.size(), output1.size());
 			for (Object o: output1) {
 				StreamRecord<String> rec = (StreamRecord<String>) o;
-				Assert.assertTrue(expected.contains(rec.getValue()));
+				assertTrue(expected.contains(rec.getValue()));
 			}
 
-			Assert.assertEquals(expected.size(), output2.size());
+			assertEquals(expected.size(), output2.size());
 			for (Object o: output2) {
 				StreamRecord<String> rec = (StreamRecord<String>) o;
-				Assert.assertTrue(expected.contains(rec.getValue()));
+				assertTrue(expected.contains(rec.getValue()));
 			}
 		}
 	}
@@ -608,7 +621,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 
 		@Override
-		public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 			// put an element in the broadcast state
 			for (String k : keysToRegister) {
 				ctx.getBroadcastState(STATE_DESCRIPTOR).put(k, value);
@@ -616,7 +629,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 
 		@Override
-		public void processElement(String value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+		public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
 			for (Map.Entry<String, Integer> entry : ctx.getBroadcastState(STATE_DESCRIPTOR).immutableEntries()) {
 				out.collect(entry.toString());
 			}
@@ -639,12 +652,12 @@ public class CoBroadcastWithKeyedOperatorTest {
 							private final ValueStateDescriptor<String> valueState = new ValueStateDescriptor<>("any", BasicTypeInfo.STRING_TYPE_INFO);
 
 							@Override
-							public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
+							public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 								getRuntimeContext().getState(valueState).value(); // this should fail
 							}
 
 							@Override
-							public void processElement(String value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+							public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
 								// do nothing
 							}
 						})
@@ -653,12 +666,12 @@ public class CoBroadcastWithKeyedOperatorTest {
 			testHarness.processWatermark2(new Watermark(10L));
 			testHarness.processElement2(new StreamRecord<>(5, 12L));
 		} catch (NullPointerException e) {
-			Assert.assertEquals("No key set. This method should not be called outside of a keyed context.", e.getMessage());
+			assertEquals("No key set. This method should not be called outside of a keyed context.", e.getMessage());
 			exceptionThrown = true;
 		}
 
 		if (!exceptionThrown) {
-			Assert.fail("No exception thrown");
+			fail("No exception thrown");
 		}
 	}
 

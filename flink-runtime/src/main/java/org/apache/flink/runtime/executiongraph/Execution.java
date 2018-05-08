@@ -53,6 +53,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.OptionalFailure;
 
 import org.slf4j.Logger;
 
@@ -69,6 +70,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELING;
@@ -278,7 +280,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		// only allow to set the assigned resource in state SCHEDULED or CREATED
 		// note: we also accept resource assignment when being in state CREATED for testing purposes
 		if (state == SCHEDULED || state == CREATED) {
-			if (ASSIGNED_SLOT_UPDATER.compareAndSet(this, null, logicalSlot)) {
+			if (ASSIGNED_SLOT_UPDATER.compareAndSet(this, null, logicalSlot) && logicalSlot.tryAssignPayload(this)) {
 				// check for concurrent modification (e.g. cancelling call)
 				if (state == SCHEDULED || state == CREATED) {
 					checkState(!taskManagerLocationFuture.isDone(), "The TaskManagerLocationFuture should not be set if we haven't assigned a resource yet.");
@@ -557,11 +559,12 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			throw new IllegalStateException("The vertex must be in CREATED or SCHEDULED state to be deployed. Found state " + previous);
 		}
 
+		if (this != slot.getPayload()) {
+			throw new IllegalStateException(
+				String.format("The execution %s has not been assigned to the assigned slot.", this));
+		}
+
 		try {
-			// good, we are allowed to deploy
-			if (!slot.tryAssignPayload(this)) {
-				throw new JobException("Could not assign the ExecutionVertex to the slot " + slot);
-			}
 
 			// race double check, did we fail/cancel and do we need to release the slot?
 			if (this.state != DEPLOYING) {
@@ -1366,7 +1369,13 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	@Override
 	public StringifiedAccumulatorResult[] getUserAccumulatorsStringified() {
-		return StringifiedAccumulatorResult.stringifyAccumulatorResults(userAccumulators);
+		Map<String, OptionalFailure<Accumulator<?, ?>>> accumulators =
+			userAccumulators == null ?
+				null :
+				userAccumulators.entrySet()
+					.stream()
+					.collect(Collectors.toMap(Map.Entry::getKey, entry -> OptionalFailure.of(entry.getValue())));
+		return StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulators);
 	}
 
 	@Override

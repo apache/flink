@@ -39,6 +39,8 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -52,11 +54,23 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * (ReflectDatumReader / -Writer). The serializer instantiates them depending on
  * the class of the type it should serialize.
  *
+ * <p><b>Important:</b> This serializer is NOT THREAD SAFE, because it reuses the data encoders
+ * and decoders which have buffers that would be shared between the threads if used concurrently
+ *
  * @param <T> The type to be serialized.
  */
 public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
+
+	/** Logger instance. */
+	private static final Logger LOG = LoggerFactory.getLogger(AvroSerializer.class);
+
+	/** Flag whether to check for concurrent thread access.
+	 * Because this flag is static final, a value of 'false' allows the JIT compiler to eliminate
+	 * the guarded code sections. */
+	private static final boolean CONCURRENT_ACCESS_CHECK =
+			LOG.isDebugEnabled() || AvroSerializerDebugInitHelper.setToDebug;
 
 	// -------- configuration fields, serializable -----------
 
@@ -77,6 +91,9 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	/** The serializer configuration snapshot, cached for efficiency. */
 	private transient AvroSchemaSerializerConfigSnapshot configSnapshot;
+
+	/** The currently accessing thread, set and checked on debug level only. */
+	private transient volatile Thread currentThread;
 
 	// ------------------------------------------------------------------------
 
@@ -127,23 +144,56 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public void serialize(T value, DataOutputView target) throws IOException {
-		checkAvroInitialized();
-		this.encoder.setOut(target);
-		this.writer.write(value, this.encoder);
+		if (CONCURRENT_ACCESS_CHECK) {
+			enterExclusiveThread();
+		}
+
+		try {
+			checkAvroInitialized();
+			this.encoder.setOut(target);
+			this.writer.write(value, this.encoder);
+		}
+		finally {
+			if (CONCURRENT_ACCESS_CHECK) {
+				exitExclusiveThread();
+			}
+		}
 	}
 
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
-		checkAvroInitialized();
-		this.decoder.setIn(source);
-		return this.reader.read(null, this.decoder);
+		if (CONCURRENT_ACCESS_CHECK) {
+			enterExclusiveThread();
+		}
+
+		try {
+			checkAvroInitialized();
+			this.decoder.setIn(source);
+			return this.reader.read(null, this.decoder);
+		}
+		finally {
+			if (CONCURRENT_ACCESS_CHECK) {
+				exitExclusiveThread();
+			}
+		}
 	}
 
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
-		checkAvroInitialized();
-		this.decoder.setIn(source);
-		return this.reader.read(reuse, this.decoder);
+		if (CONCURRENT_ACCESS_CHECK) {
+			enterExclusiveThread();
+		}
+
+		try {
+			checkAvroInitialized();
+			this.decoder.setIn(source);
+			return this.reader.read(reuse, this.decoder);
+		}
+		finally {
+			if (CONCURRENT_ACCESS_CHECK) {
+				exitExclusiveThread();
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -152,8 +202,19 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public T copy(T from) {
-		checkAvroInitialized();
-		return avroData.deepCopy(schema, from);
+		if (CONCURRENT_ACCESS_CHECK) {
+			enterExclusiveThread();
+		}
+
+		try {
+			checkAvroInitialized();
+			return avroData.deepCopy(schema, from);
+		}
+		finally {
+			if (CONCURRENT_ACCESS_CHECK) {
+				exitExclusiveThread();
+			}
+		}
 	}
 
 	@Override
@@ -163,8 +224,10 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		T value = deserialize(source);
-		serialize(value, target);
+		// we do not have concurrency checks here, because serialize() and
+		// deserialize() do the checks and the current concurrency check mechanism
+		// does provide additional safety in cases of re-entrant calls
+		serialize(deserialize(source), target);
 	}
 
 	// ------------------------------------------------------------------------
@@ -275,6 +338,31 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 		this.encoder = new DataOutputEncoder();
 		this.decoder = new DataInputDecoder();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Concurrency checks
+	// --------------------------------------------------------------------------------------------
+
+	private void enterExclusiveThread() {
+		// we use simple get, check, set here, rather than CAS
+		// we don't need lock-style correctness, this is only a sanity-check and we thus
+		// favor speed at the cost of some false negatives in this check
+		Thread previous = currentThread;
+		Thread thisThread = Thread.currentThread();
+
+		if (previous == null) {
+			currentThread = thisThread;
+		}
+		else if (previous != thisThread) {
+			throw new IllegalStateException(
+					"Concurrent access to KryoSerializer. Thread 1: " + thisThread.getName() +
+							" , Thread 2: " + previous.getName());
+		}
+	}
+
+	private void exitExclusiveThread() {
+		currentThread = null;
 	}
 
 	// ------------------------------------------------------------------------

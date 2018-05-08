@@ -38,38 +38,39 @@ public interface Executor {
 	/**
 	 * Lists all session properties that are defined by the executor and the session.
 	 */
-	Map<String, String> getSessionProperties(SessionContext context) throws SqlExecutionException;
+	Map<String, String> getSessionProperties(SessionContext session) throws SqlExecutionException;
 
 	/**
 	 * Lists all tables known to the executor.
 	 */
-	List<String> listTables(SessionContext context) throws SqlExecutionException;
+	List<String> listTables(SessionContext session) throws SqlExecutionException;
 
 	/**
-	 * Returns the schema of a table. Throws an exception if the table could not be found.
+	 * Returns the schema of a table. Throws an exception if the table could not be found. The
+	 * schema might contain time attribute types for helping the user during debugging a query.
 	 */
-	TableSchema getTableSchema(SessionContext context, String name) throws SqlExecutionException;
+	TableSchema getTableSchema(SessionContext session, String name) throws SqlExecutionException;
 
 	/**
 	 * Returns a string-based explanation about AST and execution plan of the given statement.
 	 */
-	String explainStatement(SessionContext context, String statement) throws SqlExecutionException;
+	String explainStatement(SessionContext session, String statement) throws SqlExecutionException;
 
 	/**
 	 * Submits a Flink job (detached) and returns the result descriptor.
 	 */
-	ResultDescriptor executeQuery(SessionContext context, String query) throws SqlExecutionException;
+	ResultDescriptor executeQuery(SessionContext session, String query) throws SqlExecutionException;
 
 	/**
 	 * Asks for the next changelog results (non-blocking).
 	 */
-	TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(SessionContext context, String resultId) throws SqlExecutionException;
+	TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(SessionContext session, String resultId) throws SqlExecutionException;
 
 	/**
 	 * Creates an immutable result snapshot of the running Flink job. Throws an exception if no Flink job can be found.
 	 * Returns the number of pages.
 	 */
-	TypedResult<Integer> snapshotResult(SessionContext context, String resultId, int pageSize) throws SqlExecutionException;
+	TypedResult<Integer> snapshotResult(SessionContext session, String resultId, int pageSize) throws SqlExecutionException;
 
 	/**
 	 * Returns the rows that are part of the current page or throws an exception if the snapshot has been expired.
@@ -79,10 +80,10 @@ public interface Executor {
 	/**
 	 * Cancels a table program and stops the result retrieval.
 	 */
-	void cancelQuery(SessionContext context, String resultId) throws SqlExecutionException;
+	void cancelQuery(SessionContext session, String resultId) throws SqlExecutionException;
 
 	/**
 	 * Stops the executor.
 	 */
-	void stop(SessionContext context);
+	void stop(SessionContext session);
 }

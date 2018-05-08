@@ -25,8 +25,8 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.RouterHandler;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
@@ -37,7 +37,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObjectAggregator;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Handler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
@@ -59,6 +58,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -67,38 +67,44 @@ import java.util.concurrent.TimeoutException;
 /**
  * An abstract class for netty-based REST server endpoints.
  */
-public abstract class RestServerEndpoint {
+public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
-	public static final int MAX_REQUEST_SIZE_BYTES = 1024 * 1024 * 10;
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	private final Object lock = new Object();
 
-	private final String configuredAddress;
-	private final int configuredPort;
+	private final String restAddress;
+	private final String restBindAddress;
+	private final int restBindPort;
 	private final SSLEngine sslEngine;
-	private final Path uploadDir;
+	private final int maxContentLength;
+
+	protected final Path uploadDir;
+	protected final Map<String, String> responseHeaders;
 
 	private final CompletableFuture<Void> terminationFuture;
 
 	private ServerBootstrap bootstrap;
 	private Channel serverChannel;
-	private String restAddress;
+	private String restBaseUrl;
 
 	private State state = State.CREATED;
 
 	public RestServerEndpoint(RestServerEndpointConfiguration configuration) throws IOException {
 		Preconditions.checkNotNull(configuration);
-		this.configuredAddress = configuration.getEndpointBindAddress();
-		this.configuredPort = configuration.getEndpointBindPort();
+
+		this.restAddress = configuration.getRestAddress();
+		this.restBindAddress = configuration.getRestBindAddress();
+		this.restBindPort = configuration.getRestBindPort();
 		this.sslEngine = configuration.getSslEngine();
 
 		this.uploadDir = configuration.getUploadDir();
 		createUploadDir(uploadDir, log);
 
-		terminationFuture = new CompletableFuture<>();
+		this.maxContentLength = configuration.getMaxContentLength();
+		this.responseHeaders = configuration.getResponseHeaders();
 
-		this.restAddress = null;
+		terminationFuture = new CompletableFuture<>();
 	}
 
 	/**
@@ -146,7 +152,7 @@ public abstract class RestServerEndpoint {
 
 				@Override
 				protected void initChannel(SocketChannel ch) {
-					Handler handler = new RouterHandler(router);
+					Handler handler = new RouterHandler(router, responseHeaders);
 
 					// SSL should be the first handler in the pipeline
 					if (sslEngine != null) {
@@ -156,9 +162,9 @@ public abstract class RestServerEndpoint {
 					ch.pipeline()
 						.addLast(new HttpServerCodec())
 						.addLast(new FileUploadHandler(uploadDir))
-						.addLast(new HttpObjectAggregator(MAX_REQUEST_SIZE_BYTES))
+						.addLast(new FlinkHttpObjectAggregator(maxContentLength, responseHeaders))
 						.addLast(handler.name(), handler)
-						.addLast(new PipelineErrorHandler(log));
+						.addLast(new PipelineErrorHandler(log, responseHeaders));
 				}
 			};
 
@@ -172,18 +178,23 @@ public abstract class RestServerEndpoint {
 				.childHandler(initializer);
 
 			final ChannelFuture channel;
-			if (configuredAddress == null) {
-				channel = bootstrap.bind(configuredPort);
+			if (restBindAddress == null) {
+				channel = bootstrap.bind(restBindPort);
 			} else {
-				channel = bootstrap.bind(configuredAddress, configuredPort);
+				channel = bootstrap.bind(restBindAddress, restBindPort);
 			}
 			serverChannel = channel.syncUninterruptibly().channel();
 
-			InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
-			String address = bindAddress.getAddress().getHostAddress();
-			int port = bindAddress.getPort();
+			final InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
+			final String advertisedAddress;
+			if (bindAddress.getAddress().isAnyLocalAddress()) {
+				advertisedAddress = this.restAddress;
+			} else {
+				advertisedAddress = bindAddress.getAddress().getHostAddress();
+			}
+			final int port = bindAddress.getPort();
 
-			log.info("Rest endpoint listening at {}:{}", address, port);
+			log.info("Rest endpoint listening at {}:{}", advertisedAddress, port);
 
 			final String protocol;
 
@@ -193,9 +204,9 @@ public abstract class RestServerEndpoint {
 				protocol = "http://";
 			}
 
-			restAddress = protocol + address + ':' + port;
+			restBaseUrl = protocol + advertisedAddress + ':' + port;
 
-			restAddressFuture.complete(restAddress);
+			restAddressFuture.complete(restBaseUrl);
 
 			state = State.RUNNING;
 
@@ -234,18 +245,19 @@ public abstract class RestServerEndpoint {
 	}
 
 	/**
-	 * Returns the address of the REST server endpoint.
+	 * Returns the base URL of the REST server endpoint.
 	 *
-	 * @return REST address of this endpoint
+	 * @return REST base URL of this endpoint
 	 */
-	public String getRestAddress() {
+	public String getRestBaseUrl() {
 		synchronized (lock) {
 			Preconditions.checkState(state != State.CREATED, "The RestServerEndpoint has not been started yet.");
-			return restAddress;
+			return restBaseUrl;
 		}
 	}
 
-	public final CompletableFuture<Void> shutDownAsync() {
+	@Override
+	public CompletableFuture<Void> closeAsync() {
 		synchronized (lock) {
 			log.info("Shutting down rest endpoint.");
 
@@ -359,12 +371,7 @@ public abstract class RestServerEndpoint {
 						});
 			});
 
-			return FutureUtils.runAfterwards(
-				channelTerminationFuture,
-				() -> {
-					log.info("Cleaning upload directory {}", uploadDir);
-					FileUtils.cleanDirectory(uploadDir.toFile());
-				});
+			return channelTerminationFuture;
 		}
 	}
 

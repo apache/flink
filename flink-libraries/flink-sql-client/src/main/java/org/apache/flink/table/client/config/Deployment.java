@@ -18,8 +18,16 @@
 
 package org.apache.flink.table.client.config;
 
+import org.apache.flink.client.cli.CliFrontendParser;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -56,6 +64,41 @@ public class Deployment {
 
 	public int getGatewayPort() {
 		return Integer.parseInt(properties.getOrDefault(PropertyStrings.DEPLOYMENT_GATEWAY_PORT, Integer.toString(0)));
+	}
+
+	/**
+	 * Parses the given command line options from the deployment properties. Ignores properties
+	 * that are not defined by options.
+	 */
+	public CommandLine getCommandLine(Options commandLineOptions) throws Exception {
+		final List<String> args = new ArrayList<>();
+
+		properties.forEach((k, v) -> {
+			// only add supported options
+			if (commandLineOptions.hasOption(k)) {
+				final Option o = commandLineOptions.getOption(k);
+				final String argument = "--" + o.getLongOpt();
+				// options without args
+				if (!o.hasArg()) {
+					final Boolean flag = Boolean.parseBoolean(v);
+					// add key only
+					if (flag) {
+						args.add(argument);
+					}
+				}
+				// add key and value
+				else if (!o.hasArgs()) {
+					args.add(argument);
+					args.add(v);
+				}
+				// options with multiple args are not supported yet
+				else {
+					throw new IllegalArgumentException("Option '" + o + "' is not supported yet.");
+				}
+			}
+		});
+
+		return CliFrontendParser.parse(commandLineOptions, args.toArray(new String[args.size()]), true);
 	}
 
 	public Map<String, String> toProperties() {

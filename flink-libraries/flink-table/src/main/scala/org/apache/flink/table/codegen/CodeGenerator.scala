@@ -36,7 +36,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
-import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
+import org.apache.flink.table.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.codegen.calls.{CurrentTimePointCallGen, FunctionGenerator}
 import org.apache.flink.table.functions.sql.{ProctimeSqlFunction, ScalarSqlFunctions, StreamRecordTimestampSqlFunction}
@@ -109,31 +109,45 @@ abstract class CodeGenerator(
 
   // set of member statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  protected val reusableMemberStatements = mutable.LinkedHashSet[String]()
+  protected val reusableMemberStatements: mutable.LinkedHashSet[String] =
+    mutable.LinkedHashSet[String]()
 
   // set of constructor statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  protected val reusableInitStatements = mutable.LinkedHashSet[String]()
+  protected val reusableInitStatements: mutable.LinkedHashSet[String] =
+    mutable.LinkedHashSet[String]()
 
   // set of open statements for RichFunction that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  protected val reusableOpenStatements = mutable.LinkedHashSet[String]()
+  protected val reusableOpenStatements: mutable.LinkedHashSet[String] =
+    mutable.LinkedHashSet[String]()
 
   // set of close statements for RichFunction that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  protected val reusableCloseStatements = mutable.LinkedHashSet[String]()
+  protected val reusableCloseStatements: mutable.LinkedHashSet[String] =
+    mutable.LinkedHashSet[String]()
 
-  // set of statements that will be added only once per record
+  // set of statements that will be added only once per record;
+  // code should only update member variables because local variables are not accessible if
+  // the code needs to be split;
   // we use a LinkedHashSet to keep the insertion order
-  protected val reusablePerRecordStatements = mutable.LinkedHashSet[String]()
+  protected val reusablePerRecordStatements: mutable.LinkedHashSet[String] =
+    mutable.LinkedHashSet[String]()
 
   // map of initial input unboxing expressions that will be added only once
   // (inputTerm, index) -> expr
-  protected val reusableInputUnboxingExprs = mutable.Map[(String, Int), GeneratedExpression]()
+  protected val reusableInputUnboxingExprs: mutable.Map[(String, Int), GeneratedExpression] =
+    mutable.Map[(String, Int), GeneratedExpression]()
 
   // set of constructor statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
-  protected val reusableConstructorStatements = mutable.LinkedHashSet[(String, String)]()
+  protected val reusableConstructorStatements: mutable.LinkedHashSet[(String, String)] =
+    mutable.LinkedHashSet[(String, String)]()
+
+  /**
+    * Flag that indicates that the generated code needed to be split into several methods.
+    */
+  protected var hasCodeSplits: Boolean = false
 
   /**
     * @return code block of statements that need to be placed in the member area of the Function
@@ -384,7 +398,7 @@ abstract class CodeGenerator(
     returnType match {
       case ri: RowTypeInfo =>
         addReusableOutRecord(ri)
-        val resultSetters: String = boxedFieldExprs.zipWithIndex map {
+        val resultSetters = boxedFieldExprs.zipWithIndex map {
           case (fieldExpr, i) =>
             if (nullCheck) {
               s"""
@@ -403,13 +417,15 @@ abstract class CodeGenerator(
               |$outRecordTerm.setField($i, ${fieldExpr.resultTerm});
               |""".stripMargin
             }
-        } mkString "\n"
+        }
 
-        GeneratedExpression(outRecordTerm, "false", resultSetters, returnType)
+        val code = generateCodeSplits(resultSetters)
+
+        GeneratedExpression(outRecordTerm, NEVER_NULL, code, returnType)
 
       case pt: PojoTypeInfo[_] =>
         addReusableOutRecord(pt)
-        val resultSetters: String = boxedFieldExprs.zip(resultFieldNames) map {
+        val resultSetters = boxedFieldExprs.zip(resultFieldNames) map {
           case (fieldExpr, fieldName) =>
             val accessor = getFieldAccessor(pt.getTypeClass, fieldName)
 
@@ -474,13 +490,15 @@ abstract class CodeGenerator(
                     |""".stripMargin
                 }
               }
-          } mkString "\n"
+          }
 
-        GeneratedExpression(outRecordTerm, "false", resultSetters, returnType)
+        val code = generateCodeSplits(resultSetters)
+
+        GeneratedExpression(outRecordTerm, NEVER_NULL, code, returnType)
 
       case tup: TupleTypeInfo[_] =>
         addReusableOutRecord(tup)
-        val resultSetters: String = boxedFieldExprs.zipWithIndex map {
+        val resultSetters = boxedFieldExprs.zipWithIndex map {
           case (fieldExpr, i) =>
             val fieldName = "f" + i
             if (nullCheck) {
@@ -500,11 +518,13 @@ abstract class CodeGenerator(
                 |$outRecordTerm.$fieldName = ${fieldExpr.resultTerm};
                 |""".stripMargin
             }
-        } mkString "\n"
+        }
 
-        GeneratedExpression(outRecordTerm, "false", resultSetters, returnType)
+        val code = generateCodeSplits(resultSetters)
 
-      case cc: CaseClassTypeInfo[_] =>
+        GeneratedExpression(outRecordTerm, NEVER_NULL, code, returnType)
+
+      case _: CaseClassTypeInfo[_] =>
         val fieldCodes: String = boxedFieldExprs.map(_.code).mkString("\n")
         val constructorParams: String = boxedFieldExprs.map(_.resultTerm).mkString(", ")
         val resultTerm = newName(outRecordTerm)
@@ -528,9 +548,10 @@ abstract class CodeGenerator(
             |$returnTypeTerm $resultTerm = new $returnTypeTerm($constructorParams);
             |""".stripMargin
 
-        GeneratedExpression(resultTerm, "false", resultCode, returnType)
+        // case classes are not splittable
+        GeneratedExpression(resultTerm, NEVER_NULL, resultCode, returnType)
 
-      case t: TypeInformation[_] =>
+      case _: TypeInformation[_] =>
         val fieldExpr = boxedFieldExprs.head
         val nullCheckCode = if (nullCheck) {
           s"""
@@ -547,7 +568,8 @@ abstract class CodeGenerator(
             |$nullCheckCode
             |""".stripMargin
 
-        GeneratedExpression(fieldExpr.resultTerm, "false", resultCode, returnType)
+        // other types are not splittable
+        GeneratedExpression(fieldExpr.resultTerm, fieldExpr.nullTerm, resultCode, returnType)
 
       case _ =>
         throw new CodeGenException(s"Unsupported result type: $returnType")
@@ -742,56 +764,56 @@ abstract class CodeGenerator(
         val right = operands(1)
         requireNumeric(left)
         requireNumeric(right)
-        generateArithmeticOperator("+", nullCheck, resultType, left, right)
+        generateArithmeticOperator("+", nullCheck, resultType, left, right, config)
 
       case PLUS | DATETIME_PLUS if isTemporal(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireTemporal(left)
         requireTemporal(right)
-        generateTemporalPlusMinus(plus = true, nullCheck, left, right)
+        generateTemporalPlusMinus(plus = true, nullCheck, left, right, config)
 
       case MINUS if isNumeric(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireNumeric(left)
         requireNumeric(right)
-        generateArithmeticOperator("-", nullCheck, resultType, left, right)
+        generateArithmeticOperator("-", nullCheck, resultType, left, right, config)
 
       case MINUS | MINUS_DATE if isTemporal(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireTemporal(left)
         requireTemporal(right)
-        generateTemporalPlusMinus(plus = false, nullCheck, left, right)
+        generateTemporalPlusMinus(plus = false, nullCheck, left, right, config)
 
       case MULTIPLY if isNumeric(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireNumeric(left)
         requireNumeric(right)
-        generateArithmeticOperator("*", nullCheck, resultType, left, right)
+        generateArithmeticOperator("*", nullCheck, resultType, left, right, config)
 
       case MULTIPLY if isTimeInterval(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireTimeInterval(left)
         requireNumeric(right)
-        generateArithmeticOperator("*", nullCheck, resultType, left, right)
+        generateArithmeticOperator("*", nullCheck, resultType, left, right, config)
 
       case DIVIDE | DIVIDE_INTEGER if isNumeric(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireNumeric(left)
         requireNumeric(right)
-        generateArithmeticOperator("/", nullCheck, resultType, left, right)
+        generateArithmeticOperator("/", nullCheck, resultType, left, right, config)
 
       case MOD if isNumeric(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireNumeric(left)
         requireNumeric(right)
-        generateArithmeticOperator("%", nullCheck, resultType, left, right)
+        generateArithmeticOperator("%", nullCheck, resultType, left, right, config)
 
       case UNARY_MINUS if isNumeric(resultType) =>
         val operand = operands.head
@@ -922,7 +944,7 @@ abstract class CodeGenerator(
         val left = operands.head
         val right = operands(1)
         requireString(left)
-        generateArithmeticOperator("+", nullCheck, resultType, left, right)
+        generateArithmeticOperator("+", nullCheck, resultType, left, right, config)
 
       // rows
       case ROW =>
@@ -1023,6 +1045,55 @@ abstract class CodeGenerator(
   // ----------------------------------------------------------------------------------------------
   // generator helping methods
   // ----------------------------------------------------------------------------------------------
+
+  private def generateCodeSplits(splits: Seq[String]): String = {
+    val totalLen = splits.map(_.length + 1).sum // 1 for a line break
+
+    // split
+    if (totalLen > config.getMaxGeneratedCodeLength) {
+
+      hasCodeSplits = true
+
+      // add input unboxing to member area such that all split functions can access it
+      reusableInputUnboxingExprs.foreach { case (_, expr) =>
+
+        // declaration
+        val resultTypeTerm = primitiveTypeTermForTypeInfo(expr.resultType)
+        if (nullCheck) {
+          reusableMemberStatements.add(s"private boolean ${expr.nullTerm};")
+        }
+        reusableMemberStatements.add(s"private $resultTypeTerm ${expr.resultTerm};")
+
+        // assignment
+        if (nullCheck) {
+          reusablePerRecordStatements.add(s"this.${expr.nullTerm} = ${expr.nullTerm};")
+        }
+        reusablePerRecordStatements.add(s"this.${expr.resultTerm} = ${expr.resultTerm};")
+      }
+
+      // add split methods to the member area and return the code necessary to call those methods
+      val methodCalls = splits.map { split =>
+        val methodName = newName(s"split")
+
+        val method =
+          s"""
+            |private final void $methodName() throws Exception {
+            |  $split
+            |}
+            |""".stripMargin
+        reusableMemberStatements.add(method)
+
+        // create method call
+        s"$methodName();"
+      }
+
+      methodCalls.mkString("\n")
+    }
+    // don't split
+    else {
+      splits.mkString("\n")
+    }
+  }
 
   private def generateFieldAccess(refExpr: GeneratedExpression, index: Int): GeneratedExpression = {
 
@@ -1138,7 +1209,7 @@ abstract class CodeGenerator(
           case ObjectFieldAccessor(field) =>
             // primitive
             if (isFieldPrimitive(field)) {
-              generateNonNullLiteral(fieldType, s"$inputTerm.${field.getName}")
+              generateTerm(fieldType, s"$inputTerm.${field.getName}")
             }
             // Object
             else {
@@ -1167,7 +1238,7 @@ abstract class CodeGenerator(
             val reflectiveAccessCode = reflectiveFieldReadAccess(fieldTerm, field, inputTerm)
             // primitive
             if (isFieldPrimitive(field)) {
-              generateNonNullLiteral(fieldType, reflectiveAccessCode)
+              generateTerm(fieldType, reflectiveAccessCode)
             }
             // Object
             else {
@@ -1184,16 +1255,16 @@ abstract class CodeGenerator(
 
   private def generateNullLiteral(resultType: TypeInformation[_]): GeneratedExpression = {
     val resultTerm = newName("result")
-    val nullTerm = newName("isNull")
     val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
     val defaultValue = primitiveDefaultValue(resultType)
 
     if (nullCheck) {
       val wrappedCode = s"""
         |$resultTypeTerm $resultTerm = $defaultValue;
-        |boolean $nullTerm = true;
         |""".stripMargin
-      GeneratedExpression(resultTerm, nullTerm, wrappedCode, resultType, literal = true)
+
+      // mark this expression as a constant literal
+      GeneratedExpression(resultTerm, ALWAYS_NULL, wrappedCode, resultType, literal = true)
     } else {
       throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
     }
@@ -1203,30 +1274,38 @@ abstract class CodeGenerator(
       literalType: TypeInformation[_],
       literalCode: String)
     : GeneratedExpression = {
-    val resultTerm = newName("result")
-    val nullTerm = newName("isNull")
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(literalType)
 
-    val resultCode = if (nullCheck) {
-      s"""
-        |$resultTypeTerm $resultTerm = $literalCode;
-        |boolean $nullTerm = false;
-        |""".stripMargin
-    } else {
-      s"""
-        |$resultTypeTerm $resultTerm = $literalCode;
-        |""".stripMargin
-    }
-
-    GeneratedExpression(resultTerm, nullTerm, resultCode, literalType, literal = true)
+    // mark this expression as a constant literal
+    generateTerm(literalType, literalCode).copy(literal = true)
   }
 
   private[flink] def generateSymbol(enum: Enum[_]): GeneratedExpression = {
     GeneratedExpression(
       qualifyEnum(enum),
-      "false",
-      "",
+      NEVER_NULL,
+      NO_CODE,
       new GenericTypeInfo(enum.getDeclaringClass))
+  }
+
+  /**
+    * Generates access to a term (e.g. a field) that does not require unboxing logic.
+    *
+    * @param fieldType type of field
+    * @param fieldTerm expression term of field (already unboxed)
+    * @return internal unboxed field representation
+    */
+  private[flink] def generateTerm(
+      fieldType: TypeInformation[_],
+      fieldTerm: String)
+    : GeneratedExpression = {
+    val resultTerm = newName("result")
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldType)
+
+    val resultCode = s"""
+        |$resultTypeTerm $resultTerm = $fieldTerm;
+        |""".stripMargin
+
+    GeneratedExpression(resultTerm, NEVER_NULL, resultCode, fieldType)
   }
 
   /**
@@ -1644,9 +1723,13 @@ abstract class CodeGenerator(
   def addReusableTimestamp(): String = {
     val fieldTerm = s"timestamp"
 
+    // declaration
+    reusableMemberStatements.add(s"private long $fieldTerm;")
+
+    // assignment
     val field =
       s"""
-        |final long $fieldTerm = java.lang.System.currentTimeMillis();
+        |$fieldTerm = java.lang.System.currentTimeMillis();
         |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -1660,9 +1743,13 @@ abstract class CodeGenerator(
 
     val timestamp = addReusableTimestamp()
 
+    // declaration
+    reusableMemberStatements.add(s"private long $fieldTerm;")
+
+    // assignment
     val field =
       s"""
-        |final long $fieldTerm = $timestamp + java.util.TimeZone.getDefault().getOffset(timestamp);
+        |$fieldTerm = $timestamp + java.util.TimeZone.getDefault().getOffset($timestamp);
         |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -1676,10 +1763,14 @@ abstract class CodeGenerator(
 
     val timestamp = addReusableTimestamp()
 
+    // declaration
+    reusableMemberStatements.add(s"private int $fieldTerm;")
+
+    // assignment
     // adopted from org.apache.calcite.runtime.SqlFunctions.currentTime()
     val field =
       s"""
-        |final int $fieldTerm = (int) ($timestamp % ${DateTimeUtils.MILLIS_PER_DAY});
+        |$fieldTerm = (int) ($timestamp % ${DateTimeUtils.MILLIS_PER_DAY});
         |if (time < 0) {
         |  time += ${DateTimeUtils.MILLIS_PER_DAY};
         |}
@@ -1696,10 +1787,14 @@ abstract class CodeGenerator(
 
     val localtimestamp = addReusableLocalTimestamp()
 
+    // declaration
+    reusableMemberStatements.add(s"private int $fieldTerm;")
+
+    // assignment
     // adopted from org.apache.calcite.runtime.SqlFunctions.localTime()
     val field =
       s"""
-        |final int $fieldTerm = (int) ($localtimestamp % ${DateTimeUtils.MILLIS_PER_DAY});
+        |$fieldTerm = (int) ($localtimestamp % ${DateTimeUtils.MILLIS_PER_DAY});
         |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -1715,10 +1810,14 @@ abstract class CodeGenerator(
     val timestamp = addReusableTimestamp()
     val time = addReusableTime()
 
+    // declaration
+    reusableMemberStatements.add(s"private int $fieldTerm;")
+
+    // assignment
     // adopted from org.apache.calcite.runtime.SqlFunctions.currentDate()
     val field =
       s"""
-        |final int $fieldTerm = (int) ($timestamp / ${DateTimeUtils.MILLIS_PER_DAY});
+        |$fieldTerm = (int) ($timestamp / ${DateTimeUtils.MILLIS_PER_DAY});
         |if ($time < 0) {
         |  $fieldTerm -= 1;
         |}

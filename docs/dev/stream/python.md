@@ -464,7 +464,7 @@ Rich functions (.e.g `RichFilterFunction`) enable to define (override) the optio
 The user may use these functions for initialization and cleanups.
 
 {% highlight python %}
-class Tockenizer(RichMapFunction):
+class Tokenizer(RichMapFunction):
     def open(self, config):
         pass
     def close(self):
@@ -472,7 +472,7 @@ class Tockenizer(RichMapFunction):
     def map(self, value):
         pass
 
-data_stream.map(Tockenizer())
+data_stream.map(Tokenizer())
 {% endhighlight %}
 
 The `open` function is called by the worker before starting the streaming pipeline.

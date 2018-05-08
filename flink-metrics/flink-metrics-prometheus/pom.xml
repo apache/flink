@@ -111,6 +111,11 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<artifactSet>
+								<includes>
+									<include>io.prometheus:*</include>
+								</includes>
+							</artifactSet>
 							<relocations combine.children="append">
 								<relocation>
 									<pattern>io.prometheus.client</pattern>

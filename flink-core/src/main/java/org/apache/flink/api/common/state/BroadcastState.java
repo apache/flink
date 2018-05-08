@@ -29,7 +29,7 @@ import java.util.Map;
  *
  * <p><b>CAUTION:</b> the user has to guarantee that all task instances store the same elements in this type of state.
  *
- * <p> Each operator instance individually maintains and stores elements in the broadcast state. The fact that the
+ * <p>Each operator instance individually maintains and stores elements in the broadcast state. The fact that the
  * incoming stream is a broadcast one guarantees that all instances see all the elements. Upon recovery
  * or re-scaling, the same state is given to each of the instances. To avoid hotspots, each task reads its previous
  * partition, and if there are more tasks (scale up), then the new instances read from the old instances in a round
@@ -80,7 +80,7 @@ public interface BroadcastState<K, V> extends ReadOnlyBroadcastState<K, V> {
 	Iterator<Map.Entry<K, V>> iterator() throws Exception;
 
 	/**
-	 * Returns all the mappings in the state
+	 * Returns all the mappings in the state.
 	 *
 	 * @return An iterable view of all the key-value pairs in the state.
 	 *

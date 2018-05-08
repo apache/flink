@@ -155,7 +155,7 @@ case class NoMatchingTableSourceException(
     extends RuntimeException(
       s"Could not find a table source factory in the classpath satisfying the " +
         s"following properties: \n" +
-        s"${properties.map(e => DescriptorProperties.toString(e._1, e._2)).mkString("\n")}",
+        s"${DescriptorProperties.toString(properties)}",
       cause) {
 
   def this(properties: Map[String, String]) = this(properties, null)
@@ -174,7 +174,7 @@ case class AmbiguousTableSourceException(
     extends RuntimeException(
       s"More than one table source factory in the classpath satisfying the " +
         s"following properties: \n" +
-        s"${properties.map(e => DescriptorProperties.toString(e._1, e._2)).mkString("\n")}",
+        s"${DescriptorProperties.toString(properties)}",
       cause) {
 
   def this(properties: Map[String, String]) = this(properties, null)

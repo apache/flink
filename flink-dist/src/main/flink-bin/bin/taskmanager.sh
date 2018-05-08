@@ -34,7 +34,7 @@ bin=`cd "$bin"; pwd`
 
 TYPE=taskmanager
 
-if [[ "${FLINK_MODE}" == "flip6" ]]; then
+if [[ "${FLINK_MODE}" == "new" ]]; then
     TYPE=taskexecutor
 fi
 

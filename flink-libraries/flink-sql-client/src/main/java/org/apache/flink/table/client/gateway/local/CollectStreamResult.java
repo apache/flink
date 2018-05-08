@@ -37,8 +37,10 @@ import java.net.InetAddress;
 
 /**
  * A result that works similarly to {@link DataStreamUtils#collect(DataStream)}.
+ *
+ * @param <C> cluster id to which this result belongs to
  */
-public abstract class CollectStreamResult implements DynamicResult {
+public abstract class CollectStreamResult<C> implements DynamicResult<C> {
 
 	private final TypeInformation<Row> outputType;
 	private final SocketStreamIterator<Tuple2<Boolean, Row>> iterator;
@@ -46,6 +48,7 @@ public abstract class CollectStreamResult implements DynamicResult {
 	private final ResultRetrievalThread retrievalThread;
 	private final JobMonitoringThread monitoringThread;
 	private Runnable program;
+	private C clusterId;
 
 	protected final Object resultLock;
 	protected SqlExecutionException executionException;
@@ -71,6 +74,14 @@ public abstract class CollectStreamResult implements DynamicResult {
 		collectTableSink = new CollectStreamTableSink(iterator.getBindAddress(), iterator.getPort(), serializer);
 		retrievalThread = new ResultRetrievalThread();
 		monitoringThread = new JobMonitoringThread();
+	}
+
+	@Override
+	public void setClusterId(C clusterId) {
+		if (this.clusterId != null) {
+			throw new IllegalStateException("Cluster id is already present.");
+		}
+		this.clusterId = clusterId;
 	}
 
 	@Override

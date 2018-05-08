@@ -89,7 +89,7 @@ public class LegacyStatefulJobSavepointMigrationITCase extends SavepointMigratio
 	private final MigrationVersion testMigrateVersion;
 	private final String testStateBackend;
 
-	public LegacyStatefulJobSavepointMigrationITCase(Tuple2<MigrationVersion, String> testMigrateVersionAndBackend) {
+	public LegacyStatefulJobSavepointMigrationITCase(Tuple2<MigrationVersion, String> testMigrateVersionAndBackend) throws Exception {
 		this.testMigrateVersion = testMigrateVersionAndBackend.f0;
 		this.testStateBackend = testMigrateVersionAndBackend.f1;
 	}

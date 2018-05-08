@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.concurrent;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import akka.dispatch.OnComplete;
 
@@ -31,6 +33,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
@@ -224,6 +227,81 @@ public class FutureUtils {
 	}
 
 	/**
+	 * Retry the given operation with the given delay in between successful completions where the
+	 * result does not match a given predicate.
+	 *
+	 * @param operation to retry
+	 * @param retryDelay delay between retries
+	 * @param deadline A deadline that specifies at what point we should stop retrying
+	 * @param acceptancePredicate Predicate to test whether the result is acceptable
+	 * @param scheduledExecutor executor to be used for the retry operation
+	 * @param <T> type of the result
+	 * @return Future which retries the given operation a given amount of times and delays the retry
+	 *   in case the predicate isn't matched
+	 */
+	public static <T> CompletableFuture<T> retrySuccesfulWithDelay(
+		final Supplier<CompletableFuture<T>> operation,
+		final Time retryDelay,
+		final Deadline deadline,
+		final Predicate<T> acceptancePredicate,
+		final ScheduledExecutor scheduledExecutor) {
+
+		final CompletableFuture<T> resultFuture = new CompletableFuture<>();
+
+		retrySuccessfulOperationWithDelay(
+			resultFuture,
+			operation,
+			retryDelay,
+			deadline,
+			acceptancePredicate,
+			scheduledExecutor);
+
+		return resultFuture;
+	}
+
+	private static <T> void retrySuccessfulOperationWithDelay(
+		final CompletableFuture<T> resultFuture,
+		final Supplier<CompletableFuture<T>> operation,
+		final Time retryDelay,
+		final Deadline deadline,
+		final Predicate<T> acceptancePredicate,
+		final ScheduledExecutor scheduledExecutor) {
+
+		if (!resultFuture.isDone()) {
+			final CompletableFuture<T> operationResultFuture = operation.get();
+
+			operationResultFuture.whenComplete(
+				(t, throwable) -> {
+					if (throwable != null) {
+						if (throwable instanceof CancellationException) {
+							resultFuture.completeExceptionally(new RetryException("Operation future was cancelled.", throwable));
+						} else {
+							resultFuture.completeExceptionally(throwable);
+						}
+					} else {
+						if (acceptancePredicate.test(t)) {
+							resultFuture.complete(t);
+						} else if (deadline.hasTimeLeft()) {
+							final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
+								() -> retrySuccessfulOperationWithDelay(resultFuture, operation, retryDelay, deadline, acceptancePredicate, scheduledExecutor),
+								retryDelay.toMilliseconds(),
+								TimeUnit.MILLISECONDS);
+
+							resultFuture.whenComplete(
+								(innerT, innerThrowable) -> scheduledFuture.cancel(false));
+						} else {
+							resultFuture.completeExceptionally(
+								new RetryException("Could not satisfy the predicate within the allowed time."));
+						}
+					}
+				});
+
+			resultFuture.whenComplete(
+				(t, throwable) -> operationResultFuture.cancel(false));
+		}
+	}
+
+	/**
 	 * Exception with which the returned future is completed if the {@link #retry(Supplier, int, Executor)}
 	 * operation fails.
 	 */
@@ -331,6 +409,40 @@ public class FutureUtils {
 				}
 			},
 			executor);
+
+		return resultFuture;
+	}
+
+	/**
+	 * Run the given asynchronous action after the completion of the given future. The given future can be
+	 * completed normally or exceptionally. In case of an exceptional completion, the
+	 * asynchronous action's exception will be added to the initial exception.
+	 *
+	 * @param future to wait for its completion
+	 * @param composedAction asynchronous action which is triggered after the future's completion
+	 * @return Future which is completed after the asynchronous action has completed. This future can contain
+	 * an exception if an error occurred in the given future or asynchronous action.
+	 */
+	public static CompletableFuture<Void> composeAfterwards(
+			CompletableFuture<?> future,
+			Supplier<CompletableFuture<?>> composedAction) {
+		final CompletableFuture<Void> resultFuture = new CompletableFuture<>();
+
+		future.whenComplete(
+			(Object outerIgnored, Throwable outerThrowable) -> {
+				final CompletableFuture<?> composedActionFuture = composedAction.get();
+
+				composedActionFuture.whenComplete(
+					(Object innerIgnored, Throwable innerThrowable) -> {
+						if (innerThrowable != null) {
+							resultFuture.completeExceptionally(ExceptionUtils.firstOrSuppressed(innerThrowable, outerThrowable));
+						} else if (outerThrowable != null) {
+							resultFuture.completeExceptionally(outerThrowable);
+						} else {
+							resultFuture.complete(null);
+						}
+					});
+			});
 
 		return resultFuture;
 	}
@@ -639,6 +751,26 @@ public class FutureUtils {
 	}
 
 	/**
+	 * Returns a future which is completed with the result of the {@link SupplierWithException}.
+	 *
+	 * @param supplier to provide the future's value
+	 * @param executor to execute the supplier
+	 * @param <T> type of the result
+	 * @return Future which is completed with the value of the supplier
+	 */
+	public static <T> CompletableFuture<T> supplyAsync(SupplierWithException<T, ?> supplier, Executor executor) {
+		return CompletableFuture.supplyAsync(
+			() -> {
+				try {
+					return supplier.get();
+				} catch (Throwable e) {
+					throw new CompletionException(e);
+				}
+			},
+			executor);
+	}
+
+	/**
 	 * Converts Flink time into a {@link FiniteDuration}.
 	 *
 	 * @param time to convert into a FiniteDuration
@@ -674,7 +806,7 @@ public class FutureUtils {
 
 		scalaFuture.onComplete(new OnComplete<T>() {
 			@Override
-			public void onComplete(Throwable failure, T success) throws Throwable {
+			public void onComplete(Throwable failure, T success) {
 				if (failure != null) {
 					result.completeExceptionally(failure);
 				} else {

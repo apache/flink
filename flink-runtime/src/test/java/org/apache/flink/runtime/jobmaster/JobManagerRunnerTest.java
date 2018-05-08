@@ -30,13 +30,13 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
-import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -76,13 +76,13 @@ public class JobManagerRunnerTest extends TestLogger {
 
 	private static JobManagerSharedServices jobManagerSharedServices;
 
-	private static MetricRegistry metricRegistry;
-
 	private static JobGraph jobGraph;
 
 	private static ArchivedExecutionGraph archivedExecutionGraph;
 
 	private TestingHighAvailabilityServices haServices;
+
+	private TestingFatalErrorHandler fatalErrorHandler;
 
 	@BeforeClass
 	public static void setupClass() throws Exception {
@@ -96,8 +96,6 @@ public class JobManagerRunnerTest extends TestLogger {
 			new VoidBlobStore());
 
 		jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(configuration, blobServer);
-
-		metricRegistry = NoOpMetricRegistry.INSTANCE;
 
 		final JobVertex jobVertex = new JobVertex("Test vertex");
 		jobVertex.setInvokableClass(NoOpInvokable.class);
@@ -115,11 +113,13 @@ public class JobManagerRunnerTest extends TestLogger {
 		haServices.setJobMasterLeaderElectionService(jobGraph.getJobID(), new TestingLeaderElectionService());
 		haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
 		haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
+
+		fatalErrorHandler = new TestingFatalErrorHandler();
 	}
 
 	@After
-	public void tearDown() {
-
+	public void tearDown() throws Exception {
+		fatalErrorHandler.rethrowError();
 	}
 
 	@AfterClass
@@ -215,7 +215,7 @@ public class JobManagerRunnerTest extends TestLogger {
 			heartbeatServices,
 			blobServer,
 			jobManagerSharedServices,
-			metricRegistry,
-			null);
+			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
+			fatalErrorHandler);
 	}
 }

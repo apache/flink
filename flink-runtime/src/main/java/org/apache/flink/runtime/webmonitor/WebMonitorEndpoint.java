@@ -34,6 +34,7 @@ import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterOverviewHandler;
 import org.apache.flink.runtime.rest.handler.cluster.DashboardConfigHandler;
+import org.apache.flink.runtime.rest.handler.cluster.ShutdownHandler;
 import org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobConfigHandler;
 import org.apache.flink.runtime.rest.handler.job.JobDetailsHandler;
@@ -50,12 +51,16 @@ import org.apache.flink.runtime.rest.handler.job.JobsOverviewHandler;
 import org.apache.flink.runtime.rest.handler.job.SubtaskCurrentAttemptDetailsHandler;
 import org.apache.flink.runtime.rest.handler.job.SubtaskExecutionAttemptAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.SubtaskExecutionAttemptDetailsHandler;
+import org.apache.flink.runtime.rest.handler.job.SubtasksAllAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.SubtasksTimesHandler;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointConfigHandler;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointStatisticDetailsHandler;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointStatsCache;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointingStatisticsHandler;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.TaskCheckpointStatisticDetailsHandler;
+import org.apache.flink.runtime.rest.handler.job.metrics.AggregatingJobsMetricsHandler;
+import org.apache.flink.runtime.rest.handler.job.metrics.AggregatingSubtasksMetricsHandler;
+import org.apache.flink.runtime.rest.handler.job.metrics.AggregatingTaskManagersMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.JobManagerMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.JobMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.JobVertexMetricsHandler;
@@ -64,6 +69,7 @@ import org.apache.flink.runtime.rest.handler.job.metrics.TaskManagerMetricsHandl
 import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingHandlers;
 import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingStatusHeaders;
 import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingTriggerHeaders;
+import org.apache.flink.runtime.rest.handler.job.savepoints.SavepointDisposalHandlers;
 import org.apache.flink.runtime.rest.handler.job.savepoints.SavepointHandlers;
 import org.apache.flink.runtime.rest.handler.legacy.ConstantTextHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
@@ -90,6 +96,7 @@ import org.apache.flink.runtime.rest.messages.JobVertexBackPressureHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexTaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
+import org.apache.flink.runtime.rest.messages.SubtasksAllAccumulatorsHandlers;
 import org.apache.flink.runtime.rest.messages.SubtasksTimesHeaders;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.YarnCancelJobTerminationHeaders;
@@ -98,6 +105,7 @@ import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointConfigHeader
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatisticDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatisticsHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.TaskCheckpointStatisticsHeaders;
+import org.apache.flink.runtime.rest.messages.cluster.ShutdownHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskCurrentAttemptDetailsHeaders;
@@ -108,6 +116,8 @@ import org.apache.flink.runtime.rest.messages.job.metrics.JobMetricsHeaders;
 import org.apache.flink.runtime.rest.messages.job.metrics.JobVertexMetricsHeaders;
 import org.apache.flink.runtime.rest.messages.job.metrics.SubtaskMetricsHeaders;
 import org.apache.flink.runtime.rest.messages.job.metrics.TaskManagerMetricsHeaders;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalStatusHeaders;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsHeaders;
@@ -129,7 +139,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -157,6 +166,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	private final LeaderElectionService leaderElectionService;
 
 	private final FatalErrorHandler fatalErrorHandler;
+
+	private boolean hasWebUI = false;
 
 	public WebMonitorEndpoint(
 			RestServerEndpointConfiguration endpointConfiguration,
@@ -199,7 +210,6 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		ArrayList<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>(30);
 
 		final Time timeout = restConfiguration.getTimeout();
-		final Map<String, String> responseHeaders = restConfiguration.getResponseHeaders();
 
 		ClusterOverviewHandler clusterOverviewHandler = new ClusterOverviewHandler(
 			restAddressFuture,
@@ -312,6 +322,15 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			executionGraphCache,
 			executor);
 
+		SubtasksAllAccumulatorsHandler subtasksAllAccumulatorsHandler = new SubtasksAllAccumulatorsHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			SubtasksAllAccumulatorsHandlers.getInstance(),
+			executionGraphCache,
+			executor);
+
 		TaskManagersHandler taskManagersHandler = new TaskManagersHandler(
 			restAddressFuture,
 			leaderRetriever,
@@ -391,6 +410,33 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			timeout,
 			responseHeaders,
 			metricFetcher);
+
+		final AggregatingTaskManagersMetricsHandler aggregatingTaskManagersMetricsHandler = new AggregatingTaskManagersMetricsHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			executor,
+			metricFetcher
+		);
+
+		final AggregatingJobsMetricsHandler aggregatingJobsMetricsHandler = new AggregatingJobsMetricsHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			executor,
+			metricFetcher
+		);
+
+		final AggregatingSubtasksMetricsHandler aggregatingSubtasksMetricsHandler = new AggregatingSubtasksMetricsHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			executor,
+			metricFetcher
+		);
 
 		final JobVertexTaskManagersHandler jobVertexTaskManagersHandler = new JobVertexTaskManagersHandler(
 			restAddressFuture,
@@ -500,7 +546,28 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			executor,
 			metricFetcher);
 
-		final File tmpDir = restConfiguration.getTmpDir();
+		final SavepointDisposalHandlers savepointDisposalHandlers = new SavepointDisposalHandlers();
+
+		final SavepointDisposalHandlers.SavepointDisposalTriggerHandler savepointDisposalTriggerHandler = savepointDisposalHandlers.new SavepointDisposalTriggerHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders);
+
+		final SavepointDisposalHandlers.SavepointDisposalStatusHandler savepointDisposalStatusHandler = savepointDisposalHandlers.new SavepointDisposalStatusHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders);
+
+		final ShutdownHandler shutdownHandler = new ShutdownHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			ShutdownHeaders.getInstance());
+
+		final File webUiDir = restConfiguration.getWebUiDir();
 
 		Optional<StaticFileServerHandler<T>> optWebContent;
 
@@ -509,7 +576,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 				leaderRetriever,
 				restAddressFuture,
 				timeout,
-				tmpDir);
+				webUiDir);
 		} catch (IOException e) {
 			log.warn("Could not load web content handler.", e);
 			optWebContent = Optional.empty();
@@ -528,6 +595,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		handlers.add(Tuple2.of(TaskCheckpointStatisticsHeaders.getInstance(), taskCheckpointStatisticDetailsHandler));
 		handlers.add(Tuple2.of(JobExceptionsHeaders.getInstance(), jobExceptionsHandler));
 		handlers.add(Tuple2.of(JobVertexAccumulatorsHeaders.getInstance(), jobVertexAccumulatorsHandler));
+		handlers.add(Tuple2.of(JobVertexAccumulatorsHeaders.getInstance(), subtasksAllAccumulatorsHandler));
 		handlers.add(Tuple2.of(JobDetailsHeaders.getInstance(), jobDetailsHandler));
 		handlers.add(Tuple2.of(JobAccumulatorsHeaders.getInstance(), jobAccumulatorsHandler));
 		handlers.add(Tuple2.of(TaskManagersHeaders.getInstance(), taskManagersHandler));
@@ -538,6 +606,9 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		handlers.add(Tuple2.of(SubtaskMetricsHeaders.getInstance(), subtaskMetricsHandler));
 		handlers.add(Tuple2.of(TaskManagerMetricsHeaders.getInstance(), taskManagerMetricsHandler));
 		handlers.add(Tuple2.of(JobManagerMetricsHeaders.getInstance(), jobManagerMetricsHandler));
+		handlers.add(Tuple2.of(aggregatingTaskManagersMetricsHandler.getMessageHeaders(), aggregatingTaskManagersMetricsHandler));
+		handlers.add(Tuple2.of(aggregatingJobsMetricsHandler.getMessageHeaders(), aggregatingJobsMetricsHandler));
+		handlers.add(Tuple2.of(aggregatingSubtasksMetricsHandler.getMessageHeaders(), aggregatingSubtasksMetricsHandler));
 		handlers.add(Tuple2.of(JobExecutionResultHeaders.getInstance(), jobExecutionResultHandler));
 		handlers.add(Tuple2.of(SavepointTriggerHeaders.getInstance(), savepointTriggerHandler));
 		handlers.add(Tuple2.of(SavepointStatusHeaders.getInstance(), savepointStatusHandler));
@@ -550,13 +621,20 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		handlers.add(Tuple2.of(JobVertexDetailsHeaders.getInstance(), jobVertexDetailsHandler));
 		handlers.add(Tuple2.of(RescalingTriggerHeaders.getInstance(), rescalingTriggerHandler));
 		handlers.add(Tuple2.of(RescalingStatusHeaders.getInstance(), rescalingStatusHandler));
+		handlers.add(Tuple2.of(SavepointDisposalTriggerHeaders.getInstance(), savepointDisposalTriggerHandler));
+		handlers.add(Tuple2.of(SavepointDisposalStatusHeaders.getInstance(), savepointDisposalStatusHandler));
 
 		// TODO: Remove once the Yarn proxy can forward all REST verbs
 		handlers.add(Tuple2.of(YarnCancelJobTerminationHeaders.getInstance(), jobCancelTerminationHandler));
 		handlers.add(Tuple2.of(YarnStopJobTerminationHeaders.getInstance(), jobStopTerminationHandler));
 
+		handlers.add(Tuple2.of(ShutdownHeaders.getInstance(), shutdownHandler));
+
 		optWebContent.ifPresent(
-			webContent -> handlers.add(Tuple2.of(WebContentHandlerSpecification.getInstance(), webContent)));
+			webContent -> {
+				handlers.add(Tuple2.of(WebContentHandlerSpecification.getInstance(), webContent));
+				hasWebUI = true;
+			});
 
 		// load the log and stdout file handler for the main cluster component
 		final WebMonitorUtils.LogFileLocation logFileLocation = WebMonitorUtils.LogFileLocation.find(clusterConfiguration);
@@ -629,6 +707,9 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	@Override
 	public void startInternal() throws Exception {
 		leaderElectionService.start(this);
+		if (hasWebUI) {
+			log.info("Web frontend listening at {}.", getRestBaseUrl());
+		}
 	}
 
 	@Override
@@ -637,15 +718,15 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 		final CompletableFuture<Void> shutdownFuture = super.shutDownInternal();
 
-		final File tmpDir = restConfiguration.getTmpDir();
+		final File webUiDir = restConfiguration.getWebUiDir();
 
 		return FutureUtils.runAfterwardsAsync(
 			shutdownFuture,
 			() -> {
 				Exception exception = null;
 				try {
-					log.info("Removing cache directory {}", tmpDir);
-					FileUtils.deleteDirectory(tmpDir);
+					log.info("Removing cache directory {}", webUiDir);
+					FileUtils.deleteDirectory(webUiDir);
 				} catch (Exception e) {
 					exception = e;
 				}
@@ -668,18 +749,18 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 	@Override
 	public void grantLeadership(final UUID leaderSessionID) {
-		log.info("{} was granted leadership with leaderSessionID={}", getRestAddress(), leaderSessionID);
+		log.info("{} was granted leadership with leaderSessionID={}", getRestBaseUrl(), leaderSessionID);
 		leaderElectionService.confirmLeaderSessionID(leaderSessionID);
 	}
 
 	@Override
 	public void revokeLeadership() {
-		log.info("{} lost leadership", getRestAddress());
+		log.info("{} lost leadership", getRestBaseUrl());
 	}
 
 	@Override
 	public String getAddress() {
-		return getRestAddress();
+		return getRestBaseUrl();
 	}
 
 	@Override

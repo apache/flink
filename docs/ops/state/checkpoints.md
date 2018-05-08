@@ -45,10 +45,10 @@ write their meta data out to persistent storage and are *not* automatically
 cleaned up when the job fails. This way, you will have a checkpoint around
 to resume from if your job fails.
 
-```java
+{% highlight java %}
 CheckpointConfig config = env.getCheckpointConfig();
 config.enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
-```
+{% endhighlight %}
 
 The `ExternalizedCheckpointCleanup` mode configures what happens with externalized checkpoints when you cancel the job:
 
@@ -64,9 +64,9 @@ files. The **target directory** for the externalized checkpoint's meta data is
 determined from the configuration key `state.checkpoints.dir` which, currently,
 can only be set via the configuration files.
 
-```
+{% highlight yaml %}
 state.checkpoints.dir: hdfs:///checkpoints/
-```
+{% endhighlight %}
 
 This directory will then contain the checkpoint meta data required to restore
 the checkpoint. For the `MemoryStateBackend`, this meta data file will be
@@ -76,9 +76,9 @@ self-contained and no further files are needed.
 and only write the paths to these files into the meta data file. These data
 files are stored at the path given to the state back-end during construction.
 
-```java
+{% highlight java %}
 env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/");
-```
+{% endhighlight %}
 
 ### Difference to Savepoints
 
@@ -95,8 +95,8 @@ meta data file is not self-contained, the jobmanager needs to have access to
 the data files it refers to (see [Directory Structure](#directory-structure)
 above).
 
-```sh
+{% highlight shell %}
 $ bin/flink run -s :checkpointMetaDataPath [:runArgs]
-```
+{% endhighlight %}
 
 {% top %}

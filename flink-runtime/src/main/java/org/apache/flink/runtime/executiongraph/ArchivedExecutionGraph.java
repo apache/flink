@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -86,7 +87,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	private final StringifiedAccumulatorResult[] archivedUserAccumulators;
 	private final ArchivedExecutionConfig archivedExecutionConfig;
 	private final boolean isStoppable;
-	private final Map<String, SerializedValue<Object>> serializedUserAccumulators;
+	private final Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators;
 
 	@Nullable
 	private final CheckpointCoordinatorConfiguration jobCheckpointingConfiguration;
@@ -104,7 +105,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			@Nullable ErrorInfo failureCause,
 			String jsonPlan,
 			StringifiedAccumulatorResult[] archivedUserAccumulators,
-			Map<String, SerializedValue<Object>> serializedUserAccumulators,
+			Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators,
 			ArchivedExecutionConfig executionConfig,
 			boolean isStoppable,
 			@Nullable CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
@@ -229,10 +230,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		return true;
 	}
 
-	public StringifiedAccumulatorResult[] getUserAccumulators() {
-		return archivedUserAccumulators;
-	}
-
+	@Override
 	public ArchivedExecutionConfig getArchivedExecutionConfig() {
 		return archivedExecutionConfig;
 	}
@@ -248,7 +246,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	}
 
 	@Override
-	public Map<String, SerializedValue<Object>> getAccumulatorsSerialized() {
+	public Map<String, SerializedValue<OptionalFailure<Object>>> getAccumulatorsSerialized() {
 		return serializedUserAccumulators;
 	}
 
@@ -315,7 +313,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			archivedTasks.put(task.getJobVertexId(), archivedTask);
 		}
 
-		final Map<String, SerializedValue<Object>> serializedUserAccumulators = executionGraph.getAccumulatorsSerialized();
+		final Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators =
+			executionGraph.getAccumulatorsSerialized();
 
 		final long[] timestamps = new long[JobStatus.values().length];
 

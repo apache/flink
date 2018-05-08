@@ -26,6 +26,8 @@ import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * {@link CheckpointStreamFactory} for tests that allows for testing cancellation in async IO.
@@ -39,14 +41,15 @@ public class BlockerCheckpointStreamFactory implements CheckpointStreamFactory {
 	protected volatile OneShotLatch blocker;
 	protected volatile OneShotLatch waiter;
 
-	BlockingCheckpointOutputStream lastCreatedStream;
+	protected final Set<BlockingCheckpointOutputStream> allCreatedStreams;
 
-	public BlockingCheckpointOutputStream getLastCreatedStream() {
-		return lastCreatedStream;
+	public Set<BlockingCheckpointOutputStream> getAllCreatedStreams() {
+		return allCreatedStreams;
 	}
 
 	public BlockerCheckpointStreamFactory(int maxSize) {
 		this.maxSize = maxSize;
+		this.allCreatedStreams = new HashSet<>();
 	}
 
 	public void setAfterNumberInvocations(int afterNumberInvocations) {
@@ -70,14 +73,17 @@ public class BlockerCheckpointStreamFactory implements CheckpointStreamFactory {
 	}
 
 	@Override
-	public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException {
+	public CheckpointStateOutputStream createCheckpointStateOutputStream(
+		CheckpointedStateScope scope) throws IOException {
 
-		this.lastCreatedStream = new BlockingCheckpointOutputStream(
+		BlockingCheckpointOutputStream blockingStream = new BlockingCheckpointOutputStream(
 			new MemCheckpointStreamFactory.MemoryCheckpointOutputStream(maxSize),
 			waiter,
 			blocker,
 			afterNumberInvocations);
 
-		return lastCreatedStream;
+		allCreatedStreams.add(blockingStream);
+
+		return blockingStream;
 	}
 }

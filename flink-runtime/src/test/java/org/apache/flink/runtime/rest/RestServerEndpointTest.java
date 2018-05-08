@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.rest;
 
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assume;
@@ -44,7 +44,7 @@ import static org.junit.Assert.fail;
 /**
  * Test cases for the {@link RestServerEndpoint}.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class RestServerEndpointTest extends TestLogger {
 
 	@Rule

@@ -34,7 +34,7 @@ import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
@@ -104,16 +104,17 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 
 	@Override
 	protected Dispatcher createDispatcher(
-		Configuration configuration,
-		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		ResourceManagerGateway resourceManagerGateway,
-		BlobServer blobServer,
-		HeartbeatServices heartbeatServices,
-		MetricRegistry metricRegistry,
-		ArchivedExecutionGraphStore archivedExecutionGraphStore,
-		FatalErrorHandler fatalErrorHandler,
-		@Nullable String restAddress) throws Exception {
+			Configuration configuration,
+			RpcService rpcService,
+			HighAvailabilityServices highAvailabilityServices,
+			ResourceManagerGateway resourceManagerGateway,
+			BlobServer blobServer,
+			HeartbeatServices heartbeatServices,
+			JobManagerMetricGroup jobManagerMetricGroup,
+			@Nullable String metricQueryServicePath,
+			ArchivedExecutionGraphStore archivedExecutionGraphStore,
+			FatalErrorHandler fatalErrorHandler,
+			@Nullable String restAddress) throws Exception {
 
 		// create the default dispatcher
 		return new StandaloneDispatcher(
@@ -124,7 +125,8 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			resourceManagerGateway,
 			blobServer,
 			heartbeatServices,
-			metricRegistry,
+			jobManagerMetricGroup,
+			metricQueryServicePath,
 			archivedExecutionGraphStore,
 			Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
 			fatalErrorHandler,

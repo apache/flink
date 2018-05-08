@@ -20,7 +20,6 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -44,11 +43,8 @@ import java.io.IOException;
  */
 @Deprecated
 public class RocksDBFoldingState<K, N, T, ACC>
-	extends AbstractRocksDBState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, ACC>
-	implements InternalFoldingState<N, T, ACC> {
-
-	/** Serializer for the values. */
-	private final TypeSerializer<ACC> valueSerializer;
+		extends AbstractRocksDBState<K, N, ACC, FoldingState<T, ACC>>
+		implements InternalFoldingState<K, N, T, ACC> {
 
 	/** User-specified fold function. */
 	private final FoldFunction<T, ACC> foldFunction;
@@ -56,19 +52,38 @@ public class RocksDBFoldingState<K, N, T, ACC>
 	/**
 	 * Creates a new {@code RocksDBFoldingState}.
 	 *
+	 * @param columnFamily The RocksDB column family that this state is associated to.
 	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                     and can create a default state value.
+	 * @param valueSerializer The serializer for the state.
+	 * @param defaultValue The default value for the state.
+	 * @param foldFunction The fold function used for folding state.
+	 * @param backend The backend for which this state is bind to.
 	 */
 	public RocksDBFoldingState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			FoldingStateDescriptor<T, ACC> stateDesc,
+			TypeSerializer<ACC> valueSerializer,
+			ACC defaultValue,
+			FoldFunction<T, ACC> foldFunction,
 			RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, stateDesc, backend);
+		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
 
-		this.valueSerializer = stateDesc.getSerializer();
-		this.foldFunction = stateDesc.getFoldFunction();
+		this.foldFunction = foldFunction;
+	}
+
+	@Override
+	public TypeSerializer<K> getKeySerializer() {
+		return backend.getKeySerializer();
+	}
+
+	@Override
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
+	}
+
+	@Override
+	public TypeSerializer<ACC> getValueSerializer() {
+		return valueSerializer;
 	}
 
 	@Override
@@ -95,7 +110,7 @@ public class RocksDBFoldingState<K, N, T, ACC>
 			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
 			if (valueBytes == null) {
 				keySerializationStream.reset();
-				valueSerializer.serialize(foldFunction.fold(stateDesc.getDefaultValue(), value), out);
+				valueSerializer.serialize(foldFunction.fold(getDefaultValue(), value), out);
 				backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 			} else {
 				ACC oldValue = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
@@ -108,5 +123,4 @@ public class RocksDBFoldingState<K, N, T, ACC>
 			throw new RuntimeException("Error while adding data to RocksDB", e);
 		}
 	}
-
 }

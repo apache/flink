@@ -20,6 +20,8 @@ package org.apache.flink.docs.rest;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
@@ -40,12 +42,15 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.ConfigurationException;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.SerializableString;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.CharacterEscapes;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.SerializedString;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.JsonSchema;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
-import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +61,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -99,6 +106,7 @@ public class RestAPIDocGenerator {
 
 	static {
 		mapper = new ObjectMapper();
+		mapper.getFactory().setCharacterEscapes(new HTMLCharacterEscapes());
 		schemaGen = new JsonSchemaGenerator(mapper);
 	}
 
@@ -174,8 +182,8 @@ public class RestAPIDocGenerator {
 			sb.append("      </td>\n");
 			sb.append("    </tr>\n");
 		}
-		int reqHash = spec.getTargetRestEndpointURL().hashCode() + spec.getHttpMethod().hashCode() + spec.getRequestClass().getCanonicalName().hashCode();
-		int resHash = spec.getTargetRestEndpointURL().hashCode() + spec.getHttpMethod().hashCode() + spec.getResponseClass().getCanonicalName().hashCode();
+		int reqHash = spec.getTargetRestEndpointURL().hashCode() + spec.getHttpMethod().name().hashCode() + spec.getRequestClass().getCanonicalName().hashCode();
+		int resHash = spec.getTargetRestEndpointURL().hashCode() + spec.getHttpMethod().name().hashCode() + spec.getResponseClass().getCanonicalName().hashCode();
 		{
 			sb.append("    <tr>\n");
 			sb.append("      <td colspan=\"2\">\n");
@@ -259,6 +267,39 @@ public class RestAPIDocGenerator {
 	}
 
 	/**
+	 * Create character escapes for HTML when generating JSON request/response string.
+	 *
+	 * <p>This is to avoid exception when generating JSON with Field schema contains generic types.
+	 */
+	private static class HTMLCharacterEscapes extends CharacterEscapes {
+		private final int[] asciiEscapes;
+		private final Map<Integer, SerializableString> escapeSequences;
+
+		public HTMLCharacterEscapes() {
+			int[] esc = CharacterEscapes.standardAsciiEscapesForJSON();
+			esc['<'] = CharacterEscapes.ESCAPE_CUSTOM;
+			esc['>'] = CharacterEscapes.ESCAPE_CUSTOM;
+			esc['&'] = CharacterEscapes.ESCAPE_CUSTOM;
+			Map<Integer, SerializableString> escMap = new HashMap<>();
+			escMap.put((int) '<', new SerializedString("&lt;"));
+			escMap.put((int) '>', new SerializedString("&gt;"));
+			escMap.put((int) '&', new SerializedString("&amp;"));
+			asciiEscapes = esc;
+			escapeSequences = escMap;
+		}
+
+		@Override
+		public int[] getEscapeCodesForAscii() {
+			return asciiEscapes;
+		}
+
+		@Override
+		public SerializableString getEscapeSequence(int i) {
+			return escapeSequences.getOrDefault(i, null);
+		}
+	}
+
+	/**
 	 * Utility class to extract the {@link MessageHeaders} that the {@link DispatcherRestEndpoint} supports.
 	 */
 	private static class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint implements DocumentingRestEndpoint {
@@ -273,6 +314,9 @@ public class RestAPIDocGenerator {
 
 		static {
 			config = new Configuration();
+			config.setString(RestOptions.ADDRESS, "localhost");
+			// necessary for loading the web-submission extension
+			config.setString(JobManagerOptions.ADDRESS, "localhost");
 			try {
 				restConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 			} catch (ConfigurationException e) {

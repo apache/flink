@@ -39,6 +39,8 @@ import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOError;
 import java.io.IOException;
@@ -53,6 +55,8 @@ import java.util.Map;
  * SQL CLI client.
  */
 public class CliClient {
+
+	private static final Logger LOG = LoggerFactory.getLogger(CliClient.class);
 
 	private final Executor executor;
 
@@ -367,6 +371,7 @@ public class CliClient {
 	// --------------------------------------------------------------------------------------------
 
 	private void printException(Throwable t) {
+		LOG.warn(CliStrings.MESSAGE_SQL_EXECUTION_ERROR, t);
 		terminal.writer().println(CliStrings.messageError(CliStrings.MESSAGE_SQL_EXECUTION_ERROR, t).toAnsi());
 		terminal.flush();
 	}

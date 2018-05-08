@@ -208,7 +208,7 @@ Otherwise, you will run into a `ClassNotFoundException`.
 
 The command line syntax is as follows:
 
-~~~
+{% highlight bash %}
 ./flink <ACTION> [OPTIONS] [ARGUMENTS]
 
 The following actions are available:
@@ -364,6 +364,6 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
                                    in the configuration.
   Options for yarn-cluster mode:
      -yid,--yarnapplicationId <arg>   Attach to running YARN session
-~~~
+{% endhighlight %}
 
 {% top %}

@@ -60,7 +60,7 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
 		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 80L);
-		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 1024);
+		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 800);
 		return config;
 	}
 
@@ -134,13 +134,16 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 		// set number of bulk iterations for KMeans algorithm
 		IterativeDataSet<KMeans.Centroid> loop = centroids.iterate(20);
 
+		// add some re-partitions to increase network buffer use
 		DataSet<KMeans.Centroid> newCentroids = points
 				// compute closest centroid for each point
 				.map(new KMeans.SelectNearestCenter()).withBroadcastSet(loop, "centroids")
-						// count and sum point coordinates for each centroid
+				.rebalance()
+				// count and sum point coordinates for each centroid
 				.map(new KMeans.CountAppender())
 				.groupBy(0).reduce(new KMeans.CentroidAccumulator())
-						// compute new centroids from point counts and coordinate sums
+				// compute new centroids from point counts and coordinate sums
+				.rebalance()
 				.map(new KMeans.CentroidAverager());
 
 		// feed new centroids back into next iteration

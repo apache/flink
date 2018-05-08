@@ -321,10 +321,12 @@ files also no additional disk space is consumed for task-local recovery with inc
 
 ### Allocation-preserving scheduling
 
-Task-local recovery assumes allocation-preserving task scheduling under failures, which was introduced as part of FLIP-6 and works as follows. Each task remembers its previous
+Task-local recovery assumes allocation-preserving task scheduling under failures, which works as follows. Each task remembers its previous
 allocation and *requests the exact same slot* to restart in recovery. If this slot is not available, the task will request a *new, fresh slot* from the resource manager. This way,
 if a task manager is no longer available, a task that cannot return to its previous location *will not drive other recovering tasks out of their previous slots*. Our reasoning is
 that the previous slot can only disappear when a task manager is no longer available, and in this case *some* tasks have to request a new slot anyways. With our scheduling strategy
 we give the maximum number of tasks a chance to recover from their local state and avoid the cascading effect of tasks stealing their previous slots from one another.
+
+Allocation-preserving scheduling does not work with Flink's legacy mode.
 
 {% top %}

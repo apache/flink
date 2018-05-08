@@ -27,6 +27,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 
@@ -53,7 +54,7 @@ public class JobResult implements Serializable {
 
 	private final JobID jobId;
 
-	private final Map<String, SerializedValue<Object>> accumulatorResults;
+	private final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults;
 
 	private final long netRuntime;
 
@@ -63,7 +64,7 @@ public class JobResult implements Serializable {
 
 	private JobResult(
 			final JobID jobId,
-			final Map<String, SerializedValue<Object>> accumulatorResults,
+			final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults,
 			final long netRuntime,
 			@Nullable final SerializedThrowable serializedThrowable) {
 
@@ -86,7 +87,7 @@ public class JobResult implements Serializable {
 		return jobId;
 	}
 
-	public Map<String, SerializedValue<Object>> getAccumulatorResults() {
+	public Map<String, SerializedValue<OptionalFailure<Object>>> getAccumulatorResults() {
 		return accumulatorResults;
 	}
 
@@ -133,7 +134,7 @@ public class JobResult implements Serializable {
 
 		private JobID jobId;
 
-		private Map<String, SerializedValue<Object>> accumulatorResults;
+		private Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults;
 
 		private long netRuntime = -1;
 
@@ -144,7 +145,7 @@ public class JobResult implements Serializable {
 			return this;
 		}
 
-		public Builder accumulatorResults(final Map<String, SerializedValue<Object>> accumulatorResults) {
+		public Builder accumulatorResults(final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults) {
 			this.accumulatorResults = accumulatorResults;
 			return this;
 		}
@@ -188,7 +189,9 @@ public class JobResult implements Serializable {
 		builder.jobId(jobId);
 
 		final long netRuntime = accessExecutionGraph.getStatusTimestamp(jobStatus) - accessExecutionGraph.getStatusTimestamp(JobStatus.CREATED);
-		builder.netRuntime(netRuntime);
+		// guard against clock changes
+		final long guardedNetRuntime = Math.max(netRuntime, 0L);
+		builder.netRuntime(guardedNetRuntime);
 		builder.accumulatorResults(accessExecutionGraph.getAccumulatorsSerialized());
 
 		if (jobStatus != JobStatus.FINISHED) {

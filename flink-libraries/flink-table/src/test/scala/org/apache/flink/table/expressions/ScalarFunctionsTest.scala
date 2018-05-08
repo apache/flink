@@ -1286,28 +1286,50 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testLog(): Unit = {
-    testSqlApi(
+    testAllApis(
+      'f6.log(),
+      "f6.log",
       "LOG(f6)",
       "1.5260563034950492"
     )
 
-    testSqlApi(
-      "LOG(f6-f6 + 10, f6-f6+100)",
+    testTableApi(
+      Log('f6),
+      "Log(f6)",
+      "1.5260563034950492"
+    )
+
+    testAllApis(
+      ('f6 - 'f6 + 100).log('f6 - 'f6 + 10),
+      "(f6 - f6 + 100).log(f6 - f6 + 10)",
+      "LOG(f6 - f6 + 10, f6 - f6 + 100)",
       "2.0"
     )
 
-    testSqlApi(
+    testAllApis(
+      ('f6 + 20).log(),
+      "(f6+20).log",
       "LOG(f6+20)",
       "3.202746442938317"
     )
 
-    testSqlApi(
+    testAllApis(
+      10.log(),
+      "10.log",
       "LOG(10)",
       "2.302585092994046"
     )
 
-    testSqlApi(
+    testAllApis(
+      100.log(10),
+      "100.log(10)",
       "LOG(10, 100)",
+      "2.0"
+    )
+
+    testTableApi(
+      Log(10, 100),
+      "Log(10, 100)",
       "2.0"
     )
   }

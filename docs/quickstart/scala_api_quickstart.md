@@ -76,9 +76,9 @@ In order to run your project you have to issue the `sbt run` command.
 Per default, this will run your job in the same JVM as `sbt` is running.
 In order to run your job in a distinct JVM, add the following line to `build.sbt`
 
-~~~scala
+{% highlight scala %}
 fork in run := true
-~~~
+{% endhighlight %}
 
 
 #### IntelliJ
@@ -98,15 +98,15 @@ In order to import the newly created project into [Eclipse](https://eclipse.org/
 These project files can be created via the [sbteclipse](https://github.com/typesafehub/sbteclipse) plugin.
 Add the following line to your `PROJECT_DIR/project/plugins.sbt` file:
 
-~~~bash
+{% highlight bash %}
 addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "4.0.0")
-~~~
+{% endhighlight %}
 
 In `sbt` use the following command to create the Eclipse project files
 
-~~~bash
+{% highlight bash %}
 > eclipse
-~~~
+{% endhighlight %}
 
 Now you can import the project into Eclipse via `File -> Import... -> Existing Projects into Workspace` and then select the project directory.
 

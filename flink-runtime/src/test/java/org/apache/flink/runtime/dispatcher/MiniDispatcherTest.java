@@ -34,16 +34,17 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -56,7 +57,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -65,6 +65,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -72,7 +73,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the {@link MiniDispatcher}.
  */
-@Category(Flip6.class)
+@Category(New.class)
 public class MiniDispatcherTest extends TestLogger {
 
 	private static final Time timeout = Time.seconds(10L);
@@ -178,8 +179,8 @@ public class MiniDispatcherTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that in detached mode, the {@link MiniDispatcher} will terminate after the job
-	 * has completed.
+	 * Tests that in detached mode, the {@link MiniDispatcher} will complete the future that
+	 * signals job termination.
 	 */
 	@Test
 	public void testTerminationAfterJobCompletion() throws Exception {
@@ -197,7 +198,7 @@ public class MiniDispatcherTest extends TestLogger {
 			resultFuture.complete(archivedExecutionGraph);
 
 			// wait until we terminate
-			miniDispatcher.getTerminationFuture().get();
+			miniDispatcher.getJobTerminationFuture().get();
 		} finally {
 			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
 		}
@@ -222,9 +223,7 @@ public class MiniDispatcherTest extends TestLogger {
 
 			resultFuture.complete(archivedExecutionGraph);
 
-			final CompletableFuture<Void> terminationFuture = miniDispatcher.getTerminationFuture();
-
-			assertThat(terminationFuture.isDone(), is(false));
+			assertFalse(miniDispatcher.getTerminationFuture().isDone());
 
 			final DispatcherGateway dispatcherGateway = miniDispatcher.getSelfGateway(DispatcherGateway.class);
 
@@ -233,9 +232,8 @@ public class MiniDispatcherTest extends TestLogger {
 			final JobResult jobResult = jobResultFuture.get();
 
 			assertThat(jobResult.getJobId(), is(jobGraph.getJobID()));
-
-			terminationFuture.get();
-		} finally {
+		}
+		finally {
 			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
 		}
 	}
@@ -254,7 +252,8 @@ public class MiniDispatcherTest extends TestLogger {
 			resourceManagerGateway,
 			blobServer,
 			heartbeatServices,
-			NoOpMetricRegistry.INSTANCE,
+			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+			null,
 			archivedExecutionGraphStore,
 			testingJobManagerRunnerFactory,
 			testingFatalErrorHandler,
@@ -283,8 +282,8 @@ public class MiniDispatcherTest extends TestLogger {
 				HeartbeatServices heartbeatServices,
 				BlobServer blobServer,
 				JobManagerSharedServices jobManagerSharedServices,
-				MetricRegistry metricRegistry,
-				@Nullable String restAddress) throws Exception {
+				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+				FatalErrorHandler fatalErrorHandler) throws Exception {
 			jobGraphFuture.complete(jobGraph);
 
 			final JobManagerRunner mock = mock(JobManagerRunner.class);

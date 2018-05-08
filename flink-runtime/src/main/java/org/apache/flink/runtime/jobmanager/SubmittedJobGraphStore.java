@@ -20,6 +20,8 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 
 /**
@@ -38,10 +40,10 @@ public interface SubmittedJobGraphStore {
 	void stop() throws Exception;
 
 	/**
-	 * Returns the {@link SubmittedJobGraph} with the given {@link JobID}.
-	 *
-	 * <p>An Exception is thrown, if no job graph with the given ID exists.
+	 * Returns the {@link SubmittedJobGraph} with the given {@link JobID} or
+	 * {@code null} if no job was registered.
 	 */
+	@Nullable
 	SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception;
 
 	/**

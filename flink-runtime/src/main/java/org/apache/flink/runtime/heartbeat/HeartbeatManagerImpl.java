@@ -106,7 +106,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 		return heartbeatListener;
 	}
 
-	Collection<HeartbeatManagerImpl.HeartbeatMonitor<O>> getHeartbeatTargets() {
+	Collection<HeartbeatMonitor<O>> getHeartbeatTargets() {
 		return heartbeatTargets.values();
 	}
 
@@ -202,7 +202,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 					heartbeatListener.reportPayload(requestOrigin, heartbeatPayload);
 				}
 
-				CompletableFuture<O> futurePayload = heartbeatListener.retrievePayload();
+				CompletableFuture<O> futurePayload = heartbeatListener.retrievePayload(requestOrigin);
 
 				if (futurePayload != null) {
 					CompletableFuture<Void> sendHeartbeatFuture = futurePayload.thenAcceptAsync(
@@ -287,6 +287,10 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 
 		HeartbeatTarget<O> getHeartbeatTarget() {
 			return heartbeatTarget;
+		}
+
+		ResourceID getHeartbeatTargetId() {
+			return resourceID;
 		}
 
 		public long getLastHeartbeat() {

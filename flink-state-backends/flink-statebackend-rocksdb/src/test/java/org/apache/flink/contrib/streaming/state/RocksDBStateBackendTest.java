@@ -42,6 +42,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
+import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -124,6 +125,11 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
 		backend.setDbStoragePath(dbPath);
 		return backend;
+	}
+
+	@Override
+	protected boolean isSerializerPresenceRequiredOnRestore() {
+		return false;
 	}
 
 	// small safety net for instance cleanups, so that no native objects are left
@@ -341,7 +347,11 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 			assertNotNull(keyedStateHandle);
 			assertTrue(keyedStateHandle.getStateSize() > 0);
 			assertEquals(2, keyedStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
-			assertTrue(testStreamFactory.getLastCreatedStream().isClosed());
+
+			for (BlockingCheckpointOutputStream stream : testStreamFactory.getAllCreatedStreams()) {
+				assertTrue(stream.isClosed());
+			}
+
 			asyncSnapshotThread.join();
 			verifyRocksObjectsReleased();
 		} finally {
@@ -363,7 +373,11 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 			runStateUpdates();
 			snapshot.cancel(true);
 			blocker.trigger(); // allow checkpointing to start writing
-			assertTrue(testStreamFactory.getLastCreatedStream().isClosed());
+
+			for (BlockingCheckpointOutputStream stream : testStreamFactory.getAllCreatedStreams()) {
+				assertTrue(stream.isClosed());
+			}
+
 			waiter.await(); // wait for snapshot stream writing to run
 			try {
 				snapshot.get();

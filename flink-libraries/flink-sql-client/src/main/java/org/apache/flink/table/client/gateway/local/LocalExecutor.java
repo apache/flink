@@ -18,54 +18,36 @@
 
 package org.apache.flink.table.client.gateway.local;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.CliFrontend;
+import org.apache.flink.client.cli.CliFrontendParser;
+import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.deployment.ClusterDescriptor;
-import org.apache.flink.client.deployment.ClusterRetrieveException;
-import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
-import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
-import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.costs.DefaultCostEstimator;
-import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.table.api.BatchQueryConfig;
-import org.apache.flink.table.api.QueryConfig;
-import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.client.SqlClientException;
-import org.apache.flink.table.client.config.Deployment;
 import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.config.Execution;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceFactoryService;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.StringUtils;
+
+import org.apache.commons.cli.Options;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -84,12 +66,27 @@ import java.util.Map;
  */
 public class LocalExecutor implements Executor {
 
+	private static final Logger LOG = LoggerFactory.getLogger(LocalExecutor.class);
+
 	private static final String DEFAULT_ENV_FILE = "sql-client-defaults.yaml";
 
-	private final Environment environment;
+	// deployment
+
+	private final Environment defaultEnvironment;
 	private final List<URL> dependencies;
 	private final Configuration flinkConfig;
+	private final List<CustomCommandLine<?>> commandLines;
+	private final Options commandLineOptions;
+
+	// result maintenance
+
 	private final ResultStore resultStore;
+
+	/**
+	 * Cached execution context for unmodified sessions. Do not access this variable directly
+	 * but through {@link LocalExecutor#getOrCreateExecutionContext}.
+	 */
+	private ExecutionContext<?> executionContext;
 
 	/**
 	 * Creates a local executor for submitting table programs and retrieving results.
@@ -103,6 +100,18 @@ public class LocalExecutor implements Executor {
 
 			// load the global configuration
 			this.flinkConfig = GlobalConfiguration.loadConfiguration(flinkConfigDir);
+
+			// initialize default file system
+			try {
+				FileSystem.initialize(this.flinkConfig);
+			} catch (IOException e) {
+				throw new SqlClientException(
+					"Error while setting the default filesystem scheme from configuration.", e);
+			}
+
+			// load command lines for deployment
+			this.commandLines = CliFrontend.loadCustomCommandLines(flinkConfig, flinkConfigDir);
+			this.commandLineOptions = collectCommandLineOptions(commandLines);
 		} catch (Exception e) {
 			throw new SqlClientException("Could not load Flink configuration.", e);
 		}
@@ -118,8 +127,9 @@ public class LocalExecutor implements Executor {
 				try {
 					defaultEnv = Path.fromLocalFile(file).toUri().toURL();
 				} catch (MalformedURLException e) {
-					throw new RuntimeException(e);
+					throw new SqlClientException(e);
 				}
+				LOG.info("Using default environment file: {}", defaultEnv);
 			} else {
 				System.out.println("not found.");
 			}
@@ -129,16 +139,317 @@ public class LocalExecutor implements Executor {
 		if (defaultEnv != null) {
 			System.out.println("Reading default environment from: " + defaultEnv);
 			try {
-				environment = Environment.parse(defaultEnv);
+				defaultEnvironment = Environment.parse(defaultEnv);
 			} catch (IOException e) {
 				throw new SqlClientException("Could not read default environment file at: " + defaultEnv, e);
 			}
 		} else {
-			environment = new Environment();
+			defaultEnvironment = new Environment();
 		}
 
 		// discover dependencies
-		dependencies = new ArrayList<>();
+		dependencies = discoverDependencies(jars, libraries);
+
+		// prepare result store
+		resultStore = new ResultStore(flinkConfig);
+	}
+
+	/**
+	 * Constructor for testing purposes.
+	 */
+	public LocalExecutor(Environment defaultEnvironment, List<URL> dependencies, Configuration flinkConfig, CustomCommandLine<?> commandLine) {
+		this.defaultEnvironment = defaultEnvironment;
+		this.dependencies = dependencies;
+		this.flinkConfig = flinkConfig;
+		this.commandLines = Collections.singletonList(commandLine);
+		this.commandLineOptions = collectCommandLineOptions(commandLines);
+
+		// prepare result store
+		resultStore = new ResultStore(flinkConfig);
+	}
+
+	@Override
+	public void start() {
+		// nothing to do yet
+	}
+
+	@Override
+	public Map<String, String> getSessionProperties(SessionContext session) throws SqlExecutionException {
+		final Environment env = getOrCreateExecutionContext(session)
+			.getMergedEnvironment();
+		final Map<String, String> properties = new HashMap<>();
+		properties.putAll(env.getExecution().toProperties());
+		properties.putAll(env.getDeployment().toProperties());
+		return properties;
+	}
+
+	@Override
+	public List<String> listTables(SessionContext session) throws SqlExecutionException {
+		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+		return Arrays.asList(tableEnv.listTables());
+	}
+
+	@Override
+	public TableSchema getTableSchema(SessionContext session, String name) throws SqlExecutionException {
+		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+		try {
+			return tableEnv.scan(name).getSchema();
+		} catch (Throwable t) {
+			// catch everything such that the query does not crash the executor
+			throw new SqlExecutionException("No table with this name could be found.", t);
+		}
+	}
+
+	@Override
+	public String explainStatement(SessionContext session, String statement) throws SqlExecutionException {
+		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+
+		// translate
+		try {
+			final Table table = createTable(tableEnv, statement);
+			return tableEnv.explain(table);
+		} catch (Throwable t) {
+			// catch everything such that the query does not crash the executor
+			throw new SqlExecutionException("Invalid SQL statement.", t);
+		}
+	}
+
+	@Override
+	public ResultDescriptor executeQuery(SessionContext session, String query) throws SqlExecutionException {
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		return executeQueryInternal(context, query);
+	}
+
+	@Override
+	public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(SessionContext session,
+			String resultId) throws SqlExecutionException {
+		final DynamicResult result = resultStore.getResult(resultId);
+		if (result == null) {
+			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
+		}
+		if (result.isMaterialized()) {
+			throw new SqlExecutionException("Invalid result retrieval mode.");
+		}
+		return ((ChangelogResult<?>) result).retrieveChanges();
+	}
+
+	@Override
+	public TypedResult<Integer> snapshotResult(SessionContext session, String resultId, int pageSize) throws SqlExecutionException {
+		final DynamicResult result = resultStore.getResult(resultId);
+		if (result == null) {
+			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
+		}
+		if (!result.isMaterialized()) {
+			throw new SqlExecutionException("Invalid result retrieval mode.");
+		}
+		return ((MaterializedResult<?>) result).snapshot(pageSize);
+	}
+
+	@Override
+	public List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException {
+		final DynamicResult result = resultStore.getResult(resultId);
+		if (result == null) {
+			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
+		}
+		if (!result.isMaterialized()) {
+			throw new SqlExecutionException("Invalid result retrieval mode.");
+		}
+		return ((MaterializedResult<?>) result).retrievePage(page);
+	}
+
+	@Override
+	public void cancelQuery(SessionContext session, String resultId) throws SqlExecutionException {
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		cancelQueryInternal(context, resultId);
+	}
+
+	@Override
+	public void stop(SessionContext session) {
+		resultStore.getResults().forEach((resultId) -> {
+			try {
+				cancelQuery(session, resultId);
+			} catch (Throwable t) {
+				// ignore any throwable to keep the clean up running
+			}
+		});
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private <T> void cancelQueryInternal(ExecutionContext<T> context, String resultId) {
+		final DynamicResult<T> result = resultStore.getResult(resultId);
+		if (result == null) {
+			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
+		}
+
+		// stop retrieval and remove the result
+		LOG.info("Cancelling job {} and result retrieval.", resultId);
+		result.close();
+		resultStore.removeResult(resultId);
+
+		// stop Flink job
+		try (final ClusterDescriptor<T> clusterDescriptor = context.createClusterDescriptor()) {
+			ClusterClient<T> clusterClient = null;
+			try {
+				// retrieve existing cluster
+				clusterClient = clusterDescriptor.retrieve(context.getClusterId());
+				try {
+					clusterClient.cancel(new JobID(StringUtils.hexStringToByte(resultId)));
+				} catch (Throwable t) {
+					// the job might has finished earlier
+				}
+			} catch (Exception e) {
+				throw new SqlExecutionException("Could not retrieve or create a cluster.", e);
+			} finally {
+				try {
+					if (clusterClient != null) {
+						clusterClient.shutdown();
+					}
+				} catch (Exception e) {
+					// ignore
+				}
+			}
+		} catch (SqlExecutionException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new SqlExecutionException("Could not locate a cluster.", e);
+		}
+	}
+
+	private <T> ResultDescriptor executeQueryInternal(ExecutionContext<T> context, String query) {
+		final ExecutionContext.EnvironmentInstance envInst = context.createEnvironmentInstance();
+
+		// create table
+		final Table table = createTable(envInst.getTableEnvironment(), query);
+
+		// initialize result
+		final DynamicResult<T> result = resultStore.createResult(
+			context.getMergedEnvironment(),
+			table.getSchema().withoutTimeAttributes(),
+			envInst.getExecutionConfig());
+
+		// create job graph with dependencies
+		final String jobName = context.getSessionContext().getName() + ": " + query;
+		final JobGraph jobGraph;
+		try {
+			table.writeToSink(result.getTableSink(), envInst.getQueryConfig());
+			jobGraph = envInst.createJobGraph(jobName);
+		} catch (Throwable t) {
+			// the result needs to be closed as long as
+			// it not stored in the result store
+			result.close();
+			// catch everything such that the query does not crash the executor
+			throw new SqlExecutionException("Invalid SQL statement.", t);
+		}
+
+		// store the result with a unique id (the job id for now)
+		final String resultId = jobGraph.getJobID().toString();
+		resultStore.storeResult(resultId, result);
+
+		// create execution
+		final Runnable program = () -> {
+			LOG.info("Submitting job {} for query {}`", jobGraph.getJobID(), jobName);
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Submitting job {} with the following environment: \n{}",
+					jobGraph.getJobID(), context.getMergedEnvironment());
+			}
+			deployJob(context, jobGraph, result);
+		};
+
+		// start result retrieval
+		result.startRetrieval(program);
+
+		return new ResultDescriptor(
+			resultId,
+			table.getSchema().withoutTimeAttributes(),
+			result.isMaterialized());
+	}
+
+	private Table createTable(TableEnvironment tableEnv, String query) {
+		// parse and validate query
+		try {
+			return tableEnv.sqlQuery(query);
+		} catch (Throwable t) {
+			// catch everything such that the query does not crash the executor
+			throw new SqlExecutionException("Invalid SQL statement.", t);
+		}
+	}
+
+	/**
+	 * Creates or reuses the execution context.
+	 */
+	private synchronized ExecutionContext<?> getOrCreateExecutionContext(SessionContext session) throws SqlExecutionException {
+		if (executionContext == null || !executionContext.getSessionContext().equals(session)) {
+			try {
+				executionContext = new ExecutionContext<>(defaultEnvironment, session, dependencies,
+					flinkConfig, commandLineOptions, commandLines);
+			} catch (Throwable t) {
+				// catch everything such that a configuration does not crash the executor
+				throw new SqlExecutionException("Could not create execution context.", t);
+			}
+		}
+		return executionContext;
+	}
+
+	/**
+	 * Deploys a job. Depending on the deployment create a new job cluster. It saves cluster id in
+	 * the result and blocks until job completion.
+	 */
+	private <T> void deployJob(ExecutionContext<T> context, JobGraph jobGraph, DynamicResult<T> result) {
+		// create or retrieve cluster and deploy job
+		try (final ClusterDescriptor<T> clusterDescriptor = context.createClusterDescriptor()) {
+			ClusterClient<T> clusterClient = null;
+			try {
+				// new cluster
+				if (context.getClusterId() == null) {
+					// deploy job cluster with job attached
+					clusterClient = clusterDescriptor.deployJobCluster(context.getClusterSpec(), jobGraph, false);
+					// save the new cluster id
+					result.setClusterId(clusterClient.getClusterId());
+					// we need to hard cast for now
+					((RestClusterClient<T>) clusterClient)
+						.requestJobResult(jobGraph.getJobID())
+						.get()
+						.toJobExecutionResult(context.getClassLoader()); // throws exception if job fails
+				}
+				// reuse existing cluster
+				else {
+					// retrieve existing cluster
+					clusterClient = clusterDescriptor.retrieve(context.getClusterId());
+					// save the cluster id
+					result.setClusterId(clusterClient.getClusterId());
+					// submit the job
+					clusterClient.setDetached(false);
+					clusterClient.submitJob(jobGraph, context.getClassLoader()); // throws exception if job fails
+				}
+			} catch (Exception e) {
+				throw new SqlExecutionException("Could not retrieve or create a cluster.", e);
+			} finally {
+				try {
+					if (clusterClient != null) {
+						clusterClient.shutdown();
+					}
+				} catch (Exception e) {
+					// ignore
+				}
+			}
+		} catch (SqlExecutionException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new SqlExecutionException("Could not locate a cluster.", e);
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static List<URL> discoverDependencies(List<URL> jars, List<URL> libraries) {
+		final List<URL> dependencies = new ArrayList<>();
 		try {
 			// find jar files
 			for (URL url : jars) {
@@ -171,330 +482,20 @@ public class LocalExecutor implements Executor {
 			throw new SqlClientException("Could not load all required JAR files.", e);
 		}
 
-		// prepare result store
-		resultStore = new ResultStore(flinkConfig);
-	}
-
-	public LocalExecutor(Environment environment, List<URL> dependencies, Configuration flinkConfig) {
-		this.environment = environment;
-		this.dependencies = dependencies;
-		this.flinkConfig = flinkConfig;
-
-		// prepare result store
-		resultStore = new ResultStore(flinkConfig);
-	}
-
-	@Override
-	public void start() {
-		// nothing to do yet
-	}
-
-	@Override
-	public Map<String, String> getSessionProperties(SessionContext context) throws SqlExecutionException {
-		final Environment env = createEnvironment(context);
-		final Map<String, String> properties = new HashMap<>();
-		properties.putAll(env.getExecution().toProperties());
-		properties.putAll(env.getDeployment().toProperties());
-		return properties;
-	}
-
-	@Override
-	public List<String> listTables(SessionContext context) throws SqlExecutionException {
-		final Environment env = createEnvironment(context);
-		final TableEnvironment tableEnv = createTableEnvironment(env);
-		return Arrays.asList(tableEnv.listTables());
-	}
-
-	@Override
-	public TableSchema getTableSchema(SessionContext context, String name) throws SqlExecutionException {
-		final Environment env = createEnvironment(context);
-		final TableEnvironment tableEnv = createTableEnvironment(env);
-		try {
-			return tableEnv.scan(name).getSchema();
-		} catch (Throwable t) {
-			// catch everything such that the query does not crash the executor
-			throw new SqlExecutionException("No table with this name could be found.", t);
-		}
-	}
-
-	@Override
-	public String explainStatement(SessionContext context, String statement) throws SqlExecutionException {
-		final Environment env = createEnvironment(context);
-
-		// translate
-		try {
-			final Tuple2<TableEnvironment, Table> table = createTable(env, statement);
-			return table.f0.explain(table.f1);
-		} catch (Throwable t) {
-			// catch everything such that the query does not crash the executor
-			throw new SqlExecutionException("Invalid SQL statement.", t);
-		}
-	}
-
-	@Override
-	public ResultDescriptor executeQuery(SessionContext context, String query) throws SqlExecutionException {
-		final Environment env = createEnvironment(context);
-
-		// create table here to fail quickly for wrong queries
-		final Tuple2<TableEnvironment, Table> table = createTable(env, query);
-
-		// deployment
-		final ClusterClient<?> clusterClient = createDeployment(env.getDeployment());
-
-		// initialize result
-		final DynamicResult result = resultStore.createResult(
-			env,
-			table.f1.getSchema(),
-			getExecutionConfig(table.f0));
-
-		// create job graph with jars
-		final JobGraph jobGraph;
-		try {
-			jobGraph = createJobGraph(
-				context.getName() + ": " + query,
-				env.getExecution(),
-				table.f0,
-				table.f1,
-				result.getTableSink(),
-				clusterClient);
-		} catch (Throwable t) {
-			// the result needs to be closed as long as
-			// it not stored in the result store
-			result.close();
-			throw t;
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Using the following dependencies: {}", dependencies);
 		}
 
-		// store the result with a unique id (the job id for now)
-		final String resultId = jobGraph.getJobID().toString();
-		resultStore.storeResult(resultId, result);
-
-		// create class loader
-		final ClassLoader classLoader = JobWithJars.buildUserCodeClassLoader(
-			dependencies,
-			Collections.emptyList(),
-			this.getClass().getClassLoader());
-
-		// create execution
-		final Runnable program = () -> {
-			// we need to submit the job attached for now
-			// otherwise it is not possible to retrieve the reason why an execution failed
-			try {
-				clusterClient.run(jobGraph, classLoader);
-			} catch (ProgramInvocationException e) {
-				throw new SqlExecutionException("Could not execute table program.", e);
-			} finally {
-				try {
-					clusterClient.shutdown();
-				} catch (Exception e) {
-					// ignore
-				}
-			}
-		};
-
-		// start result retrieval
-		result.startRetrieval(program);
-
-		return new ResultDescriptor(resultId, table.f1.getSchema(), result.isMaterialized());
+		return dependencies;
 	}
 
-	@Override
-	public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(SessionContext context, String resultId) throws SqlExecutionException {
-		final DynamicResult result = resultStore.getResult(resultId);
-		if (result == null) {
-			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
+	private static Options collectCommandLineOptions(List<CustomCommandLine<?>> commandLines) {
+		final Options customOptions = new Options();
+		for (CustomCommandLine<?> customCommandLine : commandLines) {
+			customCommandLine.addRunOptions(customOptions);
 		}
-		if (result.isMaterialized()) {
-			throw new SqlExecutionException("Invalid result retrieval mode.");
-		}
-		return ((ChangelogResult) result).retrieveChanges();
-	}
-
-	@Override
-	public TypedResult<Integer> snapshotResult(SessionContext context, String resultId, int pageSize) throws SqlExecutionException {
-		final DynamicResult result = resultStore.getResult(resultId);
-		if (result == null) {
-			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
-		}
-		if (!result.isMaterialized()) {
-			throw new SqlExecutionException("Invalid result retrieval mode.");
-		}
-		return ((MaterializedResult) result).snapshot(pageSize);
-	}
-
-	@Override
-	public List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException {
-		final DynamicResult result = resultStore.getResult(resultId);
-		if (result == null) {
-			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
-		}
-		if (!result.isMaterialized()) {
-			throw new SqlExecutionException("Invalid result retrieval mode.");
-		}
-		return ((MaterializedResult) result).retrievePage(page);
-	}
-
-	@Override
-	public void cancelQuery(SessionContext context, String resultId) throws SqlExecutionException {
-		final DynamicResult result = resultStore.getResult(resultId);
-		if (result == null) {
-			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
-		}
-
-		// stop retrieval and remove the result
-		result.close();
-		resultStore.removeResult(resultId);
-
-		// stop Flink job
-		final Environment env = createEnvironment(context);
-		final ClusterClient<?> clusterClient = createDeployment(env.getDeployment());
-		try {
-			clusterClient.cancel(new JobID(StringUtils.hexStringToByte(resultId)));
-		} catch (Throwable t) {
-			// the job might has finished earlier
-		} finally {
-			try {
-				clusterClient.shutdown();
-			} catch (Throwable t) {
-				// ignore
-			}
-		}
-	}
-
-	@Override
-	public void stop(SessionContext context) {
-		resultStore.getResults().forEach((resultId) -> {
-			try {
-				cancelQuery(context, resultId);
-			} catch (Throwable t) {
-				// ignore any throwable to keep the clean up running
-			}
-		});
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private Tuple2<TableEnvironment, Table> createTable(Environment env, String query) {
-		final TableEnvironment tableEnv = createTableEnvironment(env);
-
-		// parse and validate query
-		try {
-			return Tuple2.of(tableEnv, tableEnv.sqlQuery(query));
-		} catch (Throwable t) {
-			// catch everything such that the query does not crash the executor
-			throw new SqlExecutionException("Invalid SQL statement.", t);
-		}
-	}
-
-	private JobGraph createJobGraph(String name, Execution exec, TableEnvironment tableEnv,
-		Table table, TableSink<?> sink, ClusterClient<?> clusterClient) {
-
-		final QueryConfig queryConfig = createQueryConfig(exec);
-
-		// translate
-		try {
-			table.writeToSink(sink, queryConfig);
-		} catch (Throwable t) {
-			// catch everything such that the query does not crash the executor
-			throw new SqlExecutionException("Invalid SQL statement.", t);
-		}
-
-		// extract plan
-		final FlinkPlan plan;
-		if (exec.isStreamingExecution()) {
-			final StreamGraph graph = ((StreamTableEnvironment) tableEnv).execEnv().getStreamGraph();
-			graph.setJobName(name);
-			plan = graph;
-		} else {
-			final int parallelism = exec.getParallelism();
-			final Plan unoptimizedPlan = ((BatchTableEnvironment) tableEnv).execEnv().createProgramPlan();
-			unoptimizedPlan.setJobName(name);
-			final Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(),
-				clusterClient.getFlinkConfiguration());
-			plan = ClusterClient.getOptimizedPlan(compiler, unoptimizedPlan, parallelism);
-		}
-
-		// create job graph
-		return clusterClient.getJobGraph(
-			plan,
-			dependencies,
-			Collections.emptyList(),
-			SavepointRestoreSettings.none());
-	}
-
-	@SuppressWarnings("unchecked")
-	private ExecutionConfig getExecutionConfig(TableEnvironment tableEnv) {
-		if (tableEnv instanceof StreamTableEnvironment) {
-			return ((StreamTableEnvironment) tableEnv).execEnv().getConfig();
-		} else {
-			return ((BatchTableEnvironment) tableEnv).execEnv().getConfig();
-		}
-	}
-
-	private ClusterClient<?> createDeployment(Deployment deploy) {
-
-		// change some configuration options for being more responsive
-		flinkConfig.setString(AkkaOptions.LOOKUP_TIMEOUT, deploy.getResponseTimeout() + " ms");
-		flinkConfig.setString(AkkaOptions.CLIENT_TIMEOUT, deploy.getResponseTimeout() + " ms");
-
-		// get cluster client
-		final ClusterClient<?> clusterClient;
-		if (deploy.isStandaloneDeployment()) {
-			clusterClient = createStandaloneClusterClient(flinkConfig);
-			clusterClient.setPrintStatusDuringExecution(false);
-		} else {
-			throw new SqlExecutionException("Unsupported deployment.");
-		}
-
-		return clusterClient;
-	}
-
-	private ClusterClient<?> createStandaloneClusterClient(Configuration configuration) {
-		final ClusterDescriptor<StandaloneClusterId> descriptor = new StandaloneClusterDescriptor(configuration);
-		try {
-			return descriptor.retrieve(StandaloneClusterId.getInstance());
-		} catch (ClusterRetrieveException e) {
-			throw new SqlExecutionException("Could not retrievePage standalone cluster.", e);
-		}
-	}
-
-	private Environment createEnvironment(SessionContext context) {
-		return Environment.merge(environment, context.getEnvironment());
-	}
-
-	private TableEnvironment createTableEnvironment(Environment env) {
-		try {
-			final TableEnvironment tableEnv;
-			if (env.getExecution().isStreamingExecution()) {
-				final StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-				execEnv.setParallelism(env.getExecution().getParallelism());
-				execEnv.setMaxParallelism(env.getExecution().getMaxParallelism());
-				tableEnv = StreamTableEnvironment.getTableEnvironment(execEnv);
-			} else {
-				final ExecutionEnvironment execEnv = ExecutionEnvironment.getExecutionEnvironment();
-				execEnv.setParallelism(env.getExecution().getParallelism());
-				tableEnv = BatchTableEnvironment.getTableEnvironment(execEnv);
-			}
-
-			env.getSources().forEach((name, source) -> {
-				TableSource<?> tableSource = TableSourceFactoryService.findAndCreateTableSource(source);
-				tableEnv.registerTableSource(name, tableSource);
-			});
-
-			return tableEnv;
-		} catch (Exception e) {
-			throw new SqlExecutionException("Could not create table environment.", e);
-		}
-	}
-
-	private QueryConfig createQueryConfig(Execution exec) {
-		if (exec.isStreamingExecution()) {
-			final StreamQueryConfig config = new StreamQueryConfig();
-			final long minRetention = exec.getMinStateRetention();
-			final long maxRetention = exec.getMaxStateRetention();
-			config.withIdleStateRetentionTime(Time.milliseconds(minRetention), Time.milliseconds(maxRetention));
-			return config;
-		} else {
-			return new BatchQueryConfig();
-		}
+		return CliFrontendParser.mergeOptions(
+			CliFrontendParser.getRunCommandOptions(),
+			customOptions);
 	}
 }

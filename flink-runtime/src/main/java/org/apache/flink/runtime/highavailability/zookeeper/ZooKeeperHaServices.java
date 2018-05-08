@@ -34,6 +34,8 @@ import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.curator.framework.CuratorFramework;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.Executor;
@@ -79,6 +81,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * cluster and participate in the execution of the same set of jobs.
  */
 public class ZooKeeperHaServices implements HighAvailabilityServices {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperHaServices.class);
 
 	private static final String RESOURCE_MANAGER_LEADER_PATH = "/resource_manager_lock";
 
@@ -211,6 +215,8 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 
 	@Override
 	public void closeAndCleanupAllData() throws Exception {
+		LOG.info("Close and clean up all data for ZooKeeperHaServices.");
+
 		Throwable exception = null;
 
 		try {

@@ -25,10 +25,13 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.Json;
 import org.apache.flink.table.descriptors.Kafka;
+import org.apache.flink.table.descriptors.Rowtime;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.descriptors.TestTableSourceDescriptor;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceFactoryService;
+import org.apache.flink.table.sources.tsextractors.ExistingField;
+import org.apache.flink.table.sources.wmstrategies.PreserveWatermarks;
 
 import org.junit.Test;
 
@@ -55,9 +58,11 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 		"      'type': 'integer'" +
 		"    }," +
 		"    'time': {" +
-		"      'description': 'Age in years'," +
-		"      'type': 'number'" +
-		"    }" + "  }," +
+		"      'description': 'row time'," +
+		"      'type': 'string'," +
+		"      'format': 'date-time'" +
+		"    }" +
+		"  }," +
 		"  'required': ['name', 'count', 'time']" +
 		"}";
 
@@ -89,9 +94,10 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 		// construct table source using a builder
 
 		final Map<String, String> tableJsonMapping = new HashMap<>();
+		tableJsonMapping.put("name", "name");
 		tableJsonMapping.put("fruit-name", "name");
 		tableJsonMapping.put("count", "count");
-		tableJsonMapping.put("event-time", "time");
+		tableJsonMapping.put("time", "time");
 
 		final Properties props = new Properties();
 		props.put("group.id", "test-group");
@@ -112,10 +118,11 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 					TableSchema.builder()
 						.field("fruit-name", Types.STRING)
 						.field("count", Types.BIG_INT)
-						.field("event-time", Types.BIG_DEC)
+						.field("event-time", Types.SQL_TIMESTAMP)
 						.field("proc-time", Types.SQL_TIMESTAMP)
 						.build())
 				.withProctimeAttribute("proc-time")
+				.withRowtimeAttribute("event-time", new ExistingField("time"), PreserveWatermarks.INSTANCE())
 				.build();
 
 		// construct table source using descriptors and table source factory
@@ -135,7 +142,8 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 				new Schema()
 						.field("fruit-name", Types.STRING).from("name")
 						.field("count", Types.BIG_INT) // no from so it must match with the input
-						.field("event-time", Types.BIG_DEC).from("time")
+						.field("event-time", Types.SQL_TIMESTAMP).rowtime(
+							new Rowtime().timestampsFromField("time").watermarksFromSource())
 						.field("proc-time", Types.SQL_TIMESTAMP).proctime());
 
 		final TableSource<?> factorySource = TableSourceFactoryService.findAndCreateTableSource(testDesc);

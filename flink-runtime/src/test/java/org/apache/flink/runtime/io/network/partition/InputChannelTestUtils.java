@@ -33,7 +33,7 @@ import static org.mockito.Mockito.when;
 /**
  * Some utility methods used for testing InputChannels and InputGates.
  */
-class InputChannelTestUtils {
+public class InputChannelTestUtils {
 
 	/**
 	 * Creates a result partition manager that ignores all IDs, and simply returns the given

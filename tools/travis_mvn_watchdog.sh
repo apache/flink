@@ -117,26 +117,26 @@ case $TEST in
 	(core)
 		MVN_COMPILE_MODULES="-pl $MODULES_CORE -am"
 		MVN_TEST_MODULES="-pl $MODULES_CORE"
-		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true -Drat.skip=true"
-		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
+		MVN_COMPILE_OPTIONS="-Dfast"
+		MVN_TEST_OPTIONS="-Dfast"
 	;;
 	(libraries)
 		MVN_COMPILE_MODULES="-pl $MODULES_LIBRARIES -am"
 		MVN_TEST_MODULES="-pl $MODULES_LIBRARIES"
-		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true -Drat.skip=true"
-		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
+		MVN_COMPILE_OPTIONS="-Dfast"
+		MVN_TEST_OPTIONS="-Dfast"
 	;;
 	(connectors)
 		MVN_COMPILE_MODULES="-pl $MODULES_CONNECTORS -am"
 		MVN_TEST_MODULES="-pl $MODULES_CONNECTORS"
-		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true -Drat.skip=true"
-		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
+		MVN_COMPILE_OPTIONS="-Dfast"
+		MVN_TEST_OPTIONS="-Dfast"
 	;;
 	(tests)
 		MVN_COMPILE_MODULES="-pl $MODULES_TESTS -am"
 		MVN_TEST_MODULES="-pl $MODULES_TESTS"
-		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true -Drat.skip=true"
-		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
+		MVN_COMPILE_OPTIONS="-Dfast"
+		MVN_TEST_OPTIONS="-Dfast"
 	;;
 	(misc)
 		NEGATED_CORE=\!${MODULES_CORE//,/,\!}
@@ -146,8 +146,8 @@ case $TEST in
 		# compile everything since dist needs it anyway
 		MVN_COMPILE_MODULES=""
 		MVN_TEST_MODULES="-pl $NEGATED_CORE,$NEGATED_LIBRARIES,$NEGATED_CONNECTORS,$NEGATED_TESTS"
-		MVN_COMPILE_OPTIONS="-Dspotbugs"
-		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
+		MVN_COMPILE_OPTIONS=""
+		MVN_TEST_OPTIONS="-Dfast"
 	;;
 esac
 
@@ -158,7 +158,7 @@ esac
 # -nsu option forbids downloading snapshot artifacts. The only snapshot artifacts we depend are from
 # Flink, which however should all be built locally. see FLINK-7230
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B $MVN_LOGGING_OPTIONS"
+MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -B $MVN_LOGGING_OPTIONS"
 MVN_COMPILE_OPTIONS="$MVN_COMPILE_OPTIONS -DskipTests"
 
 MVN_COMPILE="mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES clean install"
@@ -576,61 +576,9 @@ case $TEST in
 			printf "Running end-to-end tests\n"
 			printf "==============================================================================\n"
 
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running Wordcount end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target test-infra/end-to-end-test/test_batch_wordcount.sh
-				EXIT_CODE=$?
-			fi
+			FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
 
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running Kafka end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target test-infra/end-to-end-test/test_streaming_kafka010.sh
-				EXIT_CODE=$?
-			fi
-
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running class loading end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target test-infra/end-to-end-test/test_streaming_classloader.sh
-				EXIT_CODE=$?
-			fi
-
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running Shaded Hadoop S3A end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target test-infra/end-to-end-test/test_shaded_hadoop_s3a.sh
-				EXIT_CODE=$?
-			fi
-
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running Shaded Presto S3 end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target test-infra/end-to-end-test/test_shaded_presto_s3.sh
-				EXIT_CODE=$?
-			fi
-
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running Hadoop-free Wordcount end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_hadoop_free.sh
-				EXIT_CODE=$?
-			fi
-
-			if [ $EXIT_CODE == 0 ]; then
-				printf "\n==============================================================================\n"
-				printf "Running Streaming Python Wordcount end-to-end test\n"
-				printf "==============================================================================\n"
-				FLINK_DIR=build-target test-infra/end-to-end-test/test_streaming_python_wordcount.sh
-				EXIT_CODE=$?
-			fi
+			EXIT_CODE=$?
 		else
 			printf "\n==============================================================================\n"
 			printf "Previous build failure detected, skipping end-to-end tests.\n"

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.entrypoint;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobService;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
@@ -32,7 +33,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.MiniDispatcherRestEndpoint;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
@@ -44,7 +45,7 @@ import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -83,7 +84,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 	@Override
 	protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
 			Configuration configuration,
-			ScheduledExecutor scheduledExecutor) throws IOException {
+			ScheduledExecutor scheduledExecutor) {
 		return new MemoryArchivedExecutionGraphStore();
 	}
 
@@ -95,7 +96,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			ResourceManagerGateway resourceManagerGateway,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry,
+			JobManagerMetricGroup jobManagerMetricGroup,
+			@Nullable String metricQueryServicePath,
 			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			FatalErrorHandler fatalErrorHandler,
 			@Nullable String restAddress) throws Exception {
@@ -106,7 +108,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 
 		final ExecutionMode executionMode = ExecutionMode.valueOf(executionModeValue);
 
-		return new MiniDispatcher(
+		final MiniDispatcher dispatcher = new MiniDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME,
 			configuration,
@@ -114,14 +116,21 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			resourceManagerGateway,
 			blobServer,
 			heartbeatServices,
-			metricRegistry,
+			jobManagerMetricGroup,
+			metricQueryServicePath,
 			archivedExecutionGraphStore,
 			Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
 			fatalErrorHandler,
 			restAddress,
 			jobGraph,
 			executionMode);
+
+		registerShutdownActions(dispatcher.getJobTerminationFuture());
+
+		return dispatcher;
 	}
 
 	protected abstract JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException;
+
+	protected abstract void registerShutdownActions(CompletableFuture<ApplicationStatus> terminationFuture);
 }

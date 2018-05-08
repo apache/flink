@@ -150,7 +150,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 		}
 	}
 
-	public BufferConsumer broadcastEvent(AbstractEvent event) throws IOException {
+	public void broadcastEvent(AbstractEvent event) throws IOException {
 		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event)) {
 			for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
 				RecordSerializer<T> serializer = serializers[targetChannel];
@@ -164,7 +164,6 @@ public class RecordWriter<T extends IOReadableWritable> {
 			if (flushAlways) {
 				flushAll();
 			}
-			return eventBufferConsumer;
 		}
 	}
 
@@ -175,7 +174,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 	public void clearBuffers() {
 		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
 			RecordSerializer<?> serializer = serializers[targetChannel];
-			closeBufferConsumer(targetChannel);
+			closeBufferBuilder(targetChannel);
 			serializer.clear();
 		}
 	}
@@ -213,7 +212,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 		return bufferBuilder;
 	}
 
-	private void closeBufferConsumer(int targetChannel) {
+	private void closeBufferBuilder(int targetChannel) {
 		if (bufferBuilders[targetChannel].isPresent()) {
 			bufferBuilders[targetChannel].get().finish();
 			bufferBuilders[targetChannel] = Optional.empty();

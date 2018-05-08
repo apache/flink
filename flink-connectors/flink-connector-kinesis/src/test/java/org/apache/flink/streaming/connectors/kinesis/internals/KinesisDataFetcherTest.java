@@ -113,7 +113,7 @@ public class KinesisDataFetcherTest extends TestLogger {
 
 		// FlinkKinesisConsumer is responsible for setting up the fetcher before it can be run;
 		// run the consumer until it reaches the point where the fetcher starts to run
-		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(TestUtils.getStandardProperties(), fetcher, 1, 0);
+		final DummyFlinkKinesisConsumer<String> consumer = new DummyFlinkKinesisConsumer<>(TestUtils.getStandardProperties(), fetcher, 1, 0);
 
 		CheckedThread consumerThread = new CheckedThread() {
 			@Override
@@ -171,7 +171,7 @@ public class KinesisDataFetcherTest extends TestLogger {
 				subscribedStreamsToLastSeenShardIdsUnderTest,
 				FakeKinesisBehavioursFactory.nonReshardedStreamsBehaviour(streamToShardCount));
 
-		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(
+		final DummyFlinkKinesisConsumer<String> consumer = new DummyFlinkKinesisConsumer<>(
 				TestUtils.getStandardProperties(), fetcher, 1, 0);
 
 		CheckedThread consumerThread = new CheckedThread() {
@@ -609,7 +609,7 @@ public class KinesisDataFetcherTest extends TestLogger {
 		assertEquals(streamShardHandle, KinesisDataFetcher.convertToStreamShardHandle(kinesisStreamShard));
 	}
 
-	private static class DummyFlinkKafkaConsumer<T> extends FlinkKinesisConsumer<T> {
+	private static class DummyFlinkKinesisConsumer<T> extends FlinkKinesisConsumer<T> {
 		private static final long serialVersionUID = 1L;
 
 		private final KinesisDataFetcher<T> fetcher;
@@ -618,7 +618,7 @@ public class KinesisDataFetcherTest extends TestLogger {
 		private final int subtaskIndex;
 
 		@SuppressWarnings("unchecked")
-		DummyFlinkKafkaConsumer(
+		DummyFlinkKinesisConsumer(
 				Properties properties,
 				KinesisDataFetcher<T> fetcher,
 				int numParallelSubtasks,

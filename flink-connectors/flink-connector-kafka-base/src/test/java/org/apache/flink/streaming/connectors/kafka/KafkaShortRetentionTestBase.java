@@ -20,19 +20,18 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
+import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.AfterClass;
@@ -68,20 +67,31 @@ public class KafkaShortRetentionTestBase implements Serializable {
 
 	private static KafkaTestEnvironment kafkaServer;
 	private static Properties standardProps;
-	private static LocalFlinkMiniCluster flink;
+
+	@ClassRule
+	public static MiniClusterResource flink = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			getConfiguration(),
+			NUM_TMS,
+			TM_SLOTS));
 
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
 	protected static Properties secureProps = new Properties();
 
+	private static Configuration getConfiguration() {
+		Configuration flinkConfig = new Configuration();
+		flinkConfig.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 16L);
+		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
+		return flinkConfig;
+	}
+
 	@BeforeClass
-	public static void prepare() throws IOException, ClassNotFoundException {
+	public static void prepare() throws ClassNotFoundException {
 		LOG.info("-------------------------------------------------------------------------");
 		LOG.info("    Starting KafkaShortRetentionTestBase ");
 		LOG.info("-------------------------------------------------------------------------");
-
-		Configuration flinkConfig = new Configuration();
 
 		// dynamically load the implementation for the test
 		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
@@ -101,26 +111,10 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		kafkaServer.prepare(kafkaServer.createConfig().setKafkaServerProperties(specificProperties));
 
 		standardProps = kafkaServer.getStandardProperties();
-
-		// start also a re-usable Flink mini cluster
-		flinkConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
-		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, TM_SLOTS);
-		flinkConfig.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 16L);
-		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
-
-		flink = new LocalFlinkMiniCluster(flinkConfig, false);
-		flink.start();
-
-		TestStreamEnvironment.setAsContext(flink, PARALLELISM);
 	}
 
 	@AfterClass
 	public static void shutDownServices() throws Exception {
-		TestStreamEnvironment.unsetAsContext();
-
-		if (flink != null) {
-			flink.stop();
-		}
 		kafkaServer.shutdown();
 
 		secureProps.clear();
@@ -224,13 +218,12 @@ public class KafkaShortRetentionTestBase implements Serializable {
 
 		@Override
 		public TypeInformation<String> getProducedType() {
-			return TypeInfoParser.parse("String");
+			return Types.STRING;
 		}
 	}
 
 	/**
 	 * Ensure that the consumer is properly failing if "auto.offset.reset" is set to "none".
-	 * @throws Exception
 	 */
 	public void runFailOnAutoOffsetResetNone() throws Exception {
 		final String topic = "auto-offset-reset-none-test";
@@ -238,8 +231,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 
 		kafkaServer.createTestTopic(topic, parallelism, 1);
 
-		final StreamExecutionEnvironment env =
-				StreamExecutionEnvironment.createRemoteEnvironment("localhost", flink.getLeaderRPCPort());
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
 		env.getConfig().disableSysoutLogging();

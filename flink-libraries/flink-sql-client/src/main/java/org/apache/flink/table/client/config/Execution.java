@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.client.config;
 
+import org.apache.flink.streaming.api.TimeCharacteristic;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -52,6 +54,20 @@ public class Execution {
 		return Objects.equals(
 			properties.getOrDefault(PropertyStrings.EXECUTION_TYPE, PropertyStrings.EXECUTION_TYPE_VALUE_STREAMING),
 			PropertyStrings.EXECUTION_TYPE_VALUE_BATCH);
+	}
+
+	public TimeCharacteristic getTimeCharacteristic() {
+		final String s = properties.getOrDefault(
+			PropertyStrings.EXECUTION_TIME_CHARACTERISTIC,
+			PropertyStrings.EXECUTION_TIME_CHARACTERISTIC_VALUE_EVENT_TIME);
+		switch (s) {
+			case PropertyStrings.EXECUTION_TIME_CHARACTERISTIC_VALUE_EVENT_TIME:
+				return TimeCharacteristic.EventTime;
+			case PropertyStrings.EXECUTION_TIME_CHARACTERISTIC_VALUE_PROCESSING_TIME:
+				return TimeCharacteristic.ProcessingTime;
+			default:
+				return TimeCharacteristic.EventTime;
+		}
 	}
 
 	public long getMinStateRetention() {

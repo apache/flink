@@ -57,7 +57,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.orc</groupId>
 			<artifactId>orc-core</artifactId>
-			<version>1.4.1</version>
+			<version>1.4.3</version>
 			<exclusions>
 				<!-- Exclude ORC's Hadoop dependency and pull in Flink's shaded Hadoop. -->
 				<exclusion>

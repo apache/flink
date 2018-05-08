@@ -18,19 +18,26 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
@@ -134,15 +141,78 @@ public abstract class SubpartitionTestBase extends TestLogger {
 		assertTrue(view.isReleased());
 	}
 
-	protected void assertNextBuffer(
+	static void assertNextBuffer(
 			ResultSubpartitionView readView,
 			int expectedReadableBufferSize,
 			boolean expectedIsMoreAvailable,
-			int expectedBuffersInBacklog) throws IOException, InterruptedException {
+			int expectedBuffersInBacklog,
+			boolean expectedNextBufferIsEvent,
+			boolean expectedRecycledAfterRecycle) throws IOException, InterruptedException {
+		assertNextBufferOrEvent(
+			readView,
+			expectedReadableBufferSize,
+			true,
+			null,
+			expectedIsMoreAvailable,
+			expectedBuffersInBacklog,
+			expectedNextBufferIsEvent,
+			expectedRecycledAfterRecycle);
+	}
+
+	static void assertNextEvent(
+			ResultSubpartitionView readView,
+			int expectedReadableBufferSize,
+			Class<? extends AbstractEvent> expectedEventClass,
+			boolean expectedIsMoreAvailable,
+			int expectedBuffersInBacklog,
+			boolean expectedNextBufferIsEvent,
+			boolean expectedRecycledAfterRecycle) throws IOException, InterruptedException {
+		assertNextBufferOrEvent(
+			readView,
+			expectedReadableBufferSize,
+			false,
+			expectedEventClass,
+			expectedIsMoreAvailable,
+			expectedBuffersInBacklog,
+			expectedNextBufferIsEvent,
+			expectedRecycledAfterRecycle);
+	}
+
+	private static void assertNextBufferOrEvent(
+			ResultSubpartitionView readView,
+			int expectedReadableBufferSize,
+			boolean expectedIsBuffer,
+			@Nullable Class<? extends AbstractEvent> expectedEventClass,
+			boolean expectedIsMoreAvailable,
+			int expectedBuffersInBacklog,
+			boolean expectedNextBufferIsEvent,
+			boolean expectedRecycledAfterRecycle) throws IOException, InterruptedException {
+		checkArgument(expectedEventClass == null || !expectedIsBuffer);
+
 		ResultSubpartition.BufferAndBacklog bufferAndBacklog = readView.getNextBuffer();
-		assertEquals(expectedReadableBufferSize, bufferAndBacklog.buffer().readableBytes());
-		assertEquals(expectedIsMoreAvailable, bufferAndBacklog.isMoreAvailable());
-		assertEquals(expectedBuffersInBacklog, bufferAndBacklog.buffersInBacklog());
+		assertNotNull(bufferAndBacklog);
+		try {
+			assertEquals("buffer size", expectedReadableBufferSize,
+				bufferAndBacklog.buffer().readableBytes());
+			assertEquals("buffer or event", expectedIsBuffer,
+				bufferAndBacklog.buffer().isBuffer());
+			if (expectedEventClass != null) {
+				assertThat(EventSerializer
+						.fromBuffer(bufferAndBacklog.buffer(), ClassLoader.getSystemClassLoader()),
+					instanceOf(expectedEventClass));
+			}
+			assertEquals("more available", expectedIsMoreAvailable,
+				bufferAndBacklog.isMoreAvailable());
+			assertEquals("more available", expectedIsMoreAvailable, readView.isAvailable());
+			assertEquals("backlog", expectedBuffersInBacklog, bufferAndBacklog.buffersInBacklog());
+			assertEquals("next is event", expectedNextBufferIsEvent,
+				bufferAndBacklog.nextBufferIsEvent());
+
+			assertFalse("not recycled", bufferAndBacklog.buffer().isRecycled());
+		} finally {
+			bufferAndBacklog.buffer().recycleBuffer();
+		}
+		assertEquals("recycled", expectedRecycledAfterRecycle, bufferAndBacklog.buffer().isRecycled());
 	}
 
 	protected void assertNoNextBuffer(ResultSubpartitionView readView) throws IOException, InterruptedException {
