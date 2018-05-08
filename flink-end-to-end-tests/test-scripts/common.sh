@@ -19,6 +19,14 @@
 
 set -o pipefail
 
+case "$(uname -s)" in
+    Linux*)     OS_TYPE=linux;;
+    Darwin*)    OS_TYPE=mac;;
+    CYGWIN*)    OS_TYPE=cygwin;;
+    MINGW*)     OS_TYPE=mingw;;
+    *)          OS_TYPE="UNKNOWN:${unameOut}"
+esac
+
 if [[ -z $FLINK_DIR ]]; then
     echo "FLINK_DIR needs to point to a Flink distribution directory"
     exit 1
@@ -399,6 +407,25 @@ function wait_num_checkpoints {
         break
       fi
     done
+}
+
+function print_mem_use_osx {
+    declare -a mem_types=("active" "inactive" "wired down")
+    used=""
+    for mem_type in "${mem_types[@]}"
+    do
+       used_type=$(vm_stat | grep "Pages ${mem_type}:" | awk '{print $NF}' | rev | cut -c 2- | rev)
+       let used_type="(${used_type}*4096)/1024/1024"
+       used="$used $mem_type=${used_type}MB"
+    done
+    let mem=$(sysctl -n hw.memsize)/1024/1024
+    echo "Memory Usage: ${used} total=${mem}MB"
+}
+
+function print_mem_use {
+    if [[ "$OS_TYPE" == "mac" ]]; then print_mem_use_osx
+    else free -m | awk 'NR==2{printf "Memory Usage: used=%sMB total=%sMB %.2f%%\n", $3,$2,$3*100/$2 }'
+    fi
 }
 
 # make sure to clean up even in case of failures
