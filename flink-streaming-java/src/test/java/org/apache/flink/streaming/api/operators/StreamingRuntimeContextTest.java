@@ -41,6 +41,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
@@ -296,6 +297,7 @@ public class StreamingRuntimeContextTest {
 		}).when(keyedStateBackend).getPartitionedState(Matchers.any(), any(TypeSerializer.class), any(StateDescriptor.class));
 
 		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
+		when(operatorMock.getOperatorID()).thenReturn(new OperatorID());
 
 		return operatorMock;
 	}
@@ -333,6 +335,7 @@ public class StreamingRuntimeContextTest {
 		}).when(keyedStateBackend).getPartitionedState(Matchers.any(), any(TypeSerializer.class), any(ListStateDescriptor.class));
 
 		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
+		when(operatorMock.getOperatorID()).thenReturn(new OperatorID());
 		return operatorMock;
 	}
 
@@ -369,6 +372,7 @@ public class StreamingRuntimeContextTest {
 		}).when(keyedStateBackend).getPartitionedState(Matchers.any(), any(TypeSerializer.class), any(MapStateDescriptor.class));
 
 		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
+		when(operatorMock.getOperatorID()).thenReturn(new OperatorID());
 		return operatorMock;
 	}
 
