@@ -25,11 +25,12 @@ import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -44,6 +45,54 @@ import java.util.concurrent.TimeoutException;
  * Collection of methods to deal with checkpoint master hooks.
  */
 public class MasterHooks {
+
+	// ------------------------------------------------------------------------
+	//  lifecycle
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Resets the master hooks.
+	 *
+	 * @param hooks The hooks to reset
+	 *
+	 * @throws FlinkException Thrown, if the hooks throw an exception.
+	 */
+	public static void reset(
+		Collection<MasterTriggerRestoreHook<?>> hooks,
+		final Logger log) throws FlinkException {
+
+		for (MasterTriggerRestoreHook<?> hook : hooks) {
+			final String id = hook.getIdentifier();
+			try {
+				hook.reset();
+			}
+			catch (Throwable t) {
+				ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+				throw new FlinkException("Error while resetting checkpoint master hook '" + id + '\'', t);
+			}
+		}
+	}
+
+	/**
+	 * Closes the master hooks.
+	 *
+	 * @param hooks The hooks to close
+	 *
+	 * @throws FlinkException Thrown, if the hooks throw an exception.
+	 */
+	public static void close(
+		Collection<MasterTriggerRestoreHook<?>> hooks,
+		final Logger log) throws FlinkException {
+
+		for (MasterTriggerRestoreHook<?> hook : hooks) {
+			try {
+				hook.close();
+			}
+			catch (Throwable t) {
+				log.warn("Failed to cleanly close a checkpoint master hook (" + hook.getIdentifier() + ")", t);
+			}
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//  checkpoint triggering
@@ -289,6 +338,34 @@ public class MasterHooks {
 		WrappedMasterHook(MasterTriggerRestoreHook<T> hook, ClassLoader userClassLoader) {
 			this.hook = Preconditions.checkNotNull(hook);
 			this.userClassLoader = Preconditions.checkNotNull(userClassLoader);
+		}
+
+		@Override
+		public void reset() throws Exception {
+			final Thread thread = Thread.currentThread();
+			final ClassLoader originalClassLoader = thread.getContextClassLoader();
+			thread.setContextClassLoader(userClassLoader);
+
+			try {
+				hook.reset();
+			}
+			finally {
+				thread.setContextClassLoader(originalClassLoader);
+			}
+		}
+
+		@Override
+		public void close() throws Exception {
+			final Thread thread = Thread.currentThread();
+			final ClassLoader originalClassLoader = thread.getContextClassLoader();
+			thread.setContextClassLoader(userClassLoader);
+
+			try {
+				hook.close();
+			}
+			finally {
+				thread.setContextClassLoader(originalClassLoader);
+			}
 		}
 
 		@Override
