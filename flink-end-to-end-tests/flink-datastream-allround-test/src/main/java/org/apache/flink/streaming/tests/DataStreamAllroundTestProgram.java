@@ -30,9 +30,9 @@ import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
 import java.util.Collections;
 
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialKeyedStateMapper;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialOperatorStateMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createEventSource;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSemanticsCheckMapper;
-import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSingleKeyEventSource;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
 
@@ -45,13 +45,17 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
  *     <li>A generic Kryo input type.</li>
  *     <li>A state type for which we register a {@link KryoSerializer}.</li>
  *     <li>Operators with {@link ValueState}.</li>
+ *     <li>Operators with union state.</li>
+ *     <li>Operators with broadcast state.</li>
  * </ul>
  *
  * <p>The cli job configuration options are described in {@link DataStreamAllroundTestJobFactory}.
  *
  */
 public class DataStreamAllroundTestProgram {
-	private static final String STATE_OPER_NAME = "ArtificalKeyedStateMapper";
+	private static final String KEYED_STATE_OPER_NAME = "ArtificalKeyedStateMapper";
+	private static final String OPERATOR_STATE_OPER_NAME = "ArtificalOperatorStateMapper";
+	private static final String SEMANTICS_CHECK_MAPPER_NAME = "SemanticsCheckMapper";
 
 	public static void main(String[] args) throws Exception {
 		final ParameterTool pt = ParameterTool.fromArgs(args);
@@ -68,27 +72,26 @@ public class DataStreamAllroundTestProgram {
 					(MapFunction<Event, Event>) in -> in,
 					// state is verified and updated per event as a wrapped ComplexPayload state object
 					(Event first, ComplexPayload second) -> {
-							if (second != null && !second.getStrPayload().equals(STATE_OPER_NAME)) {
+							if (second != null && !second.getStrPayload().equals(KEYED_STATE_OPER_NAME)) {
 								System.out.println("State is set or restored incorrectly");
 							}
-							return new ComplexPayload(first, STATE_OPER_NAME);
+							return new ComplexPayload(first, KEYED_STATE_OPER_NAME);
 						},
 					Collections.singletonList(
 						new KryoSerializer<>(ComplexPayload.class, env.getConfig()))
 				)
 			)
-			.name(STATE_OPER_NAME)
+			.name(KEYED_STATE_OPER_NAME)
 			.returns(Event.class);
 
-		DataStream<Event> broadcastStream = env.addSource(createSingleKeyEventSource(pt)).broadcast();
-		DataStream<Event> eventStream2 = broadcastStream
-			.connect(eventStream)
-			.flatMap(new BroadcastAndUnionStateFlatMapper())
-			.name("BroadcastAndUnionStateFlatMapper");
+		DataStream<Event> eventStream2 = eventStream
+			.map(createArtificialOperatorStateMapper((MapFunction<Event, Event>) in -> in))
+			.name(OPERATOR_STATE_OPER_NAME)
+			.returns(Event.class);
 
 		eventStream2.keyBy(Event::getKey)
 			.flatMap(createSemanticsCheckMapper(pt))
-			.name("SemanticsCheckMapper")
+			.name(SEMANTICS_CHECK_MAPPER_NAME)
 			.addSink(new PrintSinkFunction<>());
 
 		env.execute("General purpose test job");

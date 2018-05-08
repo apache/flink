@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.tests.artificialstate.ArtificalOperatorStateMapper;
 import org.apache.flink.streaming.tests.artificialstate.ArtificialKeyedStateMapper;
 import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialListStateBuilder;
 import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialStateBuilder;
@@ -206,26 +207,6 @@ class DataStreamAllroundTestJobFactory {
 				SEQUENCE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS.defaultValue()));
 	}
 
-	static SourceFunction<Event> createSingleKeyEventSource(ParameterTool pt) {
-		return new SequenceGeneratorSource(
-			1,
-			pt.getInt(
-				SEQUENCE_GENERATOR_SRC_PAYLOAD_SIZE.key(),
-				SEQUENCE_GENERATOR_SRC_PAYLOAD_SIZE.defaultValue()),
-			pt.getLong(
-				SEQUENCE_GENERATOR_SRC_EVENT_TIME_MAX_OUT_OF_ORDERNESS.key(),
-				SEQUENCE_GENERATOR_SRC_EVENT_TIME_MAX_OUT_OF_ORDERNESS.defaultValue()),
-			pt.getLong(
-				SEQUENCE_GENERATOR_SRC_EVENT_TIME_CLOCK_PROGRESS.key(),
-				SEQUENCE_GENERATOR_SRC_EVENT_TIME_CLOCK_PROGRESS.defaultValue()),
-			pt.getLong(
-				SEQUENCE_GENERATOR_SRC_SLEEP_TIME.key(),
-				SEQUENCE_GENERATOR_SRC_SLEEP_TIME.defaultValue()),
-			pt.getLong(
-				SEQUENCE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS.key(),
-				SEQUENCE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS.defaultValue()));
-	}
-
 	static BoundedOutOfOrdernessTimestampExtractor<Event> createTimestampExtractor(ParameterTool pt) {
 		return new BoundedOutOfOrdernessTimestampExtractor<Event>(
 			Time.milliseconds(
@@ -268,6 +249,12 @@ class DataStreamAllroundTestJobFactory {
 			artificialStateBuilders.add(createListStateBuilder(inputAndOldStateToNewState, typeSerializer));
 		}
 		return new ArtificialKeyedStateMapper<>(mapFunction, artificialStateBuilders);
+	}
+
+	static <IN, OUT> ArtificalOperatorStateMapper<IN, OUT> createArtificialOperatorStateMapper(
+		MapFunction<IN, OUT> mapFunction) {
+
+		return new ArtificalOperatorStateMapper<>(mapFunction);
 	}
 
 	static <IN, STATE> ArtificialStateBuilder<IN> createValueStateBuilder(
