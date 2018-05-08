@@ -32,6 +32,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -872,6 +873,11 @@ public class FlinkKafkaConsumerBaseTest {
 			@Override
 			public ExecutionConfig getExecutionConfig() {
 				return new ExecutionConfig();
+			}
+
+			@Override
+			public OperatorID getOperatorID() {
+				return new OperatorID();
 			}
 		}
 	}
