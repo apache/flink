@@ -91,64 +91,71 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 
 	@Override
 	public void run(SourceContext<Event> ctx) throws Exception {
-
 		if (keyRanges.size() > 0) {
-			Random random = new Random();
+			runActive(ctx);
+		} else {
+			runIdle(ctx);
+		}
+	}
 
-			// this holds the current event time, from which generated events can up to +/- (maxOutOfOrder).
-			long monotonousEventTime = 0L;
-			long elementsBeforeSleep = sleepAfterElements;
+	private void runActive(SourceContext<Event> ctx) throws Exception {
+		Random random = new Random();
 
-			while (running) {
+		// this holds the current event time, from which generated events can up to +/- (maxOutOfOrder).
+		long monotonousEventTime = 0L;
+		long elementsBeforeSleep = sleepAfterElements;
 
-				KeyRangeStates randomKeyRangeStates = keyRanges.get(random.nextInt(keyRanges.size()));
-				int randomKey = randomKeyRangeStates.getRandomKey(random);
+		while (running) {
 
-				long eventTime = Math.max(
-					0,
-					generateEventTimeWithOutOfOrderness(random, monotonousEventTime));
+			KeyRangeStates randomKeyRangeStates = keyRanges.get(random.nextInt(keyRanges.size()));
+			int randomKey = randomKeyRangeStates.getRandomKey(random);
 
-				// uptick the event time clock
-				monotonousEventTime += eventTimeClockProgressPerEvent;
+			long eventTime = Math.max(
+				0,
+				generateEventTimeWithOutOfOrderness(random, monotonousEventTime));
 
-				synchronized (ctx.getCheckpointLock()) {
-					long value = randomKeyRangeStates.incrementAndGet(randomKey);
+			// uptick the event time clock
+			monotonousEventTime += eventTimeClockProgressPerEvent;
 
-					Event event = new Event(
-						randomKey,
-						eventTime,
-						value,
-						StringUtils.getRandomString(random, payloadLength, payloadLength, 'A', 'z'));
+			synchronized (ctx.getCheckpointLock()) {
+				long value = randomKeyRangeStates.incrementAndGet(randomKey);
 
-					ctx.collect(event);
-				}
+				Event event = new Event(
+					randomKey,
+					eventTime,
+					value,
+					StringUtils.getRandomString(random, payloadLength, payloadLength, 'A', 'z'));
 
-				if (sleepTime > 0) {
-					if (elementsBeforeSleep == 1) {
-						elementsBeforeSleep = sleepAfterElements;
-						Thread.sleep(sleepTime);
-					} else if (elementsBeforeSleep > 1) {
-						--elementsBeforeSleep;
-					}
+				ctx.collect(event);
+			}
+
+			if (sleepTime > 0) {
+				if (elementsBeforeSleep == 1) {
+					elementsBeforeSleep = sleepAfterElements;
+					Thread.sleep(sleepTime);
+				} else if (elementsBeforeSleep > 1) {
+					--elementsBeforeSleep;
 				}
 			}
-		} else {
-			ctx.markAsTemporarilyIdle();
+		}
+	}
 
-			// just wait until this source is canceled
-			final Object waitLock = new Object();
-			while (running) {
-				try {
-					//noinspection SynchronizationOnLocalVariableOrMethodParameter
-					synchronized (waitLock) {
-						waitLock.wait();
-					}
+	private void runIdle(SourceContext<Event> ctx) throws Exception {
+		ctx.markAsTemporarilyIdle();
+
+		// just wait until this source is canceled
+		final Object waitLock = new Object();
+		while (running) {
+			try {
+				//noinspection SynchronizationOnLocalVariableOrMethodParameter
+				synchronized (waitLock) {
+					waitLock.wait();
 				}
-				catch (InterruptedException e) {
-					if (!running) {
-						// restore the interrupted state, and fall through the loop
-						Thread.currentThread().interrupt();
-					}
+			}
+			catch (InterruptedException e) {
+				if (!running) {
+					// restore the interrupted state, and fall through the loop
+					Thread.currentThread().interrupt();
 				}
 			}
 		}
