@@ -18,15 +18,19 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.history.FsJobArchivist;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.commons.io.IOUtils;
@@ -38,11 +42,17 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.file.Path;
+import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedJobGenerationUtils.JACKSON_FACTORY;
 
 /**
  * Tests for the HistoryServer.
@@ -88,6 +98,7 @@ public class HistoryServerTest extends TestLogger {
 		for (int x = 0; x < numJobs; x++) {
 			runJob();
 		}
+		createLegacyArchive(jmDirectory.toPath());
 
 		CountDownLatch numFinishedPolls = new CountDownLatch(1);
 
@@ -99,7 +110,7 @@ public class HistoryServerTest extends TestLogger {
 
 		// the job is archived asynchronously after env.execute() returns
 		File[] archives = jmDirectory.listFiles();
-		while (archives == null || archives.length != numJobs) {
+		while (archives == null || archives.length != numJobs + 1) {
 			Thread.sleep(50);
 			archives = jmDirectory.listFiles();
 		}
@@ -114,7 +125,7 @@ public class HistoryServerTest extends TestLogger {
 			String response = getFromHTTP(baseUrl + JobsOverviewHeaders.URL);
 			MultipleJobsDetails overview = mapper.readValue(response, MultipleJobsDetails.class);
 
-			Assert.assertEquals(numJobs, overview.getJobs().size());
+			Assert.assertEquals(numJobs + 1, overview.getJobs().size());
 		} finally {
 			hs.stop();
 		}
@@ -142,5 +153,78 @@ public class HistoryServerTest extends TestLogger {
 		}
 
 		return IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8");
+	}
+	
+	private static void createLegacyArchive(Path directory) throws IOException {
+		JobID jobID = JobID.generate();
+
+		StringWriter sw = new StringWriter();
+		try (JsonGenerator gen = JACKSON_FACTORY.createGenerator(sw)) {
+			try (JsonObject root = new JsonObject(gen)) {
+				try (JsonArray finished = new JsonArray(gen, "finished")) {
+					try (JsonObject job = new JsonObject(gen)) {
+						gen.writeStringField("jid", jobID.toString());
+						gen.writeStringField("name", "testjob");
+						gen.writeStringField("state", JobStatus.FINISHED.name());
+
+						gen.writeNumberField("start-time", 0L);
+						gen.writeNumberField("end-time", 1L);
+						gen.writeNumberField("duration", 1L);
+						gen.writeNumberField("last-modification", 1L);
+
+						try (JsonObject tasks = new JsonObject(gen, "tasks")) {
+							gen.writeNumberField("total", 0);
+
+							gen.writeNumberField("pending", 0);
+							gen.writeNumberField("running", 0);
+							gen.writeNumberField("finished", 0);
+							gen.writeNumberField("canceling", 0);
+							gen.writeNumberField("canceled", 0);
+							gen.writeNumberField("failed", 0);
+						}
+					}
+				}
+			}
+		}
+		String json = sw.toString();
+
+		ArchivedJson archivedJson = new ArchivedJson("/joboverview", json);
+
+		FsJobArchivist.archiveJob(new org.apache.flink.core.fs.Path(directory.toUri()), jobID, Collections.singleton(archivedJson));
+	}
+
+	private static final class JsonObject implements AutoCloseable {
+
+		private final JsonGenerator gen;
+
+		JsonObject(JsonGenerator gen) throws IOException {
+			this.gen = gen;
+			gen.writeStartObject();
+		}
+
+		private JsonObject(JsonGenerator gen, String name) throws IOException {
+			this.gen = gen;
+			gen.writeObjectFieldStart(name);
+		}
+
+		@Override
+		public void close() throws IOException {
+			gen.writeEndObject();
+		}
+	}
+
+	private static final class JsonArray implements AutoCloseable {
+
+		private final JsonGenerator gen;
+
+		JsonArray(JsonGenerator gen, String name) throws IOException {
+			this.gen = gen;
+			gen.writeArrayFieldStart(name);
+		}
+
+		@Override
+		public void close() throws IOException {
+			gen.writeEndArray();
+		}
 	}
 }
