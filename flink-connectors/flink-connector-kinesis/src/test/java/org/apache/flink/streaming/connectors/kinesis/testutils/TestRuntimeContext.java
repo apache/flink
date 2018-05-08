@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis.testutils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -82,6 +83,11 @@ public class TestRuntimeContext extends StreamingRuntimeContext {
 		@Override
 		public ExecutionConfig getExecutionConfig() {
 			return new ExecutionConfig();
+		}
+
+		@Override
+		public OperatorID getOperatorID() {
+			return new OperatorID(42, 44);
 		}
 	}
 }
