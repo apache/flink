@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.KeyGroupsList;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -47,7 +47,7 @@ import java.util.Map;
 public class InternalTimeServiceManager<K, N> {
 
 	private final int totalKeyGroups;
-	private final KeyGroupsList localKeyGroupRange;
+	private final KeyGroupRange localKeyGroupRange;
 	private final KeyContext keyContext;
 
 	private final ProcessingTimeService processingTimeService;
@@ -56,7 +56,7 @@ public class InternalTimeServiceManager<K, N> {
 
 	InternalTimeServiceManager(
 			int totalKeyGroups,
-			KeyGroupsList localKeyGroupRange,
+			KeyGroupRange localKeyGroupRange,
 			KeyContext keyContext,
 			ProcessingTimeService processingTimeService) {
 
