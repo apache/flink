@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.LambdaUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -58,7 +59,7 @@ public class MasterHooks {
 	 * @throws FlinkException Thrown, if the hooks throw an exception.
 	 */
 	public static void reset(
-		Collection<MasterTriggerRestoreHook<?>> hooks,
+		final Collection<MasterTriggerRestoreHook<?>> hooks,
 		final Logger log) throws FlinkException {
 
 		for (MasterTriggerRestoreHook<?> hook : hooks) {
@@ -81,7 +82,7 @@ public class MasterHooks {
 	 * @throws FlinkException Thrown, if the hooks throw an exception.
 	 */
 	public static void close(
-		Collection<MasterTriggerRestoreHook<?>> hooks,
+		final Collection<MasterTriggerRestoreHook<?>> hooks,
 		final Logger log) throws FlinkException {
 
 		for (MasterTriggerRestoreHook<?> hook : hooks) {
@@ -101,15 +102,15 @@ public class MasterHooks {
 	/**
 	 * Triggers all given master hooks and returns state objects for each hook that
 	 * produced a state.
-	 * 
+	 *
 	 * @param hooks The hooks to trigger
 	 * @param checkpointId The checkpoint ID of the triggering checkpoint
-	 * @param timestamp The (informational) timestamp for the triggering checkpoint 
+	 * @param timestamp The (informational) timestamp for the triggering checkpoint
 	 * @param executor An executor that can be used for asynchronous I/O calls
 	 * @param timeout The maximum time that a hook may take to complete
-	 * 
+	 *
 	 * @return A list containing all states produced by the hooks
-	 * 
+	 *
 	 * @throws FlinkException Thrown, if the hooks throw an exception, or the state+
 	 *                        deserialization fails.
 	 */
@@ -207,17 +208,17 @@ public class MasterHooks {
 
 	/**
 	 * Calls the restore method given checkpoint master hooks and passes the given master
-	 * state to them where state with a matching name is found. 
-	 * 
+	 * state to them where state with a matching name is found.
+	 *
 	 * <p>If state is found and no hook with the same name is found, the method throws an
 	 * exception, unless the {@code allowUnmatchedState} flag is set.
-	 *     
+	 *
 	 * @param masterHooks The hooks to call restore on
 	 * @param states The state to pass to the hooks
 	 * @param checkpointId The checkpoint ID of the restored checkpoint
-	 * @param allowUnmatchedState True, 
+	 * @param allowUnmatchedState If true, the method fails if not all states are picked up by a hook.
 	 * @param log The logger for log messages
-	 * 
+	 *
 	 * @throws FlinkException Thrown, if the hooks throw an exception, or the state+
 	 *                        deserialization fails.
 	 */
@@ -251,7 +252,7 @@ public class MasterHooks {
 					log.debug("Found state to restore for hook '{}'", name);
 
 					Object deserializedState = deserializeState(state, hook);
-					hooksAndStates.add(new Tuple2<MasterTriggerRestoreHook<?>, Object>(hook, deserializedState));
+					hooksAndStates.add(new Tuple2<>(hook, deserializedState));
 				}
 				else if (!allowUnmatchedState) {
 					throw new IllegalStateException("Found state '" + state.name() +
@@ -263,7 +264,7 @@ public class MasterHooks {
 			}
 		}
 
-		// now that all is deserialized, call the hooks 
+		// now that all is deserialized, call the hooks
 		for (Tuple2<MasterTriggerRestoreHook<?>, Object> hookAndState : hooksAndStates) {
 			restoreHook(hookAndState.f1, hookAndState.f0, checkpointId);
 		}
@@ -326,7 +327,10 @@ public class MasterHooks {
 	 * @param hook the hook to wrap
 	 * @param userClassLoader the classloader to use
 	 */
-	public static <T> MasterTriggerRestoreHook<T> wrapHook(MasterTriggerRestoreHook<T> hook, ClassLoader userClassLoader) {
+	public static <T> MasterTriggerRestoreHook<T> wrapHook(
+			MasterTriggerRestoreHook<T> hook,
+			ClassLoader userClassLoader) {
+
 		return new WrappedMasterHook<>(hook, userClassLoader);
 	}
 
@@ -342,122 +346,66 @@ public class MasterHooks {
 
 		@Override
 		public void reset() throws Exception {
-			final Thread thread = Thread.currentThread();
-			final ClassLoader originalClassLoader = thread.getContextClassLoader();
-			thread.setContextClassLoader(userClassLoader);
-
-			try {
-				hook.reset();
-			}
-			finally {
-				thread.setContextClassLoader(originalClassLoader);
-			}
+			LambdaUtil.withContextClassLoader(userClassLoader, hook::reset);
 		}
 
 		@Override
 		public void close() throws Exception {
-			final Thread thread = Thread.currentThread();
-			final ClassLoader originalClassLoader = thread.getContextClassLoader();
-			thread.setContextClassLoader(userClassLoader);
-
-			try {
-				hook.close();
-			}
-			finally {
-				thread.setContextClassLoader(originalClassLoader);
-			}
+			LambdaUtil.withContextClassLoader(userClassLoader, hook::close);
 		}
 
 		@Override
 		public String getIdentifier() {
-			final Thread thread = Thread.currentThread();
-			final ClassLoader originalClassLoader = thread.getContextClassLoader();
-			thread.setContextClassLoader(userClassLoader);
-
-			try {
-				return hook.getIdentifier();
-			}
-			finally {
-				thread.setContextClassLoader(originalClassLoader);
-			}
+			return LambdaUtil.withContextClassLoader(userClassLoader, hook::getIdentifier);
 		}
 
 		@Nullable
 		@Override
 		public CompletableFuture<T> triggerCheckpoint(long checkpointId, long timestamp, final Executor executor) throws Exception {
-			Executor wrappedExecutor = new Executor() {
+			final Executor wrappedExecutor = new Executor() {
 				@Override
 				public void execute(Runnable command) {
-					executor.execute(new WrappedCommand(command));
+					executor.execute(new WrappedCommand(userClassLoader, command));
 				}
 			};
 
-			final Thread thread = Thread.currentThread();
-			final ClassLoader originalClassLoader = thread.getContextClassLoader();
-			thread.setContextClassLoader(userClassLoader);
-
-			try {
-				return hook.triggerCheckpoint(checkpointId, timestamp, wrappedExecutor);
-			}
-			finally {
-				thread.setContextClassLoader(originalClassLoader);
-			}
+			return LambdaUtil.withContextClassLoader(
+					userClassLoader,
+					() -> hook.triggerCheckpoint(checkpointId, timestamp, wrappedExecutor));
 		}
 
 		@Override
 		public void restoreCheckpoint(long checkpointId, @Nullable T checkpointData) throws Exception {
-			final Thread thread = Thread.currentThread();
-			final ClassLoader originalClassLoader = thread.getContextClassLoader();
-			thread.setContextClassLoader(userClassLoader);
-
-			try {
-				hook.restoreCheckpoint(checkpointId, checkpointData);
-			}
-			finally {
-				thread.setContextClassLoader(originalClassLoader);
-			}
+			LambdaUtil.withContextClassLoader(
+					userClassLoader,
+					() -> hook.restoreCheckpoint(checkpointId, checkpointData));
 		}
 
 		@Nullable
 		@Override
 		public SimpleVersionedSerializer<T> createCheckpointDataSerializer() {
-			final Thread thread = Thread.currentThread();
-			final ClassLoader originalClassLoader = thread.getContextClassLoader();
-			thread.setContextClassLoader(userClassLoader);
-
-			try {
-				return hook.createCheckpointDataSerializer();
-			}
-			finally {
-				thread.setContextClassLoader(originalClassLoader);
-			}
+			return LambdaUtil.withContextClassLoader(userClassLoader, hook::createCheckpointDataSerializer);
 		}
 
-		private class WrappedCommand implements Runnable {
+		private static class WrappedCommand implements Runnable {
+
+			private final ClassLoader userClassLoader;
 			private final Runnable command;
 
-			WrappedCommand(Runnable command) {
+			WrappedCommand(ClassLoader userClassLoader, Runnable command) {
+				this.userClassLoader = Preconditions.checkNotNull(userClassLoader);
 				this.command = Preconditions.checkNotNull(command);
 			}
 
 			@Override
 			public void run() {
-				final Thread thread = Thread.currentThread();
-				final ClassLoader originalClassLoader = thread.getContextClassLoader();
-				thread.setContextClassLoader(userClassLoader);
-
-				try {
-					command.run();
-				}
-				finally {
-					thread.setContextClassLoader(originalClassLoader);
-				}
+				LambdaUtil.withContextClassLoader(userClassLoader, command::run);
 			}
 		}
 	}
 
 	// ------------------------------------------------------------------------
 
-	/** This class is not meant to be instantiated */
+	/** This class is not meant to be instantiated. */
 	private MasterHooks() {}
 }

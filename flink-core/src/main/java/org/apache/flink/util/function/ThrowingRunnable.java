@@ -18,22 +18,21 @@
 
 package org.apache.flink.util.function;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * Similar to a {@link Runnable}, this interface is used to capture a block of code
  * to be executed. In contrast to {@code Runnable}, this interface allows throwing
  * checked exceptions.
  */
-@Public
+@PublicEvolving
 @FunctionalInterface
-public interface RunnableWithException extends ThrowingRunnable<Exception> {
+public interface ThrowingRunnable<E extends Throwable> {
 
 	/**
 	 * The work method.
 	 *
-	 * @throws Exception Exceptions may be thrown.
+	 * @throws E Exceptions may be thrown.
 	 */
-	@Override
-	void run() throws Exception;
+	void run() throws E;
 }
