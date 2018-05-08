@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -627,7 +628,8 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			maxParallelism,
 			parallelism,
 			subtaskIndex,
-			IntSerializer.INSTANCE);
+			IntSerializer.INSTANCE,
+			new OperatorID(42, 44));
 	}
 
 	private Properties createProperties() {
