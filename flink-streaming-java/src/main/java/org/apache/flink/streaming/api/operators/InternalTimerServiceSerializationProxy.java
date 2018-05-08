@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.PostVersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.KeyGroupsList;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.io.IOException;
@@ -47,7 +47,7 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 	/** Properties of restored timer services. */
 	private int keyGroupIdx;
 	private int totalKeyGroups;
-	private KeyGroupsList localKeyGroupRange;
+	private KeyGroupRange localKeyGroupRange;
 	private KeyContext keyContext;
 	private ProcessingTimeService processingTimeService;
 
@@ -58,7 +58,7 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 			Map<String, HeapInternalTimerService<K, N>> timerServicesMapToPopulate,
 			ClassLoader userCodeClassLoader,
 			int totalKeyGroups,
-			KeyGroupsList localKeyGroupRange,
+			KeyGroupRange localKeyGroupRange,
 			KeyContext keyContext,
 			ProcessingTimeService processingTimeService,
 			int keyGroupIdx) {
