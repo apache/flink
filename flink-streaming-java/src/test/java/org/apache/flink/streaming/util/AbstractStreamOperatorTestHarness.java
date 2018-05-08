@@ -147,19 +147,42 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 				.setParallelism(parallelism)
 				.setSubtaskIndex(subtaskIndex)
 				.build(),
-			true);
+			true,
+			new OperatorID());
+	}
+
+	public AbstractStreamOperatorTestHarness(
+			StreamOperator<OUT> operator,
+			int maxParallelism,
+			int parallelism,
+			int subtaskIndex,
+			OperatorID operatorID) throws Exception {
+		this(
+			operator,
+			new MockEnvironmentBuilder()
+				.setTaskName("MockTask")
+				.setMemorySize(3 * 1024 * 1024)
+				.setInputSplitProvider(new MockInputSplitProvider())
+				.setBufferSize(1024)
+				.setMaxParallelism(maxParallelism)
+				.setParallelism(parallelism)
+				.setSubtaskIndex(subtaskIndex)
+				.build(),
+			true,
+			operatorID);
 	}
 
 	public AbstractStreamOperatorTestHarness(
 			StreamOperator<OUT> operator,
 			MockEnvironment env) throws Exception {
-		this(operator, env, false);
+		this(operator, env, false, new OperatorID());
 	}
 
 	private AbstractStreamOperatorTestHarness(
 			StreamOperator<OUT> operator,
 			MockEnvironment env,
-			boolean environmentIsInternal) throws Exception {
+			boolean environmentIsInternal,
+			OperatorID operatorID) throws Exception {
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<>();
 		this.sideOutputLists = new HashMap<>();
@@ -167,7 +190,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		Configuration underlyingConfig = env.getTaskConfiguration();
 		this.config = new StreamConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
-		this.config.setOperatorID(new OperatorID());
+		this.config.setOperatorID(operatorID);
 		this.executionConfig = env.getExecutionConfig();
 		this.closableRegistry = new CloseableRegistry();
 		this.checkpointLock = new Object();
