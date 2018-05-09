@@ -29,14 +29,12 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
-import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.slf4j.Logger;
@@ -44,7 +42,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -55,13 +52,10 @@ public class YarnTaskExecutorRunnerFactory {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(YarnTaskExecutorRunnerFactory.class);
 
-	/** The exit code returned if the initialization of the yarn task executor runner failed. */
-	private static final int INIT_ERROR_EXIT_CODE = 31;
-
 	/**
 	 * Runner for the {@link TaskManagerRunner}.
 	 */
-	public static class Runner implements Callable<Object> {
+	public static class Runner {
 		private final Configuration configuration;
 		private final ResourceID resourceId;
 
@@ -70,15 +64,14 @@ public class YarnTaskExecutorRunnerFactory {
 			this.resourceId = Preconditions.checkNotNull(resourceId);
 		}
 
-		@Override
-		public Object call() throws Exception {
-			try {
-				TaskManagerRunner.runTaskManager(configuration, resourceId);
-			} catch (Throwable t) {
-				LOG.error("Error while starting the TaskManager", t);
-				System.exit(INIT_ERROR_EXIT_CODE);
-			}
-			return null;
+		public void run() throws Exception {
+			SecurityUtils.getInstalledContext().runSecured(new Callable<Void>() {
+				@Override
+				public Void call() throws Exception {
+					TaskManagerRunner.runTaskManager(configuration, resourceId);
+					return null;
+				}
+			});
 		}
 
 		@VisibleForTesting
@@ -107,8 +100,7 @@ public class YarnTaskExecutorRunnerFactory {
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
 		try {
-			SecurityUtils.getInstalledContext().runSecured(
-					YarnTaskExecutorRunnerFactory.create(System.getenv()));
+				YarnTaskExecutorRunnerFactory.create(System.getenv()).run();
 		} catch (Exception e) {
 			LOG.error("Exception occurred while launching Task Executor runner", e);
 			throw new RuntimeException(e);
@@ -162,23 +154,7 @@ public class YarnTaskExecutorRunnerFactory {
 				configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
-			SecurityConfiguration sc;
-
-			//To support Yarn Secure Integration Test Scenario
-			File krb5Conf = new File(currDir, Utils.KRB5_FILE_NAME);
-			if (krb5Conf.exists() && krb5Conf.canRead()) {
-				String krb5Path = krb5Conf.getAbsolutePath();
-				LOG.info("KRB5 Conf: {}", krb5Path);
-				org.apache.hadoop.conf.Configuration hadoopConfiguration = new org.apache.hadoop.conf.Configuration();
-				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
-				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
-
-				sc = new SecurityConfiguration(configuration,
-					Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, hadoopConfiguration)));
-
-			} else {
-				sc = new SecurityConfiguration(configuration);
-			}
+			SecurityConfiguration sc = new SecurityConfiguration(configuration);
 
 			final String containerId = envs.get(YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID);
 			Preconditions.checkArgument(containerId != null,
