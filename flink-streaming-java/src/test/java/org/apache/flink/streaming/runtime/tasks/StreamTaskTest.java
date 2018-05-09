@@ -62,6 +62,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -328,7 +329,7 @@ public class StreamTaskTest extends TestLogger {
 		TaskInfo mockTaskInfo = mock(TaskInfo.class);
 		when(mockTaskInfo.getTaskNameWithSubtasks()).thenReturn("foobar");
 		when(mockTaskInfo.getIndexOfThisSubtask()).thenReturn(0);
-		Environment mockEnvironment = new MockEnvironment();
+		Environment mockEnvironment = new MockEnvironmentBuilder().build();
 
 		StreamTask<?, ?> streamTask = new EmptyStreamTask(mockEnvironment);
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
@@ -398,7 +399,7 @@ public class StreamTaskTest extends TestLogger {
 		final long checkpointId = 42L;
 		final long timestamp = 1L;
 
-		MockEnvironment mockEnvironment = new MockEnvironment();
+		MockEnvironment mockEnvironment = new MockEnvironmentBuilder().build();
 		StreamTask<?, ?> streamTask = spy(new EmptyStreamTask(mockEnvironment));
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
 
@@ -501,12 +502,10 @@ public class StreamTaskTest extends TestLogger {
 			null,
 			checkpointResponder);
 
-		MockEnvironment mockEnvironment = new MockEnvironment(
-			"mock-task",
-			1024 * MemoryManager.DEFAULT_PAGE_SIZE,
-			null,
-			16,
-			taskStateManager);
+		MockEnvironment mockEnvironment = new MockEnvironmentBuilder()
+			.setTaskName("mock-task")
+			.setTaskStateManager(taskStateManager)
+			.build();
 
 		StreamTask<?, ?> streamTask = new EmptyStreamTask(mockEnvironment);
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
@@ -599,7 +598,7 @@ public class StreamTaskTest extends TestLogger {
 		final OneShotLatch createSubtask = new OneShotLatch();
 		final OneShotLatch completeSubtask = new OneShotLatch();
 
-		Environment mockEnvironment = spy(new MockEnvironment());
+		Environment mockEnvironment = spy(new MockEnvironmentBuilder().build());
 
 		whenNew(OperatorSnapshotFinalizer.class).
 			withAnyArguments().
@@ -685,7 +684,7 @@ public class StreamTaskTest extends TestLogger {
 		final long checkpointId = 42L;
 		final long timestamp = 1L;
 
-		Environment mockEnvironment = spy(new MockEnvironment());
+		Environment mockEnvironment = spy(new MockEnvironmentBuilder().build());
 
 		// latch blocks until the async checkpoint thread acknowledges
 		final OneShotLatch checkpointCompletedLatch = new OneShotLatch();
@@ -765,14 +764,14 @@ public class StreamTaskTest extends TestLogger {
 		streamConfig.setStreamOperator(new BlockingCloseStreamOperator());
 		streamConfig.setOperatorID(new OperatorID());
 
-		try (MockEnvironment mockEnvironment = new MockEnvironment(
-				"Test Task",
-				32L * 1024L,
-				new MockInputSplitProvider(),
-				1,
-				taskConfiguration,
-				new ExecutionConfig(),
-				new TestTaskStateManager())) {
+		try (MockEnvironment mockEnvironment =
+				new MockEnvironmentBuilder()
+					.setTaskName("Test Task")
+					.setMemorySize(32L * 1024L)
+					.setInputSplitProvider(new MockInputSplitProvider())
+					.setBufferSize(1)
+					.setTaskConfiguration(taskConfiguration)
+					.build()) {
 			StreamTask<Void, BlockingCloseStreamOperator> streamTask = new NoOpStreamTask<>(mockEnvironment);
 			final AtomicReference<Throwable> atomicThrowable = new AtomicReference<>(null);
 
