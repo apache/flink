@@ -61,7 +61,7 @@ class NettyServer {
 
 	private ChannelFuture bindFuture;
 
-	private SSLContext serverSSLContext = null;
+	private SSLContext serverSSLContext;
 
 	private InetSocketAddress localAddress;
 
@@ -73,7 +73,7 @@ class NettyServer {
 	void init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
 		checkState(bootstrap == null, "Netty server has already been initialized.");
 
-		long start = System.currentTimeMillis();
+		final long start = System.nanoTime();
 
 		bootstrap = new ServerBootstrap();
 
@@ -155,6 +155,7 @@ class NettyServer {
 					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
 					config.setSSLVerAndCipherSuites(sslEngine);
 					sslEngine.setUseClientMode(false);
+					sslEngine.setNeedClientAuth(true);
 					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}
 
@@ -170,8 +171,8 @@ class NettyServer {
 
 		localAddress = (InetSocketAddress) bindFuture.channel().localAddress();
 
-		long end = System.currentTimeMillis();
-		LOG.info("Successful initialization (took {} ms). Listening on SocketAddress {}.", (end - start), bindFuture.channel().localAddress().toString());
+		final long duration = (System.nanoTime() - start) / 1_000_000;
+		LOG.info("Successful initialization (took {} ms). Listening on SocketAddress {}.", duration, localAddress);
 	}
 
 	NettyConfig getConfig() {
@@ -187,7 +188,7 @@ class NettyServer {
 	}
 
 	void shutdown() {
-		long start = System.currentTimeMillis();
+		final long start = System.nanoTime();
 		if (bindFuture != null) {
 			bindFuture.channel().close().awaitUninterruptibly();
 			bindFuture = null;
@@ -199,8 +200,8 @@ class NettyServer {
 			}
 			bootstrap = null;
 		}
-		long end = System.currentTimeMillis();
-		LOG.info("Successful shutdown (took {} ms).", (end - start));
+		final long duration = (System.nanoTime() - start) / 1_000_000;
+		LOG.info("Successful shutdown (took {} ms).", duration);
 	}
 
 	private void initNioBootstrap() {

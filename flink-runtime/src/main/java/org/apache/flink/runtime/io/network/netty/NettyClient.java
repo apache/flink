@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
@@ -63,7 +64,7 @@ class NettyClient {
 
 		this.protocol = protocol;
 
-		long start = System.currentTimeMillis();
+		final long start = System.nanoTime();
 
 		bootstrap = new Bootstrap();
 
@@ -117,8 +118,8 @@ class NettyClient {
 			throw new IOException("Failed to initialize SSL Context for the Netty client", e);
 		}
 
-		long end = System.currentTimeMillis();
-		LOG.info("Successful initialization (took {} ms).", (end - start));
+		final long duration = (System.nanoTime() - start) / 1_000_000;
+		LOG.info("Successful initialization (took {} ms).", duration);
 	}
 
 	NettyConfig getConfig() {
@@ -130,7 +131,7 @@ class NettyClient {
 	}
 
 	void shutdown() {
-		long start = System.currentTimeMillis();
+		final long start = System.nanoTime();
 
 		if (bootstrap != null) {
 			if (bootstrap.group() != null) {
@@ -139,8 +140,8 @@ class NettyClient {
 			bootstrap = null;
 		}
 
-		long end = System.currentTimeMillis();
-		LOG.info("Successful shutdown (took {} ms).", (end - start));
+		final long duration = (System.nanoTime() - start) / 1_000_000;
+		LOG.info("Successful shutdown (took {} ms).", duration);
 	}
 
 	private void initNioBootstrap() {
@@ -200,7 +201,7 @@ class NettyClient {
 			return bootstrap.connect(serverSocketAddress);
 		}
 		catch (ChannelException e) {
-			if ( (e.getCause() instanceof java.net.SocketException &&
+			if ((e.getCause() instanceof java.net.SocketException &&
 					e.getCause().getMessage().equals("Too many open files")) ||
 				(e.getCause() instanceof ChannelException &&
 						e.getCause().getCause() instanceof java.net.SocketException &&

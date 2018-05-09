@@ -443,6 +443,7 @@ object AkkaUtils {
          |          protocol = $akkaSSLProtocol
          |          enabled-algorithms = $akkaSSLAlgorithms
          |          random-number-generator = ""
+         |          require-mutual-authentication = on
          |        }
          |      }
          |    }
