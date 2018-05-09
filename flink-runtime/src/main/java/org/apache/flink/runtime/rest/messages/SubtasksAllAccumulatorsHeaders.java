@@ -27,9 +27,9 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * Message headers for the {@link SubtasksAllAccumulatorsHandler}.
  */
-public class SubtasksAllAccumulatorsHandlers implements MessageHeaders<EmptyRequestBody, SubtasksAllAccumulatorsInfo, JobVertexMessageParameters> {
+public class SubtasksAllAccumulatorsHeaders implements MessageHeaders<EmptyRequestBody, SubtasksAllAccumulatorsInfo, JobVertexMessageParameters> {
 
-	private static final SubtasksAllAccumulatorsHandlers INSTANCE = new SubtasksAllAccumulatorsHandlers();
+	private static final SubtasksAllAccumulatorsHeaders INSTANCE = new SubtasksAllAccumulatorsHeaders();
 
 	public static final String URL = "/jobs" +
 		"/:" + JobIDPathParameter.KEY +
@@ -37,7 +37,7 @@ public class SubtasksAllAccumulatorsHandlers implements MessageHeaders<EmptyRequ
 		"/:" + JobVertexIdPathParameter.KEY +
 		"/subtasks/accumulators";
 
-	private SubtasksAllAccumulatorsHandlers() {}
+	private SubtasksAllAccumulatorsHeaders() {}
 
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {
@@ -69,7 +69,7 @@ public class SubtasksAllAccumulatorsHandlers implements MessageHeaders<EmptyRequ
 		return URL;
 	}
 
-	public static SubtasksAllAccumulatorsHandlers getInstance() {
+	public static SubtasksAllAccumulatorsHeaders getInstance() {
 		return INSTANCE;
 	}
 }
