@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.NetUtils;
 
-import scala.Tuple2;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 
 import java.net.InetAddress;
@@ -36,7 +35,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class NettyTestUtil {
 
-	static int DEFAULT_SEGMENT_SIZE = 1024;
+	static final int DEFAULT_SEGMENT_SIZE = 1024;
 
 	// ---------------------------------------------------------------------------------------------
 	// NettyServer and NettyClient
@@ -145,32 +144,24 @@ public class NettyTestUtil {
 				config);
 	}
 
-	// ---------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
 
-	static class NettyServerAndClient extends Tuple2<NettyServer, NettyClient> {
+	static final class NettyServerAndClient {
 
-		private static final long serialVersionUID = 4440278728496341931L;
+		private final NettyServer server;
+		private final NettyClient client;
 
-		NettyServerAndClient(NettyServer _1, NettyClient _2) {
-			super(_1, _2);
+		NettyServerAndClient(NettyServer server, NettyClient client) {
+			this.server = checkNotNull(server);
+			this.client = checkNotNull(client);
 		}
 
 		NettyServer server() {
-			return _1();
+			return server;
 		}
 
 		NettyClient client() {
-			return _2();
-		}
-
-		@Override
-		public boolean canEqual(Object that) {
-			return false;
-		}
-
-		@Override
-		public boolean equals(Object that) {
-			return false;
+			return client;
 		}
 	}
 }
