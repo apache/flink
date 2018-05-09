@@ -139,6 +139,10 @@ import java.util.UUID;
  *         {@link #setWriter(Writer)}. For example, {@link SequenceFileWriter}
  *         can be used to write Hadoop {@code SequenceFiles}.
  *     </li>
+ *     <li>
+ *       	{@link #checkForInactiveBuckets(long)} closes buckets that have not been written to for
+ *       	{@code inactiveBucketThreshold} or if they are older than {@code batchRolloverInterval}.
+ *     </li>
  * </ol>
  *
  *
@@ -506,14 +510,16 @@ public class BucketingSink<T>
 
 	/**
 	 * Checks for inactive buckets, and closes them. Buckets are considered inactive if they have not been
-	 * written to for a period greater than {@code inactiveBucketThreshold} ms. This enables in-progress
-	 * files to be moved to the pending state and be finalised on the next checkpoint.
+	 * written to for a period greater than {@code inactiveBucketThreshold} ms. Buckets are also closed if they are
+	 * older than {@code batchRolloverInterval} ms. This enables in-progress files to be moved to the pending state
+	 * and be finalised on the next checkpoint.
 	 */
 	private void checkForInactiveBuckets(long currentProcessingTime) throws Exception {
 
 		synchronized (state.bucketStates) {
 			for (Map.Entry<String, BucketState<T>> entry : state.bucketStates.entrySet()) {
-				if (entry.getValue().lastWrittenToTime < currentProcessingTime - inactiveBucketThreshold) {
+				if ((entry.getValue().lastWrittenToTime < currentProcessingTime - inactiveBucketThreshold)
+						|| (entry.getValue().creationTime < currentProcessingTime - batchRolloverInterval)) {
 					LOG.debug("BucketingSink {} closing bucket due to inactivity of over {} ms.",
 						getRuntimeContext().getIndexOfThisSubtask(), inactiveBucketThreshold);
 					closeCurrentPartFile(entry.getValue());
@@ -934,6 +940,8 @@ public class BucketingSink<T>
 	 *
 	 * <p>When a bucket part file is older than the roll over interval, a new bucket part file is
 	 * started and the old one is closed. The name of the bucket file depends on the {@link Bucketer}.
+	 * Additionally, the old part file is also closed if the bucket is not written to for a minimum of
+	 * {@code inactiveBucketThreshold} ms.
 	 *
 	 * @param batchRolloverInterval The roll over interval in milliseconds
 	 */
@@ -958,6 +966,8 @@ public class BucketingSink<T>
 	/**
 	 * Sets the default threshold for marking a bucket as inactive and closing its part files.
 	 * Buckets which haven't been written to for at least this period of time become inactive.
+	 * Additionally, part files for the bucket are also closed if the bucket is older than
+	 * {@code batchRolloverInterval} ms.
 	 *
 	 * @param threshold The timeout, in milliseconds.
 	 */
