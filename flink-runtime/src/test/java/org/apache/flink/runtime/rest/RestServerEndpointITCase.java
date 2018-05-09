@@ -23,11 +23,15 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
+import org.apache.flink.runtime.rest.handler.legacy.files.WebContentHandlerSpecification;
 import org.apache.flink.runtime.rest.messages.ConversionException;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
@@ -45,7 +49,6 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -54,15 +57,20 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.TooLongFrameException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import org.apache.commons.io.IOUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import javax.annotation.Nonnull;
+import javax.net.ssl.SSLContext;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -77,10 +85,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static java.util.Objects.requireNonNull;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -95,6 +103,7 @@ import static org.mockito.Mockito.when;
  * IT cases for {@link RestClient} and {@link RestServerEndpoint}.
  */
 @Category(New.class)
+@RunWith(Parameterized.class)
 public class RestServerEndpointITCase extends TestLogger {
 
 	private static final JobID PATH_JOB_ID = new JobID();
@@ -111,14 +120,56 @@ public class RestServerEndpointITCase extends TestLogger {
 	private TestUploadHandler testUploadHandler;
 	private InetSocketAddress serverAddress;
 
-	@Before
-	public void setup() throws Exception {
-		Configuration config = new Configuration();
+	private final Configuration config;
+	private SSLContext defaultSSLContext;
+
+	public RestServerEndpointITCase(final Configuration config) {
+		this.config = requireNonNull(config);
+	}
+
+	@Parameterized.Parameters
+	public static Collection<Object[]> data() {
+		final Configuration config = getBaseConfig();
+
+		final ClassLoader classLoader = ClassLoader.getSystemClassLoader();
+		final String truststorePath = new File(classLoader
+			.getResource("local127.truststore")
+			.getFile()).getAbsolutePath();
+		final String keystorePath = new File(classLoader
+			.getResource("local127.keystore")
+			.getFile()).getAbsolutePath();
+
+		final Configuration sslConfig = new Configuration(config);
+		sslConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
+		sslConfig.setString(SecurityOptions.SSL_TRUSTSTORE, truststorePath);
+		sslConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
+		sslConfig.setString(SecurityOptions.SSL_KEYSTORE, keystorePath);
+		sslConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
+		sslConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
+
+		return Arrays.asList(new Object[][]{
+			{config}, {sslConfig}
+		});
+	}
+
+	private static Configuration getBaseConfig() {
+		final Configuration config = new Configuration();
 		config.setInteger(RestOptions.PORT, 0);
 		config.setString(RestOptions.ADDRESS, "localhost");
-		config.setString(WebOptions.UPLOAD_DIR, temporaryFolder.newFolder().getCanonicalPath());
 		config.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
 		config.setInteger(RestOptions.CLIENT_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
+		return config;
+	}
+
+	@Before
+	public void setup() throws Exception {
+		config.setString(WebOptions.UPLOAD_DIR, temporaryFolder.newFolder().getCanonicalPath());
+
+		defaultSSLContext = SSLContext.getDefault();
+		final SSLContext sslClientContext = SSLUtils.createSSLClientContext(config);
+		if (sslClientContext != null) {
+			SSLContext.setDefault(sslClientContext);
+		}
 
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 		RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
@@ -126,8 +177,9 @@ public class RestServerEndpointITCase extends TestLogger {
 		final String restAddress = "http://localhost:1234";
 		RestfulGateway mockRestfulGateway = mock(RestfulGateway.class);
 		when(mockRestfulGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(restAddress));
-		GatewayRetriever<RestfulGateway> mockGatewayRetriever = mock(GatewayRetriever.class);
-		when(mockGatewayRetriever.getNow()).thenReturn(Optional.of(mockRestfulGateway));
+
+		final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
+			CompletableFuture.completedFuture(mockRestfulGateway);
 
 		TestHandler testHandler = new TestHandler(
 			CompletableFuture.completedFuture(restAddress),
@@ -139,7 +191,18 @@ public class RestServerEndpointITCase extends TestLogger {
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT);
 
-		serverEndpoint = new TestRestServerEndpoint(serverConfig, testHandler, testUploadHandler);
+		final StaticFileServerHandler<RestfulGateway> staticFileServerHandler = new StaticFileServerHandler<>(
+			mockGatewayRetriever,
+			CompletableFuture.completedFuture(restAddress),
+			RpcUtils.INF_TIMEOUT,
+			temporaryFolder.getRoot());
+
+		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = Arrays.asList(
+			Tuple2.of(new TestHeaders(), testHandler),
+			Tuple2.of(TestUploadHeaders.INSTANCE, testUploadHandler),
+			Tuple2.of(WebContentHandlerSpecification.getInstance(), staticFileServerHandler));
+
+		serverEndpoint = new TestRestServerEndpoint(serverConfig, handlers);
 		restClient = new TestRestClient(clientConfig);
 
 		serverEndpoint.start();
@@ -148,6 +211,8 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	@After
 	public void teardown() throws Exception {
+		SSLContext.setDefault(defaultSSLContext);
+
 		if (restClient != null) {
 			restClient.shutdown(timeout);
 			restClient = null;
@@ -334,6 +399,22 @@ public class RestServerEndpointITCase extends TestLogger {
 		assertEquals(400, connection.getResponseCode());
 	}
 
+	/**
+	 * Tests that files can be served with the {@link StaticFileServerHandler}.
+	 */
+	@Test
+	public void testStaticFileServerHandler() throws Exception {
+		final File file = temporaryFolder.newFile();
+		Files.write(file.toPath(), Collections.singletonList("foobar"));
+
+		final URL url = new URL(serverEndpoint.getRestBaseUrl() + "/" + file.getName());
+		final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+		connection.setRequestMethod("GET");
+		final String fileContents = IOUtils.toString(connection.getInputStream());
+
+		assertEquals("foobar", fileContents.trim());
+	}
+
 	private HttpURLConnection openHttpConnectionForUpload(final String boundary) throws IOException {
 		final HttpURLConnection connection =
 			(HttpURLConnection) new URL(serverEndpoint.getRestBaseUrl() + "/upload").openConnection();
@@ -356,29 +437,22 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	private static class TestRestServerEndpoint extends RestServerEndpoint {
 
-		private final TestHandler testHandler;
-
-		private final TestUploadHandler testUploadHandler;
+		private final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers;
 
 		TestRestServerEndpoint(
-			RestServerEndpointConfiguration configuration,
-			TestHandler testHandler,
-			TestUploadHandler testUploadHandler) throws IOException {
+				RestServerEndpointConfiguration configuration,
+				List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers) throws IOException {
 			super(configuration);
-
-			this.testHandler = Preconditions.checkNotNull(testHandler);
-			this.testUploadHandler = Preconditions.checkNotNull(testUploadHandler);
+			this.handlers = requireNonNull(handlers);
 		}
 
 		@Override
 		protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
-			return Arrays.asList(
-				Tuple2.of(new TestHeaders(), testHandler),
-				Tuple2.of(TestUploadHeaders.INSTANCE, testUploadHandler));
+			return handlers;
 		}
 
 		@Override
-		protected void startInternal() throws Exception {}
+		protected void startInternal() {}
 	}
 
 	private static class TestHandler extends AbstractRestHandler<RestfulGateway, TestRequest, TestResponse, TestParameters> {

@@ -29,6 +29,11 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLServerSocket;
 
 import java.net.ServerSocket;
+import java.util.Arrays;
+
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the {@link SSLUtils}.
@@ -227,4 +232,27 @@ public class SSLUtilsTest {
 		Assert.assertTrue(algorithms[1].equals("TLS_DHE_RSA_WITH_AES_128_CBC_SHA") || algorithms[1].equals("TLS_DHE_RSA_WITH_AES_128_CBC_SHA256"));
 	}
 
+	/**
+	 * Tests that {@link SSLEngineFactory} is created correctly.
+	 */
+	@Test
+	public void testCreateSSLEngineFactory() throws Exception {
+		Configuration serverConfig = new Configuration();
+		serverConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
+		serverConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		serverConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
+		serverConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
+		serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1");
+		serverConfig.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA256");
+
+		final SSLEngineFactory serverSSLEngineFactory = SSLUtils.createServerSSLEngineFactory(serverConfig);
+		final SSLEngine sslEngine = serverSSLEngineFactory.createSSLEngine();
+
+		assertThat(
+			Arrays.asList(sslEngine.getEnabledProtocols()),
+			contains("TLSv1"));
+		assertThat(
+			Arrays.asList(sslEngine.getEnabledCipherSuites()),
+			containsInAnyOrder("TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256"));
+	}
 }
