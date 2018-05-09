@@ -49,7 +49,7 @@ import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.stri
  * the same key with different descriptions/default values), and that the documentation does not refer to non-existent
  * options.
  */
-public class ConfigOptionsDocsCompletenessTest {
+public class ConfigOptionsDocsCompletenessITCase {
 
 	@Test
 	public void testDocsCompleteness() throws IOException, ClassNotFoundException {
@@ -99,7 +99,7 @@ public class ConfigOptionsDocsCompletenessTest {
 	}
 
 	private static Map<String, DocumentedOption> parseDocumentedOptions() throws IOException {
-		Path includeFolder = Paths.get("..", "docs", "_includes", "generated").toAbsolutePath();
+		Path includeFolder = Paths.get(System.getProperty("rootDir"), "docs", "_includes", "generated").toAbsolutePath();
 		return Files.list(includeFolder)
 			.filter(path -> path.getFileName().toString().contains("configuration"))
 			.flatMap(file -> {
@@ -145,7 +145,7 @@ public class ConfigOptionsDocsCompletenessTest {
 		Map<String, ExistingOption> existingOptions = new HashMap<>(32);
 
 		for (OptionsClassLocation location : LOCATIONS) {
-			processConfigOptions("..", location.getModule(), location.getPackage(), optionsClass -> {
+			processConfigOptions(System.getProperty("rootDir"), location.getModule(), location.getPackage(), optionsClass -> {
 				List<ConfigOptionsDocGenerator.OptionWithMetaInfo> configOptions = extractConfigOptions(optionsClass);
 				for (ConfigOptionsDocGenerator.OptionWithMetaInfo option : configOptions) {
 					String key = option.option.key();
