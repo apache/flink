@@ -219,6 +219,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 		}
 
 		checkAndPropagateAsyncError();
+		checkQueueLimit();
 
 		String stream = defaultStream;
 		String partition = defaultPartition;
@@ -322,6 +323,24 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 
 				// reset, prevent double throwing
 				thrownException = null;
+			}
+		}
+	}
+
+	/**
+	 * If the internal queue of the {@link KinesisProducer} gets too long,
+	 * flush some of the records until we are below the limit again.
+	 * We don't want to flush _all_ records at this point since that would
+	 * break record aggregation.
+	 */
+	private void checkQueueLimit() {
+		while(producer.getOutstandingRecordsCount() > 100000) {
+			producer.flush();
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				LOG.warn("Flushing was interrupted.");
+				break;
 			}
 		}
 	}
