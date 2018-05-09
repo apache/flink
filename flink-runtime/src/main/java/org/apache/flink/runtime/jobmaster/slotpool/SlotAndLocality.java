@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager.slots;
+package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.jobmaster.slotpool.AllocatedSlot;
 
 import javax.annotation.Nonnull;
 

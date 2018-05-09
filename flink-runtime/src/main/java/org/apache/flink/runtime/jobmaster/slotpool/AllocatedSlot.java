@@ -42,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * an AllocatedSlot was allocated to the JobManager as soon as the TaskManager registered at the
  * JobManager. All slots had a default unknown resource profile. 
  */
-public class AllocatedSlot implements SlotContext {
+class AllocatedSlot implements SlotContext {
 
 	/** The ID under which the slot is allocated. Uniquely identifies the slot. */
 	private final AllocationID allocationId;
@@ -171,21 +171,13 @@ public class AllocatedSlot implements SlotContext {
 	 * then it is removed from the slot.
 	 *
 	 * @param cause of the release operation
-	 * @return true if the payload could be released and was removed from the slot, otherwise false
 	 */
-	public boolean releasePayload(Throwable cause) {
+	public void releasePayload(Throwable cause) {
 		final Payload payload = payloadReference.get();
 
 		if (payload != null) {
-			if (payload.release(cause)) {
-				payloadReference.set(null);
-
-				return true;
-			} else {
-				return false;
-			}
-		} else {
-			return true;
+			payload.release(cause);
+			payloadReference.set(null);
 		}
 	}
 
@@ -222,12 +214,10 @@ public class AllocatedSlot implements SlotContext {
 	interface Payload {
 
 		/**
-		 * Releases the payload. If the payload could be released, then it returns true,
-		 * otherwise false.
+		 * Releases the payload
 		 *
 		 * @param cause of the payload release
-		 * @return true if the payload could be released, otherwise false
 		 */
-		boolean release(Throwable cause);
+		void release(Throwable cause);
 	}
 }
