@@ -30,6 +30,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
@@ -61,6 +62,8 @@ import java.util.List;
  *     <li>test.simulate_failure.max_failures (int, default - 1): The maximum number of times to fail the job. This also takes into account failures that
  *         were not triggered by the job's own failure simulation, e.g. TaskManager or JobManager failures. Only relevant if configured to simulate failures.</li>
  *     <li>environment.checkpoint_interval (long, default - 1000): the checkpoint interval.</li>
+ *     <li>environment.externalize_checkpoint (boolean, default - false): whether or not checkpoints should be externalized.</li>
+ *     <li>environment.externalize_checkpoint.cleanup (String, default - 'retain'): Configures the cleanup mode for externalized checkpoints. Can be 'retain' or 'delete'.</li>
  *     <li>environment.parallelism (int, default - 1): parallelism to use for the job.</li>
  *     <li>environment.max_parallelism (int, default - 128): max parallelism to use for the job</li>
  *     <li>environment.restart_strategy.delay (long, default - 0): delay between restart attempts, in milliseconds.</li>
@@ -124,6 +127,14 @@ class DataStreamAllroundTestJobFactory {
 	private static final ConfigOption<Integer> ENVIRONMENT_RESTART_DELAY = ConfigOptions
 		.key("environment.restart_strategy.delay")
 		.defaultValue(0);
+
+	private static final ConfigOption<Boolean> ENVIRONMENT_EXTERNALIZE_CHECKPOINT = ConfigOptions
+		.key("environment.externalize_checkpoint")
+		.defaultValue(false);
+
+	private static final ConfigOption<String> ENVIRONMENT_EXTERNALIZE_CHECKPOINT_CLEANUP = ConfigOptions
+		.key("environment.externalize_checkpoint.cleanup")
+		.defaultValue("retain");
 
 	private static final ConfigOption<String> STATE_BACKEND = ConfigOptions
 		.key("state_backend")
@@ -213,6 +224,30 @@ class DataStreamAllroundTestJobFactory {
 			env.setStateBackend(new RocksDBStateBackend(checkpointDir, incrementalCheckpoints));
 		} else {
 			throw new IllegalArgumentException("Unknown backend requested: " + stateBackend);
+		}
+
+		boolean enableExternalizedCheckpoints = pt.getBoolean(
+			ENVIRONMENT_EXTERNALIZE_CHECKPOINT.key(),
+			ENVIRONMENT_EXTERNALIZE_CHECKPOINT.defaultValue());
+
+		if (enableExternalizedCheckpoints) {
+			String cleanupModeConfig = pt.get(
+				ENVIRONMENT_EXTERNALIZE_CHECKPOINT_CLEANUP.key(),
+				ENVIRONMENT_EXTERNALIZE_CHECKPOINT_CLEANUP.defaultValue());
+
+			CheckpointConfig.ExternalizedCheckpointCleanup cleanupMode;
+			switch (cleanupModeConfig) {
+				case "retain":
+					cleanupMode = CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION;
+					break;
+				case "delete":
+					cleanupMode = CheckpointConfig.ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION;
+					break;
+				default:
+					throw new IllegalArgumentException("Unknown clean up mode for externalized checkpoints: " + cleanupModeConfig);
+			}
+
+			env.getCheckpointConfig().enableExternalizedCheckpoints(cleanupMode);
 		}
 
 		// make parameters available in the web interface
