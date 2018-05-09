@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
@@ -29,7 +30,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 
 import javax.annotation.Nullable;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
 import java.nio.file.Path;
@@ -52,7 +52,7 @@ public final class RestServerEndpointConfiguration {
 	private final int restBindPort;
 
 	@Nullable
-	private final SSLEngine sslEngine;
+	private final SSLEngineFactory sslEngineFactory;
 
 	private final Path uploadDir;
 
@@ -64,9 +64,10 @@ public final class RestServerEndpointConfiguration {
 			final String restAddress,
 			@Nullable String restBindAddress,
 			int restBindPort,
-			@Nullable SSLEngine sslEngine,
+			@Nullable SSLEngineFactory sslEngineFactory,
 			final Path uploadDir,
-			final int maxContentLength, final Map<String, String> responseHeaders) {
+			final int maxContentLength,
+			final Map<String, String> responseHeaders) {
 
 		Preconditions.checkArgument(0 <= restBindPort && restBindPort < 65536, "The bing rest port " + restBindPort + " is out of range (0, 65536[");
 		Preconditions.checkArgument(maxContentLength > 0, "maxContentLength must be positive, was: %d", maxContentLength);
@@ -74,7 +75,7 @@ public final class RestServerEndpointConfiguration {
 		this.restAddress = requireNonNull(restAddress);
 		this.restBindAddress = restBindAddress;
 		this.restBindPort = restBindPort;
-		this.sslEngine = sslEngine;
+		this.sslEngineFactory = sslEngineFactory;
 		this.uploadDir = requireNonNull(uploadDir);
 		this.maxContentLength = maxContentLength;
 		this.responseHeaders = Collections.unmodifiableMap(requireNonNull(responseHeaders));
@@ -110,8 +111,9 @@ public final class RestServerEndpointConfiguration {
 	 *
 	 * @return SSLEngine that the REST server endpoint should use, or null if SSL was disabled
 	 */
-	public SSLEngine getSslEngine() {
-		return sslEngine;
+	@Nullable
+	public SSLEngineFactory getSslEngineFactory() {
+		return sslEngineFactory;
 	}
 
 	/**
@@ -154,19 +156,16 @@ public final class RestServerEndpointConfiguration {
 		final String restBindAddress = config.getString(RestOptions.BIND_ADDRESS);
 		final int port = config.getInteger(RestOptions.PORT);
 
-		SSLEngine sslEngine = null;
-		final boolean enableSSL = config.getBoolean(SecurityOptions.SSL_ENABLED);
+		final SSLEngineFactory sslEngineFactory;
+		final boolean enableSSL = config.getBoolean(SecurityOptions.SSL_ENABLED) && config.getBoolean(WebOptions.SSL_ENABLED);
 		if (enableSSL) {
 			try {
-				SSLContext sslContext = SSLUtils.createSSLServerContext(config);
-				if (sslContext != null) {
-					sslEngine = sslContext.createSSLEngine();
-					SSLUtils.setSSLVerAndCipherSuites(sslEngine, config);
-					sslEngine.setUseClientMode(false);
-				}
+				sslEngineFactory = SSLUtils.createServerSSLEngineFactory(config);
 			} catch (Exception e) {
-				throw new ConfigurationException("Failed to initialize SSLContext for REST server endpoint.", e);
+				throw new ConfigurationException("Failed to initialize SSLEngineFactory for REST server endpoint.", e);
 			}
+		} else {
+			sslEngineFactory = null;
 		}
 
 		final Path uploadDir = Paths.get(
@@ -183,7 +182,7 @@ public final class RestServerEndpointConfiguration {
 			restAddress,
 			restBindAddress,
 			port,
-			sslEngine,
+			sslEngineFactory,
 			uploadDir,
 			maxContentLength,
 			responseHeaders);
