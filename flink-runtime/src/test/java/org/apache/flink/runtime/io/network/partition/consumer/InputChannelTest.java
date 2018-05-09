@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.junit.Test;
 
@@ -121,6 +122,12 @@ public class InputChannelTest {
 			int maxBackoff) {
 
 			super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, new SimpleCounter());
+		}
+
+		@Override
+		int assignExclusiveSegments(NetworkBufferPool networkBufferPool, int networkBuffersPerChannel)
+				throws IOException {
+			return 0;
 		}
 
 		@Override

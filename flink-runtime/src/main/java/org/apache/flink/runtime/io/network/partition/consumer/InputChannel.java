@@ -22,6 +22,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 
@@ -124,6 +125,15 @@ public abstract class InputChannel {
 	// ------------------------------------------------------------------------
 	// Consume
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Assigns exclusive buffers to this input channel, and this method should be called only once
+	 * after this input channel is created.
+	 *
+	 * @return number of assigned memory segments
+	 */
+	abstract int assignExclusiveSegments(NetworkBufferPool networkBufferPool, int networkBuffersPerChannel)
+		throws IOException;
 
 	/**
 	 * Requests the queue with the specified index of the source intermediate

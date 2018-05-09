@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -66,7 +67,7 @@ class LocalBufferPool implements BufferPool {
 	private final ArrayDeque<BufferListener> registeredListeners = new ArrayDeque<>();
 
 	/** Maximum number of network buffers to allocate. */
-	private final int maxNumberOfMemorySegments;
+	private int maxNumberOfMemorySegments;
 
 	/** The current size of this pool. */
 	private int currentPoolSize;
@@ -147,7 +148,9 @@ class LocalBufferPool implements BufferPool {
 
 	@Override
 	public int getMaxNumberOfMemorySegments() {
-		return maxNumberOfMemorySegments;
+		synchronized (availableMemorySegments) {
+			return maxNumberOfMemorySegments;
+		}
 	}
 
 	@Override
@@ -249,30 +252,59 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Override
+	public void addExtraSegments(List<MemorySegment> segments) {
+		checkNotNull(segments);
+		synchronized (availableMemorySegments) {
+			if (maxNumberOfMemorySegments != Integer.MAX_VALUE) {
+				// bounded buffer pool
+				maxNumberOfMemorySegments += segments.size();
+			}
+			currentPoolSize += segments.size();
+			numberOfRequestedMemorySegments += segments.size();
+			networkBufferPool.decreaseTotalRequiredBuffers(segments.size());
+
+			if (isDestroyed || numberOfRequestedMemorySegments > currentPoolSize) {
+				for (MemorySegment segment : segments) {
+					returnMemorySegment(segment);
+				}
+			} else {
+				for (MemorySegment segment : segments) {
+					unsynchronizedAddMemorySegment(segment);
+				}
+			}
+		}
+	}
+
+	@Override
 	public void recycle(MemorySegment segment) {
 		synchronized (availableMemorySegments) {
 			if (isDestroyed || numberOfRequestedMemorySegments > currentPoolSize) {
 				returnMemorySegment(segment);
 			}
 			else {
-				BufferListener listener = registeredListeners.poll();
+				unsynchronizedAddMemorySegment(segment);
+			}
+		}
+	}
 
-				if (listener == null) {
-					availableMemorySegments.add(segment);
-					availableMemorySegments.notify();
+	private void unsynchronizedAddMemorySegment(MemorySegment segment) {
+		assert Thread.holdsLock(availableMemorySegments);
+		BufferListener listener = registeredListeners.poll();
+
+		if (listener == null) {
+			availableMemorySegments.add(segment);
+			availableMemorySegments.notify();
+		}
+		else {
+			try {
+				boolean needMoreBuffers = listener.notifyBufferAvailable(new NetworkBuffer(segment, this));
+				if (needMoreBuffers) {
+					registeredListeners.add(listener);
 				}
-				else {
-					try {
-						boolean needMoreBuffers = listener.notifyBufferAvailable(new NetworkBuffer(segment, this));
-						if (needMoreBuffers) {
-							registeredListeners.add(listener);
-						}
-					}
-					catch (Throwable ignored) {
-						availableMemorySegments.add(segment);
-						availableMemorySegments.notify();
-					}
-				}
+			}
+			catch (Throwable ignored) {
+				availableMemorySegments.add(segment);
+				availableMemorySegments.notify();
 			}
 		}
 	}

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -46,7 +47,6 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -103,43 +103,65 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	private boolean isWaitingForFloatingBuffers;
 
 	public RemoteInputChannel(
-		SingleInputGate inputGate,
-		int channelIndex,
-		ResultPartitionID partitionId,
-		ConnectionID connectionId,
-		ConnectionManager connectionManager,
-		TaskIOMetricGroup metrics) {
-
+			SingleInputGate inputGate,
+			int channelIndex,
+			ResultPartitionID partitionId,
+			ConnectionID connectionId,
+			ConnectionManager connectionManager,
+			TaskIOMetricGroup metrics) {
 		this(inputGate, channelIndex, partitionId, connectionId, connectionManager, 0, 0, metrics);
 	}
 
 	public RemoteInputChannel(
-		SingleInputGate inputGate,
-		int channelIndex,
-		ResultPartitionID partitionId,
-		ConnectionID connectionId,
-		ConnectionManager connectionManager,
-		int initialBackOff,
-		int maxBackoff,
-		TaskIOMetricGroup metrics) {
-
+			SingleInputGate inputGate,
+			int channelIndex,
+			ResultPartitionID partitionId,
+			ConnectionID connectionId,
+			ConnectionManager connectionManager,
+			int initialBackOff,
+			int maxBackoff,
+			TaskIOMetricGroup metrics) {
 		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, metrics.getNumBytesInRemoteCounter());
 
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
 	}
 
+	public RemoteInputChannel(
+			SingleInputGate inputGate,
+			int channelIndex,
+			ResultPartitionID partitionId,
+			ConnectionID connectionId,
+			ConnectionManager connectionManager,
+			int initialBackOff,
+			int maxBackoff,
+			List<MemorySegment> segments,
+			TaskIOMetricGroup metrics) {
+		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, metrics.getNumBytesInRemoteCounter());
+
+		this.connectionId = checkNotNull(connectionId);
+		this.connectionManager = checkNotNull(connectionManager);
+		assignExclusiveSegments(checkNotNull(segments));
+	}
+
 	/**
 	 * Assigns exclusive buffers to this input channel, and this method should be called only once
 	 * after this input channel is created.
 	 */
-	void assignExclusiveSegments(List<MemorySegment> segments) {
+	@Override
+	int assignExclusiveSegments(NetworkBufferPool networkBufferPool, int networkBuffersPerChannel)
+			throws IOException {
 		checkState(this.initialCredit == 0, "Bug in input channel setup logic: exclusive buffers have " +
 			"already been set for this input channel.");
 
-		checkNotNull(segments);
-		checkArgument(segments.size() > 0, "The number of exclusive buffers per channel should be larger than 0.");
+		checkNotNull(networkBufferPool);
+		List<MemorySegment> segments = networkBufferPool.requestMemorySegments(networkBuffersPerChannel);
 
+		assignExclusiveSegments(segments);
+		return segments.size();
+	}
+
+	private void assignExclusiveSegments(List<MemorySegment> segments) {
 		this.initialCredit = segments.size();
 		this.numRequiredBuffers = segments.size();
 

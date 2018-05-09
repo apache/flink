@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.core.memory.MemorySegment;
+
 import java.io.IOException;
+import java.util.List;
 
 /**
  * A dynamically sized buffer pool.
@@ -79,4 +82,9 @@ public interface BufferPool extends BufferProvider, BufferRecycler {
 	 * Returns the number of used buffers of this buffer pool.
 	 */
 	int bestEffortGetNumOfUsedBuffers();
+
+	/**
+	 * Adds extra memory segments to the pool and increases the allowed maximum accordingly.
+	 */
+	void addExtraSegments(List<MemorySegment> segments);
 }

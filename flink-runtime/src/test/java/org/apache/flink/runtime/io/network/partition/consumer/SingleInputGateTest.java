@@ -454,14 +454,15 @@ public class SingleInputGateTest {
 			NetworkBufferPool bufferPool = network.getNetworkBufferPool();
 
 			if (enableCreditBasedFlowControl) {
-				verify(bufferPool, times(0)).requestMemorySegments(buffersPerChannel);
+				verify(bufferPool, times(1)).requestMemorySegments(buffersPerChannel);
 
-				assertEquals(bufferPool.getTotalNumberOfMemorySegments(),
+				assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel,
 					bufferPool.getNumberOfAvailableMemorySegments());
 				// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
 				assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
 			} else {
-				assertEquals(buffersPerChannel + extraNetworkBuffersPerGate, bufferPool.countBuffers());
+				assertEquals(buffersPerChannel + extraNetworkBuffersPerGate,
+					bufferPool.countBuffers());
 			}
 
 			// Trigger updates to remote input channel from unknown input channel

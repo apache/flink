@@ -18,18 +18,24 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An input channel place holder to be replaced by either a {@link RemoteInputChannel}
@@ -50,6 +56,8 @@ class UnknownInputChannel extends InputChannel {
 
 	private final TaskIOMetricGroup metrics;
 
+	private final List<MemorySegment> exclusiveSegments = new ArrayList<>();
+
 	public UnknownInputChannel(
 			SingleInputGate gate,
 			int channelIndex,
@@ -69,6 +77,18 @@ class UnknownInputChannel extends InputChannel {
 		this.metrics = checkNotNull(metrics);
 		this.initialBackoff = initialBackoff;
 		this.maxBackoff = maxBackoff;
+	}
+
+	@Override
+	int assignExclusiveSegments(NetworkBufferPool networkBufferPool, int networkBuffersPerChannel)
+			throws IOException {
+		checkState(exclusiveSegments.isEmpty(), "Bug in input channel setup logic: exclusive buffers have " +
+			"already been set for this input channel.");
+
+		checkNotNull(networkBufferPool);
+		exclusiveSegments.addAll(networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
+
+		return exclusiveSegments.size();
 	}
 
 	@Override
@@ -105,7 +125,9 @@ class UnknownInputChannel extends InputChannel {
 
 	@Override
 	public void releaseAllResources() throws IOException {
-		// Nothing to do here
+		if (exclusiveSegments.size() > 0) {
+			inputGate.returnExclusiveSegments(exclusiveSegments);
+		}
 	}
 
 	@Override
@@ -118,10 +140,30 @@ class UnknownInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	public RemoteInputChannel toRemoteInputChannel(ConnectionID producerAddress) {
-		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress), connectionManager, initialBackoff, maxBackoff, metrics);
+		RemoteInputChannel remoteInputChannel =
+			new RemoteInputChannel(
+				inputGate,
+				channelIndex,
+				partitionId,
+				checkNotNull(producerAddress),
+				connectionManager,
+				initialBackoff,
+				maxBackoff,
+				exclusiveSegments,
+				metrics);
+		exclusiveSegments.clear();
+		return remoteInputChannel;
 	}
 
-	public LocalInputChannel toLocalInputChannel() {
+	public LocalInputChannel toLocalInputChannel(BufferPool bufferPool) {
+		// there are no (exclusive) buffers in local channels
+		if (exclusiveSegments.size() > 0) {
+			checkState(bufferPool != null, "Bug in input gate setup logic: " +
+				"global buffer pool has not been set for this input gate.");
+			bufferPool.addExtraSegments(exclusiveSegments);
+			exclusiveSegments.clear();
+		}
+
 		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher, initialBackoff, maxBackoff, metrics);
 	}
 }

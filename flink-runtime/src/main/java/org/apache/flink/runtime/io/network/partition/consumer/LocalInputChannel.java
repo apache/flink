@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -88,6 +89,12 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
+	}
+
+	@Override
+	int assignExclusiveSegments(NetworkBufferPool networkBufferPool, int networkBuffersPerChannel) {
+		// not needed for local channels
+		return 0;
 	}
 
 	// ------------------------------------------------------------------------

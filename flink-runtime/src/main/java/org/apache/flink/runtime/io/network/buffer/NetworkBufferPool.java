@@ -180,6 +180,12 @@ public class NetworkBufferPool implements BufferPoolFactory {
 		}
 	}
 
+	void decreaseTotalRequiredBuffers(int count) {
+		synchronized (factoryLock) {
+			numTotalRequiredBuffers -= count;
+		}
+	}
+
 	public void destroy() {
 		synchronized (factoryLock) {
 			isDestroyed = true;

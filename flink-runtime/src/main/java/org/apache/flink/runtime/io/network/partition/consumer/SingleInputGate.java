@@ -304,11 +304,8 @@ public class SingleInputGate implements InputGate {
 		int bufferCount = 0;
 		synchronized (requestLock) {
 			for (InputChannel inputChannel : inputChannels.values()) {
-				if (inputChannel instanceof RemoteInputChannel) {
-					((RemoteInputChannel) inputChannel).assignExclusiveSegments(
-						networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
-					bufferCount += networkBuffersPerChannel;
-				}
+				bufferCount += inputChannel
+					.assignExclusiveSegments(networkBufferPool, networkBuffersPerChannel);
 			}
 		}
 		return bufferCount;
@@ -353,17 +350,10 @@ public class SingleInputGate implements InputGate {
 				ResultPartitionLocation partitionLocation = icdd.getConsumedPartitionLocation();
 
 				if (partitionLocation.isLocal()) {
-					newChannel = unknownChannel.toLocalInputChannel();
+					newChannel = unknownChannel.toLocalInputChannel(bufferPool);
 				}
 				else if (partitionLocation.isRemote()) {
 					newChannel = unknownChannel.toRemoteInputChannel(partitionLocation.getConnectionId());
-
-					if (this.isCreditBased) {
-						checkState(this.networkBufferPool != null, "Bug in input gate setup logic: " +
-							"global buffer pool has not been set for this input gate.");
-						((RemoteInputChannel) newChannel).assignExclusiveSegments(
-							networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
-					}
 				}
 				else {
 					throw new IllegalStateException("Tried to update unknown channel with unknown channel.");
