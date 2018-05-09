@@ -130,6 +130,30 @@ fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
+  printf "Running Resuming Externalized Checkpoint (file, async) end-to-end test\n"
+  printf "==============================================================================\n"
+  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=true $END_TO_END_DIR/test-scripts/test_resume_externalized_checkpoints.sh
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
+  printf "Running Resuming Externalized Checkpoint (file, sync) end-to-end test\n"
+  printf "==============================================================================\n"
+  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=false $END_TO_END_DIR/test-scripts/test_resume_externalized_checkpoints.sh
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
+  printf "Running Resuming Externalized Checkpoint (rocks) end-to-end test\n"
+  printf "==============================================================================\n"
+  STATE_BACKEND_TYPE=rocks $END_TO_END_DIR/test-scripts/test_resume_externalized_checkpoints.sh
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
   printf "Running DataSet allround nightly end-to-end test\n"
   printf "==============================================================================\n"
   $END_TO_END_DIR/test-scripts/test_batch_allround.sh
