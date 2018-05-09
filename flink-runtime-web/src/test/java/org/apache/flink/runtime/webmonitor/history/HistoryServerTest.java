@@ -154,7 +154,7 @@ public class HistoryServerTest extends TestLogger {
 
 		return IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8");
 	}
-	
+
 	private static void createLegacyArchive(Path directory) throws IOException {
 		JobID jobID = JobID.generate();
 
