@@ -58,6 +58,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.util.MockStreamConfig;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.ExceptionUtils;
@@ -680,8 +681,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		when(containingTask.getCheckpointLock()).thenReturn(lock);
 		when(containingTask.getProcessingTimeService()).thenReturn(new TestProcessingTimeService());
 
-		StreamConfig streamConfig = mock(StreamConfig.class);
-		doReturn(IntSerializer.INSTANCE).when(streamConfig).getTypeSerializerIn1(any(ClassLoader.class));
+		StreamConfig streamConfig = new MockStreamConfig();
+		streamConfig.setTypeSerializerIn1(IntSerializer.INSTANCE);
 
 		final OneShotLatch closingLatch = new OneShotLatch();
 		final OneShotLatch outputLatch = new OneShotLatch();
@@ -783,8 +784,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		when(containingTask.getCheckpointLock()).thenReturn(lock);
 		when(containingTask.getProcessingTimeService()).thenReturn(processingTimeService);
 
-		StreamConfig streamConfig = mock(StreamConfig.class);
-		doReturn(IntSerializer.INSTANCE).when(streamConfig).getTypeSerializerIn1(any(ClassLoader.class));
+		StreamConfig streamConfig = new MockStreamConfig();
+		streamConfig.setTypeSerializerIn1(IntSerializer.INSTANCE);
 
 		Output<StreamRecord<Integer>> output = mock(Output.class);
 

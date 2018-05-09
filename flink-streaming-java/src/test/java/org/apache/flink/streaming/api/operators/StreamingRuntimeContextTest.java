@@ -42,6 +42,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
@@ -58,7 +59,6 @@ import org.mockito.stubbing.Answer;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertFalse;
@@ -373,10 +373,8 @@ public class StreamingRuntimeContextTest {
 	}
 
 	private static Environment createMockEnvironment() {
-		Environment env = mock(Environment.class);
-		when(env.getUserClassLoader()).thenReturn(StreamingRuntimeContextTest.class.getClassLoader());
-		when(env.getDistributedCacheEntries()).thenReturn(Collections.<String, Future<Path>>emptyMap());
-		when(env.getTaskInfo()).thenReturn(new TaskInfo("test task", 1, 0, 1, 1));
-		return env;
+		return MockEnvironment.builder()
+			.setTaskName("test task")
+			.build();
 	}
 }
