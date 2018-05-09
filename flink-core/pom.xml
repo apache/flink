@@ -123,7 +123,7 @@ under the License.
 				<artifactId>maven-checkstyle-plugin</artifactId>
 
 				<configuration>
-					<suppressionsLocation combine.self="override">/tools/maven/suppressions-runtime.xml</suppressionsLocation>
+					<suppressionsLocation combine.self="override">/tools/maven/suppressions-core.xml</suppressionsLocation>
 				</configuration>
 			</plugin>
 
