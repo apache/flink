@@ -45,7 +45,6 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
-import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.types.Record;
@@ -109,106 +108,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private Optional<Throwable> actualExternalFailureCause = Optional.empty();
 
-	public MockEnvironment() {
-		this(
-			"mock-task",
-			1024 * MemoryManager.DEFAULT_PAGE_SIZE,
-			null,
-			16,
-			new TestTaskStateManager());
+	public static MockEnvironmentBuilder builder() {
+		return new MockEnvironmentBuilder();
 	}
 
-	public MockEnvironment(
-		String taskName,
-		long memorySize,
-		MockInputSplitProvider inputSplitProvider,
-		int bufferSize,
-		TaskStateManager taskStateManager) {
-		this(
-			taskName,
-			memorySize,
-			inputSplitProvider,
-			bufferSize,
-			new Configuration(),
-			new ExecutionConfig(),
-			taskStateManager);
-	}
-
-	public MockEnvironment(
-		String taskName,
-		long memorySize,
-		MockInputSplitProvider inputSplitProvider,
-		int bufferSize, Configuration taskConfiguration,
-		ExecutionConfig executionConfig,
-		TaskStateManager taskStateManager) {
-		this(
-			taskName,
-			memorySize,
-			inputSplitProvider,
-			bufferSize,
-			taskConfiguration,
-			executionConfig,
-			taskStateManager,
-			1,
-			1,
-			0);
-	}
-
-	public MockEnvironment(
-			String taskName,
-			long memorySize,
-			MockInputSplitProvider inputSplitProvider,
-			int bufferSize,
-			Configuration taskConfiguration,
-			ExecutionConfig executionConfig,
-			TaskStateManager taskStateManager,
-			int maxParallelism,
-			int parallelism,
-			int subtaskIndex) {
-		this(
-			taskName,
-			memorySize,
-			inputSplitProvider,
-			bufferSize,
-			taskConfiguration,
-			executionConfig,
-			taskStateManager,
-			maxParallelism,
-			parallelism,
-			subtaskIndex,
-			Thread.currentThread().getContextClassLoader());
-
-	}
-
-	public MockEnvironment(
-			String taskName,
-			long memorySize,
-			MockInputSplitProvider inputSplitProvider,
-			int bufferSize,
-			Configuration taskConfiguration,
-			ExecutionConfig executionConfig,
-			TaskStateManager taskStateManager,
-			int maxParallelism,
-			int parallelism,
-			int subtaskIndex,
-			ClassLoader userCodeClassLoader) {
-		this(
-			new JobID(),
-			new JobVertexID(),
-			taskName,
-			memorySize,
-			inputSplitProvider,
-			bufferSize,
-			taskConfiguration,
-			executionConfig,
-			taskStateManager,
-			maxParallelism,
-			parallelism,
-			subtaskIndex,
-			userCodeClassLoader);
-	}
-
-	public MockEnvironment(
+	protected MockEnvironment(
 		JobID jobID,
 		JobVertexID jobVertexID,
 		String taskName,
