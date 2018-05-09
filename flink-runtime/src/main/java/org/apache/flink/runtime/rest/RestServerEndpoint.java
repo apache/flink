@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.RouterHandler;
@@ -41,13 +42,13 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCode
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Handler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.flink.shaded.netty4.io.netty.util.concurrent.DefaultThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import javax.net.ssl.SSLEngine;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -76,7 +77,8 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 	private final String restAddress;
 	private final String restBindAddress;
 	private final int restBindPort;
-	private final SSLEngine sslEngine;
+	@Nullable
+	private final SSLEngineFactory sslEngineFactory;
 	private final int maxContentLength;
 
 	protected final Path uploadDir;
@@ -96,7 +98,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 		this.restAddress = configuration.getRestAddress();
 		this.restBindAddress = configuration.getRestBindAddress();
 		this.restBindPort = configuration.getRestBindPort();
-		this.sslEngine = configuration.getSslEngine();
+		this.sslEngineFactory = configuration.getSslEngineFactory();
 
 		this.uploadDir = configuration.getUploadDir();
 		createUploadDir(uploadDir, log);
@@ -155,14 +157,15 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 					Handler handler = new RouterHandler(router, responseHeaders);
 
 					// SSL should be the first handler in the pipeline
-					if (sslEngine != null) {
-						ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
+					if (sslEngineFactory != null) {
+						ch.pipeline().addLast("ssl", new SslHandler(sslEngineFactory.createSSLEngine()));
 					}
 
 					ch.pipeline()
 						.addLast(new HttpServerCodec())
 						.addLast(new FileUploadHandler(uploadDir))
 						.addLast(new FlinkHttpObjectAggregator(maxContentLength, responseHeaders))
+						.addLast(new ChunkedWriteHandler())
 						.addLast(handler.name(), handler)
 						.addLast(new PipelineErrorHandler(log, responseHeaders));
 				}
@@ -198,7 +201,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 			final String protocol;
 
-			if (sslEngine != null) {
+			if (sslEngineFactory != null) {
 				protocol = "https://";
 			} else {
 				protocol = "http://";

@@ -25,6 +25,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
@@ -37,6 +38,9 @@ import java.io.FileInputStream;
 import java.net.ServerSocket;
 import java.security.KeyStore;
 import java.util.Arrays;
+
+import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Common utilities to manage SSL transport settings.
@@ -82,15 +86,61 @@ public class SSLUtils {
 	}
 
 	/**
-	 * Sets SSL version and cipher suites for SSLEngine.
-	 * @param engine
-	 *        SSLEngine to be handled
-	 * @param config
-	 *        The application configuration
+	 * Creates a {@link SSLEngineFactory} to be used by the Server.
+	 *
+	 * @param config The application configuration.
 	 */
+	public static SSLEngineFactory createServerSSLEngineFactory(final Configuration config) throws Exception {
+		return createSSLEngineFactory(config, false);
+	}
+
+	/**
+	 * Creates a {@link SSLEngineFactory} to be used by the Client.
+	 * @param config The application configuration.
+	 */
+	public static SSLEngineFactory createClientSSLEngineFactory(final Configuration config) throws Exception {
+		return createSSLEngineFactory(config, true);
+	}
+
+	private static SSLEngineFactory createSSLEngineFactory(
+			final Configuration config,
+			final boolean clientMode) throws Exception {
+
+		final SSLContext sslContext = clientMode ?
+			createSSLClientContext(config) :
+			createSSLServerContext(config);
+
+		checkState(sslContext != null, "%s it not enabled", SecurityOptions.SSL_ENABLED.key());
+
+		return new SSLEngineFactory(
+			sslContext,
+			getEnabledProtocols(config),
+			getEnabledCipherSuites(config),
+			clientMode);
+	}
+
+	/**
+	 * Sets SSL version and cipher suites for SSLEngine.
+	 *
+	 * @param engine SSLEngine to be handled
+	 * @param config The application configuration
+	 * @deprecated Use {@link #createClientSSLEngineFactory(Configuration)} or
+	 * {@link #createServerSSLEngineFactory(Configuration)}.
+	 */
+	@Deprecated
 	public static void setSSLVerAndCipherSuites(SSLEngine engine, Configuration config) {
-		engine.setEnabledProtocols(config.getString(SecurityOptions.SSL_PROTOCOL).split(","));
-		engine.setEnabledCipherSuites(config.getString(SecurityOptions.SSL_ALGORITHMS).split(","));
+		engine.setEnabledProtocols(getEnabledProtocols(config));
+		engine.setEnabledCipherSuites(getEnabledCipherSuites(config));
+	}
+
+	private static String[] getEnabledProtocols(final Configuration config) {
+		requireNonNull(config, "config must not be null");
+		return config.getString(SecurityOptions.SSL_PROTOCOL).split(",");
+	}
+
+	private static String[] getEnabledCipherSuites(final Configuration config) {
+		requireNonNull(config, "config must not be null");
+		return config.getString(SecurityOptions.SSL_ALGORITHMS).split(",");
 	}
 
 	/**
@@ -122,6 +172,7 @@ public class SSLUtils {
 	 * @throws Exception
 	 *         Thrown if there is any misconfiguration
 	 */
+	@Nullable
 	public static SSLContext createSSLClientContext(Configuration sslConfig) throws Exception {
 
 		Preconditions.checkNotNull(sslConfig);
@@ -170,6 +221,7 @@ public class SSLUtils {
 	 * @throws Exception
 	 *         Thrown if there is any misconfiguration
 	 */
+	@Nullable
 	public static SSLContext createSSLServerContext(Configuration sslConfig) throws Exception {
 
 		Preconditions.checkNotNull(sslConfig);
@@ -191,14 +243,8 @@ public class SSLUtils {
 			Preconditions.checkNotNull(certPassword, SecurityOptions.SSL_KEY_PASSWORD.key() + " was not configured.");
 
 			KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-			FileInputStream keyStoreFile = null;
-			try {
-				keyStoreFile = new FileInputStream(new File(keystoreFilePath));
+			try (FileInputStream keyStoreFile = new FileInputStream(new File(keystoreFilePath))) {
 				ks.load(keyStoreFile, keystorePassword.toCharArray());
-			} finally {
-				if (keyStoreFile != null) {
-					keyStoreFile.close();
-				}
 			}
 
 			// Set up key manager factory to use the server key store
