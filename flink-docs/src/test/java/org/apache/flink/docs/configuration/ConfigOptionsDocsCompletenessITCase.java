@@ -49,7 +49,7 @@ import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.stri
  * the same key with different descriptions/default values), and that the documentation does not refer to non-existent
  * options.
  */
-public class ConfigOptionsDocsCompletenessTest {
+public class ConfigOptionsDocsCompletenessITCase {
 
 	@Test
 	public void testDocsCompleteness() throws IOException, ClassNotFoundException {
