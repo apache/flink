@@ -87,4 +87,15 @@ you are sure that your state will never exceed main memory and blocking the stre
 you **could consider** to not use the RocksDB backends. However, at this point, we **strongly recommend** using RocksDB
 for production.
 
+### Config JobManager High Availability(HA)
+
+The JobManager coordinates every Flink deployment. It is responsible for both *scheduling* and *resource management*.
+
+By default, there is a single JobManager instance per Flink cluster. This creates a *single point of failure* (SPOF): 
+if the JobManager crashes, no new programs can be submitted and running programs fail.
+
+With JobManager High Availability, you can recover from JobManager failures and thereby eliminate the *SPOF*. 
+You can configure high availability for both [**standalone**]({{ site.baseurl }}/ops/jobmanager_high_availability.html#standalone-cluster-high-availability) 
+and [**YARN clusters**]({{ site.baseurl }}/ops/jobmanager_high_availability.html#yarn-cluster-high-availability).
+
 {% top %}
