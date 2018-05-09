@@ -1164,31 +1164,6 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.17</version>
-				<dependencies>
-					<dependency>
-						<groupId>com.puppycrawl.tools</groupId>
-						<artifactId>checkstyle</artifactId>
-						<!-- Note: match version with docs/internals/ide_setup.md -->
-						<version>8.4</version>
-					</dependency>
-				</dependencies>
-				<executions>
-					<execution>
-						<id>validate</id>
-						<phase>validate</phase>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
-					<includeTestSourceDirectory>true</includeTestSourceDirectory>
-					<configLocation>/tools/maven/checkstyle.xml</configLocation>
-					<logViolationsToConsole>true</logViolationsToConsole>
-					<failOnViolation>true</failOnViolation>
-				</configuration>
 			</plugin>
 			<plugin>
 				<!-- just define the Java version to be used for compiling and plugins -->
@@ -1393,6 +1368,36 @@ under the License.
 		<pluginManagement>
 			<plugins>
 
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-checkstyle-plugin</artifactId>
+					<version>2.17</version>
+					<dependencies>
+						<dependency>
+							<groupId>com.puppycrawl.tools</groupId>
+							<artifactId>checkstyle</artifactId>
+							<!-- Note: match version with docs/internals/ide_setup.md -->
+							<version>8.4</version>
+						</dependency>
+					</dependencies>
+					<executions>
+						<execution>
+							<id>validate</id>
+							<phase>validate</phase>
+							<goals>
+								<goal>check</goal>
+							</goals>
+						</execution>
+					</executions>
+					<configuration>
+						<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
+						<includeTestSourceDirectory>true</includeTestSourceDirectory>
+						<configLocation>/tools/maven/checkstyle.xml</configLocation>
+						<logViolationsToConsole>true</logViolationsToConsole>
+						<failOnViolation>true</failOnViolation>
+					</configuration>
+				</plugin>
+				
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
