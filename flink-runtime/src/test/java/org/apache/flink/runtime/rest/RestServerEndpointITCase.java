@@ -131,11 +131,19 @@ public class RestServerEndpointITCase extends TestLogger {
 	public static Collection<Object[]> data() {
 		final Configuration config = getBaseConfig();
 
+		final ClassLoader classLoader = ClassLoader.getSystemClassLoader();
+		final String truststorePath = new File(classLoader
+			.getResource("local127.truststore")
+			.getFile()).getAbsolutePath();
+		final String keystorePath = new File(classLoader
+			.getResource("local127.keystore")
+			.getFile()).getAbsolutePath();
+
 		final Configuration sslConfig = new Configuration(config);
 		sslConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
-		sslConfig.setString(SecurityOptions.SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
+		sslConfig.setString(SecurityOptions.SSL_TRUSTSTORE, truststorePath);
 		sslConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
-		sslConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		sslConfig.setString(SecurityOptions.SSL_KEYSTORE, keystorePath);
 		sslConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
 		sslConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
 
