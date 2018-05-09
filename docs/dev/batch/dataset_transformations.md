@@ -1486,7 +1486,7 @@ A Join transformation can construct result tuples using a projection as shown he
 {% highlight java %}
 DataSet<Tuple3<Integer, Byte, String>> input1 = // [...]
 DataSet<Tuple2<Integer, Double>> input2 = // [...]
-DataSet<Tuple4<Integer, String, Double, Byte>
+DataSet<Tuple4<Integer, String, Double, Byte>>
             result =
             input1.join(input2)
                   // key definition on first DataSet using a field position key
