@@ -96,7 +96,7 @@ import org.apache.flink.runtime.rest.messages.JobVertexBackPressureHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexTaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
-import org.apache.flink.runtime.rest.messages.SubtasksAllAccumulatorsHandlers;
+import org.apache.flink.runtime.rest.messages.SubtasksAllAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.SubtasksTimesHeaders;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.YarnCancelJobTerminationHeaders;
@@ -327,7 +327,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			leaderRetriever,
 			timeout,
 			responseHeaders,
-			SubtasksAllAccumulatorsHandlers.getInstance(),
+			SubtasksAllAccumulatorsHeaders.getInstance(),
 			executionGraphCache,
 			executor);
 
