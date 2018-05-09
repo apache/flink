@@ -322,21 +322,21 @@ public class SSLUtilsTest {
 
 	// ------------------------------- utils ----------------------------------
 
-	private static Configuration createSslConfigWithKeyStore() {
+	public static Configuration createSslConfigWithKeyStore() {
 		final Configuration config = new Configuration();
 		config.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		addKeyStoreConfig(config);
 		return config;
 	}
 
-	private static Configuration createSslConfigWithTrustStore() {
+	public static Configuration createSslConfigWithTrustStore() {
 		final Configuration config = new Configuration();
 		config.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		addTrustStoreConfig(config);
 		return config;
 	}
 
-	private static Configuration createSslConfigWithKeyAndTrustStores() {
+	public static Configuration createSslConfigWithKeyAndTrustStores() {
 		final Configuration config = new Configuration();
 		config.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		addKeyStoreConfig(config);
