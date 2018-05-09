@@ -346,7 +346,6 @@ public class FlinkKinesisProducerTest {
 		private List<SettableFuture<UserRecordResult>> pendingRecordFutures = new LinkedList<>();
 
 		private transient MultiShotLatch flushLatch;
-		private boolean isFlushed;
 
 		DummyFlinkKinesisProducer(SerializationSchema<T> schema) {
 			super(schema, TestUtils.getStandardProperties());
@@ -379,11 +378,7 @@ public class FlinkKinesisProducerTest {
 				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
 					flushLatch.trigger();
 
-					while (!isAllRecordFuturesCompleted()) {
-						Thread.sleep(50);
-					}
-
-					isFlushed = true;
+					Thread.sleep(50);
 
 					return null;
 				}
@@ -399,12 +394,11 @@ public class FlinkKinesisProducerTest {
 
 		@Override
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			isFlushed = false;
 
 			super.snapshotState(context);
 
 			// if the snapshot implementation doesn't wait until all pending records are flushed, we should fail the test
-			if (!isFlushed) {
+			if (mockProducer.getOutstandingRecordsCount() > 0) {
 				throw new RuntimeException("Flushing is enabled; snapshots should be blocked until all pending records are flushed");
 			}
 		}
