@@ -234,6 +234,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 
 		checkAndPropagateAsyncError();
 		checkQueueLimit();
+		checkAndPropagateAsyncError();
 
 		String stream = defaultStream;
 		String partition = defaultPartition;
@@ -348,7 +349,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	 * break record aggregation.
 	 */
 	private void checkQueueLimit() {
-		while(producer.getOutstandingRecordsCount() > queueLimit) {
+		while (producer.getOutstandingRecordsCount() >= queueLimit) {
 			producer.flush();
 			try {
 				Thread.sleep(500);

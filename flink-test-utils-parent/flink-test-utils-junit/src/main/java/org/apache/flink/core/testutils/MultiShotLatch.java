@@ -52,4 +52,13 @@ public final class MultiShotLatch {
 			triggered = false;
 		}
 	}
+
+	/**
+	 * Checks if the latch was triggered.
+	 *
+	 * @return True, if the latch was triggered, false if not.
+	 */
+	public boolean isTriggered() {
+		return triggered;
+	}
 }
