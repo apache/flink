@@ -30,7 +30,9 @@ import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
@@ -41,7 +43,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple8;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -69,8 +71,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testSingleFieldExtract() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map1.class, "Tuple2<String,Integer>",
-				"String");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map1.class,
+			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){}), Types.STRING);
 	}
 
 	@ForwardedFields("f0->f0;f0->f1")
@@ -82,8 +84,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardIntoTuple() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map2.class, "Tuple2<String,Integer>",
-				"Tuple2<String,String>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map2.class,
+			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){}), TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}));
 	}
 
 	private static class Map3 implements MapFunction<String[], Integer> {
@@ -96,7 +98,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithArrayAttrAccess() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map3.class, "String[]", "Integer");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map3.class,
+			TypeInformation.of(new TypeHint<String[]>(){}), Types.INT);
 	}
 
 	private static class Map4 implements MapFunction<MyPojo, String> {
@@ -109,7 +112,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithGenericTypePublicAttrAccess() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map4.class,
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo", "String");
+			TypeInformation.of(new TypeHint<GenericTypeInfo<MyPojo>>(){}), Types.STRING);
 	}
 
 	@ForwardedFields("field2->*")
@@ -123,7 +126,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithPojoPublicAttrAccess() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map5.class,
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>", "String");
+			TypeInformation.of(new TypeHint<MyPojo>(){}), Types.STRING);
 	}
 
 	@ForwardedFields("field->*")
@@ -137,7 +140,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithPojoPrivateAttrAccess() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map6.class,
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>", "String");
+			TypeInformation.of(new TypeHint<MyPojo>(){}), Types.STRING);
 	}
 
 	@ForwardedFields("f0->f1")
@@ -153,8 +156,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardIntoTupleWithCondition() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map7.class, "Tuple2<String,Integer>",
-				"Tuple2<String,String>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map7.class,
+			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){}), TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}));
 	}
 
 	private static class Map8 implements MapFunction<Tuple2<String, String>, String> {
@@ -169,8 +172,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testSingleFieldExtractWithCondition() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map8.class, "Tuple2<String,String>",
-				"String");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map8.class,
+			TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}), Types.STRING);
 	}
 
 	@ForwardedFields("*->f0")
@@ -185,7 +188,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardIntoTupleWithInstanceVar() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map9.class, "String", "Tuple1<String>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map9.class, Types.STRING,
+			TypeInformation.of(new TypeHint<Tuple1<String>>(){}));
 	}
 
 	@ForwardedFields("*->f0.f0")
@@ -200,8 +204,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardIntoTupleWithInstanceVar2() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map10.class, "String",
-				"Tuple1<Tuple1<String>>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map10.class, Types.STRING,
+			TypeInformation.of(new TypeHint<Tuple1<Tuple1<String>>>(){}));
 	}
 
 	@ForwardedFields("*->f1")
@@ -222,8 +226,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardIntoTupleWithInstanceVarChangedByOtherMethod() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map11.class, "String",
-				"Tuple2<String, String>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map11.class, Types.STRING,
+			TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}));
 	}
 
 	@ForwardedFields("f0->f0.f0;f0->f1.f0")
@@ -236,8 +240,9 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardIntoNestedTuple() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map12.class, "Tuple2<String,Integer>",
-				"Tuple2<Tuple1<String>,Tuple1<String>>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map12.class,
+			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){}),
+			TypeInformation.of(new TypeHint<Tuple2<Tuple1<String>, Tuple1<String>>>(){}));
 	}
 
 	@ForwardedFields("f0->f1.f0")
@@ -253,8 +258,9 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardIntoNestedTupleWithVarAndModification() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map13.class, "Tuple2<String,Integer>",
-				"Tuple2<Tuple1<String>,Tuple1<String>>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map13.class,
+			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){}),
+			TypeInformation.of(new TypeHint<Tuple2<Tuple1<String>, Tuple1<String>>>(){}));
 	}
 
 	@ForwardedFields("f0")
@@ -268,8 +274,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardIntoTupleWithAssignment() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map14.class, "Tuple2<String,Integer>",
-				"Tuple2<String,String>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map14.class,
+			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){}), TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}));
 	}
 
 	@ForwardedFields("f0.f0->f0")
@@ -284,7 +290,8 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardIntoTupleWithInputPath() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map15.class,
-				"Tuple2<Tuple1<String>,Integer>", "Tuple2<String,String>");
+			TypeInformation.of(new TypeHint<Tuple2<Tuple1<String>, Integer>>(){}),
+			TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}));
 	}
 
 	@ForwardedFields("field->field2;field2->field")
@@ -300,8 +307,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardIntoPojoByGettersAndSetters() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map16.class,
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>",
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>");
+			TypeInformation.of(new TypeHint<MyPojo>(){}), TypeInformation.of(new TypeHint<MyPojo>(){}));
 	}
 
 	private static class Map17 implements MapFunction<String, Tuple1<String>> {
@@ -319,7 +325,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardIntoTupleWithInstanceVarAndCondition() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map17.class, "String", "Tuple1<String>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map17.class, Types.STRING,
+			TypeInformation.of(new TypeHint<Tuple1<String>>(){}));
 	}
 
 	private static class Map18 implements MapFunction<Tuple1<String>, ArrayList<String>> {
@@ -333,8 +340,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardIntoUnsupportedObject() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map18.class, "Tuple1<String>",
-				"java.util.ArrayList");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map18.class,
+			TypeInformation.of(new TypeHint<Tuple1<String>>(){}), TypeInformation.of(new TypeHint<java.util.ArrayList>(){}));
 	}
 
 	@ForwardedFields("*->f0")
@@ -351,7 +358,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithNewTupleToNewTupleAssignment() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map19.class, "Integer", "Tuple1<Integer>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map19.class, Types.INT,
+			TypeInformation.of(new TypeHint<Tuple1<Integer>>(){}));
 	}
 
 	@ForwardedFields("f0;f1")
@@ -371,7 +379,8 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithGetMethod() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map20.class,
-				"Tuple4<Integer, Integer, Integer, Integer>", "Tuple4<Integer, Integer, Integer, Integer>");
+			TypeInformation.of(new TypeHint<Tuple4<Integer, Integer, Integer, Integer>>(){}),
+			TypeInformation.of(new TypeHint<Tuple4<Integer, Integer, Integer, Integer>>(){}));
 	}
 
 	@ForwardedFields("f0->f1;f1->f0")
@@ -387,8 +396,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithSetMethod() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map21.class, "Tuple2<Integer, Integer>",
-				"Tuple2<Integer, Integer>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map21.class,
+			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}), TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}));
 	}
 
 	@ForwardedFields("f0->f1;f1->f0")
@@ -404,8 +413,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardIntoNewTupleWithSetMethod() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map22.class, "Tuple2<Integer, Integer>",
-				"Tuple2<Integer, Integer>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map22.class,
+			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}), TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}));
 	}
 
 	@ForwardedFields("*")
@@ -426,8 +435,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithGetMethod2() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map23.class, "Tuple1<Integer>",
-				"Tuple1<Integer>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map23.class,
+			TypeInformation.of(new TypeHint<Tuple1<Integer>>(){}), TypeInformation.of(new TypeHint<Tuple1<Integer>>(){}));
 	}
 
 	private static class Map24 implements MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
@@ -442,8 +451,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithSetMethod2() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map24.class, "Tuple2<Integer, Integer>",
-				"Tuple2<Integer, Integer>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map24.class,
+			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}), TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}));
 	}
 
 	@ForwardedFields("f1->f0;f1")
@@ -457,8 +466,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithModifiedInput() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map25.class, "Tuple2<Integer, Integer>",
-				"Tuple2<Integer, Integer>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map25.class,
+			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}), TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}));
 	}
 
 	@ForwardedFields("*->1")
@@ -482,8 +491,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithTuplesGetSetFieldMethods() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map26.class, "Integer",
-				"Tuple2<Integer, Integer>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map26.class, Types.INT,
+			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}));
 	}
 
 	@ForwardedFields("2->3;3->7")
@@ -515,8 +524,8 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithTuplesGetSetFieldMethods2() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map27.class,
-				"Tuple8<Integer, Integer, Integer, Integer, Integer, Integer, Integer, Integer>",
-				"Tuple8<Integer, Integer, Integer, Integer, Integer, Integer, Integer, Integer>");
+			TypeInformation.of(new TypeHint<Tuple8<Integer, Integer, Integer, Integer, Integer, Integer, Integer, Integer>>(){}),
+			TypeInformation.of(new TypeHint<Tuple8<Integer, Integer, Integer, Integer, Integer, Integer, Integer, Integer>>(){}));
 	}
 
 	private static class Map28 implements MapFunction<Integer, Integer> {
@@ -531,7 +540,7 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithBranching1() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map28.class, "Integer", "Integer");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map28.class, Types.INT, Types.INT);
 	}
 
 	@ForwardedFields("0")
@@ -555,7 +564,8 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithBranching2() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map29.class,
-				"Tuple3<String, String, String>", "Tuple3<String, String, String>");
+			TypeInformation.of(new TypeHint<Tuple3<String, String, String>>(){}),
+			TypeInformation.of(new TypeHint<Tuple3<String, String, String>>(){}));
 	}
 
 	private static class Map30 implements MapFunction<Tuple2<String, String>, String> {
@@ -573,8 +583,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithBranching3() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map30.class, "Tuple2<String,String>",
-				"String");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map30.class,
+			TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}), Types.STRING);
 	}
 
 	@ForwardedFields("1->1;1->0")
@@ -591,8 +601,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithInheritance() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map31.class, "Tuple2<String,String>",
-				"Tuple2<String,String>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map31.class,
+			TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}), TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}));
 	}
 
 	@ForwardedFields("*")
@@ -620,8 +630,8 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithUnboxingAndBoxing() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map32.class,
-				"Tuple8<Boolean, Character, Byte, Short, Integer, Long, Float, Double>",
-				"Tuple8<Boolean, Character, Byte, Short, Integer, Long, Float, Double>");
+			TypeInformation.of(new TypeHint<Tuple8<Boolean, Character, Byte, Short, Integer, Long, Float, Double>>(){}),
+			TypeInformation.of(new TypeHint<Tuple8<Boolean, Character, Byte, Short, Integer, Long, Float, Double>>(){}));
 	}
 
 	private static class Map33 implements MapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
@@ -640,8 +650,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithBranching4() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map33.class, "Tuple2<Long, Long>",
-				"Tuple2<Long, Long>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map33.class, TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}),
+			TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}));
 	}
 
 	@ForwardedFields("1")
@@ -663,8 +673,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithBranching5() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map34.class, "Tuple2<Long, Long>",
-				"Tuple2<Long, Long>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map34.class, TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}),
+			TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}));
 	}
 
 	private static class Map35 implements MapFunction<String[], Tuple2<String[], String[]>> {
@@ -678,8 +688,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithArrayModification() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map35.class, "String[]",
-				"Tuple2<String[], String[]>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map35.class, TypeInformation.of(new TypeHint<String[]>(){}),
+			TypeInformation.of(new TypeHint<Tuple2<String[], String[]>>(){}));
 	}
 
 	private static class Map36 implements MapFunction<Tuple3<String, String, String>, Tuple3<String, String, String>> {
@@ -696,8 +706,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithBranching6() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map36.class, "Tuple3<String, String, String>",
-				"Tuple3<String, String, String>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map36.class, TypeInformation.of(new TypeHint<Tuple3<String, String, String>>(){}),
+			TypeInformation.of(new TypeHint<Tuple3<String, String, String>>(){}));
 	}
 
 	private static class Map37 implements MapFunction<Tuple1<Tuple1<String>>, Tuple1<Tuple1<String>>> {
@@ -711,8 +721,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithGetAndModification() {
-		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map37.class, "Tuple1<Tuple1<String>>",
-				"Tuple1<Tuple1<String>>");
+		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map37.class, TypeInformation.of(new TypeHint<Tuple1<Tuple1<String>>>(){}),
+			TypeInformation.of(new TypeHint<Tuple1<Tuple1<String>>>(){}));
 	}
 
 	@ForwardedFields("field")
@@ -727,8 +737,8 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithInheritance2() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map38.class,
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo2<field=String,field2=String>",
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo2<field=String,field2=String>");
+			TypeInformation.of(new TypeHint<MyPojo2>(){}),
+			TypeInformation.of(new TypeHint<MyPojo2>(){}));
 	}
 
 	private static class Map39 implements MapFunction<MyPojo, MyPojo> {
@@ -743,8 +753,8 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithGenericTypeOutput() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map39.class,
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>",
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo");
+			TypeInformation.of(new TypeHint<GenericTypeInfo<MyPojo>>(){}),
+			TypeInformation.of(new TypeHint<GenericTypeInfo<MyPojo>>(){}));
 	}
 
 	@ForwardedFields("field2")
@@ -766,8 +776,8 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithRecursion() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map40.class,
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>",
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>");
+			TypeInformation.of(new TypeHint<MyPojo>(){}),
+			TypeInformation.of(new TypeHint<MyPojo>(){}));
 	}
 
 	@ForwardedFields("field;field2")
@@ -784,8 +794,8 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithGetRuntimeContext() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map41.class,
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>",
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>");
+			TypeInformation.of(new TypeHint<MyPojo>(){}),
+			TypeInformation.of(new TypeHint<MyPojo>(){}));
 	}
 
 	@ForwardedFields("*")
@@ -798,8 +808,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithCollector() {
-		compareAnalyzerResultWithAnnotationsSingleInput(FlatMapFunction.class, FlatMap1.class, "Tuple1<Integer>",
-				"Tuple1<Integer>");
+		compareAnalyzerResultWithAnnotationsSingleInput(FlatMapFunction.class, FlatMap1.class, TypeInformation.of(new TypeHint<Tuple1<Integer>>(){}),
+			TypeInformation.of(new TypeHint<Tuple1<Integer>>(){}));
 	}
 
 	@ForwardedFields("0->1;1->0")
@@ -817,8 +827,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWith2Collectors() {
-		compareAnalyzerResultWithAnnotationsSingleInput(FlatMapFunction.class, FlatMap2.class, "Tuple2<Long, Long>",
-				"Tuple2<Long, Long>");
+		compareAnalyzerResultWithAnnotationsSingleInput(FlatMapFunction.class, FlatMap2.class, TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}),
+			TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}));
 	}
 
 	private static class FlatMap3 implements FlatMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
@@ -835,8 +845,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithCollectorPassing() {
-		compareAnalyzerResultWithAnnotationsSingleInput(FlatMapFunction.class, FlatMap3.class, "Tuple1<Integer>",
-				"Tuple1<Integer>");
+		compareAnalyzerResultWithAnnotationsSingleInput(FlatMapFunction.class, FlatMap3.class, TypeInformation.of(new TypeHint<Tuple1<Integer>>(){}),
+			TypeInformation.of(new TypeHint<Tuple1<Integer>>(){}));
 	}
 
 	@ForwardedFieldsFirst("f1->f1")
@@ -850,8 +860,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithDualInput() {
-		compareAnalyzerResultWithAnnotationsDualInput(JoinFunction.class, Join1.class, "Tuple2<Long, Long>",
-				"Tuple2<Long, Long>", "Tuple2<Long, Long>");
+		compareAnalyzerResultWithAnnotationsDualInput(JoinFunction.class, Join1.class, TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}),
+			TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}), TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}));
 	}
 
 	@ForwardedFieldsFirst("*")
@@ -866,8 +876,8 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithDualInputAndCollector() {
-		compareAnalyzerResultWithAnnotationsDualInput(FlatJoinFunction.class, Join2.class, "Tuple2<Long, Long>",
-				"Tuple2<Long, Long>", "Tuple2<Long, Long>");
+		compareAnalyzerResultWithAnnotationsDualInput(FlatJoinFunction.class, Join2.class, TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}),
+			TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}), TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}));
 	}
 
 	@ForwardedFields("0")
@@ -881,7 +891,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithIterable() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, GroupReduce1.class,
-				"Tuple2<Long, Long>", "Tuple2<Long, Long>", new String[] { "0" });
+			TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}), TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}), new String[] { "0" });
 	}
 
 	@ForwardedFields("1->0")
@@ -907,7 +917,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithIterable2() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, GroupReduce2.class,
-				"Tuple2<Long, Long>", "Tuple2<Long, Long>", new String[] { "0", "1" });
+			TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}), TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}), new String[] { "0", "1" });
 	}
 
 	@ForwardedFields("field2")
@@ -923,8 +933,8 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithIterable3() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, GroupReduce3.class,
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>",
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>", new String[] { "field2" });
+			TypeInformation.of(new TypeHint<MyPojo>(){}),
+			TypeInformation.of(new TypeHint<MyPojo>(){}), new String[] { "field2" });
 	}
 
 	@ForwardedFields("f0->*")
@@ -942,7 +952,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithAtLeastOneIterationAssumption() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, GroupReduce4.class,
-				"Tuple2<Long, Long>", "Long", new String[] { "f0" });
+			TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}), Types.LONG, new String[] { "f0" });
 	}
 
 	@ForwardedFields("f0->*")
@@ -967,7 +977,7 @@ public class UdfAnalyzerTest {
 	public void testForwardWithAtLeastOneIterationAssumptionForJavac() {
 		// this test simulates javac behaviour in Eclipse IDE
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, GroupReduce4Javac.class,
-				"Tuple2<Long, Long>", "Long", new String[] { "f0" });
+			TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}), Types.LONG, new String[] { "f0" });
 	}
 
 	private static class GroupReduce5 implements GroupReduceFunction<Tuple2<Long, Long>, Long> {
@@ -987,7 +997,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithAtLeastOneIterationAssumption2() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, GroupReduce5.class,
-				"Tuple2<Long, Long>", "Long", new String[] { "f1" });
+			TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}), Types.LONG, new String[] { "f1" });
 	}
 
 	private static class GroupReduce6 implements GroupReduceFunction<Tuple2<Long, Long>, Long> {
@@ -1005,7 +1015,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithAtLeastOneIterationAssumption3() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, GroupReduce6.class,
-				"Tuple2<Long, Long>", "Long", new String[] { "f0" });
+			TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}), Types.LONG, new String[] { "f0" });
 	}
 
 	private static class GroupReduce7 implements GroupReduceFunction<Tuple2<Long, Long>, Long> {
@@ -1023,7 +1033,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithAtLeastOneIterationAssumption4() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, GroupReduce7.class,
-				"Tuple2<Long, Long>", "Long", new String[] { "f0" });
+			TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}), Types.LONG, new String[] { "f0" });
 	}
 
 	@ForwardedFields("f0->*")
@@ -1042,7 +1052,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithAtLeastOneIterationAssumption5() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, GroupReduce8.class,
-				"Tuple2<Long, Long>", "Long", new String[] { "f0" });
+			TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}), Types.LONG, new String[] { "f0" });
 	}
 
 	@ForwardedFields("f0")
@@ -1061,7 +1071,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithAtLeastOneIterationAssumption6() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, GroupReduce9.class,
-				"Tuple2<Long, Long>", "Tuple2<Long, Long>", new String[] { "f0" });
+			TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}), TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}), new String[] { "f0" });
 	}
 
 	private static class GroupReduce10 implements GroupReduceFunction<Tuple2<Long, Long>, Boolean> {
@@ -1082,7 +1092,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithAtLeastOneIterationAssumption7() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, GroupReduce10.class,
-				"Tuple2<Long, Long>", "Boolean", new String[] { "f0" });
+			TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}), Types.BOOLEAN, new String[] { "f0" });
 	}
 
 	@ForwardedFields("field")
@@ -1096,9 +1106,9 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithReduce() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(ReduceFunction.class, Reduce1.class,
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>",
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>",
-				new String[] { "field" });
+			TypeInformation.of(new TypeHint<MyPojo>(){}),
+			TypeInformation.of(new TypeHint<MyPojo>(){}),
+			new String[] { "field" });
 	}
 
 	@ForwardedFields("field")
@@ -1115,9 +1125,9 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithBranchingReduce() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(ReduceFunction.class, Reduce2.class,
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>",
-				"org.apache.flink.api.java.sca.UdfAnalyzerTest$MyPojo<field=String,field2=String>",
-				new String[] { "field" });
+			TypeInformation.of(new TypeHint<MyPojo>(){}),
+			TypeInformation.of(new TypeHint<MyPojo>(){}),
+			new String[] { "field" });
 	}
 
 	private static class NullReturnMapper1 implements MapFunction<String, String> {
@@ -1215,7 +1225,7 @@ public class UdfAnalyzerTest {
 	public void testFilterModificationException1() {
 		try {
 			final UdfAnalyzer ua = new UdfAnalyzer(FilterFunction.class, FilterMod1.class, "operator",
-					TypeInfoParser.parse("Tuple2<String, String>"), null, null, null, null, true);
+					TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}), null, null, null, null, true);
 			ua.analyze();
 			Assert.fail();
 		}
@@ -1237,7 +1247,7 @@ public class UdfAnalyzerTest {
 	public void testFilterModificationException2() {
 		try {
 			final UdfAnalyzer ua = new UdfAnalyzer(FilterFunction.class, FilterMod2.class, "operator",
-					TypeInfoParser.parse("Tuple2<String, String>"), null, null, null, null, true);
+					TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}), null, null, null, null, true);
 			ua.analyze();
 			Assert.fail();
 		}
@@ -1303,17 +1313,14 @@ public class UdfAnalyzerTest {
 		}
 	}
 
-	public static void compareAnalyzerResultWithAnnotationsSingleInput(Class<?> baseClass, Class<?> clazz, String in,
-			String out) {
-		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(baseClass, clazz, in, out, null);
+	public static void compareAnalyzerResultWithAnnotationsSingleInput(Class<?> baseClass, Class<?> clazz,
+		TypeInformation<?> inType, TypeInformation<?> outType) {
+		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(baseClass, clazz, inType, outType, null);
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public static void compareAnalyzerResultWithAnnotationsSingleInputWithKeys(Class<?> baseClass, Class<?> clazz,
-			String in, String out, String[] keys) {
-		final TypeInformation<?> inType = TypeInfoParser.parse(in);
-		final TypeInformation<?> outType = TypeInfoParser.parse(out);
-
+		TypeInformation<?> inType, TypeInformation<?> outType, String[] keys) {
 		// expected
 		final Set<Annotation> annotations = FunctionAnnotation.readSingleForwardAnnotations(clazz);
 		SingleInputSemanticProperties expected = SemanticPropUtil.getSemanticPropsSingle(annotations, inType,
@@ -1331,18 +1338,14 @@ public class UdfAnalyzerTest {
 		assertEquals(expected.toString(), actual.toString());
 	}
 
-	public static void compareAnalyzerResultWithAnnotationsDualInput(Class<?> baseClass, Class<?> clazz, String in1,
-			String in2, String out) {
-		compareAnalyzerResultWithAnnotationsDualInputWithKeys(baseClass, clazz, in1, in2, out, null, null);
+	public static void compareAnalyzerResultWithAnnotationsDualInput(Class<?> baseClass, Class<?> clazz,
+		TypeInformation<?> in1Type, TypeInformation<?> in2Type, TypeInformation<?> outType) {
+		compareAnalyzerResultWithAnnotationsDualInputWithKeys(baseClass, clazz, in1Type, in2Type, outType, null, null);
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public static void compareAnalyzerResultWithAnnotationsDualInputWithKeys(Class<?> baseClass, Class<?> clazz,
-			String in1, String in2, String out, String[] keys1, String[] keys2) {
-		final TypeInformation<?> in1Type = TypeInfoParser.parse(in1);
-		final TypeInformation<?> in2Type = TypeInfoParser.parse(in2);
-		final TypeInformation<?> outType = TypeInfoParser.parse(out);
-
+		TypeInformation<?> in1Type, TypeInformation<?> in2Type, TypeInformation<?> outType, String[] keys1, String[] keys2) {
 		// expected
 		final Set<Annotation> annotations = FunctionAnnotation.readDualForwardAnnotations(clazz);
 		final DualInputSemanticProperties expected = SemanticPropUtil.getSemanticPropsDual(annotations, in1Type,
