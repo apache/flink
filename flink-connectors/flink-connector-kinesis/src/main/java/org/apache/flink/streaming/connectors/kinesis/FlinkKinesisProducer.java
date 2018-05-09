@@ -65,6 +65,9 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	/* Flag controlling the error behavior of the producer */
 	private boolean failOnError = false;
 
+	/* Maximum length of the internal record queue before backpressuring */
+	private int queueLimit = Integer.MAX_VALUE;
+
 	/* Name of the default stream to produce to. Can be overwritten by the serialization schema */
 	private String defaultStream;
 
@@ -142,6 +145,17 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	 */
 	public void setFailOnError(boolean failOnError) {
 		this.failOnError = failOnError;
+	}
+
+	/**
+	 * The {@link KinesisProducer} holds an unbounded queue internally. To avoid memory
+	 * problems under high loads, a limit can be employed above which the internal queue
+	 * will be flushed, thereby applying backpressure.
+	 *
+	 * @param queueLimit The maximum length of the internal queue before backpressuring
+	 */
+	public void setQueueLimit(int queueLimit) {
+		this.queueLimit = queueLimit;
 	}
 
 	/**
@@ -334,7 +348,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	 * break record aggregation.
 	 */
 	private void checkQueueLimit() {
-		while(producer.getOutstandingRecordsCount() > 100000) {
+		while(producer.getOutstandingRecordsCount() > queueLimit) {
 			producer.flush();
 			try {
 				Thread.sleep(500);
