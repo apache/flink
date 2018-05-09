@@ -380,6 +380,27 @@ function wait_oper_metric_num_in_records {
     done
 }
 
+function wait_num_checkpoints {
+    JOB=$1
+    NUM_CHECKPOINTS=$2
+
+    echo "Waiting for job ($JOB) to have at least $NUM_CHECKPOINTS completed checkpoints ..."
+
+    while : ; do
+      N=$(grep -o "Completed checkpoint [1-9]* for job $JOB" $FLINK_DIR/log/*standalonesession*.log | awk '{print $3}' | tail -1)
+
+      if [ -z $N ]; then
+        N=0
+      fi
+
+      if (( N < NUM_CHECKPOINTS )); then
+        sleep 1
+      else
+        break
+      fi
+    done
+}
+
 # make sure to clean up even in case of failures
 function cleanup {
   stop_cluster
