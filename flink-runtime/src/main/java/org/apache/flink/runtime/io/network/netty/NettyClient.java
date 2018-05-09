@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
@@ -200,7 +201,7 @@ class NettyClient {
 			return bootstrap.connect(serverSocketAddress);
 		}
 		catch (ChannelException e) {
-			if ( (e.getCause() instanceof java.net.SocketException &&
+			if ((e.getCause() instanceof java.net.SocketException &&
 					e.getCause().getMessage().equals("Too many open files")) ||
 				(e.getCause() instanceof ChannelException &&
 						e.getCause().getCause() instanceof java.net.SocketException &&

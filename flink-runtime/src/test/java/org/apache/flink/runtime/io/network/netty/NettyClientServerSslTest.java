@@ -20,6 +20,8 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
+import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
@@ -30,7 +32,13 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.string.StringEncode
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
+
+import java.io.File;
+import java.io.FileInputStream;
 import java.net.InetAddress;
+import java.security.KeyStore;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -110,15 +118,58 @@ public class NettyClientServerSslTest {
 		NettyTestUtil.shutdown(serverAndClient);
 	}
 
+	@Test
+	public void testClientUntrustedCertificate() throws Exception {
+		final Configuration serverConfig = createSslConfig();
+		final Configuration clientConfig = createSslConfig();
+
+		// give the client a different keystore / certificate
+		clientConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/untrusted.keystore");
+
+		final NettyConfig nettyServerConfig = createNettyConfig(serverConfig);
+		final NettyConfig nettyClientConfig = createNettyConfig(clientConfig);
+
+		final NettyBufferPool bufferPool = new NettyBufferPool(1);
+		final NettyProtocol protocol = new NoOpProtocol();
+
+		final NettyServer server = NettyTestUtil.initServer(nettyServerConfig, protocol, bufferPool);
+		final NettyClient client = NettyTestUtil.initClient(nettyClientConfig, protocol, bufferPool);
+		final NettyServerAndClient serverAndClient = new NettyServerAndClient(server, client);
+
+		final Channel ch = NettyTestUtil.connect(serverAndClient);
+		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
+
+		// Attempting to write data over ssl should fail
+		assertFalse(ch.writeAndFlush("test").await().isSuccess());
+
+		NettyTestUtil.shutdown(serverAndClient);
+	}
+
+	@Test
+	public void testClientNoCertificate() throws Exception {
+		final NettyConfig nettyServerConfig = createNettyConfig(createSslConfig());
+
+		// client config has only the TrustStore, no KeyStore (certificate)
+		final NettyConfig nettyClientConfig = new NettyConfigWithNoClientCertificate();
+
+		final NettyBufferPool bufferPool = new NettyBufferPool(1);
+		final NettyProtocol protocol = new NoOpProtocol();
+
+		final NettyServer server = NettyTestUtil.initServer(nettyServerConfig, protocol, bufferPool);
+		final NettyClient client = NettyTestUtil.initClient(nettyClientConfig, protocol, bufferPool);
+		final NettyServerAndClient serverAndClient = new NettyServerAndClient(server, client);
+
+		final Channel ch = NettyTestUtil.connect(serverAndClient);
+		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
+
+		// Attempting to write data over ssl should fail
+		assertFalse(ch.writeAndFlush("test").await().isSuccess());
+
+		NettyTestUtil.shutdown(serverAndClient);
+	}
+
 	private static Configuration createSslConfig() {
-		final Configuration flinkConfig = new Configuration();
-		flinkConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
-		flinkConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
-		flinkConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
-		flinkConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
-		flinkConfig.setString(SecurityOptions.SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
-		flinkConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
-		return flinkConfig;
+		return SSLUtilsTest.createSslConfigWithKeyAndTrustStores();
 	}
 
 	private static NettyConfig createNettyConfig(Configuration config) {
@@ -144,6 +195,38 @@ public class NettyClientServerSslTest {
 		@Override
 		public ChannelHandler[] getClientChannelHandlers() {
 			return new ChannelHandler[0];
+		}
+	}
+
+	private static class NettyConfigWithNoClientCertificate extends NettyConfig {
+
+		public NettyConfigWithNoClientCertificate() {
+			super(InetAddress.getLoopbackAddress(),
+				NetUtils.getAvailablePort(),
+				NettyTestUtil.DEFAULT_SEGMENT_SIZE,
+				1,
+				SSLUtilsTest.createSslConfigWithTrustStore());
+		}
+
+		@Override
+		public SSLContext createClientSSLContext() throws Exception {
+			// create a context with no certificate here
+			final Configuration config = getConfig();
+			final String trustStoreFilePath = config.getString(SecurityOptions.SSL_TRUSTSTORE);
+			final String trustStorePassword = config.getString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD);
+
+			KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+
+			try (FileInputStream trustStoreFile = new FileInputStream(new File(trustStoreFilePath))) {
+				trustStore.load(trustStoreFile, trustStorePassword.toCharArray());
+			}
+
+			TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+			tmf.init(trustStore);
+
+			final SSLContext sslContext = SSLContext.getInstance(SecurityOptions.SSL_PROTOCOL.defaultValue());
+			sslContext.init(null, tmf.getTrustManagers(), null);
+			return sslContext;
 		}
 	}
 }

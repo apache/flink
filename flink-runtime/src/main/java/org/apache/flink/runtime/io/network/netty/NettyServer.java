@@ -61,7 +61,7 @@ class NettyServer {
 
 	private ChannelFuture bindFuture;
 
-	private SSLContext serverSSLContext = null;
+	private SSLContext serverSSLContext;
 
 	private InetSocketAddress localAddress;
 
@@ -155,6 +155,7 @@ class NettyServer {
 					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
 					config.setSSLVerAndCipherSuites(sslEngine);
 					sslEngine.setUseClientMode(false);
+					sslEngine.setNeedClientAuth(true);
 					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}
 
