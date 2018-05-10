@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -48,7 +49,12 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -57,6 +63,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -1148,7 +1156,7 @@ public class SlotManagerTest extends TestLogger {
 	}
 
 	/**
-	 * Testst that the SlotManager retries allocating a slot if the TaskExecutor#requestSlot call
+	 * Tests that the SlotManager retries allocating a slot if the TaskExecutor#requestSlot call
 	 * fails.
 	 */
 	@Test
@@ -1199,6 +1207,99 @@ public class SlotManagerTest extends TestLogger {
 			final TaskManagerSlot slot = slotManager.getSlot(secondRequest.f0);
 			assertThat(slot.getState(), equalTo(TaskManagerSlot.State.ALLOCATED));
 			assertThat(slot.getAllocationId(), equalTo(secondRequest.f2));
+		}
+	}
+
+	/**
+	 * Tests notify the job manager of the allocations when the task manager is failed/killed.
+	 */
+	@Test
+	public void testNotifyFailedAllocationWhenTaskManagerTerminated() throws Exception {
+
+		final List<Tuple2<JobID, AllocationID>> notifiedTaskManagerInfos = new ArrayList<>();
+
+		try (final SlotManager slotManager = createSlotManager(ResourceManagerId.generate(), new TestingResourceActions() {
+				@Override
+				public void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause) {
+					notifiedTaskManagerInfos.add(new Tuple2<>(jobId, allocationId));
+				}})) {
+
+			// register slot request for job1.
+			JobID jobId1 = new JobID();
+			final SlotRequest slotRequest11 = new SlotRequest(jobId1, new AllocationID(), ResourceProfile.UNKNOWN, "foobar1");
+			final SlotRequest slotRequest12 = new SlotRequest(jobId1, new AllocationID(), ResourceProfile.UNKNOWN, "foobar1");
+			slotManager.registerSlotRequest(slotRequest11);
+			slotManager.registerSlotRequest(slotRequest12);
+
+			// create task-manager-1 with 2 slots.
+			final ResourceID taskExecutorResourceId1 = ResourceID.generate();
+			final TestingTaskExecutorGateway testingTaskExecutorGateway1 = new TestingTaskExecutorGatewayBuilder()
+				.createTestingTaskExecutorGateway();
+			final TaskExecutorConnection taskExecutionConnection1 = new TaskExecutorConnection(taskExecutorResourceId1, testingTaskExecutorGateway1);
+			final Set<SlotStatus> tm1SlotStatusList = new HashSet<>();
+			tm1SlotStatusList.add(new SlotStatus(new SlotID(taskExecutorResourceId1, 0), ResourceProfile.UNKNOWN));
+			tm1SlotStatusList.add(new SlotStatus(new SlotID(taskExecutorResourceId1, 1), ResourceProfile.UNKNOWN));
+
+			// register the task-manager-1 to the slot manager, this will trigger the slot allocation for job1.
+			slotManager.registerTaskManager(taskExecutionConnection1, new SlotReport(tm1SlotStatusList));
+
+			// register slot request for job2.
+			JobID jobId2 = new JobID();
+			final SlotRequest slotRequest21 = new SlotRequest(jobId2, new AllocationID(), ResourceProfile.UNKNOWN, "foobar2");
+			final SlotRequest slotRequest22 = new SlotRequest(jobId2, new AllocationID(), ResourceProfile.UNKNOWN, "foobar2");
+			slotManager.registerSlotRequest(slotRequest21);
+			slotManager.registerSlotRequest(slotRequest22);
+
+			// register slot request for job3.
+			JobID jobId3 = new JobID();
+			final SlotRequest slotRequest31 = new SlotRequest(jobId3, new AllocationID(), ResourceProfile.UNKNOWN, "foobar3");
+			slotManager.registerSlotRequest(slotRequest31);
+
+			// create task-manager-2 with 3 slots.
+			final ResourceID taskExecutorResourceId2 = ResourceID.generate();
+			final TestingTaskExecutorGateway testingTaskExecutorGateway2 = new TestingTaskExecutorGatewayBuilder()
+				.createTestingTaskExecutorGateway();
+			final TaskExecutorConnection taskExecutionConnection2 = new TaskExecutorConnection(taskExecutorResourceId2, testingTaskExecutorGateway2);
+			final Set<SlotStatus> tm2SlotStatusList = new HashSet<>();
+			tm2SlotStatusList.add(new SlotStatus(new SlotID(taskExecutorResourceId2, 0), ResourceProfile.UNKNOWN));
+			tm2SlotStatusList.add(new SlotStatus(new SlotID(taskExecutorResourceId2, 1), ResourceProfile.UNKNOWN));
+			tm2SlotStatusList.add(new SlotStatus(new SlotID(taskExecutorResourceId2, 2), ResourceProfile.UNKNOWN));
+			tm2SlotStatusList.add(new SlotStatus(new SlotID(taskExecutorResourceId2, 3), ResourceProfile.UNKNOWN));
+
+			// register the task-manager-2 to the slot manager, this will trigger the slot allocation for job2 and job3.
+			slotManager.registerTaskManager(taskExecutionConnection2, new SlotReport(tm2SlotStatusList));
+
+			// --------------------- valid the notify task manager terminated ------------------------
+
+			// valid for job1.
+			slotManager.unregisterTaskManager(taskExecutionConnection1.getInstanceID());
+
+			assertEquals(2, notifiedTaskManagerInfos.size());
+
+			assertThat(jobId1, equalTo(notifiedTaskManagerInfos.get(0).f0));
+			assertThat(jobId1, equalTo(notifiedTaskManagerInfos.get(1).f0));
+
+			assertEquals(Stream.of(slotRequest11.getAllocationId(), slotRequest12.getAllocationId()).collect(Collectors.toSet()),
+				Stream.of(notifiedTaskManagerInfos.get(0).f1, notifiedTaskManagerInfos.get(1).f1).collect(Collectors.toSet()));
+
+			notifiedTaskManagerInfos.clear();
+
+			// valid the result for job2 and job3.
+			slotManager.unregisterTaskManager(taskExecutionConnection2.getInstanceID());
+
+			assertEquals(3, notifiedTaskManagerInfos.size());
+
+			Map<JobID, List<Tuple2<JobID, AllocationID>>> job2AndJob3FailedAllocationInfo = notifiedTaskManagerInfos.stream().collect(Collectors.groupingBy(tuple -> tuple.f0));
+
+			assertEquals(2, job2AndJob3FailedAllocationInfo.size());
+
+			// valid for job2
+			assertEquals(Stream.of(slotRequest21.getAllocationId(), slotRequest22.getAllocationId()).collect(Collectors.toSet()),
+				job2AndJob3FailedAllocationInfo.get(jobId2).stream().map(tuple2 -> tuple2.f1).collect(Collectors.toSet()));
+
+			// valid for job3
+			assertEquals(Stream.of(slotRequest31.getAllocationId()).collect(Collectors.toSet()),
+				job2AndJob3FailedAllocationInfo.get(jobId3).stream().map(tuple2 -> tuple2.f1).collect(Collectors.toSet()));
 		}
 	}
 

@@ -762,7 +762,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 				log.info(message);
 
-				throw new SlotOccupiedException(message, taskSlotTable.getCurrentAllocation(slotId.getSlotNumber()));
+				final AllocationID allocationID = taskSlotTable.getCurrentAllocation(slotId.getSlotNumber());
+				throw new SlotOccupiedException(message, allocationID, taskSlotTable.getOwningJob(allocationID));
 			}
 
 			if (jobManagerTable.contains(jobId)) {

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -343,6 +344,7 @@ public class SlotManager implements AutoCloseable {
 				registerSlot(
 					slotStatus.getSlotID(),
 					slotStatus.getAllocationID(),
+					slotStatus.getJobID(),
 					slotStatus.getResourceProfile(),
 					taskExecutorConnection);
 			}
@@ -392,7 +394,7 @@ public class SlotManager implements AutoCloseable {
 		if (null != taskManagerRegistration) {
 
 			for (SlotStatus slotStatus : slotReport) {
-				updateSlot(slotStatus.getSlotID(), slotStatus.getAllocationID());
+				updateSlot(slotStatus.getSlotID(), slotStatus.getAllocationID(), slotStatus.getJobID());
 			}
 
 			return true;
@@ -426,7 +428,7 @@ public class SlotManager implements AutoCloseable {
 							slot.getInstanceId() + " which has not been registered.");
 					}
 
-					updateSlotState(slot, taskManagerRegistration, null);
+					updateSlotState(slot, taskManagerRegistration, null, null);
 				} else {
 					LOG.debug("Received request to free slot {} with expected allocation id {}, " +
 						"but actual allocation id {} differs. Ignoring the request.", slotId, allocationId, slot.getAllocationId());
@@ -515,6 +517,7 @@ public class SlotManager implements AutoCloseable {
 	private void registerSlot(
 			SlotID slotId,
 			AllocationID allocationId,
+			JobID jobId,
 			ResourceProfile resourceProfile,
 			TaskExecutorConnection taskManagerConnection) {
 
@@ -530,7 +533,7 @@ public class SlotManager implements AutoCloseable {
 
 		slots.put(slotId, slot);
 
-		updateSlot(slotId, allocationId);
+		updateSlot(slotId, allocationId, jobId);
 	}
 
 	/**
@@ -540,14 +543,14 @@ public class SlotManager implements AutoCloseable {
 	 * @param allocationId specifying the current allocation of the slot
 	 * @return True if the slot could be updated; otherwise false
 	 */
-	private boolean updateSlot(SlotID slotId, AllocationID allocationId) {
+	private boolean updateSlot(SlotID slotId, AllocationID allocationId, JobID jobId) {
 		final TaskManagerSlot slot = slots.get(slotId);
 
 		if (slot != null) {
 			final TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(slot.getInstanceId());
 
 			if (taskManagerRegistration != null) {
-				updateSlotState(slot, taskManagerRegistration, allocationId);
+				updateSlotState(slot, taskManagerRegistration, allocationId, jobId);
 
 				return true;
 			} else {
@@ -561,7 +564,11 @@ public class SlotManager implements AutoCloseable {
 		}
 	}
 
-	private void updateSlotState(TaskManagerSlot slot, TaskManagerRegistration taskManagerRegistration, @Nullable AllocationID allocationId) {
+	private void updateSlotState(
+		TaskManagerSlot slot,
+		TaskManagerRegistration taskManagerRegistration,
+		@Nullable AllocationID allocationId,
+		@Nullable JobID jobId) {
 		if (null != allocationId) {
 			switch (slot.getState()) {
 				case PENDING:
@@ -575,12 +582,12 @@ public class SlotManager implements AutoCloseable {
 						// remove the pending slot request, since it has been completed
 						pendingSlotRequests.remove(pendingSlotRequest.getAllocationId());
 
-						slot.completeAllocation(allocationId);
+						slot.completeAllocation(allocationId, jobId);
 					} else {
 						// we first have to free the slot in order to set a new allocationId
 						slot.clearPendingSlotRequest();
 						// set the allocation id such that the slot won't be considered for the pending slot request
-						slot.updateAllocation(allocationId);
+						slot.updateAllocation(allocationId, jobId);
 
 						// this will try to find a new slot for the request
 						rejectPendingSlotRequest(
@@ -593,13 +600,13 @@ public class SlotManager implements AutoCloseable {
 				case ALLOCATED:
 					if (!Objects.equals(allocationId, slot.getAllocationId())) {
 						slot.freeSlot();
-						slot.updateAllocation(allocationId);
+						slot.updateAllocation(allocationId, jobId);
 					}
 					break;
 				case FREE:
 					// the slot is currently free --> it is stored in freeSlots
 					freeSlots.remove(slot.getSlotId());
-					slot.updateAllocation(allocationId);
+					slot.updateAllocation(allocationId, jobId);
 					taskManagerRegistration.occupySlot();
 					break;
 			}
@@ -660,15 +667,16 @@ public class SlotManager implements AutoCloseable {
 		final CompletableFuture<Acknowledge> completableFuture = new CompletableFuture<>();
 		final AllocationID allocationId = pendingSlotRequest.getAllocationId();
 		final SlotID slotId = taskManagerSlot.getSlotId();
+		final InstanceID instanceID = taskManagerSlot.getInstanceId();
 
 		taskManagerSlot.assignPendingSlotRequest(pendingSlotRequest);
 		pendingSlotRequest.setRequestFuture(completableFuture);
 
-		TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(taskManagerSlot.getInstanceId());
+		TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(instanceID);
 
 		if (taskManagerRegistration == null) {
 			throw new IllegalStateException("Could not find a registered task manager for instance id " +
-				taskManagerSlot.getInstanceId() + '.');
+				instanceID + '.');
 		}
 
 		taskManagerRegistration.markUsed();
@@ -695,11 +703,11 @@ public class SlotManager implements AutoCloseable {
 			(Acknowledge acknowledge, Throwable throwable) -> {
 				try {
 					if (acknowledge != null) {
-						updateSlot(slotId, allocationId);
+						updateSlot(slotId, allocationId, pendingSlotRequest.getJobId());
 					} else {
 						if (throwable instanceof SlotOccupiedException) {
 							SlotOccupiedException exception = (SlotOccupiedException) throwable;
-							updateSlot(slotId, exception.getAllocationId());
+							updateSlot(slotId, exception.getAllocationId(), exception.getJobId());
 						} else {
 							removeSlotRequestFromSlot(slotId, allocationId);
 						}
@@ -765,8 +773,11 @@ public class SlotManager implements AutoCloseable {
 			}
 
 			AllocationID oldAllocationId = slot.getAllocationId();
-
-			fulfilledSlotRequests.remove(oldAllocationId);
+			if (oldAllocationId != null) {
+				fulfilledSlotRequests.remove(oldAllocationId);
+				resourceActions.notifyAllocationFailure(
+					slot.getJobId(), oldAllocationId, new Exception("The assigned slot " + slot.getSlotId() + " was removed."));
+			}
 		} else {
 			LOG.debug("There was no slot registered with slot id {}.", slotId);
 		}
@@ -798,7 +809,7 @@ public class SlotManager implements AutoCloseable {
 				// clear the pending slot request
 				taskManagerSlot.clearPendingSlotRequest();
 
-				updateSlotState(taskManagerSlot, taskManagerRegistration, null);
+				updateSlotState(taskManagerSlot, taskManagerRegistration, null, null);
 			} else {
 				LOG.debug("Ignore slot request removal for slot {}.", slotId);
 			}
