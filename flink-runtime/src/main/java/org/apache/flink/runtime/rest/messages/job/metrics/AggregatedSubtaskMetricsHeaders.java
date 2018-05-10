@@ -44,4 +44,9 @@ public class AggregatedSubtaskMetricsHeaders extends AbstractAggregatedMetricsHe
 	public static AggregatedSubtaskMetricsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "The aggregated metrics for a vertex subtask.";
+	}
 }

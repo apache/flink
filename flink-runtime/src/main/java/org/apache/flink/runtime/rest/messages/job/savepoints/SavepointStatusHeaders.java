@@ -75,4 +75,9 @@ public class SavepointStatusHeaders
 	protected Class<SavepointInfo> getValueClass() {
 		return SavepointInfo.class;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Polling status for the triggered savepoint.";
+	}
 }

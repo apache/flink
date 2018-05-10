@@ -67,4 +67,9 @@ public final class JarUploadHeaders implements MessageHeaders<FileUpload, JarUpl
 	public static JarUploadHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Send a POST request to /jars/upload with your jar file sent as multi-part data under the jarfile file. Also make sure that the multi-part data includes the Content-Type of the file itself, some http libraries do not add the header by default.";
+	}
 }

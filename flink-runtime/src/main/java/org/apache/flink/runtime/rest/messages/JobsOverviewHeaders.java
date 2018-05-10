@@ -69,4 +69,9 @@ public final class JobsOverviewHeaders implements MessageHeaders<EmptyRequestBod
 	public static JobsOverviewHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Jobs, grouped by status, each with a small summary of its status.";
+	}
 }

@@ -68,4 +68,9 @@ public class JobSubmitHeaders implements MessageHeaders<JobSubmitRequestBody, Jo
 	public static JobSubmitHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Submit a job to a flink cluster.";
+	}
 }

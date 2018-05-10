@@ -66,4 +66,9 @@ public final class DashboardConfigurationHeaders implements MessageHeaders<Empty
 	public static DashboardConfigurationHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Some information about the monitoring API and the server setup.";
+	}
 }

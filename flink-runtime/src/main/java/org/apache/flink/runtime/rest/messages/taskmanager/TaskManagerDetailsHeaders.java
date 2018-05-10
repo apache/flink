@@ -69,4 +69,9 @@ public class TaskManagerDetailsHeaders implements MessageHeaders<EmptyRequestBod
 	public static TaskManagerDetailsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Get details for a TaskManager containing base information about executors and detailed metrics.";
+	}
 }

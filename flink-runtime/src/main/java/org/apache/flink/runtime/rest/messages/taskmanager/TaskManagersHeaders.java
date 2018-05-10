@@ -70,4 +70,9 @@ public class TaskManagersHeaders implements MessageHeaders<EmptyRequestBody, Tas
 	public static TaskManagersHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Get an overview over all taskmanagers or details for a single one.";
+	}
 }

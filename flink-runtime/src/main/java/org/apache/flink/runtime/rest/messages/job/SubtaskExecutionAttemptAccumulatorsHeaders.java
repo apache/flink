@@ -75,4 +75,9 @@ public class SubtaskExecutionAttemptAccumulatorsHeaders implements MessageHeader
 	public static SubtaskExecutionAttemptAccumulatorsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "The accumulators collected for one specific subtask during one specific execution attempt (multiple attempts happen in case of failure/recovery).";
+	}
 }

@@ -84,6 +84,11 @@ public class RestClientTest extends TestLogger {
 		}
 
 		@Override
+		public String getDescription() {
+			return "";
+		}
+
+		@Override
 		public EmptyMessageParameters getUnresolvedMessageParameters() {
 			return EmptyMessageParameters.getInstance();
 		}

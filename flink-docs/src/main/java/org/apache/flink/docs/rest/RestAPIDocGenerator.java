@@ -155,7 +155,7 @@ public class RestAPIDocGenerator {
 			sb.append("      <td class=\"text-left\">Response code: <code>" + spec.getResponseStatusCode() + "</code></td>\n");
 			sb.append("    </tr>\n");
 			sb.append("    <tr>\n");
-			sb.append("      <td colspan=\"2\">" + "description" + "</td>\n");
+			sb.append("      <td colspan=\"2\">" + spec.getDescription() + "</td>\n");
 			sb.append("    </tr>\n");
 		}
 		if (!pathParameterList.isEmpty()) {

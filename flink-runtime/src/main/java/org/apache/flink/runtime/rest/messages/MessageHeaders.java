@@ -56,4 +56,11 @@ public interface MessageHeaders<R extends RequestBody, P extends ResponseBody, M
 	default Collection<Class<?>> getResponseTypeParameters() {
 		return Collections.emptyList();
 	}
+
+	/**
+	 * Returns the description for the response type. The description must be valid HTML
+	 *
+	 * @return description for the response type
+	 */
+	String getDescription();
 }

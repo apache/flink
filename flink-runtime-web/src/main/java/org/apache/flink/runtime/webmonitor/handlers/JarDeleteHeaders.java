@@ -66,4 +66,8 @@ public class JarDeleteHeaders implements MessageHeaders<EmptyRequestBody, EmptyR
 		return INSTANCE;
 	}
 
+	@Override
+	public String getDescription() {
+		return "Delete an uploaded jar.";
+	}
 }

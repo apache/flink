@@ -71,4 +71,10 @@ public class JobDetailsHeaders implements MessageHeaders<EmptyRequestBody, JobDe
 	public static JobDetailsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Summary of one job, listing dataflow plan, status, timestamps of state transitions, aggregate " +
+			"information for each vertex (operator).";
+	}
 }
