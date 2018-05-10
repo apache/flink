@@ -330,13 +330,18 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 					final ResourceID resourceId = new ResourceID(containerStatus.getContainerId().toString());
 					final YarnWorkerNode yarnWorkerNode = workerNodeMap.remove(resourceId);
+					final Exception completedCause = new Exception(containerStatus.getDiagnostics());
+
+					// tell the job manager the terminated task manager.
+					notifyTaskManagerCompleted(resourceId, completedCause);
 
 					if (yarnWorkerNode != null) {
 						// Container completed unexpectedly ~> start a new one
 						final Container container = yarnWorkerNode.getContainer();
 						requestYarnContainer(container.getResource(), yarnWorkerNode.getContainer().getPriority());
-						closeTaskManagerConnection(resourceId, new Exception(containerStatus.getDiagnostics()));
 					}
+
+					closeTaskManagerConnection(resourceId, completedCause);
 				}
 			}
 		);

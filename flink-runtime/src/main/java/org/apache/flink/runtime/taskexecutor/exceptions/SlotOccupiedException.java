@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor.exceptions;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.util.Preconditions;
 
@@ -26,22 +27,31 @@ public class SlotOccupiedException extends SlotAllocationException {
 
 	private final AllocationID allocationId;
 
-	public SlotOccupiedException(String message, AllocationID allocationId) {
+	private final JobID jobId;
+
+	public SlotOccupiedException(String message, AllocationID allocationId, JobID jobId) {
 		super(message);
 		this.allocationId = Preconditions.checkNotNull(allocationId);
+		this.jobId = jobId;
 	}
 
-	public SlotOccupiedException(String message, Throwable cause, AllocationID allocationId) {
+	public SlotOccupiedException(String message, Throwable cause, AllocationID allocationId, JobID jobId) {
 		super(message, cause);
 		this.allocationId = Preconditions.checkNotNull(allocationId);
+		this.jobId = jobId;
 	}
 
-	public SlotOccupiedException(Throwable cause, AllocationID allocationId) {
+	public SlotOccupiedException(Throwable cause, AllocationID allocationId, JobID jobId) {
 		super(cause);
 		this.allocationId = Preconditions.checkNotNull(allocationId);
+		this.jobId = jobId;
 	}
 
 	public AllocationID getAllocationId() {
 		return allocationId;
+	}
+
+	public JobID getJobId() {
+		return jobId;
 	}
 }

@@ -20,9 +20,12 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
+
+import java.util.Set;
 
 /**
  * Resource related actions which the {@link SlotManager} can perform.
@@ -53,4 +56,13 @@ public interface ResourceActions {
 	 * @param cause of the allocation failure
 	 */
 	void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause);
+
+	/**
+	 * Notifies that the task manager has been terminated.
+	 * @param jobId to be notified
+	 * @param resourceID identifying the terminated task manager
+	 * @param allocationIDs of the job held that belong to this task manager
+	 * @param cause of the task manager termination.
+	 */
+	void notifyTaskManagerTerminated(JobID jobId, ResourceID resourceID, Set<AllocationID> allocationIDs, Exception cause);
 }

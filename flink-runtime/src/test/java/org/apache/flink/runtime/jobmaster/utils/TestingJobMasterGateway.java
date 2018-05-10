@@ -53,6 +53,7 @@ import javax.annotation.Nullable;
 
 import java.net.InetSocketAddress;
 import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -162,6 +163,11 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
 	@Override
 	public CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(JobVertexID jobVertexId) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void taskManagerTerminated(ResourceID resourceID, Set<AllocationID> allocationIDs, Exception cause) {
 		throw new UnsupportedOperationException();
 	}
 

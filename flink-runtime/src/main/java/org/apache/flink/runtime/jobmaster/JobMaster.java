@@ -105,6 +105,7 @@ import org.apache.flink.runtime.util.clock.SystemClock;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -982,6 +983,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			backPressureStatsTracker.getOperatorBackPressureStats(jobVertex);
 		return CompletableFuture.completedFuture(OperatorBackPressureStatsResponse.of(
 			operatorBackPressureStats.orElse(null)));
+	}
+
+	@Override
+	public void taskManagerTerminated(ResourceID resourceID, Set<AllocationID> allocationIds, Exception cause) {
+		if (registeredTaskManagers.containsKey(resourceID)) {
+			disconnectTaskManager(
+				resourceID,
+				new FlinkRuntimeException("TaskManager with id " + resourceID + " has terminated.", cause));
+		}
 	}
 
 	//----------------------------------------------------------------------------------------------

@@ -619,7 +619,11 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			startNewWorker(launched.profile());
 		}
 
-		closeTaskManagerConnection(id, new Exception(status.getMessage()));
+		final Exception terminatedCause = new Exception(status.getMessage());
+
+		notifyTaskManagerCompleted(id, terminatedCause);
+
+		closeTaskManagerConnection(id, terminatedCause);
 	}
 
 	// ------------------------------------------------------------------------
