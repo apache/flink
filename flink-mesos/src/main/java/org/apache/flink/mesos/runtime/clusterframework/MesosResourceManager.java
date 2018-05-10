@@ -616,6 +616,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			assert(launched != null);
 			LOG.info("Worker {} failed with status: {}, reason: {}, message: {}.",
 				id, status.getState(), status.getReason(), status.getMessage());
+			startNewWorker(launched.profile());
 		}
 
 		closeTaskManagerConnection(id, new Exception(status.getMessage()));
