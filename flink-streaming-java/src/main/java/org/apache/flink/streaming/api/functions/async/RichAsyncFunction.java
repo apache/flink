@@ -51,6 +51,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Rich variant of the {@link AsyncFunction}. As a {@link RichFunction}, it gives access to the
@@ -68,7 +69,7 @@ import java.util.Map;
  * @param <OUT> The type of the returned elements.
  */
 @PublicEvolving
-public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction implements AsyncFunction<IN, OUT> {
+public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction implements TimeoutAwareAsyncFunction<IN, OUT> {
 
 	private static final long serialVersionUID = 3858030061138121840L;
 
@@ -87,6 +88,13 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction im
 
 	@Override
 	public abstract void asyncInvoke(IN input, ResultFuture<OUT> resultFuture) throws Exception;
+
+	@Override
+	public void timeout(IN input, ResultFuture<OUT> resultFuture) throws Exception {
+		// By default, timeout handling should be compatible with AsyncFunction
+		resultFuture.completeExceptionally(
+			new TimeoutException("Async function call has timed out."));
+	}
 
 	// -----------------------------------------------------------------------------------------
 	// Wrapper classes

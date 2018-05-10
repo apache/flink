@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
+import org.apache.flink.streaming.api.functions.async.TimeoutAwareAsyncFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -209,8 +210,13 @@ public class AsyncWaitOperator<IN, OUT>
 				new ProcessingTimeCallback() {
 					@Override
 					public void onProcessingTime(long timestamp) throws Exception {
-						streamRecordBufferEntry.completeExceptionally(
-							new TimeoutException("Async function call has timed out."));
+						if (userFunction instanceof TimeoutAwareAsyncFunction) {
+							((TimeoutAwareAsyncFunction) userFunction).timeout(
+								element.getValue(), streamRecordBufferEntry);
+						} else {
+							streamRecordBufferEntry.completeExceptionally(
+								new TimeoutException("Async function call has timed out."));
+						}
 					}
 				});
 

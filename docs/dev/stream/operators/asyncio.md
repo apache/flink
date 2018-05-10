@@ -190,6 +190,12 @@ The following two parameters control the asynchronous operations:
     is exhausted.
 
 
+### Timeout Handling
+
+When a async I/O request times out, an exception is thrown and job is restarted. 
+If you want to handle timeouts, please use `TimeoutAwareAsyncFunction` instead of `AsyncFunction`.
+
+
 ### Order of Results
 
 The concurrent requests issued by the `AsyncFunction` frequently complete in some undefined order, based on which request finished first.
