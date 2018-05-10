@@ -18,12 +18,14 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 
+import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +49,9 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
 
 	private final Path metadataFilePath;
 
+	/** the tmp file to store the meta data, when the writing is truly successful we rename it atomically to {@link #metadataFilePath}. */
+	private final Path tmpMetadataFilePath;
+
 	private final Path exclusiveCheckpointDir;
 
 	private final FileSystem fileSystem;
@@ -62,7 +67,13 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
 		this.metadataFilePath = checkNotNull(metadataFilePath);
 		this.exclusiveCheckpointDir = checkNotNull(exclusiveCheckpointDir);
 
-		this.out = fileSystem.create(metadataFilePath, WriteMode.NO_OVERWRITE);
+		if (fileSystem.exists(metadataFilePath)) {
+			throw new FlinkRuntimeException("the meta file already exists.");
+		}
+
+		this.tmpMetadataFilePath = getTempPath(metadataFilePath);
+
+		this.out = fileSystem.create(tmpMetadataFilePath, WriteMode.NO_OVERWRITE);
 	}
 
 	// ------------------------------------------------------------------------
@@ -109,7 +120,7 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
 
 			try {
 				out.close();
-				fileSystem.delete(metadataFilePath, false);
+				closeFilesSilently();
 			}
 			catch (Throwable t) {
 				LOG.warn("Could not close the state stream for {}.", metadataFilePath, t);
@@ -130,22 +141,21 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
 
 					out.close();
 
+					// atomically rename tmpMetadataFilePath to metadataFilePath (with an equivalent workaround for S3).
+					fileSystem.rename(tmpMetadataFilePath, metadataFilePath);
+
 					FileStateHandle metaDataHandle = new FileStateHandle(metadataFilePath, size);
 
 					return new FsCompletedCheckpointStorageLocation(
 							fileSystem, exclusiveCheckpointDir, metaDataHandle, exclusiveCheckpointDir.toString());
 				}
 				catch (Exception e) {
-					try {
-						fileSystem.delete(metadataFilePath, false);
-					}
-					catch (Exception deleteException) {
-						LOG.warn("Could not delete the checkpoint stream file {}.", metadataFilePath, deleteException);
-					}
+
+					closeFilesSilently();
 
 					throw new IOException("Could not flush and close the file system " +
-							"output stream to " + metadataFilePath + " in order to obtain the " +
-							"stream state handle", e);
+							"output stream to " + tmpMetadataFilePath + " and rename it to " + metadataFilePath +
+							"in order to obtain the stream state handle", e);
 				}
 				finally {
 					closed = true;
@@ -155,5 +165,29 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
 				throw new IOException("Stream has already been closed and discarded.");
 			}
 		}
+	}
+
+	private void closeFilesSilently() {
+		try {
+			if (fileSystem.exists(tmpMetadataFilePath)) {
+				fileSystem.delete(tmpMetadataFilePath, false);
+			}
+		} catch (Throwable deleteException) {
+			LOG.warn("Could not delete the checkpoint stream file(the temp meta file) {}.", tmpMetadataFilePath, deleteException);
+		}
+
+		try {
+			if (fileSystem.exists(metadataFilePath)) {
+				fileSystem.delete(metadataFilePath, false);
+			}
+		}
+		catch (Throwable deleteException) {
+			LOG.warn("Could not delete the meta file {}.", metadataFilePath, deleteException);
+		}
+	}
+
+	@VisibleForTesting
+	static Path getTempPath(Path path) {
+		return new Path(path.getPath() + "_tmp");
 	}
 }

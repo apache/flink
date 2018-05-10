@@ -38,4 +38,14 @@ public class FileBasedStateOutputStreamTest extends AbstractCheckpointStateOutpu
 	protected FileStateHandle closeAndGetResult(FSDataOutputStream stream) throws IOException {
 		return ((FileBasedStateOutputStream) stream).closeAndGetHandle();
 	}
+
+	@Override
+	Path getFlyingPath(Path path) {
+		return path;
+	}
+
+	@Override
+	Path getTargetPath(Path path) {
+		return path;
+	}
 }

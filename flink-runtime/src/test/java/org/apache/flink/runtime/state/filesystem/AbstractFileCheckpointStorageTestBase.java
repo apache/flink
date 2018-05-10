@@ -223,7 +223,7 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 			loc.createMetadataOutputStream();
 			fail("this should fail with an exception");
 		}
-		catch (IOException ignored) {}
+		catch (Exception ignored) {}
 	}
 
 	// ------------------------------------------------------------------------

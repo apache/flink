@@ -39,4 +39,14 @@ public class FsCheckpointMetadataOutputStreamTest extends AbstractCheckpointStat
 	protected FileStateHandle closeAndGetResult(FSDataOutputStream stream) throws IOException {
 		return ((FsCheckpointMetadataOutputStream) stream).closeAndFinalizeCheckpoint().getMetadataHandle();
 	}
+
+	@Override
+	Path getFlyingPath(Path path) {
+		return FsCheckpointMetadataOutputStream.getTempPath(path);
+	}
+
+	@Override
+	Path getTargetPath(Path path) {
+		return path;
+	}
 }
