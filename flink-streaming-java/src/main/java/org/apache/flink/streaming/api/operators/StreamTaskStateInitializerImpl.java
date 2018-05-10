@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
@@ -124,7 +125,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		OperatorStateBackend operatorStateBackend = null;
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs = null;
 		CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs = null;
-		InternalTimeServiceManager<?, ?> timeServiceManager;
+		InternalTimeServiceManager<?, ?> timeServiceManager = null;
 
 		try {
 
@@ -180,6 +181,10 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 				operatorStateBackend.dispose();
 			}
 
+			if (timeServiceManager != null) {
+				timeServiceManager.dispose();
+			}
+
 			if (streamTaskCloseableRegistry.unregisterCloseable(rawKeyedStateInputs)) {
 				IOUtils.closeQuietly(rawKeyedStateInputs);
 			}
@@ -192,7 +197,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		}
 	}
 
-	protected <K> InternalTimeServiceManager<?, K> internalTimeServiceManager(
+	protected <K> InternalTimeServiceManager<K, ?> internalTimeServiceManager(
 		String operatorIdentifierText,
 		AbstractKeyedStateBackend<K> keyedStatedBackend,
 		KeyContext keyContext, //the operator
@@ -204,15 +209,17 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 		KeyGroupRange keyGroupRange = keyedStatedBackend.getKeyGroupRange();
 
-		final InternalTimeServiceManager<?, K> timeServiceManager = new HeapInternalTimeServiceManager<>(
-			environment,
-			environment.getJobID(),
-			operatorIdentifierText,
-			keyedStatedBackend.getNumberOfKeyGroups(),
-			keyGroupRange,
-			keyedStatedBackend.getKeySerializer(),
-			keyContext,
-			processingTimeService);
+		ClassLoader userClassLoader = environment.getUserClassLoader();
+		Configuration taskManagerConfiguration = environment.getTaskManagerInfo().getConfiguration();
+
+		final InternalTimeServiceManager<K, ?> timeServiceManager =
+				InternalTimeServiceManagerLoader.loadStateBackendFromConfig(
+					taskManagerConfiguration, userClassLoader, LOG);
+
+		timeServiceManager.initialize(
+				environment, environment.getJobID(), operatorIdentifierText,
+				keyedStatedBackend.getNumberOfKeyGroups(), keyGroupRange,
+				keyedStatedBackend.getKeySerializer(), keyContext, processingTimeService);
 
 		// and then initialize the timer services
 		for (KeyGroupStatePartitionStreamProvider streamProvider : rawKeyedStates) {

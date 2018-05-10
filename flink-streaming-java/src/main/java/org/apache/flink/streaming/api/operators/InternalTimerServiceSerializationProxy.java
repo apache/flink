@@ -103,16 +103,16 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 		for (int i = 0; i < noOfTimerServices; i++) {
 			String serviceName = in.readUTF();
 
-			InternalTimerService<K, N> timerService = timerServices.get(serviceName);
-			if (timerService == null) {
-				timerService = timeServiceManager.createInternalTimerService();
-				timerServices.put(serviceName, timerService);
-			}
-
 			int readerVersion = wasVersioned ? getReadVersion() : InternalTimersSnapshotReaderWriters.NO_VERSION;
 			InternalTimersSnapshot<K, N> restoredTimersSnapshot = InternalTimersSnapshotReaderWriters
 				.<K, N>getReaderForVersion(readerVersion, userCodeClassLoader)
 				.readTimersSnapshot(in);
+
+			InternalTimerService<K, N> timerService =
+				timerServices.computeIfAbsent(
+					serviceName,
+					k -> timeServiceManager.createInternalTimerService(
+						serviceName, restoredTimersSnapshot.getKeySerializer(), restoredTimersSnapshot.getNamespaceSerializer()));
 
 			timerService.restoreTimersForKeyGroup(restoredTimersSnapshot, keyGroupIdx);
 		}

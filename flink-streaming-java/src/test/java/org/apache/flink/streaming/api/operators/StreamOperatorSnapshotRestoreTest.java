@@ -202,7 +202,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 
 				return new StreamTaskStateInitializerImpl(env, stateBackend, processingTimeService) {
 					@Override
-					protected <K> InternalTimeServiceManager<?, K> internalTimeServiceManager(
+					protected <K> InternalTimeServiceManager<K, ?> internalTimeServiceManager(
 						String operatorIdentifierText,
 						AbstractKeyedStateBackend<K> keyedStatedBackend,
 						KeyContext keyContext,

@@ -35,7 +35,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * The base for all implementation of the timer service manager.
+ * An entity keeping all the time-related services available to all operators extending the
+ * {@link AbstractStreamOperator}.
  *
  * @param <K> The type of the keys in the timers.
  * @param <N> The type of the namespaces in the timers.
@@ -43,33 +44,43 @@ import java.util.Map;
 public abstract class InternalTimeServiceManager<K, N> {
 
 	/** The environment of the task. */
-	protected final Environment environment;
+	protected Environment environment;
 
 	/** The identifier of the job. */
-	protected final JobID jobID;
+	protected JobID jobID;
 
 	/** The identifier of the operator. */
-	protected final String operatorIdentifier;
+	protected String operatorIdentifier;
 
 	/** The total number of key groups. */
-	protected final int totalKeyGroups;
+	protected int totalKeyGroups;
 
 	/** The range of the key groups assigned to the subtask. */
-	protected final KeyGroupRange localKeyGroupRange;
+	protected KeyGroupRange localKeyGroupRange;
 
 	/** The serializer for the keys. */
-	protected final TypeSerializer<K> keySerializer;
+	protected TypeSerializer<K> keySerializer;
 
 	/** The context information of the key. */
-	protected final KeyContext keyContext;
+	protected KeyContext keyContext;
 
 	/** The registry for processing-time timers. */
-	protected final ProcessingTimeService processingTimeService;
+	protected ProcessingTimeService processingTimeService;
 
 	/** The created time services. */
-	protected final Map<String, InternalTimerService<K, N>> timerServices;
+	protected Map<String, InternalTimerService<K, N>> timerServices;
 
-	protected InternalTimeServiceManager(
+	/**
+	 * Creates a new instance of {@link InternalTimerService}.
+	 */
+	protected abstract InternalTimerService<K, N> createInternalTimerService(
+			String serviceName,
+			TypeSerializer<K> keySerializer,
+			TypeSerializer<N> namespaceSerializer);
+
+	//////////////////				Access Methods				///////////////////
+
+	public void initialize(
 			final Environment env,
 			final JobID jobID,
 			final String operatorIdentifier,
@@ -77,7 +88,7 @@ public abstract class InternalTimeServiceManager<K, N> {
 			final KeyGroupRange localKeyGroupRange,
 			final TypeSerializer<K> keySerializer,
 			final KeyContext keyContext,
-			final ProcessingTimeService processingTimeService) {
+			final ProcessingTimeService processingTimeService) throws Exception {
 
 		Preconditions.checkArgument(totalKeyGroups > 0);
 		this.environment = Preconditions.checkNotNull(env);
@@ -90,13 +101,6 @@ public abstract class InternalTimeServiceManager<K, N> {
 		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
 		this.timerServices = new HashMap<>();
 	}
-
-	/**
-	 * Creates a new instance of {@link InternalTimerService}.
-	 */
-	protected abstract InternalTimerService<K, N> createInternalTimerService();
-
-	//////////////////				Access Methods				///////////////////
 
 	/**
 	 * Returns a {@link InternalTimerService} that can be used to query current processing time
@@ -123,11 +127,8 @@ public abstract class InternalTimeServiceManager<K, N> {
 			TypeSerializer<N> namespaceSerializer,
 			Triggerable<K, N> triggerable) {
 
-		InternalTimerService<K, N> timerService = timerServices.get(name);
-		if (timerService == null) {
-			timerService = createInternalTimerService();
-			timerServices.put(name, timerService);
-		}
+		InternalTimerService<K, N> timerService =
+				timerServices.computeIfAbsent(name, k -> createInternalTimerService(name, keySerializer, namespaceSerializer));
 
 		timerService.startTimerService(keySerializer, namespaceSerializer, triggerable);
 
@@ -140,7 +141,7 @@ public abstract class InternalTimeServiceManager<K, N> {
 		}
 	}
 
-	public void dispose() throws Exception {
+	public void dispose() {
 		timerServices.clear();
 	}
 

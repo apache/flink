@@ -19,16 +19,11 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 /**
- * An entity keeping all the time-related services available to all operators extending the
- * {@link AbstractStreamOperator}. Right now, this is only a
- * {@link HeapInternalTimerService timer services}.
+ * An implementation of {@link InternalTimeServiceManager} which creates
+ * {@link HeapInternalTimerService}s.
  *
  * <b>NOTE:</b> These services are only available to keyed operators.
  *
@@ -38,22 +33,13 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 @Internal
 public class HeapInternalTimeServiceManager<K, N> extends InternalTimeServiceManager<K, N> {
 
-	public HeapInternalTimeServiceManager(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			int totalKeyGroups,
-			KeyGroupRange localKeyGroupRange,
-			TypeSerializer<K> keySerializer,
-			KeyContext keyContext,
-			ProcessingTimeService processingTimeService) {
-		super(env, jobID, operatorIdentifier, totalKeyGroups,
-			localKeyGroupRange, keySerializer, keyContext,
-			processingTimeService);
-	}
-
 	@Override
-	protected InternalTimerService<K, N> createInternalTimerService() {
-		return new HeapInternalTimerService<>(totalKeyGroups, localKeyGroupRange, keyContext, processingTimeService);
+	protected InternalTimerService<K, N> createInternalTimerService(
+			String serviceName,
+			TypeSerializer<K> keySerializer,
+			TypeSerializer<N> namespaceSerializer) {
+		return new HeapInternalTimerService<>(serviceName,
+				totalKeyGroups, localKeyGroupRange, keySerializer, namespaceSerializer,
+				keyContext, processingTimeService);
 	}
 }

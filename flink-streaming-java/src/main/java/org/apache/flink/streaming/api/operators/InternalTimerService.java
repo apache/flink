@@ -19,9 +19,13 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 
 import java.io.IOException;
+import java.util.Set;
 
 /**
  * Interface for working with time and timers.
@@ -32,7 +36,7 @@ import java.io.IOException;
  * @param <N> Type of the namespace to which timers are scoped.
  */
 @Internal
-public interface InternalTimerService<K, N> {
+public interface InternalTimerService<K, N> extends ProcessingTimeCallback {
 
 	/**
 	 * Starts the local {@link HeapInternalTimerService} by:
@@ -43,7 +47,8 @@ public interface InternalTimerService<K, N> {
 	 * </ol>
 	 * This method can be called multiple times, as long as it is called with the same serializers.
 	 */
-	void startTimerService(TypeSerializer<K> keySerializer,
+	void startTimerService(
+			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer,
 			Triggerable<K, N> triggerTarget);
 
@@ -95,15 +100,29 @@ public interface InternalTimerService<K, N> {
 	 */
 	void restoreTimersForKeyGroup(InternalTimersSnapshot<K, N> restoredTimersSnapshot, int keyGroupIdx) throws IOException;
 
+	/** Returns the key groups of the timers. */
+	@VisibleForTesting
+	KeyGroupRange getKeyGroupRange();
+
 	/** Returns the number of processing-time timers. */
+	@VisibleForTesting
 	int numProcessingTimeTimers();
 
 	/** Returns the number of event-time timers. */
+	@VisibleForTesting
 	int numEventTimeTimers();
 
 	/** Returns the number of processing-time timers with the given namespace. */
+	@VisibleForTesting
 	int numProcessingTimeTimers(N namespace);
 
 	/** Returns the number of event-time timers with the given namespace. */
+	@VisibleForTesting
 	int numEventTimeTimers(N namespace);
+
+	/** Returns all the processing-time timers in the service. */
+	Set<InternalTimer<K, N>>[] getProcessingTimeTimersPerKeyGroup();
+
+	/** Returns all the event-time timers in the service. */
+	Set<InternalTimer<K, N>>[] getEventTimeTimersPerKeyGroup();
 }

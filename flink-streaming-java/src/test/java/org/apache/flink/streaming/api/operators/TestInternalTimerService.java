@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.KeyGroupRange;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -87,6 +88,11 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<K, N
 	}
 
 	@Override
+	public void onProcessingTime(long timestamp) throws Exception {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public void registerProcessingTimeTimer(N namespace, long time) {
 		@SuppressWarnings("unchecked")
 		Timer<K, N> timer = new Timer<>(time, (K) keyContext.getCurrentKey(), namespace);
@@ -122,18 +128,6 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<K, N
 		if (watermarkTimers.remove(timer)) {
 			watermarkTimersQueue.remove(timer);
 		}
-	}
-
-	@Override
-	public InternalTimersSnapshot<K, N> snapshotTimersForKeyGroup(int keyGroupIdx) throws IOException {
-		return null;
-	}
-
-	@Override
-	public void restoreTimersForKeyGroup(
-		InternalTimersSnapshot<K, N> restoredTimersSnapshot, int keyGroupIdx
-	) throws IOException {
-
 	}
 
 	public Collection<Timer<K, N>> pollProcessingTimeTimers(long time) throws Exception {
@@ -264,4 +258,30 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<K, N
 		return count;
 	}
 
+	@Override
+	public KeyGroupRange getKeyGroupRange() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Set<InternalTimer<K, N>>[] getProcessingTimeTimersPerKeyGroup() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Set<InternalTimer<K, N>>[] getEventTimeTimersPerKeyGroup() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public InternalTimersSnapshot<K, N> snapshotTimersForKeyGroup(int keyGroupIdx) throws IOException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void restoreTimersForKeyGroup(
+		InternalTimersSnapshot<K, N> restoredTimersSnapshot, int keyGroupIdx
+	) throws IOException {
+		throw new UnsupportedOperationException();
+	}
 }

@@ -28,6 +28,12 @@ public class CheckpointingOptions {
 	//  general checkpoint and state backend options
 	// ------------------------------------------------------------------------
 
+	/** The manager used to create timer services. */
+	public static final ConfigOption<String> TIMER_SERVICE = ConfigOptions
+			.key("timer.service")
+			.noDefaultValue()
+			.withDescription("The timer service to be used to store and checkpoint timers.");
+
 	/** The state backend to be used to store and checkpoint state. */
 	public static final ConfigOption<String> STATE_BACKEND = ConfigOptions
 			.key("state.backend")
