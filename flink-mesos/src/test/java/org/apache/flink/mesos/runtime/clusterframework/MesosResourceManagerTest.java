@@ -110,6 +110,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -683,6 +684,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			MesosWorkerStore.Worker worker1launched = MesosWorkerStore.Worker.newWorker(task1).launchWorker(slave1, slave1host);
 			when(rmServices.workerStore.getFrameworkID()).thenReturn(Option.apply(framework1));
 			when(rmServices.workerStore.recoverWorkers()).thenReturn(singletonList(worker1launched));
+			when(rmServices.workerStore.newTaskID()).thenReturn(task2);
 			startResourceManager();
 
 			// tell the RM that a task failed
@@ -694,6 +696,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			verify(rmServices.workerStore).removeWorker(task1);
 			assertThat(resourceManager.workersInLaunch.entrySet(), empty());
 			assertThat(resourceManager.workersBeingReturned.entrySet(), empty());
+			assertThat(resourceManager.workersInNew, hasKey(extractResourceID(task2)));
 
 			// verify that `closeTaskManagerConnection` was called
 			assertThat(resourceManager.closedTaskManagerConnections, hasItem(extractResourceID(task1)));
