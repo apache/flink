@@ -1108,6 +1108,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	public void testValueState() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
 		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 
@@ -1136,6 +1137,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw a snapshot
 		KeyedStateHandle snapshot1 = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+		snapshot1.registerSharedStates(sharedStateRegistry);
 
 		// make some more modifications
 		backend.setCurrentKey(1);
@@ -1147,6 +1149,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw another snapshot
 		KeyedStateHandle snapshot2 = runSnapshot(backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+		snapshot2.registerSharedStates(sharedStateRegistry);
 
 		// validate the original state
 		backend.setCurrentKey(1);
@@ -1436,6 +1439,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	public void testListState() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
 		ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 
@@ -1468,6 +1472,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw a snapshot
 		KeyedStateHandle snapshot1 = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+		snapshot1.registerSharedStates(sharedStateRegistry);
 
 		// make some more modifications
 		backend.setCurrentKey(1);
@@ -1481,6 +1486,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw another snapshot
 		KeyedStateHandle snapshot2 = runSnapshot(backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+		snapshot2.registerSharedStates(sharedStateRegistry);
 
 		// validate the original state
 		backend.setCurrentKey(1);
@@ -1880,6 +1886,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	public void testReducingState() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
 		ReducingStateDescriptor<String> kvId = new ReducingStateDescriptor<>("id", new AppendingReduce(), String.class);
 
@@ -1908,6 +1915,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw a snapshot
 		KeyedStateHandle snapshot1 = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+		snapshot1.registerSharedStates(sharedStateRegistry);
 
 		// make some more modifications
 		backend.setCurrentKey(1);
@@ -1919,6 +1927,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw another snapshot
 		KeyedStateHandle snapshot2 = runSnapshot(backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+		snapshot2.registerSharedStates(sharedStateRegistry);
 
 		// validate the original state
 		backend.setCurrentKey(1);
@@ -2493,6 +2502,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	public void testFoldingState() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
 		FoldingStateDescriptor<Integer, String> kvId = new FoldingStateDescriptor<>("id",
 				"Fold-Initial:",
@@ -2524,6 +2534,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw a snapshot
 		KeyedStateHandle snapshot1 = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+		snapshot1.registerSharedStates(sharedStateRegistry);
 
 		// make some more modifications
 		backend.setCurrentKey(1);
@@ -2536,6 +2547,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw another snapshot
 		KeyedStateHandle snapshot2 = runSnapshot(backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+		snapshot2.registerSharedStates(sharedStateRegistry);
 
 		// validate the original state
 		backend.setCurrentKey(1);
@@ -2592,6 +2604,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	public void testMapState() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
 		MapStateDescriptor<Integer, String> kvId = new MapStateDescriptor<>("id", Integer.class, String.class);
 
@@ -2623,6 +2636,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw a snapshot
 		KeyedStateHandle snapshot1 = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+		snapshot1.registerSharedStates(sharedStateRegistry);
 
 		// make some more modifications
 		backend.setCurrentKey(1);
@@ -2635,6 +2649,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// draw another snapshot
 		KeyedStateHandle snapshot2 = runSnapshot(backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+		snapshot2.registerSharedStates(sharedStateRegistry);
 
 		// validate the original state
 		backend.setCurrentKey(1);
