@@ -226,7 +226,7 @@ public class RestAPIDocGenerator {
 			pathParameterList.append(
 				String.format("<li><code>%s</code> - %s</li>\n",
 					messagePathParameter.getKey(),
-					"description")
+					messagePathParameter.getDescription())
 			));
 		return pathParameterList.toString();
 	}
@@ -240,7 +240,7 @@ public class RestAPIDocGenerator {
 					String.format("<li><code>%s</code> (%s): %s</li>\n",
 						parameter.getKey(),
 						parameter.isMandatory() ? "mandatory" : "optional",
-						"description")
+						parameter.getDescription())
 				));
 		return queryParameterList.toString();
 	}

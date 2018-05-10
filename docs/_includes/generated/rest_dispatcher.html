@@ -234,7 +234,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jarid</code> - description</li>
+<li><code>jarid</code> - String value that identifies a jar. When uploading the jar a path is returned, where the filename is the ID. This value is equivalent to the `id` field in the list of uploaded jars (/jars).</li>
         </ul>
       </td>
     </tr>
@@ -280,7 +280,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jarid</code> - description</li>
+<li><code>jarid</code> - String value that identifies a jar. When uploading the jar a path is returned, where the filename is the ID. This value is equivalent to the `id` field in the list of uploaded jars (/jars).</li>
         </ul>
       </td>
     </tr>
@@ -290,9 +290,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>entry-class</code> (optional): description</li>
-<li><code>parallelism</code> (optional): description</li>
-<li><code>program-args</code> (optional): description</li>
+<li><code>entry-class</code> (optional): String value that specifies the fully qualified name of the entry point class. Overrides the class defined in the jar file manifest.</li>
+<li><code>parallelism</code> (optional): Positive integer value that specifies the desired parallelism for the job.</li>
+<li><code>program-args</code> (optional): String value that specifies the arguments for the program or plan.</li>
         </ul>
       </td>
     </tr>
@@ -314,7 +314,13 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
           <pre>
             <code>
 {
-  "type" : "any"
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
+  "properties" : {
+    "plan" : {
+      "type" : "any"
+    }
+  }
 }            </code>
           </pre>
          </div>
@@ -340,7 +346,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jarid</code> - description</li>
+<li><code>jarid</code> - String value that identifies a jar. When uploading the jar a path is returned, where the filename is the ID. This value is equivalent to the `id` field in the list of uploaded jars (/jars).</li>
         </ul>
       </td>
     </tr>
@@ -350,11 +356,11 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>program-args</code> (optional): description</li>
-<li><code>entry-class</code> (optional): description</li>
-<li><code>parallelism</code> (optional): description</li>
-<li><code>allowNonRestoredState</code> (optional): description</li>
-<li><code>savepointPath</code> (optional): description</li>
+<li><code>program-args</code> (optional): String value that specifies the arguments for the program or plan.</li>
+<li><code>entry-class</code> (optional): String value that specifies the fully qualified name of the entry point class. Overrides the class defined in the jar file manifest.</li>
+<li><code>parallelism</code> (optional): Positive integer value that specifies the desired parallelism for the job.</li>
+<li><code>allowNonRestoredState</code> (optional): Boolean value that specifies whether the job submission should be rejected if the savepoint contains state that cannot be mapped back to the job.</li>
+<li><code>savepointPath</code> (optional): String value that specifies the path of the savepoint to restore the job from.</li>
         </ul>
       </td>
     </tr>
@@ -478,7 +484,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>get</code> (optional): description</li>
+<li><code>get</code> (optional): Comma-separated list of string values to select specific metrics.</li>
         </ul>
       </td>
     </tr>
@@ -656,9 +662,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>get</code> (optional): description</li>
-<li><code>agg</code> (optional): description</li>
-<li><code>jobs</code> (optional): description</li>
+<li><code>get</code> (optional): Comma-separated list of string values to select specific metrics.</li>
+<li><code>agg</code> (optional): Comma-separated list of aggregation modes which should be calculated. Available aggregations are: "min, max, sum, avg".</li>
+<li><code>jobs</code> (optional): Comma-separated list of 32-character hexadecimal strings to select specific jobs.</li>
         </ul>
       </td>
     </tr>
@@ -753,7 +759,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
         </ul>
       </td>
     </tr>
@@ -911,7 +917,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
         </ul>
       </td>
     </tr>
@@ -921,7 +927,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>mode</code> (optional): description</li>
+<li><code>mode</code> (optional): String value that specifies the termination mode. Supported values are: "cancel, stop".</li>
         </ul>
       </td>
     </tr>
@@ -967,7 +973,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
         </ul>
       </td>
     </tr>
@@ -977,7 +983,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>includeSerializedValue</code> (optional): description</li>
+<li><code>includeSerializedValue</code> (optional): Boolean value that specifies whether serialized user task accumulators should be included in the response.</li>
         </ul>
       </td>
     </tr>
@@ -1058,7 +1064,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
         </ul>
       </td>
     </tr>
@@ -1361,7 +1367,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
         </ul>
       </td>
     </tr>
@@ -1439,8 +1445,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>checkpointid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>checkpointid</code> - Long value that identifies a checkpoint.</li>
         </ul>
       </td>
     </tr>
@@ -1556,9 +1562,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>checkpointid</code> - description</li>
-<li><code>vertexid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>checkpointid</code> - Long value that identifies a checkpoint.</li>
+<li><code>vertexid</code> - 32-character hexadecimal string value that identifies a job vertex.</li>
         </ul>
       </td>
     </tr>
@@ -1702,7 +1708,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
         </ul>
       </td>
     </tr>
@@ -1750,7 +1756,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
         </ul>
       </td>
     </tr>
@@ -1831,7 +1837,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
         </ul>
       </td>
     </tr>
@@ -1897,7 +1903,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
         </ul>
       </td>
     </tr>
@@ -1907,7 +1913,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>get</code> (optional): description</li>
+<li><code>get</code> (optional): Comma-separated list of string values to select specific metrics.</li>
         </ul>
       </td>
     </tr>
@@ -1955,7 +1961,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
         </ul>
       </td>
     </tr>
@@ -1977,7 +1983,13 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
           <pre>
             <code>
 {
-  "type" : "any"
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
+  "properties" : {
+    "plan" : {
+      "type" : "any"
+    }
+  }
 }            </code>
           </pre>
          </div>
@@ -2003,7 +2015,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
         </ul>
       </td>
     </tr>
@@ -2013,7 +2025,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>parallelism</code> (mandatory): description</li>
+<li><code>parallelism</code> (mandatory): Positive integer value that specifies the desired parallelism.</li>
         </ul>
       </td>
     </tr>
@@ -2067,8 +2079,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>triggerid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>triggerid</code> - 32-character hexadecimal string that identifies an asynchronous operation trigger ID. The ID was returned then the operation was triggered.</li>
         </ul>
       </td>
     </tr>
@@ -2133,7 +2145,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
         </ul>
       </td>
     </tr>
@@ -2198,8 +2210,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>triggerid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>triggerid</code> - 32-character hexadecimal string that identifies an asynchronous operation trigger ID. The ID was returned then the operation was triggered.</li>
         </ul>
       </td>
     </tr>
@@ -2264,8 +2276,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>vertexid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>vertexid</code> - 32-character hexadecimal string value that identifies a job vertex.</li>
         </ul>
       </td>
     </tr>
@@ -2389,8 +2401,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>vertexid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>vertexid</code> - 32-character hexadecimal string value that identifies a job vertex.</li>
         </ul>
       </td>
     </tr>
@@ -2462,8 +2474,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>vertexid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>vertexid</code> - 32-character hexadecimal string value that identifies a job vertex.</li>
         </ul>
       </td>
     </tr>
@@ -2544,8 +2556,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>vertexid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>vertexid</code> - 32-character hexadecimal string value that identifies a job vertex.</li>
         </ul>
       </td>
     </tr>
@@ -2555,7 +2567,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>get</code> (optional): description</li>
+<li><code>get</code> (optional): Comma-separated list of string values to select specific metrics.</li>
         </ul>
       </td>
     </tr>
@@ -2603,8 +2615,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>vertexid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>vertexid</code> - 32-character hexadecimal string value that identifies a job vertex.</li>
         </ul>
       </td>
     </tr>
@@ -2697,8 +2709,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>vertexid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>vertexid</code> - 32-character hexadecimal string value that identifies a job vertex.</li>
         </ul>
       </td>
     </tr>
@@ -2708,9 +2720,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>get</code> (optional): description</li>
-<li><code>agg</code> (optional): description</li>
-<li><code>subtasks</code> (optional): description</li>
+<li><code>get</code> (optional): Comma-separated list of string values to select specific metrics.</li>
+<li><code>agg</code> (optional): Comma-separated list of aggregation modes which should be calculated. Available aggregations are: "min, max, sum, avg".</li>
+<li><code>subtasks</code> (optional): Comma-separated list of integer ranges (e.g. "1,3,5-9") to select specific subtasks.</li>
         </ul>
       </td>
     </tr>
@@ -2758,9 +2770,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>vertexid</code> - description</li>
-<li><code>subtaskindex</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>vertexid</code> - 32-character hexadecimal string value that identifies a job vertex.</li>
+<li><code>subtaskindex</code> - Positive integer value that identifies a subtask.</li>
         </ul>
       </td>
     </tr>
@@ -2863,10 +2875,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>vertexid</code> - description</li>
-<li><code>subtaskindex</code> - description</li>
-<li><code>attempt</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>vertexid</code> - 32-character hexadecimal string value that identifies a job vertex.</li>
+<li><code>subtaskindex</code> - Positive integer value that identifies a subtask.</li>
+<li><code>attempt</code> - Positive integer value that identifies an execution attempt.</li>
         </ul>
       </td>
     </tr>
@@ -2969,10 +2981,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>vertexid</code> - description</li>
-<li><code>subtaskindex</code> - description</li>
-<li><code>attempt</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>vertexid</code> - 32-character hexadecimal string value that identifies a job vertex.</li>
+<li><code>subtaskindex</code> - Positive integer value that identifies a subtask.</li>
+<li><code>attempt</code> - Positive integer value that identifies an execution attempt.</li>
         </ul>
       </td>
     </tr>
@@ -3050,9 +3062,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>vertexid</code> - description</li>
-<li><code>subtaskindex</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>vertexid</code> - 32-character hexadecimal string value that identifies a job vertex.</li>
+<li><code>subtaskindex</code> - Positive integer value that identifies a subtask.</li>
         </ul>
       </td>
     </tr>
@@ -3062,7 +3074,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>get</code> (optional): description</li>
+<li><code>get</code> (optional): Comma-separated list of string values to select specific metrics.</li>
         </ul>
       </td>
     </tr>
@@ -3110,8 +3122,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>vertexid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>vertexid</code> - 32-character hexadecimal string value that identifies a job vertex.</li>
         </ul>
       </td>
     </tr>
@@ -3195,8 +3207,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>jobid</code> - description</li>
-<li><code>vertexid</code> - description</li>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>vertexid</code> - 32-character hexadecimal string value that identifies a job vertex.</li>
         </ul>
       </td>
     </tr>
@@ -3437,7 +3449,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>triggerid</code> - description</li>
+<li><code>triggerid</code> - 32-character hexadecimal string that identifies an asynchronous operation trigger ID. The ID was returned then the operation was triggered.</li>
         </ul>
       </td>
     </tr>
@@ -3588,9 +3600,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>get</code> (optional): description</li>
-<li><code>agg</code> (optional): description</li>
-<li><code>taskmanagers</code> (optional): description</li>
+<li><code>get</code> (optional): Comma-separated list of string values to select specific metrics.</li>
+<li><code>agg</code> (optional): Comma-separated list of aggregation modes which should be calculated. Available aggregations are: "min, max, sum, avg".</li>
+<li><code>taskmanagers</code> (optional): Comma-separated list of 32-character hexadecimal strings to select specific task managers.</li>
         </ul>
       </td>
     </tr>
@@ -3638,7 +3650,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>taskmanagerid</code> - description</li>
+<li><code>taskmanagerid</code> - 32-character hexadecimal string that identifies a task manager.</li>
         </ul>
       </td>
     </tr>
@@ -3791,7 +3803,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>taskmanagerid</code> - description</li>
+<li><code>taskmanagerid</code> - 32-character hexadecimal string that identifies a task manager.</li>
         </ul>
       </td>
     </tr>
@@ -3801,7 +3813,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>get</code> (optional): description</li>
+<li><code>get</code> (optional): Comma-separated list of string values to select specific metrics.</li>
         </ul>
       </td>
     </tr>

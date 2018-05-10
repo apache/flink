@@ -616,6 +616,11 @@ public class RestServerEndpointITCase extends TestLogger {
 		protected String convertToString(JobID value) {
 			return value.toString();
 		}
+
+		@Override
+		public String getDescription() {
+			return "correct JobID parameter";
+		}
 	}
 
 	static class FaultyJobIDPathParameter extends MessagePathParameter<JobID> {
@@ -633,6 +638,11 @@ public class RestServerEndpointITCase extends TestLogger {
 		protected String convertToString(JobID value) {
 			return "foobar";
 		}
+
+		@Override
+		public String getDescription() {
+			return "faulty JobID parameter";
+		}
 	}
 
 	static class JobIDQueryParameter extends MessageQueryParameter<JobID> {
@@ -648,6 +658,11 @@ public class RestServerEndpointITCase extends TestLogger {
 		@Override
 		public String convertValueToString(JobID value) {
 			return value.toString();
+		}
+
+		@Override
+		public String getDescription() {
+			return "query JobID parameter";
 		}
 	}
 
