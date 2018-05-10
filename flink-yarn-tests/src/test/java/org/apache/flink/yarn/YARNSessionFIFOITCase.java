@@ -177,12 +177,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		long startTime = System.nanoTime();
 		while (System.nanoTime() - startTime < TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS) &&
 			!(verifyStringsInNamedLogFiles(
-				new String[]{isNewMode ? "JobManager successfully registered at ResourceManager"
-					: "YARN Application Master started"}, "jobmanager.log") &&
-				verifyStringsInNamedLogFiles(
-					new String[]{isNewMode ? "Successful registration at job manager"
-						: "Starting TaskManager actor"}, "taskmanager.log"))) {
-			LOG.info("Still waiting for JM/TM to initialize...");
+				new String[]{"switched from state RUNNING to FINISHED"}, "jobmanager.log"))) {
+			LOG.info("Still waiting for cluster to finish job...");
 			sleep(500);
 		}
 
