@@ -253,9 +253,16 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 				metadataFileStatus = fs.getFileStatus(metadataFilePath);
 			}
 			catch (FileNotFoundException e) {
-				throw new FileNotFoundException("Cannot find meta data file '" + METADATA_FILE_NAME +
+				// If this is the directory that contains multi externalized checkpoint, we need to find the last successful one.
+				final CompletedCheckpointStorageLocation completedCheckpointStorageLocation
+					= resolveTheLastSuccessfulCheckpoint(checkpointDir);
+				if (completedCheckpointStorageLocation != null) {
+					return completedCheckpointStorageLocation;
+				} else {
+					throw new FileNotFoundException("Cannot find meta data file '" + METADATA_FILE_NAME +
 						"' in directory '" + path + "'. Please try to load the checkpoint/savepoint " +
 						"directly from the metadata file instead of the directory.");
+				}
 			}
 		}
 		else {
@@ -275,6 +282,67 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 				checkpointDir,
 				metaDataFileHandle,
 				pointer);
+	}
+
+	/**
+	 * Takes the given string (representing a pointer to a checkpoint) and resolves the last successful checkpoint
+	 * in it.
+	 *
+	 * @param checkpointPointer the pointer to resolve.
+	 * @return A state handle to the last successful checkpoint's metadata.
+	 * @throws IOException Thrown, if the pointer cannot be resolved, the file system not accessed, or
+	 *                     the pointer points to a location that does not seem to be a checkpoint.
+	 */
+	private static CompletedCheckpointStorageLocation resolveTheLastSuccessfulCheckpoint(Path checkpointPointer) throws IOException {
+
+		final FileSystem fs = checkpointPointer.getFileSystem();
+		final FileStatus[] fileStatuses = fs.listStatus(checkpointPointer);
+
+		if (fileStatuses.length == 1
+			&& fileStatuses[0].isDir()
+			&& !fileStatuses[0].getPath().getName().startsWith(CHECKPOINT_DIR_PREFIX)) {
+			return resolveTheLastSuccessfulCheckpoint(fileStatuses[0].getPath());
+		} else {
+			long lastSuccessfulCheckpointId = -1L;
+			Path lastSuccessfulCheckpointPath = null;
+			FileStatus lastSuccessfulCheckpointMetadataFileStatus = null;
+			for (FileStatus fileStatus : fileStatuses) {
+				final Path subPath = fileStatus.getPath();
+				final String fileName = subPath.getName();
+				if (fileName.startsWith(CHECKPOINT_DIR_PREFIX)) {
+					final Path metadataFilePath = new Path(subPath, METADATA_FILE_NAME);
+					try {
+						final FileStatus metadataFileStatus = fs.getFileStatus(metadataFilePath);
+						final long checkpointId = Long.parseLong(fileName.substring(CHECKPOINT_DIR_PREFIX.length()));
+						if (lastSuccessfulCheckpointId < checkpointId) {
+							lastSuccessfulCheckpointId = checkpointId;
+							lastSuccessfulCheckpointPath = subPath;
+							lastSuccessfulCheckpointMetadataFileStatus = metadataFileStatus;
+						}
+					} catch (IOException ignored) {
+						// the metadata file may not exist because of a failed checkpoint.
+					}
+				}
+			}
+
+			if (lastSuccessfulCheckpointPath != null) {
+
+				final Path checkpointDir = lastSuccessfulCheckpointPath;
+
+				final FileStateHandle metaDataFileHandle = new FileStateHandle(
+					lastSuccessfulCheckpointMetadataFileStatus.getPath(), lastSuccessfulCheckpointMetadataFileStatus.getLen());
+
+				final String pointer = checkpointDir.makeQualified(fs).toString();
+
+				return new FsCompletedCheckpointStorageLocation(
+					fs,
+					checkpointDir,
+					metaDataFileHandle,
+					pointer);
+			} else {
+				return null;
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------

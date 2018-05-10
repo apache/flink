@@ -74,43 +74,87 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 
 	@Test
 	public void testPointerPathResolution() throws Exception {
+		final String baseCheckpointPath = tmp.newFolder("baseCheckpointPath").getAbsolutePath();
+		final String job1CheckpointBasePath = baseCheckpointPath + "/job1";
+		new File(job1CheckpointBasePath).mkdir();
+
 		final FileSystem fs = FileSystem.getLocalFileSystem();
-		final Path metadataFile = new Path(Path.fromLocalFile(tmp.newFolder()), AbstractFsCheckpointStorage.METADATA_FILE_NAME);
 
-		final String basePointer = metadataFile.getParent().toString();
-
-		final String pointer1 = metadataFile.toString();
-		final String pointer2 = metadataFile.getParent().toString();
-		final String pointer3 = metadataFile.getParent().toString() + '/';
+		final String[] basePointers = new String[10];
+		final byte[][] datas = new byte[10][23686];
 
 		// create the storage for some random checkpoint directory
 		final CheckpointStorage storage = createCheckpointStorage(randomTempPath());
 
-		final byte[] data = new byte[23686];
-		new Random().nextBytes(data);
-		try (FSDataOutputStream out = fs.create(metadataFile, WriteMode.NO_OVERWRITE)) {
-			out.write(data);
+		for (int i = 0; i < 10; ++i) {
+			final File subCheckpointDir = new File(job1CheckpointBasePath + "/" +  AbstractFsCheckpointStorage.CHECKPOINT_DIR_PREFIX + i);
+			subCheckpointDir.mkdirs();
+			final Path metadataFile = new Path(Path.fromLocalFile(subCheckpointDir), AbstractFsCheckpointStorage.METADATA_FILE_NAME);
+
+			String basePointer = metadataFile.getParent().toString();
+
+			final String pointer1 = metadataFile.toString();
+			final String pointer2 = metadataFile.getParent().toString();
+			final String pointer3 = metadataFile.getParent().toString() + '/';
+
+			final byte[] data = new byte[23686];
+			new Random().nextBytes(data);
+			try (FSDataOutputStream out = fs.create(metadataFile, WriteMode.NO_OVERWRITE)) {
+				out.write(data);
+			}
+
+			CompletedCheckpointStorageLocation completed1 = storage.resolveCheckpoint(pointer1);
+			CompletedCheckpointStorageLocation completed2 = storage.resolveCheckpoint(pointer2);
+			CompletedCheckpointStorageLocation completed3 = storage.resolveCheckpoint(pointer3);
+
+			assertEquals(basePointer, completed1.getExternalPointer());
+			assertEquals(basePointer, completed2.getExternalPointer());
+			assertEquals(basePointer, completed3.getExternalPointer());
+
+			StreamStateHandle handle1 = completed1.getMetadataHandle();
+			StreamStateHandle handle2 = completed2.getMetadataHandle();
+			StreamStateHandle handle3 = completed3.getMetadataHandle();
+
+			assertNotNull(handle1);
+			assertNotNull(handle2);
+			assertNotNull(handle3);
+
+			validateContents(handle1, data);
+			validateContents(handle2, data);
+			validateContents(handle3, data);
+
+			basePointers[i] = basePointer;
+			datas[i] = data;
 		}
 
-		CompletedCheckpointStorageLocation completed1 = storage.resolveCheckpoint(pointer1);
-		CompletedCheckpointStorageLocation completed2 = storage.resolveCheckpoint(pointer2);
-		CompletedCheckpointStorageLocation completed3 = storage.resolveCheckpoint(pointer3);
+		// create an incomplete checkpoint directory
+		final File incompleteCheckpointDir = new File(job1CheckpointBasePath + "/" +  AbstractFsCheckpointStorage.CHECKPOINT_DIR_PREFIX + 10);
+		incompleteCheckpointDir.mkdir();
 
-		assertEquals(basePointer, completed1.getExternalPointer());
-		assertEquals(basePointer, completed2.getExternalPointer());
-		assertEquals(basePointer, completed3.getExternalPointer());
+		CompletedCheckpointStorageLocation completed1 = storage.resolveCheckpoint(baseCheckpointPath);
+		CompletedCheckpointStorageLocation completed2 = storage.resolveCheckpoint(job1CheckpointBasePath);
+
+		assertEquals(basePointers[9], completed1.getExternalPointer());
+		assertEquals(basePointers[9], completed2.getExternalPointer());
 
 		StreamStateHandle handle1 = completed1.getMetadataHandle();
 		StreamStateHandle handle2 = completed2.getMetadataHandle();
-		StreamStateHandle handle3 = completed3.getMetadataHandle();
 
 		assertNotNull(handle1);
 		assertNotNull(handle2);
-		assertNotNull(handle3);
 
-		validateContents(handle1, data);
-		validateContents(handle2, data);
-		validateContents(handle3, data);
+		validateContents(handle1, datas[9]);
+		validateContents(handle2, datas[9]);
+
+		// now there are more than one directories in baseCheckpointPath.
+		final String job2CheckpointBasePath = baseCheckpointPath + "/job2";
+		new File(job2CheckpointBasePath).mkdir();
+		try {
+			storage.resolveCheckpoint(baseCheckpointPath);
+			fail("Expect the exception here, because there are more than one directory in baseCheckpointPath");
+		} catch (IOException ignored) {
+
+		}
 	}
 
 	@Test
