@@ -35,7 +35,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.slots.SlotAndLocality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -64,6 +63,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -91,6 +91,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * TODO : Make pass location preferences to ResourceManager when sending a slot request
  */
 public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedSlotActions {
+
+	/** The interval (in milliseconds) in which the SlotPool writes its slot distribution on debug level. */
+	private static final int STATUS_LOG_INTERVAL_MS = 60_000;
 
 	private final JobID jobId;
 
@@ -198,6 +201,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		}
 
 		scheduleRunAsync(this::checkIdleSlot, idleSlotTimeout);
+
+		if (log.isDebugEnabled()) {
+			scheduleRunAsync(this::scheduledLogStatus, STATUS_LOG_INTERVAL_MS, TimeUnit.MILLISECONDS);
+		}
 	}
 
 	@Override
@@ -304,25 +311,13 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	@Override
 	public CompletableFuture<LogicalSlot> allocateSlot(
 			SlotRequestId slotRequestId,
-			ScheduledUnit scheduledUnit,
-			SlotProfile slotProfile,
-			boolean allowQueuedScheduling,
-			Time timeout) {
-
-		return internalAllocateSlot(
-			slotRequestId,
-			scheduledUnit,
-			slotProfile,
-			allowQueuedScheduling,
-			timeout);
-	}
-
-	private CompletableFuture<LogicalSlot> internalAllocateSlot(
-			SlotRequestId slotRequestId,
 			ScheduledUnit task,
 			SlotProfile slotProfile,
 			boolean allowQueuedScheduling,
 			Time allocationTimeout) {
+
+		log.debug("Allocating slot with request {} for task execution {}", slotRequestId, task.getTaskToExecute());
+
 		final SlotSharingGroupId slotSharingGroupId = task.getSlotSharingGroupId();
 
 		if (slotSharingGroupId != null) {
@@ -764,10 +759,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				final AllocatedSlot allocatedSlot = allocatedSlots.remove(slotRequestId);
 
 				if (allocatedSlot != null) {
-					// sanity check
-					if (allocatedSlot.releasePayload(cause)) {
-						tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
-					}
+					allocatedSlot.releasePayload(cause);
+					tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
 				} else {
 					log.debug("There is no allocated slot with slot request id {}. Ignoring the release slot request.", slotRequestId);
 				}
@@ -1152,6 +1145,41 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	//  Methods for tests
 	// ------------------------------------------------------------------------
 
+	private void scheduledLogStatus() {
+		log.debug(printStatus());
+		scheduleRunAsync(this::scheduledLogStatus, STATUS_LOG_INTERVAL_MS, TimeUnit.MILLISECONDS);
+	}
+
+	private String printStatus() {
+		validateRunsInMainThread();
+
+		final StringBuilder builder = new StringBuilder(1024).append("Slot Pool Status:\n");
+
+		builder.append("\tstatus: ");
+		if (resourceManagerGateway != null) {
+			builder.append("connected to ").append(resourceManagerGateway.getAddress()).append('\n');
+		} else {
+			builder.append("unconnected and waiting for ResourceManager ")
+					.append(waitingForResourceManager)
+					.append('\n');
+		}
+
+		builder.append("\tregistered TaskManagers: ").append(registeredTaskManagers).append('\n');
+
+		builder.append("\tavailable slots: ").append(availableSlots.printAllSlots()).append('\n');
+		builder.append("\tallocated slots: ").append(allocatedSlots.printAllSlots()).append('\n');
+
+		builder.append("\tpending requests: ").append(pendingRequests.values()).append('\n');
+
+		builder.append("\tsharing groups: {\n");
+		for (Entry<SlotSharingGroupId, SlotSharingManager> manager : slotSharingManagers.entrySet()) {
+			builder.append("\t -------- ").append(manager.getKey()).append(" --------\n");
+			builder.append(manager.getValue());
+		}
+		builder.append("\t}\n");
+		return builder.toString();
+	}
+
 	@VisibleForTesting
 	protected AllocatedSlots getAllocatedSlots() {
 		return allocatedSlots;
@@ -1306,6 +1334,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		void clear() {
 			allocatedSlotsById.clear();
 			allocatedSlotsByTaskManager.clear();
+		}
+
+		String printAllSlots() {
+			return allocatedSlotsByTaskManager.values().toString();
 		}
 
 		@VisibleForTesting
@@ -1497,6 +1529,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			}
 		}
 
+		String printAllSlots() {
+			return availableSlots.values().toString();
+		}
+
 		@VisibleForTesting
 		boolean containsTaskManager(ResourceID resourceID) {
 			return availableSlotsByTaskManager.containsKey(resourceID);
@@ -1609,6 +1645,15 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		public ResourceProfile getResourceProfile() {
 			return resourceProfile;
+		}
+
+		@Override
+		public String toString() {
+			return "PendingRequest{" +
+					"slotRequestId=" + slotRequestId +
+					", resourceProfile=" + resourceProfile +
+					", allocatedSlotFuture=" + allocatedSlotFuture +
+					'}';
 		}
 	}
 

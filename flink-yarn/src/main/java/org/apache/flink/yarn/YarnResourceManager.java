@@ -74,14 +74,14 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	private final Map<String, String> env;
 
 	/** YARN container map. Package private for unit test purposes. */
-	final ConcurrentMap<ResourceID, YarnWorkerNode> workerNodeMap;
+	private final ConcurrentMap<ResourceID, YarnWorkerNode> workerNodeMap;
 
 	/** The heartbeat interval while the resource master is waiting for containers. */
 	private static final int FAST_YARN_HEARTBEAT_INTERVAL_MS = 500;
 
 	/** Environment variable name of the final container id used by the YarnResourceManager.
 	 * Container ID generation may vary across Hadoop versions. */
-	static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
+	private static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
 
 	/** Environment variable name of the hostname given by the YARN.
 	 * In task executor we use the hostnames given by YARN consistently throughout akka */
@@ -295,21 +295,16 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	@Override
-	public boolean stopWorker(YarnWorkerNode workerNode) {
-		if (workerNode != null) {
-			Container container = workerNode.getContainer();
-			log.info("Stopping container {}.", container.getId());
-			// release the container on the node manager
-			try {
-				nodeManagerClient.stopContainer(container.getId(), container.getNodeId());
-			} catch (Throwable t) {
-				log.warn("Error while calling YARN Node Manager to stop container", t);
-			}
-			resourceManagerClient.releaseAssignedContainer(container.getId());
-			workerNodeMap.remove(workerNode.getResourceID());
-		} else {
-			log.error("Can not find container for null workerNode.");
+	public boolean stopWorker(final YarnWorkerNode workerNode) {
+		final Container container = workerNode.getContainer();
+		log.info("Stopping container {}.", container.getId());
+		try {
+			nodeManagerClient.stopContainer(container.getId(), container.getNodeId());
+		} catch (final Exception e) {
+			log.warn("Error while calling YARN Node Manager to stop container", e);
 		}
+		resourceManagerClient.releaseAssignedContainer(container.getId());
+		workerNodeMap.remove(workerNode.getResourceID());
 		return true;
 	}
 
@@ -329,14 +324,19 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	@Override
-	public void onContainersCompleted(List<ContainerStatus> list) {
+	public void onContainersCompleted(final List<ContainerStatus> list) {
 		runAsync(() -> {
-				for (ContainerStatus container : list) {
-					if (container.getExitStatus() < 0) {
-						closeTaskManagerConnection(new ResourceID(
-							container.getContainerId().toString()), new Exception(container.getDiagnostics()));
+				for (final ContainerStatus containerStatus : list) {
+
+					final ResourceID resourceId = new ResourceID(containerStatus.getContainerId().toString());
+					final YarnWorkerNode yarnWorkerNode = workerNodeMap.remove(resourceId);
+
+					if (yarnWorkerNode != null) {
+						// Container completed unexpectedly ~> start a new one
+						final Container container = yarnWorkerNode.getContainer();
+						requestYarnContainer(container.getResource(), yarnWorkerNode.getContainer().getPriority());
+						closeTaskManagerConnection(resourceId, new Exception(containerStatus.getDiagnostics()));
 					}
-					workerNodeMap.remove(new ResourceID(container.getContainerId().toString()));
 				}
 			}
 		);
@@ -355,8 +355,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 					numPendingContainerRequests--;
 
 					final String containerIdStr = container.getId().toString();
+					final ResourceID resourceId = new ResourceID(containerIdStr);
 
-					workerNodeMap.put(new ResourceID(containerIdStr), new YarnWorkerNode(container));
+					workerNodeMap.put(resourceId, new YarnWorkerNode(container));
 
 					try {
 						// Context information used to start a TaskExecutor Java process
@@ -370,6 +371,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 						log.error("Could not start TaskManager in container {}.", container.getId(), t);
 
 						// release the failed container
+						workerNodeMap.remove(resourceId);
 						resourceManagerClient.releaseAssignedContainer(container.getId());
 						// and ask for a new one
 						requestYarnContainer(container.getResource(), container.getPriority());
