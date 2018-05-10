@@ -984,6 +984,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			operatorBackPressureStats.orElse(null)));
 	}
 
+	@Override
+	public void notifyAllocationFailure(AllocationID allocationID, Exception cause) {
+		slotPool.failAllocation(allocationID, cause);
+	}
+
 	//----------------------------------------------------------------------------------------------
 	// Internal methods
 	//----------------------------------------------------------------------------------------------
