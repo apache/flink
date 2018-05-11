@@ -65,14 +65,14 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The date format of initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION). */
 	public static final String STREAM_TIMESTAMP_DATE_FORMAT = "flink.stream.initpos.timestamp.format";
 
-	/** The base backoff time between each describeStream attempt. */
-	public static final String SHARDS_LIST_BACKOFF_BASE = "flink.shards.list.backoff.base";
+	/** The base backoff time between each listShards attempt. */
+	public static final String SHARDS_LIST_BACKOFF_BASE = "flink.stream.describe.backoff.base";
 
-	/** The maximum backoff time between each describeStream attempt. */
-	public static final String SHARDS_LIST_BACKOFF_MAX = "flink.shards.list.backoff.max";
+	/** The maximum backoff time between each listShards attempt. */
+	public static final String SHARDS_LIST_BACKOFF_MAX = "flink.stream.describe.backoff.max";
 
-	/** The power constant for exponential backoff between each describeStream attempt. */
-	public static final String SHARDS_LIST_BACKOFF_EXPONENTIAL_CONSTANT = "flink.shards.list.backoff.expconst";
+	/** The power constant for exponential backoff between each listShards attempt. */
+	public static final String SHARDS_LIST_BACKOFF_EXPONENTIAL_CONSTANT = "flink.stream.describe.backoff.expconst";
 
 	/** The maximum number of records to try to get each time we fetch records from a AWS Kinesis shard. */
 	public static final String SHARD_GETRECORDS_MAX = "flink.shard.getrecords.maxrecordcount";
