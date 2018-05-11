@@ -364,6 +364,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("LPAD('⎨⎨',1,'??')", "⎨")
     testSqlApi("LPAD('äääääääää',2,'??')", "ää")
     testSqlApi("LPAD('äääääääää',10,'??')", "?äääääääää")
+    testSqlApi("LPAD('Hello', -1, 'x') IS NULL", "true")
+    testSqlApi("LPAD('Hello', -1, 'x') IS NOT NULL", "false")
 
     testAllApis(
       "äää".lpad(13, "12345"),
