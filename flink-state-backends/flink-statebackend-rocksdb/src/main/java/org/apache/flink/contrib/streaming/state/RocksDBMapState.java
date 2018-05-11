@@ -67,9 +67,6 @@ public class RocksDBMapState<K, N, UK, UV>
 	private final TypeSerializer<UK> userKeySerializer;
 	private final TypeSerializer<UV> userValueSerializer;
 
-	/** The offset of User Key offset in raw key bytes. */
-	private int userKeyOffset;
-
 	/**
 	 * Creates a new {@code RocksDBMapState}.
 	 *
@@ -305,7 +302,6 @@ public class RocksDBMapState<K, N, UK, UV>
 
 	private byte[] serializeCurrentKeyAndNamespace() throws IOException {
 		writeCurrentKeyWithGroupAndNamespace();
-		userKeyOffset = keySerializationStream.getPosition();
 
 		return keySerializationStream.toByteArray();
 	}
@@ -338,7 +334,7 @@ public class RocksDBMapState<K, N, UK, UV>
 		return keySerializationStream.toByteArray();
 	}
 
-	private UK deserializeUserKey(byte[] rawKeyBytes, TypeSerializer<UK> keySerializer) throws IOException {
+	private UK deserializeUserKey(int userKeyOffset, byte[] rawKeyBytes, TypeSerializer<UK> keySerializer) throws IOException {
 		ByteArrayInputStreamWithPos bais = new ByteArrayInputStreamWithPos(rawKeyBytes);
 		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
 
@@ -380,18 +376,23 @@ public class RocksDBMapState<K, N, UK, UV>
 
 		private UV userValue;
 
+		/** The offset of User Key offset in raw key bytes. */
+		private final int userKeyOffset;
+
 		private TypeSerializer<UK> keySerializer;
 
 		private TypeSerializer<UV> valueSerializer;
 
 		RocksDBMapEntry(
 				@Nonnull final RocksDB db,
+				@Nonnull final int userKeyOffset,
 				@Nonnull final byte[] rawKeyBytes,
 				@Nonnull final byte[] rawValueBytes,
 				@Nonnull final TypeSerializer<UK> keySerializer,
 				@Nonnull final TypeSerializer<UV> valueSerializer) {
 			this.db = db;
 
+			this.userKeyOffset = userKeyOffset;
 			this.keySerializer = keySerializer;
 			this.valueSerializer = valueSerializer;
 
@@ -415,7 +416,7 @@ public class RocksDBMapState<K, N, UK, UV>
 		public UK getKey() {
 			if (userKey == null) {
 				try {
-					userKey = deserializeUserKey(rawKeyBytes, keySerializer);
+					userKey = deserializeUserKey(userKeyOffset, rawKeyBytes, keySerializer);
 				} catch (IOException e) {
 					throw new RuntimeException("Error while deserializing the user key.", e);
 				}
@@ -583,6 +584,7 @@ public class RocksDBMapState<K, N, UK, UV>
 
 					RocksDBMapEntry entry = new RocksDBMapEntry(
 						db,
+						keyPrefixBytes.length,
 						iterator.key(),
 						iterator.value(),
 						keySerializer,
