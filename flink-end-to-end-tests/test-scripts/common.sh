@@ -97,7 +97,6 @@ function create_ha_config() {
     jobmanager.heap.mb: 1024
     taskmanager.heap.mb: 1024
     taskmanager.numberOfTaskSlots: 4
-    parallelism.default: 1
 
     #==============================================================================
     # High Availability
