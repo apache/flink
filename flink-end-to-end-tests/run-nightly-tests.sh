@@ -50,9 +50,33 @@ EXIT_CODE=0
 
 if [ $EXIT_CODE == 0 ]; then
     printf "\n==============================================================================\n"
-    printf "Running HA end-to-end test\n"
+    printf "Running HA (file, async) end-to-end test\n"
     printf "==============================================================================\n"
-    $END_TO_END_DIR/test-scripts/test_ha.sh
+    STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=true $END_TO_END_DIR/test-scripts/test_ha.sh
+    EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+    printf "\n==============================================================================\n"
+    printf "Running HA (file, sync) end-to-end test\n"
+    printf "==============================================================================\n"
+    STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=false $END_TO_END_DIR/test-scripts/test_ha.sh
+    EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+    printf "\n==============================================================================\n"
+    printf "Running HA (rocks, non-incremental) end-to-end test\n"
+    printf "==============================================================================\n"
+    STATE_BACKEND_TYPE=rocks STATE_BACKEND_ROCKS_INCREMENTAL=false $END_TO_END_DIR/test-scripts/test_ha.sh
+    EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+    printf "\n==============================================================================\n"
+    printf "Running HA (rocks, non-incremental) end-to-end test\n"
+    printf "==============================================================================\n"
+    STATE_BACKEND_TYPE=rocks STATE_BACKEND_ROCKS_INCREMENTAL=true $END_TO_END_DIR/test-scripts/test_ha.sh
     EXIT_CODE=$?
 fi
 
