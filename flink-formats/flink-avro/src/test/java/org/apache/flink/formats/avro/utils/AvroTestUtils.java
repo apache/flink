@@ -27,9 +27,15 @@ import org.apache.flink.types.Row;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
+import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.specific.SpecificRecord;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -148,5 +154,20 @@ public final class AvroTestUtils {
 		t.f2 = rowUser;
 
 		return t;
+	}
+
+	/**
+	 * Writes given record using specified schema.
+	 * @param record record to serialize
+	 * @param schema schema to use for serialization
+	 * @return serialized record
+	 */
+	public static byte[] writeRecord(GenericRecord record, Schema schema) throws IOException {
+		ByteArrayOutputStream stream = new ByteArrayOutputStream();
+		BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(stream, null);
+
+		new GenericDatumWriter<>(schema).write(record, encoder);
+		encoder.flush();
+		return stream.toByteArray();
 	}
 }
