@@ -61,7 +61,7 @@ public class TypeInformationTest {
 	@Test
 	public void testOfTypeHint() {
 		assertEquals(BasicTypeInfo.STRING_TYPE_INFO, TypeInformation.of(String.class));
-		assertEquals(BasicTypeInfo.STRING_TYPE_INFO, Types.STRING);
+		assertEquals(BasicTypeInfo.STRING_TYPE_INFO, TypeInformation.of(new TypeHint<String>(){}));
 
 		TypeInformation<Tuple3<String, Double, Boolean>> tupleInfo =
 				new TupleTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO);

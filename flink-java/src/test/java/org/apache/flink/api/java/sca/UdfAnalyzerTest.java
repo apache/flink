@@ -62,6 +62,10 @@ import static org.junit.Assert.assertEquals;
 @SuppressWarnings("serial")
 public class UdfAnalyzerTest {
 
+	private static TypeInformation<Tuple2<String, Integer>> stringIntTuple2TypeInfo = TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){});
+
+	private static TypeInformation<Tuple2<String, String>> stringStringTuple2TypeInfo = TypeInformation.of(new TypeHint<Tuple2<String, String>>(){});
+
 	@ForwardedFields("f0->*")
 	private static class Map1 implements MapFunction<Tuple2<String, Integer>, String> {
 		public String map(Tuple2<String, Integer> value) throws Exception {
@@ -72,7 +76,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testSingleFieldExtract() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map1.class,
-			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){}), Types.STRING);
+			stringIntTuple2TypeInfo, Types.STRING);
 	}
 
 	@ForwardedFields("f0->f0;f0->f1")
@@ -85,7 +89,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardIntoTuple() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map2.class,
-			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){}), TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}));
+			stringIntTuple2TypeInfo, stringStringTuple2TypeInfo);
 	}
 
 	private static class Map3 implements MapFunction<String[], Integer> {
@@ -112,7 +116,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithGenericTypePublicAttrAccess() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map4.class,
-			TypeInformation.of(new TypeHint<GenericTypeInfo<MyPojo>>(){}), Types.STRING);
+			new GenericTypeInfo<>(MyPojo.class), Types.STRING);
 	}
 
 	@ForwardedFields("field2->*")
@@ -157,7 +161,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardIntoTupleWithCondition() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map7.class,
-			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){}), TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}));
+			stringIntTuple2TypeInfo, stringStringTuple2TypeInfo);
 	}
 
 	private static class Map8 implements MapFunction<Tuple2<String, String>, String> {
@@ -173,7 +177,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testSingleFieldExtractWithCondition() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map8.class,
-			TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}), Types.STRING);
+			stringStringTuple2TypeInfo, Types.STRING);
 	}
 
 	@ForwardedFields("*->f0")
@@ -227,7 +231,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardIntoTupleWithInstanceVarChangedByOtherMethod() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map11.class, Types.STRING,
-			TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}));
+			stringStringTuple2TypeInfo);
 	}
 
 	@ForwardedFields("f0->f0.f0;f0->f1.f0")
@@ -241,7 +245,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardIntoNestedTuple() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map12.class,
-			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){}),
+			stringIntTuple2TypeInfo,
 			TypeInformation.of(new TypeHint<Tuple2<Tuple1<String>, Tuple1<String>>>(){}));
 	}
 
@@ -259,7 +263,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardIntoNestedTupleWithVarAndModification() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map13.class,
-			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){}),
+			stringIntTuple2TypeInfo,
 			TypeInformation.of(new TypeHint<Tuple2<Tuple1<String>, Tuple1<String>>>(){}));
 	}
 
@@ -275,7 +279,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardIntoTupleWithAssignment() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map14.class,
-			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){}), TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}));
+			stringIntTuple2TypeInfo, stringStringTuple2TypeInfo);
 	}
 
 	@ForwardedFields("f0.f0->f0")
@@ -291,7 +295,7 @@ public class UdfAnalyzerTest {
 	public void testForwardIntoTupleWithInputPath() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map15.class,
 			TypeInformation.of(new TypeHint<Tuple2<Tuple1<String>, Integer>>(){}),
-			TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}));
+			stringStringTuple2TypeInfo);
 	}
 
 	@ForwardedFields("field->field2;field2->field")
@@ -584,7 +588,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithBranching3() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map30.class,
-			TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}), Types.STRING);
+			stringStringTuple2TypeInfo, Types.STRING);
 	}
 
 	@ForwardedFields("1->1;1->0")
@@ -602,7 +606,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithInheritance() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map31.class,
-			TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}), TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}));
+			stringStringTuple2TypeInfo, stringStringTuple2TypeInfo);
 	}
 
 	@ForwardedFields("*")
@@ -1225,7 +1229,7 @@ public class UdfAnalyzerTest {
 	public void testFilterModificationException1() {
 		try {
 			final UdfAnalyzer ua = new UdfAnalyzer(FilterFunction.class, FilterMod1.class, "operator",
-					TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}), null, null, null, null, true);
+					stringStringTuple2TypeInfo, null, null, null, null, true);
 			ua.analyze();
 			Assert.fail();
 		}
@@ -1247,7 +1251,7 @@ public class UdfAnalyzerTest {
 	public void testFilterModificationException2() {
 		try {
 			final UdfAnalyzer ua = new UdfAnalyzer(FilterFunction.class, FilterMod2.class, "operator",
-					TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}), null, null, null, null, true);
+					stringStringTuple2TypeInfo, null, null, null, null, true);
 			ua.analyze();
 			Assert.fail();
 		}
