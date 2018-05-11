@@ -38,6 +38,7 @@ under the License.
 	<modules>
 		<module>flink-avro</module>
 		<module>flink-json</module>
+		<module>flink-avro-confluent-registry</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up

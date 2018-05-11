@@ -27,11 +27,16 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.formats.avro.utils.DataInputDecoder;
 import org.apache.flink.formats.avro.utils.DataOutputEncoder;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaCompatibility;
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType;
 import org.apache.avro.SchemaCompatibility.SchemaPairCompatibility;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
@@ -49,10 +54,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A serializer that serializes types via Avro.
  *
- * <p>The serializer supports both efficient specific record serialization for
- * types generated via Avro, as well as serialization via reflection
- * (ReflectDatumReader / -Writer). The serializer instantiates them depending on
- * the class of the type it should serialize.
+ * <p>The serializer supports:
+ * <ul>
+ * <li>efficient specific record serialization for types generated via Avro</li>
+ * <li>serialization via reflection (ReflectDatumReader / -Writer)</li>
+ * <li>serialization of generic records via GenericDatumReader / -Writer</li>
+ * </ul>
+ * The serializer instantiates them depending on the class of the type it should serialize.
  *
  * <p><b>Important:</b> This serializer is NOT THREAD SAFE, because it reuses the data encoders
  * and decoders which have buffers that would be shared between the threads if used concurrently
@@ -79,15 +87,16 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	// -------- runtime fields, non-serializable, lazily initialized -----------
 
-	private transient SpecificDatumWriter<T> writer;
-	private transient SpecificDatumReader<T> reader;
+	private transient GenericDatumWriter<T> writer;
+	private transient GenericDatumReader<T> reader;
 
 	private transient DataOutputEncoder encoder;
 	private transient DataInputDecoder decoder;
 
-	private transient SpecificData avroData;
+	private transient GenericData avroData;
 
 	private transient Schema schema;
+	private final String schemaString;
 
 	/** The serializer configuration snapshot, cached for efficiency. */
 	private transient AvroSchemaSerializerConfigSnapshot configSnapshot;
@@ -99,9 +108,29 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	/**
 	 * Creates a new AvroSerializer for the type indicated by the given class.
+	 * This constructor is intended to be used with {@link SpecificRecord} or reflection serializer.
+	 * For serializing {@link GenericData.Record} use {@link AvroSerializer#AvroSerializer(Class, Schema)}
 	 */
 	public AvroSerializer(Class<T> type) {
+		Preconditions.checkArgument(!isGenericRecord(type),
+			"For GenericData.Record use constructor with explicit schema.");
 		this.type = checkNotNull(type);
+		this.schemaString = null;
+	}
+
+	/**
+	 * Creates a new AvroSerializer for the type indicated by the given class.
+	 * This constructor is expected to be used only with {@link GenericData.Record}.
+	 * For {@link SpecificRecord} or reflection serializer use
+	 * {@link AvroSerializer#AvroSerializer(Class)}
+	 */
+	public AvroSerializer(Class<T> type, Schema schema) {
+		Preconditions.checkArgument(
+			isGenericRecord(type),
+			"For classes other than GenericData.Record use constructor without explicit schema.");
+		this.type = checkNotNull(type);
+		this.schema = checkNotNull(schema);
+		this.schemaString = schema.toString();
 	}
 
 	/**
@@ -275,9 +304,19 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
+	private static boolean isGenericRecord(Class<?> type) {
+		return !SpecificRecord.class.isAssignableFrom(type) &&
+			GenericRecord.class.isAssignableFrom(type);
+	}
+
 	@Override
 	public TypeSerializer<T> duplicate() {
-		return new AvroSerializer<>(type);
+		if (schemaString != null) {
+			return new AvroSerializer<>(type, new Schema.Parser().parse(schemaString));
+		} else {
+			return new AvroSerializer<>(type);
+
+		}
 	}
 
 	@Override
@@ -323,15 +362,23 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		final ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
 		if (SpecificRecord.class.isAssignableFrom(type)) {
-			this.avroData = new SpecificData(cl);
-			this.schema = this.avroData.getSchema(type);
-			this.reader = new SpecificDatumReader<>(schema, schema, avroData);
-			this.writer = new SpecificDatumWriter<>(schema, avroData);
-		}
-		else {
+			SpecificData specificData = new SpecificData(cl);
+			this.avroData = specificData;
+			this.schema = specificData.getSchema(type);
+			this.reader = new SpecificDatumReader<>(schema, schema, specificData);
+			this.writer = new SpecificDatumWriter<>(schema, specificData);
+		} else if (GenericRecord.class.isAssignableFrom(type)) {
+			if (schema == null) {
+				this.schema = new Schema.Parser().parse(schemaString);
+			}
+			GenericData genericData = new GenericData(cl);
+			this.avroData = genericData;
+			this.reader = new GenericDatumReader<>(schema, schema, genericData);
+			this.writer = new GenericDatumWriter<>(schema, genericData);
+		} else {
 			final ReflectData reflectData = new ReflectData(cl);
 			this.avroData = reflectData;
-			this.schema = this.avroData.getSchema(type);
+			this.schema = reflectData.getSchema(type);
 			this.reader = new ReflectDatumReader<>(schema, schema, reflectData);
 			this.writer = new ReflectDatumWriter<>(schema, reflectData);
 		}
