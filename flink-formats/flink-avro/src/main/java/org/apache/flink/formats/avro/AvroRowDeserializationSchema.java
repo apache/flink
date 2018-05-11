@@ -18,6 +18,7 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.AbstractDeserializationSchema;
+import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -31,7 +32,6 @@ import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -153,27 +153,4 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		}
 	}
 
-	/**
-	 * An extension of the ByteArrayInputStream that allows to change a buffer that should be
-	 * read without creating a new ByteArrayInputStream instance. This allows to re-use the same
-	 * InputStream instance, copying message to process, and creation of Decoder on every new message.
-	 */
-	private static final class MutableByteArrayInputStream extends ByteArrayInputStream {
-
-		public MutableByteArrayInputStream() {
-			super(new byte[0]);
-		}
-
-		/**
-		 * Set buffer that can be read via the InputStream interface and reset the input stream.
-		 * This has the same effect as creating a new ByteArrayInputStream with a new buffer.
-		 *
-		 * @param buf the new buffer to read.
-		 */
-		public void setBuffer(byte[] buf) {
-			this.buf = buf;
-			this.pos = 0;
-			this.count = buf.length;
-		}
-	}
 }

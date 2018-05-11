@@ -32,4 +32,12 @@
      {"name": "type_union", "type": ["null", "boolean", "long", "double"]},
      {"name": "type_nested", "type": ["null", "Address"]}
  ]
+},
+ {"namespace": "org.apache.flink.formats.avro.generated",
+  "type": "record",
+  "name": "SimpleRecord",
+  "fields": [
+      {"name": "name", "type": "string"},
+      {"name": "optionalField",  "type": ["null", "int"], "default": null}
+  ]
 }]
