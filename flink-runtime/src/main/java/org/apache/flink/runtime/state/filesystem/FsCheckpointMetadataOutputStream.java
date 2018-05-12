@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.TwoPhraseFSDataOutputStream;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 
 import org.slf4j.Logger;
@@ -43,7 +45,7 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
 
 	// ------------------------------------------------------------------------
 
-	private final FSDataOutputStream out;
+	private FSDataOutputStream out;
 
 	private final Path metadataFilePath;
 
@@ -62,7 +64,13 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
 		this.metadataFilePath = checkNotNull(metadataFilePath);
 		this.exclusiveCheckpointDir = checkNotNull(exclusiveCheckpointDir);
 
-		this.out = fileSystem.create(metadataFilePath, WriteMode.NO_OVERWRITE);
+		try {
+			// try our best to create file atomically
+			this.out = fileSystem.createAtomically(metadataFilePath, WriteMode.NO_OVERWRITE);
+		} catch (UnsupportedOperationException ex) {
+			// failed to create file atomically, take a step back
+			this.out = fileSystem.create(metadataFilePath, WriteMode.NO_OVERWRITE);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -117,6 +125,11 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
 		}
 	}
 
+	@VisibleForTesting
+	FSDataOutputStream getOutputStream() {
+		return out;
+	}
+
 	@Override
 	public FsCompletedCheckpointStorageLocation closeAndFinalizeCheckpoint() throws IOException {
 		synchronized (this) {
@@ -127,6 +140,10 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
 					try {
 						size = out.getPos();
 					} catch (Exception ignored) {}
+
+					if (out instanceof TwoPhraseFSDataOutputStream) {
+						((TwoPhraseFSDataOutputStream) out).commit();
+					}
 
 					out.close();
 

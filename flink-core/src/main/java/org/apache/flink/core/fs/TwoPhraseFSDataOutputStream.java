@@ -20,6 +20,7 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,8 +30,8 @@ import java.io.IOException;
  * Operates the output stream in two phrases, any exception during the operation of {@link TwoPhraseFSDataOutputStream} will
  * lead the {@link #targetFile} to be invisible.
  *
- * <p>PHRASE 1, write the data into the {@link #preparingFile}.
- * <p>PHRASE 2, close the {@link #preparingFile} and rename it to the {@link #targetFile}.
+ * PHRASE 1, write the data into the {@link #preparingFile}.
+ * PHRASE 2, close the {@link #preparingFile} and rename it to the {@link #targetFile}.
  */
 @Internal
 public class TwoPhraseFSDataOutputStream extends FSDataOutputStream {
