@@ -594,8 +594,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		handlers.add(Tuple2.of(JobPlanHeaders.getInstance(), jobPlanHandler));
 		handlers.add(Tuple2.of(TaskCheckpointStatisticsHeaders.getInstance(), taskCheckpointStatisticDetailsHandler));
 		handlers.add(Tuple2.of(JobExceptionsHeaders.getInstance(), jobExceptionsHandler));
-		handlers.add(Tuple2.of(JobVertexAccumulatorsHeaders.getInstance(), jobVertexAccumulatorsHandler));
-		handlers.add(Tuple2.of(JobVertexAccumulatorsHeaders.getInstance(), subtasksAllAccumulatorsHandler));
+		handlers.add(Tuple2.of(jobVertexAccumulatorsHandler.getMessageHeaders(), jobVertexAccumulatorsHandler));
+		handlers.add(Tuple2.of(subtasksAllAccumulatorsHandler.getMessageHeaders(), subtasksAllAccumulatorsHandler));
 		handlers.add(Tuple2.of(JobDetailsHeaders.getInstance(), jobDetailsHandler));
 		handlers.add(Tuple2.of(JobAccumulatorsHeaders.getInstance(), jobAccumulatorsHandler));
 		handlers.add(Tuple2.of(TaskManagersHeaders.getInstance(), taskManagersHandler));
