@@ -633,6 +633,24 @@ public abstract class FileSystem {
 	public abstract FSDataOutputStream create(Path f, WriteMode overwriteMode) throws IOException;
 
 	/**
+	 * Opens an FSDataOutputStream to a new file at the given path atomically, this means that
+	 * we create the target file only with the writing is truly successful.
+	 *
+	 * <p>If the file already exists, the behavior depends on the given {@code WriteMode}.
+	 * If the mode is set to {@link WriteMode#NO_OVERWRITE}, then this method fails with an
+	 * exception.
+	 *
+	 * @param f The file path to write to
+	 * @param overwriteMode The action to take if a file or directory already exists at the given path.
+	 * @return The stream to the new file at the target path.
+	 *
+	 * @throws IOException Thrown, if the stream could not be opened because of an I/O, or because
+	 *                     a file already exists at that path and the write mode indicates to not
+	 *                     overwrite the file.
+	 */
+	public abstract FSDataOutputStream createAtomically(Path f, WriteMode overwriteMode) throws IOException;
+
+	/**
 	 * Renames the file/directory src to dst.
 	 *
 	 * @param src

@@ -33,6 +33,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.TwoPhraseFSDataOutputStream;
 import org.apache.flink.util.OperatingSystem;
 
 import org.slf4j.Logger;
@@ -273,6 +274,11 @@ public class LocalFileSystem extends FileSystem {
 
 		final File file = pathToFile(filePath);
 		return new LocalDataOutputStream(file);
+	}
+
+	@Override
+	public FSDataOutputStream createAtomically(Path f, WriteMode overwriteMode) throws IOException {
+		return new TwoPhraseFSDataOutputStream(this, f, overwriteMode);
 	}
 
 	@Override

@@ -123,6 +123,11 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	}
 
 	@Override
+	public FSDataOutputStream createAtomically(Path f, WriteMode overwriteMode) throws IOException {
+		throw new UnsupportedOperationException("createAtomically(...) is unsupported in SafetyNetWrapperFileSystem yet.");
+	}
+
+	@Override
 	public boolean rename(Path src, Path dst) throws IOException {
 		return unsafeFileSystem.rename(src, dst);
 	}
