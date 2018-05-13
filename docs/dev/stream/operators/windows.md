@@ -730,9 +730,9 @@ input
 
 /* ... */
 
-public class MyProcessWindowFunction implements ProcessWindowFunction<Tuple<String, Long>, String, String, TimeWindow> {
+public static class MyProcessWindowFunction extends ProcessWindowFunction<Tuple<String, Long>, String, String, TimeWindow> {
 
-  void process(String key, Context context, Iterable<Tuple<String, Long>> input, Collector<String> out) {
+  public void process(String key, Context context, Iterable<Tuple<String, Long>> input, Collector<String> out) {
     long count = 0;
     for (Tuple<String, Long> in: input) {
       count++;
