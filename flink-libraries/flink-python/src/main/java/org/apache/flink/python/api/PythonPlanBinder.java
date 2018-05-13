@@ -530,7 +530,7 @@ public class PythonPlanBinder {
 	private <IN> void createUnionOperation(PythonOperationInfo info) {
 		DataSet<IN> op1 = sets.getDataSet(info.parentID);
 		DataSet<IN> op2 = sets.getDataSet(info.otherID);
-		sets.add(info.setID, op1.union(op2).setParallelism(info.parallelism).name("Union"));
+		sets.add(info.setID, op1.union(op2).name("Union"));
 	}
 
 	private <IN1, IN2, OUT> void createCoGroupOperation(PythonOperationInfo info, TypeInformation<OUT> type) {
