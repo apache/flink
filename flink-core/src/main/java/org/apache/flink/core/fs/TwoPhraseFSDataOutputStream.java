@@ -29,7 +29,6 @@ import java.io.IOException;
 /**
  * Operates the output stream in two phrases, any exception during the operation of {@link TwoPhraseFSDataOutputStream} will
  * lead the {@link #targetFile} to be invisible.
- *
  * PHRASE 1, write the data into the {@link #preparingFile}.
  * PHRASE 2, close the {@link #preparingFile} and rename it to the {@link #targetFile}.
  */

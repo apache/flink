@@ -146,6 +146,7 @@ under the License.
 							<exclude>org.apache.flink.core.fs.FileSystem#initialize(java.net.URI)</exclude>
 							<exclude>org.apache.flink.core.fs.FileSystem#isFlinkSupportedScheme(java.lang.String)</exclude>
 							<exclude>org.apache.flink.core.fs.FileSystem#setDefaultScheme(org.apache.flink.configuration.Configuration)</exclude>
+							<exclude>org.apache.flink.core.fs.FileSystem#createAtomically(org.apache.flink.core.fs.Path,org.apache.flink.core.fs.FileSystem$WriteMode)</exclude>
 							<exclude>org.apache.flink.api.java.typeutils.WritableTypeInfo</exclude>
 							<exclude>org.apache.flink.api.java.typeutils.AvroTypeInfo</exclude>
 							<!-- Breaking changes between 1.1 and 1.2.
