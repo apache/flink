@@ -89,6 +89,11 @@ under the License.
 			<groupId>commons-configuration</groupId>
 			<artifactId>commons-configuration</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>jcl-over-slf4j</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
 
 		<!-- Used for base64 encoding of UDFs -->
 		<dependency>
@@ -297,8 +302,10 @@ under the License.
 
 									<!-- flink-table dependencies -->
 									<include>commons-configuration:*</include>
+									<include>org.slf4j:jcl-over-slf4j</include>
 									<include>commons-lang:*</include>
 									<include>commons-codec:*</include>
+									<include>commons-collections:*</include>
 									<include>org.apache.commons:commons-lang3</include>
 									<include>org.codehaus.janino:*</include>
 									<include>org.reflections:*</include>
