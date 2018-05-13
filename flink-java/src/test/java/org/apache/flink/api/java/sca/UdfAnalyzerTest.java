@@ -62,9 +62,9 @@ import static org.junit.Assert.assertEquals;
 @SuppressWarnings("serial")
 public class UdfAnalyzerTest {
 
-	private static TypeInformation<Tuple2<String, Integer>> stringIntTuple2TypeInfo = TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){});
+	private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE2_TYPE_INFO = TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){});
 
-	private static TypeInformation<Tuple2<String, String>> stringStringTuple2TypeInfo = TypeInformation.of(new TypeHint<Tuple2<String, String>>(){});
+	private static final TypeInformation<Tuple2<String, String>> STRING_STRING_TUPLE2_TYPE_INFO = TypeInformation.of(new TypeHint<Tuple2<String, String>>(){});
 
 	@ForwardedFields("f0->*")
 	private static class Map1 implements MapFunction<Tuple2<String, Integer>, String> {
@@ -76,7 +76,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testSingleFieldExtract() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map1.class,
-			stringIntTuple2TypeInfo, Types.STRING);
+			STRING_INT_TUPLE2_TYPE_INFO, Types.STRING);
 	}
 
 	@ForwardedFields("f0->f0;f0->f1")
@@ -89,7 +89,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardIntoTuple() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map2.class,
-			stringIntTuple2TypeInfo, stringStringTuple2TypeInfo);
+			STRING_INT_TUPLE2_TYPE_INFO, STRING_STRING_TUPLE2_TYPE_INFO);
 	}
 
 	private static class Map3 implements MapFunction<String[], Integer> {
@@ -161,7 +161,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardIntoTupleWithCondition() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map7.class,
-			stringIntTuple2TypeInfo, stringStringTuple2TypeInfo);
+			STRING_INT_TUPLE2_TYPE_INFO, STRING_STRING_TUPLE2_TYPE_INFO);
 	}
 
 	private static class Map8 implements MapFunction<Tuple2<String, String>, String> {
@@ -177,7 +177,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testSingleFieldExtractWithCondition() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map8.class,
-			stringStringTuple2TypeInfo, Types.STRING);
+			STRING_STRING_TUPLE2_TYPE_INFO, Types.STRING);
 	}
 
 	@ForwardedFields("*->f0")
@@ -231,7 +231,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardIntoTupleWithInstanceVarChangedByOtherMethod() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map11.class, Types.STRING,
-			stringStringTuple2TypeInfo);
+			STRING_STRING_TUPLE2_TYPE_INFO);
 	}
 
 	@ForwardedFields("f0->f0.f0;f0->f1.f0")
@@ -245,7 +245,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardIntoNestedTuple() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map12.class,
-			stringIntTuple2TypeInfo,
+			STRING_INT_TUPLE2_TYPE_INFO,
 			TypeInformation.of(new TypeHint<Tuple2<Tuple1<String>, Tuple1<String>>>(){}));
 	}
 
@@ -263,7 +263,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardIntoNestedTupleWithVarAndModification() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map13.class,
-			stringIntTuple2TypeInfo,
+			STRING_INT_TUPLE2_TYPE_INFO,
 			TypeInformation.of(new TypeHint<Tuple2<Tuple1<String>, Tuple1<String>>>(){}));
 	}
 
@@ -279,7 +279,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardIntoTupleWithAssignment() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map14.class,
-			stringIntTuple2TypeInfo, stringStringTuple2TypeInfo);
+			STRING_INT_TUPLE2_TYPE_INFO, STRING_STRING_TUPLE2_TYPE_INFO);
 	}
 
 	@ForwardedFields("f0.f0->f0")
@@ -295,7 +295,7 @@ public class UdfAnalyzerTest {
 	public void testForwardIntoTupleWithInputPath() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map15.class,
 			TypeInformation.of(new TypeHint<Tuple2<Tuple1<String>, Integer>>(){}),
-			stringStringTuple2TypeInfo);
+			STRING_STRING_TUPLE2_TYPE_INFO);
 	}
 
 	@ForwardedFields("field->field2;field2->field")
@@ -588,7 +588,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithBranching3() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map30.class,
-			stringStringTuple2TypeInfo, Types.STRING);
+			STRING_STRING_TUPLE2_TYPE_INFO, Types.STRING);
 	}
 
 	@ForwardedFields("1->1;1->0")
@@ -606,7 +606,7 @@ public class UdfAnalyzerTest {
 	@Test
 	public void testForwardWithInheritance() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map31.class,
-			stringStringTuple2TypeInfo, stringStringTuple2TypeInfo);
+			STRING_STRING_TUPLE2_TYPE_INFO, STRING_STRING_TUPLE2_TYPE_INFO);
 	}
 
 	@ForwardedFields("*")
@@ -1229,7 +1229,7 @@ public class UdfAnalyzerTest {
 	public void testFilterModificationException1() {
 		try {
 			final UdfAnalyzer ua = new UdfAnalyzer(FilterFunction.class, FilterMod1.class, "operator",
-					stringStringTuple2TypeInfo, null, null, null, null, true);
+				STRING_STRING_TUPLE2_TYPE_INFO, null, null, null, null, true);
 			ua.analyze();
 			Assert.fail();
 		}
@@ -1251,7 +1251,7 @@ public class UdfAnalyzerTest {
 	public void testFilterModificationException2() {
 		try {
 			final UdfAnalyzer ua = new UdfAnalyzer(FilterFunction.class, FilterMod2.class, "operator",
-					stringStringTuple2TypeInfo, null, null, null, null, true);
+				STRING_STRING_TUPLE2_TYPE_INFO, null, null, null, null, true);
 			ua.analyze();
 			Assert.fail();
 		}
