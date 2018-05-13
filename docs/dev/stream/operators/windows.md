@@ -730,7 +730,7 @@ input
 
 /* ... */
 
-public class MyProcessWindowFunction implements ProcessWindowFunction<Tuple<String, Long>, String, String, TimeWindow> {
+public class MyProcessWindowFunction extends ProcessWindowFunction<Tuple<String, Long>, String, String, TimeWindow> {
 
   void process(String key, Context context, Iterable<Tuple<String, Long>> input, Collector<String> out) {
     long count = 0;
@@ -810,7 +810,7 @@ private static class MyReduceFunction implements ReduceFunction<SensorReading> {
 }
 
 private static class MyProcessWindowFunction
-    implements ProcessWindowFunction<SensorReading, Tuple2<Long, SensorReading>, String, TimeWindow> {
+    extends ProcessWindowFunction<SensorReading, Tuple2<Long, SensorReading>, String, TimeWindow> {
 
   public void process(String key,
                     Context context,
@@ -975,7 +975,7 @@ private static class MyFoldFunction
 }
 
 private static class MyProcessWindowFunction
-    implements ProcessWindowFunction<Tuple3<String, Long, Integer>, Tuple3<String, Long, Integer>, String, TimeWindow> {
+    extends ProcessWindowFunction<Tuple3<String, Long, Integer>, Tuple3<String, Long, Integer>, String, TimeWindow> {
 
   public void process(String key,
                     Context context,
