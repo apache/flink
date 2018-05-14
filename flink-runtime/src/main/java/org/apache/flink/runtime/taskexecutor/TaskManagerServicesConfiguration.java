@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
@@ -29,7 +30,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.NetUtils;
@@ -78,13 +78,13 @@ public class TaskManagerServicesConfiguration {
 
 	private final long timerServiceShutdownTimeout;
 
-	private final LocalRecoveryConfig.LocalRecoveryMode localRecoveryMode;
+	private final boolean localRecoveryEnabled;
 
 	public TaskManagerServicesConfiguration(
 			InetAddress taskManagerAddress,
 			String[] tmpDirPaths,
 			String[] localRecoveryStateRootDirectories,
-			LocalRecoveryConfig.LocalRecoveryMode localRecoveryMode,
+			boolean localRecoveryEnabled,
 			NetworkEnvironmentConfiguration networkConfig,
 			QueryableStateConfiguration queryableStateConfig,
 			int numberOfSlots,
@@ -97,7 +97,7 @@ public class TaskManagerServicesConfiguration {
 		this.taskManagerAddress = checkNotNull(taskManagerAddress);
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
 		this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
-		this.localRecoveryMode = checkNotNull(localRecoveryMode);
+		this.localRecoveryEnabled = checkNotNull(localRecoveryEnabled);
 		this.networkConfig = checkNotNull(networkConfig);
 		this.queryableStateConfig = checkNotNull(queryableStateConfig);
 		this.numberOfSlots = checkNotNull(numberOfSlots);
@@ -128,8 +128,8 @@ public class TaskManagerServicesConfiguration {
 		return localRecoveryStateRootDirectories;
 	}
 
-	public LocalRecoveryConfig.LocalRecoveryMode getLocalRecoveryMode() {
-		return localRecoveryMode;
+	public boolean isLocalRecoveryEnabled() {
+		return localRecoveryEnabled;
 	}
 
 	public NetworkEnvironmentConfiguration getNetworkConfig() {
@@ -209,8 +209,9 @@ public class TaskManagerServicesConfiguration {
 			localStateRootDir = tmpDirs;
 		}
 
-		LocalRecoveryConfig.LocalRecoveryMode localRecoveryMode =
-			LocalRecoveryConfig.LocalRecoveryMode.fromConfig(configuration);
+		boolean localRecoveryMode = configuration.getBoolean(
+			CheckpointingOptions.LOCAL_RECOVERY.key(),
+			CheckpointingOptions.LOCAL_RECOVERY.defaultValue());
 
 		final NetworkEnvironmentConfiguration networkConfig = parseNetworkEnvironmentConfiguration(
 			configuration,
