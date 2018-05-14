@@ -29,6 +29,7 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -41,6 +42,8 @@ import com.fasterxml.jackson.databind.deser.BeanDeserializerFactory;
 import com.fasterxml.jackson.databind.deser.BeanDeserializerModifier;
 import com.fasterxml.jackson.databind.deser.DefaultDeserializationContext;
 import com.fasterxml.jackson.databind.deser.DeserializerFactory;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -99,10 +102,24 @@ public class AWSUtil {
 	 * @return The corresponding AWS Credentials Provider instance
 	 */
 	public static AWSCredentialsProvider getCredentialsProvider(final Properties configProps) {
+		return getCredentialsProvider(configProps, AWSConfigConstants.AWS_CREDENTIALS_PROVIDER);
+	}
+
+	/**
+	 * If the provider is ASSUME_ROLE, then the credentials for assuming this role are determined
+	 * recursively.
+	 *
+	 * @param configProps the configuration properties
+	 * @param configPrefix the prefix of the config properties for this credentials provider,
+	 *                     e.g. aws.credentials.provider for the base credentials provider,
+	 *                     aws.credentials.provider.role.provider for the credentials provider
+	 *                     for assuming a role, and so on.
+	 */
+	private static AWSCredentialsProvider getCredentialsProvider(final Properties configProps, final String configPrefix) {
 		CredentialProvider credentialProviderType;
-		if (!configProps.containsKey(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER)) {
-			if (configProps.containsKey(AWSConfigConstants.AWS_ACCESS_KEY_ID)
-				&& configProps.containsKey(AWSConfigConstants.AWS_SECRET_ACCESS_KEY)) {
+		if (!configProps.containsKey(configPrefix)) {
+			if (configProps.containsKey(AWSConfigConstants.accessKeyId(configPrefix))
+				&& configProps.containsKey(AWSConfigConstants.secretKey(configPrefix))) {
 				// if the credential provider type is not specified, but the Access Key ID and Secret Key are given, it will default to BASIC
 				credentialProviderType = CredentialProvider.BASIC;
 			} else {
@@ -110,35 +127,32 @@ public class AWSUtil {
 				credentialProviderType = CredentialProvider.AUTO;
 			}
 		} else {
-			credentialProviderType = CredentialProvider.valueOf(configProps.getProperty(
-				AWSConfigConstants.AWS_CREDENTIALS_PROVIDER));
+			credentialProviderType = CredentialProvider.valueOf(configProps.getProperty(configPrefix));
 		}
-
-		AWSCredentialsProvider credentialsProvider;
 
 		switch (credentialProviderType) {
 			case ENV_VAR:
-				credentialsProvider = new EnvironmentVariableCredentialsProvider();
-				break;
+				return new EnvironmentVariableCredentialsProvider();
+
 			case SYS_PROP:
-				credentialsProvider = new SystemPropertiesCredentialsProvider();
-				break;
+				return new SystemPropertiesCredentialsProvider();
+
 			case PROFILE:
 				String profileName = configProps.getProperty(
-					AWSConfigConstants.AWS_PROFILE_NAME, null);
+						AWSConfigConstants.profileName(configPrefix), null);
 				String profileConfigPath = configProps.getProperty(
-					AWSConfigConstants.AWS_PROFILE_PATH, null);
-				credentialsProvider = (profileConfigPath == null)
+						AWSConfigConstants.profilePath(configPrefix), null);
+				return (profileConfigPath == null)
 					? new ProfileCredentialsProvider(profileName)
 					: new ProfileCredentialsProvider(profileConfigPath, profileName);
-				break;
+
 			case BASIC:
-				credentialsProvider = new AWSCredentialsProvider() {
+				return new AWSCredentialsProvider() {
 					@Override
 					public AWSCredentials getCredentials() {
 						return new BasicAWSCredentials(
-							configProps.getProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID),
-							configProps.getProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY));
+							configProps.getProperty(AWSConfigConstants.accessKeyId(configPrefix)),
+							configProps.getProperty(AWSConfigConstants.secretKey(configPrefix)));
 					}
 
 					@Override
@@ -146,13 +160,23 @@ public class AWSUtil {
 						// do nothing
 					}
 				};
-				break;
+
+			case ASSUME_ROLE:
+				final AWSSecurityTokenService baseCredentials = AWSSecurityTokenServiceClientBuilder.standard()
+						.withCredentials(getCredentialsProvider(configProps, AWSConfigConstants.roleCredentialsProvider(configPrefix)))
+						.withRegion(configProps.getProperty(AWSConfigConstants.AWS_REGION))
+						.build();
+				return new STSAssumeRoleSessionCredentialsProvider.Builder(
+						configProps.getProperty(AWSConfigConstants.roleArn(configPrefix)),
+						configProps.getProperty(AWSConfigConstants.roleSessionName(configPrefix)))
+						.withExternalId(configProps.getProperty(AWSConfigConstants.externalId(configPrefix)))
+						.withStsClient(baseCredentials)
+						.build();
+
 			default:
 			case AUTO:
-				credentialsProvider = new DefaultAWSCredentialsProviderChain();
+				return new DefaultAWSCredentialsProviderChain();
 		}
-
-		return credentialsProvider;
 	}
 
 	/**
