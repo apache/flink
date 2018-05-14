@@ -19,56 +19,18 @@
 package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.FileSystemBehaviorTestSuite;
-import org.apache.flink.core.fs.FileSystemKind;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
-
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.RawLocalFileSystem;
-import org.apache.hadoop.util.VersionInfo;
-import org.junit.Assume;
-import org.junit.Rule;
-import org.junit.rules.TemporaryFolder;
 
 /**
  * Behavior tests for HDFS.
  */
-public class HadoopLocalFileSystemBehaviorTest extends FileSystemBehaviorTestSuite {
-
-	@Rule
-	public final TemporaryFolder tmp = new TemporaryFolder();
+public class HadoopLocalFileSystemBehaviorTest extends HadoopRawLocalFileSystemBehaviorTest {
 
 	@Override
 	public FileSystem getFileSystem() throws Exception {
-		org.apache.hadoop.fs.FileSystem fs = new RawLocalFileSystem();
+		org.apache.hadoop.fs.FileSystem fs = new org.apache.hadoop.fs.LocalFileSystem();
 		fs.initialize(LocalFileSystem.getLocalFsURI(), new Configuration());
 		return new HadoopFileSystem(fs);
-	}
-
-	@Override
-	public Path getBasePath() throws Exception {
-		return new Path(tmp.newFolder().toURI());
-	}
-
-	@Override
-	public FileSystemKind getFileSystemKind() {
-		return FileSystemKind.FILE_SYSTEM;
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * This test needs to be skipped for earlier Hadoop versions because those
-	 * have a bug.
-	 */
-	@Override
-	public void testMkdirsFailsForExistingFile() throws Exception {
-		final String versionString = VersionInfo.getVersion();
-		final String prefix = versionString.substring(0, 3);
-		final float version = Float.parseFloat(prefix);
-		Assume.assumeTrue("Cannot execute this test on Hadoop prior to 2.8", version >= 2.8f);
-
-		super.testMkdirsFailsForExistingFile();
 	}
 }

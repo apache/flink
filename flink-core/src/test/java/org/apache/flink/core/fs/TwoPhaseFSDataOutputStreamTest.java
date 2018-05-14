@@ -28,7 +28,7 @@ import java.util.Random;
 /**
  * Tests to guard {@link TwoPhaseFSDataOutputStream}.
  */
-public class TwoPhraseFSDataOutputStreamTest {
+public class TwoPhaseFSDataOutputStreamTest {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -36,7 +36,7 @@ public class TwoPhraseFSDataOutputStreamTest {
 	@Test
 	public void testWriteSuccessfully() throws Exception {
 
-		final String tmpPath = temporaryFolder.newFolder("testTwoPhraseFSDataOutputStream").getPath();
+		final String tmpPath = temporaryFolder.newFolder("testTwoPhaseFSDataOutputStream").getPath();
 		final Path targetFile = new Path(tmpPath, "target");
 		final FileSystem fileSystem = targetFile.getFileSystem();
 
@@ -64,7 +64,7 @@ public class TwoPhraseFSDataOutputStreamTest {
 	@Test
 	public void testWriteFailed() throws Exception {
 
-		final String tmpPath = temporaryFolder.newFolder("testTwoPhraseFSDataOutputStream").getPath();
+		final String tmpPath = temporaryFolder.newFolder("testTwoPhaseFSDataOutputStream").getPath();
 		final Path targetFile = new Path(tmpPath, "target");
 		final FileSystem fileSystem = targetFile.getFileSystem();
 

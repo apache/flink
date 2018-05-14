@@ -29,7 +29,9 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Random;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -184,6 +186,77 @@ public abstract class FileSystemBehaviorTestSuite {
 		}
 	}
 
+	@Test
+	public void testCreateAtomically() throws Exception {
+		// test is not defined for object stores, they have no proper notion
+		// of directories
+		assumeNotObjectStore();
+
+		byte[] resultData = new byte[102400];
+		byte[] expectedData = new byte[102400];
+		new Random().nextBytes(expectedData);
+
+		final Path file = new Path(getBasePath(), randomName());
+
+		// test the FileSystem#createAtomically(...) work properly for writing data normally.
+		{
+			try {
+				createFileAtomically(file, WriteMode.NO_OVERWRITE, expectedData, false);
+			} catch (UnsupportedOperationException ex) {
+				// if this FileSystem doesn't support createAtomically(), we quit this test.
+				return;
+			}
+
+			readFromFile(file, resultData);
+			assertArrayEquals(expectedData, resultData);
+		}
+
+		// test the FileSystem#createAtomically(...) work properly with WriteMode.NO_OVERWRITE.
+		{
+			try {
+				createFileAtomically(file, WriteMode.NO_OVERWRITE, expectedData, false);
+				fail("should fail because the file is already exists.");
+			} catch (Exception ex) {
+				// we expect this exception.
+			}
+		}
+
+		// test the atomic feature of the FileSystem#createAtomically(...) with mode WriteMode.NO_OVERWRITE
+		{
+			final Path file2 = new Path(getBasePath(), randomName());
+			try {
+				createFileAtomically(file2, WriteMode.NO_OVERWRITE, expectedData, true);
+				fail("should throw an exception on purpose.");
+			} catch (Exception ex) {
+				assertFalse(fs.exists(file2));
+			}
+		}
+
+		// regenerate the expectedData to start a new round test
+		new Random().nextBytes(expectedData);
+
+		// valid the content is as expected after overwriting the file.
+		{
+			createFileAtomically(file, WriteMode.OVERWRITE, expectedData, false);
+			resultData = new byte[102400];
+			readFromFile(file, resultData);
+			assertArrayEquals(expectedData, resultData);
+		}
+
+		// test the atomic feature of the FileSystem#createAtomically(...) with mode WriteMode.OVERWRITE
+		{
+			try {
+				createFileAtomically(file, WriteMode.OVERWRITE, expectedData, true);
+				fail("should throw an exception on purpose.");
+			} catch (Exception ex) {
+				resultData = new byte[102400];
+				readFromFile(file, resultData);
+				// the writing(with mode WriteMode.OVERWRITE) failure shouldn't broke the content of the existing file.
+				assertArrayEquals(expectedData, resultData);
+			}
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -206,5 +279,26 @@ public abstract class FileSystemBehaviorTestSuite {
 	private void assumeNotObjectStore() {
 		Assume.assumeTrue("Test does not apply to object stores",
 				getFileSystemKind() != FileSystemKind.OBJECT_STORE);
+	}
+
+	private void createFileAtomically(Path file, WriteMode writeMode, byte[] data, boolean throwException) throws Exception {
+		try (FSDataOutputStream outputStream = fs.createAtomically(file, writeMode)) {
+			outputStream.write(data);
+			if (throwException) {
+				throw new RuntimeException("throws exception on purpose.");
+			}
+			((TwoPhaseFSDataOutputStream) outputStream).commit();
+		}
+	}
+
+	private void readFromFile(Path file, byte[] data) throws Exception {
+		try (FSDataInputStream inputStream = fs.open(file)) {
+			int totalSize = data.length;
+			int len;
+			int pos = 0;
+			while (pos < totalSize && (len = inputStream.read(data, pos, totalSize - pos)) > 0) {
+				pos += len;
+			}
+		}
 	}
 }
