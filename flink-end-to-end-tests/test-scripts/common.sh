@@ -399,6 +399,37 @@ function wait_num_checkpoints {
     done
 }
 
+# Starts the timer. Note that nested timers are not supported.
+function start_timer {
+    SECONDS=0
+}
+
+# prints the number of minutes and seconds that have elapsed since the last call to start_timer
+function end_timer {
+    duration=$SECONDS
+    echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds elapsed."
+}
+
+#######################################
+# Prints the given description, runs the given test and prints how long the execution took.
+# Arguments:
+#   $1: description of the test
+#   $2: command to execute
+#######################################
+function run_test {
+    description="$1"
+    command="$2"
+
+    printf "\n==============================================================================\n"
+    printf "Running ${description}\n"
+    printf "==============================================================================\n"
+    start_timer
+    ${command}
+    exit_code="$?"
+    end_timer
+    return "${exit_code}"
+}
+
 # make sure to clean up even in case of failures
 function cleanup {
   stop_cluster
