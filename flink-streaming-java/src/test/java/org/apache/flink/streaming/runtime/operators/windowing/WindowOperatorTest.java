@@ -434,6 +434,73 @@ public class WindowOperatorTest extends TestLogger {
 
 	@Test
 	@SuppressWarnings("unchecked")
+	public void testSessionWindowsNotFiredTwice() throws Exception {
+		closeCalled.set(0);
+
+		final int sessionSize = 3;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
+			inputType.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
+			EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
+			new TimeWindow.Serializer(),
+			new TupleKeySelector(),
+			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+			stateDesc,
+			new InternalIterableWindowFunction<>(new SessionWindowFunction()),
+			EventTimeTrigger.create(),
+			60000,
+			null /* late data output tag */);
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
+			createTestHarness(operator);
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		// add elements out-of-order
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 0));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 2), 1000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 3), 2500));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 10));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 2), 1000));
+		testHarness.processWatermark(new Watermark(5500));
+		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-6", 0L, 5500L), 5499));
+		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-3", 10L, 4000L), 3999));
+		expectedOutput.add(new Watermark(5500));
+		// do a snapshot, close and restore again
+		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0L);
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
+		testHarness.close();
+
+		testHarness = createTestHarness(operator);
+		testHarness.setup();
+		testHarness.initializeState(snapshot);
+		testHarness.open();
+		expectedOutput.clear();
+		//suppose the watermark alread arrived 10000
+		testHarness.processWatermark(new Watermark(10000));
+		//late element with timestamp 4500 had arrived,the new session window[0, 7500] is still a valid window becase of maxtimestamp < cleantime
+		//and fired immediately
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 6), 4500));
+		expectedOutput.add(new Watermark(10000));
+		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-12", 0L, 7500L), 7499));
+		//when a new watermark had arrived,the same TimeWindow[0, 7500] will fired again
+		testHarness.processWatermark(new Watermark(11000));
+		//expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-12", 0L, 7500L), 7499));
+		expectedOutput.add(new Watermark(11000));
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
+		testHarness.close();
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
 	public void testSessionWindowsWithProcessFunction() throws Exception {
 		closeCalled.set(0);
 
