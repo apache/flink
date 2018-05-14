@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.checkpointing;
 
-import static org.apache.flink.runtime.state.LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED;
 import static org.apache.flink.test.checkpointing.AbstractEventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
 
 /**
@@ -26,8 +25,6 @@ import static org.apache.flink.test.checkpointing.AbstractEventTimeWindowCheckpo
  */
 public class LocalRecoveryRocksDBIncrementalITCase extends AbstractLocalRecoveryITCase {
 	public LocalRecoveryRocksDBIncrementalITCase() {
-		super(
-			ROCKSDB_INCREMENTAL_ZK,
-			ENABLE_FILE_BASED);
+		super(ROCKSDB_INCREMENTAL_ZK, true);
 	}
 }
