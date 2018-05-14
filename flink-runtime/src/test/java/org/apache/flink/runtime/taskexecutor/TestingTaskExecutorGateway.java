@@ -34,10 +34,8 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.experimental.categories.Category;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -45,7 +43,6 @@ import java.util.function.Consumer;
 /**
  * Simple {@link TaskExecutorGateway} implementation for testing purposes.
  */
-@Category(New.class)
 public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	private final String address;

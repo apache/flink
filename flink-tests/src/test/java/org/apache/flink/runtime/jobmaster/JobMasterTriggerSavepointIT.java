@@ -36,14 +36,12 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.test.util.AbstractTestBase;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -67,7 +65,6 @@ import static org.hamcrest.Matchers.isOneOf;
  *
  * @see org.apache.flink.runtime.jobmaster.JobMaster
  */
-@Category(New.class)
 public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 
 	private static CountDownLatch invokeLatch;

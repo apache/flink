@@ -59,7 +59,6 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
@@ -69,7 +68,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
@@ -86,7 +84,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 /**
  * Tests for {@link JobMaster}.
  */
-@Category(New.class)
 public class JobMasterTest extends TestLogger {
 
 	@ClassRule
