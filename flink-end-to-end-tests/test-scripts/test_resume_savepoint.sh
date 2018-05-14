@@ -18,7 +18,7 @@
 ################################################################################
 
 if [ -z $1 ] || [ -z $2 ]; then
-  echo "Usage: ./test_resume_savepoint.sh <original_dop> <new_dop>"
+  echo "Usage: ./test_resume_savepoint.sh <original_dop> <new_dop> <state_backend_setting> <state_backend_file_async_setting>"
   exit 1
 fi
 
@@ -26,15 +26,14 @@ source "$(dirname "$0")"/common.sh
 
 ORIGINAL_DOP=$1
 NEW_DOP=$2
+STATE_BACKEND_TYPE=${3:-file}
+STATE_BACKEND_FILE_ASYNC=${4:-true}
 
 if (( $ORIGINAL_DOP >= $NEW_DOP )); then
   NUM_SLOTS=$ORIGINAL_DOP
 else
   NUM_SLOTS=$NEW_DOP
 fi
-
-STATE_BACKEND_TYPE=${STATE_BACKEND_TYPE:-file}
-STATE_BACKEND_FILE_ASYNC=${STATE_BACKEND_FILE_ASYNC:-true}
 
 backup_config
 change_conf "taskmanager.numberOfTaskSlots" "1" "${NUM_SLOTS}"

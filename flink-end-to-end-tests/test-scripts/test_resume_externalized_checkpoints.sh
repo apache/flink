@@ -19,8 +19,8 @@
 
 source "$(dirname "$0")"/common.sh
 
-STATE_BACKEND_TYPE=${STATE_BACKEND_TYPE:-file}
-STATE_BACKEND_FILE_ASYNC=${STATE_BACKEND_FILE_ASYNC:-true}
+STATE_BACKEND_TYPE=${1:-file}
+STATE_BACKEND_FILE_ASYNC=${2:-true}
 
 setup_flink_slf4j_metric_reporter
 start_cluster
