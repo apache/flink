@@ -47,6 +47,8 @@ import java.io.File;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -62,7 +64,9 @@ public class HistoryServerTest extends TestLogger {
 
 	@Test
 	public void testFullArchiveLifecycle() throws Exception {
-		ArchivedExecutionGraph graph = (ArchivedExecutionGraph) ArchivedJobGenerationUtils.getTestJob();
+		ArchivedExecutionGraph graph1 = (ArchivedExecutionGraph) ArchivedJobGenerationUtils.generateUniqueArchivedJob();
+		ArchivedExecutionGraph graph2 = (ArchivedExecutionGraph) ArchivedJobGenerationUtils.generateUniqueArchivedJob();
+		ArchivedExecutionGraph graph3 = (ArchivedExecutionGraph) ArchivedJobGenerationUtils.generateUniqueArchivedJob();
 
 		File jmDirectory = tmpDir.newFolder("jm");
 		File hsDirectory = tmpDir.newFolder("hs");
@@ -79,10 +83,18 @@ public class HistoryServerTest extends TestLogger {
 		Option<Path> archivePath = Option.apply(new Path(jmDirectory.toURI().toString()));
 
 		ActorRef memoryArchivist = TestActorRef.apply(JobManager.getArchiveProps(MemoryArchivist.class, 1, archivePath), actorSystem);
-		memoryArchivist.tell(new ArchiveMessages.ArchiveExecutionGraph(graph.getJobID(), graph), null);
+		memoryArchivist.tell(new ArchiveMessages.ArchiveExecutionGraph(graph1.getJobID(), graph1), null);
+		memoryArchivist.tell(new ArchiveMessages.ArchiveExecutionGraph(graph2.getJobID(), graph2), null);
+		memoryArchivist.tell(new ArchiveMessages.ArchiveExecutionGraph(graph3.getJobID(), graph3), null);
 
-		File archive = new File(jmDirectory, graph.getJobID().toString());
-		Assert.assertTrue(archive.exists());
+		File archive1 = new File(jmDirectory, graph1.getJobID().toString());
+		Assert.assertTrue(archive1.exists());
+
+		File archive2 = new File(jmDirectory, graph2.getJobID().toString());
+		Assert.assertTrue(archive2.exists());
+
+		File archive3 = new File(jmDirectory, graph3.getJobID().toString());
+		Assert.assertTrue(archive3.exists());
 
 		CountDownLatch numFinishedPolls = new CountDownLatch(1);
 
@@ -96,9 +108,26 @@ public class HistoryServerTest extends TestLogger {
 			String response = getFromHTTP(baseUrl + JobsOverviewHeaders.URL);
 			JsonNode overview = mapper.readTree(response);
 
-			String jobID = overview.get("jobs").get(0).get("jid").asText();
-			JsonNode jobDetails = mapper.readTree(getFromHTTP(baseUrl + "/jobs/" + jobID));
-			Assert.assertNotNull(jobDetails.get("jid"));
+			JsonNode allJobs = overview.get("jobs");
+
+			Assert.assertTrue(allJobs.size() == 3);
+
+			Set<String> allIds = new HashSet<>();
+
+			for (JsonNode jsonNode : ((JsonNode) allJobs)) {
+				String jobID = jsonNode.get("jid").asText();
+				allIds.add(jobID);
+				JsonNode detial = mapper.readTree(getFromHTTP(baseUrl + "/jobs/" + jobID));
+				Assert.assertNotNull(detial.get("jid"));
+			}
+
+			Set<String> originIds = new HashSet<>();
+			originIds.add(graph1.getJobID().toString());
+			originIds.add(graph2.getJobID().toString());
+			originIds.add(graph3.getJobID().toString());
+
+			Assert.assertEquals(originIds, allIds);
+
 		} finally {
 			hs.stop();
 		}
