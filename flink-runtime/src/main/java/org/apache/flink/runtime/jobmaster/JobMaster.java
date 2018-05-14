@@ -189,7 +189,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	// --------- ResourceManager --------
 
-	private LeaderRetrievalService resourceManagerLeaderRetriever;
+	private final LeaderRetrievalService resourceManagerLeaderRetriever;
 
 	// --------- TaskManagers --------
 
