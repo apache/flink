@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
@@ -356,6 +357,53 @@ public class JobMasterTest extends TestLogger {
 			assertThat(savepointCheckpoint, Matchers.notNullValue());
 
 			assertThat(savepointCheckpoint.getCheckpointID(), Matchers.is(checkpointId));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	/**
+	 * Tests that we can close an unestablished ResourceManager connection.
+	 */
+	@Test
+	public void testCloseUnestablishedResourceManagerConnection() throws Exception {
+		final JobMaster jobMaster = createJobMaster(
+			JobMasterConfiguration.fromConfiguration(configuration),
+			jobGraph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build());
+
+		try {
+			jobMaster.start(JobMasterId.generate(), testingTimeout).get();
+			final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
+			final String firstResourceManagerAddress = "address1";
+			final String secondResourceManagerAddress = "address2";
+
+			final TestingResourceManagerGateway firstResourceManagerGateway = new TestingResourceManagerGateway();
+			final TestingResourceManagerGateway secondResourceManagerGateway = new TestingResourceManagerGateway();
+
+			rpcService.registerGateway(firstResourceManagerAddress, firstResourceManagerGateway);
+			rpcService.registerGateway(secondResourceManagerAddress, secondResourceManagerGateway);
+
+			final OneShotLatch firstJobManagerRegistration = new OneShotLatch();
+			final OneShotLatch secondJobManagerRegistration = new OneShotLatch();
+
+			firstResourceManagerGateway.setRegisterJobManagerConsumer(
+				jobMasterIdResourceIDStringJobIDTuple4 -> firstJobManagerRegistration.trigger());
+
+			secondResourceManagerGateway.setRegisterJobManagerConsumer(
+				jobMasterIdResourceIDStringJobIDTuple4 -> secondJobManagerRegistration.trigger());
+
+			rmLeaderRetrievalService.notifyListener(firstResourceManagerAddress, resourceManagerId.toUUID());
+
+			// wait until we have seen the first registration attempt
+			firstJobManagerRegistration.await();
+
+			// this should stop the connection attempts towards the first RM
+			rmLeaderRetrievalService.notifyListener(secondResourceManagerAddress, resourceManagerId.toUUID());
+
+			// check that we start registering at the second RM
+			secondJobManagerRegistration.await();
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
