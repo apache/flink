@@ -274,7 +274,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 
 	@Override
 	public FSDataOutputStream createAtomically(Path f, WriteMode overwriteMode) throws IOException {
-		throw new UnsupportedOperationException("createAtomically(...) is unsupported in LimitedConnectionsFileSystem yet.");
+		return createOutputStream(() -> originalFs.createAtomically(f, overwriteMode));
 	}
 
 	@Override

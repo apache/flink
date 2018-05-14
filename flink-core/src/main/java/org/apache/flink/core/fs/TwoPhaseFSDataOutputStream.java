@@ -27,15 +27,15 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
- * Operates the output stream in two phrases, any exception during the operation of {@link TwoPhraseFSDataOutputStream} will
+ * Operates the output stream in two phrases, any exception during the operation of {@link TwoPhaseFSDataOutputStream} will
  * lead the {@link #targetFile} to be invisible.
- * PHRASE 1, write the data into the {@link #preparingFile}.
- * PHRASE 2, close the {@link #preparingFile} and rename it to the {@link #targetFile}.
+ * PHASE 1, write the data into the {@link #preparingFile}.
+ * PHASE 2, close the {@link #preparingFile} and rename it to the {@link #targetFile}.
  */
 @Internal
-public class TwoPhraseFSDataOutputStream extends FSDataOutputStream {
+public class TwoPhaseFSDataOutputStream extends FSDataOutputStream {
 
-	private static final Logger LOG = LoggerFactory.getLogger(TwoPhraseFSDataOutputStream.class);
+	private static final Logger LOG = LoggerFactory.getLogger(TwoPhaseFSDataOutputStream.class);
 
 	private static final String PREPARING_FILE_SUFFIX = "_tmp";
 
@@ -63,7 +63,7 @@ public class TwoPhraseFSDataOutputStream extends FSDataOutputStream {
 
 	private PhraseType currentPhrase;
 
-	public TwoPhraseFSDataOutputStream(FileSystem fs, Path f, FileSystem.WriteMode writeMode) throws IOException {
+	public TwoPhaseFSDataOutputStream(FileSystem fs, Path f, FileSystem.WriteMode writeMode) throws IOException {
 
 		this.fs = fs;
 		this.targetFile = f;

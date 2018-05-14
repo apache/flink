@@ -26,7 +26,7 @@ import org.junit.rules.TemporaryFolder;
 import java.util.Random;
 
 /**
- * Tests to guard {@link TwoPhraseFSDataOutputStream}.
+ * Tests to guard {@link TwoPhaseFSDataOutputStream}.
  */
 public class TwoPhraseFSDataOutputStreamTest {
 
@@ -83,7 +83,7 @@ public class TwoPhraseFSDataOutputStreamTest {
 
 		final FileSystem fileSystem = targetFile.getFileSystem();
 
-		try (TwoPhraseFSDataOutputStream outputStream = new TwoPhraseFSDataOutputStream(targetFile.getFileSystem(), targetFile, FileSystem.WriteMode.NO_OVERWRITE)) {
+		try (TwoPhaseFSDataOutputStream outputStream = new TwoPhaseFSDataOutputStream(targetFile.getFileSystem(), targetFile, FileSystem.WriteMode.NO_OVERWRITE)) {
 
 			outputStream.write(data);
 

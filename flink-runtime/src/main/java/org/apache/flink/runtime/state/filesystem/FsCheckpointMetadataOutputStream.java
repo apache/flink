@@ -23,7 +23,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.TwoPhraseFSDataOutputStream;
+import org.apache.flink.core.fs.TwoPhaseFSDataOutputStream;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 
 import org.slf4j.Logger;
@@ -141,8 +141,8 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
 						size = out.getPos();
 					} catch (Exception ignored) {}
 
-					if (out instanceof TwoPhraseFSDataOutputStream) {
-						((TwoPhraseFSDataOutputStream) out).commit();
+					if (out instanceof TwoPhaseFSDataOutputStream) {
+						((TwoPhaseFSDataOutputStream) out).commit();
 					}
 
 					out.close();

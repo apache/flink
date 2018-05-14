@@ -24,7 +24,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.TwoPhraseFSDataOutputStream;
+import org.apache.flink.core.fs.TwoPhaseFSDataOutputStream;
 
 import java.io.IOException;
 import java.net.URI;
@@ -154,7 +154,7 @@ public class HadoopFileSystem extends FileSystem {
 		final String schema = this.fs.getScheme();
 
 		if (schema.equals("file") || schema.equals("hdfs")) {
-			return new TwoPhraseFSDataOutputStream(this, f, overwriteMode);
+			return new TwoPhaseFSDataOutputStream(this, f, overwriteMode);
 		} else if (schema.equals("s3")) {
 			return create(f, overwriteMode);
 		} else {

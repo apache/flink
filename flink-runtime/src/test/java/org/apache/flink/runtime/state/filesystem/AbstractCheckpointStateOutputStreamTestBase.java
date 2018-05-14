@@ -22,7 +22,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.TwoPhraseFSDataOutputStream;
+import org.apache.flink.core.fs.TwoPhaseFSDataOutputStream;
 import org.apache.flink.core.fs.local.LocalDataOutputStream;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.testutils.CheckedThread;
@@ -151,8 +151,8 @@ public abstract class AbstractCheckpointStateOutputStreamTestBase extends TestLo
 
 			if (stream instanceof FsCheckpointMetadataOutputStream) {
 				FSDataOutputStream outputStream = ((FsCheckpointMetadataOutputStream) stream).getOutputStream();
-				if (outputStream instanceof TwoPhraseFSDataOutputStream) {
-					assertTrue(fs.exists(((TwoPhraseFSDataOutputStream) outputStream).getPreparingFile()));
+				if (outputStream instanceof TwoPhaseFSDataOutputStream) {
+					assertTrue(fs.exists(((TwoPhaseFSDataOutputStream) outputStream).getPreparingFile()));
 				} else {
 					assertTrue(fs.exists(path));
 				}
