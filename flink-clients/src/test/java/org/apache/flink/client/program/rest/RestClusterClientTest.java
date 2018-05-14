@@ -90,7 +90,6 @@ import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
@@ -107,7 +106,6 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -152,7 +150,6 @@ import static org.mockito.Mockito.when;
  * <p>These tests verify that the client uses the appropriate headers for each
  * request, properly constructs the request bodies/parameters and processes the responses correctly.
  */
-@Category(New.class)
 public class RestClusterClientTest extends TestLogger {
 
 	private static final String REST_ADDRESS = "http://localhost:1234";
