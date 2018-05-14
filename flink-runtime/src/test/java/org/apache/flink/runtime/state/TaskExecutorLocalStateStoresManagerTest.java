@@ -62,7 +62,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 		config.setString(CheckpointingOptions.LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS, rootDirString);
 
 		// test configuration of the local state mode
-		config.setString(CheckpointingOptions.LOCAL_RECOVERY, "ENABLE_FILE_BASED");
+		config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
 
 		final ResourceID tmResourceID = ResourceID.generate();
 
@@ -88,9 +88,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 		}
 
 		// verify local recovery mode
-		Assert.assertEquals(
-			LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED,
-			taskStateManager.getLocalRecoveryMode());
+		Assert.assertTrue(taskStateManager.isLocalRecoveryEnabled());
 
 		Assert.assertEquals("localState", TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT);
 		for (File rootDirectory : rootDirectories) {
@@ -130,9 +128,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 				localStateRootDirectories[i]);
 		}
 
-		Assert.assertEquals(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
-			taskStateManager.getLocalRecoveryMode());
+		Assert.assertFalse(taskStateManager.isLocalRecoveryEnabled());
 	}
 
 	/**
@@ -150,7 +146,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
 		File[] rootDirs = {temporaryFolder.newFolder(), temporaryFolder.newFolder(), temporaryFolder.newFolder()};
 		TaskExecutorLocalStateStoresManager storesManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED,
+			true,
 			rootDirs,
 			Executors.directExecutor());
 
@@ -187,8 +183,8 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
 		// test that local recovery mode is forwarded to the created store
 		Assert.assertEquals(
-			storesManager.getLocalRecoveryMode(),
-			taskLocalStateStore.getLocalRecoveryConfig().getLocalRecoveryMode());
+			storesManager.isLocalRecoveryEnabled(),
+			taskLocalStateStore.getLocalRecoveryConfig().isLocalRecoveryEnabled());
 
 		Assert.assertTrue(testFile.exists());
 

@@ -59,9 +59,9 @@ import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
-import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -75,7 +75,6 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
@@ -236,7 +235,7 @@ public class TaskExecutorTest extends TestLogger {
 			CompletableFuture.completedFuture(new JMTMRegistrationSuccess(jmResourceId)));
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -325,7 +324,7 @@ public class TaskExecutorTest extends TestLogger {
 		HeartbeatServices heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -460,7 +459,7 @@ public class TaskExecutorTest extends TestLogger {
 		);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -545,7 +544,7 @@ public class TaskExecutorTest extends TestLogger {
 		when(taskSlotTable.createSlotReport(any(ResourceID.class))).thenReturn(slotReport);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -608,7 +607,7 @@ public class TaskExecutorTest extends TestLogger {
 		when(taskSlotTable.createSlotReport(any(ResourceID.class))).thenReturn(slotReport);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -729,7 +728,7 @@ public class TaskExecutorTest extends TestLogger {
 		when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -832,7 +831,7 @@ public class TaskExecutorTest extends TestLogger {
 		final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -942,7 +941,7 @@ public class TaskExecutorTest extends TestLogger {
 		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -1074,7 +1073,7 @@ public class TaskExecutorTest extends TestLogger {
 		final NetworkEnvironment networkMock = mock(NetworkEnvironment.class, Mockito.RETURNS_MOCKS);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -1193,7 +1192,7 @@ public class TaskExecutorTest extends TestLogger {
 		final JobManagerTable jobManagerTableMock = spy(new JobManagerTable());
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -1267,7 +1266,7 @@ public class TaskExecutorTest extends TestLogger {
 		rpc.registerGateway(rmAddress, rmGateway);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -1323,7 +1322,7 @@ public class TaskExecutorTest extends TestLogger {
 			timerService);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 

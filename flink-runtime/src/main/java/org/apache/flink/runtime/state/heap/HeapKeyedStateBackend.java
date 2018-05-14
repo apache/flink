@@ -622,8 +622,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			final SupplierWithException<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier =
 
-				LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED.equals(
-					localRecoveryConfig.getLocalRecoveryMode()) ?
+				localRecoveryConfig.isLocalRecoveryEnabled() ?
 
 					() -> CheckpointStreamWithResultProvider.createDuplicatingStream(
 						checkpointId,
