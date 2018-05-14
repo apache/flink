@@ -347,9 +347,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// clean up everything we initialized
 			isRunning = false;
 
-			// clear the interrupted status so that we can wait for the following resource shutdowns to complete
-			Thread.interrupted();
-
 			// stop all timers and threads
 			tryShutdownTimerService();
 

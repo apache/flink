@@ -496,7 +496,7 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 			while (runInterrupts.get()) {
 				interruptTarget.interrupt();
 				try {
-					Thread.sleep(10);
+					Thread.sleep(1);
 				} catch (InterruptedException ignore) {
 				}
 			}
@@ -504,7 +504,7 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 
 		interruptCallerThread.start();
 
-		final long timeoutMs = 1000L;
+		final long timeoutMs = 50L;
 		final long startTime = System.nanoTime();
 		Assert.assertFalse(timeService.isTerminated());
 		// check that termination did not succeed (because of blocking timer execution)
@@ -526,7 +526,7 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 		} while (interruptCallerThread.isAlive());
 
 		blockUntilTriggered.trigger();
-		Assert.assertTrue(timeService.shutdownServiceUninterruptible(1000));
+		Assert.assertTrue(timeService.shutdownServiceUninterruptible(timeoutMs));
 		Assert.assertTrue(timerFinished.get());
 	}
 

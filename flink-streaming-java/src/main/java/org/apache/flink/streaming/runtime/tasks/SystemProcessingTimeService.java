@@ -209,16 +209,24 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 
 		final Deadline deadline = Deadline.fromNow(Duration.ofMillis(timeoutMs));
 
+		boolean shutdownComplete = false;
+		boolean receivedInterrupt = false;
+
 		do {
 			try {
 				// wait for a reasonable time for all pending timer threads to finish
-				return shutdownAndAwaitPending(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				shutdownComplete = shutdownAndAwaitPending(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			} catch (InterruptedException iex) {
+				receivedInterrupt = true;
 				LOG.trace("Intercepted attempt to interrupt timer service shutdown.", iex);
 			}
-		} while (deadline.hasTimeLeft());
+		} while (deadline.hasTimeLeft() && !shutdownComplete);
 
-		return false;
+		if (receivedInterrupt) {
+			Thread.currentThread().interrupt();
+		}
+
+		return shutdownComplete;
 	}
 
 	// safety net to destroy the thread pool
