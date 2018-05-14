@@ -178,6 +178,22 @@ fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
+  printf "Running Resuming Externalized Checkpoint after terminal failure (file) end-to-end test\n"
+  printf "==============================================================================\n"
+  STATE_BACKEND_TYPE=file SIMULATE_FAILURE=true $END_TO_END_DIR/test-scripts/test_resume_externalized_checkpoints.sh
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
+  printf "Running Resuming Externalized Checkpoint after terminal failure (rocks) end-to-end test\n"
+  printf "==============================================================================\n"
+  STATE_BACKEND_TYPE=rocks SIMULATE_FAILURE=true $END_TO_END_DIR/test-scripts/test_resume_externalized_checkpoints.sh
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
   printf "Running DataSet allround nightly end-to-end test\n"
   printf "==============================================================================\n"
   $END_TO_END_DIR/test-scripts/test_batch_allround.sh
