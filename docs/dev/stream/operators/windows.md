@@ -504,7 +504,7 @@ private static class AverageAggregate
 
   @Override
   public Double getResult(Tuple2<Long, Long> accumulator) {
-    return accumulator.f0 / accumulator.f1;
+    return ((double) accumulator.f0) / accumulator.f1;
   }
 
   @Override
@@ -883,7 +883,7 @@ private static class AverageAggregate
 
   @Override
   public Double getResult(Tuple2<Long, Long> accumulator) {
-    return (double) accumulator.f0 / accumulator.f1;
+    return ((double) accumulator.f0) / accumulator.f1;
   }
 
   @Override
