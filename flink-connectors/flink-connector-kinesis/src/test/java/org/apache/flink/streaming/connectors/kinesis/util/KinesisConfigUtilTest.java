@@ -324,12 +324,7 @@ public class KinesisConfigUtilTest {
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, unixTimestamp);
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT, pattern);
 
-		try {
-			KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail();
-		}
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
