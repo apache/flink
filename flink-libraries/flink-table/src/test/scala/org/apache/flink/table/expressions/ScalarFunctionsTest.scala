@@ -1474,6 +1474,14 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "315")
 
     testSqlApi(
+      "EXTRACT(DOW FROM f18)",
+      "1")
+
+    testSqlApi(
+      "EXTRACT(DOW FROM f16)",
+      "1")
+
+    testSqlApi(
       "EXTRACT(QUARTER FROM f18)",
       "4")
 
