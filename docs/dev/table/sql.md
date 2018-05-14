@@ -2017,6 +2017,17 @@ EXTRACT(timeintervalunit FROM temporal)
     <tr>
       <td>
         {% highlight text %}
+YEAR(date)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the year from a SQL date. Equivalent to <code>EXTRACT(YEAR FROM date)</code>. E.g. <code>YEAR(DATE '1994-09-27')</code> leads to 1994.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 FLOOR(timepoint TO timeintervalunit)
 {% endhighlight %}
       </td>
@@ -2043,7 +2054,95 @@ QUARTER(date)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the quarter of a year from a SQL date. E.g. <code>QUARTER(DATE '1994-09-27')</code> leads to 3.</p>
+        <p>Returns the quarter of a year from a SQL date (an integer between 1 and 4). Equivalent to <code>EXTRACT(QUARTER FROM date)</code>. E.g. <code>QUARTER(DATE '1994-09-27')</code> leads to 3. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+MONTH(date)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the month of a year from a SQL date (an integer between 1 and 12). Equivalent to <code>EXTRACT(MONTH FROM date)</code>. E.g. <code>MONTH(DATE '1994-09-27')</code> leads to 9. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+WEEK(date)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the week of a year from a SQL date (an integer between 1 and 53). Equivalent to <code>EXTRACT(WEEK FROM date)</code>. E.g. <code>WEEK(DATE '1994-09-27')</code> leads to 39. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+DAYOFYEAR(date)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the day of a year from a SQL date (an integer between 1 and 366). Equivalent to <code>EXTRACT(DOY FROM date)</code>. E.g. <code>DAYOFYEAR(DATE '1994-09-27')</code> leads to 270. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+DAYOFMONTH(date)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the day of a month from a SQL date (an integer between 1 and 31). Equivalent to <code>EXTRACT(DAY FROM date)</code>. E.g. <code>DAYOFMONTH(DATE '1994-09-27')</code> leads to 27. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+DAYOFWEEK(date)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the day of a week from a SQL date (an integer between 1 and 7; Sunday = 1). Equivalent to <code>EXTRACT(DOW FROM date)</code>. E.g. <code>DAYOFWEEK(DATE '1994-09-27')</code> leads to 3. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+HOUR(timestamp)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hour of a day from a SQL timestamp (an integer between 0 and 23). Equivalent to <code>EXTRACT(HOUR FROM timestamp)</code>. E.g. <code>HOUR(TIMESTAMP '1994-09-27 13:14:15')</code> leads to 13. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+MINUTE(timestamp)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the minute of an hour from a SQL timestamp (an integer between 0 and 59). Equivalent to <code>EXTRACT(MINUTE FROM timestamp)</code>. E.g. <code>MINUTE(TIMESTAMP '1994-09-27 13:14:15')</code> leads to 14. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SECOND(timestamp)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the second of a minute from a SQL timestamp (an integer between 0 and 59). Equivalent to <code>EXTRACT(SECOND FROM timestamp)</code>. E.g. <code>SECOND(TIMESTAMP '1994-09-27 13:14:15')</code> leads to 15. </p>
       </td>
     </tr>
 
