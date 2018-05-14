@@ -25,7 +25,6 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -33,7 +32,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Terminated;
 import org.junit.AfterClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.Arrays;
 import java.util.UUID;
@@ -52,7 +50,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-@Category(New.class)
 public class AsyncCallsTest extends TestLogger {
 
 	// ------------------------------------------------------------------------

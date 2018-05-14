@@ -24,14 +24,12 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.experimental.categories.Category;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -39,7 +37,6 @@ import java.util.concurrent.TimeoutException;
 /**
  * Test base for {@link SlotPool} related scheduling test cases.
  */
-@Category(New.class)
 public class SlotPoolSchedulingTestBase extends TestLogger {
 
 	private static final JobID jobId = new JobID();
