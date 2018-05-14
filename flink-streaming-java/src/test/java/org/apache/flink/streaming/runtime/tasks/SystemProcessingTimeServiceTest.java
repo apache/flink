@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.runtime.operators.TestProcessingTimeServiceTest.ReferenceSettingExceptionHandler;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -449,41 +450,11 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 	public void testShutdownAndWaitPending() {
 
 		final Object lock = new Object();
-		final OneShotLatch waitUntilTimerStarted = new OneShotLatch();
-		final OneShotLatch blockUntilTerminationInterrupts = new OneShotLatch();
 		final OneShotLatch blockUntilTriggered = new OneShotLatch();
-		final AtomicBoolean check = new AtomicBoolean(true);
+		final AtomicBoolean timerExecutionFinished = new AtomicBoolean(false);
 
-		final SystemProcessingTimeService timeService = new SystemProcessingTimeService(
-			(message, exception) -> {
-			},
-			lock);
-
-		timeService.scheduleAtFixedRate(
-			timestamp -> {
-
-				waitUntilTimerStarted.trigger();
-
-				try {
-					blockUntilTerminationInterrupts.await();
-					check.set(false);
-				} catch (InterruptedException ignore) {
-				}
-
-				try {
-					blockUntilTriggered.await();
-				} catch (InterruptedException ignore) {
-					check.set(false);
-				}
-			},
-			0L,
-			10L);
-
-		try {
-			waitUntilTimerStarted.await();
-		} catch (InterruptedException e) {
-			Assert.fail();
-		}
+		final SystemProcessingTimeService timeService =
+			createBlockingSystemProcessingTimeService(lock, blockUntilTriggered, timerExecutionFinished);
 
 		Assert.assertFalse(timeService.isTerminated());
 
@@ -504,7 +475,101 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 			Assert.fail("Unexpected interruption.");
 		}
 
-		Assert.assertTrue(check.get());
+		Assert.assertTrue(timerExecutionFinished.get());
 		Assert.assertTrue(timeService.isTerminated());
+	}
+
+	@Test
+	public void testShutdownServiceUninterruptible() {
+		final Object lock = new Object();
+		final OneShotLatch blockUntilTriggered = new OneShotLatch();
+		final AtomicBoolean timerFinished = new AtomicBoolean(false);
+
+		final SystemProcessingTimeService timeService =
+			createBlockingSystemProcessingTimeService(lock, blockUntilTriggered, timerFinished);
+
+		Assert.assertFalse(timeService.isTerminated());
+
+		final Thread interruptTarget = Thread.currentThread();
+		final AtomicBoolean runInterrupts = new AtomicBoolean(true);
+		final Thread interruptCallerThread = new Thread(() -> {
+			while (runInterrupts.get()) {
+				interruptTarget.interrupt();
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException ignore) {
+				}
+			}
+		});
+
+		interruptCallerThread.start();
+
+		final long timeoutMs = 50L;
+		final long startTime = System.nanoTime();
+		Assert.assertFalse(timeService.isTerminated());
+		// check that termination did not succeed (because of blocking timer execution)
+		Assert.assertFalse(timeService.shutdownServiceUninterruptible(timeoutMs));
+		// check that termination flag was set.
+		Assert.assertTrue(timeService.isTerminated());
+		// check that the blocked timer is still in flight.
+		Assert.assertFalse(timerFinished.get());
+		// check that we waited until timeout
+		Assert.assertTrue((System.nanoTime() - startTime) >= (1_000_000L * timeoutMs));
+
+		runInterrupts.set(false);
+
+		do {
+			try {
+				interruptCallerThread.join();
+			} catch (InterruptedException ignore) {
+			}
+		} while (interruptCallerThread.isAlive());
+
+		blockUntilTriggered.trigger();
+		Assert.assertTrue(timeService.shutdownServiceUninterruptible(timeoutMs));
+		Assert.assertTrue(timerFinished.get());
+	}
+
+	private static SystemProcessingTimeService createBlockingSystemProcessingTimeService(
+		final Object lock,
+		final OneShotLatch blockUntilTriggered,
+		final AtomicBoolean check) {
+
+		final OneShotLatch waitUntilTimerStarted = new OneShotLatch();
+
+		Preconditions.checkState(!check.get());
+
+		final SystemProcessingTimeService timeService = new SystemProcessingTimeService(
+			(message, exception) -> {
+			},
+			lock);
+
+		timeService.scheduleAtFixedRate(
+			timestamp -> {
+
+				waitUntilTimerStarted.trigger();
+
+				boolean unblocked = false;
+
+				while (!unblocked) {
+					try {
+						blockUntilTriggered.await();
+						unblocked = true;
+					} catch (InterruptedException ignore) {
+					}
+				}
+
+				check.set(true);
+			},
+			0L,
+			10L);
+
+		try {
+			waitUntilTimerStarted.await();
+		} catch (InterruptedException e) {
+			Assert.fail("Problem while starting up service.");
+		}
+
+		return timeService;
 	}
 }
