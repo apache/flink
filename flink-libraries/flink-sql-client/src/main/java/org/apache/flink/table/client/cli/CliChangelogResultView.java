@@ -89,6 +89,9 @@ public class CliChangelogResultView extends CliResultView<CliChangelogResultView
 	@Override
 	protected void display() {
 		// scroll down before displaying
+		if (scrolling > 0) {
+			selectedRow = NO_ROW_SELECTED;
+		}
 		scrollDown(scrolling);
 		scrolling = 0;
 
@@ -248,7 +251,7 @@ public class CliChangelogResultView extends CliResultView<CliChangelogResultView
 
 	@Override
 	protected List<AttributedString> computeFooterLines() {
-		return formatTwoLineHelpOptions(client.getWidth(), getHelpOptions());
+		return formatTwoLineHelpOptions(getWidth(), getHelpOptions());
 	}
 
 	// --------------------------------------------------------------------------------------------
