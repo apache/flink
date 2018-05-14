@@ -67,11 +67,11 @@ public class CheckpointingOptions {
 				" this option.");
 
 	/**
-	 * This option configures local recovery for this state backend.
+	 * This option configures local recovery for this state backend. By default, local recovery is deactivated.
 	 */
-	public static final ConfigOption<String> LOCAL_RECOVERY = ConfigOptions
+	public static final ConfigOption<Boolean> LOCAL_RECOVERY = ConfigOptions
 		.key("state.backend.local-recovery")
-		.defaultValue("DISABLED");
+		.defaultValue(false);
 
 	/**
 	 * The config parameter defining the root directories for storing file-based state for local recovery.

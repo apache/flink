@@ -54,7 +54,7 @@ public class TaskExecutorLocalStateStoresManager {
 	private final Map<AllocationID, Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl>> taskStateStoresByAllocationID;
 
 	/** The configured mode for local recovery on this task manager. */
-	private final LocalRecoveryConfig.LocalRecoveryMode localRecoveryMode;
+	private final boolean localRecoveryEnabled;
 
 	/** This is the root directory for all local state of this task manager / executor. */
 	private final File[] localStateRootDirectories;
@@ -71,12 +71,12 @@ public class TaskExecutorLocalStateStoresManager {
 	private boolean closed;
 
 	public TaskExecutorLocalStateStoresManager(
-		@Nonnull LocalRecoveryConfig.LocalRecoveryMode localRecoveryMode,
+		boolean localRecoveryEnabled,
 		@Nonnull File[] localStateRootDirectories,
 		@Nonnull Executor discardExecutor) throws IOException {
 
 		this.taskStateStoresByAllocationID = new HashMap<>();
-		this.localRecoveryMode = localRecoveryMode;
+		this.localRecoveryEnabled = localRecoveryEnabled;
 		this.localStateRootDirectories = localStateRootDirectories;
 		this.discardExecutor = discardExecutor;
 		this.lock = new Object();
@@ -140,7 +140,7 @@ public class TaskExecutorLocalStateStoresManager {
 					subtaskIndex);
 
 				LocalRecoveryConfig localRecoveryConfig =
-					new LocalRecoveryConfig(localRecoveryMode, directoryProvider);
+					new LocalRecoveryConfig(localRecoveryEnabled, directoryProvider);
 
 				taskLocalStateStore = new TaskLocalStateStoreImpl(
 					jobId,
@@ -217,8 +217,8 @@ public class TaskExecutorLocalStateStoresManager {
 	}
 
 	@VisibleForTesting
-	public LocalRecoveryConfig.LocalRecoveryMode getLocalRecoveryMode() {
-		return localRecoveryMode;
+	boolean isLocalRecoveryEnabled() {
+		return localRecoveryEnabled;
 	}
 
 	@VisibleForTesting

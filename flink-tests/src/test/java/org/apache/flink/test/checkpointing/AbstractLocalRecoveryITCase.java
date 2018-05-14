@@ -28,7 +28,6 @@ import org.junit.rules.TestName;
 
 import java.io.IOException;
 
-import static org.apache.flink.runtime.state.LocalRecoveryConfig.LocalRecoveryMode;
 import static org.apache.flink.test.checkpointing.AbstractEventTimeWindowCheckpointingITCase.StateBackendEnum;
 
 /**
@@ -40,14 +39,14 @@ import static org.apache.flink.test.checkpointing.AbstractEventTimeWindowCheckpo
 public abstract class AbstractLocalRecoveryITCase extends TestLogger {
 
 	private final StateBackendEnum backendEnum;
-	private final LocalRecoveryMode recoveryMode;
+	private final boolean localRecoveryEnabled;
 
 	@Rule
 	public TestName testName = new TestName();
 
-	AbstractLocalRecoveryITCase(StateBackendEnum backendEnum, LocalRecoveryMode recoveryMode) {
+	AbstractLocalRecoveryITCase(StateBackendEnum backendEnum, boolean localRecoveryEnabled) {
 		this.backendEnum = backendEnum;
-		this.recoveryMode = recoveryMode;
+		this.localRecoveryEnabled = localRecoveryEnabled;
 	}
 
 	@Test
@@ -64,9 +63,9 @@ public abstract class AbstractLocalRecoveryITCase extends TestLogger {
 				protected Configuration createClusterConfig() throws IOException {
 					Configuration config = super.createClusterConfig();
 
-					config.setString(
+					config.setBoolean(
 						CheckpointingOptions.LOCAL_RECOVERY,
-						recoveryMode.toString());
+						localRecoveryEnabled);
 
 					return config;
 				}

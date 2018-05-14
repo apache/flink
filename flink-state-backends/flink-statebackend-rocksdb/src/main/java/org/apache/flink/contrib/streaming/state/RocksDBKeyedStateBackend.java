@@ -1663,9 +1663,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			final SupplierWithException<CheckpointStreamWithResultProvider, Exception> supplier =
 
-				isWithLocalRecovery(
-					checkpointOptions.getCheckpointType(),
-					localRecoveryConfig.getLocalRecoveryMode()) ?
+				localRecoveryConfig.isLocalRecoveryEnabled() &&
+					(CheckpointType.SAVEPOINT != checkpointOptions.getCheckpointType()) ?
 
 					() -> CheckpointStreamWithResultProvider.createDuplicatingStream(
 						checkpointId,
@@ -1745,14 +1744,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				primaryStreamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
 			return AsyncStoppableTaskWithCallback.from(ioCallable);
 		}
-
-		private boolean isWithLocalRecovery(
-			CheckpointType checkpointType,
-			LocalRecoveryConfig.LocalRecoveryMode recoveryMode) {
-			// we use local recovery when it is activated and we are not taking a savepoint.
-			return LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED == recoveryMode
-				&& CheckpointType.SAVEPOINT != checkpointType;
-		}
 	}
 
 	private class IncrementalSnapshotStrategy implements SnapshotStrategy<SnapshotResult<KeyedStateHandle>> {
@@ -1792,7 +1783,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			SnapshotDirectory snapshotDirectory;
 
-			if (LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED == localRecoveryConfig.getLocalRecoveryMode()) {
+			if (localRecoveryConfig.isLocalRecoveryEnabled()) {
 				// create a "permanent" snapshot directory for local recovery.
 				LocalRecoveryDirectoryProvider directoryProvider = localRecoveryConfig.getLocalStateDirectoryProvider();
 				File directory = directoryProvider.subtaskSpecificCheckpointDirectory(checkpointId);
@@ -2299,7 +2290,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			CheckpointStreamWithResultProvider streamWithResultProvider =
 
-				LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED == localRecoveryConfig.getLocalRecoveryMode() ?
+				localRecoveryConfig.isLocalRecoveryEnabled() ?
 
 					CheckpointStreamWithResultProvider.createDuplicatingStream(
 						checkpointId,
