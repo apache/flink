@@ -128,26 +128,24 @@ public class AWSUtil {
 			credentialProviderType = CredentialProvider.valueOf(configProps.getProperty(configPrefix));
 		}
 
-		AWSCredentialsProvider credentialsProvider;
-
 		switch (credentialProviderType) {
 			case ENV_VAR:
-				credentialsProvider = new EnvironmentVariableCredentialsProvider();
-				break;
+				return new EnvironmentVariableCredentialsProvider();
+
 			case SYS_PROP:
-				credentialsProvider = new SystemPropertiesCredentialsProvider();
-				break;
+				return new SystemPropertiesCredentialsProvider();
+
 			case PROFILE:
 				String profileName = configProps.getProperty(
 						AWSConfigConstants.profileName(configPrefix), null);
 				String profileConfigPath = configProps.getProperty(
 						AWSConfigConstants.profilePath(configPrefix), null);
-				credentialsProvider = (profileConfigPath == null)
+				return (profileConfigPath == null)
 					? new ProfileCredentialsProvider(profileName)
 					: new ProfileCredentialsProvider(profileConfigPath, profileName);
-				break;
+
 			case BASIC:
-				credentialsProvider = new AWSCredentialsProvider() {
+				return new AWSCredentialsProvider() {
 					@Override
 					public AWSCredentials getCredentials() {
 						return new BasicAWSCredentials(
@@ -160,20 +158,18 @@ public class AWSUtil {
 						// do nothing
 					}
 				};
-				break;
+
 			case ASSUME_ROLE:
-				credentialsProvider = new STSProfileCredentialsServiceProvider(new RoleInfo()
+				return new STSProfileCredentialsServiceProvider(new RoleInfo()
 						.withRoleArn(configProps.getProperty(AWSConfigConstants.roleArn(configPrefix)))
 						.withRoleSessionName(configProps.getProperty(AWSConfigConstants.roleSessionName(configPrefix)))
 						.withExternalId(configProps.getProperty(AWSConfigConstants.externalId(configPrefix)))
 						.withLongLivedCredentialsProvider(getCredentialsProvider(configProps, AWSConfigConstants.roleCredentialsProvider(configPrefix))));
-				break;
+
 			default:
 			case AUTO:
-				credentialsProvider = new DefaultAWSCredentialsProviderChain();
+				return new DefaultAWSCredentialsProviderChain();
 		}
-
-		return credentialsProvider;
 	}
 
 	/**
