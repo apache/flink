@@ -31,6 +31,8 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import com.amazonaws.auth.profile.internal.securitytoken.RoleInfo;
+import com.amazonaws.auth.profile.internal.securitytoken.STSProfileCredentialsServiceProvider;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.AmazonKinesis;
@@ -99,10 +101,23 @@ public class AWSUtil {
 	 * @return The corresponding AWS Credentials Provider instance
 	 */
 	public static AWSCredentialsProvider getCredentialsProvider(final Properties configProps) {
+		return getCredentialsProvider(configProps, AWSConfigConstants.AWS_CREDENTIALS_PROVIDER);
+	}
+
+	/**
+	 * If the provider is ASSUME_ROLE, then the credentials for assuming this role are determined
+	 * recursively.
+	 *
+	 * @param configProps the configuration properties
+	 * @param configPrefix the prefix of the config properties for this credentials provider,
+	 *                     e.g. aws.credentials.provider, aws.credentials.provider.role.provider,
+	 *                     and so on.
+	 */
+	private static AWSCredentialsProvider getCredentialsProvider(final Properties configProps, final String configPrefix) {
 		CredentialProvider credentialProviderType;
-		if (!configProps.containsKey(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER)) {
-			if (configProps.containsKey(AWSConfigConstants.AWS_ACCESS_KEY_ID)
-				&& configProps.containsKey(AWSConfigConstants.AWS_SECRET_ACCESS_KEY)) {
+		if (!configProps.containsKey(configPrefix)) {
+			if (configProps.containsKey(AWSConfigConstants.accessKeyId(configPrefix))
+				&& configProps.containsKey(AWSConfigConstants.secretKey(configPrefix))) {
 				// if the credential provider type is not specified, but the Access Key ID and Secret Key are given, it will default to BASIC
 				credentialProviderType = CredentialProvider.BASIC;
 			} else {
@@ -110,8 +125,7 @@ public class AWSUtil {
 				credentialProviderType = CredentialProvider.AUTO;
 			}
 		} else {
-			credentialProviderType = CredentialProvider.valueOf(configProps.getProperty(
-				AWSConfigConstants.AWS_CREDENTIALS_PROVIDER));
+			credentialProviderType = CredentialProvider.valueOf(configProps.getProperty(configPrefix));
 		}
 
 		AWSCredentialsProvider credentialsProvider;
@@ -125,9 +139,9 @@ public class AWSUtil {
 				break;
 			case PROFILE:
 				String profileName = configProps.getProperty(
-					AWSConfigConstants.AWS_PROFILE_NAME, null);
+						AWSConfigConstants.profileName(configPrefix), null);
 				String profileConfigPath = configProps.getProperty(
-					AWSConfigConstants.AWS_PROFILE_PATH, null);
+						AWSConfigConstants.profilePath(configPrefix), null);
 				credentialsProvider = (profileConfigPath == null)
 					? new ProfileCredentialsProvider(profileName)
 					: new ProfileCredentialsProvider(profileConfigPath, profileName);
@@ -137,8 +151,8 @@ public class AWSUtil {
 					@Override
 					public AWSCredentials getCredentials() {
 						return new BasicAWSCredentials(
-							configProps.getProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID),
-							configProps.getProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY));
+							configProps.getProperty(AWSConfigConstants.accessKeyId(configPrefix)),
+							configProps.getProperty(AWSConfigConstants.secretKey(configPrefix)));
 					}
 
 					@Override
@@ -146,6 +160,13 @@ public class AWSUtil {
 						// do nothing
 					}
 				};
+				break;
+			case ASSUME_ROLE:
+				credentialsProvider = new STSProfileCredentialsServiceProvider(new RoleInfo()
+						.withRoleArn(configProps.getProperty(AWSConfigConstants.roleArn(configPrefix)))
+						.withRoleSessionName(configProps.getProperty(AWSConfigConstants.roleSessionName(configPrefix)))
+						.withExternalId(configProps.getProperty(AWSConfigConstants.externalId(configPrefix)))
+						.withLongLivedCredentialsProvider(getCredentialsProvider(configProps, AWSConfigConstants.roleCredentialsProvider(configPrefix))));
 				break;
 			default:
 			case AUTO:
