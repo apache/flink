@@ -47,6 +47,8 @@ import org.apache.flink.api.java.tuple.Tuple9;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.lang.reflect.InvocationTargetException;
+
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -65,8 +67,9 @@ public class FieldsFromTupleTest {
 	}
 
 	@Test
-	public void testUserSpecifiedOrder() throws InstantiationException, IllegalAccessException {
-		Tuple currentTuple = (Tuple) CLASSES[Tuple.MAX_ARITY - 1].newInstance();
+	public void testUserSpecifiedOrder() throws InstantiationException, IllegalAccessException,
+		NoSuchMethodException, InvocationTargetException {
+		Tuple currentTuple = (Tuple) CLASSES[Tuple.MAX_ARITY - 1].getDeclaredConstructor().newInstance();
 		for (int i = 0; i < Tuple.MAX_ARITY; i++) {
 			currentTuple.setField(testDouble[i], i);
 		}

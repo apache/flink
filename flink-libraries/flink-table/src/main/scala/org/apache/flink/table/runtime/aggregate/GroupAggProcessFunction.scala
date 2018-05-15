@@ -63,7 +63,7 @@ class GroupAggProcessFunction(
       genAggregations.name,
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
-    function = clazz.newInstance()
+    function = clazz.getDeclaredConstructor().newInstance()
     function.open(getRuntimeContext)
 
     newRow = new CRow(function.createOutputRow(), true)

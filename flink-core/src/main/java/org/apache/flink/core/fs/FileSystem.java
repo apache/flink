@@ -1009,7 +1009,7 @@ public abstract class FileSystem {
 
 		// Create the factory.
 		try {
-			return factoryClass.newInstance();
+			return factoryClass.getDeclaredConstructor().newInstance();
 		}
 		catch (Exception | LinkageError e) {
 			LOG.warn("Flink's Hadoop file system factory could not be created", e);

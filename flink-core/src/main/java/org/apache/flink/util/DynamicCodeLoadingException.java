@@ -28,7 +28,7 @@ import org.apache.flink.annotation.Public;
  *
  * <pre>{@code
  * try {
- *     Class.forName(classname).asSubclass(TheType.class).newInstance();
+ *     Class.forName(classname).asSubclass(TheType.class).getDeclaredConstructor().newInstance();
  * }
  * catch (ClassNotFoundException | ClassCastException | InstantiationException | IllegalAccessException e) {
  *     throw new DynamicCodeLoadingException("Could not load and instantiate " + classname", e);

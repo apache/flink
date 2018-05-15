@@ -187,7 +187,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 		} else {
 			// Create new accumulator
 			try {
-				accumulator = accumulatorClass.newInstance();
+				accumulator = accumulatorClass.getDeclaredConstructor().newInstance();
 			}
 			catch (Exception e) {
 				throw new RuntimeException("Cannot create accumulator " + accumulatorClass.getName());

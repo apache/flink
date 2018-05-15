@@ -45,7 +45,7 @@ public abstract class AvroUtils {
 		// try and load the special AvroUtils from the flink-avro package
 		try {
 			Class<?> clazz = Class.forName(AVRO_KRYO_UTILS, false, Thread.currentThread().getContextClassLoader());
-			return clazz.asSubclass(AvroUtils.class).getConstructor().newInstance();
+			return clazz.asSubclass(AvroUtils.class).getDeclaredConstructor().newInstance();
 		} catch (ClassNotFoundException e) {
 			// cannot find the utils, return the default implementation
 			return new DefaultAvroUtils();

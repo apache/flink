@@ -35,7 +35,7 @@ public final class ReflectionUtil {
 
 	public static <T> T newInstance(Class<T> clazz) {
 		try {
-			return clazz.newInstance();
+			return clazz.getDeclaredConstructor().newInstance();
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

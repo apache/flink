@@ -316,7 +316,7 @@ public final class InstantiationUtil {
 
 		// try to instantiate the class
 		try {
-			return clazz.newInstance();
+			return clazz.getDeclaredConstructor().newInstance();
 		}
 		catch (InstantiationException | IllegalAccessException iex) {
 			// check for the common problem causes

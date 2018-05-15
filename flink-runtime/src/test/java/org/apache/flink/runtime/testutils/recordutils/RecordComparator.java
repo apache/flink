@@ -165,8 +165,8 @@ public final class RecordComparator extends TypeComparator<Record> {
 		
 		try {
 			for (int i = 0; i < this.keyHolders.length; i++) {
-				this.keyHolders[i] = toCopy.keyHolders[i].getClass().newInstance();
-				this.transientKeyHolders[i] = toCopy.keyHolders[i].getClass().newInstance();
+				this.keyHolders[i] = toCopy.keyHolders[i].getClass().getDeclaredConstructor().newInstance();
+				this.transientKeyHolders[i] = toCopy.keyHolders[i].getClass().getDeclaredConstructor().newInstance();
 			}
 		} catch (Exception ex) {
 			// this should never happen, because the classes have been instantiated before. Report for debugging.
@@ -378,7 +378,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 		try {
 			final Value[] keys = new Value[this.keyFields.length];
 			for (int i = 0; i < keys.length; i++) {
-				keys[i] = this.keyHolders[i].getClass().newInstance();
+				keys[i] = this.keyHolders[i].getClass().getDeclaredConstructor().newInstance();
 			}
 			if(!record.getFieldsInto(this.keyFields, keys)) {
 				throw new RuntimeException("Could not extract keys from record.");

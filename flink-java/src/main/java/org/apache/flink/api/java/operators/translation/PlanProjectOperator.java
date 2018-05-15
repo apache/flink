@@ -57,7 +57,7 @@ public class PlanProjectOperator<T, R extends Tuple> extends MapOperatorBase<T, 
 		private MapProjector(int[] fields) {
 			this.fields = fields;
 			try {
-				this.outTuple = Tuple.getTupleClass(fields.length).newInstance();
+				this.outTuple = Tuple.getTupleClass(fields.length).getDeclaredConstructor().newInstance();
 			}
 			catch (Exception e) {
 				// this should never happen

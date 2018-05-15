@@ -21,6 +21,8 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple;
 
+import java.lang.reflect.InvocationTargetException;
+
 /**
  * Aggregate tuples using an array of aggregators, one for each "column" or position within the Tuple.
  */
@@ -58,13 +60,13 @@ public class TupleSummaryAggregator<R extends Tuple> implements Aggregator<Tuple
 	public R result() {
 		try {
 			Class tupleClass = Tuple.getTupleClass(columnAggregators.length);
-			R tuple = (R) tupleClass.newInstance();
+			R tuple = (R) tupleClass.getDeclaredConstructor().newInstance();
 			for (int i = 0; i < columnAggregators.length; i++) {
 				tuple.setField(columnAggregators[i].result(), i);
 			}
 			return tuple;
 		}
-		catch (InstantiationException | IllegalAccessException e) {
+		catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
 			throw new RuntimeException("Unexpected error instantiating Tuple class for aggregation results", e);
 
 		}

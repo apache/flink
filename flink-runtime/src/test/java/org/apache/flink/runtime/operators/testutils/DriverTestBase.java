@@ -182,7 +182,7 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger impl
 		this.driver = driver;
 		driver.setup(this);
 
-		this.stub = (S)stubClass.newInstance();
+		this.stub = (S)stubClass.getDeclaredConstructor().newInstance();
 
 		// regular running logic
 		boolean stubOpen = false;
